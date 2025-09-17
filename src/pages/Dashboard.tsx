@@ -39,7 +39,7 @@ import { useFrappeGetDocList, useFrappeAuth } from "frappe-react-sdk"
 import { AppSidebar } from "@/components/RndSidebar"
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
 import { MenuIcon } from "lucide-react"
-import { ProjectRegistration } from "./ProjectRegistration"
+import  {ProjectRegistration } from "./ProjectRegistration"
 import ProjectDetails from "./ProjectDetails"
 import { UserCreation } from "./UserCreation"
 import UserList from "./UserList"
@@ -354,3 +354,27 @@ export default function Dashboard() {
     </SidebarProvider>
   )
 }
+
+
+
+
+//   GNU nano 6.2                                             next.config.ts                                                      
+// import type { NextConfig } from "next";
+
+// const nextConfig: NextConfig = {
+//   basePath: "/rndproj/recuitment",
+//   assetPrefix: "/rndproj/recuitment", // optional, if you serve static assets
+//   trailingSlash: true, // serve URLs with trailing slash
+
+//   async rewrites() {
+//     return [
+//       {
+//         source: "/api/:path*",
+//         destination: "https://iitg.ac.in/rndproj/recuitment/api/v1/api/v1/:path*",
+//         },
+//     ];
+//   },
+// };
+
+// export default nextConfig;
+
