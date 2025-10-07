@@ -399,11 +399,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { useFrappeGetDocList, useFrappeAuth } from "frappe-react-sdk"
+import { useFrappeGetDocList, useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk"
 import { AppSidebar } from "@/components/RndSidebar"
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
-import { MenuIcon } from "lucide-react"
-import  {ProjectRegistration } from "./ProjectRegistration"
+import { MenuIcon, UserIcon } from "lucide-react" // Added UserIcon import
+import ProjectRegistration from "./ProjectRegistration"
 import ProjectDetails from "./ProjectDetails" // This should be ProjectDetailsView
 import { UserCreation } from "./UserCreation"
 import UserList from "./UserList"
@@ -534,6 +534,10 @@ export default function Dashboard() {
   const [selectedProject, setSelectedProject] = React.useState<string | null>(null)
 
   const { currentUser } = useFrappeAuth();
+  const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc("User", currentUser ?? "", {
+    fields: ["user_image"],
+    enabled: !!currentUser, // Only fetch if currentUser is available
+  });
 
   const { data: projects, error } = useFrappeGetDocList("Project Registration", {
     fields: ["name", "status", "project_type", "name_of_the_principal_investigator", "project_name"],
@@ -592,6 +596,20 @@ export default function Dashboard() {
               </div>
               {currentUser && (
               <div className="flex items-center gap-2">
+                  {isUserLoading ? (
+                      <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse"></div>
+                  ) : (
+                      <img
+                          src={userData?.user_image || 'https://placehold.co/32x32/E0E7FF/4F46E5?text=NA'}
+                          alt="User Profile"
+                          className="h-8 w-8 rounded-full object-cover border border-gray-200"
+                          onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.onerror = null;
+                              target.src = 'https://placehold.co/32x32/E0E7FF/4F46E5?text=NA';
+                          }}
+                      />
+                  )}
                   <span>Welcome, {currentUser}</span>
               </div>
               )}
