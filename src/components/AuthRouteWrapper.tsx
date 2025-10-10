@@ -23,14 +23,22 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
     console.log("  rolesError:", rolesError);
     console.log("  roles:", roles);
 
+    // Wait until both authentication and roles are no longer loading
     if (isAuthLoading || isRolesLoading) {
       console.log("  AuthRouteWrapper: Still loading auth or roles, returning.");
-      return; // Wait for authentication check and roles to complete
+      return;
     }
 
-    if (!currentUser) {
-      console.log("  AuthRouteWrapper: No current user, navigating to /login.");
-      navigate('/login'); // If not logged in at all, go to login
+    // If currentUser is explicitly null (not just undefined during loading), redirect to login
+    if (currentUser === null) {
+      console.log("  AuthRouteWrapper: Current user is null, navigating to /login.");
+      navigate('/login');
+      return;
+    }
+
+    // If currentUser is undefined (initial state before any auth check result), wait
+    if (currentUser === undefined) {
+      console.log("  AuthRouteWrapper: Current user is undefined, waiting for auth check.");
       return;
     }
 
@@ -47,16 +55,16 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
       console.log("  AuthRouteWrapper: isPermanentEmployee:", isPermanentEmployee);
 
       // If the user's role does not match what this route allows, redirect them to a default unauthorized page.
-      // The Dashboard component handles the initial role-based redirection.
+      // Redirect based on allowedRole and user's permanent employee status
       if (allowedRole === 'Permanent Employee' && !isPermanentEmployee) {
         console.log("AuthRouteWrapper: User is not Permanent Employee, redirecting to /home.");
-        navigate('/home');
+        navigate('/home'); // Non-permanent employee trying to access PE route, redirect to home
       } else if (allowedRole === 'non-permanent' && isPermanentEmployee) {
-        console.log("AuthRouteWrapper: User is Permanent Employee trying to access non-permanent route, redirecting to /home.");
-        navigate('/home'); // Redirect to home if a PE tries to access a non-PE route
+        console.log("AuthRouteWrapper: User is Permanent Employee trying to access non-permanent route, redirecting to /pihomepage.");
+        navigate('/pihomepage'); // Permanent employee trying to access non-PE route, redirect to pihomepage
       }
     }
-  }, [isAuthLoading, isRolesLoading, currentUser, roles, rolesError, allowedRole, navigate]);
+  }, [isAuthLoading, isRolesLoading, currentUser, roles, rolesError, allowedRole, navigate]); // Keep dependencies as is for now
 
   // Show a loading state while we verify authentication and roles
   if (isAuthLoading || isRolesLoading) {

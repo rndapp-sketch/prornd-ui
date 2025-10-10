@@ -21,16 +21,22 @@ const Dashboard = () => {
     console.log("  rolesError:", rolesError);
     console.log("  roles:", roles);
 
-    // Wait until we have the authentication status and roles are loaded
+    // Wait until both authentication and roles are no longer loading
     if (isAuthLoading || isRolesLoading) {
       console.log("  Still loading auth or roles, returning.");
       return;
     }
 
-    // If there is no logged-in user, send them to the login page
-    if (!currentUser) {
-      console.log("  No current user, navigating to /login.");
+    // If currentUser is explicitly null (not just undefined during loading), redirect to login
+    if (currentUser === null) {
+      console.log("  Current user is null, navigating to /login.");
       navigate('/login');
+      return;
+    }
+
+    // If currentUser is undefined (initial state before any auth check result), wait
+    if (currentUser === undefined) {
+      console.log("  Current user is undefined, waiting for auth check.");
       return;
     }
 

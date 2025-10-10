@@ -153,6 +153,12 @@ export function Home() { // Removed props from here
   const [showSalary, setShowSalary] = React.useState(false);
     
   const isPermanentEmployee = userData?.user_roles?.some((role: any) => role.role === "Permanent Employee") || false;
+  console.log("isPermanentEmployee :",isPermanentEmployee)
+  // Redirect Permanent Employees to PI Home Page
+  if (isPermanentEmployee) {
+    navigate("/pihomepage");
+    return null; // Prevent rendering Home content for permanent employees
+  }
 
   return (
     <div className="flex min-h-screen">
