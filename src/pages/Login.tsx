@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Footer from '@/components/ui/Footer';
@@ -15,6 +15,15 @@ const Login: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(!!currentUser);
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+
+  // useEffect(() => {
+  //   if (currentUser) {
+  //     logout().then(() => {
+  //       setIsLoggedIn(false);
+  //       console.log('Session cleared on login page load.');
+  //     });
+  //   }
+  // }, [currentUser, logout]);
 
   const handleSubmit = () => {
     setError(null);

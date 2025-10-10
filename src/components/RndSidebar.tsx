@@ -20,75 +20,89 @@ import {
 import { HomeIcon, UsersIcon, SettingsIcon, LogOutIcon, FileText, ChevronDownIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useFrappeAuth } from "frappe-react-sdk";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router-dom"; // Import useNavigate and useLocation
 import { useState } from "react";
 
 interface SubMenuItem {
   label: string;
-  onClick: () => void;
+  path: string; // Use path instead of onClick
 }
 
 interface MenuItem {
   label: string;
   icon: LucideIcon;
-  onClick?: () => void;
+  path?: string; // Use path instead of onClick
   subMenu?: SubMenuItem[];
+  roles?: string[]; // Optional roles for access control
 }
 
-const menuItems: MenuItem[] = [
-  {
-    label: "Home",
-    icon: HomeIcon,
-    onClick: () => {},
-  },
-  {
-    label: "Projects",
-    icon: FileText,
-    subMenu: [
-      {
-        label: "Endorsement",
-        onClick: () => {},
-      },
-      {
-        label: "Project Registration",
-        onClick: () => {},
-      },
-      {
-        label: "Add Fund Sanction",
-        onClick: () => {},
-      },
-      {
-        label: "Add Received Funds",
-        onClick: () => {},
-      },
-      {
-        label: "User Creation",
-        onClick: () => {},
-      },
-    ],
-  },
-  {
-    label: "Users",
-    icon: UsersIcon,
-    subMenu: [
-      {
-        label: "User List",
-        onClick: () => {},
-      },
-    ],
-  },
-  {
-    label: "Settings",
-    icon: SettingsIcon,
-    onClick: () => {},
-  },
-];
-
-export function AppSidebar({ setActiveView }: { setActiveView: (view: string) => void }) {
+export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boolean }) { // Accept isPermanentEmployee prop
   const { logout } = useFrappeAuth();
   const { state } = useSidebar();
   const navigate = useNavigate();
+  const location = useLocation(); // Get current location for active state
   const [openSubMenus, setOpenSubMenus] = useState<string[]>([]);
+
+  const menuItems: MenuItem[] = [
+    {
+      label: "Home",
+      icon: HomeIcon,
+      path: "/home",
+      roles: ["All_ProRnd_User", "All", "Guest", "Desk User"], // Roles that can access Home
+    },
+    {
+      label: "PI Home Page",
+      icon: HomeIcon, // Using HomeIcon for now, can be changed
+      path: "/pihomepage",
+      roles: ["Permanent Employee"], // Roles that can access PI Home Page
+    },
+    {
+      label: "Projects",
+      icon: FileText,
+      path: "/projects", // Base path for projects
+      subMenu: [
+        {
+          label: "Endorsement",
+          path: "/endorsement",
+        },
+        {
+          label: "Project Registration",
+          path: "/project-registration",
+        },
+        {
+          label: "Add Fund Sanction",
+          path: "/add-fund-sanction",
+        },
+        {
+          label: "Add Received Funds",
+          path: "/add-received-funds",
+        },
+        {
+          label: "User Creation",
+          path: "/user-creation",
+        },
+      ],
+      roles: ["All_ProRnd_User", "Permanent Employee", "All"], // Example roles for Projects
+    },
+    {
+      label: "Users",
+      icon: UsersIcon,
+      path: "/users", // Base path for users
+      subMenu: [
+        {
+          label: "User List",
+          path: "/user-list",
+        },
+      ],
+      roles: ["All_ProRnd_User", "Permanent Employee", "All"], // Example roles for Users
+    },
+    {
+      label: "Settings",
+      icon: SettingsIcon,
+      path: "/settings", // Example path for settings
+      roles: ["All_ProRnd_User", "Permanent Employee", "All"], // Example roles for Settings
+    },
+  ];
 
   const handleMenuItemClick = (item: MenuItem) => {
     if (item.subMenu) {
@@ -97,22 +111,28 @@ export function AppSidebar({ setActiveView }: { setActiveView: (view: string) =>
           ? prev.filter((label) => label !== item.label)
           : [...prev, item.label]
       );
-    } else if (item.onClick) {
-      item.onClick();
+    }
+    if (item.path) {
+      navigate(item.path);
     }
   };
 
   const handleSubMenuItemClick = (subItem: SubMenuItem) => {
-    subItem.onClick();
+    navigate(subItem.path);
   };
 
-  menuItems[0].onClick = () => setActiveView("home");
-  menuItems[1].subMenu![0].onClick = () => setActiveView("endorsement");
-  menuItems[1].subMenu![1].onClick = () => setActiveView("project-registration");
-  menuItems[1].subMenu![2].onClick = () => setActiveView("add-fund-sanction");
-  menuItems[1].subMenu![3].onClick = () => setActiveView("add-received-funds");
-  menuItems[1].subMenu![4].onClick = () => setActiveView("user-creation");
-  menuItems[2].subMenu![0].onClick = () => setActiveView("user-list");
+  // Filter menu items based on user's permanent employee status
+  const filteredMenuItems = menuItems.filter(item => {
+    if (item.label === "Home" && isPermanentEmployee) {
+      return false; // Permanent employees should not see "Home"
+    }
+    if (item.label === "PI Home Page" && !isPermanentEmployee) {
+      return false; // Non-permanent employees should not see "PI Home Page"
+    }
+    return true; // Show other items for now, more granular role checks can be added
+  });
+
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -123,11 +143,11 @@ export function AppSidebar({ setActiveView }: { setActiveView: (view: string) =>
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          {menuItems.map((item) => (
+          {filteredMenuItems.map((item) => (
             <SidebarMenuItem key={item.label}>
               <SidebarMenuButton
                 onClick={() => handleMenuItemClick(item)}
-                className="justify-between"
+                className={`justify-between ${location.pathname === item.path ? "bg-gray-200" : ""}`} // Highlight active item
               >
                 <div className="flex items-center gap-2">
                   <item.icon className="size-4" />
@@ -147,6 +167,7 @@ export function AppSidebar({ setActiveView }: { setActiveView: (view: string) =>
                     <SidebarMenuSubItem key={subItem.label}>
                       <SidebarMenuSubButton
                         onClick={() => handleSubMenuItemClick(subItem)}
+                        className={`${location.pathname === subItem.path ? "bg-gray-200" : ""}`} // Highlight active sub-item
                       >
                         {subItem.label}
                       </SidebarMenuSubButton>

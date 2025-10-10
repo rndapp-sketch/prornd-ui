@@ -1,8 +1,4 @@
-
-
-
-// ================================================================================================================
-
+// PiHomePage.tsx
 
 import * as React from "react";
 import { useNavigate } from "react-router-dom"; // Import useNavigate
@@ -71,11 +67,12 @@ const User: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
   </svg>
 );
 
-const Info: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+const Users: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="16" x2="12" y2="12" />
-        <line x1="12" y1="8" x2="12.01" y2="8" />
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
 );
 
@@ -83,22 +80,6 @@ const Mail: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
         <rect width="20" height="16" x="2" y="4" rx="2" />
         <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-    </svg>
-);
-
-const Eye: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-        <circle cx="12" cy="12" r="3" />
-    </svg>
-);
-
-const EyeOff: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-        <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
-        <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
-        <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
-        <line x1="2" y1="2" x2="22" y2="22" />
     </svg>
 );
 
@@ -137,21 +118,20 @@ const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onCli
   </div>
 );
 
-// --- Main Home Component ---
-export function Home() { // Removed props from here
+// --- Main PI Home Page Component ---
+export function PiHomePage() { // Removed props from here
   const navigate = useNavigate(); // Initialize useNavigate
   const { currentUser } = useFrappeAuth();
   const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc("User", currentUser ?? "", {
-    fields: ["full_name", "user_roles"], // Fetch full_name and user_roles
+    fields: ["full_name", "designation", "department", "user_roles"], // Fetch full_name, designation, department, and user_roles
     enabled: !!currentUser,
   });
 
   const userName = currentUser || "Guest";
   const fullName = userData?.full_name || "";
+  const designation = userData?.designation || "N/A";
+  const department = userData?.department || "N/A";
 
-  const [showAccountNumber, setShowAccountNumber] = React.useState(false);
-  const [showSalary, setShowSalary] = React.useState(false);
-    
   const isPermanentEmployee = userData?.user_roles?.some((role: any) => role.role === "Permanent Employee") || false;
 
   return (
@@ -163,10 +143,10 @@ export function Home() { // Removed props from here
           <header className="mb-12">
               <div className="flex justify-between items-center mb-4">
                   <div>
-                       <h1 className="text-4xl font-bold tracking-tight text-slate-900 bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">R&D Portal</h1>
-                       <p className="text-slate-600 mt-1">Your hub for innovation and project management.</p>
+                      <h1 className="text-4xl font-bold tracking-tight text-slate-900 bg-gradient-to-r from-sky-500 to-indigo-500 bg-clip-text text-transparent">R&D Portal</h1>
+                      <p className="text-slate-600 mt-1">Your hub for innovation and project management.</p>
                   </div>
-                   <Clock />
+                  <Clock />
               </div>
               <div className="bg-gradient-to-r from-green-50 to-cyan-50 border-l-4 border-green-400 text-green-800 p-4 rounded-r-lg shadow-sm">
                   <p className="font-semibold text-lg">Welcome back, {fullName || userName}!</p>
@@ -175,50 +155,35 @@ export function Home() { // Removed props from here
 
           {/* User Information Section */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+              {/* PI Information Card */}
               <div className="bg-gradient-to-br from-white to-slate-50 p-6 rounded-xl shadow-lg border border-slate-200">
                   <div className="flex items-center mb-4">
                       <div className="w-10 h-10 mr-4 text-slate-500 flex items-center justify-center bg-slate-100 rounded-lg"><User /></div>
                       <h3 className="text-2xl font-semibold text-slate-800">Your Information</h3>
                   </div>
-                   <div className="border-t border-slate-200 pt-4 text-slate-700 space-y-3">
-                      <div className="flex justify-between items-center"><strong>Term Completion:</strong> <span>2026-04-21</span></div>
-                      <div className="flex justify-between items-center">
-                          <strong>Account Number:</strong> 
-                          <span className="flex items-center gap-2 font-mono">
-                              {showAccountNumber ? '123456781234' : '•••• •••• 1234'}
-                              <button onClick={() => setShowAccountNumber(!showAccountNumber)} className="text-sky-600 hover:text-sky-800 p-1 rounded-full hover:bg-sky-100 transition-colors">
-                                  {showAccountNumber ? <EyeOff className="w-5 h-5"/> : <Eye className="w-5 h-5"/>}
-                              </button>
-                          </span>
-                      </div>
-                       <div className="flex justify-between items-center">
-                          <strong>Salary Basic:</strong> 
-                          <span className="flex items-center gap-2 font-mono">
-                              {showSalary ? '₹ 50,000.00' : '₹ ••••••'}
-                              <button onClick={() => setShowSalary(!showSalary)} className="text-sky-600 hover:text-sky-800 p-1 rounded-full hover:bg-sky-100 transition-colors">
-                                   {showSalary ? <EyeOff className="w-5 h-5"/> : <Eye className="w-5 h-5"/>}
-                              </button>
-                          </span>
-                      </div>
-                      <div className="flex justify-between items-center"><strong>Hostel:</strong><span className="bg-slate-200 text-slate-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded-full">No</span></div>
-                      <div className="flex justify-between items-center"><strong>HRA:</strong><span className="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded-full">Yes</span></div>
+                  <div className="border-t border-slate-200 pt-4 text-slate-700 space-y-3">
+                      <div className="flex justify-between items-center"><strong>Name:</strong> <span>{fullName || "N/A"}</span></div>
+                      <div className="flex justify-between items-center"><strong>Designation:</strong> <span>{designation || "N/A"}</span></div>
+                      <div className="flex justify-between items-center"><strong>Department:</strong> <span>{department || "N/A"}</span></div>
                   </div>
                   <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
                       <p>For discrepancies, please contact the R&D Staff.</p>
                   </div>
               </div>
+
+              {/* User Management Card */}
               <div className="bg-gradient-to-br from-white to-slate-50 p-6 rounded-xl shadow-lg border border-slate-200 flex flex-col">
                   <div className="flex items-center mb-4">
-                      <div className="w-10 h-10 mr-4 text-slate-500 flex items-center justify-center bg-slate-100 rounded-lg"><Info /></div>
-                      <h3 className="text-2xl font-semibold text-slate-800">Leave & Policies</h3>
+                      <div className="w-10 h-10 mr-4 text-slate-500 flex items-center justify-center bg-slate-100 rounded-lg"><Users /></div>
+                      <h3 className="text-2xl font-semibold text-slate-800">User Management</h3>
                   </div>
                   <div className="border-t border-slate-200 pt-4 text-slate-700 flex-grow flex flex-col justify-center text-center">
-                      <p className="mb-4">Need to take some time off? Apply for leave here.</p>
+                      <p className="mb-4">View and manage all users in the R&D portal.</p>
                       <button 
-                          onClick={() => navigate("/leave-application")} // Use navigate
+                          onClick={() => navigate("/user-list")} // Use navigate
                           className="w-full bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:shadow-lg hover:from-sky-600 hover:to-indigo-700 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 transform hover:scale-105"
                       >
-                          Apply for Leave
+                          View All Users
                       </button>
                   </div>
               </div>
@@ -283,4 +248,4 @@ export function Home() { // Removed props from here
   );
 }
 
-export default Home;
+export default PiHomePage;
