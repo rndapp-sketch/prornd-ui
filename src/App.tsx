@@ -45,13 +45,13 @@ function App() {
         <SidebarProvider className="flex h-screen bg-gray-50">
           {currentUser && <AppSidebar isPermanentEmployee={isPermanentEmployee} />}
           <SidebarInset>
-            <header className="flex items-center justify-between gap-4 p-4 border-b bg-white">
+            {/* <header className="flex items-center justify-between gap-4 p-4 border-b bg-white">
               <div className="flex items-center gap-4">
                 <SidebarTrigger>
                   <MenuIcon className="size-6" />
-                </SidebarTrigger>
+                </SidebarTrigger> */}
                 {/* The title will be dynamic based on the current route, handled by Outlet */}
-                <h1 className="text-2xl font-bold">R&D Portal</h1>
+                {/* <h1 className="text-2xl font-bold">R&D Portal</h1>
               </div>
               {currentUser && (
                 <div className="flex items-center gap-2">
@@ -72,7 +72,7 @@ function App() {
                   <span>Welcome, {fullName || currentUser}</span>
                 </div>
               )}
-            </header>
+            </header> */}
             <main className="flex-1 overflow-y-auto p-4">
               <Outlet />
             </main>

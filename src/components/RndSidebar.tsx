@@ -59,8 +59,11 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
     {
       label: "Projects",
       icon: FileText,
-      path: "/projects", // Base path for projects
       subMenu: [
+        {
+          label: "Projects View",
+          path: "/projects-view",
+        },
         {
           label: "Endorsement",
           path: "/endorsement",

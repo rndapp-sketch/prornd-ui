@@ -5,7 +5,7 @@ import { useUserRoles } from './UserRole'; // Import the new useUserRoles hook
 
 // The type now correctly includes "Permanent Employee"
 interface AuthRouteWrapperProps {
-  allowedRole: 'Permanent Employee' | 'non-permanent';
+  allowedRole: 'Permanent Employee' | 'non-permanent' | 'All_ProRnd_User';
   children: React.ReactNode;
 }
 
@@ -53,10 +53,15 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
     if (roles) {
       const isPermanentEmployee = roles.includes("Permanent Employee");
       console.log("  AuthRouteWrapper: isPermanentEmployee:", isPermanentEmployee);
+      console.log("  AuthRouteWrapper: allowedRole for current route:", allowedRole);
+      console.log("  AuthRouteWrapper: User roles:", roles);
 
       // If the user's role does not match what this route allows, redirect them to a default unauthorized page.
-      // Redirect based on allowedRole and user's permanent employee status
-      if (allowedRole === 'Permanent Employee' && !isPermanentEmployee) {
+      // Temporarily bypass role check for All_ProRnd_User to debug redirection
+      if (allowedRole === 'All_ProRnd_User') {
+        console.log("AuthRouteWrapper: allowedRole is All_ProRnd_User, temporarily allowing access for debugging.");
+        // No redirection here, allow access
+      } else if (allowedRole === 'Permanent Employee' && !isPermanentEmployee) {
         console.log("AuthRouteWrapper: User is not Permanent Employee, redirecting to /home.");
         navigate('/home'); // Non-permanent employee trying to access PE route, redirect to home
       } else if (allowedRole === 'non-permanent' && isPermanentEmployee) {

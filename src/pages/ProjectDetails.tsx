@@ -792,10 +792,13 @@
 
 
 import React, { useState, useCallback, useImperativeHandle, forwardRef, useRef } from 'react';
-import { useFrappeGetDoc, useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
+import { useParams, useNavigate } from 'react-router-dom'; // Import useParams and useNavigate
+import { useFrappeGetDoc, useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk'; // Import useFrappeAuth
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AppSidebar } from "../components/RndSidebar"; // Import AppSidebar
+import { useUserRoles } from "../components/UserRole"; // Import useUserRoles
 
 // --- Interfaces ---
 interface ActivityItem {
@@ -820,8 +823,7 @@ interface ActivityStreamHandle {
 }
 
 interface ProjectDetailsProps {
-  projectName: string;
-  onBack: () => void; // ✨ Accepts a callback function for navigation
+  // projectName and onBack are now handled internally
 }
 
 // --- Helper Components ---
@@ -997,9 +999,31 @@ ActivityStream.displayName = 'ActivityStream';
 
 
 // --- Main Component ---
-const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({ projectName, onBack }) => { // ✨ Destructure onBack prop
-  const { data, error, isLoading, mutate } = useFrappeGetDoc('Project Registration', projectName, {
+const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
+  const { projectName } = useParams<{ projectName: string }>(); // Get projectName from URL params
+  const navigate = useNavigate(); // Initialize useNavigate
+  const handleBack = () => navigate('/projects-view'); // Function to navigate back to projects view
+
+  const { currentUser } = useFrappeAuth();
+  const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc("User", currentUser ?? "", {
+    fields: ["roles"],
+    enabled: !!currentUser,
+  });
+
+  let isPermanentEmployee = false;
+  if (userData) {
+    if (Array.isArray(userData.roles) && userData.roles.length > 0) {
+      if (typeof userData.roles[0] === 'string') {
+        isPermanentEmployee = userData.roles.includes("Permanent Employee");
+      } else if (typeof userData.roles[0] === 'object' && userData.roles[0] !== null && 'role' in userData.roles[0]) {
+        isPermanentEmployee = userData.roles.some((role: any) => role.role === "Permanent Employee");
+      }
+    }
+  }
+
+  const { data, error, isLoading, mutate } = useFrappeGetDoc('Project Registration', projectName ?? '', {
     cacheTime: 0,
+    enabled: !!projectName, // Only fetch if projectName is available
   });
   const activityStreamRef = useRef<ActivityStreamHandle>(null);
 
@@ -1071,109 +1095,112 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({ projectName, onBack
           }
       `}</style>
 
-      <div className="bg-gray-100 min-h-screen p-4 sm:p-6 lg:p-8 font-sans print-wrapper">
-        <div className="max-w-7xl mx-auto">
-            <header className="bg-white rounded-t-xl shadow-lg p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-center border-b-2 border-gray-200">
-              <div className="flex items-center gap-4 mb-4 sm:mb-0">
-                {/* ✨ Back Button */}
-                <button
-                  onClick={onBack} // ✨ Use the onBack prop to go back to the home screen
-                  className="p-2 rounded-full hover:bg-gray-100 transition-colors no-print"
-                  aria-label="Go back"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6 text-gray-700"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
+      <div className="flex min-h-screen">
+        <AppSidebar isPermanentEmployee={isPermanentEmployee} />
+        <div className="bg-gray-100 min-h-screen p-4 sm:p-6 lg:p-8 font-sans print-wrapper flex-1">
+          <div className="max-w-7xl mx-auto">
+              <header className="bg-white rounded-t-xl shadow-lg p-6 sm:p-8 flex flex-col sm:flex-row justify-between items-center border-b-2 border-gray-200">
+                <div className="flex items-center gap-4 mb-4 sm:mb-0">
+                  {/* ✨ Back Button */}
+                  <button
+                    onClick={handleBack} // Use the internal handleBack function
+                    className="p-2 rounded-full hover:bg-gray-100 transition-colors no-print"
+                    aria-label="Go back"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                </button>
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900">{data?.project_title || 'Project Details'}</h1>
-                  <p className="text-md text-gray-500 mt-1">Project ID: {projectName}</p>
-                  <p className="text-lg font-semibold text-gray-700 mt-2">Status: <span className="text-blue-600">{data?.workflow_state}</span></p>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-6 w-6 text-gray-700"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                  </button>
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">{data?.project_title || 'Project Details'}</h1>
+                    <p className="text-md text-gray-500 mt-1">Project ID: {projectName}</p>
+                    <p className="text-lg font-semibold text-gray-700 mt-2">Status: <span className="text-blue-600">{data?.workflow_state}</span></p>
+                  </div>
                 </div>
+                {actionsData?.message && (
+                  <ActionButtons
+                    actions={actionsData.message}
+                    onAction={handleWorkflowAction}
+                    isLoading={isActionLoading}
+                  />
+                )}
+              </header>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 bg-white rounded-b-xl shadow-lg p-6 sm:p-8">
+                  <main className="lg:col-span-2 print-container">
+                      <SectionTitle title="Project Overview" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8">
+                          <FieldDisplay label="Implementation Department" value={data?.implementation_department} />
+                          <FieldDisplay label="Project Type" value={data?.project_type} />
+                          {data?.project_type === 'Research' && <FieldDisplay label="Research Sub-Type" value={data?.research_sub_type} />}
+                          {data?.project_type === 'Consultancy' && <FieldDisplay label="Consultancy Category" value={data?.consultancy_category} />}
+                          <FieldDisplay label="Project Duration" value={`${data?.project_duration_months} months and ${data?.project_duration_days || 0} days`} />
+                      </div>
+                      <HtmlContent title="Executive Summary" htmlString={data?.executive_summary} />
+                      <HtmlContent title="Project Objective" htmlString={data?.project_objective} />
+                      <HtmlContent title="Project Deliverables" htmlString={data?.project_deliverables} />
+                      <SectionTitle title="Investigators" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
+                          <FieldDisplay label="Registering For" value={data?.registering_for} />
+                          <FieldDisplay label="Principal Investigator" value={data?.principal_investigator_name} />
+                          <FieldDisplay label="PI Employee ID" value={data?.pi_employee_id} />
+                          <FieldDisplay label="PI Designation" value={data?.designation} />
+                          <FieldDisplay label="PI Webmail" value={data?.pi_webmail} />
+                      </div>
+                      <TableDisplay label="Additional Principal Investigators" data={data?.additional_pi_table} columns={[{ fieldname: 'pi_name', label: 'Name' }, { fieldname: 'pi_designation', label: 'Designation' }, { fieldname: 'pi_address', label: 'Address / Department' },]} />
+                      <TableDisplay label="Co-Investigators" data={data?.co_investigator_table} columns={[{ fieldname: 'copi_name', label: 'Name' }, { fieldname: 'copi_designation', label: 'Designation' }, { fieldname: 'copi_address', label: 'Department' },]} />
+                      <SectionTitle title="Funding & Proposed Budget" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
+                          <FieldDisplay label="Funding Agency Type" value={data?.funding_agency_type} />
+                          <FieldDisplay label="Funding Agency" value={data?.funding_agency} />
+                          <FieldDisplay label="Funding Agency GSTIN" value={data?.funding_agency_gstin} />
+                          <FieldDisplay label="Total Proposed Budget" value={data?.total_budget_amount} isCurrency />
+                      </div>
+                      <FieldDisplay label="Funding Agency Address" value={data?.funding_agency_address} />
+                      {data?.have_sanction_details === 'Yes' && (
+                          <>
+                              <SectionTitle title="Sanction Details" />
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
+                                  <FieldDisplay label="Sanction Letter No." value={data?.sanctioned_letter_no} />
+                                  <FieldDisplay label="Sanction Letter Date" value={data?.sanctioned_letter_date} />
+                                  <FieldDisplay label="Total Sanctioned Amount" value={data?.total_sanctioned_amount} isCurrency />
+                              </div>
+                              <TableDisplay label="Sanctioned Budget Breakup" data={data?.sanctioned_budget_breakup} columns={[{ fieldname: 'account_head', label: 'Budget Head' }, { fieldname: 'amount_sanctioned', label: 'Amount', isCurrency: true },]} />
+                          </>
+                      )}
+                      <SectionTitle title="Committee Clearance" />
+                      <FieldDisplay label="Needs Committee Clearance?" value={data?.needs_committee_clearance} />
+                      {data?.needs_committee_clearance === 'Yes' && (
+                          <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
+                                  <FieldDisplay label="Committee" value={data?.committees} />
+                                  {data?.committees === 'Other' && <FieldDisplay label="Specified Committee" value={data?.other_committee_specify} />}
+                                  <FieldDisplay label="Biosafety Category" value={data?.biosafety_category} />
+                              </div>
+                              <div className="mt-4">
+                                  <h4 className="text-md font-bold text-gray-700">Declaration</h4>
+                                  <div className="prose prose-sm max-w-none mt-1 p-3 bg-white rounded border text-justify" dangerouslySetInnerHTML={{ __html: data?.declaration || '<p>No declaration provided.</p>' }} />
+                              </div>
+                          </div>
+                      )}
+                  </main>
+
+                  <aside className="lg:col-span-1 no-print">
+                      <ActivityStream
+                          ref={activityStreamRef}
+                          doctype="Project Registration"
+                          docname={projectName}
+                      />
+                  </aside>
               </div>
-              {actionsData?.message && (
-                <ActionButtons
-                  actions={actionsData.message}
-                  onAction={handleWorkflowAction}
-                  isLoading={isActionLoading}
-                />
-              )}
-            </header>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 bg-white rounded-b-xl shadow-lg p-6 sm:p-8">
-                <main className="lg:col-span-2 print-container">
-                    <SectionTitle title="Project Overview" />
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8">
-                        <FieldDisplay label="Implementation Department" value={data?.implementation_department} />
-                        <FieldDisplay label="Project Type" value={data?.project_type} />
-                        {data?.project_type === 'Research' && <FieldDisplay label="Research Sub-Type" value={data?.research_sub_type} />}
-                        {data?.project_type === 'Consultancy' && <FieldDisplay label="Consultancy Category" value={data?.consultancy_category} />}
-                        <FieldDisplay label="Project Duration" value={`${data?.project_duration_months} months and ${data?.project_duration_days || 0} days`} />
-                    </div>
-                    <HtmlContent title="Executive Summary" htmlString={data?.executive_summary} />
-                    <HtmlContent title="Project Objective" htmlString={data?.project_objective} />
-                    <HtmlContent title="Project Deliverables" htmlString={data?.project_deliverables} />
-                    <SectionTitle title="Investigators" />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                        <FieldDisplay label="Registering For" value={data?.registering_for} />
-                        <FieldDisplay label="Principal Investigator" value={data?.principal_investigator_name} />
-                        <FieldDisplay label="PI Employee ID" value={data?.pi_employee_id} />
-                        <FieldDisplay label="PI Designation" value={data?.designation} />
-                        <FieldDisplay label="PI Webmail" value={data?.pi_webmail} />
-                    </div>
-                    <TableDisplay label="Additional Principal Investigators" data={data?.additional_pi_table} columns={[{ fieldname: 'pi_name', label: 'Name' }, { fieldname: 'pi_designation', label: 'Designation' }, { fieldname: 'pi_address', label: 'Address / Department' },]} />
-                    <TableDisplay label="Co-Investigators" data={data?.co_investigator_table} columns={[{ fieldname: 'copi_name', label: 'Name' }, { fieldname: 'copi_designation', label: 'Designation' }, { fieldname: 'copi_address', label: 'Department' },]} />
-                    <SectionTitle title="Funding & Proposed Budget" />
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                        <FieldDisplay label="Funding Agency Type" value={data?.funding_agency_type} />
-                        <FieldDisplay label="Funding Agency" value={data?.funding_agency} />
-                        <FieldDisplay label="Funding Agency GSTIN" value={data?.funding_agency_gstin} />
-                        <FieldDisplay label="Total Proposed Budget" value={data?.total_budget_amount} isCurrency />
-                    </div>
-                    <FieldDisplay label="Funding Agency Address" value={data?.funding_agency_address} />
-                    {data?.have_sanction_details === 'Yes' && (
-                        <>
-                            <SectionTitle title="Sanction Details" />
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                                <FieldDisplay label="Sanction Letter No." value={data?.sanctioned_letter_no} />
-                                <FieldDisplay label="Sanction Letter Date" value={data?.sanctioned_letter_date} />
-                                <FieldDisplay label="Total Sanctioned Amount" value={data?.total_sanctioned_amount} isCurrency />
-                            </div>
-                            <TableDisplay label="Sanctioned Budget Breakup" data={data?.sanctioned_budget_breakup} columns={[{ fieldname: 'account_head', label: 'Budget Head' }, { fieldname: 'amount_sanctioned', label: 'Amount', isCurrency: true },]} />
-                        </>
-                    )}
-                    <SectionTitle title="Committee Clearance" />
-                    <FieldDisplay label="Needs Committee Clearance?" value={data?.needs_committee_clearance} />
-                    {data?.needs_committee_clearance === 'Yes' && (
-                        <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                                <FieldDisplay label="Committee" value={data?.committees} />
-                                {data?.committees === 'Other' && <FieldDisplay label="Specified Committee" value={data?.other_committee_specify} />}
-                                <FieldDisplay label="Biosafety Category" value={data?.biosafety_category} />
-                            </div>
-                            <div className="mt-4">
-                                <h4 className="text-md font-bold text-gray-700">Declaration</h4>
-                                <div className="prose prose-sm max-w-none mt-1 p-3 bg-white rounded border text-justify" dangerouslySetInnerHTML={{ __html: data?.declaration || '<p>No declaration provided.</p>' }} />
-                            </div>
-                        </div>
-                    )}
-                </main>
-
-                <aside className="lg:col-span-1 no-print">
-                    <ActivityStream
-                        ref={activityStreamRef}
-                        doctype="Project Registration"
-                        docname={projectName}
-                    />
-                </aside>
-            </div>
+          </div>
         </div>
       </div>
     </>
