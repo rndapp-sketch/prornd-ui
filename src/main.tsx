@@ -66,7 +66,7 @@ const router = createBrowserRouter(
         {
           path: "project-registration",
           element: (
-            <AuthRouteWrapper allowedRole="non-permanent"> {/* Assuming non-permanent can register projects */}
+            <AuthRouteWrapper allowedRole="All_ProRnd_User"> {/* Adjust role as needed */}
               <ProjectRegistration />
             </AuthRouteWrapper>
           ),
@@ -74,7 +74,7 @@ const router = createBrowserRouter(
         {
           path: "endorsement",
           element: (
-            <AuthRouteWrapper allowedRole="non-permanent"> {/* Adjust role as needed */}
+            <AuthRouteWrapper allowedRole="Permanent Employee"> {/* Adjust role as needed */}
               <Endorsement />
             </AuthRouteWrapper>
           ),

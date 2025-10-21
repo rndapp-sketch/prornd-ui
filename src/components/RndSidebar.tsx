@@ -137,7 +137,7 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
 
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" variant="sidebar"> {/* Explicitly set variant to sidebar */}
       <SidebarHeader>
         <div className="flex items-center gap-2">
           <img src="/rndops_Logo.svg" alt="R&D Operations Logo" className="w-10 h-10" />

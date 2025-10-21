@@ -69,22 +69,30 @@ function SidebarProvider({
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
-  const [_open, _setOpen] = React.useState(defaultOpen)
-  const open = openProp ?? _open
+  const initialOpenState = React.useMemo(() => {
+    if (openProp !== undefined) return openProp;
+    const cookieValue = document.cookie
+      .split('; ')
+      .find(row => row.startsWith(`${SIDEBAR_COOKIE_NAME}=`));
+    return cookieValue ? cookieValue.split('=')[1] === 'true' : defaultOpen;
+  }, [openProp, defaultOpen]);
+
+  const [_open, _setOpen] = React.useState(initialOpenState);
+  const open = openProp ?? _open;
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
-      const openState = typeof value === "function" ? value(open) : value
+      const openState = typeof value === "function" ? value(open) : value;
       if (setOpenProp) {
-        setOpenProp(openState)
+        setOpenProp(openState);
       } else {
-        _setOpen(openState)
+        _setOpen(openState);
       }
 
       // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
     },
     [setOpenProp, open]
-  )
+  );
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
@@ -216,8 +224,8 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
-          "group-data-[collapsible=offcanvas]:w-0",
+          "relative bg-transparent transition-[width] duration-200 ease-linear",
+          collapsible === "offcanvas" ? "w-0" : "w-(--sidebar-width)",
           "group-data-[side=right]:rotate-180",
           variant === "floating" || variant === "inset"
             ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
@@ -303,12 +311,20 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
 }
 
 function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
+  const { open, isMobile } = useSidebar(); // Get the open state and isMobile from context
+
+  const marginLeftClass = React.useMemo(() => {
+    if (isMobile) return ""; // Mobile sidebar is a sheet, doesn't affect main content margin
+    return open ? "md:ml-[var(--sidebar-width)]" : "md:ml-[var(--sidebar-width-icon)]";
+  }, [open, isMobile]);
+
   return (
     <main
       data-slot="sidebar-inset"
       className={cn(
-        "bg-background relative flex w-full flex-1 flex-col",
-        "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
+        "bg-background relative flex w-full flex-1 flex-col transition-[margin-left] duration-200 ease-linear", // Added transition
+        marginLeftClass, // Apply dynamic margin
+        "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm", // Removed conflicting ml-0 and ml-2
         className
       )}
       {...props}

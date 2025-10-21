@@ -10,7 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useNavigate } from "react-router-dom"; // Import useNavigate
-import { AppSidebar } from "../components/RndSidebar"; // Import AppSidebar
+import { AppSidebar } from "../components/RndSidebar";
+import { useSidebar } from "@/components/ui/sidebar"; // Import useSidebar
 import { useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk"; // Import useFrappeAuth and useFrappeGetDoc
 import { useUserRoles } from "../components/UserRole"; // Import useUserRoles
 import { WorkflowTimeline, type IWorkflowStage } from "../components/WorkflowTimeline"; // Import WorkflowTimeline and IWorkflowStage as type
@@ -41,6 +42,7 @@ const pendingTasks: Task[] = [];
 const applicationsUnderReview: Task[] = [];
 
 export function ProjectsView({ setActiveView, setSelectedProject, initialTab }: ProjectsViewProps) {
+  const { state: sidebarState } = useSidebar();
   const [activeTab, setActiveTab] = React.useState(initialTab || "pending");
   const [openPipeline, setOpenPipeline] = React.useState<string | null>(null); // State to manage open pipeline
   const navigate = useNavigate(); // Initialize useNavigate
@@ -269,7 +271,7 @@ export function ProjectsView({ setActiveView, setSelectedProject, initialTab }: 
   return (
     <div className="flex min-h-screen">
       <AppSidebar isPermanentEmployee={isPermanentEmployee} />
-      <div className="p-4 md:p-6 flex-1">
+      <div className={`flex-1 ${sidebarState === 'collapsed' ? 'p-4 md:p-6' : ''}`}>
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             <button
