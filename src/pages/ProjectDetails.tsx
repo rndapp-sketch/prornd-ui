@@ -297,20 +297,37 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
     'rndopsapp.rndopsapp.api.handle_workflow_action'
   );
 
+  const { call: submitProjectRegistration, loading: isSubmittingProject } = useFrappePostCall(
+    'rndopsapp.rndopsapp.api.submit_project_registration'
+  );
+
   const handleWorkflowAction = useCallback((action: string) => {
-    triggerWorkflowAction({
-      doctype: 'Project Registration',
-      docname: projectName,
-      action: action
-    }).then(() => {
-      alert(`Project action '${action}' completed successfully!`);
-      mutate();
-      activityStreamRef.current?.refetch();
-    }).catch((err: any) => {
-      console.error(`Error during workflow action:`, err);
-      alert(`Failed to ${action} the project: ${err.message || 'An unknown error occurred.'}`);
-    });
-  }, [triggerWorkflowAction, mutate, projectName]);
+    if (action.toLowerCase() === 'submit') {
+      submitProjectRegistration({
+        docname: projectName
+      }).then(() => {
+        alert("Project registration submitted successfully!");
+        mutate(); // Refresh project data
+        activityStreamRef.current?.refetch(); // Refresh activity stream
+      }).catch((err: any) => {
+        console.error("Error submitting project registration:", err);
+        alert(`Failed to submit project registration: ${err.message || 'An unknown error occurred.'}`);
+      });
+    } else {
+      triggerWorkflowAction({
+        doctype: 'Project Registration',
+        docname: projectName,
+        action: action
+      }).then(() => {
+        alert(`Project action '${action}' completed successfully!`);
+        mutate();
+        activityStreamRef.current?.refetch();
+      }).catch((err: any) => {
+        console.error(`Error during workflow action:`, err);
+        alert(`Failed to ${action} the project: ${err.message || 'An unknown error occurred.'}`);
+      });
+    }
+  }, [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]);
 
   if (!projectName) {
     return (
