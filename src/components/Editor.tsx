@@ -75,10 +75,12 @@ export default function Editor() {
       'bold', 'italic', 'underline', 'strikethrough',
       'insertOrderedList', 'insertUnorderedList',
       'justifyLeft', 'justifyCenter', 'justifyRight'
-    ];
+    ] as const;
+    type BooleanTool = typeof commands[number];
+
     const newActiveTools: ActiveToolsState = {};
-    commands.forEach(command => {
-      newActiveTools[command as keyof ActiveToolsState] = document.queryCommandState(command);
+    commands.forEach((command: BooleanTool) => {
+      newActiveTools[command] = document.queryCommandState(command);
     });
     
     newActiveTools.formatBlock = document.queryCommandValue('formatBlock') || 'p';

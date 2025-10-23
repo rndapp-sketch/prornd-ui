@@ -269,7 +269,7 @@ export function ProjectsView({ setActiveView, setSelectedProject, initialTab }: 
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div>
       <AppSidebar isPermanentEmployee={isPermanentEmployee} />
       <div className={`flex-1 ${sidebarState === 'collapsed' ? 'p-4 md:p-6' : ''}`}>
         <div className="border-b border-gray-200">
