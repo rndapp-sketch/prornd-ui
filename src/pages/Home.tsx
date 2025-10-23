@@ -161,7 +161,7 @@ export function Home() { // Removed props from here
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div >
       <AppSidebar isPermanentEmployee={isPermanentEmployee} />
       <div className="flex-1 bg-slate-50 p-4 sm:p-6 md:p-8 font-sans">
         <div className="max-w-7xl mx-auto">
