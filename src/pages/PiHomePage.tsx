@@ -122,20 +122,32 @@ const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onCli
 export function PiHomePage() { // Removed props from here
   const navigate = useNavigate(); // Initialize useNavigate
   const { currentUser } = useFrappeAuth();
-  const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc("User", currentUser ?? "", {
-    fields: ["full_name", "designation", "department", "user_roles"], // Fetch full_name, designation, department, and user_roles
+  const { data: userData, isLoading: isUserLoading, error: userError } = useFrappeGetDoc("User", currentUser ?? "", { // Added userError
+    fields: ["full_name", "designation_name", "department_name", "user_roles"],
     enabled: !!currentUser,
   });
 
+  console.log("Debugging userData:", userData, "isUserLoading:", isUserLoading, "userError:", userError);
+  const departmentId = userData?.department_name; 
+const { data: departmentDoc, isLoading: isDepartmentLoading } = useFrappeGetDoc(
+  "Department_prornd",
+  departmentId 
+);
+
+console.log("Department Fetch Key:", departmentId);
+console.log("Department Name:", departmentDoc?.dept_name);
+
+
+
+
   const userName = currentUser || "Guest";
   const fullName = userData?.full_name || "";
-  const designation = userData?.designation || "N/A";
-  const department = userData?.department || "N/A";
-
+  const designation = userData?.designation_name || "N/A";
+  const department = departmentDoc?.dept_name || "N/A"; // Use the name from the fetched Department_prornd document
   const isPermanentEmployee = userData?.user_roles?.some((role: any) => role.role === "Permanent Employee") || false;
 
   return (
-    <div className="flex min-h-screen">
+    <div>
       <AppSidebar isPermanentEmployee={isPermanentEmployee} />
       <div className="flex-1 bg-slate-50 p-4 sm:p-6 md:p-8 font-sans">
         <div className="max-w-7xl mx-auto">
@@ -204,10 +216,10 @@ export function PiHomePage() { // Removed props from here
               onClick={() => navigate("/projects")} // Use navigate
             />
             <ActionCard 
-              icon={<UserPlus className="w-6 h-6"/>}
-              title="Create New User"
-              description="Add new team members to the portal and assign them to projects."
-              onClick={() => navigate("/user-creation")} // Use navigate
+              icon={<FileText className="w-6 h-6"/>} // Changed icon
+              title="Pending Tasks" // Changed title
+              description="View and manage your assigned pending tasks." // Changed description
+              onClick={() => navigate("/pending-tasks")} // Changed navigation path
             />
           </section>
 

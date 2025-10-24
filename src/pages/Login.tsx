@@ -25,13 +25,16 @@ const Login: React.FC = () => {
   //   }
   // }, [currentUser, logout]);
 
+  useEffect(() => {
+    if (currentUser) {
+      console.log('Login successful');
+      navigate('/dashboard');
+    }
+  }, [currentUser, navigate]);
+
   const handleSubmit = () => {
     setError(null);
     login({ username, password })
-      .then(() => {
-        console.log('Login successful');
-        navigate('/dashboard');
-      })
       .catch((err) => {
         console.error('Login failed:', err);
         setError(err.message || 'An unexpected error occurred.');

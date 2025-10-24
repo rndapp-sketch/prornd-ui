@@ -7,12 +7,12 @@ const Endorsement: React.FC = () => {
   const isPermanentEmployee = UserRoleCheck() ?? false; // Use the UserRoleCheck component and provide a default value
 
   return (
-    <div className="flex">
+    <div >
       {/* Sidebar */}
       <AppSidebar isPermanentEmployee={isPermanentEmployee} />
 
       {/* Main Content */}
-      <div className="flex-1 p-4">
+      <div >
         <h1 className="text-2xl font-bold mb-4">Endorsement</h1>
         <Editor />
       </div>
