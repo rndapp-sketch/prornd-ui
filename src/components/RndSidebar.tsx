@@ -281,16 +281,8 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
     {
       label: "Home",
       icon: HomeIcon,
-      path: "/home",
-      roles: ["All_ProRnd_User", "All", "Guest", "Desk User"],
-    },
-    {
-      label: "PI Home Page",
-      icon: Building2Icon,
-      path: "/pihomepage",
-      roles: ["Permanent Employee"],
-      badge: "New",
-      badgeColor: "secondary",
+      path: "/home", // Default path, will be overridden by logic
+      roles: ["All_ProRnd_User", "All", "Guest", "Desk User", "Permanent Employee"], // All roles can see this single home button
     },
     {
       label: "Projects",
@@ -302,57 +294,57 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
           label: "Projects View",
           path: "/projects-view",
         },
-        {
-          label: "Endorsement",
-          path: "/endorsement",
-          // badge: "Updated",
-          badgeColor: "secondary",
-        },
+        // {
+        //   label: "Endorsement",
+        //   path: "/endorsement",
+        //   // badge: "Updated",
+        //   badgeColor: "secondary",
+        // },
         {
           label: "Project Registration",
           path: "/project-registration",
         },
-        {
-          label: "Add Fund Sanction",
-          path: "/add-fund-sanction",
-        },
-        {
-          label: "Add Received Funds",
-          path: "/add-received-funds",
-        },
-        {
-          label: "User Creation",
-          path: "/user-creation",
-          badge: "New",
-          badgeColor: "secondary",
-        },
+        // {
+        //   label: "Add Fund Sanction",
+        //   path: "/add-fund-sanction",
+        // },
+        // {
+        //   label: "Add Received Funds",
+        //   path: "/add-received-funds",
+        // },
+        // {
+        //   label: "User Creation",
+        //   path: "/user-creation",
+        //   badge: "New",
+        //   badgeColor: "secondary",
+        // },
       ],
       roles: ["All_ProRnd_User", "Permanent Employee", "All"],
     },
-    {
-      label: "Users",
-      icon: UsersIcon,
-      path: "/users",
-      subMenu: [
-        {
-          label: "User List",
-          path: "/user-list",
-        },
-      ],
-      roles: ["All_ProRnd_User", "Permanent Employee", "All"],
-    },
-    {
-      label: "Analytics",
-      icon: BarChart3Icon,
-      path: "/analytics",
-      roles: ["All_ProRnd_User", "Permanent Employee", "All"],
-    },
-    {
-      label: "Settings",
-      icon: SettingsIcon,
-      path: "/settings",
-      roles: ["All_ProRnd_User", "Permanent Employee", "All"],
-    },
+    // {
+    //   label: "Users",
+    //   icon: UsersIcon,
+    //   path: "/users",
+    //   subMenu: [
+    //     {
+    //       label: "User List",
+    //       path: "/user-list",
+    //     },
+    //   ],
+    //   roles: ["All_ProRnd_User", "Permanent Employee", "All"],
+    // },
+    // {
+    //   label: "Analytics",
+    //   icon: BarChart3Icon,
+    //   path: "/analytics",
+    //   roles: ["All_ProRnd_User", "Permanent Employee", "All"],
+    // },
+    // {
+    //   label: "Settings",
+    //   icon: SettingsIcon,
+    //   path: "/settings",
+    //   roles: ["All_ProRnd_User", "Permanent Employee", "All"],
+    // },
   ];
 
   const handleMenuItemClick = (item: MenuItem) => {
@@ -362,8 +354,14 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
           ? prev.filter((label) => label !== item.label)
           : [...prev, item.label]
       );
-    }
-    if (item.path) {
+    } else if (item.label === "Home") {
+      // Custom logic for the single Home button
+      if (isPermanentEmployee) {
+        navigate("/pihomepage");
+      } else {
+        navigate("/home");
+      }
+    } else if (item.path) {
       navigate(item.path);
     }
   };
@@ -372,16 +370,8 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
     navigate(subItem.path);
   };
 
-  // Filter menu items based on user's permanent employee status
-  const filteredMenuItems = menuItems.filter(item => {
-    if (item.label === "Home" && isPermanentEmployee) {
-      return false;
-    }
-    if (item.label === "PI Home Page" && !isPermanentEmployee) {
-      return false;
-    }
-    return true;
-  });
+  // No longer need to filter Home/PI Home Page as it's handled by a single button's click logic
+  const filteredMenuItems = menuItems;
 
   const getBadgeClass = (color: string = "default") => {
     const baseClasses = "ml-auto px-1.5 py-0.5 text-xs font-medium rounded-full";
@@ -527,8 +517,8 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton 
-              onClick={() => {
-                logout();
+              onClick={async () => { // Make the onClick handler async
+                await logout(); // Await the logout function
                 navigate('/login');
               }}
               className="group flex items-center gap-3 w-full px-3 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg transition-all duration-200 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20 dark:hover:text-red-300"

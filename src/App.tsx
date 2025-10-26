@@ -174,7 +174,7 @@ function App() {
                 <SidebarTrigger className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                   <MenuIcon className="size-5 text-gray-600" />
                 </SidebarTrigger>
-                <h1 className="text-xl font-semibold text-gray-800">R&D Portal</h1>
+                {/* <h1 className="text-xl font-semibold text-gray-800">R&D Portal</h1> */}
               </div>
               {currentUser && (
                 <div className="flex items-center gap-3">
