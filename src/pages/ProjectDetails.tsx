@@ -1,37 +1,35 @@
-
-
-// // -=-=-=-=-=-=- Add sanction and Funds
-
-
-
 // import React, { useState, useCallback, useImperativeHandle, forwardRef, useRef, useEffect } from 'react';
 // import { useParams, useNavigate } from 'react-router-dom';
 // import { useFrappeGetDoc, useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
-// import { Button } from '@/components/ui/button';
-// import { Textarea } from '@/components/ui/textarea';
-// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// import { Button } from '@/components/ui/button'; // Assuming this can be styled via className
+// import { Textarea } from '@/components/ui/textarea'; // Assuming this can be styled via className
 // import { AppSidebar } from "../components/RndSidebar";
-// import { useUserRoles } from "../components/UserRole";
-// import { 
-//   ArrowLeftIcon, 
-//   CalendarIcon, 
-//   UserIcon, 
-//   BuildingIcon, 
-//   DollarSignIcon,
-//   FileTextIcon,
-//   UsersIcon,
-//   ShieldIcon,
-//   MessageSquareIcon,
-//   ClockIcon,
-//   CheckCircleIcon,
-//   XCircleIcon,
-//   PlayCircleIcon,
-//   RefreshCwIcon,
-//   SendIcon,
-//   ChevronDownIcon,
-//   ChevronRightIcon,
-//   PlusIcon,
-//   FilePlusIcon
+// import {
+//     ArrowLeftIcon,
+//     FileTextIcon,
+//     UsersIcon,
+//     DollarSignIcon,
+//     ShieldIcon,
+//     MessageSquareIcon,
+//     SettingsIcon,
+//     CalendarIcon,
+//     UserIcon,
+//     BuildingIcon,
+//     CreditCardIcon,
+//     UploadIcon,
+//     ShoppingCartIcon,
+//     UsersIcon as UsersGroupIcon,
+//     PlaneIcon,
+//     PlusIcon,
+//     FilePlusIcon,
+//     MapPinIcon,
+//     PhoneIcon,
+//     MailIcon,
+//     GlobeIcon,
+//     TargetIcon,
+//     ClockIcon,
+//     CheckCircleIcon,
+//     XCircleIcon
 // } from 'lucide-react';
 // import { cn } from '@/lib/utils';
 
@@ -43,3197 +41,932 @@
 //     comment_type: string;
 // }
 
-// interface WorkflowAction {
-//   action: string;
-//   label: string;
-// }
-
 // interface ActivityStreamProps {
-//   doctype: string;
-//   docname: string;
+//     doctype: string;
+//     docname: string;
 // }
 
 // interface ActivityStreamHandle {
-//   refetch: () => void;
+//     refetch: () => void;
 // }
 
-// interface ProjectDetailsProps {
-//   // projectName and onBack are now handled internally
-// }
+// interface ProjectDetailsProps {}
 
-// // --- Helper Components ---
-// const FieldDisplay = ({ label, value, isCurrency = false, icon: Icon }: { label: string; value: any; isCurrency?: boolean; icon?: any }) => {
-//   if (!value && value !== 0) return null;
-//   const displayValue = isCurrency ? `₹ ${Number(value).toLocaleString('en-IN')}` : String(value);
-//   return (
-//     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
-//       <div className="flex items-center gap-2 mb-2">
-//         {Icon && <Icon className="h-4 w-4 text-blue-600" />}
-//         <p className="text-sm font-semibold text-gray-700">{label}</p>
-//       </div>
-//       <p className="text-lg font-medium text-gray-900">{displayValue}</p>
-//     </div>
-//   );
-// };
+// // --- Neo-Brutalism Styled Helper Components ---
 
-// // Collapsible Section Component
-// const CollapsibleSection = ({ 
-//   title, 
-//   icon: Icon, 
-//   children, 
-//   defaultOpen = true,
-//   actionButtons,
-//   className 
-// }: { 
-//   title: string; 
-//   icon?: any; 
-//   children: React.ReactNode;
-//   defaultOpen?: boolean;
-//   actionButtons?: React.ReactNode;
-//   className?: string;
-// }) => {
-//   const [isOpen, setIsOpen] = useState(defaultOpen);
-
-//   return (
-//     <div className={cn("bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden", className)}>
-//       <div 
-//         className="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 transition-colors"
-//         onClick={() => setIsOpen(!isOpen)}
-//       >
-//         <div className="flex items-center gap-3">
-//           {Icon && <div className="p-2 bg-blue-100 rounded-lg"><Icon className="h-5 w-5 text-blue-600" /></div>}
-//           <h3 className="text-2xl font-bold text-gray-900">{title}</h3>
+// const FieldDisplay = ({ label, value, icon: Icon }: { label: string; value: any; icon?: any }) => {
+//     if (!value && value !== 0) return null;
+//     return (
+//         <div className="bg-white p-3 border-2 border-black rounded-md shadow-[4px_4px_0px_#000]">
+//             <div className="flex items-center gap-2 mb-1">
+//                 {Icon && <Icon className="h-4 w-4 text-black" />}
+//                 <p className="text-sm font-bold text-black uppercase">{label}</p>
+//             </div>
+//             <p className="text-base text-gray-800 font-mono">{String(value)}</p>
 //         </div>
-//         <div className="flex items-center gap-3">
-//           {actionButtons}
-//           <div className={cn("transition-transform duration-200", isOpen ? "rotate-0" : "-rotate-90")}>
-//             <ChevronDownIcon className="h-5 w-5 text-gray-600" />
-//           </div>
-//         </div>
-//       </div>
-//       {isOpen && (
-//         <div className="px-6 pb-6">
-//           {children}
-//         </div>
-//       )}
-//     </div>
-//   );
+//     );
 // };
 
 // const HtmlContent = ({ title, htmlString, icon: Icon }: { title: string, htmlString: string | undefined, icon?: any }) => {
-//   if (!htmlString) return null;
-//   return (
-//     <div className="mt-6 p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
-//       <div className="flex items-center gap-2 mb-4">
-//         {Icon && <Icon className="h-4 w-4 text-blue-600" />}
-//         <h4 className="text-lg font-semibold text-gray-800">{title}</h4>
-//       </div>
-//       <div className="prose prose-blue max-w-none text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: htmlString }} />
-//     </div>
-//   );
+//     if (!htmlString) return null;
+//     return (
+//         <div className="mb-6 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_#000]">
+//             <div className="flex items-center gap-2 mb-3">
+//                 {Icon && <Icon className="h-5 w-5 text-black" />}
+//                 <h4 className="text-xl font-bold text-black">{title}</h4>
+//             </div>
+//             <div className="prose prose-sm max-w-none text-gray-800 leading-relaxed" dangerouslySetInnerHTML={{ __html: htmlString }} />
+//         </div>
+//     );
 // };
 
-// const TableDisplay = ({ label, data, columns, icon: Icon }: { label: string; data: any[] | undefined; columns: { fieldname: string, label: string, isCurrency?: boolean }[]; icon?: any }) => {
-//   if (!data || data.length === 0) return null;
-//   return (
-//     <div className="my-6">
-//       <div className="flex items-center gap-2 mb-4">
-//         {Icon && <Icon className="h-4 w-4 text-blue-600" />}
-//         <p className="text-lg font-semibold text-gray-800">{label}</p>
-//       </div>
-//       <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
-//         <table className="min-w-full divide-y divide-gray-200 bg-white">
-//           <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
-//             <tr>
-//               {columns.map(col => (
-//                 <th key={col.fieldname} scope="col" className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
-//                   {col.label}
-//                 </th>
-//               ))}
-//             </tr>
-//           </thead>
-//           <tbody className="divide-y divide-gray-200 bg-white">
-//             {data.map((row, index) => (
-//               <tr key={index} className="hover:bg-gray-50 transition-colors">
-//                 {columns.map(col => (
-//                   <td key={col.fieldname} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-//                     {col.isCurrency ? `₹ ${Number(row[col.fieldname] || 0).toLocaleString('en-IN')}` : row[col.fieldname]}
-//                   </td>
-//                 ))}
-//               </tr>
-//             ))}
-//           </tbody>
-//         </table>
-//       </div>
-//     </div>
-//   );
+// const TableDisplay = ({ label, data, columns, icon: Icon }: { label: string; data: any[] | undefined; columns: { fieldname: string, label: string }[]; icon?: any }) => {
+//     if (!data || data.length === 0) return null;
+//     return (
+//         <div className="mb-6 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_#000]">
+//             <div className="flex items-center gap-2 mb-4">
+//                 {Icon && <Icon className="h-5 w-5 text-black" />}
+//                 <h3 className="text-xl font-bold text-black">{label}</h3>
+//             </div>
+//             <div className="overflow-x-auto border-2 border-black">
+//                 <table className="min-w-full divide-y-2 divide-black">
+//                     <thead className="bg-aqua-300">
+//                         <tr>
+//                             {columns.map(col => (
+//                                 <th key={col.fieldname} className="px-4 py-3 text-left text-sm font-bold text-black uppercase tracking-wider">
+//                                     {col.label}
+//                                 </th>
+//                             ))}
+//                         </tr>
+//                     </thead>
+//                     <tbody className="divide-y-2 divide-black bg-white">
+//                         {data.map((row, index) => (
+//                             <tr key={index} className="hover:bg-aqua-100">
+//                                 {columns.map(col => (
+//                                     <td key={col.fieldname} className="px-4 py-3 text-sm text-gray-800 font-mono">
+//                                         {row[col.fieldname]}
+//                                     </td>
+//                                 ))}
+//                             </tr>
+//                         ))}
+//                     </tbody>
+//                 </table>
+//             </div>
+//         </div>
+//     );
 // };
 
-// // --- Action Buttons Component ---
-// const ActionButtons = ({ actions, onAction, isLoading }: { actions: WorkflowAction[], onAction: (action: string) => void, isLoading: boolean }) => {
-//   if (!actions || actions.length === 0) {
-//     return null;
-//   }
-
-//   const getButtonClass = (actionName: string | undefined | null) => {
-//     switch ((actionName || '').toLowerCase()) {
-//       case 'approve':
-//       case 'submit':
-//         return 'bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all';
-//       case 'reject':
-//         return 'bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all';
-//       case 'cancel':
-//         return 'bg-gray-600 hover:bg-gray-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all';
-//       default:
-//         return 'bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all';
-//     }
-//   };
-
-//   return (
-//     <div className="flex items-center gap-3 no-print">
-//       {actions.map((actionItem: WorkflowAction) => (
-//         <Button
-//           key={actionItem.action}
-//           onClick={() => onAction(actionItem.action)}
-//           className={cn("text-white font-semibold px-6 py-2 rounded-lg transition-all duration-200", getButtonClass(actionItem.action))}
-//           disabled={isLoading}
+// // --- Custom Neo-Brutalism Button ---
+// const NeoButton = ({ children, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => {
+//     return (
+//         <button
+//             className={cn(
+//                 "h-12 px-4 py-2 bg-white border-2 border-black rounded-md font-bold text-black shadow-[4px_4px_0px_#000] transition-all",
+//                 "hover:shadow-[2px_2px_0px_#000] hover:translate-x-[2px] hover:translate-y-[2px]",
+//                 "active:shadow-none active:translate-x-[4px] active:translate-y-[4px]",
+//                 "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-[4px] disabled:translate-y-[4px]",
+//                 className
+//             )}
+//             {...props}
 //         >
-//           {isLoading ? (
-//             <div className="flex items-center gap-2">
-//               <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-//               Processing...
+//             {children}
+//         </button>
+//     );
+// };
+
+// // --- Quick Actions Component ---
+// const QuickActions = () => {
+//     const ActionButton = ({ children }: { children: React.ReactNode }) => (
+//         <NeoButton className="w-full justify-start text-sm">
+//             {children}
+//         </NeoButton>
+//     );
+
+//     const Section = ({ title, icon: Icon, children }: { title: string, icon: any, children: React.ReactNode }) => (
+//         <div className="p-4 pb-8 border-2 border-black rounded-md bg-white shadow-[4px_4px_0px_#000]">
+//             <h3 className="font-bold text-black mb-4 flex items-center gap-2 text-lg">
+//                 <Icon className="h-5 w-5" />
+//                 {title}
+//             </h3>
+//             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+//                 {children}
 //             </div>
-//           ) : (
-//             <div className="flex items-center gap-2">
-//               {actionItem.action.toLowerCase() === 'approve' && <CheckCircleIcon className="h-4 w-4" />}
-//               {actionItem.action.toLowerCase() === 'reject' && <XCircleIcon className="h-4 w-4" />}
-//               {actionItem.action.toLowerCase() === 'submit' && <PlayCircleIcon className="h-4 w-4" />}
-//               {actionItem.label || actionItem.action}
-//             </div>
-//           )}
-//         </Button>
-//       ))}
-//     </div>
-//   );
+//         </div>
+//     );
+
+//     return (
+//         <div className="space-y-8">
+//             <Section title="Advance" icon={CreditCardIcon}>
+//                 <ActionButton>Reimbursement</ActionButton>
+//                 <ActionButton>Temporary Advance Apply</ActionButton>
+//                 <ActionButton>Temporary Advance Settle</ActionButton>
+//             </Section>
+//             <Section title="Disbursal" icon={UploadIcon}>
+//                 <ActionButton>One Time Assistantship</ActionButton>
+//                 <ActionButton>Top Up Fellowship</ActionButton>
+//             </Section>
+//             <Section title="Purchase" icon={ShoppingCartIcon}>
+//                 <ActionButton>Direct Purchase upto 10 Lakhs</ActionButton>
+//                 <ActionButton>General Indent</ActionButton>
+//                 <ActionButton>Generate NIQ</ActionButton>
+//                 <ActionButton>Indent cum Sanction Sheet</ActionButton>
+//                 <ActionButton>Rate Contract</ActionButton>
+//             </Section>
+//             <Section title="Recruitment" icon={UsersGroupIcon}>
+//                 <ActionButton>Adhoc</ActionButton>
+//                 <ActionButton>Committee Member Change Request</ActionButton>
+//                 <ActionButton>Contractual</ActionButton>
+//                 <ActionButton>Selection Committee Report</ActionButton>
+//             </Section>
+//             <Section title="Travel" icon={PlaneIcon}>
+//                 <ActionButton>Apply</ActionButton>
+//                 <ActionButton>TA-DA Settle</ActionButton>
+//             </Section>
+//             <Section title="Utilities" icon={SettingsIcon}>
+//                 <ActionButton>Add New User</ActionButton>
+//                 <ActionButton>Application History</ActionButton>
+//                 <ActionButton>Form Tracking</ActionButton>
+//                 <ActionButton>Incharge Assignment</ActionButton>
+//             </Section>
+//         </div>
+//     );
 // };
 
 // // --- Activity Stream Component ---
 // const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(({ doctype, docname }, ref) => {
-//   const [newComment, setNewComment] = useState('');
-//   const [refreshTrigger, setRefreshTrigger] = useState(0);
-//   const [isSubmitting, setIsSubmitting] = useState(false);
+//     // ... (logic remains the same)
+//     const [newComment, setNewComment] = useState('');
+//     const [isSubmitting, setIsSubmitting] = useState(false);
 
-//   const { 
-//     data: activityData, 
-//     mutate: refetchActivity, 
-//     error: activityError, 
-//     isLoading: isActivityLoading 
-//   } = useFrappeGetCall<{ message: ActivityItem[] }>(
-//     'rndopsapp.rndopsapp.api.get_project_activity',
-//     { doctype, docname },
-//     { 
-//       enabled: !!docname,
-//       revalidateOnFocus: true,
-//       revalidateOnReconnect: true,
-//       refreshWhenHidden: false,
-//       refreshWhenOffline: false,
-//       revalidateOnMount: true
-//     }
-//   );
+//     const {
+//         data: activityData,
+//         mutate: refetchActivity,
+//         error: activityError,
+//         isLoading: isActivityLoading
+//     } = useFrappeGetCall < { message: ActivityItem[] } > (
+//         'rndopsapp.rndopsapp.api.get_project_activity',
+//         { doctype, docname },
+//         {
+//             enabled: !!docname,
+//             revalidateOnFocus: true,
+//             revalidateOnReconnect: true
+//         }
+//     );
 
-//   // Auto-refresh every 30 seconds
-//   useEffect(() => {
-//     const interval = setInterval(() => {
-//       refetchActivity();
-//     }, 30000);
+//     const { call: addComment } = useFrappePostCall(
+//         'rndopsapp.rndopsapp.api.add_project_comment'
+//     );
 
-//     return () => clearInterval(interval);
-//   }, [refetchActivity]);
+//     const handleCommentSubmit = async () => {
+//         if (!newComment.trim()) return;
 
-//   // Manual refresh function
-//   const handleManualRefresh = useCallback(() => {
-//     setRefreshTrigger(prev => prev + 1);
-//     refetchActivity();
-//   }, [refetchActivity]);
+//         setIsSubmitting(true);
+//         try {
+//             await addComment({
+//                 doctype,
+//                 docname,
+//                 content: newComment.trim()
+//             });
+//             setNewComment('');
+//             await refetchActivity();
+//         } catch (err: any) {
+//             console.error("Failed to add comment:", err);
+//             alert("Error: Could not post comment.");
+//         } finally {
+//             setIsSubmitting(false);
+//         }
+//     };
 
-//   useImperativeHandle(ref, () => ({
-//     refetch() {
-//       handleManualRefresh();
-//     }
-//   }));
+//     const handleKeyPress = (e: React.KeyboardEvent) => {
+//         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+//             handleCommentSubmit();
+//         }
+//     };
 
-//   const { call: addComment, loading: isCommenting } = useFrappePostCall(
-//     'rndopsapp.rndopsapp.api.add_project_comment'
-//   );
+//     useImperativeHandle(ref, () => ({
+//         refetch() {
+//             refetchActivity();
+//         }
+//     }));
 
-//   const handleCommentSubmit = async () => {
-//     if (!newComment.trim()) {
-//       alert("Please enter a comment before submitting.");
-//       return;
-//     }
-
-//     setIsSubmitting(true);
-    
-//     try {
-//       console.log("Submitting comment:", {
-//         doctype,
-//         docname,
-//         content: newComment.trim()
-//       });
-
-//       const result = await addComment({
-//         doctype,
-//         docname,
-//         content: newComment.trim()
-//       });
-
-//       console.log("Comment submitted successfully:", result);
-      
-//       // Clear the textarea
-//       setNewComment('');
-      
-//       // Force refresh after adding comment
-//       await refetchActivity();
-      
-//       // Show success message
-//       alert("Comment added successfully!");
-      
-//     } catch (err: any) {
-//       console.error("Failed to add comment:", err);
-      
-//       // More detailed error handling
-//       let errorMessage = "Error: Could not post comment.";
-//       if (err.message) {
-//         errorMessage = `Error: ${err.message}`;
-//       } else if (err.exc) {
-//         errorMessage = `Error: ${err.exc}`;
-//       }
-      
-//       alert(errorMessage);
-//     } finally {
-//       setIsSubmitting(false);
-//     }
-//   };
-
-//   // Handle Enter key press for comment submission
-//   const handleKeyPress = (e: React.KeyboardEvent) => {
-//     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-//       handleCommentSubmit();
-//     }
-//   };
-
-//   return (
-//     <Card className="sticky top-8 border-0 shadow-xl bg-gradient-to-b from-white to-blue-50/30">
-//       <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
-//         <div className="flex items-center justify-between">
-//           <CardTitle className="flex items-center gap-2 text-white">
-//             <MessageSquareIcon className="h-5 w-5" />
-//             Activity & Comments
-//           </CardTitle>
-//           <Button
-//             variant="ghost"
-//             size="sm"
-//             onClick={handleManualRefresh}
-//             disabled={isActivityLoading}
-//             className="text-white hover:bg-white/20 p-2 h-8 w-8"
-//             title="Refresh activities"
-//           >
-//             <RefreshCwIcon className={cn("h-4 w-4", isActivityLoading && "animate-spin")} />
-//           </Button>
-//         </div>
-//       </CardHeader>
-//       <CardContent className="p-6">
+//     return (
 //         <div className="space-y-6">
-//           {/* Comment Input Section */}
-//           <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-//             <div className="mb-3">
-//               <label htmlFor="comment-textarea" className="block text-sm font-medium text-gray-700 mb-2">
-//                 Add a comment
-//               </label>
-//               <Textarea
-//                 id="comment-textarea"
-//                 placeholder="Type your comment here... (Press Ctrl+Enter to submit)"
-//                 value={newComment}
-//                 onChange={(e) => setNewComment(e.target.value)}
-//                 onKeyDown={handleKeyPress}
-//                 disabled={isSubmitting}
-//                 className="resize-none border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors"
-//                 rows={4}
-//               />
+//             <div className="p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_#000]">
+//                 <label htmlFor="comment-textarea" className="block text-sm font-bold text-black mb-3 uppercase">
+//                     Add a comment
+//                 </label>
+//                 <Textarea
+//                     id="comment-textarea"
+//                     placeholder="Type your comment here... (Press Ctrl+Enter to submit)"
+//                     value={newComment}
+//                     onChange={(e) => setNewComment(e.target.value)}
+//                     onKeyDown={handleKeyPress}
+//                     disabled={isSubmitting}
+//                     className="resize-none bg-white p-2 border-2 border-black rounded-md focus:outline-none focus:ring-2 focus:ring-aqua-400 focus:border-aqua-400 font-mono shadow-[2px_2px_0px_#000]"
+//                     rows={4}
+//                 />
+//                 <div className="flex items-center justify-between mt-3">
+//                     <span className="text-sm text-gray-600 font-mono">
+//                         {newComment.length}/1000
+//                     </span>
+//                     <NeoButton
+//                         onClick={handleCommentSubmit}
+//                         disabled={isSubmitting || !newComment.trim()}
+//                         className="bg-aqua-300 hover:bg-aqua-400"
+//                     >
+//                         {isSubmitting ? "Submitting..." : "Submit"}
+//                     </NeoButton>
+//                 </div>
 //             </div>
-//             <div className="flex items-center justify-between">
-//               <span className="text-xs text-gray-500">
-//                 {newComment.length}/1000 characters
-//               </span>
-//               <Button 
-//                 onClick={handleCommentSubmit} 
-//                 disabled={isSubmitting || !newComment.trim()}
-//                 className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
-//               >
-//                 {isSubmitting ? (
-//                   <>
-//                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-//                     Submitting...
-//                   </>
+
+//             <div className="space-y-4">
+//                 {isActivityLoading ? (
+//                     <div className="flex justify-center py-8">
+//                         <div className="animate-spin rounded-full h-10 w-10 border-4 border-black border-t-aqua-300"></div>
+//                     </div>
+//                 ) : activityError ? (
+//                     <div className="text-center py-8 text-red-700 border-2 border-red-700 rounded-md bg-red-100 shadow-[4px_4px_0px_#800000]">
+//                         <p className="font-bold">Failed to load activities</p>
+//                         <p className="text-sm mt-1">Please try refreshing the page</p>
+//                     </div>
+//                 ) : activityData?.message && activityData.message.length > 0 ? (
+//                     activityData.message.map((item, index) => (
+//                         <div key={`${item.creation}-${index}`} className="flex items-start gap-4 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_#000]">
+//                             <div className="flex-shrink-0">
+//                                 <div className="h-10 w-10 rounded-full bg-aqua-300 border-2 border-black flex items-center justify-center font-bold text-black text-lg">
+//                                     {item.owner?.charAt(0).toUpperCase() || 'U'}
+//                                 </div>
+//                             </div>
+//                             <div className="flex-1">
+//                                 <div className="flex justify-between items-center mb-2">
+//                                     <p className="text-sm font-bold text-black">{item.owner || 'Unknown User'}</p>
+//                                     <p className="text-sm text-gray-600 flex items-center gap-1 font-mono">
+//                                         <ClockIcon className="h-4 w-4" />
+//                                         {item.creation ? new Date(item.creation).toLocaleString() : "N/A"}
+//                                     </p>
+//                                 </div>
+//                                 <div
+//                                     className="text-sm text-gray-800 prose prose-sm max-w-none leading-relaxed"
+//                                     dangerouslySetInnerHTML={{ __html: item.content || 'No content' }}
+//                                 />
+//                                 {item.comment_type && (
+//                                     <div className="mt-2">
+//                                         <span className="inline-block px-2 py-1 text-xs bg-gray-200 border border-black text-black rounded-md font-mono">
+//                                             {item.comment_type}
+//                                         </span>
+//                                     </div>
+//                                 )}
+//                             </div>
+//                         </div>
+//                     ))
 //                 ) : (
-//                   <>
-//                     <SendIcon className="h-4 w-4" />
-//                     Submit Comment
-//                   </>
+//                     <div className="text-center py-12 text-gray-600 border-2 border-dashed border-black rounded-md bg-white">
+//                         <MessageSquareIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+//                         <p className="font-bold">No activity yet.</p>
+//                         <p className="text-sm mt-1">Be the first to add a comment.</p>
+//                     </div>
 //                 )}
-//               </Button>
 //             </div>
-//           </div>
-
-//           {/* Activity List */}
-//           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 border-t pt-4">
-//             {isActivityLoading ? (
-//               <div className="flex justify-center py-8">
-//                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
-//               </div>
-//             ) : activityError ? (
-//               <div className="text-center py-8 text-red-600 bg-red-50 rounded-lg p-4">
-//                 <p className="font-medium">Failed to load activities</p>
-//                 <p className="text-sm mt-1">Please try refreshing</p>
-//                 <Button 
-//                   variant="outline" 
-//                   size="sm" 
-//                   onClick={handleManualRefresh}
-//                   className="mt-2"
-//                 >
-//                   Retry
-//                 </Button>
-//               </div>
-//             ) : activityData?.message && activityData.message.length > 0 ? (
-//               <div className="space-y-4">
-//                 <div className="flex items-center justify-between text-sm text-gray-500">
-//                   <span>{activityData.message.length} comment(s)</span>
-//                   <span>Latest activity</span>
-//                 </div>
-//                 {activityData.message.map((item, index) => (
-//                   <div key={`${item.creation}-${index}`} className="flex items-start gap-3 group">
-//                     <div className="flex-shrink-0">
-//                       <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center font-bold text-white shadow-md">
-//                         {item.owner?.charAt(0).toUpperCase() || 'U'}
-//                       </div>
-//                     </div>
-//                     <div className="flex-1 bg-white p-4 rounded-xl border border-gray-200 shadow-sm group-hover:shadow-md transition-shadow">
-//                       <div className="flex justify-between items-center mb-2">
-//                         <p className="text-sm font-semibold text-gray-900">{item.owner || 'Unknown User'}</p>
-//                         <p className="text-xs text-gray-500 flex items-center gap-1">
-//                           <ClockIcon className="h-3 w-3" />
-//                           {item.creation ? new Date(item.creation).toLocaleString() : "N/A"}
-//                         </p>
-//                       </div>
-//                       <div
-//                         className="text-sm text-gray-700 prose prose-sm max-w-none leading-relaxed"
-//                         dangerouslySetInnerHTML={{ __html: item.content || 'No content' }}
-//                       />
-//                       {item.comment_type && (
-//                         <div className="mt-2">
-//                           <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-//                             {item.comment_type}
-//                           </span>
-//                         </div>
-//                       )}
-//                     </div>
-//                   </div>
-//                 ))}
-//               </div>
-//             ) : (
-//               <div className="text-center py-8">
-//                 <MessageSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-//                 <p className="text-gray-500 font-medium">No activity yet</p>
-//                 <p className="text-sm text-gray-400">Be the first to add a comment</p>
-//               </div>
-//             )}
-//           </div>
 //         </div>
-//       </CardContent>
-//     </Card>
-//   );
+//     );
 // });
-
 // ActivityStream.displayName = 'ActivityStream';
 
-// const LogWorkflowActions = ({ docname, onAction, isLoading: isActionLoading }: { docname: string, onAction: (action: string) => void, isLoading: boolean }) => {
-//   const { data, error, isLoading } = useFrappeGetCall<{ message: string[] }>(
-//     'rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_available_workflow_actions',
-//     { docname }
-//   );
-
-//   useEffect(() => {
-//     if (data) {
-//       console.log('✅ Allowed Actions (from LogWorkflowActions):', data);
-//       console.log('✅ Allowed Actions (from LogWorkflowActions):', data.message);
-//     }
-//     if (error) {
-//       console.error('❌ Error fetching workflow actions (from LogWorkflowActions):', error);
-//     }
-//   }, [data, error]);
-
-//   const getButtonClass = (actionName: string | undefined | null) => {
-//     switch ((actionName || '').toLowerCase()) {
-//       case 'approve':
-//       case 'submit':
-//         return 'bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-xl';
-//       case 'reject':
-//         return 'bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl';
-//       case 'cancel':
-//         return 'bg-gray-600 hover:bg-gray-700 shadow-lg hover:shadow-xl';
-//       default:
-//         return 'bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl';
-//     }
-//   };
-
-//   if (isLoading) {
-//     return (
-//       <div className="flex items-center gap-2 text-gray-600">
-//         <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
-//         Loading actions...
-//       </div>
+// // --- Workflow Actions Component ---
+// const WorkflowActions = ({ docname, onAction, isLoading }: { docname: string, onAction: (action: string) => void, isLoading: boolean }) => {
+//     const { data, error, isLoading: isActionsLoading } = useFrappeGetCall<{ message: string[] }>(
+//         'rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_available_workflow_actions',
+//         { docname }
 //     );
-//   }
 
-//   if (error) {
+//     if (isActionsLoading) {
+//         return <div className="font-bold text-sm">Loading actions...</div>;
+//     }
+
+//     if (error || !data?.message || data.message.length === 0) {
+//         return null;
+//     }
+
 //     return (
-//       <div className="text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200">
-//         Error loading actions
-//       </div>
+//         <div className="flex items-center gap-3">
+//             {data.message.map((actionString: string) => (
+//                 <NeoButton
+//                     key={actionString}
+//                     onClick={() => onAction(actionString)}
+//                     className={cn("flex items-center gap-2", {
+//                         'bg-green-300 hover:bg-green-400': actionString.toLowerCase() === 'approve' || actionString.toLowerCase() === 'submit',
+//                         'bg-red-300 hover:bg-red-400': actionString.toLowerCase() === 'reject',
+//                         'bg-aqua-300 hover:bg-aqua-400': !['approve', 'reject', 'submit'].includes(actionString.toLowerCase()),
+//                     })}
+//                     disabled={isLoading}
+//                 >
+//                     {actionString.toLowerCase() === 'approve' && <CheckCircleIcon className="h-4 w-4" />}
+//                     {actionString.toLowerCase() === 'reject' && <XCircleIcon className="h-4 w-4" />}
+//                     {isLoading ? "Processing..." : actionString}
+//                 </NeoButton>
+//             ))}
+//         </div>
 //     );
-//   }
-
-//   if (!data?.message || data.message.length === 0) {
-//     return null;
-//   }
-
-//   return (
-//     <div className="flex items-center gap-3 no-print">
-//       {data.message.map((actionString: string) => (
-//         <Button
-//           key={actionString}
-//           onClick={() => onAction(actionString)}
-//           className={cn("text-white font-semibold px-6 py-2 rounded-lg transform hover:-translate-y-0.5 transition-all", getButtonClass(actionString))}
-//           disabled={isActionLoading}
-//         >
-//           {isActionLoading ? (
-//             <div className="flex items-center gap-2">
-//               <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-//               Processing...
-//             </div>
-//           ) : (
-//             <div className="flex items-center gap-2">
-//               {actionString.toLowerCase() === 'approve' && <CheckCircleIcon className="h-4 w-4" />}
-//               {actionString.toLowerCase() === 'reject' && <XCircleIcon className="h-4 w-4" />}
-//               {actionString.toLowerCase() === 'submit' && <PlayCircleIcon className="h-4 w-4" />}
-//               {actionString}
-//             </div>
-//           )}
-//         </Button>
-//       ))}
-//     </div>
-//   );
 // };
 
 // // --- Main Component ---
 // const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
-//   const { projectName } = useParams<{ projectName: string }>();
-//   const navigate = useNavigate();
-//   const handleBack = () => navigate('/projects-view');
+//     // ... (logic remains the same)
+//     const { projectName } = useParams < { projectName: string } > ();
+//     const navigate = useNavigate();
+//     const [activeTab, setActiveTab] = useState('quick-actions');
+//     const activityStreamRef = useRef < ActivityStreamHandle > (null);
 
-//   const { currentUser } = useFrappeAuth();
-//   const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc("User", currentUser ?? "", {
-//     fields: ["roles"],
-//     enabled: !!currentUser,
-//   });
+//     const { currentUser } = useFrappeAuth();
+//     const { data, error, isLoading, mutate } = useFrappeGetDoc('Project Registration', projectName ?? '', {
+//         enabled: !!projectName,
+//         cacheTime: 0,
+//     });
 
-//   let isPermanentEmployee = false;
-//   if (userData) {
-//     if (Array.isArray(userData.roles) && userData.roles.length > 0) {
-//       if (typeof userData.roles[0] === 'string') {
-//         isPermanentEmployee = userData.roles.includes("Permanent Employee");
-//       } else if (typeof userData.roles[0] === 'object' && userData.roles[0] !== null && 'role' in userData.roles[0]) {
-//         isPermanentEmployee = userData.roles.some((role: any) => role.role === "Permanent Employee");
-//       }
-//     }
-//   }
-
-//   const { data, error, isLoading, mutate } = useFrappeGetDoc('Project Registration', projectName ?? '', {
-//     cacheTime: 0,
-//     enabled: !!projectName,
-//   });
-
-//   // Check if current user is the PI of the project
-//   const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
-
-//   useEffect(() => {
-//     console.log("Project Registration - implementation_department:", data?.implementation_department);
-//   }, [data?.implementation_department]);
-
-//   const departmentId = data?.implementation_department;
-//   const { data: departmentDoc, isLoading: isDepartmentLoading } = useFrappeGetDoc(
-//     "Department_prornd",
-//     departmentId,
-//     { 
-//       fields: ["dept_name"],
-//       enabled: !!departmentId 
-//     }
-//   );
-
-//   useEffect(() => {
-//     console.log("ProjectDetails - departmentId:", departmentId);
-//     console.log("ProjectDetails - departmentDoc:", departmentDoc);
-//     console.log("ProjectDetails - isDepartmentLoading:", isDepartmentLoading);
-//   }, [departmentId, departmentDoc, isDepartmentLoading]);
-
-//   const activityStreamRef = useRef<ActivityStreamHandle>(null);
-
-//   const { call: triggerWorkflowAction, loading: isActionLoading } = useFrappePostCall(
-//     'rndopsapp.rndopsapp.api.handle_workflow_action'
-//   );
-
-//   const { call: submitProjectRegistration, loading: isSubmittingProject } = useFrappePostCall(
-//     'rndopsapp.rndopsapp.api.submit_project_registration'
-//   );
-
-//   // New action handlers
-//   const handleAddFunds = () => {
-//     // Navigate to add funds page or open modal
-//     alert("Add Funds functionality will be implemented here");
-//     // navigate(`/add-funds/${projectName}`);
-//   };
-
-//   const handleAddSanctionDetails = () => {
-//     // Navigate to add sanction details page or open modal
-//     alert("Add Sanction Details functionality will be implemented here");
-//     // navigate(`/add-sanction-details/${projectName}`);
-//   };
-
-//   const handleWorkflowAction = useCallback((action: string) => {
-//     if (action.toLowerCase() === 'submit') {
-//       submitProjectRegistration({
-//         docname: projectName
-//       }).then(() => {
-//         alert("Project registration submitted successfully!");
-//         mutate();
-//         // Refresh activity stream after workflow action
-//         activityStreamRef.current?.refetch();
-//       }).catch((err: any) => {
-//         console.error("Error submitting project registration:", err);
-//         alert(`Failed to submit project registration: ${err.message || 'An unknown error occurred.'}`);
-//       });
-//     } else {
-//       triggerWorkflowAction({
-//         doctype: 'Project Registration',
-//         docname: projectName,
-//         action: action
-//       }).then(() => {
-//         alert(`Project action '${action}' completed successfully!`);
-//         mutate();
-//         // Refresh activity stream after workflow action
-//         activityStreamRef.current?.refetch();
-//       }).catch((err: any) => {
-//         console.error(`Error during workflow action:`, err);
-//         alert(`Failed to ${action} the project: ${err.message || 'An unknown error occurred.'}`);
-//       });
-//     }
-//   }, [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]);
-
-//   const getStatusBadge = (status: string) => {
-//     const baseClasses = "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold";
-//     switch ((status || '').toLowerCase()) {
-//       case 'draft':
-//         return cn(baseClasses, "bg-gray-100 text-gray-800 border border-gray-300");
-//       case 'submitted':
-//         return cn(baseClasses, "bg-blue-100 text-blue-800 border border-blue-300");
-//       case 'under review':
-//         return cn(baseClasses, "bg-yellow-100 text-yellow-800 border border-yellow-300");
-//       case 'approved':
-//         return cn(baseClasses, "bg-green-100 text-green-800 border border-green-300");
-//       case 'rejected':
-//         return cn(baseClasses, "bg-red-100 text-red-800 border border-red-300");
-//       default:
-//         return cn(baseClasses, "bg-gray-100 text-gray-800 border border-gray-300");
-//     }
-//   };
-
-//   if (!projectName) {
-//     return (
-//       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-//         <div className="text-center p-8 bg-white rounded-2xl shadow-xl max-w-md w-full">
-//           <FileTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-//           <h2 className="text-2xl font-bold text-gray-800 mb-2">No Project Selected</h2>
-//           <p className="text-gray-600 mb-6">Please select a project to view its details.</p>
-//           <Button onClick={() => navigate('/projects-view')} className="bg-blue-600 hover:bg-blue-700">
-//             Back to Projects
-//           </Button>
-//         </div>
-//       </div>
+//     const { call: triggerWorkflowAction, loading: isActionLoading } = useFrappePostCall(
+//         'rndopsapp.rndopsapp.api.handle_workflow_action'
 //     );
-//   }
 
-//   if (isLoading) {
-//     return (
-//       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-//         <div className="text-center">
-//           <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-//           <p className="text-xl font-semibold text-gray-700">Loading Project Details...</p>
-//           <p className="text-gray-500 mt-2">Please wait while we fetch the project information</p>
-//         </div>
-//       </div>
+//     const { call: submitProjectRegistration } = useFrappePostCall(
+//         'rndopsapp.rndopsapp.api.submit_project_registration'
 //     );
-//   }
 
-//   if (error) {
-//     return (
-//       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-//         <div className="text-center p-8 bg-white rounded-2xl shadow-xl max-w-md w-full">
-//           <XCircleIcon className="h-16 w-16 text-red-400 mx-auto mb-4" />
-//           <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading Project</h2>
-//           <p className="text-gray-600 mb-6">{error.message}</p>
-//           <Button onClick={() => navigate('/projects-view')} className="bg-blue-600 hover:bg-blue-700">
-//             Back to Projects
-//           </Button>
-//         </div>
-//       </div>
-//     );
-//   }
+//     const handleWorkflowAction = useCallback((action: string) => {
+//         if (action.toLowerCase() === 'submit') {
+//             submitProjectRegistration({
+//                 docname: projectName
+//             }).then(() => {
+//                 mutate();
+//                 activityStreamRef.current?.refetch();
+//             }).catch((err: any) => {
+//                 console.error("Error submitting project registration:", err);
+//             });
+//         } else {
+//             triggerWorkflowAction({
+//                 doctype: 'Project Registration',
+//                 docname: projectName,
+//                 action: action
+//             }).then(() => {
+//                 mutate();
+//                 activityStreamRef.current?.refetch();
+//             }).catch((err: any) => {
+//                 console.error(`Error during workflow action:`, err);
+//             });
+//         }
+//     }, [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]);
 
-//   return (
-//     <>
-//       <style>{`
-//           @media print {
-//             .no-print { display: none !important; }
-//             .print-wrapper { padding: 0 !important; }
-//             .print-container { box-shadow: none !important; border: none !important; margin: 0 !important; padding: 1rem !important; max-width: 100% !important; }
-//             .print-container * { visibility: visible; }
-//             body { background-color: white !important; }
-//           }
-//       `}</style>
+//     const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
 
-//       <div>
-//         <AppSidebar isPermanentEmployee={isPermanentEmployee} />
-//         <div className="bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen p-4 sm:p-6 lg:p-8 font-sans print-wrapper flex-1">
-//           <div className="max-w-7xl mx-auto">
-//             {/* Header Section */}
-//             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl shadow-2xl p-6 sm:p-8 mb-8 text-white">
-//               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-//                 <div className="flex items-start gap-4 flex-1">
-//                   <button
-//                     onClick={handleBack}
-//                     className="p-3 rounded-xl bg-white/20 hover:bg-white/30 transition-all duration-200 no-print mt-1"
-//                     aria-label="Go back"
-//                   >
-//                     <ArrowLeftIcon className="h-5 w-5 text-white" />
-//                   </button>
-//                   <div className="flex-1">
-//                     <h1 className="text-3xl font-bold mb-2">{data?.project_title || 'Project Details'}</h1>
-//                     <div className="flex flex-wrap items-center gap-4 text-blue-100">
-//                       <div className="flex items-center gap-2">
-//                         <FileTextIcon className="h-4 w-4" />
-//                         <span>Project ID: {projectName}</span>
-//                       </div>
-//                       <div className="flex items-center gap-2">
-//                         <span className={cn("px-3 py-1 rounded-full text-sm font-semibold bg-white/20", getStatusBadge(data?.workflow_state))}>
-//                           {data?.workflow_state}
-//                         </span>
-//                       </div>
+//     const handleAddFunds = () => {
+//         alert("Add Funds functionality will be implemented here");
+//     };
+
+//     const handleAddSanctionDetails = () => {
+//         alert("Add Sanction Details functionality will be implemented here");
+//     };
+
+//     const tabs = [
+//         { id: 'quick-actions', label: 'Available Services', icon: SettingsIcon },
+//         { id: 'overview', label: 'Overview', icon: FileTextIcon },
+//         { id: 'investigators', label: 'Investigators', icon: UsersIcon },
+//         { id: 'funding', label: 'Funding', icon: DollarSignIcon },
+//         { id: 'clearance', label: 'Clearance', icon: ShieldIcon },
+//         { id: 'activity', label: 'Activity', icon: MessageSquareIcon },
+//     ];
+
+//     const renderContent = () => {
+//         if (!projectName) {
+//             return (
+//                 <div className="flex items-center justify-center p-4 min-h-screen">
+//                     <div className="text-center p-8 max-w-md w-full bg-white border-2 border-black rounded-md shadow-[8px_8px_0px_#000]">
+//                         <FileTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+//                         <h2 className="text-2xl font-bold text-black mb-2">No Project Selected</h2>
+//                         <p className="text-gray-700 mb-6">Please select a project to view its details.</p>
+//                         <NeoButton onClick={() => navigate('/projects-view')} className="bg-aqua-300 hover:bg-aqua-400">
+//                             Back to Projects
+//                         </NeoButton>
 //                     </div>
-//                   </div>
 //                 </div>
-//                 <div className="flex flex-col sm:flex-row gap-3">
-//                   {/* New Action Buttons */}
-//                   {isCurrentUserPI && (
-//                     <div className="flex gap-2">
-//                       <Button
-//                         onClick={handleAddFunds}
-//                         className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2"
-//                       >
-//                         <PlusIcon className="h-4 w-4" />
-//                         Add Funds
-//                       </Button>
-//                       <Button
-//                         onClick={handleAddSanctionDetails}
-//                         className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2"
-//                       >
-//                         <FilePlusIcon className="h-4 w-4" />
-//                         Add Sanction
-//                       </Button>
+//             );
+//         }
+
+//         if (isLoading) {
+//             return (
+//                 <div className="flex items-center justify-center min-h-screen">
+//                     <div className="text-center">
+//                         <div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-aqua-300 mx-auto mb-4"></div>
+//                         <p className="text-lg font-bold text-black">Loading Project Details...</p>
 //                     </div>
-//                   )}
-//                   {projectName && (
-//                     <LogWorkflowActions
-//                       docname={projectName}
-//                       onAction={handleWorkflowAction}
-//                       isLoading={isActionLoading}
-//                     />
-//                   )}
 //                 </div>
-//               </div>
-//             </div>
+//             );
+//         }
 
-//             {/* Main Content */}
-//             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-//               <main className="lg:col-span-2 print-container space-y-6">
-//                 {/* Project Overview */}
-//                 <CollapsibleSection 
-//                   title="Project Overview" 
-//                   icon={FileTextIcon}
-//                   defaultOpen={true}
-//                 >
-//                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-//                     <FieldDisplay 
-//                       label="Implementation Department" 
-//                       value={isDepartmentLoading 
-//                         ? "Loading..." 
-//                         : (departmentDoc?.dept_name && departmentDoc.dept_name !== "" 
-//                             ? departmentDoc.dept_name 
-//                             : data?.implementation_department || "N/A")} 
-//                       icon={BuildingIcon} 
-//                     />
-//                     <FieldDisplay label="Project Type" value={data?.project_type} icon={FileTextIcon} />
-//                     {data?.project_type === 'Research' && <FieldDisplay label="Research Sub-Type" value={data?.research_sub_type} icon={FileTextIcon} />}
-//                     {data?.project_type === 'Consultancy' && <FieldDisplay label="Consultancy Category" value={data?.consultancy_category} icon={FileTextIcon} />}
-//                     <FieldDisplay label="Project Duration" value={`${data?.project_duration_months} months and ${data?.project_duration_days || 0} days`} icon={CalendarIcon} />
-//                   </div>
-
-//                   <HtmlContent title="Executive Summary" htmlString={data?.executive_summary} icon={FileTextIcon} />
-//                   <HtmlContent title="Project Objective" htmlString={data?.project_objective} icon={FileTextIcon} />
-//                   <HtmlContent title="Project Deliverables" htmlString={data?.project_deliverables} icon={FileTextIcon} />
-//                 </CollapsibleSection>
-
-//                 {/* Investigators */}
-//                 <CollapsibleSection 
-//                   title="Investigators" 
-//                   icon={UsersIcon}
-//                   defaultOpen={true}
-//                 >
-//                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                     <FieldDisplay label="Registering For" value={data?.registering_for} icon={UserIcon} />
-//                     <FieldDisplay label="Principal Investigator" value={data?.principal_investigator_name} icon={UserIcon} />
-//                     <FieldDisplay label="PI Employee ID" value={data?.pi_employee_id} icon={UserIcon} />
-//                     <FieldDisplay label="PI Designation" value={data?.designation} icon={UserIcon} />
-//                     <FieldDisplay label="PI Webmail" value={data?.pi_webmail} icon={UserIcon} />
-//                   </div>
-
-//                   <TableDisplay 
-//                     label="Additional Principal Investigators" 
-//                     data={data?.additional_pi_table} 
-//                     columns={[
-//                       { fieldname: 'pi_name', label: 'Name' }, 
-//                       { fieldname: 'pi_designation', label: 'Designation' }, 
-//                       { fieldname: 'pi_address', label: 'Address / Department' }
-//                     ]} 
-//                     icon={UsersIcon}
-//                   />
-
-//                   <TableDisplay 
-//                     label="Co-Investigators" 
-//                     data={data?.co_investigator_table} 
-//                     columns={[
-//                       { fieldname: 'copi_name', label: 'Name' }, 
-//                       { fieldname: 'copi_designation', label: 'Designation' }, 
-//                       { fieldname: 'copi_address', label: 'Department' }
-//                     ]} 
-//                     icon={UsersIcon}
-//                   />
-//                 </CollapsibleSection>
-
-//                 {/* Funding & Budget */}
-//                 <CollapsibleSection 
-//                   title="Funding & Proposed Budget" 
-//                   icon={DollarSignIcon}
-//                   defaultOpen={true}
-//                   actionButtons={
-//                     isCurrentUserPI && (
-//                       <Button
-//                         onClick={handleAddFunds}
-//                         variant="outline"
-//                         size="sm"
-//                         className="bg-white hover:bg-green-50 text-green-700 border-green-300 flex items-center gap-2"
-//                       >
-//                         <PlusIcon className="h-3 w-3" />
-//                         Add Funds
-//                       </Button>
-//                     )
-//                   }
-//                 >
-//                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                     <FieldDisplay label="Funding Agency Type" value={data?.funding_agency_type} icon={BuildingIcon} />
-//                     <FieldDisplay label="Funding Agency" value={data?.funding_agency} icon={BuildingIcon} />
-//                     <FieldDisplay label="Funding Agency GSTIN" value={data?.funding_agency_gstin} icon={FileTextIcon} />
-//                     <FieldDisplay label="Total Proposed Budget" value={data?.total_budget_amount} isCurrency icon={DollarSignIcon} />
-//                   </div>
-//                   <FieldDisplay label="Funding Agency Address" value={data?.funding_agency_address} icon={BuildingIcon} />
-//                 </CollapsibleSection>
-
-//                 {/* Sanction Details */}
-//                 {data?.have_sanction_details === 'Yes' && (
-//                   <CollapsibleSection 
-//                     title="Sanction Details" 
-//                     icon={FileTextIcon}
-//                     defaultOpen={true}
-//                     actionButtons={
-//                       isCurrentUserPI && (
-//                         <Button
-//                           onClick={handleAddSanctionDetails}
-//                           variant="outline"
-//                           size="sm"
-//                           className="bg-white hover:bg-purple-50 text-purple-700 border-purple-300 flex items-center gap-2"
-//                         >
-//                           <FilePlusIcon className="h-3 w-3" />
-//                           Add Sanction
-//                         </Button>
-//                       )
-//                     }
-//                   >
-//                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                       <FieldDisplay label="Sanction Letter No." value={data?.sanctioned_letter_no} icon={FileTextIcon} />
-//                       <FieldDisplay 
-//                         label="Sanction Letter Date" 
-//                         value={data?.sanctioned_letter_date 
-//                           ? new Date(data.sanctioned_letter_date).toLocaleDateString() 
-//                           : "N/A"} 
-//                         icon={CalendarIcon} 
-//                       />
-//                       <FieldDisplay label="Total Sanctioned Amount" value={data?.total_sanctioned_amount} isCurrency icon={DollarSignIcon} />
+//         if (error) {
+//             return (
+//                 <div className="flex items-center justify-center p-4 min-h-screen">
+//                     <div className="text-center p-8 max-w-md w-full bg-red-100 border-2 border-red-700 rounded-md shadow-[8px_8px_0px_#800000]">
+//                         <h2 className="text-2xl font-bold text-red-800 mb-2">Error Loading Project</h2>
+//                         <p className="text-red-700 mb-6">{error.message}</p>
+//                         <NeoButton onClick={() => navigate('/projects-view')} className="bg-white hover:bg-gray-100">
+//                             Back to Projects
+//                         </NeoButton>
 //                     </div>
-//                     <TableDisplay 
-//                       label="Sanctioned Budget Breakup" 
-//                       data={data?.sanctioned_budget_breakup} 
-//                       columns={[
-//                         { fieldname: 'account_head', label: 'Budget Head' }, 
-//                         { fieldname: 'amount_sanctioned', label: 'Amount', isCurrency: true }
-//                       ]} 
-//                       icon={DollarSignIcon}
-//                     />
-//                   </CollapsibleSection>
-//                 )}
+//                 </div>
+//             );
+//         }
 
-//                 {/* Committee Clearance */}
-//                 <CollapsibleSection 
-//                   title="Committee Clearance" 
-//                   icon={ShieldIcon}
-//                   defaultOpen={true}
-//                 >
-//                   <FieldDisplay label="Needs Committee Clearance?" value={data?.needs_committee_clearance} icon={ShieldIcon} />
-//                   {data?.needs_committee_clearance === 'Yes' && (
-//                     <div className="mt-4 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-sm">
-//                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                         <FieldDisplay label="Committee" value={data?.committees} icon={ShieldIcon} />
-//                         {data?.committees === 'Other' && <FieldDisplay label="Specified Committee" value={data?.other_committee_specify} icon={ShieldIcon} />}
-//                         <FieldDisplay label="Biosafety Category" value={data?.biosafety_category} icon={ShieldIcon} />
-//                       </div>
-//                       <div className="mt-6">
-//                         <h4 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-//                           <ShieldIcon className="h-4 w-4 text-blue-600" />
-//                           Declaration
-//                         </h4>
-//                         <div className="prose prose-blue max-w-none p-4 bg-white rounded-lg border text-justify shadow-sm" dangerouslySetInnerHTML={{ __html: data?.declaration || '<p>No declaration provided.</p>' }} />
-//                       </div>
+//         return (
+//             <>
+//                 {/* Header */}
+//                 <div className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_#000]">
+//                     <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+//                         <div className="flex items-center gap-4">
+//                             <button
+//                                 onClick={() => navigate('/projects-view')}
+//                                 className="p-2 bg-white border-2 border-black rounded-md hover:bg-aqua-200"
+//                             >
+//                                 <ArrowLeftIcon className="h-6 w-6" />
+//                             </button>
+//                             <div>
+//                                 <h1 className="text-3xl font-bold text-black">{data?.project_title || 'Project Details'}</h1>
+//                                 <p className="text-gray-700 font-mono">
+//                                     ID: {projectName} | Status: <span className="font-bold">{data?.workflow_state || 'Draft'}</span>
+//                                 </p>
+//                             </div>
+//                         </div>
+//                         <div className="flex items-center gap-3 flex-wrap">
+//                             {isCurrentUserPI && (
+//                                 <div className="flex gap-3">
+//                                     <NeoButton onClick={handleAddFunds} className="bg-aqua-300 hover:bg-aqua-400 flex items-center gap-2">
+//                                         <PlusIcon className="h-4 w-4" /> Add Funds
+//                                     </NeoButton>
+//                                     <NeoButton onClick={handleAddSanctionDetails} className="bg-aqua-300 hover:bg-aqua-400 flex items-center gap-2">
+//                                         <FilePlusIcon className="h-4 w-4" /> Add Sanction
+//                                     </NeoButton>
+//                                 </div>
+//                             )}
+//                             <WorkflowActions
+//                                 docname={projectName}
+//                                 onAction={handleWorkflowAction}
+//                                 isLoading={isActionLoading}
+//                             />
+//                         </div>
 //                     </div>
-//                   )}
-//                 </CollapsibleSection>
-//               </main>
+//                 </div>
 
-//               {/* Activity Stream Sidebar */}
-//               <aside className="lg:col-span-1 no-print">
-//                 <ActivityStream
-//                   ref={activityStreamRef}
-//                   doctype="Project Registration"
-//                   docname={projectName}
-//                 />
-//               </aside>
-//             </div>
-//           </div>
+//                 {/* Tabs & Content */}
+//                 <div className="bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_#000]">
+//                     <div className="border-b-2 border-black">
+//                         <nav className="flex space-x-4 p-2 overflow-x-auto">
+//                             {tabs.map((tab) => {
+//                                 const Icon = tab.icon;
+//                                 return (
+//                                     <button
+//                                         key={tab.id}
+//                                         onClick={() => setActiveTab(tab.id)}
+//                                         className={cn(
+//                                             "flex-shrink-0 flex items-center gap-2 py-2 px-4 font-bold text-sm rounded-md border-2 border-transparent",
+//                                             "transition-all",
+//                                             activeTab === tab.id
+//                                                 ? "bg-aqua-300 border-black shadow-[2px_2px_0px_#000]"
+//                                                 : "text-black hover:bg-aqua-100"
+//                                         )}
+//                                     >
+//                                         <Icon className="h-4 w-4" />
+//                                         {tab.label}
+//                                     </button>
+//                                 );
+//                             })}
+//                         </nav>
+//                     </div>
+
+//                     <div className="p-6">
+//                         {/* Tab Content */}
+//                         {activeTab === 'quick-actions' && <QuickActions />}
+//                         {activeTab === 'overview' && (
+//                             <div className="space-y-6">
+//                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+//                                     <FieldDisplay label="Implementation Dept" value={data?.implementation_department} icon={BuildingIcon} />
+//                                     <FieldDisplay label="Project Type" value={data?.project_type} icon={FileTextIcon} />
+//                                     {data?.project_type === 'Research' && <FieldDisplay label="Research Sub-Type" value={data?.research_sub_type} icon={FileTextIcon} />}
+//                                     {data?.project_type === 'Consultancy' && <FieldDisplay label="Consultancy Category" value={data?.consultancy_category} icon={FileTextIcon} />}
+//                                     <FieldDisplay label="Project Duration" value={`${data?.project_duration_months}m ${data?.project_duration_days || 0}d`} icon={CalendarIcon} />
+//                                     <FieldDisplay label="Start Date" value={data?.project_start_date ? new Date(data.project_start_date).toLocaleDateString() : 'N/A'} icon={CalendarIcon} />
+//                                     <FieldDisplay label="End Date" value={data?.project_end_date ? new Date(data.project_end_date).toLocaleDateString() : 'N/A'} icon={CalendarIcon} />
+//                                     <FieldDisplay label="Status" value={data?.workflow_state} icon={TargetIcon} />
+//                                 </div>
+//                                 <HtmlContent title="Executive Summary" htmlString={data?.executive_summary} icon={FileTextIcon} />
+//                                 {/* ... other HtmlContent components */}
+//                             </div>
+//                         )}
+//                         {activeTab === 'investigators' && (
+//                             <div className="space-y-8">
+//                                 <div className="p-4 bg-white border-2 border-black rounded-md">
+//                                     <h3 className="font-bold text-xl mb-4">Principal Investigator Details</h3>
+//                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//                                         <FieldDisplay label="Registering For" value={data?.registering_for} icon={UserIcon} />
+//                                         <FieldDisplay label="PI Name" value={data?.principal_investigator_name} icon={UserIcon} />
+//                                         {/* ... other PI fields */}
+//                                     </div>
+//                                 </div>
+//                                 <TableDisplay label="Additional PIs" data={data?.additional_pi_table} columns={[{ fieldname: 'pi_name', label: 'Name' }, /*...*/]} icon={UsersIcon} />
+//                                 <TableDisplay label="Co-Investigators" data={data?.co_investigator_table} columns={[{ fieldname: 'copi_name', label: 'Name' }, /*...*/]} icon={UsersIcon} />
+//                                 <TableDisplay label="Team Members" data={data?.project_team_members} columns={[{ fieldname: 'team_member_name', label: 'Name' }, /*...*/]} icon={UsersGroupIcon} />
+//                             </div>
+//                         )}
+//                         {activeTab === 'funding' && (
+//                            <div className="space-y-8">
+//                                <div className="p-4 bg-white border-2 border-black rounded-md">
+//                                    <h3 className="font-bold text-xl mb-4">Funding Agency Details</h3>
+//                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//                                        <FieldDisplay label="Agency Type" value={data?.funding_agency_type} icon={BuildingIcon} />
+//                                        <FieldDisplay label="Agency Name" value={data?.funding_agency} icon={BuildingIcon} />
+//                                        {/* ... other funding fields */}
+//                                    </div>
+//                                </div>
+//                                <TableDisplay label="Proposed Budget" data={data?.proposed_budget_breakup} columns={[{ fieldname: 'account_head', label: 'Budget Head' }, /*...*/]} icon={DollarSignIcon} />
+//                                {data?.have_sanction_details === 'Yes' && (
+//                                    <TableDisplay label="Sanctioned Budget" data={data?.sanctioned_budget_breakup} columns={[{ fieldname: 'account_head', label: 'Budget Head' }, /*...*/]} icon={DollarSignIcon} />
+//                                )}
+//                            </div>
+//                         )}
+//                         {activeTab === 'clearance' && (
+//                            <div className="space-y-8">
+//                                 <div className="p-4 bg-white border-2 border-black rounded-md">
+//                                    <h3 className="font-bold text-xl mb-4">Committee & Compliance</h3>
+//                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+//                                        <FieldDisplay label="Needs Clearance?" value={data?.needs_committee_clearance} icon={ShieldIcon} />
+//                                        <FieldDisplay label="Committee" value={data?.committees} icon={ShieldIcon} />
+//                                        {/* ... other clearance fields */}
+//                                    </div>
+//                                </div>
+//                                <HtmlContent title="Declaration" htmlString={data?.declaration} icon={ShieldIcon} />
+//                                <TableDisplay label="Committee Members" data={data?.committee_members} columns={[{ fieldname: 'member_name', label: 'Name' }, /*...*/]} icon={UsersIcon} />
+//                            </div>
+//                         )}
+//                         {activeTab === 'activity' && (
+//                             <ActivityStream
+//                                 ref={activityStreamRef}
+//                                 doctype="Project Registration"
+//                                 docname={projectName}
+//                             />
+//                         )}
+//                     </div>
+//                 </div>
+//             </>
+//         );
+//     };
+
+//     return (
+//         <div>
+//             <AppSidebar isPermanentEmployee={true} />
+//             <main className="flex-1 p-8">
+//                 {renderContent()}
+//             </main>
 //         </div>
-//       </div>
-//     </>
-//   );
+//     );
 // };
 
 // export default ProjectDetailsView;
 
-
-
-
-
-
-// -=-=-=-=-=-=-=-=-=-=- working
-
-
-
+// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 // import React, { useState, useCallback, useImperativeHandle, forwardRef, useRef, useEffect } from 'react';
 // import { useParams, useNavigate } from 'react-router-dom';
 // import { useFrappeGetDoc, useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
-// import { Button } from '@/components/ui/button';
-// import { Textarea } from '@/components/ui/textarea';
-// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// import { Textarea } from '@/components/ui/textarea'; // Assuming this can be styled via className
 // import { AppSidebar } from "../components/RndSidebar";
-// import { 
-//   ArrowLeftIcon, 
-//   CalendarIcon, 
-//   UserIcon, 
-//   BuildingIcon, 
-//   DollarSignIcon,
-//   FileTextIcon,
-//   UsersIcon,
-//   ShieldIcon,
-//   MessageSquareIcon,
-//   ClockIcon,
-//   CheckCircleIcon,
-//   XCircleIcon,
-//   PlayCircleIcon,
-//   RefreshCwIcon,
-//   SendIcon,
-//   ChevronDownIcon,
-//   ChevronRightIcon,
-//   PlusIcon,
-//   FilePlusIcon,
-//   CreditCardIcon,
-//   UsersIcon as UsersGroupIcon,
-//   ShoppingCartIcon,
-//   BriefcaseIcon,
-//   PlaneIcon,
-//   SettingsIcon,
-//   UploadIcon,
-//   UserPlusIcon,
-//   HistoryIcon,
-//   SearchIcon,
-//   UserCheckIcon
+// import {
+//     ArrowLeftIcon, FileTextIcon, UsersIcon, DollarSignIcon, ShieldIcon, MessageSquareIcon,
+//     SettingsIcon, CalendarIcon, UserIcon, BuildingIcon, CreditCardIcon, UploadIcon,
+//     ShoppingCartIcon, UsersIcon as UsersGroupIcon, PlaneIcon, PlusIcon, FilePlusIcon,
+//     MapPinIcon, PhoneIcon, MailIcon, GlobeIcon, TargetIcon, ClockIcon, CheckCircleIcon, XCircleIcon
 // } from 'lucide-react';
 // import { cn } from '@/lib/utils';
 
-// // --- Interfaces ---
-// interface ActivityItem {
-//     owner: string;
-//     creation: string;
-//     content: string;
-//     comment_type: string;
-// }
+// // --- Interfaces (Unchanged) ---
+// interface ActivityItem { owner: string; creation: string; content: string; comment_type: string; }
+// interface ActivityStreamProps { doctype: string; docname: string; }
+// interface ActivityStreamHandle { refetch: () => void; }
+// interface ProjectDetailsProps {}
 
-// interface WorkflowAction {
-//   action: string;
-//   label: string;
-// }
-
-// interface ActivityStreamProps {
-//   doctype: string;
-//   docname: string;
-// }
-
-// interface ActivityStreamHandle {
-//   refetch: () => void;
-// }
-
-// interface ProjectDetailsProps {
-//   // projectName and onBack are now handled internally
-// }
-
-// // --- Helper Components ---
-// const FieldDisplay = ({ label, value, isCurrency = false, icon: Icon }: { label: string; value: any; isCurrency?: boolean; icon?: any }) => {
-//   if (!value && value !== 0) return null;
-//   const displayValue = isCurrency ? `₹ ${Number(value).toLocaleString('en-IN')}` : String(value);
-//   return (
-//     <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
-//       <div className="flex items-center gap-2 mb-2">
-//         {Icon && <Icon className="h-4 w-4 text-blue-600" />}
-//         <p className="text-sm font-semibold text-gray-700">{label}</p>
-//       </div>
-//       <p className="text-lg font-medium text-gray-900">{displayValue}</p>
-//     </div>
-//   );
+// // --- DESIGN REVISION: FieldDisplay component updated to remove individual boxes ---
+// const FieldDisplay = ({ label, value, icon: Icon }: { label: string; value: any; icon?: any }) => {
+//     if (!value && value !== 0) return null;
+//     return (
+//         // The outer box/shadow is removed. It will be grouped visually by its parent container.
+//         <div className="py-2">
+//             <div className="flex items-center gap-2 mb-1">
+//                 {Icon && <Icon className="h-4 w-4 text-black" />}
+//                 <p className="text-sm font-bold text-black uppercase tracking-wider">{label}</p>
+//             </div>
+//             <p className="text-base text-gray-800 font-mono">{String(value)}</p>
+//         </div>
+//     );
 // };
 
-// // Collapsible Section Component
-// const CollapsibleSection = ({ 
-//   title, 
-//   icon: Icon, 
-//   children, 
-//   defaultOpen = true,
-//   actionButtons,
-//   className 
-// }: { 
-//   title: string; 
-//   icon?: any; 
-//   children: React.ReactNode;
-//   defaultOpen?: boolean;
-//   actionButtons?: React.ReactNode;
-//   className?: string;
-// }) => {
-//   const [isOpen, setIsOpen] = useState(defaultOpen);
-
-//   return (
-//     <div className={cn("bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden", className)}>
-//       <div 
-//         className="flex items-center justify-between p-6 cursor-pointer hover:bg-gray-50 transition-colors"
-//         onClick={() => setIsOpen(!isOpen)}
-//       >
-//         <div className="flex items-center gap-3">
-//           {Icon && <div className="p-2 bg-blue-100 rounded-lg"><Icon className="h-5 w-5 text-blue-600" /></div>}
-//           <h3 className="text-2xl font-bold text-gray-900">{title}</h3>
-//         </div>
-//         <div className="flex items-center gap-3">
-//           {actionButtons}
-//           <div className={cn("transition-transform duration-200", isOpen ? "rotate-0" : "-rotate-90")}>
-//             <ChevronDownIcon className="h-5 w-5 text-gray-600" />
-//           </div>
-//         </div>
-//       </div>
-//       {isOpen && (
-//         <div className="px-6 pb-6">
-//           {children}
-//         </div>
-//       )}
-//     </div>
-//   );
-// };
-
+// // --- Neo-Brutalism Styled Helper Components (Unchanged) ---
 // const HtmlContent = ({ title, htmlString, icon: Icon }: { title: string, htmlString: string | undefined, icon?: any }) => {
-//   if (!htmlString) return null;
-//   return (
-//     <div className="mt-6 p-6 bg-white rounded-xl border border-gray-200 shadow-sm">
-//       <div className="flex items-center gap-2 mb-4">
-//         {Icon && <Icon className="h-4 w-4 text-blue-600" />}
-//         <h4 className="text-lg font-semibold text-gray-800">{title}</h4>
-//       </div>
-//       <div className="prose prose-blue max-w-none text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: htmlString }} />
-//     </div>
-//   );
-// };
-
-// const TableDisplay = ({ label, data, columns, icon: Icon }: { label: string; data: any[] | undefined; columns: { fieldname: string, label: string, isCurrency?: boolean }[]; icon?: any }) => {
-//   if (!data || data.length === 0) return null;
-//   return (
-//     <div className="my-6">
-//       <div className="flex items-center gap-2 mb-4">
-//         {Icon && <Icon className="h-4 w-4 text-blue-600" />}
-//         <p className="text-lg font-semibold text-gray-800">{label}</p>
-//       </div>
-//       <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
-//         <table className="min-w-full divide-y divide-gray-200 bg-white">
-//           <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
-//             <tr>
-//               {columns.map(col => (
-//                 <th key={col.fieldname} scope="col" className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">
-//                   {col.label}
-//                 </th>
-//               ))}
-//             </tr>
-//           </thead>
-//           <tbody className="divide-y divide-gray-200 bg-white">
-//             {data.map((row, index) => (
-//               <tr key={index} className="hover:bg-gray-50 transition-colors">
-//                 {columns.map(col => (
-//                   <td key={col.fieldname} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-//                     {col.isCurrency ? `₹ ${Number(row[col.fieldname] || 0).toLocaleString('en-IN')}` : row[col.fieldname]}
-//                   </td>
-//                 ))}
-//               </tr>
-//             ))}
-//           </tbody>
-//         </table>
-//       </div>
-//     </div>
-//   );
-// };
-
-// // --- Action Buttons Component ---
-// const ActionButtons = ({ actions, onAction, isLoading }: { actions: WorkflowAction[], onAction: (action: string) => void, isLoading: boolean }) => {
-//   if (!actions || actions.length === 0) {
-//     return null;
-//   }
-
-//   const getButtonClass = (actionName: string | undefined | null) => {
-//     switch ((actionName || '').toLowerCase()) {
-//       case 'approve':
-//       case 'submit':
-//         return 'bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all';
-//       case 'reject':
-//         return 'bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all';
-//       case 'cancel':
-//         return 'bg-gray-600 hover:bg-gray-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all';
-//       default:
-//         return 'bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all';
-//     }
-//   };
-
-//   return (
-//     <div className="flex items-center gap-3 no-print">
-//       {actions.map((actionItem: WorkflowAction) => (
-//         <Button
-//           key={actionItem.action}
-//           onClick={() => onAction(actionItem.action)}
-//           className={cn("text-white font-semibold px-6 py-2 rounded-lg transition-all duration-200", getButtonClass(actionItem.action))}
-//           disabled={isLoading}
-//         >
-//           {isLoading ? (
-//             <div className="flex items-center gap-2">
-//               <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-//               Processing...
+//     if (!htmlString) return null;
+//     return (
+//         <div className="p-4 md:p-6 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+//             <div className="flex items-center gap-3 mb-3">
+//                 {Icon && <Icon className="h-5 w-5 text-black" />}
+//                 <h4 className="text-xl font-bold text-black uppercase">{title}</h4>
 //             </div>
-//           ) : (
-//             <div className="flex items-center gap-2">
-//               {actionItem.action.toLowerCase() === 'approve' && <CheckCircleIcon className="h-4 w-4" />}
-//               {actionItem.action.toLowerCase() === 'reject' && <XCircleIcon className="h-4 w-4" />}
-//               {actionItem.action.toLowerCase() === 'submit' && <PlayCircleIcon className="h-4 w-4" />}
-//               {actionItem.label || actionItem.action}
-//             </div>
-//           )}
-//         </Button>
-//       ))}
-//     </div>
-//   );
-// };
-
-// // --- Activity Stream Component (Collapsible) ---
-// const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(({ doctype, docname }, ref) => {
-//   const [newComment, setNewComment] = useState('');
-//   const [refreshTrigger, setRefreshTrigger] = useState(0);
-//   const [isSubmitting, setIsSubmitting] = useState(false);
-//   const [isExpanded, setIsExpanded] = useState(true);
-
-//   const { 
-//     data: activityData, 
-//     mutate: refetchActivity, 
-//     error: activityError, 
-//     isLoading: isActivityLoading 
-//   } = useFrappeGetCall<{ message: ActivityItem[] }>(
-//     'rndopsapp.rndopsapp.api.get_project_activity',
-//     { doctype, docname },
-//     { 
-//       enabled: !!docname,
-//       revalidateOnFocus: true,
-//       revalidateOnReconnect: true,
-//       refreshWhenHidden: false,
-//       refreshWhenOffline: false,
-//       revalidateOnMount: true
-//     }
-//   );
-
-//   // Auto-refresh every 30 seconds
-//   useEffect(() => {
-//     const interval = setInterval(() => {
-//       refetchActivity();
-//     }, 30000);
-
-//     return () => clearInterval(interval);
-//   }, [refetchActivity]);
-
-//   // Manual refresh function
-//   const handleManualRefresh = useCallback(() => {
-//     setRefreshTrigger(prev => prev + 1);
-//     refetchActivity();
-//   }, [refetchActivity]);
-
-//   useImperativeHandle(ref, () => ({
-//     refetch() {
-//       handleManualRefresh();
-//     }
-//   }));
-
-//   const { call: addComment, loading: isCommenting } = useFrappePostCall(
-//     'rndopsapp.rndopsapp.api.add_project_comment'
-//   );
-
-//   const handleCommentSubmit = async () => {
-//     if (!newComment.trim()) {
-//       alert("Please enter a comment before submitting.");
-//       return;
-//     }
-
-//     setIsSubmitting(true);
-    
-//     try {
-//       console.log("Submitting comment:", {
-//         doctype,
-//         docname,
-//         content: newComment.trim()
-//       });
-
-//       const result = await addComment({
-//         doctype,
-//         docname,
-//         content: newComment.trim()
-//       });
-
-//       console.log("Comment submitted successfully:", result);
-      
-//       // Clear the textarea
-//       setNewComment('');
-      
-//       // Force refresh after adding comment
-//       await refetchActivity();
-      
-//       // Show success message
-//       alert("Comment added successfully!");
-      
-//     } catch (err: any) {
-//       console.error("Failed to add comment:", err);
-      
-//       // More detailed error handling
-//       let errorMessage = "Error: Could not post comment.";
-//       if (err.message) {
-//         errorMessage = `Error: ${err.message}`;
-//       } else if (err.exc) {
-//         errorMessage = `Error: ${err.exc}`;
-//       }
-      
-//       alert(errorMessage);
-//     } finally {
-//       setIsSubmitting(false);
-//     }
-//   };
-
-//   // Handle Enter key press for comment submission
-//   const handleKeyPress = (e: React.KeyboardEvent) => {
-//     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-//       handleCommentSubmit();
-//     }
-//   };
-
-//   return (
-//     <Card className="border-0 shadow-xl bg-gradient-to-b from-white to-blue-50/30">
-//       <CardHeader 
-//         className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg cursor-pointer"
-//         onClick={() => setIsExpanded(!isExpanded)}
-//       >
-//         <div className="flex items-center justify-between">
-//           <CardTitle className="flex items-center gap-2 text-white">
-//             <MessageSquareIcon className="h-5 w-5" />
-//             Activity & Comments
-//           </CardTitle>
-//           <div className="flex items-center gap-2">
-//             <Button
-//               variant="ghost"
-//               size="sm"
-//               onClick={(e) => {
-//                 e.stopPropagation();
-//                 handleManualRefresh();
-//               }}
-//               disabled={isActivityLoading}
-//               className="text-white hover:bg-white/20 p-2 h-8 w-8"
-//               title="Refresh activities"
-//             >
-//               <RefreshCwIcon className={cn("h-4 w-4", isActivityLoading && "animate-spin")} />
-//             </Button>
-//             <div className={cn("transition-transform duration-200", isExpanded ? "rotate-0" : "-rotate-90")}>
-//               <ChevronDownIcon className="h-5 w-5 text-white" />
-//             </div>
-//           </div>
+//             <div className="prose prose-sm max-w-none text-gray-800 leading-relaxed font-mono" dangerouslySetInnerHTML={{ __html: htmlString }} />
 //         </div>
-//       </CardHeader>
-//       {isExpanded && (
-//         <CardContent className="p-6">
-//           <div className="space-y-6">
-//             {/* Comment Input Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-//               <div className="mb-3">
-//                 <label htmlFor="comment-textarea" className="block text-sm font-medium text-gray-700 mb-2">
-//                   Add a comment
-//                 </label>
-//                 <Textarea
-//                   id="comment-textarea"
-//                   placeholder="Type your comment here... (Press Ctrl+Enter to submit)"
-//                   value={newComment}
-//                   onChange={(e) => setNewComment(e.target.value)}
-//                   onKeyDown={handleKeyPress}
-//                   disabled={isSubmitting}
-//                   className="resize-none border-gray-300 focus:border-blue-500 focus:ring-blue-500 transition-colors"
-//                   rows={3}
-//                 />
-//               </div>
-//               <div className="flex items-center justify-between">
-//                 <span className="text-xs text-gray-500">
-//                   {newComment.length}/1000 characters
-//                 </span>
-//                 <Button 
-//                   onClick={handleCommentSubmit} 
-//                   disabled={isSubmitting || !newComment.trim()}
-//                   className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
-//                 >
-//                   {isSubmitting ? (
-//                     <>
-//                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-//                       Submitting...
-//                     </>
-//                   ) : (
-//                     <>
-//                       <SendIcon className="h-4 w-4" />
-//                       Submit Comment
-//                     </>
-//                   )}
-//                 </Button>
-//               </div>
-//             </div>
+//     );
+// };
 
-//             {/* Activity List */}
-//             <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 border-t pt-4">
-//               {isActivityLoading ? (
-//                 <div className="flex justify-center py-8">
-//                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
-//                 </div>
-//               ) : activityError ? (
-//                 <div className="text-center py-8 text-red-600 bg-red-50 rounded-lg p-4">
-//                   <p className="font-medium">Failed to load activities</p>
-//                   <p className="text-sm mt-1">Please try refreshing</p>
-//                   <Button 
-//                     variant="outline" 
-//                     size="sm" 
-//                     onClick={handleManualRefresh}
-//                     className="mt-2"
-//                   >
-//                     Retry
-//                   </Button>
-//                 </div>
-//               ) : activityData?.message && activityData.message.length > 0 ? (
-//                 <div className="space-y-4">
-//                   <div className="flex items-center justify-between text-sm text-gray-500">
-//                     <span>{activityData.message.length} comment(s)</span>
-//                     <span>Latest activity</span>
-//                   </div>
-//                   {activityData.message.map((item, index) => (
-//                     <div key={`${item.creation}-${index}`} className="flex items-start gap-3 group">
-//                       <div className="flex-shrink-0">
-//                         <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center font-bold text-white shadow-md text-xs">
-//                           {item.owner?.charAt(0).toUpperCase() || 'U'}
-//                         </div>
-//                       </div>
-//                       <div className="flex-1 bg-white p-3 rounded-xl border border-gray-200 shadow-sm group-hover:shadow-md transition-shadow">
-//                         <div className="flex justify-between items-center mb-2">
-//                           <p className="text-sm font-semibold text-gray-900">{item.owner || 'Unknown User'}</p>
-//                           <p className="text-xs text-gray-500 flex items-center gap-1">
-//                             <ClockIcon className="h-3 w-3" />
-//                             {item.creation ? new Date(item.creation).toLocaleString() : "N/A"}
-//                           </p>
-//                         </div>
-//                         <div
-//                           className="text-sm text-gray-700 prose prose-sm max-w-none leading-relaxed"
-//                           dangerouslySetInnerHTML={{ __html: item.content || 'No content' }}
-//                         />
-//                         {item.comment_type && (
-//                           <div className="mt-2">
-//                             <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-//                               {item.comment_type}
-//                             </span>
-//                           </div>
-//                         )}
-//                       </div>
-//                     </div>
-//                   ))}
-//                 </div>
-//               ) : (
-//                 <div className="text-center py-8">
-//                   <MessageSquareIcon className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-//                   <p className="text-gray-500 font-medium text-sm">No activity yet</p>
-//                   <p className="text-xs text-gray-400">Be the first to add a comment</p>
-//                 </div>
-//               )}
+// const TableDisplay = ({ label, data, columns, icon: Icon }: { label: string; data: any[] | undefined; columns: { fieldname: string, label: string }[]; icon?: any }) => {
+//     if (!data || data.length === 0) return null;
+//     return (
+//         <div className="p-4 md:p-6 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+//             <div className="flex items-center gap-3 mb-4">
+//                 {Icon && <Icon className="h-5 w-5 text-black" />}
+//                 <h3 className="text-xl font-bold text-black uppercase">{label}</h3>
 //             </div>
-//           </div>
-//         </CardContent>
-//       )}
-//     </Card>
-//   );
+//             <div className="overflow-x-auto border-2 border-black rounded-md">
+//                 <table className="min-w-full divide-y-2 divide-black">
+//                     <thead className="bg-cyan-300">
+//                         <tr className="divide-x-2 divide-black">
+//                             {columns.map(col => (
+//                                 <th key={col.fieldname} className="px-4 py-3 text-left text-sm font-bold text-black uppercase tracking-wider">{col.label}</th>
+//                             ))}
+//                         </tr>
+//                     </thead>
+//                     <tbody className="divide-y-2 divide-black bg-white">
+//                         {data.map((row, index) => (
+//                             <tr key={index} className="divide-x-2 divide-black hover:bg-cyan-100">
+//                                 {columns.map(col => (
+//                                     <td key={col.fieldname} className="px-4 py-3 text-sm text-gray-800 font-mono">{row[col.fieldname]}</td>
+//                                 ))}
+//                             </tr>
+//                         ))}
+//                     </tbody>
+//                 </table>
+//             </div>
+//         </div>
+//     );
+// };
+
+// const NeoButton = ({ children, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+//     <button
+//         className={cn(
+//             "px-5 py-3 bg-white border-2 border-black rounded-md font-bold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all",
+//             "hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px]",
+//             "active:shadow-none active:translate-x-[2px] active:translate-y-[2px]",
+//             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 disabled:bg-gray-300",
+//             className
+//         )}
+//         {...props}
+//     >{children}</button>
+// );
+
+// // --- DESIGN REVISION: QuickActions buttons updated with muted colors ---
+// const QuickActions = () => {
+//     const ActionButton = ({ children, className }: { children: React.ReactNode, className?: string }) => (
+//         <NeoButton className={cn("w-full justify-start text-sm h-auto py-3", className)}>
+//             {children}
+//         </NeoButton>
+//     );
+
+//     const Section = ({ title, icon: Icon, children }: { title: string, icon: any, children: React.ReactNode }) => (
+//         <div className="p-4 pb-6 border-2 border-black rounded-md bg-white shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+//             <h3 className="font-bold text-black mb-4 flex items-center gap-3 text-xl uppercase">
+//                 <Icon className="h-5 w-5" />
+//                 {title}
+//             </h3>
+//             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+//                 {children}
+//             </div>
+//         </div>
+//     );
+
+//     return (
+//         <div className="space-y-10">
+//             <Section title="Advance" icon={CreditCardIcon}>
+//                 <ActionButton className="bg-sky-200 hover:bg-sky-300">Reimbursement</ActionButton>
+//                 <ActionButton className="bg-sky-200 hover:bg-sky-300">Temporary Advance Apply</ActionButton>
+//                 <ActionButton className="bg-sky-200 hover:bg-sky-300">Temporary Advance Settle</ActionButton>
+//             </Section>
+//             <Section title="Disbursal" icon={UploadIcon}>
+//                 <ActionButton className="bg-emerald-200 hover:bg-emerald-300">One Time Assistantship</ActionButton>
+//                 <ActionButton className="bg-emerald-200 hover:bg-emerald-300">Top Up Fellowship</ActionButton>
+//             </Section>
+//             <Section title="Purchase" icon={ShoppingCartIcon}>
+//                 <ActionButton className="bg-amber-200 hover:bg-amber-300">Direct Purchase</ActionButton>
+//                 <ActionButton className="bg-amber-200 hover:bg-amber-300">General Indent</ActionButton>
+//                 <ActionButton className="bg-amber-200 hover:bg-amber-300">Generate NIQ</ActionButton>
+//                 <ActionButton className="bg-amber-200 hover:bg-amber-300">Indent cum Sanction</ActionButton>
+//                 <ActionButton className="bg-amber-200 hover:bg-amber-300">Rate Contract</ActionButton>
+//             </Section>
+//             <Section title="Recruitment" icon={UsersGroupIcon}>
+//                 <ActionButton className="bg-rose-200 hover:bg-rose-300">Adhoc</ActionButton>
+//                 <ActionButton className="bg-rose-200 hover:bg-rose-300">Committee Member Change</ActionButton>
+//                 <ActionButton className="bg-rose-200 hover:bg-rose-300">Contractual</ActionButton>
+//                 <ActionButton className="bg-rose-200 hover:bg-rose-300">Selection Committee Report</ActionButton>
+//             </Section>
+//             <Section title="Travel" icon={PlaneIcon}>
+//                 <ActionButton className="bg-indigo-200 hover:bg-indigo-300">Apply</ActionButton>
+//                 <ActionButton className="bg-indigo-200 hover:bg-indigo-300">TA-DA Settle</ActionButton>
+//             </Section>
+//             <Section title="Utilities" icon={SettingsIcon}>
+//                 <ActionButton className="bg-slate-300 hover:bg-slate-400">Add New User</ActionButton>
+//                 <ActionButton className="bg-slate-300 hover:bg-slate-400">Application History</ActionButton>
+//                 <ActionButton className="bg-slate-300 hover:bg-slate-400">Form Tracking</ActionButton>
+//                 <ActionButton className="bg-slate-300 hover:bg-slate-400">Incharge Assignment</ActionButton>
+//             </Section>
+//         </div>
+//     );
+// };
+
+// // --- Activity Stream Component (Unchanged logic, updated styles) ---
+// const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(({ doctype, docname }, ref) => {
+//     const [newComment, setNewComment] = useState('');
+//     const [isSubmitting, setIsSubmitting] = useState(false);
+//     const { data: activityData, mutate: refetchActivity, error: activityError, isLoading: isActivityLoading } = useFrappeGetCall <{ message: ActivityItem[] }> ('rndopsapp.rndopsapp.api.get_project_activity', { doctype, docname }, { enabled: !!docname, revalidateOnFocus: true, revalidateOnReconnect: true });
+//     const { call: addComment } = useFrappePostCall('rndopsapp.rndopsapp.api.add_project_comment');
+//     const handleCommentSubmit = async () => { if (!newComment.trim()) return; setIsSubmitting(true); try { await addComment({ doctype, docname, content: newComment.trim() }); setNewComment(''); await refetchActivity(); } catch (err: any) { console.error("Failed to add comment:", err); alert("Error: Could not post comment."); } finally { setIsSubmitting(false); } };
+//     const handleKeyPress = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { handleCommentSubmit(); } };
+//     useImperativeHandle(ref, () => ({ refetch() { refetchActivity(); } }));
+
+//     return (
+//         <div className="space-y-6">
+//             <div className="p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+//                 <label htmlFor="comment-textarea" className="block text-sm font-bold text-black mb-3 uppercase">Add a comment</label>
+//                 <Textarea id="comment-textarea" placeholder="Type here... (Ctrl+Enter to submit)" value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={handleKeyPress} disabled={isSubmitting} className="resize-none bg-white p-3 border-2 border-black rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-400 font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)]" rows={4} />
+//                 <div className="flex items-center justify-between mt-4"><span className="text-sm text-gray-600 font-mono">{newComment.length}/1000</span><NeoButton onClick={handleCommentSubmit} disabled={isSubmitting || !newComment.trim()} className="bg-cyan-300 hover:bg-cyan-400">{isSubmitting ? "Submitting..." : "Submit"}</NeoButton></div>
+//             </div>
+//             <div className="space-y-4">
+//                 {isActivityLoading && <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-cyan-400"></div></div>}
+//                 {activityError && <div className="text-center p-6 text-red-700 border-2 border-red-700 rounded-md bg-red-100 shadow-[4px_4px_0px_#800000]"><p className="font-bold">Failed to load activities</p></div>}
+//                 {activityData?.message && activityData.message.length > 0 ? (
+//                     activityData.message.map((item, index) => (
+//                         <div key={`${item.creation}-${index}`} className="flex items-start gap-4 p-4 bg-white border-2 border-black rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+//                             <div className="flex-shrink-0 h-12 w-12 rounded-full bg-cyan-300 border-2 border-black flex items-center justify-center font-bold text-black text-xl">{item.owner?.charAt(0).toUpperCase() || 'U'}</div>
+//                             <div className="flex-1"><div className="flex justify-between items-center mb-1"><p className="text-base font-bold text-black">{item.owner || 'Unknown User'}</p><p className="text-sm text-gray-600 flex items-center gap-1.5 font-mono"><ClockIcon className="h-4 w-4" />{item.creation ? new Date(item.creation).toLocaleString() : "N/A"}</p></div><div className="text-base text-gray-800 prose prose-sm max-w-none leading-relaxed font-mono" dangerouslySetInnerHTML={{ __html: item.content || 'No content' }} /></div>
+//                         </div>
+//                     ))
+//                 ) : (
+//                     !isActivityLoading && <div className="text-center py-12 text-gray-600 border-2 border-dashed border-black rounded-md bg-white"><MessageSquareIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" /><p className="font-bold text-lg">No activity yet.</p><p className="text-sm mt-1">Be the first to add a comment.</p></div>
+//                 )}
+//             </div>
+//         </div>
+//     );
 // });
-
 // ActivityStream.displayName = 'ActivityStream';
 
-// // --- Quick Actions Component (Collapsible) ---
-// const QuickActions = () => {
-//   const [isExpanded, setIsExpanded] = useState(false);
+// // --- Workflow Actions Component (Unchanged logic, updated styles) ---
+// const WorkflowActions = ({ docname, onAction, isLoading }: { docname: string, onAction: (action: string) => void, isLoading: boolean }) => {
+//     const { data, error, isLoading: isActionsLoading } = useFrappeGetCall<{ message: string[] }>('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_available_workflow_actions', { docname });
+//     if (isActionsLoading) { return <div className="font-bold text-sm">Loading actions...</div>; }
+//     if (error || !data?.message || data.message.length === 0) { return null; }
 
-//   return (
-//     <Card className="border-0 shadow-xl bg-gradient-to-b from-white to-green-50/30">
-//       <CardHeader 
-//         className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-lg cursor-pointer"
-//         onClick={() => setIsExpanded(!isExpanded)}
-//       >
-//         <div className="flex items-center justify-between">
-//           <CardTitle className="flex items-center gap-2 text-white">
-//             <SettingsIcon className="h-5 w-5" />
-//             Quick Actions
-//           </CardTitle>
-//           <div className={cn("transition-transform duration-200", isExpanded ? "rotate-0" : "-rotate-90")}>
-//             <ChevronDownIcon className="h-5 w-5 text-white" />
-//           </div>
+//     return (
+//         <div className="flex items-center gap-3">
+//             {data.message.map((actionString: string) => (
+//                 <NeoButton key={actionString} onClick={() => onAction(actionString)} className={cn("flex items-center gap-2", { 'bg-green-300 hover:bg-green-400': actionString.toLowerCase().includes('approve') || actionString.toLowerCase().includes('submit'), 'bg-red-300 hover:bg-red-400': actionString.toLowerCase().includes('reject'), 'bg-cyan-300 hover:bg-cyan-400': !['approve', 'reject', 'submit'].some(term => actionString.toLowerCase().includes(term)), })} disabled={isLoading}>
+//                     {actionString.toLowerCase().includes('approve') && <CheckCircleIcon className="h-4 w-4" />}
+//                     {actionString.toLowerCase().includes('reject') && <XCircleIcon className="h-4 w-4" />}
+//                     {isLoading ? "Processing..." : actionString}
+//                 </NeoButton>
+//             ))}
 //         </div>
-//       </CardHeader>
-//       {isExpanded && (
-//         <CardContent className="p-6">
-//           <div className="space-y-4">
-//             {/* Advance Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-//               <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-//                 <CreditCardIcon className="h-4 w-4 text-blue-600" />
-//                 Advance
-//               </h3>
-//               <div className="space-y-2">
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Reimbursement
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Temporary Advance Apply
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Temporary Advance Settle
-//                 </Button>
-//               </div>
-//             </div>
-
-//             {/* Disbursal Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-//               <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-//                 <UploadIcon className="h-4 w-4 text-green-600" />
-//                 Disbursal
-//               </h3>
-//               <div className="space-y-2">
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   One Time Assistantship
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Top Up Fellowship
-//                 </Button>
-//               </div>
-//             </div>
-
-//             {/* Purchase Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-//               <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-//                 <ShoppingCartIcon className="h-4 w-4 text-purple-600" />
-//                 Purchase
-//               </h3>
-//               <div className="space-y-2">
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Direct Purchase upto 10 Lakhs
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   General Indent
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Generate NIQ
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Indent cum Sanction Sheet
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Rate Contract
-//                 </Button>
-//               </div>
-//             </div>
-
-//             {/* Recruitment Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-//               <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-//                 <UsersGroupIcon className="h-4 w-4 text-orange-600" />
-//                 Recruitment
-//               </h3>
-//               <div className="space-y-2">
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Adhoc
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Committee Member Change Request
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Contractual
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Selection Committee Report
-//                 </Button>
-//               </div>
-//             </div>
-
-//             {/* Travel Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-//               <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-//                 <PlaneIcon className="h-4 w-4 text-cyan-600" />
-//                 Travel
-//               </h3>
-//               <div className="space-y-2">
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Apply
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   TA-DA Settle
-//                 </Button>
-//               </div>
-//             </div>
-
-//             {/* Utilities Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-//               <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-//                 <SettingsIcon className="h-4 w-4 text-gray-600" />
-//                 Utilities
-//               </h3>
-//               <div className="space-y-2">
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Add New User
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Application History
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Form Tracking
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-sm" size="sm">
-//                   Incharge Assignment
-//                 </Button>
-//               </div>
-//             </div>
-//           </div>
-//         </CardContent>
-//       )}
-//     </Card>
-//   );
-// };
-
-// // --- LogWorkflowActions Component ---
-// const LogWorkflowActions = ({ docname, onAction, isLoading: isActionLoading }: { docname: string, onAction: (action: string) => void, isLoading: boolean }) => {
-//   const { data, error, isLoading } = useFrappeGetCall<{ message: string[] }>(
-//     'rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_available_workflow_actions',
-//     { docname }
-//   );
-
-//   useEffect(() => {
-//     if (data) {
-//       console.log('✅ Allowed Actions (from LogWorkflowActions):', data);
-//       console.log('✅ Allowed Actions (from LogWorkflowActions):', data.message);
-//     }
-//     if (error) {
-//       console.error('❌ Error fetching workflow actions (from LogWorkflowActions):', error);
-//     }
-//   }, [data, error]);
-
-//   const getButtonClass = (actionName: string | undefined | null) => {
-//     switch ((actionName || '').toLowerCase()) {
-//       case 'approve':
-//       case 'submit':
-//         return 'bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-xl';
-//       case 'reject':
-//         return 'bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl';
-//       case 'cancel':
-//         return 'bg-gray-600 hover:bg-gray-700 shadow-lg hover:shadow-xl';
-//       default:
-//         return 'bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl';
-//     }
-//   };
-
-//   if (isLoading) {
-//     return (
-//       <div className="flex items-center gap-2 text-gray-600">
-//         <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
-//         Loading actions...
-//       </div>
 //     );
-//   }
-
-//   if (error) {
-//     return (
-//       <div className="text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-200">
-//         Error loading actions
-//       </div>
-//     );
-//   }
-
-//   if (!data?.message || data.message.length === 0) {
-//     return null;
-//   }
-
-//   return (
-//     <div className="flex items-center gap-3 no-print">
-//       {data.message.map((actionString: string) => (
-//         <Button
-//           key={actionString}
-//           onClick={() => onAction(actionString)}
-//           className={cn("text-white font-semibold px-6 py-2 rounded-lg transform hover:-translate-y-0.5 transition-all", getButtonClass(actionString))}
-//           disabled={isActionLoading}
-//         >
-//           {isActionLoading ? (
-//             <div className="flex items-center gap-2">
-//               <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-//               Processing...
-//             </div>
-//           ) : (
-//             <div className="flex items-center gap-2">
-//               {actionString.toLowerCase() === 'approve' && <CheckCircleIcon className="h-4 w-4" />}
-//               {actionString.toLowerCase() === 'reject' && <XCircleIcon className="h-4 w-4" />}
-//               {actionString.toLowerCase() === 'submit' && <PlayCircleIcon className="h-4 w-4" />}
-//               {actionString}
-//             </div>
-//           )}
-//         </Button>
-//       ))}
-//     </div>
-//   );
 // };
 
 // // --- Main Component ---
 // const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
-//   const { projectName } = useParams<{ projectName: string }>();
-//   const navigate = useNavigate();
-//   const handleBack = () => navigate('/projects-view');
+//     // --- LOGIC: All hooks and handlers remain unchanged ---
+//     const { projectName } = useParams<{ projectName: string }>();
+//     const navigate = useNavigate();
+//     const [activeTab, setActiveTab] = useState('quick-actions');
+//     const activityStreamRef = useRef<ActivityStreamHandle>(null);
+//     const { currentUser } = useFrappeAuth();
+//     const { data, error, isLoading, mutate } = useFrappeGetDoc('Project Registration', projectName ?? '', { enabled: !!projectName, cacheTime: 0 });
 
-//   const { currentUser } = useFrappeAuth();
-//   const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc("User", currentUser ?? "", {
-//     fields: ["roles"],
-//     enabled: !!currentUser,
-//   });
+//     const { call: triggerWorkflowAction, loading: isActionLoading } = useFrappePostCall('rndopsapp.rndopsapp.api.handle_workflow_action');
+//     const { call: submitProjectRegistration } = useFrappePostCall('rndopsapp.rndopsapp.api.submit_project_registration');
+//     const handleWorkflowAction = useCallback((action: string) => {
+//         const apiCall = action.toLowerCase() === 'submit' ? submitProjectRegistration({ docname: projectName }) : triggerWorkflowAction({ doctype: 'Project Registration', docname: projectName, action: action });
+//         apiCall.then(() => { mutate(); activityStreamRef.current?.refetch(); }).catch((err: any) => console.error(`Error during workflow action:`, err));
+//     }, [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]);
+//     const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
+//     console.log("Project details:",data)
+//     const handleAddFunds = () => alert("Add Funds functionality will be implemented here.");
+//     const handleAddSanctionDetails = () => alert("Add Sanction Details functionality will be implemented here.");
 
-//   // Determine if user is permanent employee
-//   let isPermanentEmployee = false;
-//   if (userData) {
-//     if (Array.isArray(userData.roles) && userData.roles.length > 0) {
-//       if (typeof userData.roles[0] === 'string') {
-//         isPermanentEmployee = userData.roles.includes("Permanent Employee");
-//       } else if (typeof userData.roles[0] === 'object' && userData.roles[0] !== null && 'role' in userData.roles[0]) {
-//         isPermanentEmployee = userData.roles.some((role: any) => role.role === "Permanent Employee");
-//       }
-//     }
-//   }
+//     const tabs = [
+//         { id: 'quick-actions', label: 'Available Services', icon: SettingsIcon },
+//         { id: 'overview', label: 'Overview', icon: FileTextIcon },
+//         { id: 'investigators', label: 'Investigators', icon: UsersIcon },
+//         { id: 'funding', label: 'Funding', icon: DollarSignIcon },
+//         { id: 'clearance', label: 'Clearance', icon: ShieldIcon },
+//         { id: 'activity', label: 'Activity Log', icon: MessageSquareIcon },
+//     ];
 
-//   const { data, error, isLoading, mutate } = useFrappeGetDoc('Project Registration', projectName ?? '', {
-//     cacheTime: 0,
-//     enabled: !!projectName,
-//   });
-
-//   // Check if current user is the PI of the project
-//   const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
-
-//   useEffect(() => {
-//     console.log("Project Registration - implementation_department:", data?.implementation_department);
-//   }, [data?.implementation_department]);
-
-//   const departmentId = data?.implementation_department;
-//   const { data: departmentDoc, isLoading: isDepartmentLoading } = useFrappeGetDoc(
-//     "Department_prornd",
-//     departmentId,
-//     { 
-//       fields: ["dept_name"],
-//       enabled: !!departmentId 
-//     }
-//   );
-
-//   useEffect(() => {
-//     console.log("ProjectDetails - departmentId:", departmentId);
-//     console.log("ProjectDetails - departmentDoc:", departmentDoc);
-//     console.log("ProjectDetails - isDepartmentLoading:", isDepartmentLoading);
-//   }, [departmentId, departmentDoc, isDepartmentLoading]);
-
-//   const activityStreamRef = useRef<ActivityStreamHandle>(null);
-
-//   const { call: triggerWorkflowAction, loading: isActionLoading } = useFrappePostCall(
-//     'rndopsapp.rndopsapp.api.handle_workflow_action'
-//   );
-
-//   const { call: submitProjectRegistration, loading: isSubmittingProject } = useFrappePostCall(
-//     'rndopsapp.rndopsapp.api.submit_project_registration'
-//   );
-
-//   // New action handlers
-//   const handleAddFunds = () => {
-//     // Navigate to add funds page or open modal
-//     alert("Add Funds functionality will be implemented here");
-//     // navigate(`/add-funds/${projectName}`);
-//   };
-
-//   const handleAddSanctionDetails = () => {
-//     // Navigate to add sanction details page or open modal
-//     alert("Add Sanction Details functionality will be implemented here");
-//     // navigate(`/add-sanction-details/${projectName}`);
-//   };
-
-//   const handleWorkflowAction = useCallback((action: string) => {
-//     if (action.toLowerCase() === 'submit') {
-//       submitProjectRegistration({
-//         docname: projectName
-//       }).then(() => {
-//         alert("Project registration submitted successfully!");
-//         mutate();
-//         // Refresh activity stream after workflow action
-//         activityStreamRef.current?.refetch();
-//       }).catch((err: any) => {
-//         console.error("Error submitting project registration:", err);
-//         alert(`Failed to submit project registration: ${err.message || 'An unknown error occurred.'}`);
-//       });
-//     } else {
-//       triggerWorkflowAction({
-//         doctype: 'Project Registration',
-//         docname: projectName,
-//         action: action
-//       }).then(() => {
-//         alert(`Project action '${action}' completed successfully!`);
-//         mutate();
-//         // Refresh activity stream after workflow action
-//         activityStreamRef.current?.refetch();
-//       }).catch((err: any) => {
-//         console.error(`Error during workflow action:`, err);
-//         alert(`Failed to ${action} the project: ${err.message || 'An unknown error occurred.'}`);
-//       });
-//     }
-//   }, [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]);
-
-//   const getStatusBadge = (status: string) => {
-//     const baseClasses = "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold";
-//     switch ((status || '').toLowerCase()) {
-//       case 'draft':
-//         return cn(baseClasses, "bg-gray-100 text-gray-800 border border-gray-300");
-//       case 'submitted':
-//         return cn(baseClasses, "bg-blue-100 text-blue-800 border border-blue-300");
-//       case 'under review':
-//         return cn(baseClasses, "bg-yellow-100 text-yellow-800 border border-yellow-300");
-//       case 'approved':
-//         return cn(baseClasses, "bg-green-100 text-green-800 border border-green-300");
-//       case 'rejected':
-//         return cn(baseClasses, "bg-red-100 text-red-800 border border-red-300");
-//       default:
-//         return cn(baseClasses, "bg-gray-100 text-gray-800 border border-gray-300");
-//     }
-//   };
-
-//   if (!projectName) {
-//     return (
-//       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-//         <div className="text-center p-8 bg-white rounded-2xl shadow-xl max-w-md w-full">
-//           <FileTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-//           <h2 className="text-2xl font-bold text-gray-800 mb-2">No Project Selected</h2>
-//           <p className="text-gray-600 mb-6">Please select a project to view its details.</p>
-//           <Button onClick={() => navigate('/projects-view')} className="bg-blue-600 hover:bg-blue-700">
-//             Back to Projects
-//           </Button>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   if (isLoading) {
-//     return (
-//       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-//         <div className="text-center">
-//           <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
-//           <p className="text-xl font-semibold text-gray-700">Loading Project Details...</p>
-//           <p className="text-gray-500 mt-2">Please wait while we fetch the project information</p>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   if (error) {
-//     return (
-//       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-//         <div className="text-center p-8 bg-white rounded-2xl shadow-xl max-w-md w-full">
-//           <XCircleIcon className="h-16 w-16 text-red-400 mx-auto mb-4" />
-//           <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading Project</h2>
-//           <p className="text-gray-600 mb-6">{error.message}</p>
-//           <Button onClick={() => navigate('/projects-view')} className="bg-blue-600 hover:bg-blue-700">
-//             Back to Projects
-//           </Button>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <>
-//       <style>{`
-//           @media print {
-//             .no-print { display: none !important; }
-//             .print-wrapper { padding: 0 !important; }
-//             .print-container { box-shadow: none !important; border: none !important; margin: 0 !important; padding: 1rem !important; max-width: 100% !important; }
-//             .print-container * { visibility: visible; }
-//             body { background-color: white !important; }
-//           }
-//       `}</style>
-
-//       <div>
-//         <AppSidebar isPermanentEmployee={isPermanentEmployee} />
-//         <div className="bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen p-4 sm:p-6 lg:p-8 font-sans print-wrapper flex-1">
-//           <div className="max-w-7xl mx-auto">
-//             {/* Header Section */}
-//             <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl shadow-2xl p-6 sm:p-8 mb-8 text-white">
-//               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-//                 <div className="flex items-start gap-4 flex-1">
-//                   <button
-//                     onClick={handleBack}
-//                     className="p-3 rounded-xl bg-white/20 hover:bg-white/30 transition-all duration-200 no-print mt-1"
-//                     aria-label="Go back"
-//                   >
-//                     <ArrowLeftIcon className="h-5 w-5 text-white" />
-//                   </button>
-//                   <div className="flex-1">
-//                     <h1 className="text-3xl font-bold mb-2">{data?.project_title || 'Project Details'}</h1>
-//                     <div className="flex flex-wrap items-center gap-4 text-blue-100">
-//                       <div className="flex items-center gap-2">
-//                         <FileTextIcon className="h-4 w-4" />
-//                         <span>Project ID: {projectName}</span>
-//                       </div>
-//                       <div className="flex items-center gap-2">
-//                         <span className={cn("px-3 py-1 rounded-full text-sm font-semibold bg-white/20", getStatusBadge(data?.workflow_state))}>
-//                           {data?.workflow_state}
-//                         </span>
-//                       </div>
-//                     </div>
-//                   </div>
-//                 </div>
-//                 <div className="flex flex-col sm:flex-row gap-3">
-//                   {/* New Action Buttons */}
-//                   {isCurrentUserPI && (
-//                     <div className="flex gap-2">
-//                       <Button
-//                         onClick={handleAddFunds}
-//                         className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2"
-//                       >
-//                         <PlusIcon className="h-4 w-4" />
-//                         Add Funds
-//                       </Button>
-//                       <Button
-//                         onClick={handleAddSanctionDetails}
-//                         className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2 rounded-lg flex items-center gap-2"
-//                       >
-//                         <FilePlusIcon className="h-4 w-4" />
-//                         Add Sanction
-//                       </Button>
-//                     </div>
-//                   )}
-//                   {projectName && (
-//                     <LogWorkflowActions
-//                       docname={projectName}
-//                       onAction={handleWorkflowAction}
-//                       isLoading={isActionLoading}
-//                     />
-//                   )}
-//                 </div>
-//               </div>
-//             </div>
-
-//             {/* Main Content */}
-//             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-//               <main className="lg:col-span-2 print-container space-y-6">
-//                 {/* Project Overview */}
-//                 <CollapsibleSection 
-//                   title="Project Overview" 
-//                   icon={FileTextIcon}
-//                   defaultOpen={true}
-//                 >
-//                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-//                     <FieldDisplay 
-//                       label="Implementation Department" 
-//                       value={isDepartmentLoading 
-//                         ? "Loading..." 
-//                         : (departmentDoc?.dept_name && departmentDoc.dept_name !== "" 
-//                             ? departmentDoc.dept_name 
-//                             : data?.implementation_department || "N/A")} 
-//                       icon={BuildingIcon} 
-//                     />
-//                     <FieldDisplay label="Project Type" value={data?.project_type} icon={FileTextIcon} />
-//                     {data?.project_type === 'Research' && <FieldDisplay label="Research Sub-Type" value={data?.research_sub_type} icon={FileTextIcon} />}
-//                     {data?.project_type === 'Consultancy' && <FieldDisplay label="Consultancy Category" value={data?.consultancy_category} icon={FileTextIcon} />}
-//                     <FieldDisplay label="Project Duration" value={`${data?.project_duration_months} months and ${data?.project_duration_days || 0} days`} icon={CalendarIcon} />
-//                   </div>
-
-//                   <HtmlContent title="Executive Summary" htmlString={data?.executive_summary} icon={FileTextIcon} />
-//                   <HtmlContent title="Project Objective" htmlString={data?.project_objective} icon={FileTextIcon} />
-//                   <HtmlContent title="Project Deliverables" htmlString={data?.project_deliverables} icon={FileTextIcon} />
-//                 </CollapsibleSection>
-
-//                 {/* Investigators */}
-//                 <CollapsibleSection 
-//                   title="Investigators" 
-//                   icon={UsersIcon}
-//                   defaultOpen={true}
-//                 >
-//                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                     <FieldDisplay label="Registering For" value={data?.registering_for} icon={UserIcon} />
-//                     <FieldDisplay label="Principal Investigator" value={data?.principal_investigator_name} icon={UserIcon} />
-//                     <FieldDisplay label="PI Employee ID" value={data?.pi_employee_id} icon={UserIcon} />
-//                     <FieldDisplay label="PI Designation" value={data?.designation} icon={UserIcon} />
-//                     <FieldDisplay label="PI Webmail" value={data?.pi_webmail} icon={UserIcon} />
-//                   </div>
-
-//                   <TableDisplay 
-//                     label="Additional Principal Investigators" 
-//                     data={data?.additional_pi_table} 
-//                     columns={[
-//                       { fieldname: 'pi_name', label: 'Name' }, 
-//                       { fieldname: 'pi_designation', label: 'Designation' }, 
-//                       { fieldname: 'pi_address', label: 'Address / Department' }
-//                     ]} 
-//                     icon={UsersIcon}
-//                   />
-
-//                   <TableDisplay 
-//                     label="Co-Investigators" 
-//                     data={data?.co_investigator_table} 
-//                     columns={[
-//                       { fieldname: 'copi_name', label: 'Name' }, 
-//                       { fieldname: 'copi_designation', label: 'Designation' }, 
-//                       { fieldname: 'copi_address', label: 'Department' }
-//                     ]} 
-//                     icon={UsersIcon}
-//                   />
-//                 </CollapsibleSection>
-
-//                 {/* Funding & Budget */}
-//                 <CollapsibleSection 
-//                   title="Funding & Proposed Budget" 
-//                   icon={DollarSignIcon}
-//                   defaultOpen={true}
-//                   actionButtons={
-//                     isCurrentUserPI && (
-//                       <Button
-//                         onClick={handleAddFunds}
-//                         variant="outline"
-//                         size="sm"
-//                         className="bg-white hover:bg-green-50 text-green-700 border-green-300 flex items-center gap-2"
-//                       >
-//                         <PlusIcon className="h-3 w-3" />
-//                         Add Funds
-//                       </Button>
-//                     )
-//                   }
-//                 >
-//                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                     <FieldDisplay label="Funding Agency Type" value={data?.funding_agency_type} icon={BuildingIcon} />
-//                     <FieldDisplay label="Funding Agency" value={data?.funding_agency} icon={BuildingIcon} />
-//                     <FieldDisplay label="Funding Agency GSTIN" value={data?.funding_agency_gstin} icon={FileTextIcon} />
-//                     <FieldDisplay label="Total Proposed Budget" value={data?.total_budget_amount} isCurrency icon={DollarSignIcon} />
-//                   </div>
-//                   <FieldDisplay label="Funding Agency Address" value={data?.funding_agency_address} icon={BuildingIcon} />
-//                 </CollapsibleSection>
-
-//                 {/* Sanction Details */}
-//                 {data?.have_sanction_details === 'Yes' && (
-//                   <CollapsibleSection 
-//                     title="Sanction Details" 
-//                     icon={FileTextIcon}
-//                     defaultOpen={true}
-//                     actionButtons={
-//                       isCurrentUserPI && (
-//                         <Button
-//                           onClick={handleAddSanctionDetails}
-//                           variant="outline"
-//                           size="sm"
-//                           className="bg-white hover:bg-purple-50 text-purple-700 border-purple-300 flex items-center gap-2"
-//                         >
-//                           <FilePlusIcon className="h-3 w-3" />
-//                           Add Sanction
-//                         </Button>
-//                       )
-//                     }
-//                   >
-//                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                       <FieldDisplay label="Sanction Letter No." value={data?.sanctioned_letter_no} icon={FileTextIcon} />
-//                       <FieldDisplay 
-//                         label="Sanction Letter Date" 
-//                         value={data?.sanctioned_letter_date 
-//                           ? new Date(data.sanctioned_letter_date).toLocaleDateString() 
-//                           : "N/A"} 
-//                         icon={CalendarIcon} 
-//                       />
-//                       <FieldDisplay label="Total Sanctioned Amount" value={data?.total_sanctioned_amount} isCurrency icon={DollarSignIcon} />
-//                     </div>
-//                     <TableDisplay 
-//                       label="Sanctioned Budget Breakup" 
-//                       data={data?.sanctioned_budget_breakup} 
-//                       columns={[
-//                         { fieldname: 'account_head', label: 'Budget Head' }, 
-//                         { fieldname: 'amount_sanctioned', label: 'Amount', isCurrency: true }
-//                       ]} 
-//                       icon={DollarSignIcon}
-//                     />
-//                   </CollapsibleSection>
-//                 )}
-
-//                 {/* Committee Clearance */}
-//                 <CollapsibleSection 
-//                   title="Committee Clearance" 
-//                   icon={ShieldIcon}
-//                   defaultOpen={true}
-//                 >
-//                   <FieldDisplay label="Needs Committee Clearance?" value={data?.needs_committee_clearance} icon={ShieldIcon} />
-//                   {data?.needs_committee_clearance === 'Yes' && (
-//                     <div className="mt-4 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 shadow-sm">
-//                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                         <FieldDisplay label="Committee" value={data?.committees} icon={ShieldIcon} />
-//                         {data?.committees === 'Other' && <FieldDisplay label="Specified Committee" value={data?.other_committee_specify} icon={ShieldIcon} />}
-//                         <FieldDisplay label="Biosafety Category" value={data?.biosafety_category} icon={ShieldIcon} />
-//                       </div>
-//                       <div className="mt-6">
-//                         <h4 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-//                           <ShieldIcon className="h-4 w-4 text-blue-600" />
-//                           Declaration
-//                         </h4>
-//                         <div className="prose prose-blue max-w-none p-4 bg-white rounded-lg border text-justify shadow-sm" dangerouslySetInnerHTML={{ __html: data?.declaration || '<p>No declaration provided.</p>' }} />
-//                       </div>
-//                     </div>
-//                   )}
-//                 </CollapsibleSection>
-//               </main>
-
-//               {/* Sidebar with Collapsible Sections */}
-//               <aside className="lg:col-span-1 no-print space-y-6">
-//                 <QuickActions />
-//                 <ActivityStream
-//                   ref={activityStreamRef}
-//                   doctype="Project Registration"
-//                   docname={projectName}
-//                 />
-//               </aside>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     </>
-//   );
-// };
-
-// export default ProjectDetailsView;
-
-
-
-
-// =-=-=-=-=-=-=-=-=-=-=-== font size reduce
-
-
-// import React, { useState, useCallback, useImperativeHandle, forwardRef, useRef, useEffect } from 'react';
-// import { useParams, useNavigate } from 'react-router-dom';
-// import { useFrappeGetDoc, useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
-// import { Button } from '@/components/ui/button';
-// import { Textarea } from '@/components/ui/textarea';
-// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-// import { AppSidebar } from "../components/RndSidebar";
-// import { 
-//   ArrowLeftIcon, 
-//   CalendarIcon, 
-//   UserIcon, 
-//   BuildingIcon, 
-//   DollarSignIcon,
-//   FileTextIcon,
-//   UsersIcon,
-//   ShieldIcon,
-//   MessageSquareIcon,
-//   ClockIcon,
-//   CheckCircleIcon,
-//   XCircleIcon,
-//   PlayCircleIcon,
-//   RefreshCwIcon,
-//   SendIcon,
-//   ChevronDownIcon,
-//   ChevronRightIcon,
-//   PlusIcon,
-//   FilePlusIcon,
-//   CreditCardIcon,
-//   UsersIcon as UsersGroupIcon,
-//   ShoppingCartIcon,
-//   BriefcaseIcon,
-//   PlaneIcon,
-//   SettingsIcon,
-//   UploadIcon,
-//   UserPlusIcon,
-//   HistoryIcon,
-//   SearchIcon,
-//   UserCheckIcon
-// } from 'lucide-react';
-// import { cn } from '@/lib/utils';
-
-// // --- Interfaces ---
-// interface ActivityItem {
-//     owner: string;
-//     creation: string;
-//     content: string;
-//     comment_type: string;
-// }
-
-// interface WorkflowAction {
-//   action: string;
-//   label: string;
-// }
-
-// interface ActivityStreamProps {
-//   doctype: string;
-//   docname: string;
-// }
-
-// interface ActivityStreamHandle {
-//   refetch: () => void;
-// }
-
-// interface ProjectDetailsProps {
-//   // projectName and onBack are now handled internally
-// }
-
-// // --- Helper Components ---
-// const FieldDisplay = ({ label, value, isCurrency = false, icon: Icon }: { label: string; value: any; isCurrency?: boolean; icon?: any }) => {
-//   if (!value && value !== 0) return null;
-//   const displayValue = isCurrency ? `₹ ${Number(value).toLocaleString('en-IN')}` : String(value);
-//   return (
-//     <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-indigo-300 transition-colors">
-//       <div className="flex items-center gap-2 mb-1">
-//         {Icon && <Icon className="h-3 w-3 text-indigo-600" />}
-//         <p className="text-xs font-semibold text-gray-700">{label}</p>
-//       </div>
-//       <p className="text-sm font-medium text-gray-900">{displayValue}</p>
-//     </div>
-//   );
-// };
-
-// // Collapsible Section Component
-// const CollapsibleSection = ({ 
-//   title, 
-//   icon: Icon, 
-//   children, 
-//   defaultOpen = true,
-//   actionButtons,
-//   className 
-// }: { 
-//   title: string; 
-//   icon?: any; 
-//   children: React.ReactNode;
-//   defaultOpen?: boolean;
-//   actionButtons?: React.ReactNode;
-//   className?: string;
-// }) => {
-//   const [isOpen, setIsOpen] = useState(defaultOpen);
-
-//   return (
-//     <div className={cn("bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden", className)}>
-//       <div 
-//         className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-//         onClick={() => setIsOpen(!isOpen)}
-//       >
-//         <div className="flex items-center gap-2">
-//           {Icon && <div className="p-1.5 bg-indigo-100 rounded-lg"><Icon className="h-4 w-4 text-indigo-600" /></div>}
-//           <h3 className="text-lg font-bold text-gray-900">{title}</h3>
-//         </div>
-//         <div className="flex items-center gap-2">
-//           {actionButtons}
-//           <div className={cn("transition-transform duration-200", isOpen ? "rotate-0" : "-rotate-90")}>
-//             <ChevronDownIcon className="h-4 w-4 text-gray-600" />
-//           </div>
-//         </div>
-//       </div>
-//       {isOpen && (
-//         <div className="px-4 pb-4">
-//           {children}
-//         </div>
-//       )}
-//     </div>
-//   );
-// };
-
-// const HtmlContent = ({ title, htmlString, icon: Icon }: { title: string, htmlString: string | undefined, icon?: any }) => {
-//   if (!htmlString) return null;
-//   return (
-//     <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
-//       <div className="flex items-center gap-2 mb-3">
-//         {Icon && <Icon className="h-3 w-3 text-indigo-600" />}
-//         <h4 className="text-base font-semibold text-gray-800">{title}</h4>
-//       </div>
-//       <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: htmlString }} />
-//     </div>
-//   );
-// };
-
-// const TableDisplay = ({ label, data, columns, icon: Icon }: { label: string; data: any[] | undefined; columns: { fieldname: string, label: string, isCurrency?: boolean }[]; icon?: any }) => {
-//   if (!data || data.length === 0) return null;
-//   return (
-//     <div className="my-4">
-//       <div className="flex items-center gap-2 mb-3">
-//         {Icon && <Icon className="h-3 w-3 text-indigo-600" />}
-//         <p className="text-base font-semibold text-gray-800">{label}</p>
-//       </div>
-//       <div className="overflow-hidden rounded-lg border border-gray-200 shadow-sm">
-//         <table className="min-w-full divide-y divide-gray-200 bg-white">
-//           <thead className="bg-gradient-to-r from-indigo-50 to-purple-50">
-//             <tr>
-//               {columns.map(col => (
-//                 <th key={col.fieldname} scope="col" className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-//                   {col.label}
-//                 </th>
-//               ))}
-//             </tr>
-//           </thead>
-//           <tbody className="divide-y divide-gray-200 bg-white">
-//             {data.map((row, index) => (
-//               <tr key={index} className="hover:bg-gray-50 transition-colors">
-//                 {columns.map(col => (
-//                   <td key={col.fieldname} className="px-4 py-2 whitespace-nowrap text-xs text-gray-700">
-//                     {col.isCurrency ? `₹ ${Number(row[col.fieldname] || 0).toLocaleString('en-IN')}` : row[col.fieldname]}
-//                   </td>
-//                 ))}
-//               </tr>
-//             ))}
-//           </tbody>
-//         </table>
-//       </div>
-//     </div>
-//   );
-// };
-
-// // --- Action Buttons Component ---
-// const ActionButtons = ({ actions, onAction, isLoading }: { actions: WorkflowAction[], onAction: (action: string) => void, isLoading: boolean }) => {
-//   if (!actions || actions.length === 0) {
-//     return null;
-//   }
-
-//   const getButtonClass = (actionName: string | undefined | null) => {
-//     switch ((actionName || '').toLowerCase()) {
-//       case 'approve':
-//       case 'submit':
-//         return 'bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all';
-//       case 'reject':
-//         return 'bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all';
-//       case 'cancel':
-//         return 'bg-gray-600 hover:bg-gray-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all';
-//       default:
-//         return 'bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all';
-//     }
-//   };
-
-//   return (
-//     <div className="flex items-center gap-2 no-print">
-//       {actions.map((actionItem: WorkflowAction) => (
-//         <Button
-//           key={actionItem.action}
-//           onClick={() => onAction(actionItem.action)}
-//           className={cn("text-white font-semibold px-4 py-1.5 rounded-lg transition-all duration-200 text-sm", getButtonClass(actionItem.action))}
-//           disabled={isLoading}
-//         >
-//           {isLoading ? (
-//             <div className="flex items-center gap-1">
-//               <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
-//               Processing...
-//             </div>
-//           ) : (
-//             <div className="flex items-center gap-1">
-//               {actionItem.action.toLowerCase() === 'approve' && <CheckCircleIcon className="h-3 w-3" />}
-//               {actionItem.action.toLowerCase() === 'reject' && <XCircleIcon className="h-3 w-3" />}
-//               {actionItem.action.toLowerCase() === 'submit' && <PlayCircleIcon className="h-3 w-3" />}
-//               {actionItem.label || actionItem.action}
-//             </div>
-//           )}
-//         </Button>
-//       ))}
-//     </div>
-//   );
-// };
-
-// // --- Activity Stream Component (Collapsible) ---
-// const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(({ doctype, docname }, ref) => {
-//   const [newComment, setNewComment] = useState('');
-//   const [refreshTrigger, setRefreshTrigger] = useState(0);
-//   const [isSubmitting, setIsSubmitting] = useState(false);
-//   const [isExpanded, setIsExpanded] = useState(true);
-
-//   const { 
-//     data: activityData, 
-//     mutate: refetchActivity, 
-//     error: activityError, 
-//     isLoading: isActivityLoading 
-//   } = useFrappeGetCall<{ message: ActivityItem[] }>(
-//     'rndopsapp.rndopsapp.api.get_project_activity',
-//     { doctype, docname },
-//     { 
-//       enabled: !!docname,
-//       revalidateOnFocus: true,
-//       revalidateOnReconnect: true,
-//       refreshWhenHidden: false,
-//       refreshWhenOffline: false,
-//       revalidateOnMount: true
-//     }
-//   );
-
-//   // Auto-refresh every 30 seconds
-//   useEffect(() => {
-//     const interval = setInterval(() => {
-//       refetchActivity();
-//     }, 30000);
-
-//     return () => clearInterval(interval);
-//   }, [refetchActivity]);
-
-//   // Manual refresh function
-//   const handleManualRefresh = useCallback(() => {
-//     setRefreshTrigger(prev => prev + 1);
-//     refetchActivity();
-//   }, [refetchActivity]);
-
-//   useImperativeHandle(ref, () => ({
-//     refetch() {
-//       handleManualRefresh();
-//     }
-//   }));
-
-//   const { call: addComment, loading: isCommenting } = useFrappePostCall(
-//     'rndopsapp.rndopsapp.api.add_project_comment'
-//   );
-
-//   const handleCommentSubmit = async () => {
-//     if (!newComment.trim()) {
-//       alert("Please enter a comment before submitting.");
-//       return;
-//     }
-
-//     setIsSubmitting(true);
-    
-//     try {
-//       console.log("Submitting comment:", {
-//         doctype,
-//         docname,
-//         content: newComment.trim()
-//       });
-
-//       const result = await addComment({
-//         doctype,
-//         docname,
-//         content: newComment.trim()
-//       });
-
-//       console.log("Comment submitted successfully:", result);
-      
-//       // Clear the textarea
-//       setNewComment('');
-      
-//       // Force refresh after adding comment
-//       await refetchActivity();
-      
-//       // Show success message
-//       alert("Comment added successfully!");
-      
-//     } catch (err: any) {
-//       console.error("Failed to add comment:", err);
-      
-//       // More detailed error handling
-//       let errorMessage = "Error: Could not post comment.";
-//       if (err.message) {
-//         errorMessage = `Error: ${err.message}`;
-//       } else if (err.exc) {
-//         errorMessage = `Error: ${err.exc}`;
-//       }
-      
-//       alert(errorMessage);
-//     } finally {
-//       setIsSubmitting(false);
-//     }
-//   };
-
-//   // Handle Enter key press for comment submission
-//   const handleKeyPress = (e: React.KeyboardEvent) => {
-//     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-//       handleCommentSubmit();
-//     }
-//   };
-
-//   return (
-//     <Card className="border-0 shadow-lg bg-gradient-to-b from-white to-indigo-50/20">
-//       <CardHeader 
-//         className="bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-t-lg cursor-pointer"
-//         onClick={() => setIsExpanded(!isExpanded)}
-//       >
-//         <div className="flex items-center justify-between">
-//           <CardTitle className="flex items-center gap-2 text-white text-sm">
-//             <MessageSquareIcon className="h-4 w-4" />
-//             Activity & Comments
-//           </CardTitle>
-//           <div className="flex items-center gap-1">
-//             <Button
-//               variant="ghost"
-//               size="sm"
-//               onClick={(e) => {
-//                 e.stopPropagation();
-//                 handleManualRefresh();
-//               }}
-//               disabled={isActivityLoading}
-//               className="text-white hover:bg-white/20 p-1 h-6 w-6"
-//               title="Refresh activities"
-//             >
-//               <RefreshCwIcon className={cn("h-3 w-3", isActivityLoading && "animate-spin")} />
-//             </Button>
-//             <div className={cn("transition-transform duration-200", isExpanded ? "rotate-0" : "-rotate-90")}>
-//               <ChevronDownIcon className="h-4 w-4 text-white" />
-//             </div>
-//           </div>
-//         </div>
-//       </CardHeader>
-//       {isExpanded && (
-//         <CardContent className="p-4">
-//           <div className="space-y-4">
-//             {/* Comment Input Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-//               <div className="mb-2">
-//                 <label htmlFor="comment-textarea" className="block text-xs font-medium text-gray-700 mb-1">
-//                   Add a comment
-//                 </label>
-//                 <Textarea
-//                   id="comment-textarea"
-//                   placeholder="Type your comment here... (Press Ctrl+Enter to submit)"
-//                   value={newComment}
-//                   onChange={(e) => setNewComment(e.target.value)}
-//                   onKeyDown={handleKeyPress}
-//                   disabled={isSubmitting}
-//                   className="resize-none border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 transition-colors text-sm"
-//                   rows={2}
-//                 />
-//               </div>
-//               <div className="flex items-center justify-between">
-//                 <span className="text-xs text-gray-500">
-//                   {newComment.length}/1000 characters
-//                 </span>
-//                 <Button 
-//                   onClick={handleCommentSubmit} 
-//                   disabled={isSubmitting || !newComment.trim()}
-//                   className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-1 text-xs"
-//                 >
-//                   {isSubmitting ? (
-//                     <>
-//                       <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
-//                       Submitting...
-//                     </>
-//                   ) : (
-//                     <>
-//                       <SendIcon className="h-3 w-3" />
-//                       Submit
-//                     </>
-//                   )}
-//                 </Button>
-//               </div>
-//             </div>
-
-//             {/* Activity List */}
-//             <div className="space-y-3 max-h-[35vh] overflow-y-auto pr-2 border-t pt-3">
-//               {isActivityLoading ? (
-//                 <div className="flex justify-center py-4">
-//                   <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent"></div>
-//                 </div>
-//               ) : activityError ? (
-//                 <div className="text-center py-4 text-red-600 bg-red-50 rounded-lg p-3 text-xs">
-//                   <p className="font-medium">Failed to load activities</p>
-//                   <p className="text-xs mt-1">Please try refreshing</p>
-//                   <Button 
-//                     variant="outline" 
-//                     size="sm" 
-//                     onClick={handleManualRefresh}
-//                     className="mt-1 text-xs"
-//                   >
-//                     Retry
-//                   </Button>
-//                 </div>
-//               ) : activityData?.message && activityData.message.length > 0 ? (
-//                 <div className="space-y-3">
-//                   <div className="flex items-center justify-between text-xs text-gray-500">
-//                     <span>{activityData.message.length} comment(s)</span>
-//                     <span>Latest activity</span>
-//                   </div>
-//                   {activityData.message.map((item, index) => (
-//                     <div key={`${item.creation}-${index}`} className="flex items-start gap-2 group">
-//                       <div className="flex-shrink-0">
-//                         <div className="h-6 w-6 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center font-bold text-white shadow-md text-xs">
-//                           {item.owner?.charAt(0).toUpperCase() || 'U'}
+//     const renderContent = () => {
+//         if (!projectName) {
+//             return ( <div className="flex items-center justify-center p-4 min-h-screen"><div className="text-center p-8 max-w-md w-full bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]"><FileTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" /><h2 className="text-2xl font-bold text-black mb-2">No Project Selected</h2><p className="text-gray-700 mb-6 font-mono">Select a project to see details.</p><NeoButton onClick={() => navigate('/projects-view')} className="bg-cyan-300 hover:bg-cyan-400">Back to Projects</NeoButton></div></div> );
+//         }
+//         if (isLoading) {
+//             return ( <div className="flex items-center justify-center min-h-screen"><div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-cyan-300 mx-auto mb-4"></div><p className="text-lg font-bold text-black">Loading Project...</p></div></div> );
+//         }
+//         if (error) {
+//             return ( <div className="flex items-center justify-center p-4 min-h-screen"><div className="text-center p-8 max-w-md w-full bg-red-100 border-2 border-red-700 rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]"><h2 className="text-2xl font-bold text-red-800 mb-2">Error Loading Project</h2><p className="text-red-700 mb-6 font-mono">{error.message}</p><NeoButton onClick={() => navigate('/projects-view')} className="bg-white hover:bg-gray-100">Back to Projects</NeoButton></div></div> );
+//         }
+//         return (
+//             <>
+//                 {/* Header */}
+//                 <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+//                     <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
+//                         <div className="flex items-center gap-4">
+//                             <button onClick={() => navigate('/projects-view')} className="p-3 bg-white border-2 border-black rounded-md hover:bg-cyan-100 active:translate-y-1 transition-transform"><ArrowLeftIcon className="h-6 w-6" /></button>
+//                             <div>
+//                                 <h1 className="text-3xl font-extrabold text-black">{data?.project_title || 'Project Details'}</h1>
+//                                 <p className="text-gray-700 font-mono mt-1">ID: {projectName} | Status: <span className="font-bold text-black">{data?.workflow_state || 'Draft'}</span></p>
+//                             </div>
 //                         </div>
-//                       </div>
-//                       <div className="flex-1 bg-white p-2 rounded-lg border border-gray-200 shadow-sm group-hover:shadow-md transition-shadow">
-//                         <div className="flex justify-between items-center mb-1">
-//                           <p className="text-xs font-semibold text-gray-900">{item.owner || 'Unknown User'}</p>
-//                           <p className="text-xs text-gray-500 flex items-center gap-1">
-//                             <ClockIcon className="h-2.5 w-2.5" />
-//                             {item.creation ? new Date(item.creation).toLocaleString() : "N/A"}
-//                           </p>
+//                         <div className="flex items-center gap-3 flex-wrap">
+//                             {isCurrentUserPI && ( <div className="flex gap-3"><NeoButton onClick={handleAddFunds} className="bg-cyan-300 hover:bg-cyan-400 flex items-center gap-2"><PlusIcon className="h-4 w-4" /> Add Funds</NeoButton><NeoButton onClick={handleAddSanctionDetails} className="bg-cyan-300 hover:bg-cyan-400 flex items-center gap-2"><FilePlusIcon className="h-4 w-4" /> Add Sanction</NeoButton></div> )}
+//                             <WorkflowActions docname={projectName} onAction={handleWorkflowAction} isLoading={isActionLoading} />
 //                         </div>
-//                         <div
-//                           className="text-xs text-gray-700 prose prose-xs max-w-none leading-relaxed"
-//                           dangerouslySetInnerHTML={{ __html: item.content || 'No content' }}
-//                         />
-//                         {item.comment_type && (
-//                           <div className="mt-1">
-//                             <span className="inline-block px-1.5 py-0.5 text-xs bg-indigo-100 text-indigo-800 rounded-full">
-//                               {item.comment_type}
-//                             </span>
-//                           </div>
+//                     </div>
+//                 </header>
+
+//                 {/* Tabs & Content */}
+//                 <div className="bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+//                     <div className="border-b-2 border-black"><nav className="flex space-x-2 p-2 overflow-x-auto">
+//                         {tabs.map((tab) => (
+//                             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={cn("flex-shrink-0 flex items-center gap-2 py-3 px-4 font-bold text-sm rounded-md border-2 border-transparent transition-all", activeTab === tab.id ? "bg-cyan-300 border-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)]" : "text-black hover:bg-cyan-100")}>
+//                                 <tab.icon className="h-5 w-5" />{tab.label}
+//                             </button>
+//                         ))}
+//                     </nav></div>
+//                     <div className="p-6 md:p-8">
+//                         {activeTab === 'quick-actions' && <QuickActions />}
+//                         {activeTab === 'overview' && (
+//                             <div className="space-y-8">
+//                                 <div className="p-4 bg-white border-2 border-black rounded-md"><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4 divide-y md:divide-y-0">
+//                                     <FieldDisplay label="Implementation Dept" value={data?.implementation_department} icon={BuildingIcon} />
+//                                     <FieldDisplay label="Project Type" value={data?.project_type} icon={FileTextIcon} />
+//                                     {data?.project_type === 'Research' && <FieldDisplay label="Research Sub-Type" value={data?.research_sub_type} icon={FileTextIcon} />}
+//                                     {data?.project_type === 'Consultancy' && <FieldDisplay label="Consultancy Category" value={data?.consultancy_category} icon={FileTextIcon} />}
+//                                     <FieldDisplay label="Project Duration" value={`${data?.project_duration_months}m ${data?.project_duration_days || 0}d`} icon={CalendarIcon} />
+//                                     <FieldDisplay label="Start Date" value={data?.project_start_date ? new Date(data.project_start_date).toLocaleDateString() : 'N/A'} icon={CalendarIcon} />
+//                                     <FieldDisplay label="End Date" value={data?.project_end_date ? new Date(data.project_end_date).toLocaleDateString() : 'N/A'} icon={CalendarIcon} />
+//                                     <FieldDisplay label="Status" value={data?.workflow_state} icon={TargetIcon} />
+//                                 </div></div>
+//                                 <HtmlContent title="Executive Summary" htmlString={data?.executive_summary} icon={FileTextIcon} />
+//                                 <HtmlContent title="Project Objective" htmlString={data?.project_objective} icon={TargetIcon} />
+//                             </div>
 //                         )}
-//                       </div>
+//                         {activeTab === 'investigators' && ( <div className="space-y-8"><TableDisplay label="Additional PIs" data={data?.additional_pi_table} columns={[{ fieldname: 'pi_name', label: 'Name' }, { fieldname: 'pi_designation', label: 'Designation' }, { fieldname: 'pi_email', label: 'Email' }]} icon={UsersIcon} /><TableDisplay label="Co-Investigators" data={data?.co_investigator_table} columns={[{ fieldname: 'copi_name', label: 'Name' }, { fieldname: 'copi_designation', label: 'Designation' }, { fieldname: 'copi_email', label: 'Email' }]} icon={UsersIcon} /></div> )}
+//                         {activeTab === 'funding' && ( <div className="space-y-8"><TableDisplay label="Proposed Budget" data={data?.proposed_budget_breakup} columns={[{ fieldname: 'account_head', label: 'Budget Head' }, { fieldname: 'amount', label: 'Amount' }]} icon={DollarSignIcon} />{data?.have_sanction_details === 'Yes' && (<TableDisplay label="Sanctioned Budget" data={data?.sanctioned_budget_breakup} columns={[{ fieldname: 'account_head', label: 'Budget Head' }, { fieldname: 'amount_sanctioned', label: 'Amount' }]} icon={DollarSignIcon} />)}</div> )}
+//                         {activeTab === 'clearance' && ( <div className="space-y-8"><HtmlContent title="Declaration" htmlString={data?.declaration} icon={ShieldIcon} /><TableDisplay label="Committee Members" data={data?.committee_members} columns={[{ fieldname: 'member_name', label: 'Name' }, { fieldname: 'role', label: 'Role' }]} icon={UsersIcon} /></div> )}
+//                         {activeTab === 'activity' && <ActivityStream ref={activityStreamRef} doctype="Project Registration" docname={projectName} />}
 //                     </div>
-//                   ))}
 //                 </div>
-//               ) : (
-//                 <div className="text-center py-4">
-//                   <MessageSquareIcon className="h-6 w-6 text-gray-300 mx-auto mb-2" />
-//                   <p className="text-gray-500 font-medium text-xs">No activity yet</p>
-//                   <p className="text-xs text-gray-400">Be the first to add a comment</p>
-//                 </div>
-//               )}
-//             </div>
-//           </div>
-//         </CardContent>
-//       )}
-//     </Card>
-//   );
-// });
+//             </>
+//         );
+//     };
 
-// ActivityStream.displayName = 'ActivityStream';
-
-// // --- Quick Actions Component (Collapsible) ---
-// const QuickActions = () => {
-//   const [isExpanded, setIsExpanded] = useState(false);
-
-//   return (
-//     <Card className="border-0 shadow-lg bg-gradient-to-b from-white to-green-50/20">
-//       <CardHeader 
-//         className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-t-lg cursor-pointer"
-//         onClick={() => setIsExpanded(!isExpanded)}
-//       >
-//         <div className="flex items-center justify-between">
-//           <CardTitle className="flex items-center gap-2 text-white text-sm">
-//             <SettingsIcon className="h-4 w-4" />
-//             Quick Actions
-//           </CardTitle>
-//           <div className={cn("transition-transform duration-200", isExpanded ? "rotate-0" : "-rotate-90")}>
-//             <ChevronDownIcon className="h-4 w-4 text-white" />
-//           </div>
-//         </div>
-//       </CardHeader>
-//       {isExpanded && (
-//         <CardContent className="p-4">
-//           <div className="space-y-3">
-//             {/* Advance Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-//               <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-1 text-sm">
-//                 <CreditCardIcon className="h-3 w-3 text-indigo-600" />
-//                 Advance
-//               </h3>
-//               <div className="space-y-1">
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Reimbursement
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Temporary Advance Apply
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Temporary Advance Settle
-//                 </Button>
-//               </div>
-//             </div>
-
-//             {/* Disbursal Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-//               <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-1 text-sm">
-//                 <UploadIcon className="h-3 w-3 text-green-600" />
-//                 Disbursal
-//               </h3>
-//               <div className="space-y-1">
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   One Time Assistantship
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Top Up Fellowship
-//                 </Button>
-//               </div>
-//             </div>
-
-//             {/* Purchase Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-//               <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-1 text-sm">
-//                 <ShoppingCartIcon className="h-3 w-3 text-purple-600" />
-//                 Purchase
-//               </h3>
-//               <div className="space-y-1">
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Direct Purchase upto 10 Lakhs
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   General Indent
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Generate NIQ
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Indent cum Sanction Sheet
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Rate Contract
-//                 </Button>
-//               </div>
-//             </div>
-
-//             {/* Recruitment Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-//               <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-1 text-sm">
-//                 <UsersGroupIcon className="h-3 w-3 text-orange-600" />
-//                 Recruitment
-//               </h3>
-//               <div className="space-y-1">
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Adhoc
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Committee Member Change Request
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Contractual
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Selection Committee Report
-//                 </Button>
-//               </div>
-//             </div>
-
-//             {/* Travel Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-//               <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-1 text-sm">
-//                 <PlaneIcon className="h-3 w-3 text-cyan-600" />
-//                 Travel
-//               </h3>
-//               <div className="space-y-1">
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Apply
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   TA-DA Settle
-//                 </Button>
-//               </div>
-//             </div>
-
-//             {/* Utilities Section */}
-//             <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-//               <h3 className="font-semibold text-gray-800 mb-2 flex items-center gap-1 text-sm">
-//                 <SettingsIcon className="h-3 w-3 text-gray-600" />
-//                 Utilities
-//               </h3>
-//               <div className="space-y-1">
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Add New User
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Application History
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Form Tracking
-//                 </Button>
-//                 <Button variant="outline" className="w-full justify-start text-xs" size="sm">
-//                   Incharge Assignment
-//                 </Button>
-//               </div>
-//             </div>
-//           </div>
-//         </CardContent>
-//       )}
-//     </Card>
-//   );
-// };
-
-// // --- LogWorkflowActions Component ---
-// const LogWorkflowActions = ({ docname, onAction, isLoading: isActionLoading }: { docname: string, onAction: (action: string) => void, isLoading: boolean }) => {
-//   const { data, error, isLoading } = useFrappeGetCall<{ message: string[] }>(
-//     'rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_available_workflow_actions',
-//     { docname }
-//   );
-
-//   useEffect(() => {
-//     if (data) {
-//       console.log('✅ Allowed Actions (from LogWorkflowActions):', data);
-//       console.log('✅ Allowed Actions (from LogWorkflowActions):', data.message);
-//     }
-//     if (error) {
-//       console.error('❌ Error fetching workflow actions (from LogWorkflowActions):', error);
-//     }
-//   }, [data, error]);
-
-//   const getButtonClass = (actionName: string | undefined | null) => {
-//     switch ((actionName || '').toLowerCase()) {
-//       case 'approve':
-//       case 'submit':
-//         return 'bg-green-600 hover:bg-green-700 shadow-lg hover:shadow-xl';
-//       case 'reject':
-//         return 'bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl';
-//       case 'cancel':
-//         return 'bg-gray-600 hover:bg-gray-700 shadow-lg hover:shadow-xl';
-//       default:
-//         return 'bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-xl';
-//     }
-//   };
-
-//   if (isLoading) {
 //     return (
-//       <div className="flex items-center gap-2 text-gray-600 text-sm">
-//         <div className="animate-spin rounded-full h-3 w-3 border-2 border-indigo-600 border-t-transparent"></div>
-//         Loading actions...
-//       </div>
-//     );
-//   }
-
-//   if (error) {
-//     return (
-//       <div className="text-red-600 bg-red-50 px-2 py-1 rounded-lg border border-red-200 text-xs">
-//         Error loading actions
-//       </div>
-//     );
-//   }
-
-//   if (!data?.message || data.message.length === 0) {
-//     return null;
-//   }
-
-//   return (
-//     <div className="flex items-center gap-2 no-print">
-//       {data.message.map((actionString: string) => (
-//         <Button
-//           key={actionString}
-//           onClick={() => onAction(actionString)}
-//           className={cn("text-white font-semibold px-3 py-1 rounded-lg transform hover:-translate-y-0.5 transition-all text-sm", getButtonClass(actionString))}
-//           disabled={isActionLoading}
-//         >
-//           {isActionLoading ? (
-//             <div className="flex items-center gap-1">
-//               <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
-//               Processing...
-//             </div>
-//           ) : (
-//             <div className="flex items-center gap-1">
-//               {actionString.toLowerCase() === 'approve' && <CheckCircleIcon className="h-3 w-3" />}
-//               {actionString.toLowerCase() === 'reject' && <XCircleIcon className="h-3 w-3" />}
-//               {actionString.toLowerCase() === 'submit' && <PlayCircleIcon className="h-3 w-3" />}
-//               {actionString}
-//             </div>
-//           )}
-//         </Button>
-//       ))}
-//     </div>
-//   );
-// };
-
-// // --- Main Component ---
-// const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
-//   const { projectName } = useParams<{ projectName: string }>();
-//   const navigate = useNavigate();
-//   const handleBack = () => navigate('/projects-view');
-
-//   const { currentUser } = useFrappeAuth();
-//   const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc("User", currentUser ?? "", {
-//     fields: ["roles"],
-//     enabled: !!currentUser,
-//   });
-
-//   // Determine if user is permanent employee
-//   let isPermanentEmployee = false;
-//   if (userData) {
-//     if (Array.isArray(userData.roles) && userData.roles.length > 0) {
-//       if (typeof userData.roles[0] === 'string') {
-//         isPermanentEmployee = userData.roles.includes("Permanent Employee");
-//       } else if (typeof userData.roles[0] === 'object' && userData.roles[0] !== null && 'role' in userData.roles[0]) {
-//         isPermanentEmployee = userData.roles.some((role: any) => role.role === "Permanent Employee");
-//       }
-//     }
-//   }
-
-//   const { data, error, isLoading, mutate } = useFrappeGetDoc('Project Registration', projectName ?? '', {
-//     cacheTime: 0,
-//     enabled: !!projectName,
-//   });
-
-//   // Check if current user is the PI of the project
-//   const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
-
-//   useEffect(() => {
-//     console.log("Project Registration - implementation_department:", data?.implementation_department);
-//   }, [data?.implementation_department]);
-
-//   const departmentId = data?.implementation_department;
-//   const { data: departmentDoc, isLoading: isDepartmentLoading } = useFrappeGetDoc(
-//     "Department_prornd",
-//     departmentId,
-//     { 
-//       fields: ["dept_name"],
-//       enabled: !!departmentId 
-//     }
-//   );
-
-//   useEffect(() => {
-//     console.log("ProjectDetails - departmentId:", departmentId);
-//     console.log("ProjectDetails - departmentDoc:", departmentDoc);
-//     console.log("ProjectDetails - isDepartmentLoading:", isDepartmentLoading);
-//   }, [departmentId, departmentDoc, isDepartmentLoading]);
-
-//   const activityStreamRef = useRef<ActivityStreamHandle>(null);
-
-//   const { call: triggerWorkflowAction, loading: isActionLoading } = useFrappePostCall(
-//     'rndopsapp.rndopsapp.api.handle_workflow_action'
-//   );
-
-//   const { call: submitProjectRegistration, loading: isSubmittingProject } = useFrappePostCall(
-//     'rndopsapp.rndopsapp.api.submit_project_registration'
-//   );
-
-//   // New action handlers
-//   const handleAddFunds = () => {
-//     // Navigate to add funds page or open modal
-//     alert("Add Funds functionality will be implemented here");
-//     // navigate(`/add-funds/${projectName}`);
-//   };
-
-//   const handleAddSanctionDetails = () => {
-//     // Navigate to add sanction details page or open modal
-//     alert("Add Sanction Details functionality will be implemented here");
-//     // navigate(`/add-sanction-details/${projectName}`);
-//   };
-
-//   const handleWorkflowAction = useCallback((action: string) => {
-//     if (action.toLowerCase() === 'submit') {
-//       submitProjectRegistration({
-//         docname: projectName
-//       }).then(() => {
-//         alert("Project registration submitted successfully!");
-//         mutate();
-//         // Refresh activity stream after workflow action
-//         activityStreamRef.current?.refetch();
-//       }).catch((err: any) => {
-//         console.error("Error submitting project registration:", err);
-//         alert(`Failed to submit project registration: ${err.message || 'An unknown error occurred.'}`);
-//       });
-//     } else {
-//       triggerWorkflowAction({
-//         doctype: 'Project Registration',
-//         docname: projectName,
-//         action: action
-//       }).then(() => {
-//         alert(`Project action '${action}' completed successfully!`);
-//         mutate();
-//         // Refresh activity stream after workflow action
-//         activityStreamRef.current?.refetch();
-//       }).catch((err: any) => {
-//         console.error(`Error during workflow action:`, err);
-//         alert(`Failed to ${action} the project: ${err.message || 'An unknown error occurred.'}`);
-//       });
-//     }
-//   }, [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]);
-
-//   const getStatusBadge = (status: string) => {
-//     const baseClasses = "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold";
-//     switch ((status || '').toLowerCase()) {
-//       case 'draft':
-//         return cn(baseClasses, "bg-gray-100 text-gray-800 border border-gray-300");
-//       case 'submitted':
-//         return cn(baseClasses, "bg-indigo-100 text-indigo-800 border border-indigo-300");
-//       case 'under review':
-//         return cn(baseClasses, "bg-yellow-100 text-yellow-800 border border-yellow-300");
-//       case 'approved':
-//         return cn(baseClasses, "bg-green-100 text-green-800 border border-green-300");
-//       case 'rejected':
-//         return cn(baseClasses, "bg-red-100 text-red-800 border border-red-300");
-//       default:
-//         return cn(baseClasses, "bg-gray-100 text-gray-800 border border-gray-300");
-//     }
-//   };
-
-//   if (!projectName) {
-//     return (
-//       <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center justify-center p-4">
-//         <div className="text-center p-6 bg-white rounded-xl shadow-lg max-w-md w-full">
-//           <FileTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-//           <h2 className="text-xl font-bold text-gray-800 mb-2">No Project Selected</h2>
-//           <p className="text-gray-600 mb-4 text-sm">Please select a project to view its details.</p>
-//           <Button onClick={() => navigate('/projects-view')} className="bg-indigo-600 hover:bg-indigo-700 text-sm">
-//             Back to Projects
-//           </Button>
+//         // --- DESIGN REVISION: Dull background color applied here ---
+//         <div className="bg-[#FDFCEC]">
+//             <AppSidebar isPermanentEmployee={true} />
+//             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+//                 {renderContent()}
+//             </main>
 //         </div>
-//       </div>
 //     );
-//   }
-
-//   if (isLoading) {
-//     return (
-//       <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center justify-center">
-//         <div className="text-center">
-//           <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mx-auto mb-3"></div>
-//           <p className="text-lg font-semibold text-gray-700">Loading Project Details...</p>
-//           <p className="text-gray-500 mt-1 text-sm">Please wait while we fetch the project information</p>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   if (error) {
-//     return (
-//       <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-100 flex items-center justify-center p-4">
-//         <div className="text-center p-6 bg-white rounded-xl shadow-lg max-w-md w-full">
-//           <XCircleIcon className="h-12 w-12 text-red-400 mx-auto mb-3" />
-//           <h2 className="text-xl font-bold text-gray-800 mb-2">Error Loading Project</h2>
-//           <p className="text-gray-600 mb-4 text-sm">{error.message}</p>
-//           <Button onClick={() => navigate('/projects-view')} className="bg-indigo-600 hover:bg-indigo-700 text-sm">
-//             Back to Projects
-//           </Button>
-//         </div>
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <>
-//       <style>{`
-//           @media print {
-//             .no-print { display: none !important; }
-//             .print-wrapper { padding: 0 !important; }
-//             .print-container { box-shadow: none !important; border: none !important; margin: 0 !important; padding: 1rem !important; max-width: 100% !important; }
-//             .print-container * { visibility: visible; }
-//             body { background-color: white !important; }
-//           }
-//       `}</style>
-
-//       <div>
-//         <AppSidebar isPermanentEmployee={isPermanentEmployee} />
-//         <div className="bg-gradient-to-br from-gray-50 to-indigo-50 min-h-screen p-3 sm:p-4 lg:p-6 font-sans print-wrapper flex-1">
-//           <div className="max-w-7xl mx-auto">
-//             {/* Header Section */}
-//             <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 rounded-xl shadow-xl p-4 sm:p-6 mb-6 text-white">
-//               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-//                 <div className="flex items-start gap-3 flex-1">
-//                   <button
-//                     onClick={handleBack}
-//                     className="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-200 no-print mt-0.5"
-//                     aria-label="Go back"
-//                   >
-//                     <ArrowLeftIcon className="h-4 w-4 text-white" />
-//                   </button>
-//                   <div className="flex-1">
-//                     <h1 className="text-xl font-bold mb-1">{data?.project_title || 'Project Details'}</h1>
-//                     <div className="flex flex-wrap items-center gap-3 text-indigo-100 text-sm">
-//                       <div className="flex items-center gap-1">
-//                         <FileTextIcon className="h-3 w-3" />
-//                         <span>Project ID: {projectName}</span>
-//                       </div>
-//                       <div className="flex items-center gap-1">
-//                         <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold bg-white/20", getStatusBadge(data?.workflow_state))}>
-//                           {data?.workflow_state}
-//                         </span>
-//                       </div>
-//                     </div>
-//                   </div>
-//                 </div>
-//                 <div className="flex flex-col sm:flex-row gap-2">
-//                   {/* New Action Buttons */}
-//                   {isCurrentUserPI && (
-//                     <div className="flex gap-1">
-//                       <Button
-//                         onClick={handleAddFunds}
-//                         className="bg-green-600 hover:bg-green-700 text-white font-semibold px-3 py-1 rounded-lg flex items-center gap-1 text-sm"
-//                       >
-//                         <PlusIcon className="h-3 w-3" />
-//                         Add Funds
-//                       </Button>
-//                       <Button
-//                         onClick={handleAddSanctionDetails}
-//                         className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-3 py-1 rounded-lg flex items-center gap-1 text-sm"
-//                       >
-//                         <FilePlusIcon className="h-3 w-3" />
-//                         Add Sanction
-//                       </Button>
-//                     </div>
-//                   )}
-//                   {projectName && (
-//                     <LogWorkflowActions
-//                       docname={projectName}
-//                       onAction={handleWorkflowAction}
-//                       isLoading={isActionLoading}
-//                     />
-//                   )}
-//                 </div>
-//               </div>
-//             </div>
-
-//             {/* Main Content */}
-//             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-//               <main className="lg:col-span-2 print-container space-y-4">
-//                 {/* Project Overview */}
-//                 <CollapsibleSection 
-//                   title="Project Overview" 
-//                   icon={FileTextIcon}
-//                   defaultOpen={true}
-//                 >
-//                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-//                     <FieldDisplay 
-//                       label="Implementation Department" 
-//                       value={isDepartmentLoading 
-//                         ? "Loading..." 
-//                         : (departmentDoc?.dept_name && departmentDoc.dept_name !== "" 
-//                             ? departmentDoc.dept_name 
-//                             : data?.implementation_department || "N/A")} 
-//                       icon={BuildingIcon} 
-//                     />
-//                     <FieldDisplay label="Project Type" value={data?.project_type} icon={FileTextIcon} />
-//                     {data?.project_type === 'Research' && <FieldDisplay label="Research Sub-Type" value={data?.research_sub_type} icon={FileTextIcon} />}
-//                     {data?.project_type === 'Consultancy' && <FieldDisplay label="Consultancy Category" value={data?.consultancy_category} icon={FileTextIcon} />}
-//                     <FieldDisplay label="Project Duration" value={`${data?.project_duration_months} months and ${data?.project_duration_days || 0} days`} icon={CalendarIcon} />
-//                   </div>
-
-//                   <HtmlContent title="Executive Summary" htmlString={data?.executive_summary} icon={FileTextIcon} />
-//                   <HtmlContent title="Project Objective" htmlString={data?.project_objective} icon={FileTextIcon} />
-//                   <HtmlContent title="Project Deliverables" htmlString={data?.project_deliverables} icon={FileTextIcon} />
-//                 </CollapsibleSection>
-
-//                 {/* Investigators */}
-//                 <CollapsibleSection 
-//                   title="Investigators" 
-//                   icon={UsersIcon}
-//                   defaultOpen={true}
-//                 >
-//                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-//                     <FieldDisplay label="Registering For" value={data?.registering_for} icon={UserIcon} />
-//                     <FieldDisplay label="Principal Investigator" value={data?.principal_investigator_name} icon={UserIcon} />
-//                     <FieldDisplay label="PI Employee ID" value={data?.pi_employee_id} icon={UserIcon} />
-//                     <FieldDisplay label="PI Designation" value={data?.designation} icon={UserIcon} />
-//                     <FieldDisplay label="PI Webmail" value={data?.pi_webmail} icon={UserIcon} />
-//                   </div>
-
-//                   <TableDisplay 
-//                     label="Additional Principal Investigators" 
-//                     data={data?.additional_pi_table} 
-//                     columns={[
-//                       { fieldname: 'pi_name', label: 'Name' }, 
-//                       { fieldname: 'pi_designation', label: 'Designation' }, 
-//                       { fieldname: 'pi_address', label: 'Address / Department' }
-//                     ]} 
-//                     icon={UsersIcon}
-//                   />
-
-//                   <TableDisplay 
-//                     label="Co-Investigators" 
-//                     data={data?.co_investigator_table} 
-//                     columns={[
-//                       { fieldname: 'copi_name', label: 'Name' }, 
-//                       { fieldname: 'copi_designation', label: 'Designation' }, 
-//                       { fieldname: 'copi_address', label: 'Department' }
-//                     ]} 
-//                     icon={UsersIcon}
-//                   />
-//                 </CollapsibleSection>
-
-//                 {/* Funding & Budget */}
-//                 <CollapsibleSection 
-//                   title="Funding & Proposed Budget" 
-//                   icon={DollarSignIcon}
-//                   defaultOpen={true}
-//                   actionButtons={
-//                     isCurrentUserPI && (
-//                       <Button
-//                         onClick={handleAddFunds}
-//                         variant="outline"
-//                         size="sm"
-//                         className="bg-white hover:bg-green-50 text-green-700 border-green-300 flex items-center gap-1 text-xs"
-//                       >
-//                         <PlusIcon className="h-2.5 w-2.5" />
-//                         Add Funds
-//                       </Button>
-//                     )
-//                   }
-//                 >
-//                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-//                     <FieldDisplay label="Funding Agency Type" value={data?.funding_agency_type} icon={BuildingIcon} />
-//                     <FieldDisplay label="Funding Agency" value={data?.funding_agency} icon={BuildingIcon} />
-//                     <FieldDisplay label="Funding Agency GSTIN" value={data?.funding_agency_gstin} icon={FileTextIcon} />
-//                     <FieldDisplay label="Total Proposed Budget" value={data?.total_budget_amount} isCurrency icon={DollarSignIcon} />
-//                   </div>
-//                   <FieldDisplay label="Funding Agency Address" value={data?.funding_agency_address} icon={BuildingIcon} />
-//                 </CollapsibleSection>
-
-//                 {/* Sanction Details */}
-//                 {data?.have_sanction_details === 'Yes' && (
-//                   <CollapsibleSection 
-//                     title="Sanction Details" 
-//                     icon={FileTextIcon}
-//                     defaultOpen={true}
-//                     actionButtons={
-//                       isCurrentUserPI && (
-//                         <Button
-//                           onClick={handleAddSanctionDetails}
-//                           variant="outline"
-//                           size="sm"
-//                           className="bg-white hover:bg-purple-50 text-purple-700 border-purple-300 flex items-center gap-1 text-xs"
-//                         >
-//                           <FilePlusIcon className="h-2.5 w-2.5" />
-//                           Add Sanction
-//                         </Button>
-//                       )
-//                     }
-//                   >
-//                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-//                       <FieldDisplay label="Sanction Letter No." value={data?.sanctioned_letter_no} icon={FileTextIcon} />
-//                       <FieldDisplay 
-//                         label="Sanction Letter Date" 
-//                         value={data?.sanctioned_letter_date 
-//                           ? new Date(data.sanctioned_letter_date).toLocaleDateString() 
-//                           : "N/A"} 
-//                         icon={CalendarIcon} 
-//                       />
-//                       <FieldDisplay label="Total Sanctioned Amount" value={data?.total_sanctioned_amount} isCurrency icon={DollarSignIcon} />
-//                     </div>
-//                     <TableDisplay 
-//                       label="Sanctioned Budget Breakup" 
-//                       data={data?.sanctioned_budget_breakup} 
-//                       columns={[
-//                         { fieldname: 'account_head', label: 'Budget Head' }, 
-//                         { fieldname: 'amount_sanctioned', label: 'Amount', isCurrency: true }
-//                       ]} 
-//                       icon={DollarSignIcon}
-//                     />
-//                   </CollapsibleSection>
-//                 )}
-
-//                 {/* Committee Clearance */}
-//                 <CollapsibleSection 
-//                   title="Committee Clearance" 
-//                   icon={ShieldIcon}
-//                   defaultOpen={true}
-//                 >
-//                   <FieldDisplay label="Needs Committee Clearance?" value={data?.needs_committee_clearance} icon={ShieldIcon} />
-//                   {data?.needs_committee_clearance === 'Yes' && (
-//                     <div className="mt-3 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200 shadow-sm">
-//                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-//                         <FieldDisplay label="Committee" value={data?.committees} icon={ShieldIcon} />
-//                         {data?.committees === 'Other' && <FieldDisplay label="Specified Committee" value={data?.other_committee_specify} icon={ShieldIcon} />}
-//                         <FieldDisplay label="Biosafety Category" value={data?.biosafety_category} icon={ShieldIcon} />
-//                       </div>
-//                       <div className="mt-4">
-//                         <h4 className="text-base font-semibold text-gray-800 mb-2 flex items-center gap-1">
-//                           <ShieldIcon className="h-3 w-3 text-indigo-600" />
-//                           Declaration
-//                         </h4>
-//                         <div className="prose prose-sm max-w-none p-3 bg-white rounded-lg border text-justify shadow-sm" dangerouslySetInnerHTML={{ __html: data?.declaration || '<p>No declaration provided.</p>' }} />
-//                       </div>
-//                     </div>
-//                   )}
-//                 </CollapsibleSection>
-//               </main>
-
-//               {/* Sidebar with Collapsible Sections */}
-//               <aside className="lg:col-span-1 no-print space-y-4">
-//                 <QuickActions />
-//                 <ActivityStream
-//                   ref={activityStreamRef}
-//                   doctype="Project Registration"
-//                   docname={projectName}
-//                 />
-//               </aside>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     </>
-//   );
 // };
 
 // export default ProjectDetailsView;
 
+// -=-=-=-=--= v4
 
-// new design
-
-
-import React, { useState, useCallback, useImperativeHandle, forwardRef, useRef, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useFrappeGetDoc, useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import React, {
+  useState,
+  useCallback,
+  useImperativeHandle,
+  forwardRef,
+  useRef,
+  useEffect,
+} from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+  useFrappeGetDoc,
+  useFrappePostCall,
+  useFrappeGetCall,
+  useFrappeAuth,
+} from "frappe-react-sdk";
+import { Textarea } from "@/components/ui/textarea"; // Assuming this can be styled via className
 import { AppSidebar } from "../components/RndSidebar";
-import { 
-  ArrowLeftIcon, 
+import {
+  ArrowLeftIcon,
   FileTextIcon,
   UsersIcon,
   DollarSignIcon,
@@ -3257,80 +990,118 @@ import {
   TargetIcon,
   ClockIcon,
   CheckCircleIcon,
-  XCircleIcon
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  XCircleIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// --- Interfaces ---
+// --- Interfaces (Unchanged) ---
 interface ActivityItem {
-    owner: string;
-    creation: string;
-    content: string;
-    comment_type: string;
+  owner: string;
+  creation: string;
+  content: string;
+  comment_type: string;
 }
-
 interface ActivityStreamProps {
   doctype: string;
   docname: string;
 }
-
 interface ActivityStreamHandle {
   refetch: () => void;
 }
-
 interface ProjectDetailsProps {}
 
-// --- Helper Components ---
-const FieldDisplay = ({ label, value, icon: Icon }: { label: string; value: any; icon?: any }) => {
-  if (!value && value !== 0) return null;
+// --- DESIGN: FieldDisplay Component (No boxes) ---
+const FieldDisplay = ({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: any;
+  icon?: any;
+}) => {
+  if (!value && value !== 0 && value !== "No") return null;
   return (
-    <div className="mb-4 p-3 border border-gray-200 rounded-lg">
+    <div className="py-3">
       <div className="flex items-center gap-2 mb-1">
-        {Icon && <Icon className="h-3 w-3 text-gray-600" />}
-        <p className="text-sm font-medium text-gray-700">{label}</p>
+        {Icon && <Icon className="h-4 w-4 text-black" />}
+        <p className="text-sm font-bold text-black uppercase tracking-wider">
+          {label}
+        </p>
       </div>
-      <p className="text-base text-gray-900">{String(value)}</p>
+      <p className="bg-[#ECEFF1] text-base text-gray-800 font-mono">{String(value)}</p>
     </div>
   );
 };
 
-const HtmlContent = ({ title, htmlString, icon: Icon }: { title: string, htmlString: string | undefined, icon?: any }) => {
+// --- Neo-Brutalism Styled Helper Components (Unchanged) ---
+const HtmlContent = ({
+  title,
+  htmlString,
+  icon: Icon,
+}: {
+  title: string;
+  htmlString: string | undefined;
+  icon?: any;
+}) => {
   if (!htmlString) return null;
   return (
-    <div className="mb-6 p-4 border border-gray-200 rounded-lg">
-      <div className="flex items-center gap-2 mb-3">
-        {Icon && <Icon className="h-4 w-4 text-gray-600" />}
-        <h4 className="text-lg font-semibold text-gray-800">{title}</h4>
+    <div className="p-4 md:p-6 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+      <div className="flex items-center gap-3 mb-3">
+        {Icon && <Icon className="h-5 w-5 text-black" />}
+        <h4 className="text-xl font-bold text-black uppercase">{title}</h4>
       </div>
-      <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: htmlString }} />
+      <div
+        className="prose prose-sm max-w-none text-gray-800 leading-relaxed font-mono"
+        dangerouslySetInnerHTML={{ __html: htmlString }}
+      />
     </div>
   );
 };
 
-const TableDisplay = ({ label, data, columns, icon: Icon }: { label: string; data: any[] | undefined; columns: { fieldname: string, label: string }[]; icon?: any }) => {
+const TableDisplay = ({
+  label,
+  data,
+  columns,
+  icon: Icon,
+}: {
+  label: string;
+  data: any[] | undefined;
+  columns: { fieldname: string; label: string }[];
+  icon?: any;
+}) => {
   if (!data || data.length === 0) return null;
   return (
-    <div className="mb-6">
-      <div className="flex items-center gap-2 mb-3">
-        {Icon && <Icon className="h-4 w-4 text-gray-600" />}
-        <p className="text-lg font-semibold text-gray-800">{label}</p>
+    <div className="p-4 md:p-6 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+      <div className="flex items-center gap-3 mb-4">
+        {Icon && <Icon className="h-5 w-5 text-black" />}
+        <h3 className="text-xl font-bold text-black uppercase">{label}</h3>
       </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 border border-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              {columns.map(col => (
-                <th key={col.fieldname} className="px-4 py-3 text-left text-sm font-medium text-gray-700 uppercase">
+      <div className="overflow-x-auto border-2 border-black rounded-md">
+        <table className="min-w-full divide-y-2 divide-black">
+          <thead className="bg-[#90A4AE]">
+            <tr className="divide-x-2 divide-black">
+              {columns.map((col) => (
+                <th
+                  key={col.fieldname}
+                  className="px-4 py-3 text-left text-sm font-bold text-black uppercase tracking-wider"
+                >
                   {col.label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
+          <tbody className="divide-y-2 divide-black bg-white">
             {data.map((row, index) => (
-              <tr key={index} className="hover:bg-gray-50">
-                {columns.map(col => (
-                  <td key={col.fieldname} className="px-4 py-3 text-sm text-gray-700">
+              <tr
+                key={index}
+                className="divide-x-2 divide-black hover:bg-[#CFD8DC]"
+              >
+                {columns.map((col) => (
+                  <td
+                    key={col.fieldname}
+                    className="px-4 py-3 text-sm text-gray-800 font-mono"
+                  >
                     {row[col.fieldname]}
                   </td>
                 ))}
@@ -3343,306 +1114,323 @@ const TableDisplay = ({ label, data, columns, icon: Icon }: { label: string; dat
   );
 };
 
-// --- Quick Actions Component ---
+const NeoButton = ({
+  children,
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+  <button
+    className={cn(
+      "px-5 py-3 bg-white border-2 border-black rounded-md font-bold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all",
+      "hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px]",
+      "active:shadow-none active:translate-x-[2px] active:translate-y-[2px]",
+      "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 disabled:bg-gray-300",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </button>
+);
+
+// --- QuickActions Component with Muted Colors ---
 const QuickActions = () => {
+  const ActionButton = ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
+    <NeoButton
+      className={cn("w-full justify-start text-sm h-auto py-3", className)}
+    >
+      {children}
+    </NeoButton>
+  );
+  const Section = ({
+    title,
+    icon: Icon,
+    children,
+  }: {
+    title: string;
+    icon: any;
+    children: React.ReactNode;
+  }) => (
+    <div className="p-4 pb-6 border-2 border-black rounded-md bg-white shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+      <h3 className="font-bold text-black mb-4 flex items-center gap-3 text-xl uppercase">
+        <Icon className="h-5 w-5" />
+        {title}
+      </h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {children}
+      </div>
+    </div>
+  );
   return (
-    <div className="space-y-8">
-      {/* Advance Section */}
-      <div>
-        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2 text-lg">
-          <CreditCardIcon className="h-5 w-5" />
-          Advance
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Reimbursement
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Temporary Advance Apply
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Temporary Advance Settle
-          </Button>
-        </div>
-      </div>
-
-      {/* Disbursal Section */}
-      <div>
-        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2 text-lg">
-          <UploadIcon className="h-5 w-5" />
-          Disbursal
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Button variant="outline" className="justify-start text-sm h-12">
-            One Time Assistantship
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Top Up Fellowship
-          </Button>
-        </div>
-      </div>
-
-      {/* Purchase Section */}
-      <div>
-        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2 text-lg">
-          <ShoppingCartIcon className="h-5 w-5" />
-          Purchase
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Direct Purchase upto 10 Lakhs
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            General Indent
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Generate NIQ
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Indent cum Sanction Sheet
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Rate Contract
-          </Button>
-        </div>
-      </div>
-
-      {/* Recruitment Section */}
-      <div>
-        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2 text-lg">
-          <UsersGroupIcon className="h-5 w-5" />
-          Recruitment
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Adhoc
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Committee Member Change Request
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Contractual
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Selection Committee Report
-          </Button>
-        </div>
-      </div>
-
-      {/* Travel Section */}
-      <div>
-        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2 text-lg">
-          <PlaneIcon className="h-5 w-5" />
-          Travel
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Apply
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            TA-DA Settle
-          </Button>
-        </div>
-      </div>
-
-      {/* Utilities Section */}
-      <div>
-        <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2 text-lg">
-          <SettingsIcon className="h-5 w-5" />
-          Utilities
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Add New User
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Application History
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Form Tracking
-          </Button>
-          <Button variant="outline" className="justify-start text-sm h-12">
-            Incharge Assignment
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-10">
+      <Section title="Advance" icon={CreditCardIcon}>
+        <ActionButton className="bg-sky-200 hover:bg-sky-300">
+          Reimbursement
+        </ActionButton>
+        <ActionButton className="bg-sky-200 hover:bg-sky-300">
+          Temporary Advance Apply
+        </ActionButton>
+        <ActionButton className="bg-sky-200 hover:bg-sky-300">
+          Temporary Advance Settle
+        </ActionButton>
+      </Section>
+      <Section title="Disbursal" icon={UploadIcon}>
+        <ActionButton className="bg-emerald-200 hover:bg-emerald-300">
+          One Time Assistantship
+        </ActionButton>
+        <ActionButton className="bg-emerald-200 hover:bg-emerald-300">
+          Top Up Fellowship
+        </ActionButton>
+      </Section>
+      <Section title="Purchase" icon={ShoppingCartIcon}>
+        <ActionButton className="bg-amber-200 hover:bg-amber-300">
+          Direct Purchase
+        </ActionButton>
+        <ActionButton className="bg-amber-200 hover:bg-amber-300">
+          General Indent
+        </ActionButton>
+        <ActionButton className="bg-amber-200 hover:bg-amber-300">
+          Generate NIQ
+        </ActionButton>
+        <ActionButton className="bg-amber-200 hover:bg-amber-300">
+          Indent cum Sanction
+        </ActionButton>
+        <ActionButton className="bg-amber-200 hover:bg-amber-300">
+          Rate Contract
+        </ActionButton>
+      </Section>
+      <Section title="Recruitment" icon={UsersGroupIcon}>
+        <ActionButton className="bg-rose-200 hover:bg-rose-300">
+          Adhoc
+        </ActionButton>
+        <ActionButton className="bg-rose-200 hover:bg-rose-300">
+          Committee Member Change
+        </ActionButton>
+        <ActionButton className="bg-rose-200 hover:bg-rose-300">
+          Contractual
+        </ActionButton>
+        <ActionButton className="bg-rose-200 hover:bg-rose-300">
+          Selection Committee Report
+        </ActionButton>
+      </Section>
+      <Section title="Travel" icon={PlaneIcon}>
+        <ActionButton className="bg-indigo-200 hover:bg-indigo-300">
+          Apply
+        </ActionButton>
+        <ActionButton className="bg-indigo-200 hover:bg-indigo-300">
+          TA-DA Settle
+        </ActionButton>
+      </Section>
+      <Section title="Utilities" icon={SettingsIcon}>
+        <ActionButton className="bg-slate-300 hover:bg-slate-400">
+          Add New User
+        </ActionButton>
+        <ActionButton className="bg-slate-300 hover:bg-slate-400">
+          Application History
+        </ActionButton>
+        <ActionButton className="bg-slate-300 hover:bg-slate-400">
+          Form Tracking
+        </ActionButton>
+        <ActionButton className="bg-slate-300 hover:bg-slate-400">
+          Incharge Assignment
+        </ActionButton>
+      </Section>
     </div>
   );
 };
 
-// --- Activity Stream Component ---
-const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(({ doctype, docname }, ref) => {
-  const [newComment, setNewComment] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const { 
-    data: activityData, 
-    mutate: refetchActivity, 
-    error: activityError, 
-    isLoading: isActivityLoading 
-  } = useFrappeGetCall<{ message: ActivityItem[] }>(
-    'rndopsapp.rndopsapp.api.get_project_activity',
-    { doctype, docname },
-    { 
-      enabled: !!docname,
-      revalidateOnFocus: true, // Ensure activity stream revalidates on focus
-      revalidateOnReconnect: true // Ensure activity stream revalidates on reconnect
-    }
-  );
-
-  const { call: addComment } = useFrappePostCall(
-    'rndopsapp.rndopsapp.api.add_project_comment'
-  );
-
-  const handleCommentSubmit = async () => {
-    if (!newComment.trim()) return;
-
-    setIsSubmitting(true);
-    try {
-      await addComment({
-        doctype,
-        docname,
-        content: newComment.trim()
-      });
-      setNewComment('');
-      await refetchActivity();
-    } catch (err: any) {
-      console.error("Failed to add comment:", err);
-      alert("Error: Could not post comment.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      handleCommentSubmit();
-    }
-  };
-
-  useImperativeHandle(ref, () => ({
-    refetch() {
-      refetchActivity();
-    }
-  }));
-
-  return (
-    <div className="space-y-6">
-      <div className="p-4 border border-gray-200 rounded-lg">
-        <label htmlFor="comment-textarea" className="block text-sm font-medium text-gray-700 mb-3">
-          Add a comment
-        </label>
-        <Textarea
-          id="comment-textarea"
-          placeholder="Type your comment here... (Press Ctrl+Enter to submit)"
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          onKeyDown={handleKeyPress}
-          disabled={isSubmitting}
-          className="resize-none"
-          rows={4}
-        />
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-sm text-gray-500">
-            {newComment.length}/1000 characters
-          </span>
-          <Button 
-            onClick={handleCommentSubmit} 
-            disabled={isSubmitting || !newComment.trim()}
-            className="bg-gray-900 hover:bg-gray-800"
-          >
-            {isSubmitting ? "Submitting..." : "Submit Comment"}
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-4 max-h-[500px] overflow-y-auto">
-        {isActivityLoading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-gray-900 border-t-transparent"></div>
-          </div>
-        ) : activityError ? (
-          <div className="text-center py-8 text-red-600 border border-red-200 rounded-lg bg-red-50">
-            <p className="font-medium">Failed to load activities</p>
-            <p className="text-sm mt-1">Please try refreshing the page</p>
-          </div>
-        ) : activityData?.message && activityData.message.length > 0 ? (
-          activityData.message.map((item, index) => (
-            <div key={`${item.creation}-${index}`} className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg">
-              <div className="flex-shrink-0">
-                <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center font-medium text-gray-700">
-                  {item.owner?.charAt(0).toUpperCase() || 'U'}
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-center mb-2">
-                  <p className="text-sm font-medium text-gray-900">{item.owner || 'Unknown User'}</p>
-                  <p className="text-sm text-gray-500 flex items-center gap-1">
-                    <ClockIcon className="h-3 w-3" />
-                    {item.creation ? new Date(item.creation).toLocaleString() : "N/A"}
-                  </p>
-                </div>
-                <div
-                  className="text-sm text-gray-700 prose prose-sm max-w-none leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: item.content || 'No content' }}
-                />
-                {item.comment_type && (
-                  <div className="mt-2">
-                    <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
-                      {item.comment_type}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="text-center py-8 text-gray-500 border border-gray-200 rounded-lg">
-            <MessageSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="font-medium">No activity yet</p>
-            <p className="text-sm mt-1">Be the first to add a comment</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-});
-
-ActivityStream.displayName = 'ActivityStream';
-
-// --- Workflow Actions Component ---
-const WorkflowActions = ({ docname, onAction, isLoading }: { docname: string, onAction: (action: string) => void, isLoading: boolean }) => {
-  const { data, error, isLoading: isActionsLoading } = useFrappeGetCall<{ message: string[] }>(
-    'rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_available_workflow_actions',
-    { docname }
-  );
-
-  if (isActionsLoading) {
+// --- Activity Stream Component (Unchanged logic, updated styles) ---
+const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
+  ({ doctype, docname }, ref) => {
+    const [newComment, setNewComment] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const {
+      data: activityData,
+      mutate: refetchActivity,
+      error: activityError,
+      isLoading: isActivityLoading,
+    } = useFrappeGetCall<{ message: ActivityItem[] }>(
+      "rndopsapp.rndopsapp.api.get_project_activity",
+      { doctype, docname },
+      {
+        enabled: !!docname,
+        revalidateOnFocus: true,
+        revalidateOnReconnect: true,
+      }
+    );
+    const { call: addComment } = useFrappePostCall(
+      "rndopsapp.rndopsapp.api.add_project_comment"
+    );
+    const handleCommentSubmit = async () => {
+      if (!newComment.trim()) return;
+      setIsSubmitting(true);
+      try {
+        await addComment({ doctype, docname, content: newComment.trim() });
+        setNewComment("");
+        await refetchActivity();
+      } catch (err: any) {
+        console.error("Failed to add comment:", err);
+        alert("Error: Could not post comment.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        handleCommentSubmit();
+      }
+    };
+    useImperativeHandle(ref, () => ({
+      refetch() {
+        refetchActivity();
+      },
+    }));
     return (
-      <div className="flex items-center gap-2 text-gray-600 text-sm">
-        <div className="animate-spin rounded-full h-3 w-3 border-2 border-gray-600 border-t-transparent"></div>
-        Loading actions...
+      <div className="space-y-6">
+        <div className="p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+          <label
+            htmlFor="comment-textarea"
+            className="block text-sm font-bold text-black mb-3 uppercase"
+          >
+            Add a comment
+          </label>
+          <Textarea
+            id="comment-textarea"
+            placeholder="Type here... (Ctrl+Enter to submit)"
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            onKeyDown={handleKeyPress}
+            disabled={isSubmitting}
+            className="resize-none bg-white p-3 border-2 border-black rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-400 font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
+            rows={4}
+          />
+          <div className="flex items-center justify-between mt-4">
+            <span className="text-sm text-gray-600 font-mono">
+              {newComment.length}/1000
+            </span>
+            <NeoButton
+              onClick={handleCommentSubmit}
+              disabled={isSubmitting || !newComment.trim()}
+              className="bg-cyan-300 hover:bg-cyan-400"
+            >
+              {isSubmitting ? "Submitting..." : "Submit"}
+            </NeoButton>
+          </div>
+        </div>
+        <div className="space-y-4">
+          {isActivityLoading && (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-cyan-400"></div>
+            </div>
+          )}
+          {activityError && (
+            <div className="text-center p-6 text-red-700 border-2 border-red-700 rounded-md bg-red-100 shadow-[4px_4px_0px_#800000]">
+              <p className="font-bold">Failed to load activities</p>
+            </div>
+          )}
+          {activityData?.message && activityData.message.length > 0
+            ? activityData.message.map((item, index) => (
+                <div
+                  key={`${item.creation}-${index}`}
+                  className="flex items-start gap-4 p-4 bg-white border-2 border-black rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
+                >
+                  <div className="flex-shrink-0 h-12 w-12 rounded-full bg-cyan-300 border-2 border-black flex items-center justify-center font-bold text-black text-xl">
+                    {item.owner?.charAt(0).toUpperCase() || "U"}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-base font-bold text-black">
+                        {item.owner || "Unknown User"}
+                      </p>
+                      <p className="text-sm text-gray-600 flex items-center gap-1.5 font-mono">
+                        <ClockIcon className="h-4 w-4" />
+                        {item.creation
+                          ? new Date(item.creation).toLocaleString()
+                          : "N/A"}
+                      </p>
+                    </div>
+                    <div
+                      className="text-base text-gray-800 prose prose-sm max-w-none leading-relaxed font-mono"
+                      dangerouslySetInnerHTML={{
+                        __html: item.content || "No content",
+                      }}
+                    />
+                  </div>
+                </div>
+              ))
+            : !isActivityLoading && (
+                <div className="text-center py-12 text-gray-600 border-2 border-dashed border-black rounded-md bg-white">
+                  <MessageSquareIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="font-bold text-lg">No activity yet.</p>
+                  <p className="text-sm mt-1">Be the first to add a comment.</p>
+                </div>
+              )}
+        </div>
       </div>
     );
   }
+);
+ActivityStream.displayName = "ActivityStream";
 
+// --- Workflow Actions Component (Unchanged) ---
+const WorkflowActions = ({
+  docname,
+  onAction,
+  isLoading,
+}: {
+  docname: string;
+  onAction: (action: string) => void;
+  isLoading: boolean;
+}) => {
+  const {
+    data,
+    error,
+    isLoading: isActionsLoading,
+  } = useFrappeGetCall<{ message: string[] }>(
+    "rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_available_workflow_actions",
+    { docname }
+  );
+  if (isActionsLoading) {
+    return <div className="font-bold text-sm">Loading actions...</div>;
+  }
   if (error || !data?.message || data.message.length === 0) {
     return null;
   }
-
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3">
       {data.message.map((actionString: string) => (
-        <Button
+        <NeoButton
           key={actionString}
           onClick={() => onAction(actionString)}
-          className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 flex items-center gap-2"
+          className={cn("flex items-center gap-2", {
+            "bg-green-300 hover:bg-green-400":
+              actionString.toLowerCase().includes("approve") ||
+              actionString.toLowerCase().includes("submit"),
+            "bg-red-300 hover:bg-red-400": actionString
+              .toLowerCase()
+              .includes("reject"),
+            "bg-cyan-300 hover:bg-cyan-400": ![
+              "approve",
+              "reject",
+              "submit",
+            ].some((term) => actionString.toLowerCase().includes(term)),
+          })}
           disabled={isLoading}
         >
-          {actionString.toLowerCase() === 'approve' && <CheckCircleIcon className="h-4 w-4" />}
-          {actionString.toLowerCase() === 'reject' && <XCircleIcon className="h-4 w-4" />}
+          {actionString.toLowerCase().includes("approve") && (
+            <CheckCircleIcon className="h-4 w-4" />
+          )}
+          {actionString.toLowerCase().includes("reject") && (
+            <XCircleIcon className="h-4 w-4" />
+          )}
           {isLoading ? "Processing..." : actionString}
-        </Button>
+        </NeoButton>
       ))}
     </div>
   );
@@ -3650,147 +1438,146 @@ const WorkflowActions = ({ docname, onAction, isLoading }: { docname: string, on
 
 // --- Main Component ---
 const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
+  // --- LOGIC: All hooks and handlers remain unchanged ---
   const { projectName } = useParams<{ projectName: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('quick-actions');
+  const [activeTab, setActiveTab] = useState("overview"); // Default to overview
   const activityStreamRef = useRef<ActivityStreamHandle>(null);
-
   const { currentUser } = useFrappeAuth();
-  const { data, error, isLoading, mutate } = useFrappeGetDoc('Project Registration', projectName ?? '', {
-    enabled: !!projectName,
-    cacheTime: 0, // Ensure fresh data is always fetched
-  });
-
-  const { call: triggerWorkflowAction, loading: isActionLoading } = useFrappePostCall(
-    'rndopsapp.rndopsapp.api.handle_workflow_action'
+  const { data, error, isLoading, mutate } = useFrappeGetDoc(
+    "Project Registration",
+    projectName ?? "",
+    { enabled: !!projectName, cacheTime: 0 }
   );
-
+  const { call: triggerWorkflowAction, loading: isActionLoading } =
+    useFrappePostCall("rndopsapp.rndopsapp.api.handle_workflow_action");
   const { call: submitProjectRegistration } = useFrappePostCall(
-    'rndopsapp.rndopsapp.api.submit_project_registration'
+    "rndopsapp.rndopsapp.api.submit_project_registration"
   );
-
-  const handleWorkflowAction = useCallback((action: string) => {
-    if (action.toLowerCase() === 'submit') {
-      submitProjectRegistration({
-        docname: projectName
-      }).then(() => {
-        mutate();
-        activityStreamRef.current?.refetch();
-      }).catch((err: any) => {
-        console.error("Error submitting project registration:", err);
-      });
-    } else {
-      triggerWorkflowAction({
-        doctype: 'Project Registration',
-        docname: projectName,
-        action: action
-      }).then(() => {
-        mutate();
-        activityStreamRef.current?.refetch();
-      }).catch((err: any) => {
-        console.error(`Error during workflow action:`, err);
-      });
-    }
-  }, [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]);
-
-  // Check if current user is the PI of the project
+  const handleWorkflowAction = useCallback(
+    (action: string) => {
+      const apiCall =
+        action.toLowerCase() === "submit"
+          ? submitProjectRegistration({ docname: projectName })
+          : triggerWorkflowAction({
+              doctype: "Project Registration",
+              docname: projectName,
+              action: action,
+            });
+      apiCall
+        .then(() => {
+          mutate();
+          activityStreamRef.current?.refetch();
+        })
+        .catch((err: any) =>
+          console.error(`Error during workflow action:`, err)
+        );
+    },
+    [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]
+  );
   const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
-
-  const handleAddFunds = () => {
-    alert("Add Funds functionality will be implemented here");
-  };
-
-  const handleAddSanctionDetails = () => {
-    alert("Add Sanction Details functionality will be implemented here");
-  };
+  const handleAddFunds = () =>
+    alert("Add Funds functionality will be implemented here.");
+  const handleAddSanctionDetails = () =>
+    alert("Add Sanction Details functionality will be implemented here.");
 
   const tabs = [
-    { id: 'quick-actions', label: 'Quick Actions', icon: SettingsIcon },
-    { id: 'overview', label: 'Overview', icon: FileTextIcon },
-    { id: 'investigators', label: 'Investigators', icon: UsersIcon },
-    { id: 'funding', label: 'Funding', icon: DollarSignIcon },
-    { id: 'clearance', label: 'Clearance', icon: ShieldIcon },
-    { id: 'activity', label: 'Activity', icon: MessageSquareIcon },
+    // { id: "quick-actions", label: "Available Services", icon: SettingsIcon },
+    { id: "overview", label: "Overview", icon: FileTextIcon },
+    { id: "investigators", label: "Investigators", icon: UsersIcon },
+    { id: "funding", label: "Funding & Budget", icon: DollarSignIcon },
+    { id: "clearance", label: "Clearance", icon: ShieldIcon },
+    { id: "activity", label: "Activity Log", icon: MessageSquareIcon },
   ];
 
-  if (!projectName) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <div className="text-center p-6 max-w-md w-full">
-          <FileTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-          <h2 className="text-xl font-bold text-gray-800 mb-2">No Project Selected</h2>
-          <p className="text-gray-600 mb-4">Please select a project to view its details.</p>
-          <Button onClick={() => navigate('/projects-view')} className="bg-gray-900 hover:bg-gray-800">
-            Back to Projects
-          </Button>
+  const renderContent = () => {
+    if (!projectName) {
+      return (
+        <div className="flex items-center justify-center p-4 min-h-screen">
+          <div className="text-center p-8 max-w-md w-full bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+            <FileTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-black mb-2">
+              No Project Selected
+            </h2>
+            <p className="text-gray-700 mb-6 font-mono">
+              Select a project to see details.
+            </p>
+            <NeoButton
+              onClick={() => navigate("/projects-view")}
+              className="bg-cyan-300 hover:bg-cyan-400"
+            >
+              Back to Projects
+            </NeoButton>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-900 border-t-transparent mx-auto mb-3"></div>
-          <p className="text-lg font-semibold text-gray-700">Loading Project Details...</p>
+      );
+    }
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-cyan-300 mx-auto mb-4"></div>
+            <p className="text-lg font-bold text-black">Loading Project...</p>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-4">
-        <div className="text-center p-6 max-w-md w-full">
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Error Loading Project</h2>
-          <p className="text-gray-600 mb-4">{error.message}</p>
-          <Button onClick={() => navigate('/projects-view')} className="bg-gray-900 hover:bg-gray-800">
-            Back to Projects
-          </Button>
+      );
+    }
+    if (error) {
+      return (
+        <div className="flex items-center justify-center p-4 min-h-screen">
+          <div className="text-center p-8 max-w-md w-full bg-red-100 border-2 border-red-700 rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+            <h2 className="text-2xl font-bold text-red-800 mb-2">
+              Error Loading Project
+            </h2>
+            <p className="text-red-700 mb-6 font-mono">{error.message}</p>
+            <NeoButton
+              onClick={() => navigate("/projects-view")}
+              className="bg-white hover:bg-gray-100"
+            >
+              Back to Projects
+            </NeoButton>
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div >
-      <AppSidebar isPermanentEmployee={true} />
-      
-      <div >
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
+      );
+    }
+    return (
+      <>
+        <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+          <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate('/projects-view')}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                onClick={() => navigate("/projects-view")}
+                className="p-3 bg-white border-2 border-black rounded-md hover:bg-[#90A4AE] active:translate-y-1 transition-transform"
               >
-                <ArrowLeftIcon className="h-5 w-5" />
+                <ArrowLeftIcon className="h-6 w-6" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{data?.project_title || 'Project Details'}</h1>
-                <p className="text-gray-600">Project ID: {projectName} | Status: {data?.workflow_state || 'Draft'}</p>
+                <h1 className="text-3xl font-extrabold text-black">
+                  {data?.project_title || "Project Details"}
+                </h1>
+                <p className="text-gray-700 font-mono mt-1">
+                  ID: {projectName} | Status:{" "}
+                  <span className="font-bold text-black">
+                    {data?.workflow_state || "Draft"}
+                  </span>
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {/* Project Action Buttons */}
+            <div className="flex items-center gap-3 flex-wrap">
               {isCurrentUserPI && (
-                <div className="flex gap-2">
-                  <Button
+                <div className="flex gap-3">
+                  <NeoButton
                     onClick={handleAddFunds}
-                    className="bg-gray-900 hover:bg-gray-800 text-white flex items-center gap-2"
+                     className="bg-[#A5D6A7] hover:bg-[#81C784] flex items-center gap-2"
                   >
-                    <PlusIcon className="h-4 w-4" />
-                    Add Funds
-                  </Button>
-                  <Button
+                    <PlusIcon className="h-4 w-4" /> Add Funds
+                  </NeoButton>
+                  <NeoButton
                     onClick={handleAddSanctionDetails}
-                    className="bg-gray-900 hover:bg-gray-800 text-white flex items-center gap-2"
+                     className="bg-[#A5D6A7] hover:bg-[#81C784] flex items-center gap-2"
                   >
-                    <FilePlusIcon className="h-4 w-4" />
-                    Add Sanction
-                  </Button>
+                    <FilePlusIcon className="h-4 w-4" /> Add Sanction
+                  </NeoButton>
                 </div>
               )}
               <WorkflowActions
@@ -3800,251 +1587,277 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
               />
             </div>
           </div>
-
-          {/* Tabs */}
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={cn(
-                      "flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm",
-                      activeTab === tab.id
-                        ? "border-gray-900 text-gray-900"
-                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {tab.label}
-                  </button>
-                );
-              })}
+        </header>
+        <div className="bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+          <div className="border-b-2 border-black">
+            <nav className="flex space-x-2 p-2 overflow-x-auto">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "flex-shrink-0 flex items-center gap-2 py-3 px-4 font-bold text-sm rounded-md border-2 border-transparent transition-all",
+                    activeTab === tab.id
+                      ? "bg-[#90A4AE] border-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
+                      : "text-black hover:bg-[#CFD8DC]"
+                  )}
+                >
+                  <tab.icon className="h-5 w-5" />
+                  {tab.label}
+                </button>
+              ))}
             </nav>
           </div>
-        </div>
-
-        {/* Tab Content */}
-        <div className="max-w-6xl">
-          {/* Quick Actions Tab */}
-          {activeTab === 'quick-actions' && (
-            <QuickActions />
-          )}
-
-          {/* Overview Tab */}
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <FieldDisplay label="Implementation Department" value={data?.implementation_department} icon={BuildingIcon} />
-                <FieldDisplay label="Project Type" value={data?.project_type} icon={FileTextIcon} />
-                {data?.project_type === 'Research' && <FieldDisplay label="Research Sub-Type" value={data?.research_sub_type} icon={FileTextIcon} />}
-                {data?.project_type === 'Consultancy' && <FieldDisplay label="Consultancy Category" value={data?.consultancy_category} icon={FileTextIcon} />}
-                <FieldDisplay label="Project Duration" value={`${data?.project_duration_months} months and ${data?.project_duration_days || 0} days`} icon={CalendarIcon} />
-                <FieldDisplay label="Project Start Date" value={data?.project_start_date ? new Date(data.project_start_date).toLocaleDateString() : 'N/A'} icon={CalendarIcon} />
-                <FieldDisplay label="Project End Date" value={data?.project_end_date ? new Date(data.project_end_date).toLocaleDateString() : 'N/A'} icon={CalendarIcon} />
-                <FieldDisplay label="Project Status" value={data?.workflow_state} icon={TargetIcon} />
-              </div>
-
-              <HtmlContent title="Executive Summary" htmlString={data?.executive_summary} icon={FileTextIcon} />
-              <HtmlContent title="Project Objective" htmlString={data?.project_objective} icon={TargetIcon} />
-              <HtmlContent title="Project Deliverables" htmlString={data?.project_deliverables} icon={FileTextIcon} />
-              <HtmlContent title="Methodology" htmlString={data?.methodology} icon={SettingsIcon} />
-              <HtmlContent title="Expected Outcomes" htmlString={data?.expected_outcomes} icon={TargetIcon} />
-              
-              {data?.keywords && (
-                <div className="p-4 border border-gray-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-3">
-                    <FileTextIcon className="h-4 w-4 text-gray-600" />
-                    <h4 className="text-lg font-semibold text-gray-800">Keywords</h4>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {data.keywords.split(',').map((keyword: string, index: number) => (
-                      <span key={index} className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                        {keyword.trim()}
-                      </span>
-                    ))}
+          <div className="bg-[#F5F5F5] p-6 md:p-8">
+            {activeTab === "overview" && (
+              <div className="space-y-8">
+                <div className="p-4 bg-white border-2 border-black rounded-md">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
+                    <FieldDisplay
+                      label="Project Type"
+                      value={data?.project_type}
+                      icon={FileTextIcon}
+                    />
+                    <FieldDisplay
+                      label="Implementation Dept"
+                      value={data?.implementation_department}
+                      icon={BuildingIcon}
+                    />
+                    <FieldDisplay
+                      label="Status"
+                      value={data?.workflow_state}
+                      icon={TargetIcon}
+                    />
+                    <FieldDisplay
+                      label="Project Duration"
+                      value={`${data?.project_duration_months}m ${
+                        data?.project_duration_days || 0
+                      }d`}
+                      icon={CalendarIcon}
+                    />
+                    <FieldDisplay
+                      label="International Travel"
+                      value={data?.involves_international_travel}
+                      icon={PlaneIcon}
+                    />
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Investigators Tab */}
-          {activeTab === 'investigators' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FieldDisplay label="Registering For" value={data?.registering_for} icon={UserIcon} />
-                <FieldDisplay label="Principal Investigator" value={data?.principal_investigator_name} icon={UserIcon} />
-                <FieldDisplay label="PI Employee ID" value={data?.pi_employee_id} icon={UserIcon} />
-                <FieldDisplay label="PI Designation" value={data?.designation} icon={UserIcon} />
-                <FieldDisplay label="PI Webmail" value={data?.pi_webmail} icon={MailIcon} />
-                <FieldDisplay label="PI Phone" value={data?.pi_phone} icon={PhoneIcon} />
-                <FieldDisplay label="PI Department" value={data?.pi_department} icon={BuildingIcon} />
-                <FieldDisplay label="PI Address" value={data?.pi_address} icon={MapPinIcon} />
-              </div>
-
-              <TableDisplay 
-                label="Additional Principal Investigators" 
-                data={data?.additional_pi_table} 
-                columns={[
-                  { fieldname: 'pi_name', label: 'Name' }, 
-                  { fieldname: 'pi_designation', label: 'Designation' }, 
-                  { fieldname: 'pi_address', label: 'Address / Department' },
-                  { fieldname: 'pi_email', label: 'Email' },
-                  { fieldname: 'pi_phone', label: 'Phone' }
-                ]} 
-                icon={UsersIcon}
-              />
-
-              <TableDisplay 
-                label="Co-Investigators" 
-                data={data?.co_investigator_table} 
-                columns={[
-                  { fieldname: 'copi_name', label: 'Name' }, 
-                  { fieldname: 'copi_designation', label: 'Designation' }, 
-                  { fieldname: 'copi_address', label: 'Department' },
-                  { fieldname: 'copi_email', label: 'Email' },
-                  { fieldname: 'copi_phone', label: 'Phone' }
-                ]} 
-                icon={UsersIcon}
-              />
-
-              <TableDisplay 
-                label="Project Team Members" 
-                data={data?.project_team_members} 
-                columns={[
-                  { fieldname: 'team_member_name', label: 'Name' }, 
-                  { fieldname: 'role', label: 'Role' }, 
-                  { fieldname: 'department', label: 'Department' },
-                  { fieldname: 'email', label: 'Email' }
-                ]} 
-                icon={UsersGroupIcon}
-              />
-            </div>
-          )}
-
-          {/* Funding Tab */}
-          {activeTab === 'funding' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FieldDisplay label="Funding Agency Type" value={data?.funding_agency_type} icon={BuildingIcon} />
-                <FieldDisplay label="Funding Agency" value={data?.funding_agency} icon={BuildingIcon} />
-                <FieldDisplay label="Funding Agency GSTIN" value={data?.funding_agency_gstin} icon={FileTextIcon} />
-                <FieldDisplay label="Total Proposed Budget" value={data?.total_budget_amount} icon={DollarSignIcon} />
-                <FieldDisplay label="Currency" value={data?.currency} icon={DollarSignIcon} />
-                <FieldDisplay label="Exchange Rate" value={data?.exchange_rate} icon={DollarSignIcon} />
-                <FieldDisplay label="Have Sanction Details?" value={data?.have_sanction_details} icon={FileTextIcon} />
-              </div>
-              
-              <FieldDisplay label="Funding Agency Address" value={data?.funding_agency_address} icon={MapPinIcon} />
-              <FieldDisplay label="Funding Agency Contact Person" value={data?.funding_agency_contact_person} icon={UserIcon} />
-              <FieldDisplay label="Funding Agency Email" value={data?.funding_agency_email} icon={MailIcon} />
-              <FieldDisplay label="Funding Agency Phone" value={data?.funding_agency_phone} icon={PhoneIcon} />
-              <FieldDisplay label="Funding Agency Website" value={data?.funding_agency_website} icon={GlobeIcon} />
-
-              <TableDisplay 
-                label="Proposed Budget Breakup" 
-                data={data?.proposed_budget_breakup} 
-                columns={[
-                  { fieldname: 'account_head', label: 'Budget Head' }, 
-                  { fieldname: 'amount', label: 'Amount' },
-                  { fieldname: 'justification', label: 'Justification' }
-                ]} 
-                icon={DollarSignIcon}
-              />
-
-              {data?.have_sanction_details === 'Yes' && (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FieldDisplay label="Sanction Letter No." value={data?.sanctioned_letter_no} icon={FileTextIcon} />
-                    <FieldDisplay 
-                      label="Sanction Letter Date" 
-                      value={data?.sanctioned_letter_date 
-                        ? new Date(data.sanctioned_letter_date).toLocaleDateString() 
-                        : "N/A"} 
-                      icon={CalendarIcon} 
+                <div className="p-4 bg-white border-2 border-black rounded-md">
+                  <h3 className="text-xl font-bold uppercase text-black mb-2">
+                    Funding Agency
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
+                    <FieldDisplay
+                      label="Agency Name"
+                      value={data?.funding_agen}
+                      icon={BuildingIcon}
                     />
-                    <FieldDisplay label="Total Sanctioned Amount" value={data?.total_sanctioned_amount} icon={DollarSignIcon} />
-                    <FieldDisplay label="Sanctioned Currency" value={data?.sanctioned_currency} icon={DollarSignIcon} />
+                    <FieldDisplay
+                      label="Agency Type"
+                      value={data?.funding_agency_type}
+                      icon={UsersIcon}
+                    />
+                    <FieldDisplay
+                      label="Origin"
+                      value={data?.origin_of_funding_agency}
+                      icon={GlobeIcon}
+                    />
+                    <FieldDisplay
+                      label="Ministry"
+                      value={data?.funding_agency_ministry}
+                      icon={BuildingIcon}
+                    />
+                    <FieldDisplay
+                      label="Scheme"
+                      value={data?.funding_agency_schemes}
+                      icon={FileTextIcon}
+                    />
+                    <FieldDisplay
+                      label="Address"
+                      value={`${data?.address_street_village_locality}, ${data?.address_state}, ${data?.address_country} - ${data?.address_postal_code}`}
+                      icon={MapPinIcon}
+                    />
                   </div>
-                  
-                  <TableDisplay 
-                    label="Sanctioned Budget Breakup" 
-                    data={data?.sanctioned_budget_breakup} 
-                    columns={[
-                      { fieldname: 'account_head', label: 'Budget Head' }, 
-                      { fieldname: 'amount_sanctioned', label: 'Amount' },
-                      { fieldname: 'remarks', label: 'Remarks' }
-                    ]} 
-                    icon={DollarSignIcon}
-                  />
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Clearance Tab */}
-          {activeTab === 'clearance' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FieldDisplay label="Needs Committee Clearance?" value={data?.needs_committee_clearance} icon={ShieldIcon} />
-                <FieldDisplay label="Committee" value={data?.committees} icon={ShieldIcon} />
-                {data?.committees === 'Other' && <FieldDisplay label="Specified Committee" value={data?.other_committee_specify} icon={ShieldIcon} />}
-                <FieldDisplay label="Biosafety Category" value={data?.biosafety_category} icon={ShieldIcon} />
-                <FieldDisplay label="Ethical Clearance Obtained?" value={data?.ethical_clearance_obtained} icon={ShieldIcon} />
-                {data?.ethical_clearance_obtained === 'Yes' && (
-                  <>
-                    <FieldDisplay label="Ethical Clearance Number" value={data?.ethical_clearance_number} icon={ShieldIcon} />
-                    <FieldDisplay label="Ethical Clearance Date" value={data?.ethical_clearance_date ? new Date(data.ethical_clearance_date).toLocaleDateString() : 'N/A'} icon={CalendarIcon} />
-                  </>
-                )}
+                </div>
+                <HtmlContent
+                  title="Executive Summary"
+                  htmlString={data?.executive_summary}
+                  icon={FileTextIcon}
+                />
+                <HtmlContent
+                  title="Project Objective"
+                  htmlString={data?.project_objective}
+                  icon={TargetIcon}
+                />
+                <HtmlContent
+                  title="Project Deliverables"
+                  htmlString={data?.project_deliverables}
+                  icon={CheckCircleIcon}
+                />
               </div>
-
-              {data?.needs_committee_clearance === 'Yes' && (
-                <div className="space-y-4">
-                  <HtmlContent title="Declaration" htmlString={data?.declaration} icon={ShieldIcon} />
-                  
-                  <TableDisplay 
-                    label="Committee Members" 
-                    data={data?.committee_members} 
+            )}
+            {activeTab === "investigators" && (
+              <div className="space-y-8">
+                <div className="p-4 bg-white border-2 border-black rounded-md">
+                  <h3 className="text-xl font-bold uppercase text-black mb-2">
+                    Principal Investigator (PI)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
+                    <FieldDisplay
+                      label="Name"
+                      value={data?.principal_investigator_name}
+                      icon={UserIcon}
+                    />
+                    <FieldDisplay
+                      label="Email"
+                      value={data?.pi_webmail}
+                      icon={MailIcon}
+                    />
+                    <FieldDisplay
+                      label="Employee ID"
+                      value={data?.pi_employee_id}
+                      icon={UserIcon}
+                    />
+                    <FieldDisplay
+                      label="Designation"
+                      value={data?.designation}
+                      icon={UsersIcon}
+                    />
+                    <FieldDisplay
+                      label="Department"
+                      value={data?.applicant_department}
+                      icon={BuildingIcon}
+                    />
+                  </div>
+                </div>
+                {data?.is_additional_pi === "Yes" && (
+                  <TableDisplay
+                    label="Additional PIs"
+                    data={data?.additional_pi_table}
                     columns={[
-                      { fieldname: 'member_name', label: 'Name' }, 
-                      { fieldname: 'designation', label: 'Designation' }, 
-                      { fieldname: 'department', label: 'Department' },
-                      { fieldname: 'role', label: 'Role' }
-                    ]} 
+                      { fieldname: "pi_name", label: "Name" },
+                      { fieldname: "pi_designation", label: "Designation" },
+                      { fieldname: "pi_email", label: "Email" },
+                      { fieldname: "pi_address", label: "Address" },
+                      { fieldname: "pi_contact", label: "Contact" },
+                    ]}
                     icon={UsersIcon}
                   />
-                </div>
-              )}
-
-              <div className="p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center gap-2 mb-3">
-                  <ShieldIcon className="h-4 w-4 text-gray-600" />
-                  <h4 className="text-lg font-semibold text-gray-800">Compliance Details</h4>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FieldDisplay label="Data Management Plan" value={data?.data_management_plan} />
-                  <FieldDisplay label="IPR Management" value={data?.ipr_management} />
-                  <FieldDisplay label="Risk Assessment" value={data?.risk_assessment} />
-                  <FieldDisplay label="Environmental Impact" value={data?.environmental_impact} />
-                </div>
+                )}
+                {data?.has_co_pi === "Yes" && (
+                  <TableDisplay
+                    label="Co-Investigators"
+                    data={data?.co_investigator_table}
+                    columns={[
+                      { fieldname: "copi_name", label: "Name" },
+                      { fieldname: "copi_designation", label: "Designation" },
+                      { fieldname: "copi_email", label: "Email" },
+                      { fieldname: "copi_address", label: "Address" },
+                      { fieldname: "copi_contact", label: "Contact" },
+                    ]}
+                    icon={UsersIcon}
+                  />
+                )}
               </div>
-            </div>
-          )}
-
-          {/* Activity Tab */}
-          {activeTab === 'activity' && (
-            <ActivityStream
-              ref={activityStreamRef}
-              doctype="Project Registration"
-              docname={projectName}
-            />
-          )}
+            )}
+            {activeTab === "funding" && (
+              <div className="space-y-8">
+                <TableDisplay
+                  label="Proposed Budget Breakup"
+                  data={data?.proposed_budget_breakup}
+                  columns={[
+                    { fieldname: "account_head", label: "Budget Head" },
+                    { fieldname: "first_year_budget", label: "Year 1" },
+                    { fieldname: "second_year_budget", label: "Year 2" },
+                  ]}
+                  icon={DollarSignIcon}
+                />
+                {data?.equipment_checkbox === 1 && (
+                  <TableDisplay
+                    label="Proposed Equipment"
+                    data={data?.proposed_equipment_details}
+                    columns={[
+                      { fieldname: "item_name", label: "Equipment Name" },
+                      { fieldname: "equip_total_unit_cost", label: "Cost" },
+                    ]}
+                    icon={ShoppingCartIcon}
+                  />
+                )}
+                {data?.manpower_checkbox === 1 && (
+                  <TableDisplay
+                    label="Proposed Manpower"
+                    data={data?.proposed_manpower_details}
+                    columns={[
+                      { fieldname: "designation_name", label: "Position" },
+                      { fieldname: "manpower_salary", label: "Salary" },
+                    ]}
+                    icon={UsersGroupIcon}
+                  />
+                )}
+              </div>
+            )}
+            {activeTab === "clearance" && (
+              <div className="space-y-8">
+                <div className="p-4 bg-white border-2 border-black rounded-md">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
+                    <FieldDisplay
+                      label="Needs Committee Clearance"
+                      value={data?.needs_committee_clearance}
+                      icon={ShieldIcon}
+                    />
+                    <FieldDisplay
+                      label="Committee"
+                      value={data?.committees}
+                      icon={UsersIcon}
+                    />
+                    <FieldDisplay
+                      label="Ethics Committee Details"
+                      value={data?.ethics_committee_details}
+                      icon={FileTextIcon}
+                    />
+                    <FieldDisplay
+                      label="Biosafety Category"
+                      value={data?.biosafety_category}
+                      icon={ShieldIcon}
+                    />
+                    <FieldDisplay
+                      label="Needs Endorsement"
+                      value={data?.need_endorsement_copy}
+                      icon={CheckCircleIcon}
+                    />
+                  </div>
+                </div>
+                {data?.declaration_html === 1 && (
+                  <HtmlContent
+                    title="Declaration"
+                    htmlString={
+                      "<p>Declaration content would be displayed here.</p>"
+                    }
+                    icon={FileTextIcon}
+                  />
+                )}
+              </div>
+            )}
+            {activeTab === "activity" && (
+              <ActivityStream
+                ref={activityStreamRef}
+                doctype="Project Registration"
+                docname={projectName}
+              />
+            )}
+            {activeTab === "quick-actions" && <QuickActions />}
+          </div>
         </div>
-      </div>
+      </>
+    );
+  };
+
+  return (
+    <div className="bg-[#FDFCEC]">
+      <AppSidebar isPermanentEmployee={true} />
+      <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+        {renderContent()}
+      </main>
     </div>
   );
 };
