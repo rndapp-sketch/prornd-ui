@@ -21,6 +21,7 @@ import { UserCreation } from './pages/UserCreation.tsx'; // This one was correct
 import UserList from './pages/UserList.tsx';
 import ProjectsView from './pages/ProjectsView.tsx';
 import ProjectDetails from './pages/ProjectDetails.tsx'; // Import ProjectDetails
+import HRPortal from './pages/HRPortal.tsx';
 // Add any other page imports you need
 // import TestDoctype from './pages/TestDoctype.tsx';
 // import UserDetails from './pages/UserDetails.tsx';
@@ -133,6 +134,14 @@ const router = createBrowserRouter(
         //   path: "test-doctype",
         //   element: <TestDoctype />,
         // },
+        {
+          path: "hr-portal",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User"> {/* Adjust role as needed */}
+              <HRPortal />
+            </AuthRouteWrapper>
+          ),
+        },
       ],
     },
   ],

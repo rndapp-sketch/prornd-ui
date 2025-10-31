@@ -270,114 +270,459 @@
 
 // PiHomePage.tsx
 
+// import * as React from "react";
+// import { useNavigate } from "react-router-dom";
+// import { useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
+// import { AppSidebar } from "../components/RndSidebar";
+
+// // --- Icon Components ---
+// const PlusCircle: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+//     <circle cx="12" cy="12" r="10" />
+//     <line x1="12" y1="8" x2="12" y2="16" />
+//     <line x1="8" y1="12" x2="16" y2="12" />
+//   </svg>
+// );
+
+// const LayoutGrid: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+//     <rect width="7" height="7" x="3" y="3" rx="1" />
+//     <rect width="7" height="7" x="14" y="3" rx="1" />
+//     <rect width="7" height="7" x="14" y="14" rx="1" />
+//     <rect width="7" height="7" x="3" y="14" rx="1" />
+//   </svg>
+// );
+
+// const FileText: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+//     <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+//     <polyline points="14 2 14 8 20 8" />
+//     <line x1="16" y1="13" x2="8" y2="13" />
+//     <line x1="16" y1="17" x2="8" y2="17" />
+//     <line x1="10" y1="9" x2="8" y2="9" />
+//   </svg>
+// );
+
+// const BarChart: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+//     <line x1="12" y1="20" x2="12" y2="10" />
+//     <line x1="18" y1="20" x2="18" y2="4" />
+//     <line x1="6" y1="20" x2="6" y2="16" />
+//   </svg>
+// );
+
+// const PieChart: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+//     <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+//     <path d="M22 12A10 10 0 0 0 12 2v10z" />
+//   </svg>
+// );
+
+// const TrendingUp: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+//     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+//     <polyline points="17 6 23 6 23 12" />
+//   </svg>
+// );
+
+// const AlertCircle: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+//     <circle cx="12" cy="12" r="10" />
+//     <line x1="12" y1="8" x2="12" y2="12" />
+//     <line x1="12" y1="16" x2="12.01" y2="16" />
+//   </svg>
+// );
+
+// const Megaphone: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+//     <path d="m3 11 18-5v12L3 14v-3z"/>
+//     <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
+//   </svg>
+// );
+
+// const LifeBuoy: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+//     <circle cx="12" cy="12" r="10" />
+//     <circle cx="12" cy="12" r="4" />
+//     <line x1="4.93" y1="4.93" x2="9.17" y2="9.17" />
+//     <line x1="14.83" y1="14.83" x2="19.07" y2="19.07" />
+//     <line x1="14.83" y1="9.17" x2="19.07" y2="4.93" />
+//     <line x1="9.17" y1="14.83" x2="4.93" y2="19.07" />
+//   </svg>
+// );
+
+// const Mail: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+//     <rect width="20" height="16" x="2" y="4" rx="2" />
+//     <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+//   </svg>
+// );
+
+// const Clock: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+//     <circle cx="12" cy="12" r="10" />
+//     <polyline points="12 6 12 12 16 14" />
+//   </svg>
+// );
+
+// // --- Child Components ---
+// const CurrentTime = () => {
+//   const [time, setTime] = React.useState(new Date());
+//   React.useEffect(() => {
+//     const timerId = setInterval(() => setTime(new Date()), 1000);
+//     return () => clearInterval(timerId);
+//   }, []);
+
+//   return (
+//     <div className="text-sm text-gray-600 font-medium">
+//       {time.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} | {time.toLocaleTimeString()}
+//     </div>
+//   );
+// };
+
+// interface ActionCardProps {
+//   icon: React.ReactNode;
+//   title: string;
+//   description: string;
+//   onClick: () => void;
+// }
+
+// const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onClick }) => (
+//   <div
+//     onClick={onClick}
+//     className="bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-500 transition-all duration-300 cursor-pointer group flex flex-col"
+//   >
+//     <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-lg mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+//       {icon}
+//     </div>
+//     <h3 className="text-xl font-semibold mb-2 text-gray-800">{title}</h3>
+//     <p className="text-gray-600 flex-grow text-sm">{description}</p>
+//   </div>
+// );
+
+// // --- Analytics Card Component ---
+// const AnalyticsCard: React.FC<{
+//   title: string;
+//   value: string;
+//   subtitle: string;
+//   icon: React.ReactNode;
+//   trend?: string;
+//   onClick?: () => void;
+// }> = ({ title, value, subtitle, icon, trend, onClick }) => (
+//   <div
+//     onClick={onClick}
+//     className={`bg-white p-6 rounded-lg border border-gray-200 ${onClick ? 'cursor-pointer hover:border-blue-500 transition-all duration-300' : ''}`}
+//   >
+//     <div className="flex items-center justify-between mb-4">
+//       <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+//       <div className="text-blue-600">
+//         {icon}
+//       </div>
+//     </div>
+//     <div className="text-2xl font-bold text-gray-900 mb-2">{value}</div>
+//     <div className="flex items-center justify-between">
+//       <div className="text-sm text-gray-600">{subtitle}</div>
+//       {trend && (
+//         <div className={`text-sm ${trend.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+//           {trend}
+//         </div>
+//       )}
+//     </div>
+//   </div>
+// );
+
+// // --- Quick Stats Component ---
+// const QuickStats: React.FC<{
+//   icon: React.ReactNode;
+//   title: string;
+//   value: string;
+//   description: string;
+// }> = ({ icon, title, value, description }) => (
+//   <div className="bg-white p-4 rounded-lg border border-gray-200">
+//     <div className="flex items-center mb-3">
+//       <div className="w-8 h-8 mr-3 text-blue-600">
+//         {icon}
+//       </div>
+//       <h4 className="font-semibold text-gray-800">{title}</h4>
+//     </div>
+//     <div className="text-xl font-bold text-gray-900 mb-1">{value}</div>
+//     <div className="text-sm text-gray-600">{description}</div>
+//   </div>
+// );
+
+// // --- Main PI Home Page Component ---
+// export function PiHomePage() {
+//   const navigate = useNavigate();
+//   const { currentUser } = useFrappeAuth();
+//   const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
+//     fields: ["full_name", "user_roles"],
+//     enabled: !!currentUser,
+//   });
+
+//   const fullName = userData?.full_name || currentUser || "Guest";
+//   const isPermanentEmployee = userData?.user_roles?.some((role: any) => role.role === "Permanent Employee") || false;
+
+//   return (
+//     <div>
+//       <AppSidebar isPermanentEmployee={isPermanentEmployee} />
+//       <div className="flex-1 bg-gray-50 p-6 font-sans">
+//         <div className="max-w-7xl mx-auto">
+//           {/* Header */}
+//           <header className="mb-8">
+//             <div className="flex justify-between items-center mb-4">
+//               <div>
+//                 {/* <h1 className="text-3xl font-bold text-gray-900">R&D Portal Dashboard</h1> */}
+//                 <h1 className="text-3xl font-bold text-gray-900">Welcome back, {fullName}</h1>
+//               </div>
+//               <CurrentTime />
+//             </div>
+//           </header>
+
+//           {/* Quick Stats Section */}
+//           {/* <section className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+//             <QuickStats
+//               icon={<Clock className="w-6 h-6" />}
+//               title="Avg. Approval Time"
+//               value="3.2 days"
+//               description="Faster than last month"
+//             />
+//             <QuickStats
+//               icon={<TrendingUp className="w-6 h-6" />}
+//               title="Project Growth"
+//               value="+15%"
+//               description="This quarter"
+//             />
+//             <QuickStats
+//               icon={<FileText className="w-6 h-6" />}
+//               title="Documents"
+//               value="47"
+//               description="Pending review"
+//             />
+//             <QuickStats
+//               icon={<AlertCircle className="w-6 h-6" />}
+//               title="Deadlines"
+//               value="5"
+//               description="Within 7 days"
+//             />
+//           </section> */}
+
+//           {/* Analytics Section */}
+//           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+//             {/* Project Analytics */}
+//             <div className="bg-white p-6 rounded-lg border border-gray-200">
+//               <div className="flex items-center mb-4">
+//                 <div className="w-8 h-8 mr-3 text-blue-600">
+//                   <BarChart />
+//                 </div>
+//                 <h3 className="text-xl font-semibold text-gray-800">Project Analytics</h3>
+//               </div>
+//               <div className="grid grid-cols-2 gap-4">
+//                 <AnalyticsCard
+//                   title="Total Projects"
+//                   value="24"
+//                   subtitle="Active: 18 | Draft: 6"
+//                   icon={<FileText className="w-5 h-5" />}
+//                   trend="+12%"
+//                   onClick={() => navigate("/project-analytics")}
+//                 />
+//                 <AnalyticsCard
+//                   title="Completion Rate"
+//                   value="87%"
+//                   subtitle="On track projects"
+//                   icon={<TrendingUp className="w-5 h-5" />}
+//                   trend="+5%"
+//                 />
+//                 <AnalyticsCard
+//                   title="Pending Review"
+//                   value="8"
+//                   subtitle="Awaiting approval"
+//                   icon={<AlertCircle className="w-5 h-5" />}
+//                 />
+//                 <AnalyticsCard
+//                   title="Team Members"
+//                   value="42"
+//                   subtitle="Active researchers"
+//                   icon={<FileText className="w-5 h-5" />}
+//                   trend="+8%"
+//                 />
+//               </div>
+//             </div>
+
+//             {/* Fund Analytics */}
+//             <div className="bg-white p-6 rounded-lg border border-gray-200">
+//               <div className="flex items-center mb-4">
+//                 <div className="w-8 h-8 mr-3 text-green-600">
+//                   <PieChart />
+//                 </div>
+//                 <h3 className="text-xl font-semibold text-gray-800">Fund Analytics</h3>
+//               </div>
+//               <div className="grid grid-cols-2 gap-4">
+//                 <AnalyticsCard
+//                   title="Total Allocation"
+//                   value="₹4.2Cr"
+//                   subtitle="Current fiscal year"
+//                   icon={<PieChart className="w-5 h-5" />}
+//                   trend="+18%"
+//                   onClick={() => navigate("/fund-analytics")}
+//                 />
+//                 <AnalyticsCard
+//                   title="Utilization"
+//                   value="76%"
+//                   subtitle="₹3.2Cr utilized"
+//                   icon={<TrendingUp className="w-5 h-5" />}
+//                   trend="+8%"
+//                 />
+//                 <AnalyticsCard
+//                   title="Available Funds"
+//                   value="₹1.0Cr"
+//                   subtitle="Remaining balance"
+//                   icon={<PieChart className="w-5 h-5" />}
+//                 />
+//                 <AnalyticsCard
+//                   title="Pending Requests"
+//                   value="₹45L"
+//                   subtitle="Approval pending"
+//                   icon={<AlertCircle className="w-5 h-5" />}
+//                 />
+//               </div>
+//             </div>
+//           </section>
+
+//           {/* Main Action Cards */}
+//           <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+//             <ActionCard 
+//               icon={<PlusCircle className="w-6 h-6"/>}
+//               title="Register New Project"
+//               description="Start a new research or development initiative with proper documentation"
+//               onClick={() => navigate("/project-registration")}
+//             />
+//             <ActionCard 
+//               icon={<LayoutGrid className="w-6 h-6"/>}
+//               title="View All Projects"
+//               description="Browse, track, and manage all ongoing and completed R&D projects"
+//               onClick={() => navigate("/projects-view", { state: { filter: "Application Under Process" } })}
+//             />
+//             <ActionCard 
+//               icon={<FileText className="w-6 h-6"/>}
+//               title="Pending Tasks"
+//               description="Review and take action on your assigned tasks and approvals"
+//               onClick={() => navigate("/pending-tasks")}
+//             />
+//           </section>
+
+//           {/* Information Section */}
+//           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+//             <div className="lg:col-span-2 bg-white p-6 rounded-lg border border-gray-200">
+//               <div className="flex items-center mb-4">
+//                 <div className="w-6 h-6 mr-3 text-gray-600">
+//                   <Megaphone/>
+//                 </div>
+//                 <h3 className="text-xl font-semibold text-gray-800">Recent Updates</h3>
+//               </div>
+//               <div className="text-gray-600 space-y-3 border-t pt-4">
+//                 <div className="flex items-start">
+//                   <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+//                   <div>
+//                     <p className="font-medium">New funding opportunity available for AI research</p>
+//                     <p className="text-sm text-gray-500">Deadline: March 15, 2024</p>
+//                   </div>
+//                 </div>
+//                 <div className="flex items-start">
+//                   <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+//                   <div>
+//                     <p className="font-medium">Quarterly review meeting scheduled for next week</p>
+//                     <p className="text-sm text-gray-500">March 10, 2024 | 10:00 AM</p>
+//                   </div>
+//                 </div>
+//                 <div className="flex items-start">
+//                   <div className="w-2 h-2 bg-amber-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+//                   <div>
+//                     <p className="font-medium">System maintenance scheduled for this weekend</p>
+//                     <p className="text-sm text-gray-500">March 9-10, 2024 | 10 PM - 6 AM</p>
+//                   </div>
+//                 </div>
+//               </div>
+//             </div>
+//             <div className="bg-white p-6 rounded-lg border border-gray-200">
+//               <h3 className="text-xl font-semibold mb-4 text-gray-800">Quick Resources</h3>
+//               <ul className="space-y-4 border-t pt-4">
+//                 <li>
+//                   <a href="#" className="flex items-center text-blue-600 hover:underline group">
+//                     <FileText className="w-5 h-5 mr-3 text-gray-400 group-hover:text-blue-600 transition-colors"/>
+//                     <span>Project Guidelines</span>
+//                   </a>
+//                 </li>
+//                 <li>
+//                   <a href="#" className="flex items-center text-blue-600 hover:underline group">
+//                     <LifeBuoy className="w-5 h-5 mr-3 text-gray-400 group-hover:text-blue-600 transition-colors"/>
+//                     <span>Support Portal</span>
+//                   </a>
+//                 </li>
+//                 <li>
+//                   <a href="#" className="flex items-center text-blue-600 hover:underline group">
+//                     <BarChart className="w-5 h-5 mr-3 text-gray-400 group-hover:text-blue-600 transition-colors"/>
+//                     <span>Analytics Reports</span>
+//                   </a>
+//                 </li>
+//                 <li>
+//                   <a href="#" className="flex items-center text-blue-600 hover:underline group">
+//                     <PieChart className="w-5 h-5 mr-3 text-gray-400 group-hover:text-blue-600 transition-colors"/>
+//                     <span>Financial Templates</span>
+//                   </a>
+//                 </li>
+//               </ul>
+//             </div>
+//           </section>
+          
+//           <section className="bg-gray-800 text-white p-6 rounded-lg text-center my-8">
+//             <h2 className="text-2xl font-bold mb-2">R&D Operations Portal</h2>
+//             <p className="text-gray-300">Streamlining research project management and fund utilization</p>
+//           </section>
+          
+//           <footer className="text-center text-gray-600 mt-8 pb-4">
+//             <div className="flex items-center justify-center space-x-2">
+//               <Mail className="w-5 h-5"/>
+//               <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-blue-600 hover:underline">ernd@iitg.ac.in</a></p>
+//             </div>
+//           </footer>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// }
+
+// export default PiHomePage;
+
+
+
+
+// new neo design
+
+
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
 import { AppSidebar } from "../components/RndSidebar";
+import { 
+    PlusCircle, LayoutGrid, FileText, BarChart, PieChart, TrendingUp, 
+    AlertCircle, Megaphone, LifeBuoy, Mail, Clock, 
+    UsersIcon
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
-// --- Icon Components ---
-const PlusCircle: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <circle cx="12" cy="12" r="10" />
-    <line x1="12" y1="8" x2="12" y2="16" />
-    <line x1="8" y1="12" x2="16" y2="12" />
-  </svg>
-);
-
-const LayoutGrid: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <rect width="7" height="7" x="3" y="3" rx="1" />
-    <rect width="7" height="7" x="14" y="3" rx="1" />
-    <rect width="7" height="7" x="14" y="14" rx="1" />
-    <rect width="7" height="7" x="3" y="14" rx="1" />
-  </svg>
-);
-
-const FileText: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-    <line x1="10" y1="9" x2="8" y2="9" />
-  </svg>
-);
-
-const BarChart: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <line x1="12" y1="20" x2="12" y2="10" />
-    <line x1="18" y1="20" x2="18" y2="4" />
-    <line x1="6" y1="20" x2="6" y2="16" />
-  </svg>
-);
-
-const PieChart: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
-    <path d="M22 12A10 10 0 0 0 12 2v10z" />
-  </svg>
-);
-
-const TrendingUp: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-    <polyline points="17 6 23 6 23 12" />
-  </svg>
-);
-
-const AlertCircle: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <circle cx="12" cy="12" r="10" />
-    <line x1="12" y1="8" x2="12" y2="12" />
-    <line x1="12" y1="16" x2="12.01" y2="16" />
-  </svg>
-);
-
-const Megaphone: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="m3 11 18-5v12L3 14v-3z"/>
-    <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
-  </svg>
-);
-
-const LifeBuoy: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <circle cx="12" cy="12" r="10" />
-    <circle cx="12" cy="12" r="4" />
-    <line x1="4.93" y1="4.93" x2="9.17" y2="9.17" />
-    <line x1="14.83" y1="14.83" x2="19.07" y2="19.07" />
-    <line x1="14.83" y1="9.17" x2="19.07" y2="4.93" />
-    <line x1="9.17" y1="14.83" x2="4.93" y2="19.07" />
-  </svg>
-);
-
-const Mail: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <rect width="20" height="16" x="2" y="4" rx="2" />
-    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-  </svg>
-);
-
-const Clock: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <circle cx="12" cy="12" r="10" />
-    <polyline points="12 6 12 12 16 14" />
-  </svg>
-);
-
-// --- Child Components ---
+// --- Child Components with Neo-Brutalism Style ---
 const CurrentTime = () => {
-  const [time, setTime] = React.useState(new Date());
-  React.useEffect(() => {
-    const timerId = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timerId);
-  }, []);
-
-  return (
-    <div className="text-sm text-gray-600 font-medium">
-      {time.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} | {time.toLocaleTimeString()}
-    </div>
-  );
+    const [time, setTime] = React.useState(new Date());
+    React.useEffect(() => {
+        const timerId = setInterval(() => setTime(new Date()), 1000);
+        return () => clearInterval(timerId);
+    }, []);
+    return (
+        <div className="font-mono text-sm text-neutral-700 text-right">
+            <div>{time.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+            <div>{time.toLocaleTimeString()}</div>
+        </div>
+    );
 };
 
 interface ActionCardProps {
@@ -388,66 +733,34 @@ interface ActionCardProps {
 }
 
 const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onClick }) => (
-  <div
-    onClick={onClick}
-    className="bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-500 transition-all duration-300 cursor-pointer group flex flex-col"
-  >
-    <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-lg mb-4 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
-      {icon}
-    </div>
-    <h3 className="text-xl font-semibold mb-2 text-gray-800">{title}</h3>
-    <p className="text-gray-600 flex-grow text-sm">{description}</p>
-  </div>
-);
-
-// --- Analytics Card Component ---
-const AnalyticsCard: React.FC<{
-  title: string;
-  value: string;
-  subtitle: string;
-  icon: React.ReactNode;
-  trend?: string;
-  onClick?: () => void;
-}> = ({ title, value, subtitle, icon, trend, onClick }) => (
-  <div
-    onClick={onClick}
-    className={`bg-white p-6 rounded-lg border border-gray-200 ${onClick ? 'cursor-pointer hover:border-blue-500 transition-all duration-300' : ''}`}
-  >
-    <div className="flex items-center justify-between mb-4">
-      <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-      <div className="text-blue-600">
-        {icon}
-      </div>
-    </div>
-    <div className="text-2xl font-bold text-gray-900 mb-2">{value}</div>
-    <div className="flex items-center justify-between">
-      <div className="text-sm text-gray-600">{subtitle}</div>
-      {trend && (
-        <div className={`text-sm ${trend.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-          {trend}
+    <div
+        onClick={onClick}
+        className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[2px_2px_0px_rgba(0,0,0,0.25)] hover:translate-x-[2px] hover:translate-y-[2px] cursor-pointer group flex flex-col"
+    >
+        <div className="flex-shrink-0 flex items-center justify-center size-12 bg-black text-white rounded-lg border-2 border-black mb-4">
+            {icon}
         </div>
-      )}
+        <h3 className="text-xl font-bold mb-2 text-black uppercase">{title}</h3>
+        <p className="text-neutral-700 flex-grow text-sm font-mono">{description}</p>
     </div>
-  </div>
 );
 
-// --- Quick Stats Component ---
-const QuickStats: React.FC<{
-  icon: React.ReactNode;
-  title: string;
-  value: string;
-  description: string;
-}> = ({ icon, title, value, description }) => (
-  <div className="bg-white p-4 rounded-lg border border-gray-200">
-    <div className="flex items-center mb-3">
-      <div className="w-8 h-8 mr-3 text-blue-600">
-        {icon}
-      </div>
-      <h4 className="font-semibold text-gray-800">{title}</h4>
+const AnalyticsCard: React.FC<{ title: string; value: string; subtitle: string; icon: React.ReactNode; trend?: string; onClick?: () => void; }> = 
+({ title, value, subtitle, icon, trend, onClick }) => (
+    <div
+        onClick={onClick}
+        className={cn("p-4 rounded-lg border-2 border-black", onClick ? 'cursor-pointer hover:bg-stone-50' : '')}
+    >
+        <div className="flex items-center justify-between mb-2">
+            <h3 className="text-base font-bold text-black uppercase">{title}</h3>
+            <div className="text-black">{icon}</div>
+        </div>
+        <div className="text-3xl font-bold text-black">{value}</div>
+        <div className="flex items-center justify-between mt-1">
+            <div className="text-xs text-neutral-600 font-mono">{subtitle}</div>
+            {trend && (<div className={`text-xs font-bold ${trend.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>{trend}</div>)}
+        </div>
     </div>
-    <div className="text-xl font-bold text-gray-900 mb-1">{value}</div>
-    <div className="text-sm text-gray-600">{description}</div>
-  </div>
 );
 
 // --- Main PI Home Page Component ---
@@ -463,226 +776,93 @@ export function PiHomePage() {
   const isPermanentEmployee = userData?.user_roles?.some((role: any) => role.role === "Permanent Employee") || false;
 
   return (
-    <div>
+    <div className=" bg-[#FDFCEC] min-h-screen  font-sans">
       <AppSidebar isPermanentEmployee={isPermanentEmployee} />
-      <div className="flex-1 bg-gray-50 p-6 font-sans">
+      <div className="flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <header className="mb-8">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-start">
               <div>
-                {/* <h1 className="text-3xl font-bold text-gray-900">R&D Portal Dashboard</h1> */}
-                <h1 className="text-3xl font-bold text-gray-900">Welcome back, {fullName}</h1>
+                <h1 className="text-4xl font-extrabold text-black uppercase">Dashboard</h1>
+                <p className="text-lg text-neutral-700 font-mono">Welcome back, {fullName}</p>
               </div>
               <CurrentTime />
             </div>
           </header>
 
-          {/* Quick Stats Section */}
-          {/* <section className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <QuickStats
-              icon={<Clock className="w-6 h-6" />}
-              title="Avg. Approval Time"
-              value="3.2 days"
-              description="Faster than last month"
+          {/* Main Action Cards */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <ActionCard 
+              icon={<PlusCircle className="size-6"/>}
+              title="New Project"
+              description="Start a new research or development initiative."
+              onClick={() => navigate("/project-registration")}
             />
-            <QuickStats
-              icon={<TrendingUp className="w-6 h-6" />}
-              title="Project Growth"
-              value="+15%"
-              description="This quarter"
+            <ActionCard 
+              icon={<LayoutGrid className="size-6"/>}
+              title="View Projects"
+              description="Browse, track, and manage all ongoing and completed projects."
+              onClick={() => navigate("/projects-view")}
             />
-            <QuickStats
-              icon={<FileText className="w-6 h-6" />}
-              title="Documents"
-              value="47"
-              description="Pending review"
+            <ActionCard 
+              icon={<Clock className="size-6"/>}
+              title="Pending Tasks"
+              description="Review and take action on your assigned tasks and approvals."
+              onClick={() => navigate("/projects-view", { state: { filter: "Application Under Process" } })}
             />
-            <QuickStats
-              icon={<AlertCircle className="w-6 h-6" />}
-              title="Deadlines"
-              value="5"
-              description="Within 7 days"
-            />
-          </section> */}
+          </section>
 
           {/* Analytics Section */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Project Analytics */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <div className="flex items-center mb-4">
-                <div className="w-8 h-8 mr-3 text-blue-600">
-                  <BarChart />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-800">Project Analytics</h3>
-              </div>
+            <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+              <div className="flex items-center mb-4 gap-3"><BarChart className="size-7"/><h3 className="text-xl font-bold text-black uppercase">Project Analytics</h3></div>
               <div className="grid grid-cols-2 gap-4">
-                <AnalyticsCard
-                  title="Total Projects"
-                  value="24"
-                  subtitle="Active: 18 | Draft: 6"
-                  icon={<FileText className="w-5 h-5" />}
-                  trend="+12%"
-                  onClick={() => navigate("/project-analytics")}
-                />
-                <AnalyticsCard
-                  title="Completion Rate"
-                  value="87%"
-                  subtitle="On track projects"
-                  icon={<TrendingUp className="w-5 h-5" />}
-                  trend="+5%"
-                />
-                <AnalyticsCard
-                  title="Pending Review"
-                  value="8"
-                  subtitle="Awaiting approval"
-                  icon={<AlertCircle className="w-5 h-5" />}
-                />
-                <AnalyticsCard
-                  title="Team Members"
-                  value="42"
-                  subtitle="Active researchers"
-                  icon={<FileText className="w-5 h-5" />}
-                  trend="+8%"
-                />
+                <AnalyticsCard title="Total Projects" value="24" subtitle="Active: 18 | Draft: 6" icon={<FileText className="size-5" />} trend="+12%" onClick={() => navigate("/project-analytics")}/>
+                <AnalyticsCard title="Completion Rate" value="87%" subtitle="On track projects" icon={<TrendingUp className="size-5" />} trend="+5%"/>
+                <AnalyticsCard title="Pending Review" value="8" subtitle="Awaiting approval" icon={<AlertCircle className="size-5" />}/>
+                <AnalyticsCard title="Team Members" value="42" subtitle="Active researchers" icon={<UsersIcon className="size-5" />} trend="+8%"/>
               </div>
             </div>
 
             {/* Fund Analytics */}
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <div className="flex items-center mb-4">
-                <div className="w-8 h-8 mr-3 text-green-600">
-                  <PieChart />
+            <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+                <div className="flex items-center mb-4 gap-3"><PieChart className="size-7 text-green-600" /><h3 className="text-xl font-bold text-black uppercase">Fund Analytics</h3></div>
+                <div className="grid grid-cols-2 gap-4">
+                    <AnalyticsCard title="Total Allocation" value="₹4.2Cr" subtitle="Current fiscal year" icon={<PieChart className="size-5" />} trend="+18%" onClick={() => navigate("/fund-analytics")}/>
+                    <AnalyticsCard title="Utilization" value="76%" subtitle="₹3.2Cr utilized" icon={<TrendingUp className="size-5" />} trend="+8%"/>
+                    <AnalyticsCard title="Available Funds" value="₹1.0Cr" subtitle="Remaining balance" icon={<PieChart className="size-5" />}/>
+                    <AnalyticsCard title="Pending Requests" value="₹45L" subtitle="Approval pending" icon={<AlertCircle className="size-5" />}/>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-800">Fund Analytics</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <AnalyticsCard
-                  title="Total Allocation"
-                  value="₹4.2Cr"
-                  subtitle="Current fiscal year"
-                  icon={<PieChart className="w-5 h-5" />}
-                  trend="+18%"
-                  onClick={() => navigate("/fund-analytics")}
-                />
-                <AnalyticsCard
-                  title="Utilization"
-                  value="76%"
-                  subtitle="₹3.2Cr utilized"
-                  icon={<TrendingUp className="w-5 h-5" />}
-                  trend="+8%"
-                />
-                <AnalyticsCard
-                  title="Available Funds"
-                  value="₹1.0Cr"
-                  subtitle="Remaining balance"
-                  icon={<PieChart className="w-5 h-5" />}
-                />
-                <AnalyticsCard
-                  title="Pending Requests"
-                  value="₹45L"
-                  subtitle="Approval pending"
-                  icon={<AlertCircle className="w-5 h-5" />}
-                />
-              </div>
             </div>
-          </section>
-
-          {/* Main Action Cards */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <ActionCard 
-              icon={<PlusCircle className="w-6 h-6"/>}
-              title="Register New Project"
-              description="Start a new research or development initiative with proper documentation"
-              onClick={() => navigate("/project-registration")}
-            />
-            <ActionCard 
-              icon={<LayoutGrid className="w-6 h-6"/>}
-              title="View All Projects"
-              description="Browse, track, and manage all ongoing and completed R&D projects"
-              onClick={() => navigate("/projects-view", { state: { filter: "Application Under Process" } })}
-            />
-            <ActionCard 
-              icon={<FileText className="w-6 h-6"/>}
-              title="Pending Tasks"
-              description="Review and take action on your assigned tasks and approvals"
-              onClick={() => navigate("/pending-tasks")}
-            />
           </section>
 
           {/* Information Section */}
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white p-6 rounded-lg border border-gray-200">
-              <div className="flex items-center mb-4">
-                <div className="w-6 h-6 mr-3 text-gray-600">
-                  <Megaphone/>
-                </div>
-                <h3 className="text-xl font-semibold text-gray-800">Recent Updates</h3>
-              </div>
-              <div className="text-gray-600 space-y-3 border-t pt-4">
-                <div className="flex items-start">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                  <div>
-                    <p className="font-medium">New funding opportunity available for AI research</p>
-                    <p className="text-sm text-gray-500">Deadline: March 15, 2024</p>
-                  </div>
-                </div>
-                <div className="flex items-start">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                  <div>
-                    <p className="font-medium">Quarterly review meeting scheduled for next week</p>
-                    <p className="text-sm text-gray-500">March 10, 2024 | 10:00 AM</p>
-                  </div>
-                </div>
-                <div className="flex items-start">
-                  <div className="w-2 h-2 bg-amber-500 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                  <div>
-                    <p className="font-medium">System maintenance scheduled for this weekend</p>
-                    <p className="text-sm text-gray-500">March 9-10, 2024 | 10 PM - 6 AM</p>
-                  </div>
-                </div>
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+              <div className="flex items-center mb-4 gap-3"><Megaphone className="size-6"/><h3 className="text-xl font-bold text-black uppercase">Recent Updates</h3></div>
+              <div className="text-neutral-700 space-y-4 border-t-2 border-black pt-4">
+                <div className="flex items-start gap-3"><div className="size-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div><div><p className="font-semibold">New funding opportunity for AI research</p><p className="text-sm text-neutral-500 font-mono">Deadline: March 15, 2024</p></div></div>
+                <div className="flex items-start gap-3"><div className="size-2 bg-green-500 rounded-full mt-1.5 flex-shrink-0"></div><div><p className="font-semibold">Quarterly review meeting scheduled</p><p className="text-sm text-neutral-500 font-mono">March 10, 2024 | 10:00 AM</p></div></div>
+                <div className="flex items-start gap-3"><div className="size-2 bg-amber-500 rounded-full mt-1.5 flex-shrink-0"></div><div><p className="font-semibold">System maintenance this weekend</p><p className="text-sm text-neutral-500 font-mono">March 9-10, 2024 | 10 PM - 6 AM</p></div></div>
               </div>
             </div>
-            <div className="bg-white p-6 rounded-lg border border-gray-200">
-              <h3 className="text-xl font-semibold mb-4 text-gray-800">Quick Resources</h3>
-              <ul className="space-y-4 border-t pt-4">
-                <li>
-                  <a href="#" className="flex items-center text-blue-600 hover:underline group">
-                    <FileText className="w-5 h-5 mr-3 text-gray-400 group-hover:text-blue-600 transition-colors"/>
-                    <span>Project Guidelines</span>
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="flex items-center text-blue-600 hover:underline group">
-                    <LifeBuoy className="w-5 h-5 mr-3 text-gray-400 group-hover:text-blue-600 transition-colors"/>
-                    <span>Support Portal</span>
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="flex items-center text-blue-600 hover:underline group">
-                    <BarChart className="w-5 h-5 mr-3 text-gray-400 group-hover:text-blue-600 transition-colors"/>
-                    <span>Analytics Reports</span>
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="flex items-center text-blue-600 hover:underline group">
-                    <PieChart className="w-5 h-5 mr-3 text-gray-400 group-hover:text-blue-600 transition-colors"/>
-                    <span>Financial Templates</span>
-                  </a>
-                </li>
+            <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+              <h3 className="text-xl font-bold mb-4 text-black uppercase">Quick Resources</h3>
+              <ul className="space-y-3 border-t-2 border-black pt-4">
+                <li><a href="#" className="flex items-center text-black hover:underline group font-semibold"><FileText className="size-5 mr-3 text-neutral-500"/><span className="group-hover:text-blue-600">Project Guidelines</span></a></li>
+                <li><a href="#" className="flex items-center text-black hover:underline group font-semibold"><LifeBuoy className="size-5 mr-3 text-neutral-500"/><span className="group-hover:text-blue-600">Support Portal</span></a></li>
+                <li><a href="#" className="flex items-center text-black hover:underline group font-semibold"><BarChart className="size-5 mr-3 text-neutral-500"/><span className="group-hover:text-blue-600">Analytics Reports</span></a></li>
+                <li><a href="#" className="flex items-center text-black hover:underline group font-semibold"><PieChart className="size-5 mr-3 text-neutral-500"/><span className="group-hover:text-blue-600">Financial Templates</span></a></li>
               </ul>
             </div>
           </section>
           
-          <section className="bg-gray-800 text-white p-6 rounded-lg text-center my-8">
-            <h2 className="text-2xl font-bold mb-2">R&D Operations Portal</h2>
-            <p className="text-gray-300">Streamlining research project management and fund utilization</p>
-          </section>
-          
-          <footer className="text-center text-gray-600 mt-8 pb-4">
-            <div className="flex items-center justify-center space-x-2">
-              <Mail className="w-5 h-5"/>
-              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-blue-600 hover:underline">ernd@iitg.ac.in</a></p>
+          <footer className="text-center text-neutral-600 mt-10 pb-4">
+            <div className="flex items-center justify-center space-x-2 font-mono text-sm">
+              <Mail className="size-4"/>
+              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-blue-600 hover:underline font-semibold">ernd@iitg.ac.in</a></p>
             </div>
           </footer>
         </div>
@@ -692,3 +872,4 @@ export function PiHomePage() {
 }
 
 export default PiHomePage;
+

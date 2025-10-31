@@ -1181,6 +1181,248 @@
 // -=-=-=-==-=-=-=-=-=-=-=-=
 
 
+// import {
+//   Sidebar,
+//   SidebarContent,
+//   SidebarFooter,
+//   SidebarGroup,
+//   SidebarHeader,
+//   SidebarMenu,
+//   SidebarMenuItem,
+//   SidebarMenuButton,
+//   SidebarMenuSub,
+//   SidebarMenuSubButton,
+//   SidebarMenuSubItem,
+//   useSidebar,
+// } from "@/components/ui/sidebar";
+// import { 
+//   HomeIcon, 
+//   FileText, 
+//   ChevronDownIcon,
+//   LogOutIcon,
+//   UsersIcon,
+// } from "lucide-react";
+// import type { LucideIcon } from "lucide-react";
+// import { useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
+// import { useNavigate, useLocation } from "react-router-dom";
+// import { useState } from "react";
+// import { cn } from "@/lib/utils";
+
+// // --- LOGIC: Interfaces (Unchanged) ---
+// interface SubMenuItem {
+//   label: string;
+//   path: string;
+// }
+
+// interface MenuItem {
+//   label: string;
+//   icon: LucideIcon;
+//   path?: string;
+//   subMenu?: SubMenuItem[];
+// }
+
+// export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boolean }) {
+//   // --- LOGIC: Hooks and State (Unchanged) ---
+//   const { logout, currentUser, isLoading } = useFrappeAuth();
+//   const { state } = useSidebar();
+//   const navigate = useNavigate();
+//   const location = useLocation();
+//   const [openSubMenus, setOpenSubMenus] = useState<string[]>([]);
+
+//   const { data: userDoc, isLoading: isLoadingUserDoc } = useFrappeGetDoc(
+//     'User',
+//     currentUser || '',
+//     {
+//       fields: ["full_name", "email", "user_image", "designation_name"],
+//       enabled: !!currentUser
+//     }
+//   );
+
+//   // --- LOGIC: Menu Data (Unchanged) ---
+//   const menuItems: MenuItem[] = [
+//     {
+//       label: "Home",
+//       icon: HomeIcon,
+//       path: "/home",
+//     },
+//     {
+//       label: "Projects",
+//       icon: FileText,
+//       subMenu: [
+//         { label: "Projects View", path: "/projects-view" },
+//         { label: "Registration", path: "/project-registration" },
+//       ],
+//     },
+//     {
+//       label: "HR Portal",
+//       icon: UsersIcon,
+//       path: "/hr-portal",
+//     },
+//   ];
+  
+//   // --- LOGIC: Event Handlers (Unchanged) ---
+//   const handleMenuItemClick = (item: MenuItem) => {
+//     if (item.subMenu) {
+//       setOpenSubMenus((prev) =>
+//         prev.includes(item.label)
+//           ? prev.filter((label) => label !== item.label)
+//           : [...prev, item.label]
+//       );
+//     } else if (item.label === "Home") {
+//       navigate(isPermanentEmployee ? "/pihomepage" : "/home");
+//     } else if (item.path) {
+//       navigate(item.path);
+//     }
+//   };
+
+//   const handleSubMenuItemClick = (subItem: SubMenuItem) => {
+//     navigate(subItem.path);
+//   };
+  
+//   // --- LOGIC: Path Checking (Unchanged) ---
+//   const isActivePath = (path: string) => {
+//     if (path === "/home") {
+//       return location.pathname === "/home" || location.pathname === "/pihomepage";
+//     }
+//     return location.pathname.startsWith(path) && path !== "/";
+//   };
+  
+//   return (
+//     // --- DESIGN: Main Sidebar Container with a Clean, Light Background ---
+//     <Sidebar collapsible="icon" variant="sidebar" className="bg-white border-r border-neutral-200">
+      
+//       {/* --- DESIGN: Header with Minimalist Styling --- */}
+//       <SidebarHeader className="p-4 border-b border-neutral-200">
+//         <div className="flex items-center gap-3">
+//           <div className="flex items-center justify-center size-10 bg-black rounded-lg">
+//             <img 
+//               src="/rndops_Logo.svg" 
+//               alt="R&D Operations Logo" 
+//               className="size-6 filter brightness-0 invert"
+//             />
+//           </div>
+//           {state === 'expanded' && (
+//             <div>
+//               <span className="text-lg font-bold text-black">R&D Portal</span>
+//               <span className="block text-xs text-neutral-500">
+//                 {isPermanentEmployee ? "Permanent Employee" : "Project Staff"}
+//               </span>
+//             </div>
+//           )}
+//         </div>
+//       </SidebarHeader>
+      
+//       {/* --- DESIGN: Menu Content with a Simple, Eye-Catching Style --- */}
+//       <SidebarContent className="p-4">
+//         <SidebarGroup>
+//           <SidebarMenu className="space-y-2">
+//             {menuItems.map((item) => {
+//               const isAnySubMenuActive = item.subMenu?.some(sub => isActivePath(sub.path)) ?? false;
+//               const isActive = (item.path && isActivePath(item.path)) || isAnySubMenuActive;
+//               const isSubMenuOpen = openSubMenus.includes(item.label);
+              
+//               return (
+//                 <SidebarMenuItem key={item.label}>
+//                   <SidebarMenuButton
+//                     onClick={() => handleMenuItemClick(item)}
+//                     className={cn(
+//                       "flex items-center justify-between w-full p-3 font-semibold rounded-lg transition-colors",
+//                       isActive 
+//                         ? "bg-blue-500 text-white" 
+//                         : "text-neutral-600 hover:bg-neutral-100"
+//                     )}
+//                     tooltip={item.label}
+//                   >
+//                     <div className="flex items-center gap-3">
+//                       <item.icon className="size-5" />
+//                       {state === 'expanded' && <span className="text-sm">{item.label}</span>}
+//                     </div>
+                    
+//                     {state === 'expanded' && item.subMenu && (
+//                       <ChevronDownIcon className={cn("size-4 transition-transform", isSubMenuOpen && "rotate-180")} />
+//                     )}
+//                   </SidebarMenuButton>
+                  
+//                   {item.subMenu && isSubMenuOpen && state === 'expanded' && (
+//                     <SidebarMenuSub className="ml-4 mt-2 space-y-1 border-l border-neutral-200 pl-4">
+//                       {item.subMenu.map((subItem) => {
+//                         const isSubActive = isActivePath(subItem.path);
+//                         return (
+//                           <SidebarMenuSubItem key={subItem.label}>
+//                             <SidebarMenuSubButton
+//                               onClick={() => handleSubMenuItemClick(subItem)}
+//                               className={cn(
+//                                 "w-full p-2.5 text-xs font-medium rounded-md transition-colors text-left",
+//                                 isSubActive ? "bg-blue-100 text-blue-700" : "text-neutral-500 hover:bg-neutral-100"
+//                               )}
+//                             >
+//                               {subItem.label}
+//                             </SidebarMenuSubButton>
+//                           </SidebarMenuSubItem>
+//                         );
+//                       })}
+//                     </SidebarMenuSub>
+//                   )}
+//                 </SidebarMenuItem>
+//               );
+//             })}
+//           </SidebarMenu>
+//         </SidebarGroup>
+//       </SidebarContent>
+      
+//       {/* --- DESIGN: Footer with Minimalist Styling --- */}
+//       <SidebarFooter className="p-4 border-t border-neutral-200">
+//         <SidebarMenuItem>
+//           <SidebarMenuButton 
+//             onClick={() => {
+//               logout();
+//               navigate('/login');
+//             }}
+//             className="flex items-center w-full p-3 font-semibold text-neutral-600 rounded-lg transition-colors hover:bg-red-100 hover:text-red-600"
+//             tooltip="Log out"
+//           >
+//             <LogOutIcon className="size-5" />
+//             {state === 'expanded' && <span className="ml-3 text-sm">Log out</span>}
+//           </SidebarMenuButton>
+//         </SidebarMenuItem>
+        
+//         {state === 'expanded' && (
+//           <div className="mt-4 pt-4 border-t border-neutral-200">
+//             {(isLoading || isLoadingUserDoc) ? (
+//               <div className="text-xs text-neutral-500">Loading user...</div>
+//             ) : (
+//               <div className="flex items-center gap-3">
+//                 <div className="flex items-center justify-center shrink-0 size-10 rounded-full bg-black font-bold text-white text-lg">
+//                   {userDoc?.user_image ? (
+//                     <img src={userDoc.user_image} alt="Profile" className="w-full h-full rounded-full object-cover" />
+//                   ) : (
+//                     userDoc?.full_name?.charAt(0).toUpperCase() || 'U'
+//                   )}
+//                 </div>
+//                 <div className="min-w-0">
+//                   <p className="text-sm font-semibold text-black truncate">
+//                     {userDoc?.full_name || "User Name"}
+//                   </p>
+//                   <p className="text-xs text-neutral-500 truncate">
+//                     {userDoc?.email || ""}
+//                   </p>
+//                 </div>
+//               </div>
+//             )}
+//           </div>
+//         )}
+//       </SidebarFooter>
+//     </Sidebar>
+//   );
+// }
+
+
+
+
+
+// -=-=-=-=-=-=-=-=--=-=-=-=-=-=-=-=-=-=-=
+
+
 import {
   Sidebar,
   SidebarContent,
@@ -1200,6 +1442,7 @@ import {
   FileText, 
   ChevronDownIcon,
   LogOutIcon,
+  UsersIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
@@ -1252,6 +1495,11 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
         { label: "Registration", path: "/project-registration" },
       ],
     },
+    {
+      label: "HR Portal",
+      icon: UsersIcon,
+      path: "/hr-portal",
+    },
   ];
   
   // --- LOGIC: Event Handlers (Unchanged) ---
@@ -1282,34 +1530,36 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
   };
   
   return (
-    // --- DESIGN: Main Sidebar Container with a Clean, Light Background ---
-    <Sidebar collapsible="icon" variant="sidebar" className="bg-white border-r border-neutral-200">
+    // --- DESIGN: Main Sidebar Container with Dull Background ---
+    <Sidebar collapsible="icon" variant="sidebar" className="bg-stone-100 border-r-2 border-black">
       
-      {/* --- DESIGN: Header with Minimalist Styling --- */}
-      <SidebarHeader className="p-4 border-b border-neutral-200">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center size-10 bg-black rounded-lg">
+      {/* --- DESIGN: Header with Improved Padding --- */}
+      <SidebarHeader className="p-4 border-b-2 border-black">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center justify-center size-12  rounded-md border-2 border-black shadow-[3px_3px_0px_rgba(0,0,0,0.25)]">
             <img 
-              src="/rndops_Logo.svg" 
+              // src="/rndops_Logo.svg" 
+              // src="IITG_Logo.svg"
+              src="file.svg"
               alt="R&D Operations Logo" 
-              className="size-6 filter brightness-0 invert"
+             
             />
           </div>
           {state === 'expanded' && (
             <div>
-              <span className="text-lg font-bold text-black">R&D Portal</span>
-              <span className="block text-xs text-neutral-500">
+              <span className="text-xl font-bold text-black uppercase">R&D Portal</span>
+              {/* <span className="block text-xs text-neutral-600 font-mono mt-0.5">
                 {isPermanentEmployee ? "Permanent Employee" : "Project Staff"}
-              </span>
+              </span> */}
             </div>
           )}
         </div>
       </SidebarHeader>
       
-      {/* --- DESIGN: Menu Content with a Simple, Eye-Catching Style --- */}
+      {/* --- DESIGN: Menu Content with Refined Neo-Brutalism Style --- */}
       <SidebarContent className="p-4">
         <SidebarGroup>
-          <SidebarMenu className="space-y-2">
+          <SidebarMenu className="space-y-3">
             {menuItems.map((item) => {
               const isAnySubMenuActive = item.subMenu?.some(sub => isActivePath(sub.path)) ?? false;
               const isActive = (item.path && isActivePath(item.path)) || isAnySubMenuActive;
@@ -1320,25 +1570,30 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
                   <SidebarMenuButton
                     onClick={() => handleMenuItemClick(item)}
                     className={cn(
-                      "flex items-center justify-between w-full p-3 font-semibold rounded-lg transition-colors",
+                      "flex items-center justify-between w-full p-3 font-semibold text-black rounded-lg transition-all border-2",
                       isActive 
-                        ? "bg-blue-500 text-white" 
-                        : "text-neutral-600 hover:bg-neutral-100"
+                        ? "bg-slate-300 border-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)]" 
+                        : "border-transparent hover:border-black hover:shadow-[2px_2px_0px_rgba(0,0,0,0.25)] hover:bg-stone-200"
                     )}
                     tooltip={item.label}
                   >
                     <div className="flex items-center gap-3">
-                      <item.icon className="size-5" />
-                      {state === 'expanded' && <span className="text-sm">{item.label}</span>}
+                      <div className={cn(
+                        "flex items-center justify-center size-10 rounded-md border-2 border-black transition-colors",
+                        isActive ? "bg-black" : "bg-white"
+                      )}>
+                        <item.icon className={cn("size-5", isActive ? "text-white" : "text-black")} />
+                      </div>
+                      {state === 'expanded' && <span className="text-base">{item.label}</span>}
                     </div>
                     
                     {state === 'expanded' && item.subMenu && (
-                      <ChevronDownIcon className={cn("size-4 transition-transform", isSubMenuOpen && "rotate-180")} />
+                      <ChevronDownIcon className={cn("size-5 transition-transform", isSubMenuOpen && "rotate-180")} />
                     )}
                   </SidebarMenuButton>
                   
                   {item.subMenu && isSubMenuOpen && state === 'expanded' && (
-                    <SidebarMenuSub className="ml-4 mt-2 space-y-1 border-l border-neutral-200 pl-4">
+                    <SidebarMenuSub className="ml-8 mt-2 space-y-1.5 border-l-2 border-black pl-5">
                       {item.subMenu.map((subItem) => {
                         const isSubActive = isActivePath(subItem.path);
                         return (
@@ -1346,8 +1601,8 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
                             <SidebarMenuSubButton
                               onClick={() => handleSubMenuItemClick(subItem)}
                               className={cn(
-                                "w-full p-2.5 text-xs font-medium rounded-md transition-colors text-left",
-                                isSubActive ? "bg-blue-100 text-blue-700" : "text-neutral-500 hover:bg-neutral-100"
+                                "w-full px-4 py-2.5 text-sm font-semibold rounded-lg transition-colors text-left",
+                                isSubActive ? "bg-slate-300" : "text-neutral-700 hover:bg-stone-200"
                               )}
                             >
                               {subItem.label}
@@ -1364,40 +1619,42 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
         </SidebarGroup>
       </SidebarContent>
       
-      {/* --- DESIGN: Footer with Minimalist Styling --- */}
-      <SidebarFooter className="p-4 border-t border-neutral-200">
+      {/* --- DESIGN: Footer with Improved Padding --- */}
+      <SidebarFooter className="p-4 border-t-2 border-black">
         <SidebarMenuItem>
           <SidebarMenuButton 
             onClick={() => {
               logout();
               navigate('/login');
             }}
-            className="flex items-center w-full p-3 font-semibold text-neutral-600 rounded-lg transition-colors hover:bg-red-100 hover:text-red-600"
+            className="flex items-center w-full p-3 font-semibold text-black rounded-lg transition-all group border-2 border-transparent hover:border-black hover:bg-red-400 hover:text-white"
             tooltip="Log out"
           >
-            <LogOutIcon className="size-5" />
-            {state === 'expanded' && <span className="ml-3 text-sm">Log out</span>}
+            <div className="flex items-center justify-center size-10 rounded-md bg-white border-2 border-black transition-colors group-hover:bg-white">
+              <LogOutIcon className="size-5 text-black" />
+            </div>
+            {state === 'expanded' && <span className="ml-3 text-base">Log out</span>}
           </SidebarMenuButton>
         </SidebarMenuItem>
         
         {state === 'expanded' && (
-          <div className="mt-4 pt-4 border-t border-neutral-200">
+          <div className="mt-4 pt-4 border-t-2 border-black">
             {(isLoading || isLoadingUserDoc) ? (
-              <div className="text-xs text-neutral-500">Loading user...</div>
+              <div className="p-2 font-mono text-sm text-neutral-600">Loading user...</div>
             ) : (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center shrink-0 size-10 rounded-full bg-black font-bold text-white text-lg">
+              <div className="flex items-center gap-4 p-1">
+                <div className="flex items-center justify-center shrink-0 size-12 rounded-md bg-black border-2 border-black font-bold text-white text-2xl">
                   {userDoc?.user_image ? (
-                    <img src={userDoc.user_image} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                    <img src={userDoc.user_image} alt="Profile" className="w-full h-full rounded-[4px] object-cover" />
                   ) : (
                     userDoc?.full_name?.charAt(0).toUpperCase() || 'U'
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-black truncate">
+                  <p className="text-base font-semibold text-black truncate">
                     {userDoc?.full_name || "User Name"}
                   </p>
-                  <p className="text-xs text-neutral-500 truncate">
+                  <p className="text-sm text-neutral-600 truncate font-mono">
                     {userDoc?.email || ""}
                   </p>
                 </div>

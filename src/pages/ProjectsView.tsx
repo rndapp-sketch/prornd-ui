@@ -1111,8 +1111,8 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 className={cn(
                   "flex-grow p-3 font-bold text-black text-center transition-all border-b-2 sm:border-b-0 sm:border-r-2 border-black last:border-r-0 text-sm",
                   activeTaskTab === category
-                    ? "bg-[#4DB6AC]"
-                    : "bg-white hover:bg-[#4DB6AC]"
+                    ? "bg-[#90A4AE]"
+                    : "bg-white hover:bg-[#90A4AE]"
                 )}
               >
                 {category}
@@ -1173,7 +1173,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                         {new Date(task.actionDate).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="p-3 text-right">
-                        <NeoButton className="text-sm bg-[#4DB6AC] hover:bg-[#4DB6AC]">
+                        <NeoButton className="text-sm bg-[#A5D6A7] hover:bg-[#A5D6A7]">
                           View
                         </NeoButton>
                       </TableCell>
@@ -1245,7 +1245,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         <div className="overflow-x-auto">
           <Table className="divide-y-2 divide-black">
             <TableHeader>
-              <TableRow className="divide-x-2 divide-black bg-[#4DB6AC]">
+              <TableRow className="divide-x-2 divide-black bg-[#90A4AE]">
                 {(["Project Number", "Project Title", "Status"] as const).map(
                   (field) => {
                     const fieldKey =
@@ -1257,7 +1257,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                     return (
                       <TableHead
                         key={field}
-                        className="p-3 font-bold text-black uppercase tracking-wider cursor-pointer hover:bg-[#4DB6AC]"
+                        className="p-3 font-bold text-black uppercase tracking-wider cursor-pointer hover:bg-[#90A4AE]"
                         onClick={() => handleSortChange(fieldKey)}
                       >
                         {field} {getSortIcon(fieldKey)}
@@ -1406,7 +1406,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 className={cn(
                   "flex-1 py-4 px-4 font-bold text-black text-center transition-all border-r-2 border-black last:border-r-0",
                   activeTab === tab.id
-                    ? "bg-[#4DB6AC]"
+                    ? "bg-[#90A4AE]"
                     : "bg-white hover:bg-cyan-100"
                 )}
               >
@@ -1414,7 +1414,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
               </button>
             ))}
           </div>
-          <div className="p-6 bg-[#F5F5F4]">
+          <div className="p-6 bg-[#F5F5F5]">
             {activeTab === "pending"
               ? renderPendingTasks()
               : renderProjectsTable()}
