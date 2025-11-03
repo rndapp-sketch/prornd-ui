@@ -13,7 +13,7 @@ import Home from './pages/Home.tsx';
 import PiHomePage from './pages/PiHomePage.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import AuthRouteWrapper from './components/AuthRouteWrapper.tsx';
-import ProjectRegistration from './pages/ProjectRegistration.tsx';
+import ProjectRegistration from './pages/projectRegistration.tsx';
 import Endorsement from './pages/Endorsement.tsx';
 import AddFundSanction from './pages/AddFundSanction.tsx';
 import AddReceivedFunds from './pages/AddReceivedFunds.tsx';
@@ -83,7 +83,7 @@ const router = createBrowserRouter(
         {
           path: "add-fund-sanction",
           element: (
-            <AuthRouteWrapper allowedRole="non-permanent"> {/* Adjust role as needed */}
+            <AuthRouteWrapper allowedRole="Permanent Employee"> {/* Adjust role as needed */}
               <AddFundSanction />
             </AuthRouteWrapper>
           ),
