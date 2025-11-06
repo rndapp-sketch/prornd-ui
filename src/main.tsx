@@ -21,6 +21,7 @@ import { UserCreation } from './pages/UserCreation.tsx'; // This one was correct
 import UserList from './pages/UserList.tsx';
 import ProjectsView from './pages/ProjectsView.tsx';
 import ProjectDetails from './pages/ProjectDetails.tsx'; // Import ProjectDetails
+import ProjectDetailsOverview from './pages/ProjectDetailsOverview.tsx';
 import HRPortal from './pages/HRPortal.tsx';
 // Add any other page imports you need
 // import TestDoctype from './pages/TestDoctype.tsx';
@@ -123,10 +124,22 @@ const router = createBrowserRouter(
         // Add other routes here, wrapping them with AuthRouteWrapper if they need protection
         // {
         {
+          // This is the route for NON-APPROVED projects
           path: "project-details/:projectName",
           element: (
-            <AuthRouteWrapper allowedRole="All_ProRnd_User"> {/* Adjust role as needed */}
-              <ProjectDetails />
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <ProjectDetails /> 
+            </AuthRouteWrapper>
+          ),
+        },
+
+        // --- NEW ROUTE ADDED HERE ---
+        {
+          // This is the new route for APPROVED projects
+          path: "project-details-overview/:projectName",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <ProjectDetailsOverview />
             </AuthRouteWrapper>
           ),
         },

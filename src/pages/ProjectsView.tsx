@@ -1289,66 +1289,66 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 </TableRow>
               )}
               {!myProjectsLoading &&
-              !myProjectsError &&
-              paginatedProjects.length > 0
-                ? paginatedProjects.map((p) => (
-                    <React.Fragment key={p.name}>
-                      <TableRow
-                        onClick={() =>
-                          setOpenPipeline(
-                            openPipeline === p.name ? null : p.name
-                          )
-                        }
-                        className="bg-[#F5F5F5] divide-x-2 divide-black cursor-pointer hover:bg-[#E0E0E0]"
-                      >
-                        <TableCell className="p-4 font-mono font-bold">
-                          {p.name}
-                        </TableCell>
-                        <TableCell className="p-4">{p.project_title}</TableCell>
-                        <TableCell className="p-4">
-                          <span className={getStatusBadge(p.workflow_state)}>
-                            {p.workflow_state}
-                          </span>
-                        </TableCell>
-                        <TableCell className="p-4 text-right">
-                          <NeoButton
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/project-details/${p.name}`);
-                            }}
-                            className="text-sm"
-                          >
-                            View Details
-                          </NeoButton>
-                        </TableCell>
-                      </TableRow>
-                      {openPipeline === p.name && (
-                        <TableRow>
-                          <TableCell
-                            colSpan={4}
-                            className="p-6 bg-sky-100 border-t-2 border-black"
-                          >
-                            <h5 className="font-bold text-black mb-4 uppercase">
-                              Workflow Pipeline: {p.name}
-                            </h5>
-                            <WorkflowTimeline
-                              stages={[
-                                { id: 1, title: "Draft", status: "completed" },
-                                {
-                                  id: 2,
-                                  title: "Submitted",
-                                  status: "in-progress",
-                                },
-                                { id: 3, title: "Approved", status: "pending" },
-                              ]}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </React.Fragment>
-                  ))
-                : !myProjectsError &&
-                  !myProjectsLoading && (
+  !myProjectsError &&
+  paginatedProjects.length > 0
+    ? paginatedProjects.map((p) => (
+        <React.Fragment key={p.name}>
+          <TableRow
+            onClick={() =>
+              setOpenPipeline(
+                openPipeline === p.name ? null : p.name
+              )
+            }
+            className="bg-[#F5F5F5] divide-x-2 divide-black cursor-pointer hover:bg-[#E0E0E0]"
+          >
+            <TableCell className="p-4 font-mono font-bold">
+              {p.name}
+            </TableCell>
+            <TableCell className="p-4">{p.project_title}</TableCell>
+            <TableCell className="p-4">
+              <span className={getStatusBadge(p.workflow_state)}>
+                {p.workflow_state}
+              </span>
+            </TableCell>
+            <TableCell className="p-4 text-right">
+              {/* --- MODIFICATION IS HERE --- */}
+              <NeoButton
+                onClick={(e) => {
+                  e.stopPropagation();
+
+                  // --- DEBUGGING LINE (MKY - remove after use) ---
+                  console.log("Checking project status for navigation:", `'${p.workflow_state}'`);
+
+                  // The existing logic
+                  const targetPath =
+                    p.workflow_state === "Approved"
+                      ? `/project-details-overview/${p.name}`
+                      : `/project-details/${p.name}`;
+                      
+                  console.log("Navigating to:", targetPath); // Also log where it's trying to go
+                  navigate(targetPath);
+                }}
+                className="text-sm"
+              >
+                View Details
+              </NeoButton>
+              {/* --- END OF MODIFICATION --- */}
+            </TableCell>
+          </TableRow>
+          {openPipeline === p.name && (
+            <TableRow>
+              <TableCell
+                colSpan={4}
+                className="p-6 bg-sky-100 border-t-2 border-black"
+              >
+                {/* ... WorkflowTimeline component ... */}
+              </TableCell>
+            </TableRow>
+          )}
+        </React.Fragment>
+      ))
+    : !myProjectsError &&
+      !myProjectsLoading && (
                     <TableRow>
                       <TableCell colSpan={4} className="h-48 text-center">
                         <FileSearchIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
