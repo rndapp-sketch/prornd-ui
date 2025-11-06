@@ -91,7 +91,7 @@ const router = createBrowserRouter(
         {
           path: "add-received-funds",
           element: (
-            <AuthRouteWrapper allowedRole="non-permanent"> {/* Adjust role as needed */}
+            <AuthRouteWrapper allowedRole="Permanent Employee"> {/* Adjust role as needed */}
               <AddReceivedFunds />
             </AuthRouteWrapper>
           ),
