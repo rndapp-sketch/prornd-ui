@@ -18,6 +18,7 @@ import {
 } from "frappe-react-sdk";
 import { Textarea } from "@/components/ui/textarea"; // Assuming this can be styled via className
 import { AppSidebar } from "../components/RndSidebar";
+import useUserRoleCheck from "../components/UserRoleCheck";
 import {
   ArrowLeftIcon,
   FileTextIcon,
@@ -45,6 +46,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import AddFundSanction from "./AddFundSanction";
 
@@ -498,6 +500,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
   const [activeTab, setActiveTab] = useState("overview"); // Default to overview
   const activityStreamRef = useRef<ActivityStreamHandle>(null);
   const { currentUser } = useFrappeAuth();
+  const isPermanentEmployee = useUserRoleCheck();
   const { data, error, isLoading, mutate } = useFrappeGetDoc(
     "Project Registration",
     projectName ?? "",
@@ -906,7 +909,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
 
   return (
     <div className="bg-[#FDFCEC]">
-      <AppSidebar isPermanentEmployee={true} />
+      <AppSidebar isPermanentEmployee={!!isPermanentEmployee} />
       <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
         {renderContent()}
       </main>

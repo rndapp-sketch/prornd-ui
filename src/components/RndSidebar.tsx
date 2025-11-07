@@ -1536,7 +1536,7 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
       {/* --- DESIGN: Header with Improved Padding --- */}
       <SidebarHeader className="p-4 border-b-2 border-black">
         <div className="flex items-center gap-4">
-          <div className="flex items-center justify-center size-12  rounded-md border-2 border-black shadow-[3px_3px_0px_rgba(0,0,0,0.25)]">
+          <div className="flex items-center justify-center size-12  rounded-md  ">
             <img 
               // src="/rndops_Logo.svg" 
               // src="IITG_Logo.svg"
