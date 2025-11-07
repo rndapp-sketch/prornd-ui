@@ -817,12 +817,12 @@ export function PiHomePage() {
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Project Analytics */}
             <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-              <div className="flex items-center mb-4 gap-3"><BarChart className="size-7"/><h3 className="text-xl font-bold text-black uppercase">Project Analytics</h3></div>
+              <div className="flex items-center mb-4 gap-3"><BarChart className="size-7"/><h3 className="text-xl font-bold text-black uppercase">Project Overview</h3></div>
               <div className="grid grid-cols-2 gap-4">
                 <AnalyticsCard title="Total Projects" value="24" subtitle="Active: 18 | Draft: 6" icon={<FileText className="size-5" />} trend="+12%" onClick={() => navigate("/project-analytics")}/>
                 <AnalyticsCard title="Completion Rate" value="87%" subtitle="On track projects" icon={<TrendingUp className="size-5" />} trend="+5%"/>
                 <AnalyticsCard title="Pending Review" value="8" subtitle="Awaiting approval" icon={<AlertCircle className="size-5" />}/>
-                <AnalyticsCard title="Team Members" value="42" subtitle="Active researchers" icon={<UsersIcon className="size-5" />} trend="+8%"/>
+                <AnalyticsCard title="Project Staffs" value="42" subtitle="Active project Staffs" icon={<UsersIcon className="size-5" />} trend="+8%"/>
               </div>
             </div>
 
