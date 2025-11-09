@@ -40,9 +40,12 @@ const Dashboard = () => {
     // If roles are loaded, perform the redirection
     if (roles) {
       if (roles.length > 0) {
+        const isHosRnd = roles.includes('Hos, RnD (Head of Section, RnD)');
         const isPermanentEmployee = roles.includes('Permanent Employee');
 
-        if (isPermanentEmployee) {
+        if (isHosRnd) {
+          navigate('/hos-rnd');
+        } else if (isPermanentEmployee) {
           navigate('/pihomepage');
         } else {
           navigate('/home');

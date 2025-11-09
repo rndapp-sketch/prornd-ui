@@ -5,7 +5,7 @@ import { useUserRoles } from './UserRole'; // Import the new useUserRoles hook
 
 // The type now correctly includes "Permanent Employee"
 interface AuthRouteWrapperProps {
-  allowedRole: 'Permanent Employee' | 'non-permanent' | 'All_ProRnd_User';
+  allowedRole: 'Permanent Employee' | 'non-permanent' | 'All_ProRnd_User' | 'Hos, RnD (Head of Section, RnD)';
   children: React.ReactNode;
 }
 
@@ -67,6 +67,9 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
       } else if (allowedRole === 'non-permanent' && isPermanentEmployee) {
         console.log("AuthRouteWrapper: User is Permanent Employee trying to access non-permanent route, redirecting to /pihomepage.");
         navigate('/pihomepage'); // Permanent employee trying to access non-PE route, redirect to pihomepage
+      } else if (allowedRole === 'Hos, RnD (Head of Section, RnD)' && !roles.includes('Hos, RnD (Head of Section, RnD)')) {
+        console.log("AuthRouteWrapper: User is not Hos, RnD, redirecting to /home.");
+        navigate('/home');
       }
     }
   }, [isAuthLoading, isRolesLoading, currentUser, roles, rolesError, allowedRole, navigate]); // Keep dependencies as is for now

@@ -23,6 +23,7 @@ import ProjectsView from './pages/ProjectsView.tsx';
 import ProjectDetails from './pages/ProjectDetails.tsx'; // Import ProjectDetails
 import ProjectDetailsOverview from './pages/ProjectDetailsOverview.tsx';
 import HRPortal from './pages/HRPortal.tsx';
+import { HosRndDashboard } from './pages/dashboards/HosRndDashboard.tsx';
 // Add any other page imports you need
 // import TestDoctype from './pages/TestDoctype.tsx';
 // import UserDetails from './pages/UserDetails.tsx';
@@ -152,6 +153,14 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User"> {/* Adjust role as needed */}
               <HRPortal />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "hos-rnd",
+          element: (
+            <AuthRouteWrapper allowedRole="Hos, RnD (Head of Section, RnD)">
+              <HosRndDashboard />
             </AuthRouteWrapper>
           ),
         },

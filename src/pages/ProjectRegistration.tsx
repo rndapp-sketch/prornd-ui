@@ -100,7 +100,8 @@ const MemoizedCollaboratorTable = memo(({ tableName, title, tableData, piOptions
     );
 });
 
-const MemoizedBudgetTable = memo(({ tableData, budgetYears, onRowChange, onAddRow, onDeleteRow, onAddYear, onDeleteYear, getYearTotal, totalBudgetAmount }: any) => (
+
+const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, onRowChange, onAddRow, onDeleteRow, onAddYear, onDeleteYear, getYearTotal, totalBudgetAmount }: any) => (
     <div className="space-y-4">
         <div className="overflow-x-auto border-2 border-black rounded-md">
             <table className="min-w-full divide-y-2 divide-black">
@@ -117,7 +118,20 @@ const MemoizedBudgetTable = memo(({ tableData, budgetYears, onRowChange, onAddRo
                         const rowTotal = (row.years || []).reduce((sum: number, val: any) => sum + Number(val || 0), 0);
                         return (
                             <tr key={row.id} className="divide-x-2 divide-black">
-                                <td className="p-2"><input type="text" className={`${inputClasses} !h-11`} placeholder="e.g., Equipment" value={row.head || ''} onChange={(e) => onRowChange(rowIndex, 'head', e.target.value)} /></td>
+                                <td className="p-2">
+                                    <select
+                                        className={`${inputClasses} !h-11`}
+                                        value={row.head || ''}
+                                        onChange={(e) => onRowChange(rowIndex, 'head', e.target.value)}
+                                    >
+                                        <option value="">Select Budget Head</option>
+                                        {budgetHeadOptions.map((option: any) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </td>
                                 {budgetYears.map((_: any, yearIndex: number) => (<td key={yearIndex} className="p-2"><input type="number" className={`${inputClasses} !h-11`} value={(row.years || [])[yearIndex] || ''} onChange={(e) => onRowChange(rowIndex, 'years', e.target.value, yearIndex)} /></td>))}
                                 <td className="p-2 font-mono font-bold text-right pr-4">{rowTotal.toFixed(2)}</td>
                                 <td className="p-2"><NeoButton type="button" className="bg-red-500 text-white w-full !py-2 text-sm" onClick={() => onDeleteRow('proposed_budget_breakup', rowIndex)}>Delete</NeoButton></td>
@@ -156,6 +170,7 @@ const ProjectRegistration: React.FC = () => {
     const [activeTab, setActiveTab] = useState(0);
     const [fields, setFields] = useState<Field[]>([]);
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [budgetHeadOptions, setBudgetHeadOptions] = useState<LinkOption[]>([]);
     const [formData, setFormData] = useState<FormData>({});
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -168,11 +183,23 @@ const ProjectRegistration: React.FC = () => {
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_project_form_data');
     const { call: submitForm, result: submitResult, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.save_project_data');
     const { call: saveDraft, result: saveResult, error: saveError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.save_project_draft');
-    const { call: fetchPiDetails, result: piDetailsResult, error: piDetailsError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_user_details_for_pi');
-    const { call: fetchAgencyDetails, result: agencyDetailsResult, error: agencyDetailsError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_funding_agency_details');
+    const { call: fetchPiDetails } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_user_details_for_pi');
+    const { call: fetchAgencyDetails, result: agencyDetailsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_funding_agency_details');
+    const { call: fetchBudgetHeads, result: budgetHeadsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head');
 
     // --- DATA FETCHING & INITIALIZATION ---
-    useEffect(() => { fetchFormData({}); }, [fetchFormData]);
+    useEffect(() => {
+        fetchFormData({});
+        fetchBudgetHeads({});
+    }, [fetchFormData, fetchBudgetHeads]);
+
+    useEffect(() => {
+        if (budgetHeadsResult) {
+            const options = budgetHeadsResult.message.map((item: any) => ({ value: item.budget_head, label: item.budget_head, }));
+            setBudgetHeadOptions(options);
+        }
+    }, [budgetHeadsResult]);
+
     useEffect(() => {
         if (formDataResult?.message?.fields) {
             const { fields: apiFields, link_options, prefill_data } = formDataResult.message;
@@ -186,34 +213,26 @@ const ProjectRegistration: React.FC = () => {
             });
             setFormData(initialFormData);
             setLoading(false);
-            if (prefill_data?.pi_webmail) fetchPiDetails({ user_email: prefill_data.pi_webmail });
+            if (prefill_data?.pi_webmail) {
+                handleFieldChangeWithSideEffects('pi_webmail', prefill_data.pi_webmail);
+            }
         }
         if (formDataError) { 
             console.error("❌ Failed to fetch form data:", formDataError); 
             alert("Error fetching form data."); 
             setLoading(false); 
         }
-    }, [formDataResult, formDataError, fetchPiDetails]);
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formDataResult, formDataError]);
+    
+    // --- SIDE EFFECTS for dependent API calls ---
     useEffect(() => {
         if (agencyDetailsResult?.message?.all) {
             const d = agencyDetailsResult.message.all;
-            setFormData(prev => ({ 
-                ...prev, 
-                funding_agency_type: d.funding_agency_type_1, 
-                origin_of_funding_agency: d.origin_of_funding_agency, 
-                funding_agency_ministry: d.ministry_funding_agency, 
-                funding_agency_schemes: d.funding_agency_schemes, 
-                address_street_village_locality: d.fundingagency_address, 
-                address_state: d.fundingagency_state, 
-                address_postal_code: d.fundingagency_postalcode, 
-                address_country: d.fundingagency_country 
-            }));
+            setFormData(prev => ({ ...prev, funding_agency_type: d.funding_agency_type_1, origin_of_funding_agency: d.origin_of_funding_agency, funding_agency_ministry: d.ministry_funding_agency, funding_agency_schemes: d.funding_agency_schemes, address_street_village_locality: d.fundingagency_address, address_state: d.fundingagency_state, address_postal_code: d.fundingagency_postalcode, address_country: d.fundingagency_country }));
         }
     }, [agencyDetailsResult]);
 
-    useEffect(() => { if (piDetailsResult?.message) { const details = piDetailsResult.message; let departmentLinkValue = ''; const departmentLabel = details.department || ''; if (departmentLabel && linkOptions['applicant_department']) { const matchedOption = linkOptions['applicant_department'].find(opt => opt.label === departmentLabel || opt.value === departmentLabel); departmentLinkValue = matchedOption?.value || ''; } setFormData(prev => ({ ...prev, pi_employee_id: details.pi_employee_id || '', principal_investigator_name: details.principal_investigator_name || '', designation: details.designation || '', applicant_department: departmentLinkValue || prev.applicant_department })); } }, [piDetailsResult, linkOptions]);
-    useEffect(() => { if (activeTab === 1 && formData.pi_webmail && !formData.principal_investigator_name) fetchPiDetails({ user_email: formData.pi_webmail }); }, [activeTab, formData.pi_webmail, formData.principal_investigator_name, fetchPiDetails]);
     useEffect(() => { if (submitResult) { alert(`Project registered: ${submitResult.message.docname}`); setDocname(submitResult.message.docname); } if (submitError) alert(`Submission error: ${submitError.message}`); setIsSubmitting(false); }, [submitResult, submitError]);
     useEffect(() => { if (saveResult) { alert(`Draft saved: ${saveResult.message.docname}`); setDocname(saveResult.message.docname); setIsDraftSaved(true); } if (saveError) alert(`Draft save error: ${saveError.message}`); setIsSavingDraft(false); }, [saveResult, saveError]);
 
@@ -221,24 +240,68 @@ const ProjectRegistration: React.FC = () => {
     const handleChange = useCallback((fieldname: string, value: any, type?: string) => { setFormData(prev => ({ ...prev, [fieldname]: type === 'checkbox' ? (value ? 1 : 0) : value })); }, []);
     const handleFileChange = useCallback((fieldname: string, file: File | null) => { setFormData(prev => ({ ...prev, [fieldname]: file })); }, []);
     
-    const handleFieldChangeWithSideEffects = useCallback((fieldname: string, value: any) => {
+    const handleFieldChangeWithSideEffects = useCallback(async (fieldname: string, value: any) => {
         handleChange(fieldname, value);
-        if (fieldname === 'pi_webmail' && value) { fetchPiDetails({ user_email: value }); }
-        if (fieldname === 'funding_agen' && value) { fetchAgencyDetails({ agency_name: value }); }
-    }, [handleChange, fetchPiDetails, fetchAgencyDetails]);
+        if (fieldname === 'pi_webmail') {
+            if (value) {
+                try {
+                    const result = await fetchPiDetails({ user_email: value });
+                    if (result?.message) {
+                        const details = result.message;
+                        let departmentLinkValue = "";
+                        if (details.applicant_department && linkOptions["applicant_department"]) {
+                            const matchedOption = linkOptions["applicant_department"].find(opt => opt.label === details.applicant_department || opt.value === details.applicant_department);
+                            departmentLinkValue = matchedOption?.value || "";
+                        }
+                        setFormData(prev => ({
+                            ...prev,
+                            pi_userid: value,
+                            pi_employee_id: details.pi_employee_id || "",
+                            principal_investigator_name: details.principal_investigator_name || "",
+                            designation: details.designation || "",
+                            applicant_department: departmentLinkValue
+                        }));
+                    }
+                } catch (err) { console.error("Failed to fetch main PI details:", err); }
+            } else {
+                setFormData(prev => ({ ...prev, pi_userid: "", pi_employee_id: "", principal_investigator_name: "", designation: "", applicant_department: "" }));
+            }
+        }
+        if (fieldname === 'funding_agen' && value) { 
+            fetchAgencyDetails({ agency_name: value }); 
+        }
+    }, [handleChange, fetchPiDetails, fetchAgencyDetails, linkOptions]);
     
     const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => { setFormData(prev => { const t = [...(prev[tableName] || [])]; t[rowIndex] = { ...t[rowIndex], [fieldname]: value }; return { ...prev, [tableName]: t }; }); }, []);
     const handleTableFileChange = useCallback((tableName: string, rowIndex: number, fieldname: string, file: File | null) => { setFormData(prev => { const t = [...(prev[tableName] || [])]; t[rowIndex] = { ...t[rowIndex], [fieldname]: file }; return { ...prev, [tableName]: t }; }); }, []);
     const addTableRow = useCallback((tableName: string, newRow: object) => { const newId = Date.now().toString() + Math.random().toString(36).substring(2, 9); setFormData(prev => ({ ...prev, [tableName]: [...(prev[tableName] || []), { ...newRow, id: newId }] })); }, []);
     const deleteTableRow = useCallback((tableName: string, rowIndex: number) => { setFormData(prev => ({ ...prev, [tableName]: (prev[tableName] || []).filter((_: any, i: number) => i !== rowIndex) })); }, []);
-    const handleCollaboratorChange = useCallback((tableName: string, rowIndex: number, selectedUserEmail: string) => { const user = (linkOptions['pi_webmail'] || []).find(c => c.value === selectedUserEmail); const prefix = tableName === 'co_investigator_table' ? 'copi' : 'pi'; setFormData(prev => { const t = [...(prev[tableName] || [])]; t[rowIndex] = { ...t[rowIndex], [`${prefix}_name`]: user?.label || '', [`${prefix}_email`]: user?.value || '', [`${prefix}_designation`]: user?.designation || '', }; return { ...prev, [tableName]: t }; }); }, [linkOptions]);
     
-    const addBudgetRow = useCallback(() => addTableRow('proposed_budget_breakup', { head: '', years: budgetYears.map(() => '') }), [addTableRow, budgetYears]);
-    const addBudgetYear = useCallback(() => { if (budgetYears.length < 5) { setBudgetYears(prev => [...prev, prev.length + 1]); setFormData(prev => ({ ...prev, proposed_budget_breakup: (prev.proposed_budget_breakup || []).map(row => ({ ...row, years: [...(row.years || []), ''] })) })); } else { alert("Maximum of 5 years allowed."); } }, [budgetYears]);
-    const deleteLastBudgetYear = useCallback(() => { if (budgetYears.length > 1) { setBudgetYears(prev => prev.slice(0, -1)); setFormData(prev => ({ ...prev, proposed_budget_breakup: (prev.proposed_budget_breakup || []).map(row => ({ ...row, years: (row.years || []).slice(0, -1) })) })); } }, [budgetYears]);
-    const handleBudgetRowChange = useCallback((rowIndex: number, fieldname: string, value: any, yearIndex?: number) => { if (fieldname === 'years' && yearIndex !== undefined) { setFormData(prev => { const t = [...(prev.proposed_budget_breakup || [])]; const y = [...(t[rowIndex].years || [])]; y[yearIndex] = value; t[rowIndex] = { ...t[rowIndex], years: y }; return { ...prev, proposed_budget_breakup: t }; }); } else { handleTableRowChange('proposed_budget_breakup', rowIndex, fieldname, value); } }, [handleTableRowChange]);
+    const handleCollaboratorChange = useCallback(
+      async (tableName: string, rowIndex: number, selectedUserEmail: string) => {
+        const user = (linkOptions["pi_webmail"] || []).find(c => c.value === selectedUserEmail);
+        const prefix = tableName === "co_investigator_table" ? "copi" : "pi";
+        let designation = user?.designation || "";
+        if (!designation && selectedUserEmail) {
+          try {
+            const result = await fetchPiDetails({ user_email: selectedUserEmail });
+            designation = result?.message?.designation || "";
+          } catch (err) { console.error("Failed to fetch collaborator details:", err); }
+        }
+        setFormData(prev => {
+          const t = [...(prev[tableName] || [])];
+          t[rowIndex] = { ...t[rowIndex], [`${prefix}_name`]: user?.label || "", [`${prefix}_email`]: user?.value || "", [`${prefix}_designation`]: designation };
+          return { ...prev, [tableName]: t };
+        });
+      }, [linkOptions, fetchPiDetails]
+    );
 
-    const ALWAYS_HIDDEN_FIELDS = ['department_head', 'head_approver'];
+    const addBudgetRow = useCallback(() => addTableRow("proposed_budget_breakup", { head: "", years: budgetYears.map(() => "") }), [addTableRow, budgetYears]);
+    const addBudgetYear = useCallback(() => { if (budgetYears.length < 5) { setBudgetYears(prev => [...prev, prev.length + 1]); setFormData(prev => ({ ...prev, proposed_budget_breakup: (prev.proposed_budget_breakup || []).map(row => ({ ...row, years: [...(row.years || []), ""] })) })); } else { alert("Maximum of 5 years allowed."); } }, [budgetYears]);
+    const deleteLastBudgetYear = useCallback(() => { if (budgetYears.length > 1) { setBudgetYears(prev => prev.slice(0, -1)); setFormData(prev => ({ ...prev, proposed_budget_breakup: (prev.proposed_budget_breakup || []).map(row => ({ ...row, years: (row.years || []).slice(0, -1) })) })); } }, [budgetYears]);
+    const handleBudgetRowChange = useCallback((rowIndex: number, fieldname: string, value: any, yearIndex?: number) => { if (fieldname === "years" && yearIndex !== undefined) { setFormData(prev => { const t = [...(prev.proposed_budget_breakup || [])]; const y = [...(t[rowIndex].years || [])]; y[yearIndex] = value; t[rowIndex] = { ...t[rowIndex], years: y }; return { ...prev, proposed_budget_breakup: t }; }); } else { handleTableRowChange("proposed_budget_breakup", rowIndex, fieldname, value); } }, [handleTableRowChange]);
+
+    const ALWAYS_HIDDEN_FIELDS = ["department_head", "head_approver"];
 
     const renderField = useCallback((fieldname: string) => {
         const field = fields.find(f => f.fieldname === fieldname);
@@ -273,22 +336,20 @@ const ProjectRegistration: React.FC = () => {
     const tabButtons = ["Project Details", "PI & Collaborators", "Budget", "Clearance", "Sanction & Funds"];
     const renderNextPrevButtons = (showPrev: boolean, showNext: boolean, isLast = false) => (
         <div className="mt-8 flex justify-between items-center bg-white p-4 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-            <NeoButton onClick={() => setActiveTab(activeTab - 1)} className={cn("bg-white", !showPrev && 'invisible')}>Previous</NeoButton>
-            {isLast ? (<div className="flex flex-col sm:flex-row gap-4"><NeoButton onClick={handleSaveDraft} disabled={isSubmitting || isSavingDraft} className="bg-white">{isSavingDraft ? 'SAVING...' : 'Save As Draft'}</NeoButton><NeoButton type="submit" disabled={isSubmitting || isSavingDraft || !isDraftSaved} className="bg-[#A5D6A7] disabled:bg-gray-300">{isSubmitting ? 'SUBMITTING...' : 'Submit Registration'}</NeoButton></div>) 
-            : (<NeoButton onClick={() => setActiveTab(activeTab + 1)} className={cn("bg-[#A5D6A7]", !showNext && 'invisible')}>Next Section</NeoButton>)}
+            <NeoButton onClick={() => setActiveTab(activeTab - 1)} className={cn("bg-white", !showPrev && "invisible")}>Previous</NeoButton>
+            {isLast ? (<div className="flex flex-col sm:flex-row gap-4"><NeoButton onClick={handleSaveDraft} disabled={isSubmitting || isSavingDraft} className="bg-white">{isSavingDraft ? "SAVING..." : "Save As Draft"}</NeoButton><NeoButton type="submit" disabled={isSubmitting || isSavingDraft || !isDraftSaved} className="bg-[#A5D6A7] disabled:bg-gray-300">{isSubmitting ? "SUBMITTING..." : "Submit Registration"}</NeoButton></div>) 
+            : (<NeoButton onClick={() => setActiveTab(activeTab + 1)} className={cn("bg-[#A5D6A7]", !showNext && "invisible")}>Next Section</NeoButton>)}
         </div>
     );
 
     const tabFieldGroups = {
-        projectDetails: ['pi_webmail', 'project_title', 'project_type', 'implementation_department', 'project_objective', 'project_deliverables', 'executive_summary', 'upload_proj_prop', 'my_projects'],
-        fundingDetails: ['funding_agen', 'funding_agency_schemes', 'funding_agency_type', 'origin_of_funding_agency', 'funding_agency_ministry', 'fund_agen_initials'],
-        agencyAddress: ['address_street_village_locality', 'address_state', 'address_postal_code', 'address_country'],
-        piDetails: ['pi_employee_id', 'principal_investigator_name', 'designation', 'applicant_department', 'pi_userid'],
-        collaboratorToggles: ['is_additional_pi', 'has_co_pi'],
-        budgetToggles: ['equipment_checkbox', 'manpower_checkbox'],
-        clearance: ['needs_committee_clearance', 'committees', 'other_committee_specify', 'ethics_committee_details', 'ethics_other_details', 'biosafety_category', 'declaration_html'],
-        sanction: ['have_sanction_details', 'total_sanctioned_amount', 'sanctioned_letter_no', 'sanctioned_letter_date'],
-        funds: ['have_fund_details', 'is_gst_invoice_issued', 'invoice_details', 'amount_received', 'iitg_bank_account_number']
+        fundingDetails: ["funding_agen", "funding_agency_schemes", "funding_agency_type", "origin_of_funding_agency", "funding_agency_ministry", "fund_agen_initials"],
+        agencyAddress: ["address_street_village_locality", "address_state", "address_postal_code", "address_country"],
+        piDetails: ["pi_employee_id", "principal_investigator_name", "designation", "applicant_department", "pi_userid"],
+        collaboratorToggles: ["is_additional_pi", "has_co_pi"],
+        budgetToggles: ["equipment_checkbox", "manpower_checkbox"],
+        sanction: ["total_sanctioned_amount", "sanctioned_letter_no", "sanctioned_letter_date"],
+        funds: ["is_gst_invoice_issued", "invoice_details", "amount_received", "iitg_bank_account_number"]
     };
 
     return (
@@ -305,64 +366,99 @@ const ProjectRegistration: React.FC = () => {
                 
                 <form id="project-registration-form" onSubmit={handleSubmit}>
                     {fields.length > 0 && <>
-                        <div className={activeTab === 0 ? 'block' : 'hidden'}>
+                        <div className={activeTab === 0 ? "block" : "hidden"}>
                             <NeoCard className="space-y-8">
                                 <h2 className="text-3xl font-bold uppercase text-black">1. Project Description</h2>
-                                <div className="space-y-8">
-                                    {renderFields(tabFieldGroups.projectDetails)}
-                                </div>
-                                {formData.project_type === 'Consultancy' && renderField("consultancy_category")}
-                                {formData.project_type === 'Other' && renderField("other_project_type_name")}
-                                {formData.project_type === 'Research' && (
+                                {renderField("project_title")}
+                                {renderField("project_type")}
+                                {formData.project_type === "Research" && (
                                     <div className='space-y-8'>
                                         <NeoCard className="p-6 space-y-6 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"><h3 className="text-2xl font-bold uppercase text-black">Funding Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.fundingDetails)}</div></NeoCard>
                                         <NeoCard className="p-6 space-y-6 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"><h3 className="text-2xl font-bold uppercase text-black">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.agencyAddress)}</div></NeoCard>
                                     </div>
                                 )}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">{formData.project_type !== 'Consultancy' ? renderField("project_duration_months") : renderField("project_duration_days")}</div>
+                                {formData.project_type === "Consultancy" && renderField("consultancy_category")}
+                                {formData.project_type === "Other" && renderField("other_project_type_name")}
+                                {renderField("implementation_department")}
+                                {renderField("project_objective")}
+                                {renderField("project_deliverables")}
+                                {renderField("executive_summary")}
+                                {renderField("upload_proj_prop")}
+                                {renderField("my_projects")}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">{formData.project_type !== "Consultancy" ? renderField("project_duration_months") : renderField("project_duration_days")}</div>
                             </NeoCard>
                             {renderNextPrevButtons(false, true)}
                         </div>
-                        <div className={activeTab === 1 ? 'block' : 'hidden'}>
+                        
+                        <div className={activeTab === 1 ? "block" : "hidden"}>
                             <NeoCard className="space-y-10">
                                 <h2 className="text-3xl font-bold uppercase text-black">2. Investigators & Collaborators</h2>
-                                <div className="p-6 space-y-6 border-2 border-black rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"><h3 className="text-2xl font-bold uppercase text-black">Principal Investigator (PI)</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">{renderFields(tabFieldGroups.piDetails)}</div></div>
+                                <div className="p-6 space-y-6 border-2 border-black rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+                                    <h3 className="text-2xl font-bold uppercase text-black">Principal Investigator (PI)</h3>
+                                    <div className="space-y-8">
+                                        {renderField("pi_webmail")}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-dashed">
+                                            {renderField("principal_investigator_name")}
+                                            {renderField("pi_employee_id")}
+                                            {renderField("designation")}
+                                            {renderField("applicant_department")}
+                                            {renderField("pi_userid")}
+                                        </div>
+                                    </div>
+                                </div>
                                 <div className="space-y-6">{renderFields(tabFieldGroups.collaboratorToggles)}</div>
-                                {formData.is_additional_pi === 'Yes' && <MemoizedCollaboratorTable tableName="additional_pi_table" title="Details of Additional PI(s)" tableData={formData.additional_pi_table} piOptions={linkOptions['pi_webmail']} onCollaboratorChange={handleCollaboratorChange} onRowChange={handleTableRowChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />}
-                                {formData.has_co_pi === 'Yes' && <MemoizedCollaboratorTable tableName="co_investigator_table" title="Details of Co-PI(s)" tableData={formData.co_investigator_table} piOptions={linkOptions['pi_webmail']} onCollaboratorChange={handleCollaboratorChange} onRowChange={handleTableRowChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />}
+                                {formData.is_additional_pi === "Yes" && <MemoizedCollaboratorTable tableName="additional_pi_table" title="Details of Additional PI(s)" tableData={formData.additional_pi_table} piOptions={linkOptions["pi_webmail"]} onCollaboratorChange={handleCollaboratorChange} onRowChange={handleTableRowChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />}
+                                {formData.has_co_pi === "Yes" && <MemoizedCollaboratorTable tableName="co_investigator_table" title="Details of Co-PI(s)" tableData={formData.co_investigator_table} piOptions={linkOptions["pi_webmail"]} onCollaboratorChange={handleCollaboratorChange} onRowChange={handleTableRowChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />}
                             </NeoCard>
                             {renderNextPrevButtons(true, true)}
                         </div>
-                        <div className={activeTab === 2 ? 'block' : 'hidden'}>
+
+                        <div className={activeTab === 2 ? "block" : "hidden"}>
                             <NeoCard className="space-y-8">
                                 <h2 className="text-3xl font-bold uppercase text-black">3. Proposed Budget</h2>
                                 <p className="font-mono text-gray-700">Provide a detailed year-wise breakup of the proposed budget.</p>
-                                <MemoizedBudgetTable tableData={budgetTableData} budgetYears={budgetYears} onRowChange={handleBudgetRowChange} onAddRow={addBudgetRow} onDeleteRow={deleteTableRow} onAddYear={addBudgetYear} onDeleteYear={deleteLastBudgetYear} getYearTotal={getYearTotal} totalBudgetAmount={totalBudgetAmount} />
+                                <MemoizedBudgetTable tableData={budgetTableData} budgetYears={budgetYears} budgetHeadOptions={budgetHeadOptions} onRowChange={handleBudgetRowChange} onAddRow={addBudgetRow} onDeleteRow={deleteTableRow} onAddYear={addBudgetYear} onDeleteYear={deleteLastBudgetYear} getYearTotal={getYearTotal} totalBudgetAmount={totalBudgetAmount} />
                                 <div className="space-y-6 border-t-2 border-black pt-8">{renderFields(tabFieldGroups.budgetToggles)}</div>
                                 {formData.equipment_checkbox ? (<MemoizedGenericTable tableName={'proposed_equipment_details'} columns={[{key: 'item_name', label: 'Equipment Name*', type: 'text'}, {key: 'cost', label: 'Cost (₹)', type: 'number'}]} newRow={{item_name: '', cost: 0}} tableData={formData.proposed_equipment_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
                                 {formData.manpower_checkbox ? (<MemoizedGenericTable tableName={'proposed_manpower_details'} columns={[{key: 'designation_name', label: 'Position*', type: 'text'}, {key: 'salary', label: 'Salary (₹)', type: 'number'}]} newRow={{designation_name: '', salary: 0}} tableData={formData.proposed_manpower_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
                             </NeoCard>
                             {renderNextPrevButtons(true, true)}
                         </div>
-                        <div className={activeTab === 3 ? 'block' : 'hidden'}>
+                        <div className={activeTab === 3 ? "block" : "hidden"}>
                             <NeoCard className="space-y-8">
                                 <h2 className="text-3xl font-bold uppercase text-black">4. Clearance & Declaration</h2>
-                                <div className="space-y-6">
-                                    {renderFields(tabFieldGroups.clearance)}
-                                </div>
+                                {renderField("needs_committee_clearance")}
+                                {formData.needs_committee_clearance === "Yes" && (
+                                    <div className="space-y-8 pt-8 mt-8 border-t-2 border-dashed border-gray-400">
+                                        {renderField("committees")}
+                                        {formData.committees === "Other" && renderField("other_committee_specify")}
+                                        {formData.committees === "Ethics Committee" && (
+                                            <>
+                                                {renderField("ethics_committee_details")}
+                                                {renderField("ethics_other_details")}
+                                            </>
+                                        )}
+                                        {formData.committees === "Biosafety Committee" && (
+                                            <>
+                                                {renderField("biosafety_category")}
+                                                {renderField("declaration_html")}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </NeoCard>
                             {renderNextPrevButtons(true, true)}
                         </div>
-                        <div className={activeTab === 4 ? 'block' : 'hidden'}>
+                        <div className={activeTab === 4 ? "block" : "hidden"}>
                             <NeoCard className="space-y-10">
                                 <h2 className="text-3xl font-bold uppercase text-black">5. Sanction & Funds</h2>
                                 <div className="space-y-6">
                                     {renderField("have_sanction_details")}
-                                    {formData.have_sanction_details === 'Yes' && (<NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"><h3 className="text-2xl font-bold uppercase text-black">Sanction Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.sanction.slice(1))}</div><div className="space-y-4"><MemoizedGenericTable tableName={'sanctioned_budget_breakup'} columns={[{key: 'head', label: 'Budget Head', type: 'text'}, {key: 'amount', label: 'Amount (₹)', type: 'number'}]} newRow={{head: '', amount: 0}} tableData={formData.sanctioned_budget_breakup} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} /></div><div className="space-y-4"><MemoizedGenericTable tableName={'sanction_related_files'} columns={[{key: 'file', label: 'File', type: 'file'}]} newRow={{file: null}} tableData={formData.sanction_related_files} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} /></div></NeoCard>)}
+                                    {formData.have_sanction_details === "Yes" && (<NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"><h3 className="text-2xl font-bold uppercase text-black">Sanction Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.sanction)}</div><div className="space-y-4"><MemoizedGenericTable tableName={'sanctioned_budget_breakup'} columns={[{key: 'head', label: 'Budget Head', type: 'text'}, {key: 'amount', label: 'Amount (₹)', type: 'number'}]} newRow={{head: '', amount: 0}} tableData={formData.sanctioned_budget_breakup} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} /></div><div className="space-y-4"><MemoizedGenericTable tableName={'sanction_related_files'} columns={[{key: 'file', label: 'File', type: 'file'}]} newRow={{file: null}} tableData={formData.sanction_related_files} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} /></div></NeoCard>)}
                                 </div>
                                 <div className="space-y-6">
                                     {renderField("have_fund_details")}
-                                    {formData.have_fund_details === 'Yes' && (<NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"><h3 className="text-2xl font-bold uppercase text-black">Fund Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.funds.slice(1))}</div><div className="space-y-4"><MemoizedGenericTable tableName={'fund_transactions'} columns={[{key: 'installmentNo', label: 'Installment No.', type: 'text'}, {key: 'dateReceived', label: 'Date Received', type: 'date'}, {key: 'amount', label: 'Amount (₹)', type: 'number'}]} newRow={{installmentNo: '', dateReceived: '', amount: 0}} tableData={formData.fund_transactions} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} /></div></NeoCard>)}
+                                    {formData.have_fund_details === "Yes" && (<NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"><h3 className="text-2xl font-bold uppercase text-black">Fund Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.funds)}</div><div className="space-y-4"><MemoizedGenericTable tableName={'fund_transactions'} columns={[{key: 'installmentNo', label: 'Installment No.', type: 'text'}, {key: 'dateReceived', label: 'Date Received', type: 'date'}, {key: 'amount', label: 'Amount (₹)', type: 'number'}]} newRow={{installmentNo: '', dateReceived: '', amount: 0}} tableData={formData.fund_transactions} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} /></div></NeoCard>)}
                                 </div>
                             </NeoCard>
                             {renderNextPrevButtons(true, false, true)}

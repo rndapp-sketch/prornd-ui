@@ -20,7 +20,7 @@ export function ProjectStaffDashboard() {
 
   return (
     <div className="bg-[#FDFCEC] min-h-screen font-sans">
-      <AppSidebar />
+      <AppSidebar isPermanentEmployee={true} />
       <div className="flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}

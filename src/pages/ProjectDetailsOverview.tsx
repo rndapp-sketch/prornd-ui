@@ -300,7 +300,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   const { call: triggerWorkflowAction, loading: isActionLoading } = useFrappePostCall("rndopsapp.rndopsapp.api.handle_workflow_action");
   const { call: submitProjectRegistration } = useFrappePostCall("rndopsapp.rndopsapp.api.submit_project_registration");
 
-  const handleWorkflowAction = useCallback(/* ... unchanged ... */);
+  const handleWorkflowAction = useCallback((action: string) => {
+    triggerWorkflowAction({
+      docname: projectName,
+      action: action,
+    }).then(() => {
+      mutate();
+      if (activityStreamRef.current) {
+        activityStreamRef.current.refetch();
+      }
+    });
+  }, [projectName, triggerWorkflowAction, mutate]);
   const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
   
   const handleAddFunds = () => alert("Add Funds functionality will be implemented here.");
