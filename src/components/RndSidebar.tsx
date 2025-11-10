@@ -1443,6 +1443,8 @@ import {
   ChevronDownIcon,
   LogOutIcon,
   UsersIcon,
+  CurrencyIcon,
+  HandCoinsIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
@@ -1500,6 +1502,11 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
       icon: UsersIcon,
       path: "/hr-portal",
     },
+    {
+      label: "Reimbursement",
+      icon: HandCoinsIcon,
+      path: "/reimbursement",
+    },
   ];
   
   // --- LOGIC: Event Handlers (Unchanged) ---
@@ -1536,7 +1543,7 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
       {/* --- DESIGN: Header with Improved Padding --- */}
       <SidebarHeader className="p-4 border-b-2 border-black">
         <div className="flex items-center gap-4">
-          <div className="flex items-center justify-center size-12  rounded-md  ">
+          <div className="flex items-center justify-center size-12  rounded-md">
             <img 
               // src="/rndops_Logo.svg" 
               // src="IITG_Logo.svg"

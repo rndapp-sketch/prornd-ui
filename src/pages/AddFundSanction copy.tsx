@@ -2248,1462 +2248,673 @@
 //  error hiding tables
 
 
-// ----------------MKY (09-11-2025)---------------------------------------------------------------------------------------
 
-// import React, { useState, useEffect, useRef, type JSX } from 'react';
-// import { AppSidebar } from "../components/RndSidebar";
-// import useUserRoleCheck from "../components/UserRoleCheck";
-// import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
-// import { cn } from '@/lib/utils';
 
-// interface Field {
-//     fieldname: string;
-//     label: string;
-//     fieldtype: string;
-//     default?: any;
-//     mandatory: boolean;
-//     read_only: boolean;
-//     hidden: boolean;
-//     description?: string;
-//     options?: string;
-// }
-
-// interface LinkOption {
-//     value: string;
-//     label: string;
-// }
-
-// interface FundSanctionFormResponse {
-//     message: {
-//         fields: Field[];
-//         link_options: { [key: string]: LinkOption[] };
-//     }
-// }
-
-// const AddFundSanction: React.FC = () => {
-//     const [fields, setFields] = useState<Field[]>([]);
-//     const [linkOptions, setLinkOptions] = useState<{ [key: string]: LinkOption[] }>({});
-//     const [loading, setLoading] = useState(true);
-//     const [isSubmitting, setIsSubmitting] = useState(false);
-
-//     const isPermanentEmployee = useUserRoleCheck();
-//     const stableArgs = React.useMemo(() => ({}), []);
-
-//     // Use refs to store table rows - this doesn't trigger re-render
-//     const tableRowsRef = useRef({
-//         sanctioned_budget_breakup: [] as string[],
-//         sanction_related_files: [] as string[],
-//         fund_transactions: [] as string[],
-//         received_amount_breakup: [] as string[]
-//     });
-
-//     const containerRef = useRef<{ [key: string]: HTMLElement | null }>({});
-//     const forceUpdateRef = useRef(0);
-//     const [, setForceUpdate] = useState(0);
-
-//     const { data: formData, error: formError } = useFrappeGetCall<FundSanctionFormResponse>(
-//         'rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_fund_sanction_form_data',
-//         stableArgs,
-//         undefined,
-//         { revalidateOnFocus: false, revalidateIfStale: false }
-//     );
-
-//     useEffect(() => {
-//         if (formData?.message) {
-//             setFields(formData.message.fields || []);
-//             setLinkOptions(formData.message.link_options || {});
-//             setLoading(false);
-//         }
-//     }, [formData]);
-
-//     useEffect(() => {
-//         if (formError) {
-//             console.error('Error loading form data:', formError);
-//             setLoading(false);
-//         }
-//     }, [formError]);
-
-//     const { call: submitForm, result: submitResult, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.save_fund_sanction_data');
-
-//     useEffect(() => {
-//         if (submitResult) {
-//             alert('Fund Sanction submitted successfully!');
-//             setIsSubmitting(false);
-//         }
-//         if (submitError) {
-//             alert(`Submission error: ${submitError.message}`);
-//             setIsSubmitting(false);
-//         }
-//     }, [submitResult, submitError]);
-
-//     const generateId = () => `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-// const addTableRow = (tableName: keyof typeof tableRowsRef.current) => {
-//     tableRowsRef.current[tableName].push(generateId());
-//     renderTableRows(tableName);
-// };
-// const removeTableRow = (tableName: keyof typeof tableRowsRef.current, id: string) => {
-//     tableRowsRef.current[tableName] = tableRowsRef.current[tableName].filter(rowId => rowId !== id);
-//     const row = containerRef.current[tableName]?.querySelector(`[data-id="${id}"]`)?.closest('tr');
-//     if (row) row.remove();
-
-//     // Reindex remaining rows (optional)
-//     const allRows = containerRef.current[tableName]?.querySelectorAll('tr');
-//     allRows?.forEach((tr, i) => {
-//         const firstCell = tr.querySelector('td');
-//         if (firstCell) firstCell.textContent = String(i + 1);
-//     });
-// };
-// const renderTableRows = (tableName: keyof typeof tableRowsRef.current) => {
-//     const container = containerRef.current[tableName];
-//     if (!container) return;
-
-//     // Clear "no data" placeholder row if present
-//     const placeholder = container.querySelector('.no-data-row');
-//     if (placeholder) placeholder.remove();
-
-//     const rows = tableRowsRef.current[tableName];
-//     const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE]";
-
-//     // Get the last added rowId (only render that)
-//     const rowId = rows[rows.length - 1];
-//     if (!rowId) return;
-
-//     let newRow = document.createElement("tr");
-//     const index = rows.length;
-
-//     if (tableName === 'sanctioned_budget_breakup') {
-//         newRow.innerHTML = `
-//             <td class="border-2 border-black p-2">${index}</td>
-//             <td class="border-2 border-black p-2"><input type="text" name="sanctioned_account_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2"><input type="number" name="sanctioned_year1_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2"><input type="number" name="sanctioned_year2_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2"><input type="number" name="sanctioned_year3_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2"><input type="number" name="sanctioned_year4_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2"><input type="number" name="sanctioned_year5_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2 bg-gray-100 font-bold">₹ 0</td>
-//             <td class="border-2 border-black p-2">
-//                 <button type="button" class="text-red-600 font-bold delete-btn" data-table="${tableName}" data-id="${rowId}">X</button>
-//             </td>
-//         `;
-//     } else if (tableName === 'sanction_related_files') {
-//         newRow.innerHTML = `
-//             <td class="border-2 border-black p-2">${index}</td>
-//             <td class="border-2 border-black p-2"><input type="file" name="file_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2"><input type="text" name="file_desc_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2">
-//                 <button type="button" class="text-red-600 font-bold delete-btn" data-table="${tableName}" data-id="${rowId}">X</button>
-//             </td>
-//         `;
-//     } else if (tableName === 'fund_transactions') {
-//         newRow.innerHTML = `
-//             <td class="border-2 border-black p-2">${index}</td>
-//             <td class="border-2 border-black p-2"><input type="text" name="fund_trans_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2"><input type="date" name="fund_date_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2"><input type="number" name="fund_amount_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2">
-//                 <button type="button" class="text-red-600 font-bold delete-btn" data-table="${tableName}" data-id="${rowId}">X</button>
-//             </td>
-//         `;
-//     } else if (tableName === 'received_amount_breakup') {
-//         newRow.innerHTML = `
-//             <td class="border-2 border-black p-2">${index}</td>
-//             <td class="border-2 border-black p-2"><input type="text" name="received_account_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2"><input type="number" name="received_amount_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2"><input type="text" name="received_year_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2"><input type="text" name="received_remarks_${rowId}" class="${inputClasses}" /></td>
-//             <td class="border-2 border-black p-2">
-//                 <button type="button" class="text-red-600 font-bold delete-btn" data-table="${tableName}" data-id="${rowId}">X</button>
-//             </td>
-//         `;
-//     }
-
-//     // Append only the new row
-//     container.appendChild(newRow);
-
-//     // Attach delete button
-//     const delBtn = newRow.querySelector('.delete-btn');
-//     if (delBtn) {
-//         delBtn.addEventListener('click', () => {
-//             removeTableRow(tableName, rowId);
-//         });
-//     }
-// };
-
-
-//     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-//         e.preventDefault();
-//         if (isSubmitting) return;
-//         setIsSubmitting(true);
-
-//         try {
-//             const formElement = e.currentTarget;
-//             const formData = new FormData(formElement);
-
-//             // Get table data
-//             const sanctionedBudgetData = tableRowsRef.current.sanctioned_budget_breakup.map(rowId => {
-//                 const year1 = (formData.get(`sanctioned_year1_${rowId}`) as string) || '';
-//                 const year2 = (formData.get(`sanctioned_year2_${rowId}`) as string) || '';
-//                 const year3 = (formData.get(`sanctioned_year3_${rowId}`) as string) || '';
-//                 const year4 = (formData.get(`sanctioned_year4_${rowId}`) as string) || '';
-//                 const year5 = (formData.get(`sanctioned_year5_${rowId}`) as string) || '';
-//                 return {
-//                     account_head: formData.get(`sanctioned_account_${rowId}`),
-//                     year1: year1 ? Number(year1) : undefined,
-//                     year2: year2 ? Number(year2) : undefined,
-//                     year3: year3 ? Number(year3) : undefined,
-//                     year4: year4 ? Number(year4) : undefined,
-//                     year5: year5 ? Number(year5) : undefined,
-//                 };
-//             });
-
-//             const fundTransactionData = tableRowsRef.current.fund_transactions.map(rowId => ({
-//                 transaction_number: formData.get(`fund_trans_${rowId}`),
-//                 date: formData.get(`fund_date_${rowId}`),
-//                 amount: formData.get(`fund_amount_${rowId}`) ? Number(formData.get(`fund_amount_${rowId}`)) : undefined,
-//             }));
-
-//             const receivedAmountData = tableRowsRef.current.received_amount_breakup.map(rowId => ({
-//                 account_head: formData.get(`received_account_${rowId}`),
-//                 amount_received: formData.get(`received_amount_${rowId}`) ? Number(formData.get(`received_amount_${rowId}`)) : undefined,
-//                 budget_year: formData.get(`received_year_${rowId}`),
-//                 remarks: formData.get(`received_remarks_${rowId}`),
-//             }));
-
-//             const fileMetadata: { description: string }[] = [];
-//             const filesData: { [key: string]: any } = {};
-//             tableRowsRef.current.sanction_related_files.forEach((rowId, index) => {
-//                 const file = (formData.get(`file_${rowId}`) as File) || null;
-//                 const desc = formData.get(`file_desc_${rowId}`);
-//                 if (file) {
-//                     filesData[`file_${index}`] = file;
-//                 }
-//                 fileMetadata.push({ description: desc as string });
-//             });
-
-//             const submitData: { [key: string]: any } = {};
-            
-//             fields.forEach(field => {
-//                 if (field.fieldtype !== 'Table') {
-//                     submitData[field.fieldname] = formData.get(field.fieldname);
-//                 }
-//             });
-
-//             submitData.sanctioned_budget_breakup = JSON.stringify(sanctionedBudgetData);
-//             submitData.fund_transactions = JSON.stringify(fundTransactionData);
-//             submitData.received_amount_breakup = JSON.stringify(receivedAmountData);
-//             submitData.sanction_related_files_meta = JSON.stringify(fileMetadata);
-
-//             const finalFormData = new FormData();
-//             Object.entries(submitData).forEach(([key, value]) => {
-//                 finalFormData.append(key, String(value));
-//             });
-//             Object.entries(filesData).forEach(([key, file]) => {
-//                 finalFormData.append(key, file);
-//             });
-
-// const submitObject: { [key: string]: any } = {};
-// finalFormData.forEach((value, key) => {
-//     submitObject[key] = value;
-// });
-
-// // ✅ Log before submitting
-// console.group("🚀 Fund Sanction Form Data Preview");
-// console.log("Submit Object:", submitObject);
-// console.log("Table Data:", {
-//     sanctionedBudgetData,
-//     fundTransactionData,
-//     receivedAmountData,
-//     fileMetadata,
-// });
-// console.groupEnd();
-//             await submitForm({ form_data: submitObject });
-//         } catch (error) {
-//             console.error('Submission error:', error);
-//             setIsSubmitting(false);
-//         }
-//     };
-
-// const renderFormField = (field: Field) => {
-//   // Skip rendering input if field is hidden
-//   if (field.hidden) return null;
-
-//   const inputClasses =
-//     "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE] disabled:opacity-70 disabled:bg-gray-200";
-
-//   switch (field.fieldtype) {
-//     case "Link":
-//       return (
-//         <select
-//           name={field.fieldname}
-//           className={inputClasses}
-//           required={field.mandatory}
-//           disabled={field.read_only}
-//           defaultValue={field.default || ""}
-//         >
-//           {(linkOptions[field.fieldname] || []).map((option) => (
-//             <option key={option.value} value={option.value}>
-//               {option.label}
-//             </option>
-//           ))}
-//         </select>
-//       );
-
-//     case "Date":
-//       return (
-//         <input
-//           type="date"
-//           name={field.fieldname}
-//           className={inputClasses}
-//           required={field.mandatory}
-//           disabled={field.read_only}
-//           defaultValue={field.default || ""}
-//         />
-//       );
-
-//     case "Currency":
-//     case "Float":
-//     case "Int":
-//       return (
-//         <input
-//           type="number"
-//           name={field.fieldname}
-//           className={inputClasses}
-//           required={field.mandatory}
-//           disabled={field.read_only}
-//           defaultValue={field.default || ""}
-//           step={field.fieldtype === "Int" ? "1" : "0.01"}
-//         />
-//       );
-
-//     case "Select":
-//       return (
-//         <select
-//           name={field.fieldname}
-//           className={inputClasses}
-//           required={field.mandatory}
-//           disabled={field.read_only}
-//           defaultValue={field.default || ""}
-//         >
-//           {field.options
-//             ?.split("\n")
-//             .filter((opt) => opt.trim() !== "")
-//             .map((option) => (
-//               <option key={option} value={option}>
-//                 {option}
-//               </option>
-//             ))}
-//         </select>
-//       );
-
-//     case "Text Editor":
-//     case "Text":
-//       return (
-//         <textarea
-//           name={field.fieldname}
-//           className="w-full min-h-[100px] px-4 py-3 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE]"
-//           required={field.mandatory}
-//           disabled={field.read_only}
-//           defaultValue={field.default || ""}
-//         />
-//       );
-
-//     default:
-//       return (
-//         <input
-//           type="text"
-//           name={field.fieldname}
-//           className={inputClasses}
-//           required={field.mandatory}
-//           disabled={field.read_only}
-//           defaultValue={field.default || ""}
-//         />
-//       );
-//   }
-// };
-
-
-
-
-
-
-
-//     const mainFormFields = fields.filter(field => field.fieldtype !== 'Table');
-//     const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE]";
-
-//     const NeoButton = ({ children, onClick, disabled, type = "button" }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; type?: "button" | "submit" }) => (
-//         <button 
-//             type={type}
-//             onClick={onClick}
-//             disabled={disabled}
-//             className="px-5 py-3 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50"
-//         >
-//             {children}
-//         </button>
-//     );
-
-//     if (loading) {
-//         return (
-//             <div className="flex items-center justify-center min-h-screen bg-[#FDFCEC]">
-//                 <div className="text-center">
-//                     <div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-[#90A4AE]"></div>
-//                     <p className="mt-4 text-2xl font-bold">LOADING FORM...</p>
-//                 </div>
-//             </div>
-//         );
-//     }
-
-//     if (formError) {
-//         return (
-//             <div className="flex items-center justify-center min-h-screen bg-[#FDFCEC] p-4">
-//                 <div className="text-center p-4 max-w-2xl">
-//                     <p className="text-2xl font-bold text-red-600">Error Loading Form</p>
-//                 </div>
-//             </div>
-//         );
-//     }
-
-//     return (
-//         <div className="bg-[#FDFCEC]">
-//             <AppSidebar isPermanentEmployee={!!isPermanentEmployee} />
-//             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden bg-[#FDFCEC]">
-//                 <header className="mb-8">
-//                     <h1 className="text-3xl md:text-4xl font-extrabold text-black tracking-tight uppercase">
-//                         Add Fund Sanction
-//                     </h1>
-//                 </header>
-
-//                 <form onSubmit={handleSubmit} encType="multipart/form-data">
-//                     <div className="bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-//                         <div className="space-y-12">
-//                             {/* Main Form Fields */}
-//                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-//                                 {/* {mainFormFields.map(field => (
-//                                     <div key={field.fieldname} className={field.fieldtype.includes('Text') ? 'md:col-span-2' : ''}>
-//                                         <label className="block font-bold text-black text-lg mb-2">
-//                                             {field.label} {field.mandatory && <span className="text-red-500">*</span>}
-//                                         </label>
-//                                         {field.description && <p className="text-sm text-gray-700 font-mono mt-1 mb-2">{field.description}</p>}
-//                                         {renderFormField(field)}
-//                                     </div>
-//                                 ))} */}
-//                                 {mainFormFields
-//                                 .filter(field => !field.hidden) // ✅ hide hidden fields entirely
-//                                 .map(field => (
-//                                   <div key={field.fieldname} className={field.fieldtype.includes('Text') ? 'md:col-span-2' : ''}>
-//                                     {/* Render label only once */}
-//                                     {!field.hidden && (
-//                                       <label className="block font-bold text-black text-lg mb-2">
-//                                         {field.label} {field.mandatory && <span className="text-red-500">*</span>}
-//                                       </label>
-//                                     )}
-//                                     {field.description && !field.hidden && (
-//                                       <p className="text-sm text-gray-700 font-mono mt-1 mb-2">{field.description}</p>
-//                                     )}
-//                                     {renderFormField(field)}
-//                                   </div>
-//                                 ))}
-
-//                             </div>
-
-                           
-
-// {/* === TABLE SECTIONS === */}
-// {/* We'll hide them if Frappe marks them hidden */}
-
-// {/* Total Budget Break-up Table */}
-// {!fields.find(f => f.fieldname === "sanctioned_budget_breakup" && f.hidden) && (
-//   <div className="overflow-x-auto">
-//     <div className="flex justify-between items-center mb-4">
-//       <h2 className="text-2xl font-bold text-black">Total Budget Break-up</h2>
-//       <NeoButton onClick={() => addTableRow("sanctioned_budget_breakup")}>
-//         Add Row
-//       </NeoButton>
-//     </div>
-//     <table className="w-full min-w-[900px] border-collapse border-2 border-black">
-//       <thead className="bg-gray-100">
-//         <tr>
-//           {[
-//             "No.",
-//             "Account Head",
-//             "1st Year",
-//             "2nd Year",
-//             "3rd Year",
-//             "4th Year",
-//             "5th Year",
-//             "Total",
-//             "Delete",
-//           ].map(h => (
-//             <th key={h} className="border-2 border-black p-2 text-left">
-//               {h}
-//             </th>
-//           ))}
-//         </tr>
-//       </thead>
-//       <tbody
-//         ref={el => {
-//           if (el) containerRef.current["sanctioned_budget_breakup"] = el;
-//         }}
-//       >
-//         {tableRowsRef.current.sanctioned_budget_breakup.length === 0 && (
-//           <tr>
-//             <td colSpan={9} className="text-center p-4"></td>
-//           </tr>
-//         )}
-//       </tbody>
-//     </table>
-//   </div>
-// )}
-
-// {/* Upload Sanction Related Files */}
-// {!fields.find(f => f.fieldname === "sanction_related_files" && f.hidden) && (
-//   <div className="overflow-x-auto">
-//     <div className="flex justify-between items-center mb-4">
-//       <h2 className="text-2xl font-bold text-black">
-//         Upload Sanction Related Files
-//       </h2>
-//       <NeoButton onClick={() => addTableRow("sanction_related_files")}>
-//         Add Row
-//       </NeoButton>
-//     </div>
-//     <table className="w-full border-collapse border-2 border-black">
-//       <thead className="bg-gray-100">
-//         <tr>
-//           <th className="border-2 border-black p-2 text-left">No.</th>
-//           <th className="border-2 border-black p-2 text-left">File</th>
-//           <th className="border-2 border-black p-2 text-left">Description</th>
-//           <th className="border-2 border-black p-2 text-left">Delete</th>
-//         </tr>
-//       </thead>
-//       <tbody
-//         ref={el => {
-//           if (el) containerRef.current["sanction_related_files"] = el;
-//         }}
-//       >
-//         {tableRowsRef.current.sanction_related_files.length === 0 && (
-//           <tr>
-//             <td colSpan={4} className="text-center p-4"></td>
-//           </tr>
-//         )}
-//       </tbody>
-//     </table>
-//   </div>
-// )}
-
-// {/* Sanction Transactions Details */}
-// {!fields.find(f => f.fieldname === "fund_transactions" && f.hidden) && (
-//   <div className="overflow-x-auto">
-//     <div className="flex justify-between items-center mb-4">
-//       <h2 className="text-2xl font-bold text-black">
-//         Sanction Transactions Details
-//       </h2>
-//       <NeoButton onClick={() => addTableRow("fund_transactions")}>
-//         Add Row
-//       </NeoButton>
-//     </div>
-//     <table className="w-full border-collapse border-2 border-black">
-//       <thead className="bg-gray-100">
-//         <tr>
-//           <th className="border-2 border-black p-2 text-left">No.</th>
-//           <th className="border-2 border-black p-2 text-left">
-//             Transaction Number
-//           </th>
-//           <th className="border-2 border-black p-2 text-left">Date</th>
-//           <th className="border-2 border-black p-2 text-left">Amount (₹)</th>
-//           <th className="border-2 border-black p-2 text-left">Delete</th>
-//         </tr>
-//       </thead>
-//       <tbody
-//         ref={el => {
-//           if (el) containerRef.current["fund_transactions"] = el;
-//         }}
-//       >
-//         {tableRowsRef.current.fund_transactions.length === 0 && (
-//           <tr>
-//             <td colSpan={5} className="text-center p-4"></td>
-//           </tr>
-//         )}
-//       </tbody>
-//     </table>
-//   </div>
-// )}
-
-// {/* Budget Breakup of Received Amount */}
-// {!fields.find(f => f.fieldname === "received_amount_breakup" && f.hidden) && (
-//   <div className="overflow-x-auto">
-//     <div className="flex justify-between items-center mb-4">
-//       <h2 className="text-2xl font-bold text-black">
-//         Budget Breakup of Received Amount
-//       </h2>
-//       <NeoButton onClick={() => addTableRow("received_amount_breakup")}>
-//         Add Row
-//       </NeoButton>
-//     </div>
-//     <table className="w-full border-collapse border-2 border-black">
-//       <thead className="bg-gray-100">
-//         <tr>
-//           <th className="border-2 border-black p-2 text-left">No.</th>
-//           <th className="border-2 border-black p-2 text-left">Account Head</th>
-//           <th className="border-2 border-black p-2 text-left">
-//             Amount Received (₹)
-//           </th>
-//           <th className="border-2 border-black p-2 text-left">Budget Year</th>
-//           <th className="border-2 border-black p-2 text-left">Remarks</th>
-//           <th className="border-2 border-black p-2 text-left">Delete</th>
-//         </tr>
-//       </thead>
-//       <tbody
-//         ref={el => {
-//           if (el) containerRef.current["received_amount_breakup"] = el;
-//         }}
-//       >
-//         {tableRowsRef.current.received_amount_breakup.length === 0 && (
-//           <tr>
-//             <td colSpan={6} className="text-center p-4">.</td>
-//           </tr>
-//         )}
-//       </tbody>
-//     </table>
-//   </div>
-// )}
-
-
-
-//                         </div>
-//                     </div>
-
-//                     <div className="mt-8 flex justify-end">
-//                         <NeoButton type="submit" disabled={isSubmitting}>
-//                             {isSubmitting ? 'SUBMITTING...' : 'Submit Fund Sanction'}
-//                         </NeoButton>
-//                     </div>
-//                 </form>
-//             </main>
-//         </div>
-//     );
-// };
-
-// export default AddFundSanction;
-
-
-// -----------------------Added by MKY (09-11-2025)---------------------------------------------------------------------------------------)
-// import React, { useState, useEffect, useCallback, memo } from 'react';
-// import { useNavigate, useParams } from 'react-router-dom';
-// import { AppSidebar } from "../components/RndSidebar";
-// import { useFrappePostCall } from 'frappe-react-sdk';
-// import { cn } from '@/lib/utils';
-// import { ArrowLeftIcon, PlusIcon } from "lucide-react";
-
-// // --- TYPE DEFINITIONS ---
-// interface Field { fieldname: string; label: string | null; fieldtype: string; default?: any; mandatory: boolean; read_only: boolean; hidden: boolean; description?: string | null; options?: string | null; }
-// interface LinkOption { value: string; label: string; }
-// interface FormData { [key: string]: any; sanctioned_budget_breakup?: (any & { id?: string })[]; fund_transactions?: (any & { id?: string })[]; }
-
-// // --- STYLES & REUSABLE UI COMPONENTS ---
-// const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE] disabled:opacity-70 disabled:bg-gray-200 read-only:bg-gray-200";
-// const NeoCard = ({ children, className }: any) => ( <div className={cn("bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]", className)}>{children}</div> );
-// const NeoButton = ({ children, onClick, disabled, className, type = "button" }: any) => ( <button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-3 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button> );
-// const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-2xl font-extrabold text-black uppercase tracking-tight border-b-2 border-black pb-3">{title}</h2>{children}</div>);
-
-// // --- MEMOIZED CHILD COMPONENTS (Complete Definitions) ---
-// const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
-//     if (!field || field.hidden) return null;
-//     const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: field.read_only, required: field.mandatory, disabled: field.read_only };
-    
-//     const renderInput = () => {
-//         switch (field.fieldtype) {
-//             case "Link": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
-//             case "Select": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(field.options?.split('\n').filter((o: any)=>o) || []).map((opt: any) => <option key={opt} value={opt}>{opt}</option>)}</select>);
-//             case "Date": return <input type="date" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
-//             default: return <input type="text" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
-//         }
-//     };
-//     return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-bold text-black text-lg uppercase">{field.label}{field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}</div>);
-// });
-
-// const MemoizedBudgetTable = memo(({ tableData, budgetYears, onRowChange, onAddRow, onDeleteRow, onAddYear, onDeleteYear, getYearTotal, totalBudgetAmount }: any) => {
-//     return (
-//         <div className="space-y-4">
-//             <div className="overflow-x-auto border-2 border-black rounded-md">
-//                 <table className="min-w-full divide-y-2 divide-black">
-//                     <thead className="bg-[#90A4AE]"><tr className="divide-x-2 divide-black">
-//                         <th className="p-3 font-bold text-white uppercase">Budget Head</th>
-//                         {budgetYears.map((year: number) => (<th key={year} className="p-3 font-bold text-white uppercase">Year {year} (₹)</th>))}
-//                         <th className="p-3 font-bold text-white uppercase">Total (₹)</th><th className="p-3 font-bold text-white uppercase"></th>
-//                     </tr></thead>
-//                     <tbody className="bg-white divide-y-2 divide-black">
-//                         {(tableData || []).map((row: any, rowIndex: number) => {
-//                             const rowTotal = (row.years || []).reduce((sum: number, val: any) => sum + Number(val || 0), 0);
-//                             return (<tr key={row.id} className="divide-x-2 divide-black">
-//                                 <td className="p-2"><input type="text" className={`${inputClasses} !h-11`} placeholder="e.g., Equipment" value={row.head || ''} onChange={(e) => onRowChange(rowIndex, 'head', e.target.value)} /></td>
-//                                 {budgetYears.map((_: any, yearIndex: number) => (<td key={yearIndex} className="p-2"><input type="number" className={`${inputClasses} !h-11`} value={(row.years || [])[yearIndex] || ''} onChange={(e) => onRowChange(rowIndex, 'years', e.target.value, yearIndex)} /></td>))}
-//                                 <td className="p-2 font-mono font-bold text-right pr-4">{rowTotal.toLocaleString('en-IN')}</td>
-//                                 <td className="p-2"><NeoButton className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm" onClick={() => onDeleteRow(rowIndex)}>Delete</NeoButton></td>
-//                             </tr>);
-//                         })}
-//                     </tbody>
-//                     <tfoot className="bg-gray-200 border-t-2 border-black"><tr className="divide-x-2 divide-black">
-//                         <th className="p-3 text-right font-bold text-black uppercase">Yearly Total</th>
-//                         {budgetYears.map((_: any, yearIndex: number) => (<td key={yearIndex} className="p-3 font-bold text-black font-mono text-right pr-4">{getYearTotal(yearIndex).toLocaleString('en-IN')}</td>))}
-//                         <td className="p-3 font-bold text-black font-mono bg-gray-300 text-right pr-4">{totalBudgetAmount.toLocaleString('en-IN')}</td><td></td>
-//                     </tr></tfoot>
-//                 </table>
-//             </div>
-//             <div className="flex flex-wrap gap-4">
-//                 <NeoButton onClick={onAddRow}>Add Budget Row</NeoButton>
-//                 <NeoButton onClick={onAddYear} disabled={budgetYears.length >= 10}>Add Year</NeoButton>
-//                 <NeoButton onClick={onDeleteYear} disabled={budgetYears.length <= 1}>Delete Last Year</NeoButton>
-//             </div>
-//         </div>
-//     );
-// });
-
-// // --- MAIN COMPONENT ---
-// const AddFundSanction: React.FC = () => {
-//     const navigate = useNavigate();
-//     const { projectName } = useParams<{ projectName: string }>();
-
-//     // --- STATE ---
-//     const [activeTab, setActiveTab] = useState('sanction');
-//     const [fields, setFields] = useState<Field[]>([]);
-//     const [formData, setFormData] = useState<FormData>({});
-//     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
-//     const [loading, setLoading] = useState(true);
-//     const [isSubmitting, setIsSubmitting] = useState(false);
-//     const [budgetYears, setBudgetYears] = useState([1]);
-//     const [isModalOpen, setIsModalOpen] = useState(false);
-//     const [modalYear, setModalYear] = useState<number | null>(null);
-
-//     // --- API & DATA FETCHING ---
-//     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.api.get_fund_sanction_form_data');
-//     const { call: submitForm, error: submitError } = useFrappePostCall('rndopsapp.api.save_fund_sanction_data');
-    
-//     useEffect(() => { fetchFormData({ project_proposal: projectName }); }, [fetchFormData, projectName]);
-    
-//     useEffect(() => {
-//         if (formDataResult?.message) {
-//             const { fields: apiFields, prefill_data, link_options } = formDataResult.message;
-//             setFields(apiFields || []);
-//             setLinkOptions(link_options || {});
-//             setFormData(prefill_data || {});
-//             const budgetData = prefill_data?.sanctioned_budget_breakup;
-//             if (budgetData?.length > 0 && budgetData[0].years) {
-//                 setBudgetYears(Array.from({ length: budgetData[0].years.length }, (_, i) => i + 1));
-//             }
-//             setLoading(false);
-//         }
-//         if (formDataError) {
-//             console.error("Failed to load form data:", formDataError);
-//             alert("Error: Could not load form.");
-//             setLoading(false);
-//         }
-//     }, [formDataResult, formDataError]);
-    
-//     // --- EVENT HANDLERS ---
-//     const handleChange = useCallback((fieldname: string, value: any, type?: string) => {
-//         setFormData(prev => ({ ...prev, [fieldname]: type === 'checkbox' ? (value ? 1 : 0) : value }));
-//     }, []);
-    
-//     const handleBudgetRowChange = useCallback((rowIndex: number, fieldname: string, value: any, yearIndex?: number) => {
-//         setFormData(prev => {
-//             const table = [...(prev.sanctioned_budget_breakup || [])];
-//             if (fieldname === 'years' && yearIndex !== undefined) {
-//                 const years = [...(table[rowIndex].years || [])];
-//                 years[yearIndex] = value;
-//                 table[rowIndex] = { ...table[rowIndex], years };
-//             } else {
-//                 table[rowIndex] = { ...table[rowIndex], [fieldname]: value };
-//             }
-//             return { ...prev, sanctioned_budget_breakup: table };
-//         });
-//     }, []);
-
-//     const addBudgetRow = useCallback(() => {
-//         const newId = Date.now().toString();
-//         setFormData(prev => ({
-//             ...prev,
-//             sanctioned_budget_breakup: [...(prev.sanctioned_budget_breakup || []), { id: newId, head: '', years: Array(budgetYears.length).fill('') }]
-//         }));
-//     }, [budgetYears.length]);
-
-//     const deleteBudgetRow = useCallback((rowIndex: number) => {
-//         setFormData(prev => ({
-//             ...prev,
-//             sanctioned_budget_breakup: (prev.sanctioned_budget_breakup || []).filter((_, i) => i !== rowIndex)
-//         }));
-//     }, []);
-
-//     const addBudgetYear = useCallback(() => {
-//         if (budgetYears.length >= 10) return;
-//         setBudgetYears(prev => [...prev, prev.length + 1]);
-//         setFormData(prev => ({
-//             ...prev,
-//             sanctioned_budget_breakup: (prev.sanctioned_budget_breakup || []).map(row => ({
-//                 ...row,
-//                 years: [...(row.years || []), '']
-//             }))
-//         }));
-//     }, [budgetYears.length]);
-
-//     const deleteLastBudgetYear = useCallback(() => {
-//         if (budgetYears.length <= 1) return;
-//         setBudgetYears(prev => prev.slice(0, -1));
-//         setFormData(prev => ({
-//             ...prev,
-//             sanctioned_budget_breakup: (prev.sanctioned_budget_breakup || []).map(row => ({
-//                 ...row,
-//                 years: (row.years || []).slice(0, -1)
-//             }))
-//         }));
-//     }, [budgetYears.length]);
-
-//     const handleAddTransaction = useCallback((year: number) => {
-//         setModalYear(year);
-//         setIsModalOpen(true);
-//     }, []);
-
-//     const handleSaveTransaction = useCallback((newTransaction: any) => {
-//         setFormData(prev => ({
-//             ...prev,
-//             fund_transactions: [...(prev.fund_transactions || []), { ...newTransaction, id: Date.now().toString(), budget_year: modalYear }]
-//         }));
-//         setIsModalOpen(false);
-//         setModalYear(null);
-//     }, [modalYear]);
-
-//     const handleSubmit = async (e: React.FormEvent) => {
-//         e.preventDefault();
-//         setIsSubmitting(true);
-//         // Add your full submission logic here
-//         console.log("Submitting:", formData);
-//         await new Promise(res => setTimeout(res, 1000)); // Simulate API call
-//         setIsSubmitting(false);
-//     };
-
-//     const renderField = useCallback((fieldname: string) => {
-//         const field = fields.find(f => f.fieldname === fieldname);
-//         if (!field || field.hidden) return null;
-//         return <MemoizedFormField key={field.fieldname} field={field} value={formData[fieldname]} options={linkOptions[fieldname]} onChange={handleChange} />;
-//     }, [fields, formData, linkOptions, handleChange]);
-
-//     // --- RENDER LOGIC ---
-//     if (loading) {
-//         return (<div className="flex items-center justify-center min-h-screen bg-[#FDFCEC]"><div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-[#90A4AE]"></div><p className="mt-4 text-2xl font-bold">LOADING FORM...</p></div></div>);
-//     }
-
-//     const budgetTableData = formData.sanctioned_budget_breakup || [];
-//     const getYearTotal = (yearIndex: number) => budgetTableData.reduce((sum: number, row) => sum + Number((row.years || [])[yearIndex] || 0), 0);
-//     const totalBudgetAmount = budgetTableData.reduce((acc, row) => acc + (row.years || []).reduce((sum: number, val) => sum + Number(val || 0), 0), 0);
-//     const getReceivedTotalForYear = (year: number) => (formData.fund_transactions || []).filter((t: any) => t.budget_year === year).reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
-
-//     return (
-//         <div className="bg-[#FDFCEC]">
-//             <AppSidebar isPermanentEmployee={true} />
-//             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-//                 <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-//                      <div className="flex items-center gap-4">
-//                         <button onClick={() => navigate(-1)} className="p-3 bg-white border-2 border-black rounded-md hover:bg-[#90A4AE] active:translate-y-1 transition-transform">
-//                             <ArrowLeftIcon className="h-6 w-6" />
-//                         </button>
-//                         <div>
-//                             <h1 className="text-3xl font-extrabold text-black">Add Fund Sanction</h1>
-//                             <p className="text-gray-700 font-mono mt-1">For Project: {formData.refnum_prj_num || projectName}</p>
-//                         </div>
-//                     </div>
-//                 </header>
-                
-//                 <form onSubmit={handleSubmit}>
-//                     <NeoCard className="mb-8">
-//                         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-//                             {renderField('project_proposal')}
-//                             {renderField('refnum_prj_num')}
-//                             {renderField('amended_from')}
-//                         </div>
-//                     </NeoCard>
-
-//                     <div className="border-b-2 border-black flex mb-8">
-//                         <button type="button" onClick={() => setActiveTab('sanction')} className={cn("flex-1 py-4 px-2 font-bold text-black text-center transition-all border-r-2 border-black last:border-r-0 text-sm md:text-base", activeTab === 'sanction' ? "bg-[#B0BEC5] text-white" : "bg-white hover:bg-gray-100")}>1. Sanction Details</button>
-//                         <button type="button" onClick={() => setActiveTab('funds')} className={cn("flex-1 py-4 px-2 font-bold text-black text-center transition-all", activeTab === 'funds' ? "bg-[#B0BEC5] text-white" : "bg-white hover:bg-gray-100")}>2. Received Funds Dashboard</button>
-//                     </div>
-
-//                     <div className={cn(activeTab !== 'sanction' && 'hidden')}>
-//                         <NeoCard className="space-y-12">
-//                             <NeoSection title="Sanction Approval">
-//                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-//                                     {renderField('total_sanctioned_amount')}
-//                                     {renderField('sanctioned_letter_no')}
-//                                     {renderField('sanctioned_letter_date')}
-//                                 </div>
-//                             </NeoSection>
-//                             <NeoSection title="Sanctioned Budget Break-up">
-//                                 <MemoizedBudgetTable tableData={budgetTableData} budgetYears={budgetYears} onRowChange={handleBudgetRowChange} onAddRow={addBudgetRow} onDeleteRow={deleteBudgetRow} onAddYear={addBudgetYear} onDeleteYear={deleteLastBudgetYear} getYearTotal={getYearTotal} totalBudgetAmount={totalBudgetAmount} />
-//                             </NeoSection>
-//                         </NeoCard>
-//                     </div>
-
-//                     <div className={cn(activeTab !== 'funds' && 'hidden')}>
-//                         <NeoCard className="space-y-12">
-//                             <NeoSection title="Yearly Funding Status">
-//                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-//                                     {budgetYears.map((year, index) => {
-//                                         const sanctioned = getYearTotal(index);
-//                                         const received = getReceivedTotalForYear(year);
-//                                         const percentage = sanctioned > 0 ? (received / sanctioned) * 100 : 0;
-//                                         return (<div key={year} className="p-4 border-2 border-black rounded-md bg-white shadow-[3px_3px_0px_rgba(0,0,0,0.25)] space-y-3">
-//                                             <h3 className="font-bold text-xl uppercase">Year {year}</h3>
-//                                             <div className="font-mono text-sm space-y-1">
-//                                                 <p><b>Sanctioned:</b> {sanctioned.toLocaleString('en-IN')}</p>
-//                                                 <p><b>Received:</b> {received.toLocaleString('en-IN')}</p>
-//                                             </div>
-//                                             <div>
-//                                                 <div className="w-full bg-gray-200 rounded-full h-4 border-2 border-black">
-//                                                     <div className="bg-green-500 h-full rounded-full" style={{ width: `${Math.min(percentage, 100)}%` }}></div>
-//                                                 </div>
-//                                                 <p className="text-right text-xs font-bold mt-1">{percentage.toFixed(1)}% Received</p>
-//                                             </div>
-//                                             <NeoButton onClick={() => handleAddTransaction(year)} className="w-full bg-sky-200 hover:bg-sky-300 !py-2 text-sm flex items-center justify-center gap-2"><PlusIcon size={16} /> Add Transaction</NeoButton>
-//                                         </div>);
-//                                     })}
-//                                 </div>
-//                             </NeoSection>
-//                         </NeoCard>
-//                     </div>
-
-//                     <div className="mt-8 flex justify-end">
-//                         <NeoButton type="submit" disabled={isSubmitting} className="bg-green-300">
-//                             {isSubmitting ? 'SAVING...' : 'Save All Changes'}
-//                         </NeoButton>
-//                     </div>
-//                 </form>
-
-//                 {isModalOpen && <TransactionModal year={modalYear} onSave={handleSaveTransaction} onClose={() => setIsModalOpen(false)} />}
-//             </main>
-//         </div>
-//     );
-// };
-
-// const TransactionModal = ({ year, onSave, onClose }: any) => { /* Your full modal component code */ };
-
-// export default AddFundSanction;
-
-
-// -----------------------------------------mky v3 09-11-2025-------------------------------------------------------------
-
-// import React, { useState, useEffect, useCallback, memo } from 'react';
-// import { useNavigate, useParams } from 'react-router-dom';
-// import { AppSidebar } from "../components/RndSidebar";
-// import { useFrappePostCall } from 'frappe-react-sdk';
-// import { cn } from '@/lib/utils';
-// import { ArrowLeftIcon } from "lucide-react";
-
-// // --- TYPE DEFINITIONS ---
-// interface Field { fieldname: string; label: string | null; fieldtype: string; mandatory: boolean; read_only: boolean; hidden: boolean; options?: string | null; }
-// interface LinkOption { value: string; label: string; }
-// interface FormData { [key: string]: any; sanctioned_budget_breakup?: (any & { id?: string })[]; }
-
-// // --- STYLES & REUSABLE UI COMPONENTS ---
-// const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE] disabled:opacity-70 disabled:bg-gray-200 read-only:bg-gray-200";
-// const NeoCard = ({ children, className }: any) => ( <div className={cn("bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]", className)}>{children}</div> );
-// const NeoButton = ({ children, onClick, disabled, className, type = "button" }: any) => ( <button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-3 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button> );
-// const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-2xl font-extrabold text-black uppercase tracking-tight border-b-2 border-black pb-3">{title}</h2>{children}</div>);
-
-// // --- MEMOIZED CHILD COMPONENTS ---
-// const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
-//     if (!field || field.hidden) return null;
-//     const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: field.read_only, required: field.mandatory, disabled: field.read_only, };
-    
-//     const renderInput = () => {
-//         switch (field.fieldtype) {
-//             case "Link": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
-//             case "Date": return <input type="date" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
-//             case "Currency": return <input type="number" step="0.01" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
-//             default: return <input type="text" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
-//         }
-//     };
-//     return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-bold text-black text-lg uppercase">{field.label}{field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}</div>);
-// });
-
-// const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRow }: any) => {
-//     const newRow = { account_head: '', first_year_budget: 0 };
-//     const columns = [
-//         { key: 'account_head', label: 'Account Head', type: 'Select', options: ['Consumable', 'Equipment', 'Contingency', 'Travel', 'Manpower', 'Overhead', 'Other'] },
-//         { key: 'first_year_budget', label: 'Year 1 (₹)', type: 'Currency' },
-//         { key: 'second_year_budget', label: 'Year 2 (₹)', type: 'Currency' },
-//         { key: 'third_year_budget', label: 'Year 3 (₹)', type: 'Currency' },
-//         { key: 'fourth_year_budget', label: 'Year 4 (₹)', type: 'Currency' },
-//         { key: 'fifth_year_budget', label: 'Year 5 (₹)', type: 'Currency' },
-//     ];
-//     return (
-//         <div>
-//             <div className="overflow-x-auto border-2 border-black rounded-md">
-//                 <table className="min-w-full divide-y-2 divide-black">
-//                     <thead className="bg-[#90A4AE]"><tr className="divide-x-2 divide-black">{[...columns, {key:'actions', label:''}].map((c:any) => (<th key={c.key} className="p-3 font-bold text-white uppercase text-sm">{c.label}</th>))}</tr></thead>
-//                     <tbody className="divide-y-2 divide-black bg-white">
-//                         {(tableData || []).map((row: any, i: number) => (
-//                             <tr key={row.id} className="divide-x-2 divide-black">
-//                                 {columns.map((col:any) => ( <td key={col.key} className="p-2"> 
-//                                     {col.type === 'Select' ? (
-//                                         <select className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(i, col.key, e.target.value)}>
-//                                             <option value="">Select Head...</option>
-//                                             {col.options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
-//                                         </select>
-//                                     ) : (
-//                                         <input type="number" className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(i, col.key, e.target.value)} />
-//                                     )}
-//                                 </td> ))}
-//                                 <td className="p-2 text-center"><NeoButton onClick={() => onDeleteRow(i)} className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</NeoButton></td>
-//                             </tr>
-//                         ))}
-//                     </tbody>
-//                 </table>
-//             </div>
-//             <NeoButton onClick={() => onAddRow(newRow)} className="bg-[#A5D6A7] mt-4">Add Budget Row</NeoButton>
-//         </div>
-//     );
-// });
-
-// // --- MAIN COMPONENT ---
-// const AddFundSanction: React.FC = () => {
-//     const navigate = useNavigate();
-//     const { projectName } = useParams<{ projectName: string }>();
-
-//     const [fields, setFields] = useState<Field[]>([]);
-//     const [formData, setFormData] = useState<FormData>({});
-//     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
-//     const [loading, setLoading] = useState(true);
-//     const [isSubmitting, setIsSubmitting] = useState(false);
-
-//     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.api.get_fund_sanction_form_data');
-//     const { call: submitForm, error: submitError } = useFrappePostCall('rndopsapp.api.save_fund_sanction'); // Ensure you have a save endpoint
-
-//     useEffect(() => { fetchFormData({ project_proposal: projectName }); }, [fetchFormData, projectName]);
-
-//     useEffect(() => {
-//         if (formDataResult?.message) {
-//             const { fields, prefill_data, link_options } = formDataResult.message;
-//             setFields(fields || []);
-//             setLinkOptions(link_options || {});
-//             setFormData(prefill_data || {});
-//             setLoading(false); // This correctly stops the loading state on success
-//         }
-//         if (formDataError) {
-//             console.error("Failed to load form data:", formDataError);
-//             alert("Error: Could not load the form. Check the console (F12) and ensure the backend API is working.");
-//             setLoading(false); // This correctly stops the loading state on error
-//         }
-//     }, [formDataResult, formDataError]);
-
-//     const handleChange = useCallback((fieldname: string, value: any) => { setFormData(prev => ({ ...prev, [fieldname]: value })); }, []);
-    
-//     const handleTableRowChange = useCallback((rowIndex: number, fieldname: string, value: any) => {
-//         setFormData(prev => {
-//             const table = [...(prev.sanctioned_budget_breakup || [])];
-//             table[rowIndex] = { ...table[rowIndex], [fieldname]: value };
-//             return { ...prev, sanctioned_budget_breakup: table };
-//         });
-//     }, []);
-
-//     const addTableRow = useCallback((newRow: object) => {
-//         const newId = Date.now().toString();
-//         setFormData(prev => ({
-//             ...prev,
-//             sanctioned_budget_breakup: [...(prev.sanctioned_budget_breakup || []), { ...newRow, id: newId }]
-//         }));
-//     }, []);
-
-//     const deleteTableRow = useCallback((rowIndex: number) => {
-//         setFormData(prev => ({
-//             ...prev,
-//             sanctioned_budget_breakup: (prev.sanctioned_budget_breakup || []).filter((_, i) => i !== rowIndex)
-//         }));
-//     }, []);
-
-//     const handleSubmit = async (e: React.FormEvent) => {
-//         e.preventDefault();
-//         setIsSubmitting(true);
-//         console.log("Submitting Data:", formData);
-//         // Create a save_fund_sanction endpoint in your API
-//         // await submitForm({ doc: JSON.stringify(formData) });
-//         await new Promise(res => setTimeout(res, 1500)); // Simulate API call
-//         alert("Form submitted (simulation). Check console for data.");
-//         setIsSubmitting(false);
-//         navigate(-1);
-//     };
-
-//     const renderField = useCallback((fieldname: string) => {
-//         const field = fields.find(f => f.fieldname === fieldname);
-//         if (!field) return null;
-//         return <MemoizedFormField key={field.fieldname} field={field} value={formData[field.fieldname]} options={linkOptions[field.fieldname]} onChange={handleChange} />;
-//     }, [fields, formData, linkOptions, handleChange]);
-
-//     if (loading) {
-//         return (<div className="flex items-center justify-center min-h-screen bg-[#FDFCEC]"><div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-[#90A4AE]"></div><p className="mt-4 text-2xl font-bold">LOADING FORM...</p></div></div>);
-//     }
-
-//     return (
-//         <div className="bg-[#FDFCEC]">
-//             <AppSidebar isPermanentEmployee={true} />
-//             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-//                 <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-//                      <div className="flex items-center gap-4">
-//                         <button onClick={() => navigate(-1)} className="p-3 bg-white border-2 border-black rounded-md hover:bg-[#90A4AE] active:translate-y-1 transition-transform">
-//                             <ArrowLeftIcon className="h-6 w-6" />
-//                         </button>
-//                         <div>
-//                             <h1 className="text-3xl font-extrabold text-black">Add Fund Sanction</h1>
-//                             <p className="text-gray-700 font-mono mt-1">For Project: {formData.refnum_prj_num || projectName}</p>
-//                         </div>
-//                     </div>
-//                 </header>
-                
-//                 <form onSubmit={handleSubmit}>
-//                     <NeoCard className="space-y-12">
-//                         <NeoSection title="Project & Sanction Details">
-//                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-//                                 {renderField('project_proposal')}
-//                                 {renderField('refnum_prj_num')}
-//                                 {renderField('total_sanctioned_amount')}
-//                                 {renderField('sanctioned_letter_no')}
-//                                 {renderField('sanctioned_letter_date')}
-//                             </div>
-//                         </NeoSection>
-//                         <NeoSection title="Total Budget Break-up">
-//                             <MemoizedBudgetTable 
-//                                 tableData={formData.sanctioned_budget_breakup}
-//                                 onRowChange={handleTableRowChange}
-//                                 onAddRow={addTableRow}
-//                                 onDeleteRow={deleteTableRow}
-//                             />
-//                         </NeoSection>
-//                     </NeoCard>
-//                     <div className="mt-8 flex justify-end">
-//                         <NeoButton type="submit" disabled={isSubmitting} className="bg-green-300">
-//                             {isSubmitting ? 'Submitting...' : 'Submit Sanction'}
-//                         </NeoButton>
-//                     </div>
-//                 </form>
-//             </main>
-//         </div>
-//     );
-// };
-
-// export default AddFundSanction;
-
-// ----------------------------------- MKY V4 (10/11/2025) -------------------------------------------------------------
-
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useRef, type JSX } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppSidebar } from "../components/RndSidebar";
-import { useFrappePostCall } from 'frappe-react-sdk';
-import { cn } from '@/lib/utils';
+import useUserRoleCheck from "../components/UserRoleCheck";
+import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
+import { useFrappeGetDoc } from 'frappe-react-sdk'; // <-- IMPORT THIS
 import { ArrowLeftIcon } from "lucide-react";
 
-// --- TYPE DEFINITIONS ---
-interface Field { fieldname: string; label: string | null; fieldtype: string; mandatory: boolean; read_only: boolean; hidden: boolean; options?: string | null; }
-interface LinkOption { value: string; label: string; }
-// Add the new table to the FormData interface
-interface FormData { [key: string]: any; sanctioned_budget_breakup?: (any & { id?: string })[]; sanction_related_files?: (any & { id?: string })[]; }
+import { cn } from '@/lib/utils';
 
-// --- STYLES & REUSABLE UI COMPONENTS ---
-const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE] disabled:opacity-70 disabled:bg-gray-200 read-only:bg-gray-200";
-const NeoCard = ({ children, className }: any) => ( <div className={cn("bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]", className)}>{children}</div> );
-const NeoButton = ({ children, onClick, disabled, className, type = "button" }: any) => ( <button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-3 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button> );
-const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-2xl font-extrabold text-black uppercase tracking-tight border-b-2 border-black pb-3">{title}</h2>{children}</div>);
+interface Field {
+    fieldname: string;
+    label: string;
+    fieldtype: string;
+    default?: any;
+    mandatory: boolean;
+    read_only: boolean;
+    hidden: boolean;
+    description?: string;
+    options?: string;
+}
 
-// --- MEMOIZED CHILD COMPONENTS ---
-// const MemoizedFormField = memo(({ field, value, options, onChange }: any) => { /* ... (Your existing component is fine) ... */ });
-// const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRow }: any) => { /* ... (Your existing component is fine) ... */ });
+interface LinkOption {
+    value: string;
+    label: string;
+}
 
-// --- MEMOIZED CHILD COMPONENTS ---
-const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
-    if (!field || field.hidden) return null;
-    const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: field.read_only, required: field.mandatory, disabled: field.read_only, };
-    
-    const renderInput = () => {
-        switch (field.fieldtype) {
-            case "Link": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
-            case "Date": return <input type="date" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
-            case "Currency": return <input type="number" step="0.01" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
-            default: return <input type="text" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
-        }
-    };
-    return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-bold text-black text-lg uppercase">{field.label}{field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}</div>);
-});
+interface FundSanctionFormResponse {
+    message: {
+        fields: Field[];
+        link_options: { [key: string]: LinkOption[] };
+    }
+}
 
-const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRow }: any) => {
-    const newRow = { account_head: '', first_year_budget: 0 };
-    const columns = [
-        { key: 'account_head', label: 'Account Head', type: 'Select', options: ['Consumable', 'Equipment', 'Contingency', 'Travel', 'Manpower', 'Overhead', 'Other'] },
-        { key: 'first_year_budget', label: 'Year 1 (₹)', type: 'Currency' },
-        { key: 'second_year_budget', label: 'Year 2 (₹)', type: 'Currency' },
-        { key: 'third_year_budget', label: 'Year 3 (₹)', type: 'Currency' },
-        { key: 'fourth_year_budget', label: 'Year 4 (₹)', type: 'Currency' },
-        { key: 'fifth_year_budget', label: 'Year 5 (₹)', type: 'Currency' },
-    ];
-    return (
-        <div>
-            <div className="overflow-x-auto border-2 border-black rounded-md">
-                <table className="min-w-full divide-y-2 divide-black">
-                    <thead className="bg-[#90A4AE]"><tr className="divide-x-2 divide-black">{[...columns, {key:'actions', label:''}].map((c:any) => (<th key={c.key} className="p-3 font-bold text-white uppercase text-sm">{c.label}</th>))}</tr></thead>
-                    <tbody className="divide-y-2 divide-black bg-white">
-                        {(tableData || []).map((row: any, i: number) => (
-                            <tr key={row.id} className="divide-x-2 divide-black">
-                                {columns.map((col:any) => ( <td key={col.key} className="p-2"> 
-                                    {col.type === 'Select' ? (
-                                        <select className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(i, col.key, e.target.value)}>
-                                            <option value="">Select Head...</option>
-                                            {col.options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
-                                        </select>
-                                    ) : (
-                                        <input type="number" className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(i, col.key, e.target.value)} />
-                                    )}
-                                </td> ))}
-                                <td className="p-2 text-center"><NeoButton onClick={() => onDeleteRow(i)} className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</NeoButton></td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-            <NeoButton onClick={() => onAddRow(newRow)} className="bg-[#A5D6A7] mt-4">Add Budget Row</NeoButton>
-        </div>
-    );
-});
-
-// --- NEW COMPONENT: Generic Table for Files ---
-const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => (
-    <NeoSection title={title}>
-        <div className="overflow-x-auto border-2 border-black rounded-md">
-            <table className="min-w-full divide-y-2 divide-black">
-                <thead className="bg-[#90A4AE]"><tr className="divide-x-2 divide-black">{[...columns, {key:'actions', label:''}].map((c:any) => (<th key={c.key} className="p-3 font-bold text-white uppercase text-sm">{c.label}</th>))}</tr></thead>
-                <tbody className="divide-y-2 divide-black bg-white">
-                    {(tableData || []).map((row: any, i: number) => (
-                        <tr key={row.id} className="divide-x-2 divide-black">
-                            {columns.map((col:any) => ( <td key={col.key} className="p-2"> 
-                                {col.type === 'Attach' ? (
-                                    <input type="file" className={`${inputClasses} !h-11 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:font-bold file:bg-stone-200 hover:file:bg-stone-300`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0]||null)} />
-                                ) : (
-                                    <input type="text" className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)} />
-                                )}
-                            </td> ))}
-                            <td className="p-2 text-center"><NeoButton onClick={() => onDeleteRow(tableName, i)} className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</NeoButton></td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-        <NeoButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#A5D6A7] mt-4">Add Row</NeoButton>
-    </NeoSection>
-));
-
-
-// --- MAIN COMPONENT ---
 const AddFundSanction: React.FC = () => {
-    const navigate = useNavigate();
-    const { projectName } = useParams<{ projectName: string }>();
-
     const [fields, setFields] = useState<Field[]>([]);
-    const [formData, setFormData] = useState<FormData>({});
-    const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [linkOptions, setLinkOptions] = useState<{ [key: string]: LinkOption[] }>({});
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.api.get_fund_sanction_form_data');
-    const { call: submitForm, error: submitError } = useFrappePostCall('rndopsapp.api.save_fund_sanction_data');
+    const isPermanentEmployee = useUserRoleCheck();
+    const stableArgs = React.useMemo(() => ({}), []);
 
-    useEffect(() => { fetchFormData({ project_proposal: projectName }); }, [fetchFormData, projectName]);
+    // Use refs to store table rows - this doesn't trigger re-render
+    const tableRowsRef = useRef({
+        sanctioned_budget_breakup: [] as string[],
+        sanction_related_files: [] as string[],
+        fund_transactions: [] as string[],
+        received_amount_breakup: [] as string[]
+    });
 
-    // This useEffect is now the single source of truth for fetching data.
-    // It uses the projectName from the URL to tell the backend which project to pre-fill.
+    const navigate = useNavigate();
+    
+    // 1. Get the project name from the URL
+    const { projectName } = useParams<{ projectName: string }>();
+
+    // 2. Fetch the project's data using the project name
+    // This defines the 'data' variable that was previously causing the error
+    const { data, isLoading, error } = useFrappeGetDoc(
+        "Project Registration",
+        projectName ?? "",
+        { enabled: !!projectName } 
+    );
+    
+
+    const containerRef = useRef<{ [key: string]: HTMLElement | null }>({});
+    const forceUpdateRef = useRef(0);
+    const [, setForceUpdate] = useState(0);
+
+    const { data: formData, error: formError } = useFrappeGetCall<FundSanctionFormResponse>(
+        'rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_fund_sanction_form_data',
+        stableArgs,
+        undefined,
+        { revalidateOnFocus: false, revalidateIfStale: false }
+    );
+
     useEffect(() => {
-        if (projectName) {
-            fetchFormData({ project_proposal: projectName });
-        }
-    }, [fetchFormData, projectName]);
-
-
-    useEffect(() => {
-        if (formDataResult?.message) {
-            const { fields, prefill_data, link_options } = formDataResult.message;
-            setFields(fields || []);
-            setLinkOptions(link_options || {});
-            setFormData(prefill_data || {});
+        if (formData?.message) {
+            setFields(formData.message.fields || []);
+            setLinkOptions(formData.message.link_options || {});
             setLoading(false);
         }
-        if (formDataError) {
-            console.error("Failed to load form data:", formDataError);
-            alert("Error: Could not load the form.");
+    }, [formData]);
+
+    useEffect(() => {
+        if (formError) {
+            console.error('Error loading form data:', formError);
             setLoading(false);
         }
-    }, [formDataResult, formDataError]);
+    }, [formError]);
 
-    // --- MODIFICATION: Update handleChange to handle side effects ---
-    const handleChange = useCallback((fieldname: string, value: any) => {
-        setFormData(prev => {
-            const newState = { ...prev, [fieldname]: value };
-            // If project_proposal is changed, update the refnum_prj_num
-            if (fieldname === 'project_proposal') {
-                newState['refnum_prj_num'] = value;
-            }
-            return newState;
+    const { call: submitForm, result: submitResult, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.save_fund_sanction_data');
+
+    useEffect(() => {
+        if (submitResult) {
+            alert('Fund Sanction submitted successfully!');
+            setIsSubmitting(false);
+        }
+        if (submitError) {
+            alert(`Submission error: ${submitError.message}`);
+            setIsSubmitting(false);
+        }
+    }, [submitResult, submitError]);
+
+    const generateId = () => `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+const addTableRow = (tableName: keyof typeof tableRowsRef.current) => {
+    tableRowsRef.current[tableName].push(generateId());
+    renderTableRows(tableName);
+};
+const removeTableRow = (tableName: keyof typeof tableRowsRef.current, id: string) => {
+    tableRowsRef.current[tableName] = tableRowsRef.current[tableName].filter(rowId => rowId !== id);
+    const row = containerRef.current[tableName]?.querySelector(`[data-id="${id}"]`)?.closest('tr');
+    if (row) row.remove();
+
+    // Reindex remaining rows (optional)
+    const allRows = containerRef.current[tableName]?.querySelectorAll('tr');
+    allRows?.forEach((tr, i) => {
+        const firstCell = tr.querySelector('td');
+        if (firstCell) firstCell.textContent = String(i + 1);
+    });
+};
+const renderTableRows = (tableName: keyof typeof tableRowsRef.current) => {
+    const container = containerRef.current[tableName];
+    if (!container) return;
+
+    // Clear "no data" placeholder row if present
+    const placeholder = container.querySelector('.no-data-row');
+    if (placeholder) placeholder.remove();
+
+    const rows = tableRowsRef.current[tableName];
+    const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE]";
+
+    // Get the last added rowId (only render that)
+    const rowId = rows[rows.length - 1];
+    if (!rowId) return;
+
+    let newRow = document.createElement("tr");
+    const index = rows.length;
+
+    if (tableName === 'sanctioned_budget_breakup') {
+        newRow.innerHTML = `
+            <td class="border-2 border-black p-2">${index}</td>
+            <td class="border-2 border-black p-2"><input type="text" name="sanctioned_account_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2"><input type="number" name="sanctioned_year1_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2"><input type="number" name="sanctioned_year2_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2"><input type="number" name="sanctioned_year3_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2"><input type="number" name="sanctioned_year4_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2"><input type="number" name="sanctioned_year5_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2 bg-gray-100 font-bold">₹ 0</td>
+            <td class="border-2 border-black p-2">
+                <button type="button" class="text-red-600 font-bold delete-btn" data-table="${tableName}" data-id="${rowId}">X</button>
+            </td>
+        `;
+    } else if (tableName === 'sanction_related_files') {
+        newRow.innerHTML = `
+            <td class="border-2 border-black p-2">${index}</td>
+            <td class="border-2 border-black p-2"><input type="file" name="file_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2"><input type="text" name="file_desc_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2">
+                <button type="button" class="text-red-600 font-bold delete-btn" data-table="${tableName}" data-id="${rowId}">X</button>
+            </td>
+        `;
+    } else if (tableName === 'fund_transactions') {
+        newRow.innerHTML = `
+            <td class="border-2 border-black p-2">${index}</td>
+            <td class="border-2 border-black p-2"><input type="text" name="fund_trans_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2"><input type="date" name="fund_date_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2"><input type="number" name="fund_amount_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2">
+                <button type="button" class="text-red-600 font-bold delete-btn" data-table="${tableName}" data-id="${rowId}">X</button>
+            </td>
+        `;
+    } else if (tableName === 'received_amount_breakup') {
+        newRow.innerHTML = `
+            <td class="border-2 border-black p-2">${index}</td>
+            <td class="border-2 border-black p-2"><input type="text" name="received_account_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2"><input type="number" name="received_amount_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2"><input type="text" name="received_year_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2"><input type="text" name="received_remarks_${rowId}" class="${inputClasses}" /></td>
+            <td class="border-2 border-black p-2">
+                <button type="button" class="text-red-600 font-bold delete-btn" data-table="${tableName}" data-id="${rowId}">X</button>
+            </td>
+        `;
+    }
+
+    // Append only the new row
+    container.appendChild(newRow);
+
+    // Attach delete button
+    const delBtn = newRow.querySelector('.delete-btn');
+    if (delBtn) {
+        delBtn.addEventListener('click', () => {
+            removeTableRow(tableName, rowId);
         });
-    }, []);
-    
-    // --- GENERIC TABLE HANDLERS ---
-    const handleGenericTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
-        setFormData(prev => {
-            const table = [...(prev[tableName] || [])];
-            table[rowIndex] = { ...table[rowIndex], [fieldname]: value };
-            return { ...prev, [tableName]: table };
-        });
-    }, []);
-    
-    const handleFileChange = useCallback((tableName: string, rowIndex: number, fieldname: string, file: File | null) => {
-        setFormData(prev => {
-            const table = [...(prev[tableName] || [])];
-            table[rowIndex] = { ...table[rowIndex], [fieldname]: file };
-            return { ...prev, [tableName]: table };
-        });
-    }, []);
+    }
+};
 
-    const addGenericTableRow = useCallback((tableName: string, newRow: object) => {
-        const newId = Date.now().toString();
-        setFormData(prev => ({
-            ...prev,
-            [tableName]: [...(prev[tableName] || []), { ...newRow, id: newId }]
-        }));
-    }, []);
 
-    const deleteGenericTableRow = useCallback((tableName: string, rowIndex: number) => {
-        setFormData(prev => ({
-            ...prev,
-            [tableName]: (prev[tableName] || []).filter((_: any, i: number) => i !== rowIndex)
-        }));
-    }, []);
-
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (isSubmitting) return;
         setIsSubmitting(true);
 
-        const dataToSubmit = { ...formData };
-        
-        // Handle file uploads by converting them to base64
-        if (dataToSubmit.sanction_related_files) {
-            const filePromises = dataToSubmit.sanction_related_files.map(async (row: any) => {
-                if (row.sanction_file instanceof File) {
-                    const fileData = await toBase64(row.sanction_file);
-                    return { ...row, sanction_file: fileData };
-                }
-                return row;
-            });
-            dataToSubmit.sanction_related_files = await Promise.all(filePromises);
-        }
-        
-        // console.log("Submitting Data:", dataToSubmit);
-        // // await submitForm({ doc: JSON.stringify(dataToSubmit) }); // Uncomment when ready
-        // await new Promise(res => setTimeout(res, 1500));
-        // alert("Form submitted (simulation). Check console for data.");
-        // setIsSubmitting(false);
-        // navigate(-1);
-
         try {
-        // This is your actual API call to save the document
-        await submitForm({ doc: JSON.stringify(dataToSubmit) });
-        
-        alert("Fund Sanction submitted successfully!");
-        
-        // --- THIS IS THE KEY CHANGE ---
-        navigate(-1); // Go back to the previous page (ProjectDetailsOverview)
-        // --- END CHANGE ---
+            const formElement = e.currentTarget;
+            const formData = new FormData(formElement);
 
-        } catch (err) {
-            alert(`Submission Failed: ${submitError?.message || 'Unknown error'}`);
-        } finally {
+            // Get table data
+            const sanctionedBudgetData = tableRowsRef.current.sanctioned_budget_breakup.map(rowId => {
+                const year1 = (formData.get(`sanctioned_year1_${rowId}`) as string) || '';
+                const year2 = (formData.get(`sanctioned_year2_${rowId}`) as string) || '';
+                const year3 = (formData.get(`sanctioned_year3_${rowId}`) as string) || '';
+                const year4 = (formData.get(`sanctioned_year4_${rowId}`) as string) || '';
+                const year5 = (formData.get(`sanctioned_year5_${rowId}`) as string) || '';
+                return {
+                    account_head: formData.get(`sanctioned_account_${rowId}`),
+                    year1: year1 ? Number(year1) : undefined,
+                    year2: year2 ? Number(year2) : undefined,
+                    year3: year3 ? Number(year3) : undefined,
+                    year4: year4 ? Number(year4) : undefined,
+                    year5: year5 ? Number(year5) : undefined,
+                };
+            });
+
+            const fundTransactionData = tableRowsRef.current.fund_transactions.map(rowId => ({
+                transaction_number: formData.get(`fund_trans_${rowId}`),
+                date: formData.get(`fund_date_${rowId}`),
+                amount: formData.get(`fund_amount_${rowId}`) ? Number(formData.get(`fund_amount_${rowId}`)) : undefined,
+            }));
+
+            const receivedAmountData = tableRowsRef.current.received_amount_breakup.map(rowId => ({
+                account_head: formData.get(`received_account_${rowId}`),
+                amount_received: formData.get(`received_amount_${rowId}`) ? Number(formData.get(`received_amount_${rowId}`)) : undefined,
+                budget_year: formData.get(`received_year_${rowId}`),
+                remarks: formData.get(`received_remarks_${rowId}`),
+            }));
+
+            const fileMetadata: { description: string }[] = [];
+            const filesData: { [key: string]: any } = {};
+            tableRowsRef.current.sanction_related_files.forEach((rowId, index) => {
+                const file = (formData.get(`file_${rowId}`) as File) || null;
+                const desc = formData.get(`file_desc_${rowId}`);
+                if (file) {
+                    filesData[`file_${index}`] = file;
+                }
+                fileMetadata.push({ description: desc as string });
+            });
+
+            const submitData: { [key: string]: any } = {};
+            
+            fields.forEach(field => {
+                if (field.fieldtype !== 'Table') {
+                    submitData[field.fieldname] = formData.get(field.fieldname);
+                }
+            });
+
+            submitData.sanctioned_budget_breakup = JSON.stringify(sanctionedBudgetData);
+            submitData.fund_transactions = JSON.stringify(fundTransactionData);
+            submitData.received_amount_breakup = JSON.stringify(receivedAmountData);
+            submitData.sanction_related_files_meta = JSON.stringify(fileMetadata);
+
+            const finalFormData = new FormData();
+            Object.entries(submitData).forEach(([key, value]) => {
+                finalFormData.append(key, String(value));
+            });
+            Object.entries(filesData).forEach(([key, file]) => {
+                finalFormData.append(key, file);
+            });
+
+const submitObject: { [key: string]: any } = {};
+finalFormData.forEach((value, key) => {
+    submitObject[key] = value;
+});
+
+// ✅ Log before submitting
+console.group("🚀 Fund Sanction Form Data Preview");
+console.log("Submit Object:", submitObject);
+console.log("Table Data:", {
+    sanctionedBudgetData,
+    fundTransactionData,
+    receivedAmountData,
+    fileMetadata,
+});
+console.groupEnd();
+            await submitForm({ form_data: submitObject });
+        } catch (error) {
+            console.error('Submission error:', error);
             setIsSubmitting(false);
         }
     };
-    
-    const toBase64 = (file: File) => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-    });
 
-    const renderField = useCallback((fieldname: string) => {
-        const field = fields.find(f => f.fieldname === fieldname);
-        if (!field) return null;
-        return <MemoizedFormField key={field.fieldname} field={field} value={formData[field.fieldname]} options={linkOptions[field.fieldname]} onChange={handleChange} />;
-    }, [fields, formData, linkOptions, handleChange]);
+const renderFormField = (field: Field) => {
+  // Skip rendering input if field is hidden
+  if (field.hidden) return null;
+
+  const inputClasses =
+    "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE] disabled:opacity-70 disabled:bg-gray-200";
+
+  switch (field.fieldtype) {
+    case "Link":
+      return (
+        <select
+          name={field.fieldname}
+          className={inputClasses}
+          required={field.mandatory}
+          disabled={field.read_only}
+          defaultValue={field.default || ""}
+        >
+          {(linkOptions[field.fieldname] || []).map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      );
+
+    case "Date":
+      return (
+        <input
+          type="date"
+          name={field.fieldname}
+          className={inputClasses}
+          required={field.mandatory}
+          disabled={field.read_only}
+          defaultValue={field.default || ""}
+        />
+      );
+
+    case "Currency":
+    case "Float":
+    case "Int":
+      return (
+        <input
+          type="number"
+          name={field.fieldname}
+          className={inputClasses}
+          required={field.mandatory}
+          disabled={field.read_only}
+          defaultValue={field.default || ""}
+          step={field.fieldtype === "Int" ? "1" : "0.01"}
+        />
+      );
+
+    case "Select":
+      return (
+        <select
+          name={field.fieldname}
+          className={inputClasses}
+          required={field.mandatory}
+          disabled={field.read_only}
+          defaultValue={field.default || ""}
+        >
+          {field.options
+            ?.split("\n")
+            .filter((opt) => opt.trim() !== "")
+            .map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+        </select>
+      );
+
+    case "Text Editor":
+    case "Text":
+      return (
+        <textarea
+          name={field.fieldname}
+          className="w-full min-h-[100px] px-4 py-3 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE]"
+          required={field.mandatory}
+          disabled={field.read_only}
+          defaultValue={field.default || ""}
+        />
+      );
+
+    default:
+      return (
+        <input
+          type="text"
+          name={field.fieldname}
+          className={inputClasses}
+          required={field.mandatory}
+          disabled={field.read_only}
+          defaultValue={field.default || ""}
+        />
+      );
+  }
+};
+
+
+
+
+
+
+
+    const mainFormFields = fields.filter(field => field.fieldtype !== 'Table');
+    const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE]";
+
+    const NeoButton = ({ children, onClick, disabled, type = "button" }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; type?: "button" | "submit" }) => (
+        <button 
+            type={type}
+            onClick={onClick}
+            disabled={disabled}
+            className="px-5 py-3 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50"
+        >
+            {children}
+        </button>
+    );
 
     if (loading) {
-        return (<div className="flex items-center justify-center min-h-screen">...Loading...</div>);
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-[#FDFCEC]">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-[#90A4AE]"></div>
+                    <p className="mt-4 text-2xl font-bold">LOADING FORM...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (formError) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-[#FDFCEC] p-4">
+                <div className="text-center p-4 max-w-2xl">
+                    <p className="text-2xl font-bold text-red-600">Error Loading Form</p>
+                </div>
+            </div>
+        );
     }
 
     return (
         <div className="bg-[#FDFCEC]">
-            <AppSidebar isPermanentEmployee={true} />
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-              <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-                  <div className="flex items-center gap-4">
-                      <button onClick={() => navigate(-1)} className="p-3 bg-white border-2 border-black rounded-md hover:bg-[#90A4AE] active:translate-y-1 transition-transform">
-                          <ArrowLeftIcon className="h-6 w-6" />
-                      </button>
-                      <div>
-                          <h1 className="text-3xl font-extrabold text-black">Add Fund Sanction</h1>
-                          <p className="text-gray-700 font-mono mt-1">For Project: {formData.refnum_prj_num || projectName}</p>
-                      </div>
-                  </div>
-              </header>
-                
-                <form onSubmit={handleSubmit}>
-                    <NeoCard className="space-y-12">
-                        <NeoSection title="Project & Sanction Details">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                {renderField('project_proposal')}
-                                {renderField('refnum_prj_num')}
-                                {renderField('total_sanctioned_amount')}
-                                {renderField('sanctioned_letter_no')}
-                                {renderField('sanctioned_letter_date')}
+            <AppSidebar isPermanentEmployee={!!isPermanentEmployee} />
+            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden bg-[#FDFCEC]">
+               {/* --- PROJECT CONTEXT HEADER --- */}
+                <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+                    <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
+                        <div className="flex items-center gap-4">
+                            <button
+                                // This is the key change: navigate(-1) goes to the previous page in history
+                                onClick={() => navigate(-1)}
+                                className="p-3 bg-white border-2 border-black rounded-md hover:bg-[#90A4AE] active:translate-y-1 transition-transform"
+                            >
+                                <ArrowLeftIcon className="h-6 w-6" />
+                            </button>
+                            <div>
+                                {/* This part correctly displays the project info */}
+                                <h1 className="text-3xl font-extrabold text-black">{data?.project_title || "Project Details"}</h1>
+                                <p className="text-gray-700 font-mono mt-1">
+                                    ID: {projectName} | Status:
+                                    <span className="font-bold text-black">{data?.workflow_state || "Draft"}</span>
+                                </p>
                             </div>
-                        </NeoSection>
-                        
-<NeoSection title="Total Budget Break-up">
-    <MemoizedBudgetTable 
-        tableData={formData.sanctioned_budget_breakup}
-        onRowChange={(rowIndex: number, fieldname: string, value: any) =>
-            handleGenericTableRowChange("sanctioned_budget_breakup", rowIndex, fieldname, value)
-        }
-        onAddRow={(newRow: object) =>
-            addGenericTableRow("sanctioned_budget_breakup", newRow)
-        }
-        onDeleteRow={(rowIndex: number) =>
-            deleteGenericTableRow("sanctioned_budget_breakup", rowIndex)
-        }
-    />
-</NeoSection>
+                        </div>
+                        {/* No action buttons are needed on the form page itself */}
+                    </div>
+                </header>
+                <header className="mb-8">
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-black tracking-tight uppercase">
+                        Add Fund Sanction
+                    </h1>
+                </header>
+
+                <form onSubmit={handleSubmit} encType="multipart/form-data">
+                    <div className="bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+                        <div className="space-y-12">
+                            {/* Main Form Fields */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                {/* {mainFormFields.map(field => (
+                                    <div key={field.fieldname} className={field.fieldtype.includes('Text') ? 'md:col-span-2' : ''}>
+                                        <label className="block font-bold text-black text-lg mb-2">
+                                            {field.label} {field.mandatory && <span className="text-red-500">*</span>}
+                                        </label>
+                                        {field.description && <p className="text-sm text-gray-700 font-mono mt-1 mb-2">{field.description}</p>}
+                                        {renderFormField(field)}
+                                    </div>
+                                ))} */}
+                                {mainFormFields
+                                  .filter(field => !field.hidden) // ✅ hide hidden fields entirely
+                                  .map(field => (
+                                    <div key={field.fieldname} className={field.fieldtype.includes('Text') ? 'md:col-span-2' : ''}>
+                                      {/* Render label only once */}
+                                      {!field.hidden && (
+                                        <label className="block font-bold text-black text-lg mb-2">
+                                          {field.label} {field.mandatory && <span className="text-red-500">*</span>}
+                                        </label>
+                                      )}
+                                      {field.description && !field.hidden && (
+                                        <p className="text-sm text-gray-700 font-mono mt-1 mb-2">{field.description}</p>
+                                      )}
+                                      {renderFormField(field)}
+                                    </div>
+                                  ))}
+                            </div>
+
+                           
+
+{/* === TABLE SECTIONS === */}
+{/* We'll hide them if Frappe marks them hidden */}
+
+{/* Total Budget Break-up Table */}
+{!fields.find(f => f.fieldname === "sanctioned_budget_breakup" && f.hidden) && (
+  <div className="overflow-x-auto">
+    <div className="flex justify-between items-center mb-4">
+      <h2 className="text-2xl font-bold text-black">Total Budget Break-up</h2>
+      <NeoButton onClick={() => addTableRow("sanctioned_budget_breakup")}>
+        Add Row
+      </NeoButton>
+    </div>
+    <table className="w-full min-w-[900px] border-collapse border-2 border-black">
+      <thead className="bg-gray-100">
+        <tr>
+          {[
+            "No.",
+            "Account Head",
+            "1st Year",
+            "2nd Year",
+            "3rd Year",
+            "4th Year",
+            "5th Year",
+            "Total",
+            "Delete",
+          ].map(h => (
+            <th key={h} className="border-2 border-black p-2 text-left">
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody
+        ref={el => {
+          if (el) containerRef.current["sanctioned_budget_breakup"] = el;
+        }}
+      >
+        {tableRowsRef.current.sanctioned_budget_breakup.length === 0 && (
+          <tr>
+            <td colSpan={9} className="text-center p-4"></td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+)}
+
+{/* Upload Sanction Related Files */}
+{!fields.find(f => f.fieldname === "sanction_related_files" && f.hidden) && (
+  <div className="overflow-x-auto">
+    <div className="flex justify-between items-center mb-4">
+      <h2 className="text-2xl font-bold text-black">
+        Upload Sanction Related Files
+      </h2>
+      <NeoButton onClick={() => addTableRow("sanction_related_files")}>
+        Add Row
+      </NeoButton>
+    </div>
+    <table className="w-full border-collapse border-2 border-black">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="border-2 border-black p-2 text-left">No.</th>
+          <th className="border-2 border-black p-2 text-left">File</th>
+          <th className="border-2 border-black p-2 text-left">Description</th>
+          <th className="border-2 border-black p-2 text-left">Delete</th>
+        </tr>
+      </thead>
+      <tbody
+        ref={el => {
+          if (el) containerRef.current["sanction_related_files"] = el;
+        }}
+      >
+        {tableRowsRef.current.sanction_related_files.length === 0 && (
+          <tr>
+            <td colSpan={4} className="text-center p-4"></td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+)}
+
+{/* Sanction Transactions Details */}
+{!fields.find(f => f.fieldname === "fund_transactions" && f.hidden) && (
+  <div className="overflow-x-auto">
+    <div className="flex justify-between items-center mb-4">
+      <h2 className="text-2xl font-bold text-black">
+        Sanction Transactions Details
+      </h2>
+      <NeoButton onClick={() => addTableRow("fund_transactions")}>
+        Add Row
+      </NeoButton>
+    </div>
+    <table className="w-full border-collapse border-2 border-black">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="border-2 border-black p-2 text-left">No.</th>
+          <th className="border-2 border-black p-2 text-left">
+            Transaction Number
+          </th>
+          <th className="border-2 border-black p-2 text-left">Date</th>
+          <th className="border-2 border-black p-2 text-left">Amount (₹)</th>
+          <th className="border-2 border-black p-2 text-left">Delete</th>
+        </tr>
+      </thead>
+      <tbody
+        ref={el => {
+          if (el) containerRef.current["fund_transactions"] = el;
+        }}
+      >
+        {tableRowsRef.current.fund_transactions.length === 0 && (
+          <tr>
+            <td colSpan={5} className="text-center p-4"></td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+)}
+
+{/* Budget Breakup of Received Amount */}
+{!fields.find(f => f.fieldname === "received_amount_breakup" && f.hidden) && (
+  <div className="overflow-x-auto">
+    <div className="flex justify-between items-center mb-4">
+      <h2 className="text-2xl font-bold text-black">
+        Budget Breakup of Received Amount
+      </h2>
+      <NeoButton onClick={() => addTableRow("received_amount_breakup")}>
+        Add Row
+      </NeoButton>
+    </div>
+    <table className="w-full border-collapse border-2 border-black">
+      <thead className="bg-gray-100">
+        <tr>
+          <th className="border-2 border-black p-2 text-left">No.</th>
+          <th className="border-2 border-black p-2 text-left">Account Head</th>
+          <th className="border-2 border-black p-2 text-left">
+            Amount Received (₹)
+          </th>
+          <th className="border-2 border-black p-2 text-left">Budget Year</th>
+          <th className="border-2 border-black p-2 text-left">Remarks</th>
+          <th className="border-2 border-black p-2 text-left">Delete</th>
+        </tr>
+      </thead>
+      <tbody
+        ref={el => {
+          if (el) containerRef.current["received_amount_breakup"] = el;
+        }}
+      >
+        {tableRowsRef.current.received_amount_breakup.length === 0 && (
+          <tr>
+            <td colSpan={6} className="text-center p-4">.</td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+)}
 
 
-                        
-                        {/* --- NEW FILE UPLOAD TABLE --- */}
-                        <MemoizedGenericTable
-                            title="Upload Sanction Related Files"
-                            tableName="sanction_related_files"
-                            columns={[
-                                { key: 'sanction_file', label: 'File', type: 'Attach' },
-                                { key: 'description', label: 'Description', type: 'text' },
-                            ]}
-                            newRow={{ sanction_file: null, description: '' }}
-                            tableData={formData.sanction_related_files}
-                            onRowChange={handleGenericTableRowChange}
-                            onFileChange={handleFileChange}
-                            onAddRow={addGenericTableRow}
-                            onDeleteRow={deleteGenericTableRow}
-                        />
 
-                    </NeoCard>
+                        </div>
+                    </div>
+
                     <div className="mt-8 flex justify-end">
-                        <NeoButton type="submit" disabled={isSubmitting} className="bg-green-300">
-                            {isSubmitting ? 'Submitting...' : 'Submit Sanction'}
+                        <NeoButton type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? 'SUBMITTING...' : 'Submit Fund Sanction'}
                         </NeoButton>
                     </div>
                 </form>

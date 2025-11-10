@@ -23,7 +23,6 @@ import ProjectsView from './pages/ProjectsView.tsx';
 import ProjectDetails from './pages/ProjectDetails.tsx'; // Import ProjectDetails
 import ProjectDetailsOverview from './pages/ProjectDetailsOverview.tsx';
 import HRPortal from './pages/HRPortal.tsx';
-import { HosRndDashboard } from './pages/dashboards/HosRndDashboard.tsx';
 // Add any other page imports you need
 // import TestDoctype from './pages/TestDoctype.tsx';
 // import UserDetails from './pages/UserDetails.tsx';
@@ -124,8 +123,51 @@ const router = createBrowserRouter(
         },
         // Add other routes here, wrapping them with AuthRouteWrapper if they need protection
         // {
+        // {
+        //   // This is the route for NON-APPROVED projects
+        //   path: "project-details/:projectName",
+        //   element: (
+        //     <AuthRouteWrapper allowedRole="All_ProRnd_User">
+        //       <ProjectDetails /> 
+        //     </AuthRouteWrapper>
+        //   ),
+        // },
+
+        // // --- NEW ROUTE ADDED HERE ---
+        // {
+        //   // This is the new route for APPROVED projects
+        //   path: "project-details-overview/:projectName",
+        //   element: (
+        //     <AuthRouteWrapper allowedRole="All_ProRnd_User">
+        //       <ProjectDetailsOverview />
+        //     </AuthRouteWrapper>
+        //   ),
+        // },
+
         {
-          // This is the route for NON-APPROVED projects
+          // This is the parent route for the APPROVED project view
+          path: "project-details-overview/:projectName",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <ProjectDetailsOverview />
+            </AuthRouteWrapper>
+          ),
+        },
+        
+        // --- THIS IS THE KEY CHANGE ---
+        {
+          // This is now a nested route. The URL will be /project-details-overview/:projectName/add-fund-sanction
+          path: "project-details-overview/:projectName/add-fund-sanction",
+          element: (
+            <AuthRouteWrapper allowedRole="Permanent Employee">
+              <AddFundSanction />
+            </AuthRouteWrapper>
+          ),
+        },
+        // --- END OF CHANGE ---
+
+        // Your other project details route for non-approved projects
+        {
           path: "project-details/:projectName",
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
@@ -134,33 +176,11 @@ const router = createBrowserRouter(
           ),
         },
 
-        // --- NEW ROUTE ADDED HERE ---
-        {
-          // This is the new route for APPROVED projects
-          path: "project-details-overview/:projectName",
-          element: (
-            <AuthRouteWrapper allowedRole="All_ProRnd_User">
-              <ProjectDetailsOverview />
-            </AuthRouteWrapper>
-          ),
-        },
-        // {
-        //   path: "test-doctype",
-        //   element: <TestDoctype />,
-        // },
         {
           path: "hr-portal",
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User"> {/* Adjust role as needed */}
               <HRPortal />
-            </AuthRouteWrapper>
-          ),
-        },
-        {
-          path: "hos-rnd",
-          element: (
-            <AuthRouteWrapper allowedRole="Hos, RnD (Head of Section, RnD)">
-              <HosRndDashboard />
             </AuthRouteWrapper>
           ),
         },
@@ -179,3 +199,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
     </FrappeProvider>
   </StrictMode>
 );
+
+
+
+
