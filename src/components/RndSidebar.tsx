@@ -1545,9 +1545,7 @@ export function AppSidebar({ isPermanentEmployee }: { isPermanentEmployee: boole
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center size-12  rounded-md">
             <img 
-              // src="/rndops_Logo.svg" 
-              // src="IITG_Logo.svg"
-              src="file.svg"
+              src="/file.svg"
               alt="R&D Operations Logo" 
              
             />

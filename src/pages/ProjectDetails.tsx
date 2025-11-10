@@ -507,7 +507,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
     { enabled: !!projectName, cacheTime: 0 }
   );
   const { call: triggerWorkflowAction, loading: isActionLoading } =
-    useFrappePostCall("rndopsapp.rndopsapp.api.handle_workflow_action");
+    useFrappePostCall("rndopsapp.rndopsapp.doctype.project_registration.project_registration.handle_dynamic_workflow_action");
   const { call: submitProjectRegistration } = useFrappePostCall(
     "rndopsapp.rndopsapp.api.submit_project_registration"
   );
