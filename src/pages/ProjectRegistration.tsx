@@ -333,13 +333,48 @@ const ProjectRegistration: React.FC = () => {
     const totalBudgetAmount = budgetTableData.reduce((acc, row) => acc + (row.years || []).reduce((sum: number, val) => sum + Number(val || 0), 0), 0);
     const getYearTotal = (yearIndex: number) => budgetTableData.reduce((sum: number, row) => sum + Number((row.years || [])[yearIndex] || 0), 0);
     
-    const tabButtons = ["Project Details", "PI & Collaborators", "Budget", "Clearance", "Sanction & Funds"];
+    // const tabButtons = ["Project Details", "PI & Collaborators", "Budget", "Clearance", "Sanction & Funds"];
+    const tabButtons = ["Project Details", "PI & Collaborators", "Budget", "Clearance"];
     const renderNextPrevButtons = (showPrev: boolean, showNext: boolean, isLast = false) => (
-        <div className="mt-8 flex justify-between items-center bg-white p-4 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-            <NeoButton onClick={() => setActiveTab(activeTab - 1)} className={cn("bg-white", !showPrev && "invisible")}>Previous</NeoButton>
-            {isLast ? (<div className="flex flex-col sm:flex-row gap-4"><NeoButton onClick={handleSaveDraft} disabled={isSubmitting || isSavingDraft} className="bg-white">{isSavingDraft ? "SAVING..." : "Save As Draft"}</NeoButton><NeoButton type="submit" disabled={isSubmitting || isSavingDraft || !isDraftSaved} className="bg-[#A5D6A7] disabled:bg-gray-300">{isSubmitting ? "SUBMITTING..." : "Submit Registration"}</NeoButton></div>) 
-            : (<NeoButton onClick={() => setActiveTab(activeTab + 1)} className={cn("bg-[#A5D6A7]", !showNext && "invisible")}>Next Section</NeoButton>)}
-        </div>
+        // <div className="mt-8 flex justify-between items-center bg-white p-4 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+        //     <NeoButton onClick={() => setActiveTab(activeTab - 1)} className={cn("bg-white", !showPrev && "invisible")}>Previous</NeoButton>
+        //     {isLast ? (<div className="flex flex-col sm:flex-row gap-4"><NeoButton onClick={handleSaveDraft} disabled={isSubmitting || isSavingDraft} className="bg-white">{isSavingDraft ? "SAVING..." : "Save As Draft"}</NeoButton><NeoButton type="submit" disabled={isSubmitting || isSavingDraft || !isDraftSaved} className="bg-[#A5D6A7] disabled:bg-gray-300">{isSubmitting ? "SUBMITTING..." : "Submit Registration"}</NeoButton></div>) 
+        //     : (<NeoButton onClick={() => setActiveTab(activeTab + 1)} className={cn("bg-[#A5D6A7]", !showNext && "invisible")}>Next Section</NeoButton>)}
+        // </div>
+<div className="mt-8 flex justify-between items-center bg-white p-4 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+  {/* Previous Button */}
+  <NeoButton
+    onClick={() => setActiveTab(activeTab - 1)}
+    className={cn("bg-white", !showPrev && "invisible")}
+  >
+    Previous
+  </NeoButton>
+
+  {/* If Last Tab → Show Only "Save as Draft" */}
+  {isLast ? (
+    <div className="flex flex-col sm:flex-row gap-4">
+      <NeoButton
+        onClick={handleSaveDraft}
+        disabled={isSubmitting || isSavingDraft}
+        className="bg-white"
+      >
+        {isSavingDraft ? "SAVING..." : "Save As Draft"}
+      </NeoButton>
+    </div>
+  ) : (
+    /* Otherwise Show "Next Section" */
+    <NeoButton
+      onClick={() => setActiveTab(activeTab + 1)}
+      className={cn("bg-[#A5D6A7]", !showNext && "invisible")}
+    >
+      Next Section
+    </NeoButton>
+  )}
+</div>
+
+
+
+
     );
 
     const tabFieldGroups = {
@@ -450,7 +485,7 @@ const ProjectRegistration: React.FC = () => {
                             {renderNextPrevButtons(true, true)}
                         </div>
                         <div className={activeTab === 4 ? "block" : "hidden"}>
-                            <NeoCard className="space-y-10">
+                            {/* <NeoCard className="space-y-10">
                                 <h2 className="text-3xl font-bold uppercase text-black">5. Sanction & Funds</h2>
                                 <div className="space-y-6">
                                     {renderField("have_sanction_details")}
@@ -460,7 +495,93 @@ const ProjectRegistration: React.FC = () => {
                                     {renderField("have_fund_details")}
                                     {formData.have_fund_details === "Yes" && (<NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"><h3 className="text-2xl font-bold uppercase text-black">Fund Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.funds)}</div><div className="space-y-4"><MemoizedGenericTable tableName={'fund_transactions'} columns={[{key: 'installmentNo', label: 'Installment No.', type: 'text'}, {key: 'dateReceived', label: 'Date Received', type: 'date'}, {key: 'amount', label: 'Amount (₹)', type: 'number'}]} newRow={{installmentNo: '', dateReceived: '', amount: 0}} tableData={formData.fund_transactions} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} /></div></NeoCard>)}
                                 </div>
-                            </NeoCard>
+                            </NeoCard> */}
+
+<NeoCard className="space-y-10">
+  {/* <h2 className="text-3xl font-bold uppercase text-black">5. Sanction & Funds</h2> */}
+  <div className="space-y-6">
+    {renderField("have_sanction_details")}
+
+    {formData.have_sanction_details === "Yes" && (
+      <NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+        <h3 className="text-2xl font-bold uppercase text-black">Sanction Details</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {renderFields(tabFieldGroups.sanction)}
+        </div>
+
+        <div className="space-y-4">
+          <MemoizedGenericTable
+            tableName={'sanctioned_budget_breakup'}
+            columns={[
+              { key: 'head', label: 'Budget Head', type: 'text' },
+              { key: 'amount', label: 'Amount (₹)', type: 'number' },
+            ]}
+            newRow={{ head: '', amount: 0 }}
+            tableData={formData.sanctioned_budget_breakup}
+            onRowChange={handleTableRowChange}
+            onFileChange={handleTableFileChange}
+            onAddRow={addTableRow}
+            onDeleteRow={deleteTableRow}
+          />
+        </div>
+
+        <div className="space-y-4">
+          <MemoizedGenericTable
+            tableName={'sanction_related_files'}
+            columns={[{ key: 'file', label: 'File', type: 'file' }]}
+            newRow={{ file: null }}
+            tableData={formData.sanction_related_files}
+            onRowChange={handleTableRowChange}
+            onFileChange={handleTableFileChange}
+            onAddRow={addTableRow}
+            onDeleteRow={deleteTableRow}
+          />
+        </div>
+      </NeoCard>
+    )}
+  </div>
+
+  <div className="space-y-6">
+    {renderField("have_fund_details")}
+
+    {formData.have_fund_details === "Yes" && (
+      <NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+        <h3 className="text-2xl font-bold uppercase text-black">Fund Details</h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {renderFields(tabFieldGroups.funds)}
+        </div>
+
+        <div className="space-y-4">
+          <MemoizedGenericTable
+            tableName={'fund_transactions'}
+            columns={[
+              { key: 'installmentNo', label: 'Installment No.', type: 'text' },
+              { key: 'dateReceived', label: 'Date Received', type: 'date' },
+              { key: 'amount', label: 'Amount (₹)', type: 'number' },
+            ]}
+            newRow={{ installmentNo: '', dateReceived: '', amount: 0 }}
+            tableData={formData.fund_transactions}
+            onRowChange={handleTableRowChange}
+            onFileChange={handleTableFileChange}
+            onAddRow={addTableRow}
+            onDeleteRow={deleteTableRow}
+          />
+        </div>
+      </NeoCard>
+    )}
+  </div>
+
+  {/* 🟢 Instruction after saving */}
+  <div className="p-4 mt-6 border-l-4 border-green-600 bg-green-50 text-green-800 rounded-md shadow-sm">
+    💡 <strong>Next Step:</strong> After saving this project draft, go to the <strong>Project View</strong> page,
+    open your specific project, and then click <strong>Submit</strong> to proceed.
+  </div>
+</NeoCard>
+
+
+
                             {renderNextPrevButtons(true, false, true)}
                         </div>
                     </>}

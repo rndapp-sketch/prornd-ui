@@ -4,6 +4,7 @@ import React, {
   useImperativeHandle,
   forwardRef,
   useRef,
+  useEffect,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -108,6 +109,9 @@ const FieldDisplay = ({
     </div>
   );
 };
+
+const NeoCard = ({ children, className }: any) => ( <div className={cn("bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]", className)}>{children}</div> );
+
 
 // --- Styled Helper Components (Cleaned up from print styles) ---
 const HtmlContent = ({
@@ -300,21 +304,53 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   const { call: triggerWorkflowAction, loading: isActionLoading } = useFrappePostCall("rndopsapp.rndopsapp.api.handle_workflow_action");
   const { call: submitProjectRegistration } = useFrappePostCall("rndopsapp.rndopsapp.api.submit_project_registration");
 
-  const handleWorkflowAction = useCallback((action: string) => {
-    triggerWorkflowAction({
-      docname: projectName,
-      action: action,
-    }).then(() => {
-      mutate();
-      if (activityStreamRef.current) {
-        activityStreamRef.current.refetch();
-      }
-    });
-  }, [projectName, triggerWorkflowAction, mutate]);
+  // --- NEW DATA FETCH FOR SANCTION DETAILS ---
+  const { data: sanctionData, error: sanctionError, isLoading: sanctionIsLoading, mutate: refetchSanctions } = useFrappeGetCall(
+    'rndopsapp.api.get_sanctions_for_project',
+    { project_name: projectName },
+    // This is important: it ensures this hook re-runs if the user navigates away and back
+    { revalidateOnFocus: true }
+  );
+  // --- END NEW DATA FETCH ---
+
+  useEffect(() => {
+      // This will automatically refetch sanctions when the component is focused
+      // (e.g., when navigating back from the add sanction page)
+      refetchSanctions();
+  }, []); // Run once on mount, revalidateOnFocus will handle the rest
+  
+  const handleWorkflowAction = useCallback(
+    (action: string) => {
+      const apiCall =
+        action.toLowerCase() === "submit"
+          ? submitProjectRegistration({ docname: projectName })
+          : triggerWorkflowAction({
+              doctype: "Project Registration",
+              docname: projectName,
+              action: action,
+            });
+      apiCall
+        .then(() => {
+          mutate();
+          activityStreamRef.current?.refetch();
+        })
+        .catch((err: any) =>
+          console.error(`Error during workflow action:`, err)
+        );
+    },
+    [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]
+  );
   const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
   
   const handleAddFunds = () => alert("Add Funds functionality will be implemented here.");
-  const handleAddSanctionDetails = () => navigate('/add-fund-sanction');
+  // const handleAddSanctionDetails = () => navigate('/add-fund-sanction');
+  // const handleAddSanctionDetails = () => {
+  //   navigate(`/add-fund-sanction/${projectName}`);
+  // };
+  const handleAddSanctionDetails = () => {
+    // Navigate to the new nested route. Notice the URL structure.
+    navigate(`/project-details-overview/${projectName}/add-fund-sanction`);
+  }; 
 
   // UPDATED: Tabs array with Activity Log
   const tabs = [
@@ -448,19 +484,43 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
               </div>
             )}
 
+            {/* --- MODIFIED SANCTION DETAILS TAB --- */}
             {activeTab === "sanction-details" && (
               <div className="space-y-8">
-                <TableDisplay
-                  label="Sanction Details"
-                  data={data?.sanction_details_table}
-                  columns={[ { fieldname: 'sanction_date', label: 'Sanction Date' }, { fieldname: 'sanction_amount', label: 'Amount' }, { fieldname: 'sanction_letter', label: 'Sanction Letter' }, { fieldname: 'status', label: 'Status' } ]}
-                  icon={CreditCardIcon}
-                />
-                {(!data?.sanction_details_table || data.sanction_details_table.length === 0) && (
+                {sanctionIsLoading && <p>Loading Sanction Details...</p>}
+                {sanctionError && <p className="text-red-600">Error loading sanctions: {sanctionError.message}</p>}
+                
+                {sanctionData && sanctionData.message && sanctionData.message.length > 0 ? (
+                  sanctionData.message.map((sanction: any, index: number) => (
+                    <NeoCard key={sanction.name || index} className="space-y-4">
+                      <div className="pb-3 border-b-2 border-black">
+                        <h3 className="text-xl font-bold uppercase text-black">
+                          Sanction Letter No: {sanction.sanctioned_letter_no}
+                        </h3>
+                        <p className="font-mono text-sm text-gray-700">
+                          Date: {sanction.sanctioned_letter_date} | Total Amount: {sanction.total_sanctioned_amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
+                        </p>
+                      </div>
+                      
+                      <TableDisplay
+                        label="Budget Breakup"
+                        data={sanction.sanctioned_budget_breakup}
+                        columns={[
+                          { fieldname: "account_head", label: "Account Head" },
+                          { fieldname: "first_year_budget", label: "Year 1" },
+                          { fieldname: "second_year_budget", label: "Year 2" },
+                          { fieldname: "third_year_budget", label: "Year 3" },
+                        ]}
+                        icon={DollarSignIcon}
+                      />
+                      {/* You can add another TableDisplay for sanction_related_files here if needed */}
+                    </NeoCard>
+                  ))
+                ) : (
                   <div className="text-center py-12 text-gray-600 border-2 border-dashed border-black rounded-md bg-white">
                     <CreditCardIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <p className="font-bold text-lg">No Sanction Details Found</p>
-                    <p className="text-sm mt-1">Add sanction details to see them here.</p>
+                    <p className="text-sm mt-1">Click "Add Sanction" to create the first entry for this project.</p>
                   </div>
                 )}
               </div>
