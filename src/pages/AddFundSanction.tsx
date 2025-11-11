@@ -352,20 +352,20 @@ const handleSubmit = async (e: React.FormEvent) => {
                             </div>
                         </NeoSection>
                         
-<NeoSection title="Total Budget Break-up">
-    <MemoizedBudgetTable 
-        tableData={formData.sanctioned_budget_breakup}
-        onRowChange={(rowIndex: number, fieldname: string, value: any) =>
-            handleGenericTableRowChange("sanctioned_budget_breakup", rowIndex, fieldname, value)
-        }
-        onAddRow={(newRow: object) =>
-            addGenericTableRow("sanctioned_budget_breakup", newRow)
-        }
-        onDeleteRow={(rowIndex: number) =>
-            deleteGenericTableRow("sanctioned_budget_breakup", rowIndex)
-        }
-    />
-</NeoSection>
+                        <NeoSection title="Total Budget Break-up">
+                            <MemoizedBudgetTable 
+                                tableData={formData.sanctioned_budget_breakup}
+                                onRowChange={(rowIndex: number, fieldname: string, value: any) =>
+                                    handleGenericTableRowChange("sanctioned_budget_breakup", rowIndex, fieldname, value)
+                                }
+                                onAddRow={(newRow: object) =>
+                                    addGenericTableRow("sanctioned_budget_breakup", newRow)
+                                }
+                                onDeleteRow={(rowIndex: number) =>
+                                    deleteGenericTableRow("sanctioned_budget_breakup", rowIndex)
+                                }
+                            />
+                        </NeoSection>
 
 
                         

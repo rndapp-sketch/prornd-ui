@@ -533,7 +533,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
     [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]
   );
   const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
-  const handleAddFunds = () => alert("Add Funds functionality will be implemented here.");
+  // const handleAddFunds = () => alert("Add Funds functionality will be implemented here.");
+  const handleAddFunds = () => navigate('/add-fund-received');
   const handleAddSanctionDetails = () => navigate('/add-fund-sanction');
 
   const tabs = [

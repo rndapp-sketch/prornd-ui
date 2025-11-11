@@ -23,6 +23,7 @@ import ProjectsView from './pages/ProjectsView.tsx';
 import ProjectDetails from './pages/ProjectDetails.tsx'; // Import ProjectDetails
 import ProjectDetailsOverview from './pages/ProjectDetailsOverview.tsx';
 import HRPortal from './pages/HRPortal.tsx';
+import AddFundReceived from './pages/AddFundReceived.tsx';
 // Add any other page imports you need
 // import TestDoctype from './pages/TestDoctype.tsx';
 // import UserDetails from './pages/UserDetails.tsx';
@@ -89,11 +90,19 @@ const router = createBrowserRouter(
             </AuthRouteWrapper>
           ),
         },
+        // {
+        //   path: "project-details-overview:projectName/add-fund-sanctiond",
+        //   element: (
+        //     <AuthRouteWrapper allowedRole="Permanent Employee"> {/* Adjust role as needed */}
+        //       <AddFundReceived />
+        //     </AuthRouteWrapper>
+        //   ),
+        // },
         {
-          path: "add-received-funds",
+          path: "add-fund-received/:projectName/",
           element: (
             <AuthRouteWrapper allowedRole="Permanent Employee"> {/* Adjust role as needed */}
-              <AddReceivedFunds />
+              <AddFundReceived />
             </AuthRouteWrapper>
           ),
         },
@@ -121,29 +130,6 @@ const router = createBrowserRouter(
             </AuthRouteWrapper>
           ),
         },
-        // Add other routes here, wrapping them with AuthRouteWrapper if they need protection
-        // {
-        // {
-        //   // This is the route for NON-APPROVED projects
-        //   path: "project-details/:projectName",
-        //   element: (
-        //     <AuthRouteWrapper allowedRole="All_ProRnd_User">
-        //       <ProjectDetails /> 
-        //     </AuthRouteWrapper>
-        //   ),
-        // },
-
-        // // --- NEW ROUTE ADDED HERE ---
-        // {
-        //   // This is the new route for APPROVED projects
-        //   path: "project-details-overview/:projectName",
-        //   element: (
-        //     <AuthRouteWrapper allowedRole="All_ProRnd_User">
-        //       <ProjectDetailsOverview />
-        //     </AuthRouteWrapper>
-        //   ),
-        // },
-
         {
           // This is the parent route for the APPROVED project view
           path: "project-details-overview/:projectName",

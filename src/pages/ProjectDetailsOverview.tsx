@@ -1608,7 +1608,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   );
   
   const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
-  const handleAddFunds = () => alert("Add Funds functionality will be implemented here.");
+  // const handleAddFunds = () => alert("Add Funds functionality will be implemented here.");
+  const handleAddFunds = () => navigate(`/add-fund-received/${projectName}/`);
   const handleAddSanctionDetails = () => {
     navigate(`/project-details-overview/${projectName}/add-fund-sanction`);
   }; 
