@@ -107,7 +107,7 @@ const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, o
             <table className="min-w-full divide-y-2 divide-black">
                 <thead className="bg-[#90A4AE]">
                     <tr className="divide-x-2 divide-black">
-                        <th className="p-3 font-bold text-white uppercase">Budget Head</th>
+                        <th className="p-3 font-bold text-white uppercase">Account Head</th>
                         {budgetYears.map((year: number, index: number) => (<th key={index} className="p-3 font-bold text-white uppercase">Year {year} (₹)</th>))}
                         <th className="p-3 font-bold text-white uppercase">Total (₹)</th>
                         <th className="p-3 font-bold text-white uppercase">Actions</th>
@@ -121,8 +121,8 @@ const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, o
                                 <td className="p-2">
                                     <select
                                         className={`${inputClasses} !h-11`}
-                                        value={row.head || ''}
-                                        onChange={(e) => onRowChange(rowIndex, 'head', e.target.value)}
+                                        value={row.account_head || ''}
+                                        onChange={(e) => onRowChange(rowIndex, 'account_head', e.target.value)}
                                     >
                                         <option value="">Select Budget Head</option>
                                         {budgetHeadOptions.map((option: any) => (
@@ -296,10 +296,26 @@ const ProjectRegistration: React.FC = () => {
       }, [linkOptions, fetchPiDetails]
     );
 
-    const addBudgetRow = useCallback(() => addTableRow("proposed_budget_breakup", { head: "", years: budgetYears.map(() => "") }), [addTableRow, budgetYears]);
+    const addBudgetRow = useCallback(() => addTableRow("proposed_budget_breakup", { account_head: "", years: budgetYears.map(() => "") }), [addTableRow, budgetYears]);
     const addBudgetYear = useCallback(() => { if (budgetYears.length < 5) { setBudgetYears(prev => [...prev, prev.length + 1]); setFormData(prev => ({ ...prev, proposed_budget_breakup: (prev.proposed_budget_breakup || []).map(row => ({ ...row, years: [...(row.years || []), ""] })) })); } else { alert("Maximum of 5 years allowed."); } }, [budgetYears]);
     const deleteLastBudgetYear = useCallback(() => { if (budgetYears.length > 1) { setBudgetYears(prev => prev.slice(0, -1)); setFormData(prev => ({ ...prev, proposed_budget_breakup: (prev.proposed_budget_breakup || []).map(row => ({ ...row, years: (row.years || []).slice(0, -1) })) })); } }, [budgetYears]);
-    const handleBudgetRowChange = useCallback((rowIndex: number, fieldname: string, value: any, yearIndex?: number) => { if (fieldname === "years" && yearIndex !== undefined) { setFormData(prev => { const t = [...(prev.proposed_budget_breakup || [])]; const y = [...(t[rowIndex].years || [])]; y[yearIndex] = value; t[rowIndex] = { ...t[rowIndex], years: y }; return { ...prev, proposed_budget_breakup: t }; }); } else { handleTableRowChange("proposed_budget_breakup", rowIndex, fieldname, value); } }, [handleTableRowChange]);
+    const handleBudgetRowChange = useCallback((rowIndex: number, fieldname: string, value: any, yearIndex?: number) => {
+    setFormData(prev => {
+        const table = [...(prev.proposed_budget_breakup || [])];
+        const row = { ...table[rowIndex] } as { head: string; years: (number | string)[] };
+
+        if (fieldname === "years" && yearIndex !== undefined) {
+            const years = [...(row.years || [])];
+            years[yearIndex] = value;
+            row.years = years;
+        } else if (fieldname === "account_head") {
+            row.head = value;
+        }
+
+        table[rowIndex] = row;
+        return { ...prev, proposed_budget_breakup: table };
+    });
+}, []);
 
     const ALWAYS_HIDDEN_FIELDS = ["department_head", "head_approver"];
 

@@ -38,15 +38,52 @@ const Dashboard = () => {
     }
 
     // If roles are loaded, perform the redirection
-    if (roles) {
+  //   if (roles) {
+  //     if (roles.length > 0) {
+  //       const isHosRnd = roles.includes('Hos, RnD (Head of Section, RnD)');
+  //       const isPermanentEmployee = roles.includes('Permanent Employee');
+
+  //       if (isHosRnd) {
+  //         navigate('/hos-rnd');
+  //       } else if (isPermanentEmployee) {
+  //         navigate('/pihomepage');
+  //       } else {
+  //         navigate('/home');
+  //       }
+  //     } else {
+  //       // If no roles found, default to home or a specific page
+  //       navigate('/home');
+  //     }
+  //   }
+  // }, [currentUser, isAuthLoading, roles, isRolesLoading, rolesError, navigate]);
+
+
+  // mky
+
+  if (roles) {
       if (roles.length > 0) {
         const isHosRnd = roles.includes('Hos, RnD (Head of Section, RnD)');
         const isPermanentEmployee = roles.includes('Permanent Employee');
+        const isDirector = roles.includes('Director');
+        const isDean = roles.includes('Dean, RnD');
+        const isHead = roles.includes('head_approver_1');
+        const isProjectStaff = roles.includes('project staff');
+        const isRndStaff = roles.includes('staff, RnD');
 
         if (isHosRnd) {
-          navigate('/hos-rnd');
+          navigate('/hos-rnd-dashboard');
         } else if (isPermanentEmployee) {
           navigate('/pihomepage');
+        } else if (isDirector) {
+          navigate('/director-dashboard');
+        } else if (isDean) {
+          navigate('/dean-dashboard');
+        } else if (isHead) {
+          navigate('/head-dashboard');
+        } else if (isProjectStaff) {
+          navigate('/project-staff-dashboard');
+        } else if (isRndStaff) {
+          navigate('/rnd-staff-dashboard');
         } else {
           navigate('/home');
         }
@@ -56,6 +93,10 @@ const Dashboard = () => {
       }
     }
   }, [currentUser, isAuthLoading, roles, isRolesLoading, rolesError, navigate]);
+
+
+
+
 
   // Display a loading message while we determine the correct route
   return (

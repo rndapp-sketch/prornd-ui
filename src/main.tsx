@@ -16,14 +16,20 @@ import AuthRouteWrapper from './components/AuthRouteWrapper.tsx';
 import ProjectRegistration from './pages/projectRegistration.tsx';
 import Endorsement from './pages/Endorsement.tsx';
 import AddFundSanction from './pages/AddFundSanction.tsx';
-import AddReceivedFunds from './pages/AddReceivedFunds.tsx';
-import { UserCreation } from './pages/UserCreation.tsx'; // This one was correct as named
+// import AddReceivedFunds from './pages/AddReceivedFunds.tsx';
+// import { UserCreation } from './pages/UserCreation.tsx'; // This one was correct as named
 import UserList from './pages/UserList.tsx';
 import ProjectsView from './pages/ProjectsView.tsx';
 import ProjectDetails from './pages/ProjectDetails.tsx'; // Import ProjectDetails
 import ProjectDetailsOverview from './pages/ProjectDetailsOverview.tsx';
 import HRPortal from './pages/HRPortal.tsx';
 import AddFundReceived from './pages/AddFundReceived.tsx';
+import { HosRndDashboard } from './pages/dashboards/HosRndDashboard.tsx';
+import { DorndDashboard } from './pages/dashboards/DorndDashboard.tsx';
+import { HeadDashboard } from './pages/dashboards/HeadDashboard.tsx';
+import { RndStaffDashboard } from './pages/dashboards/RndStaffDashboard.tsx';
+import { ProjectStaffDashboard } from './pages/dashboards/ProjectStaffDashboard.tsx';
+import { DirectorDashboard } from './pages/dashboards/DirectorDashboard.tsx';
 // Add any other page imports you need
 // import TestDoctype from './pages/TestDoctype.tsx';
 // import UserDetails from './pages/UserDetails.tsx';
@@ -107,21 +113,21 @@ const router = createBrowserRouter(
           ),
         },
         {
-          path: "user-creation",
+          path: "hos-rnd",
           element: (
-            <AuthRouteWrapper allowedRole="non-permanent"> {/* Adjust role as needed */}
-              <UserCreation />
+            <AuthRouteWrapper allowedRole="Hos, RnD (Head of Section, RnD)"> {/* Adjust role as needed */}
+              <HosRndDashboard />
             </AuthRouteWrapper>
           ),
         },
-        {
-          path: "user-list",
-          element: (
-            <AuthRouteWrapper allowedRole="non-permanent"> {/* Adjust role as needed */}
-              <UserList />
-            </AuthRouteWrapper>
-          ),
-        },
+        // {
+        //   path: "user-list",
+        //   element: (
+        //     <AuthRouteWrapper allowedRole="non-permanent"> {/* Adjust role as needed */}
+        //       <UserList />
+        //     </AuthRouteWrapper>
+        //   ),
+        // },
         {
           path: "projects-view",
           element: (
@@ -161,7 +167,34 @@ const router = createBrowserRouter(
             </AuthRouteWrapper>
           ),
         },
-
+        {
+          path: "director-dashboard",
+          element: (
+            <AuthRouteWrapper allowedRole="Director">
+              <DirectorDashboard />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "dean-dashboard",
+          element: (<AuthRouteWrapper allowedRole="Dean, RnD"><DorndDashboard /></AuthRouteWrapper>),
+        },
+        {
+          path: "head-dashboard",
+          element: (<AuthRouteWrapper allowedRole="head_approver_1"><HeadDashboard /></AuthRouteWrapper>),
+        },
+        {
+          path: "hos-rnd-dashboard", // Renamed for clarity
+          element: (<AuthRouteWrapper allowedRole="Hos, RnD (Head of Section, RnD)"><HosRndDashboard /></AuthRouteWrapper>),
+        },
+        {
+          path: "rnd-staff-dashboard",
+          element: (<AuthRouteWrapper allowedRole="staff, RnD"><RndStaffDashboard /></AuthRouteWrapper>),
+        },
+        {
+          path: "project-staff-dashboard",
+          element: (<AuthRouteWrapper allowedRole="project staff"><ProjectStaffDashboard /></AuthRouteWrapper>),
+        },
         {
           path: "hr-portal",
           element: (
