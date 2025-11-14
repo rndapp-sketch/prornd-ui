@@ -13,12 +13,12 @@ import Home from './pages/Home.tsx';
 import PiHomePage from './pages/PiHomePage.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import AuthRouteWrapper from './components/AuthRouteWrapper.tsx';
-import ProjectRegistration from './pages/projectRegistration.tsx';
+import ProjectRegistration from './pages/ProjectRegistration.tsx';
 import Endorsement from './pages/Endorsement.tsx';
 import AddFundSanction from './pages/AddFundSanction.tsx';
 // import AddReceivedFunds from './pages/AddReceivedFunds.tsx';
 // import { UserCreation } from './pages/UserCreation.tsx'; // This one was correct as named
-import UserList from './pages/UserList.tsx';
+// import UserList from './pages/UserList.tsx';
 import ProjectsView from './pages/ProjectsView.tsx';
 import ProjectDetails from './pages/ProjectDetails.tsx'; // Import ProjectDetails
 import ProjectDetailsOverview from './pages/ProjectDetailsOverview.tsx';
@@ -30,6 +30,8 @@ import { HeadDashboard } from './pages/dashboards/HeadDashboard.tsx';
 import { RndStaffDashboard } from './pages/dashboards/RndStaffDashboard.tsx';
 import { ProjectStaffDashboard } from './pages/dashboards/ProjectStaffDashboard.tsx';
 import { DirectorDashboard } from './pages/dashboards/DirectorDashboard.tsx';
+import Reimbursement from './pages/reimbursement/Reimbursement.tsx';
+import DynamicFormPage from './pages/DynamicFormPage.tsx'; // Import DynamicFormPage
 // Add any other page imports you need
 // import TestDoctype from './pages/TestDoctype.tsx';
 // import UserDetails from './pages/UserDetails.tsx';
@@ -203,6 +205,22 @@ const router = createBrowserRouter(
             </AuthRouteWrapper>
           ),
         },
+        {
+          path: "reimbursement", 
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <Reimbursement />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "dynamic-form/:doctype_name",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User"> {/* Adjust role as needed */}
+              <DynamicFormPage /> {/* doctype_name will be passed via URL param */}
+            </AuthRouteWrapper>
+          ),
+        },
       ],
     },
   ],
@@ -218,7 +236,3 @@ createRoot(document.getElementById('root') as HTMLElement).render(
     </FrappeProvider>
   </StrictMode>
 );
-
-
-
-
