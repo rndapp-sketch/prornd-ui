@@ -170,6 +170,25 @@ const TableDisplay = ({
   );
 };
 
+// const NeoButton = ({
+//   children,
+//   className,
+//   ...props
+// }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+//   <button
+//     className={cn(
+//       "px-5 py-3 bg-white border-2 border-black rounded-md font-bold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all",
+//       "hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px]",
+//       "active:shadow-none active:translate-x-[2px] active:translate-y-[2px]",
+//       "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 disabled:bg-gray-300",
+//       className
+//     )}
+//     {...props}
+//   >
+//     {children}
+//   </button>
+// );
+
 const NeoButton = ({
   children,
   className,
@@ -177,7 +196,7 @@ const NeoButton = ({
 }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
   <button
     className={cn(
-      "px-5 py-3 bg-white border-2 border-black rounded-md font-bold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all",
+      "px-5 py-1 bg-white border-2 border-black rounded-md font-bold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all",
       "hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px]",
       "active:shadow-none active:translate-x-[2px] active:translate-y-[2px]",
       "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 disabled:bg-gray-300",
@@ -188,6 +207,7 @@ const NeoButton = ({
     {children}
   </button>
 );
+
 
 // --- QuickActions Component with Muted Colors ---
 const QuickActions = () => {

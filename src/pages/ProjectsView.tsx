@@ -1366,7 +1366,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                         </span>
                       </TableCell>
                       <TableCell className="p-4 text-right">
-                        <NeoButton
+                        {/* <NeoButton
                           onClick={(e) => {
                             e.stopPropagation();
                             const targetPath =
@@ -1378,7 +1378,21 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           className="text-xs"
                         >
                           View Details
-                        </NeoButton>
+                        </NeoButton> */}
+                        <NeoButton
+  onClick={(e) => {
+    e.stopPropagation();
+    const targetPath =
+      p.workflow_state === "Approved" || p.workflow_state === "Proposal Approved"
+        ? `/project-details-overview/${p.name}`
+        : `/project-details/${p.name}`;
+    navigate(targetPath);
+  }}
+  className="text-xs"
+>
+  View Details
+</NeoButton>
+
                       </TableCell>
                     </TableRow>
                     {openPipeline === p.name && (
