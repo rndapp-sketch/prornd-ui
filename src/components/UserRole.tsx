@@ -8,10 +8,14 @@ interface UseUserRolesResult {
 }
 
 export const useUserRoles = (user: string | null): UseUserRolesResult => {
-  const { data, error, isLoading } = useFrappeGetCall(
+  const { data, error, isLoading, isValidating } = useFrappeGetCall(
     "rndopsapp.rndopsapp.api.get_user_roles",
     { user },
-    { enabled: !!user } // Only run if user is not null
+    {
+      enabled: !!user,
+      revalidateOnFocus: false, // Prevent random refetches
+      key: `user-roles-${user}` // Force unique cache key per user
+    }
   );
 
   useEffect(() => {
@@ -20,8 +24,13 @@ export const useUserRoles = (user: string | null): UseUserRolesResult => {
     if (data) console.log("Fetched roles data:", data);
   }, [data, error, isLoading, user]);
 
+  // Fix race condition: 
+  // 1. If user exists but no data/error, we are loading.
+  // 2. If we are validating (refetching in background), treat as loading to ensure we get the latest roles.
+  const isEffectiveLoading = !!user && (isLoading || isValidating || (!data && !error));
+
   const roles = (data?.message || []) as string[];
-  return { roles, isLoading, error };
+  return { roles, isLoading: isEffectiveLoading, error };
 };
 
 interface UserRolesViewerProps {

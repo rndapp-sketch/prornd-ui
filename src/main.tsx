@@ -31,6 +31,7 @@ import { RndStaffDashboard } from './pages/dashboards/RndStaffDashboard.tsx';
 import { ProjectStaffDashboard } from './pages/dashboards/ProjectStaffDashboard.tsx';
 import { DirectorDashboard } from './pages/dashboards/DirectorDashboard.tsx';
 import Reimbursement from './pages/reimbursement/Reimbursement.tsx';
+import PendingTask from './pages/PendingTask.tsx';
 import DynamicFormPage from './pages/DynamicFormPage.tsx'; // Import DynamicFormPage
 // Add any other page imports you need
 // import TestDoctype from './pages/TestDoctype.tsx';
@@ -147,7 +148,7 @@ const router = createBrowserRouter(
             </AuthRouteWrapper>
           ),
         },
-        
+
         // --- THIS IS THE KEY CHANGE ---
         {
           // This is now a nested route. The URL will be /project-details-overview/:projectName/add-fund-sanction
@@ -165,7 +166,7 @@ const router = createBrowserRouter(
           path: "project-details/:projectName",
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
-              <ProjectDetails /> 
+              <ProjectDetails />
             </AuthRouteWrapper>
           ),
         },
@@ -206,7 +207,7 @@ const router = createBrowserRouter(
           ),
         },
         {
-          path: "reimbursement", 
+          path: "reimbursement",
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <Reimbursement />
@@ -218,6 +219,14 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User"> {/* Adjust role as needed */}
               <DynamicFormPage /> {/* doctype_name will be passed via URL param */}
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "pending-task",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <PendingTask />
             </AuthRouteWrapper>
           ),
         },
