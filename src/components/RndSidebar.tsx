@@ -70,7 +70,7 @@ export function AppSidebar() {
     "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_task",
     {
       page_name: "pending-task",
-      status_value: "Pending HoS Approval"
+      status_value: "Pending Staff Approval"
     },
     {
       enabled: !!currentUser

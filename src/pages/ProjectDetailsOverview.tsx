@@ -631,7 +631,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       { fieldname: "first_year_budget", label: "Year 1" },
                       { fieldname: "second_year_budget", label: "Year 2" },
                       { fieldname: "third_year_budget", label: "Year 3" },
-                      { fieldname: "forth_year_budget", label: "Year 4" },
+                      { fieldname: "fourth_year_budget", label: "Year 4" },
                       { fieldname: "fifth_year_budget", label: "Year 5" },
                     ];
                     const budgetYearFieldnames = budgetColumns.filter(c => c.fieldname !== 'account_head').map(c => c.fieldname);

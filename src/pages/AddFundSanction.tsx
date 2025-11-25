@@ -26,7 +26,7 @@
 // const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
 //     if (!field || field.hidden) return null;
 //     const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: field.read_only, required: field.mandatory, disabled: field.read_only, };
-    
+
 //     const renderInput = () => {
 //         switch (field.fieldtype) {
 //             case "Link": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
@@ -378,7 +378,7 @@
 //             return newState;
 //         });
 //     }, []);
-    
+
 //     // --- GENERIC TABLE HANDLERS ---
 //     const handleGenericTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
 //         setFormData(prev => {
@@ -387,7 +387,7 @@
 //             return { ...prev, [tableName]: table };
 //         });
 //     }, []);
-    
+
 //     const handleFileChange = useCallback((tableName: string, rowIndex: number, fieldname: string, file: File | null) => {
 //         setFormData(prev => {
 //             const table = [...(prev[tableName] || [])];
@@ -435,7 +435,7 @@
 //         // 3. Process the file uploads.
 //         // Check if the 'sanction_related_files' table exists and has rows.
 //         if (dataToSubmit.sanction_related_files && dataToSubmit.sanction_related_files.length > 0) {
-            
+
 //             // Use Promise.all to wait for all file conversions to complete.
 //             const processedFiles = await Promise.all(
 //                 dataToSubmit.sanction_related_files.map(async (row: any) => {
@@ -444,7 +444,7 @@
 //                         const fileObject = row.sanction_file;
 //                         // Convert the file to a base64 string.
 //                         const base64Data = await toBase64(fileObject);
-                        
+
 //                         // Return a new row object structured for the backend.
 //                         // The backend will need to be adapted to look for these keys.
 //                         return {
@@ -472,10 +472,10 @@
 //         // from the `dataToSubmit` object as arguments.
 //         console.log("submitForm data:", dataToSubmit);
 //         await submitForm(dataToSubmit);
-        
+
 //         // 5. If the API call is successful, show a confirmation and navigate.
 //         alert("Fund Sanction submitted successfully!");
-        
+
 //         // Navigate back to the previous page (the project details overview).
 //         navigate(-1);
 
@@ -519,7 +519,7 @@
 //                       </div>
 //                   </div>
 //               </header>
-                
+
 //                 <form onSubmit={handleSubmit}>
 //                     <NeoCard className="space-y-12">
 //                         <NeoSection title="Project & Sanction Details">
@@ -531,7 +531,7 @@
 //                                 {renderField('sanctioned_letter_date')}
 //                             </div>
 //                         </NeoSection>
-                        
+
 //                         <NeoSection title="Total Budget Break-up">
 //                             <MemoizedBudgetTable 
 //                                 tableData={formData.sanctioned_budget_breakup}
@@ -548,7 +548,7 @@
 //                         </NeoSection>
 
 
-                        
+
 //                         {/* --- NEW FILE UPLOAD TABLE --- */}
 //                         <MemoizedGenericTable
 //                             title="Upload Sanction Related Files"
@@ -628,8 +628,8 @@ interface FormData {
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE] disabled:opacity-70 disabled:bg-gray-200 read-only:bg-gray-200";
-const NeoCard = ({ children, className }: any) => ( <div className={cn("bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]", className)}>{children}</div> );
-const NeoButton = ({ children, onClick, disabled, className, type = "button" }: any) => ( <button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-1 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button> );
+const NeoCard = ({ children, className }: any) => (<div className={cn("bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]", className)}>{children}</div>);
+const NeoButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-1 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
 // const NeoButton = ({
 //   children,
 //   className,
@@ -655,7 +655,7 @@ const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2
 const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
     if (!field || field.hidden) return null;
     const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: field.read_only, required: field.mandatory, disabled: field.read_only, };
-    
+
     const renderInput = () => {
         switch (field.fieldtype) {
             case "Link": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
@@ -689,7 +689,7 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
     const calculateRowTotal = (row: any) => {
         return yearKeys.reduce((sum, key) => sum + (parseFloat(row[key]) || 0), 0);
     };
-    
+
     // Calculate totals for each year (column totals)
     const yearTotals = yearKeys.reduce((acc, key) => {
         const yearTotal = (tableData || []).reduce((sum: number, row: any) => sum + (parseFloat(row[key]) || 0), 0);
@@ -705,7 +705,7 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                 <table className="min-w-full divide-y-2 divide-black">
                     <thead className="bg-[#90A4AE]">
                         <tr className="divide-x-2 divide-black">
-                            {[...columns, {key:'actions', label:''}].map((c:any) => (
+                            {[...columns, { key: 'actions', label: '' }].map((c: any) => (
                                 <th key={c.key} className="p-3 font-bold text-white uppercase text-sm">{c.label}</th>
                             ))}
                         </tr>
@@ -716,7 +716,7 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                             const rowTotal = calculateRowTotal(row);
                             return (
                                 <tr key={row.id || i} className="divide-x-2 divide-black">
-                                    {columns.map((col:any) => (
+                                    {columns.map((col: any) => (
                                         <td key={col.key} className="p-2">
                                             {col.type === 'Select' ? (
                                                 <select className={`${inputClasses} !h-11`}
@@ -745,7 +745,7 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                             );
                         })}
                     </tbody>
-                    
+
                     {/* Footer with Year-wise Totals and Grand Total */}
                     <tfoot className="bg-gray-100 border-t-4 border-black font-bold">
                         <tr className="divide-x-2 divide-black">
@@ -754,21 +754,21 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                                 <td key={key} className="p-3">{yearTotals[key]?.toFixed(2) || '0.00'}</td>
                             ))}
                             <td className="p-3 bg-yellow-200 text-lg">{grandTotal.toFixed(2)}</td>
-                            <td /> 
+                            <td />
                         </tr>
                     </tfoot>
                 </table>
             </div>
 
-            <NeoButton 
-                onClick={() => onAddRow({ 
-                    account_head: '', 
-                    first_year_budget: 0, 
-                    second_year_budget: 0, 
+            <NeoButton
+                onClick={() => onAddRow({
+                    account_head: '',
+                    first_year_budget: 0,
+                    second_year_budget: 0,
                     third_year_budget: 0,
                     fourth_year_budget: 0,
                     fifth_year_budget: 0,
-                })} 
+                })}
                 className="bg-[#A5D6A7] mt-4">
                 Add Budget Row
             </NeoButton>
@@ -780,17 +780,17 @@ const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableDat
     <NeoSection title={title}>
         <div className="overflow-x-auto border-2 border-black rounded-md">
             <table className="min-w-full divide-y-2 divide-black">
-                <thead className="bg-[#90A4AE]"><tr className="divide-x-2 divide-black">{[...columns, {key:'actions', label:''}].map((c:any) => (<th key={c.key} className="p-3 font-bold text-white uppercase text-sm">{c.label}</th>))}</tr></thead>
+                <thead className="bg-[#90A4AE]"><tr className="divide-x-2 divide-black">{[...columns, { key: 'actions', label: '' }].map((c: any) => (<th key={c.key} className="p-3 font-bold text-white uppercase text-sm">{c.label}</th>))}</tr></thead>
                 <tbody className="divide-y-2 divide-black bg-white">
                     {(tableData || []).map((row: any, i: number) => (
                         <tr key={row.id} className="divide-x-2 divide-black">
-                            {columns.map((col:any) => ( <td key={col.key} className="p-2"> 
+                            {columns.map((col: any) => (<td key={col.key} className="p-2">
                                 {col.type === 'Attach' ? (
-                                    <input type="file" className={`${inputClasses} !h-11 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:font-bold file:bg-stone-200 hover:file:bg-stone-300`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0]||null)} />
+                                    <input type="file" className={`${inputClasses} !h-11 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:font-bold file:bg-stone-200 hover:file:bg-stone-300`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />
                                 ) : (
                                     <input type="text" className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)} />
                                 )}
-                            </td> ))}
+                            </td>))}
                             <td className="p-2 text-center"><NeoButton onClick={() => onDeleteRow(tableName, i)} className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</NeoButton></td>
                         </tr>
                     ))}
@@ -814,7 +814,7 @@ const AddFundSanction: React.FC = () => {
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_fund_sanction_form_data');
     const { call: submitForm } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.save_fund_sanction_data');
-    
+
     // Initial data fetch effect based on project name from URL
     useEffect(() => {
         if (projectName) {
@@ -848,7 +848,7 @@ const AddFundSanction: React.FC = () => {
             return newState;
         });
     }, []);
-    
+
     const handleGenericTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
         setFormData(prev => {
             const table = [...(prev[tableName] || [])];
@@ -856,7 +856,7 @@ const AddFundSanction: React.FC = () => {
             return { ...prev, [tableName]: table };
         });
     }, []);
-    
+
     const handleFileChange = useCallback((tableName: string, rowIndex: number, fieldname: string, file: File | null) => {
         setFormData(prev => {
             const table = [...(prev[tableName] || [])];
@@ -916,7 +916,7 @@ const AddFundSanction: React.FC = () => {
 
             console.log("Submitting this payload to Frappe:", dataToSubmit);
             await submitForm(dataToSubmit);
-            
+
             alert("Fund Sanction submitted successfully!");
             navigate(-1);
 
@@ -940,7 +940,7 @@ const AddFundSanction: React.FC = () => {
 
     return (
         <div className="bg-[#FDFCEC]">
-            <AppSidebar isPermanentEmployee={true} />
+            <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
                     <div className="flex items-center gap-4">
@@ -953,7 +953,7 @@ const AddFundSanction: React.FC = () => {
                         </div>
                     </div>
                 </header>
-                
+
                 <form onSubmit={handleSubmit}>
                     <NeoCard className="space-y-12">
                         <NeoSection title="Project & Sanction Details">
@@ -965,9 +965,9 @@ const AddFundSanction: React.FC = () => {
                                 {renderField('sanctioned_letter_date')}
                             </div>
                         </NeoSection>
-                        
+
                         <NeoSection title="Total Budget Break-up">
-                            <MemoizedBudgetTable 
+                            <MemoizedBudgetTable
                                 tableData={formData.sanctioned_budget_breakup}
                                 onRowChange={(rowIndex: number, fieldname: string, value: any) =>
                                     handleGenericTableRowChange("sanctioned_budget_breakup", rowIndex, fieldname, value)
@@ -980,7 +980,7 @@ const AddFundSanction: React.FC = () => {
                                 }
                             />
                         </NeoSection>
-                        
+
                         <MemoizedGenericTable
                             title="Upload Sanction Related Files"
                             tableName="sanction_related_files"
@@ -996,7 +996,7 @@ const AddFundSanction: React.FC = () => {
                             onDeleteRow={deleteGenericTableRow}
                         />
                     </NeoCard>
-                    
+
                     <div className="mt-8 flex justify-end gap-4">
                         {formData.status !== "Draft" ? (
                             <NeoButton type="submit" disabled={isSubmitting} className="bg-blue-300">
