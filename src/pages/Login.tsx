@@ -43,12 +43,12 @@ const Login: React.FC = () => {
 
   return (
     <SidebarProvider>
-        <div className="w-full h-screen bg-[#F7F8FA] flex flex-col justify-between items-center overflow-hidden">
-          {isLoggedIn ? (
-            <>
-              <div className="w-full flex justify-between items-center p-4 bg-white shadow-md">
-                <img
-                  src="/frontend/rndops_Logo.svg"
+      <div className="w-full h-screen bg-[#F7F8FA] flex flex-col justify-between items-center overflow-hidden">
+        {isLoggedIn ? (
+          <>
+            <div className="w-full flex justify-between items-center p-4 bg-white shadow-md">
+              <img
+                src="/frontend/rndops_Logo.svg"
                 alt="R&D Operations Logo"
                 className="w-[166px] h-[60px]"
               />
