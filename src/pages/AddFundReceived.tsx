@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppSidebar } from "../components/RndSidebar";
-import { useFrappePostCall, useFrappeGetDoc } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { ArrowLeftIcon } from "lucide-react";
 import useUserRoleCheck from "../components/UserRoleCheck";
@@ -20,9 +20,9 @@ interface Field {
     options?: string | null;
     default?: any;
 }
-interface LinkOption { 
-    value: string; 
-    label: string; 
+interface LinkOption {
+    value: string;
+    label: string;
     project_proposal?: string;
     refnum_prj_num?: string;
 }
@@ -68,7 +68,7 @@ const AddFundReceived: React.FC = () => {
             console.log('API link_options:', link_options);
             console.log('API prefill_data:', prefill_data);
             console.log('API related_project_data:', related_project_data);
-            
+
             if (Array.isArray(apiFields)) {
                 // Create comprehensive prefill data
                 const prefillData: { [key: string]: any } = {
@@ -119,7 +119,7 @@ const AddFundReceived: React.FC = () => {
     useEffect(() => {
         const gstSelect = document.getElementById('gst_invoice_issued') as HTMLSelectElement;
         const invoiceContainer = document.getElementById('invoice_no_container');
-        
+
         const handleChange = () => {
             if (invoiceContainer) {
                 invoiceContainer.style.display = gstSelect?.value === 'Yes' ? 'grid' : 'none';
@@ -137,7 +137,7 @@ const AddFundReceived: React.FC = () => {
         };
     }, [loading, fields]);
 
-    const generateId = () => `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const generateId = () => `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)} `;
 
     const addTableRow = useCallback((tableName: keyof typeof tableRowsRef.current) => {
         const newId = generateId();
@@ -147,7 +147,7 @@ const AddFundReceived: React.FC = () => {
 
     const removeTableRow = useCallback((tableName: keyof typeof tableRowsRef.current, id: string) => {
         tableRowsRef.current[tableName] = tableRowsRef.current[tableName].filter(rowId => rowId !== id);
-        const row = containerRef.current[tableName]?.querySelector(`[data-id="${id}"]`);
+        const row = containerRef.current[tableName]?.querySelector(`[data - id= "${id}"]`);
         if (row) row.remove();
     }, []);
 
@@ -157,38 +157,38 @@ const AddFundReceived: React.FC = () => {
 
         const inputClasses = "w-full h-11 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE]";
         const neoButtonClasses = "px-5 py-2 !bg-red-200 hover:!bg-red-300 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]";
-        
+
         const newRow = document.createElement("tr");
         newRow.setAttribute("data-id", rowId);
         newRow.className = "divide-x-2 divide-black";
-        
+
         if (tableName === 'fund_transactions') {
             newRow.innerHTML = `
-                <td class="p-2"><input type="text" name="transaction_number_${rowId}" class="${inputClasses}" placeholder="Transaction ID" /></td>
+    < td class="p-2" > <input type="text" name="transaction_number_${rowId}" class="${inputClasses}" placeholder="Transaction ID" /></td >
                 <td class="p-2"><input type="date" name="transaction_date_${rowId}" class="${inputClasses}" /></td>
                 <td class="p-2"><input type="number" step="0.01" name="amount_${rowId}" class="${inputClasses}" placeholder="0.00" /></td>
                 <td class="p-2"><input type="file" name="attachment_${rowId}" class="${inputClasses} file:mr-2" /></td>
                 <td class="p-2 text-center"><button type="button" class="${neoButtonClasses} delete-btn" data-table="${tableName}" data-id="${rowId}">Delete</button></td>
-            `;
+`;
         } else if (tableName === 'received_amt_breakup') {
             const options = ['Consumables', 'Equipment', 'Contingency', 'Travel', 'Manpower', 'Overhead', 'Other']
-                .map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                .map(opt => `< option value = "${opt}" > ${opt}</option > `).join('');
             newRow.innerHTML = `
-                <td class="p-2">
-                    <select name="account_head_${rowId}" class="${inputClasses}">
-                        <option value="">Select Account Head...</option>
-                        ${options}
-                    </select>
-                </td>
+    < td class="p-2" >
+        <select name="account_head_${rowId}" class="${inputClasses}">
+            <option value="">Select Account Head...</option>
+            ${options}
+        </select>
+                </td >
                 <td class="p-2"><input type="number" step="0.01" name="amount_received_${rowId}" class="${inputClasses}" placeholder="0.00" /></td>
                 <td class="p-2"><input type="number" name="budget_year_${rowId}" class="${inputClasses}" placeholder="1" min="1" max="5" /></td>
                 <td class="p-2"><input type="text" name="remarks_${rowId}" class="${inputClasses}" placeholder="Remarks" /></td>
                 <td class="p-2 text-center"><button type="button" class="${neoButtonClasses} delete-btn" data-table="${tableName}" data-id="${rowId}">Delete</button></td>
-            `;
+`;
         }
 
         container.appendChild(newRow);
-        
+
         const delBtn = newRow.querySelector('.delete-btn');
         delBtn?.addEventListener('click', () => removeTableRow(tableName, rowId));
     };
@@ -199,205 +199,194 @@ const AddFundReceived: React.FC = () => {
         reader.onload = () => resolve(reader.result as string);
         reader.onerror = error => reject(error);
     });
-// const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-//     e.preventDefault();
-//     if (isSubmitting) return;
-//     setIsSubmitting(true);
+    // const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    //     e.preventDefault();
+    //     if (isSubmitting) return;
+    //     setIsSubmitting(true);
 
-//     try {
-//         const formElement = e.currentTarget;
-//         const form = new FormData(formElement);
-//         const dataToSubmit: { [key: string]: any } = {};
+    //     try {
+    //         const formElement = e.currentTarget;
+    //         const form = new FormData(formElement);
+    //         const dataToSubmit: { [key: string]: any } = {};
 
-//         // Collect all regular fields (excluding section breaks and tables)
-//         fields.forEach(field => {
-//             if (field.fieldtype !== 'Table' && field.fieldtype !== 'Section Break' && !field.hidden) {
-//                 const value = form.get(field.fieldname);
-//                 if (value !== null && value !== '') {
-//                     dataToSubmit[field.fieldname] = value;
-//                 }
-//             }
-//         });
+    //         // Collect all regular fields (excluding section breaks and tables)
+    //         fields.forEach(field => {
+    //             if (field.fieldtype !== 'Table' && field.fieldtype !== 'Section Break' && !field.hidden) {
+    //                 const value = form.get(field.fieldname);
+    //                 if (value !== null && value !== '') {
+    //                     dataToSubmit[field.fieldname] = value;
+    //                 }
+    //             }
+    //         });
 
-//         // Process fund transactions table - FILTER EMPTY ROWS
-//         dataToSubmit.fund_transactions = (await Promise.all(
-//             tableRowsRef.current.fund_transactions.map(async (id) => {
-//                 const transaction_number = form.get(`transaction_number_${id}`);
-//                 const transaction_date = form.get(`transaction_date_${id}`);
-//                 const amount = form.get(`amount_${id}`);
-//                 const attachment = form.get(`attachment_${id}`) as File | null;
-                
-//                 // Skip empty rows
-//                 if (!transaction_number && !transaction_date && (!amount || parseFloat(amount as string) === 0)) {
-//                     return null;
-//                 }
-                
-//                 let fileData = {};
-//                 if (attachment && attachment.size > 0) {
-//                     const base64 = await toBase64(attachment);
-//                     fileData = { 
-//                         file_name: attachment.name, 
-//                         file_data: base64.split(',')[1]
-//                     };
-//                 }
+    //         // Process fund transactions table - FILTER EMPTY ROWS
+    //         dataToSubmit.fund_transactions = (await Promise.all(
+    //             tableRowsRef.current.fund_transactions.map(async (id) => {
+    //                 const transaction_number = form.get(`transaction_number_${ id } `);
+    //                 const transaction_date = form.get(`transaction_date_${ id } `);
+    //                 const amount = form.get(`amount_${ id } `);
+    //                 const attachment = form.get(`attachment_${ id } `) as File | null;
 
-//                 return {
-//                     transaction_number,
-//                     transaction_date,
-//                     amount: amount ? parseFloat(amount as string) : 0,
-//                     ...fileData,
-//                 };
-//             })
-//         )).filter(row => row !== null); // Remove null rows
+    //                 // Skip empty rows
+    //                 if (!transaction_number && !transaction_date && (!amount || parseFloat(amount as string) === 0)) {
+    //                     return null;
+    //                 }
 
-//         // Process received amount breakup table - FILTER EMPTY ROWS
-//         dataToSubmit.received_amt_breakup = tableRowsRef.current.received_amt_breakup.map(id => {
-//             const account_head = form.get(`account_head_${id}`);
-//             const amount_received = form.get(`amount_received_${id}`);
-//             const budget_year = form.get(`budget_year_${id}`);
-//             const remarks = form.get(`remarks_${id}`);
-            
-//             // Skip empty rows
-//             if (!account_head && (!amount_received || parseFloat(amount_received as string) === 0)) {
-//                 return null;
-//             }
-            
-//             return {
-//                 account_head,
-//                 amount_received: amount_received ? parseFloat(amount_received as string) : 0,
-//                 budget_year: budget_year ? parseInt(budget_year as string) : 1,
-//                 remarks,
-//             };
-//         }).filter(row => row !== null); // Remove null rows
+    //                 let fileData = {};
+    //                 if (attachment && attachment.size > 0) {
+    //                     const base64 = await toBase64(attachment);
+    //                     fileData = { 
+    //                         file_name: attachment.name, 
+    //                         file_data: base64.split(',')[1]
+    //                     };
+    //                 }
 
-//         console.log('Submitting data:', dataToSubmit);
-//         await submitForm({ doc_data: JSON.stringify(dataToSubmit) });
-//         alert("Fund Received entry saved successfully!");
-//         navigate(-1);
-//     } catch (err: any) {
-//         console.error('Submission error:', submitError || err);
-//         alert(`Submission Failed: ${err.message || 'Unknown Error'}`);
-//     } finally {
-//         setIsSubmitting(false);
-//     }
-// };
-   
+    //                 return {
+    //                     transaction_number,
+    //                     transaction_date,
+    //                     amount: amount ? parseFloat(amount as string) : 0,
+    //                     ...fileData,
+    //                 };
+    //             })
+    //         )).filter(row => row !== null); // Remove null rows
 
-const debugFormValues = (form: FormData) => {
-    console.log('=== FORM VALUES DEBUG ===');
-    fields.forEach(field => {
-        if (field.fieldtype !== 'Table' && field.fieldtype !== 'Section Break' && !field.hidden) {
-            const value = form.get(field.fieldname);
-            console.log(`${field.fieldname} (${field.label}):`, value);
-        }
-    });
-    console.log('=== END DEBUG ===');
-};
+    //         // Process received amount breakup table - FILTER EMPTY ROWS
+    //         dataToSubmit.received_amt_breakup = tableRowsRef.current.received_amt_breakup.map(id => {
+    //             const account_head = form.get(`account_head_${ id } `);
+    //             const amount_received = form.get(`amount_received_${ id } `);
+    //             const budget_year = form.get(`budget_year_${ id } `);
+    //             const remarks = form.get(`remarks_${ id } `);
 
-const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    setIsSubmitting(true);
+    //             // Skip empty rows
+    //             if (!account_head && (!amount_received || parseFloat(amount_received as string) === 0)) {
+    //                 return null;
+    //             }
 
-    try {
-        const formElement = e.currentTarget;
-        const form = new FormData(formElement);
-        const dataToSubmit: { [key: string]: any } = {};
+    //             return {
+    //                 account_head,
+    //                 amount_received: amount_received ? parseFloat(amount_received as string) : 0,
+    //                 budget_year: budget_year ? parseInt(budget_year as string) : 1,
+    //                 remarks,
+    //             };
+    //         }).filter(row => row !== null); // Remove null rows
 
-        // Collect all regular fields (excluding section breaks and tables)
-        fields.forEach(field => {
-            if (field.fieldtype !== 'Table' && field.fieldtype !== 'Section Break' && !field.hidden) {
-                const value = form.get(field.fieldname);
-                // IMPORTANT: Include all values, even empty ones for sanction_ref_no
-                if (value !== null) {
-                    dataToSubmit[field.fieldname] = value;
-                }
-            }
-        });
+    //         console.log('Submitting data:', dataToSubmit);
+    //         await submitForm({ doc_data: JSON.stringify(dataToSubmit) });
+    //         alert("Fund Received entry saved successfully!");
+    //         navigate(-1);
+    //     } catch (err: any) {
+    //         console.error('Submission error:', submitError || err);
+    //         alert(`Submission Failed: ${ err.message || 'Unknown Error' } `);
+    //     } finally {
+    //         setIsSubmitting(false);
+    //     }
+    // };
 
-        console.log('Form data collected:', dataToSubmit); // Debug log
 
-        // Process fund transactions table - FILTER EMPTY ROWS
-        dataToSubmit.fund_transactions = (await Promise.all(
-            tableRowsRef.current.fund_transactions.map(async (id) => {
-                const transaction_number = form.get(`transaction_number_${id}`);
-                const transaction_date = form.get(`transaction_date_${id}`);
-                const amount = form.get(`amount_${id}`);
-                const attachment = form.get(`attachment_${id}`) as File | null;
-                
-                // Skip empty rows
-                if (!transaction_number && !transaction_date && (!amount || parseFloat(amount as string) === 0)) {
-                    return null;
-                }
-                
-                let fileData = {};
-                if (attachment && attachment.size > 0) {
-                    try {
-                        const base64 = await toBase64(attachment);
-                        fileData = { 
-                            file_name: attachment.name, 
-                            file_data: base64.split(',')[1] // Remove data URL prefix
-                        };
-                    } catch (fileError) {
-                        console.error('Error processing file:', fileError);
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+
+        try {
+            const formElement = e.currentTarget;
+            const form = new FormData(formElement);
+            const dataToSubmit: { [key: string]: any } = {};
+
+            // Collect all regular fields (excluding section breaks and tables)
+            fields.forEach(field => {
+                if (field.fieldtype !== 'Table' && field.fieldtype !== 'Section Break' && !field.hidden) {
+                    const value = form.get(field.fieldname);
+                    // IMPORTANT: Include all values, even empty ones for sanction_ref_no
+                    if (value !== null) {
+                        dataToSubmit[field.fieldname] = value;
                     }
+                }
+            });
+
+            console.log('Form data collected:', dataToSubmit); // Debug log
+
+            // Process fund transactions table - FILTER EMPTY ROWS
+            dataToSubmit.fund_transactions = (await Promise.all(
+                tableRowsRef.current.fund_transactions.map(async (id) => {
+                    const transaction_number = form.get(`transaction_number_${id} `);
+                    const transaction_date = form.get(`transaction_date_${id} `);
+                    const amount = form.get(`amount_${id} `);
+                    const attachment = form.get(`attachment_${id} `) as File | null;
+
+                    // Skip empty rows
+                    if (!transaction_number && !transaction_date && (!amount || parseFloat(amount as string) === 0)) {
+                        return null;
+                    }
+
+                    let fileData = {};
+                    if (attachment && attachment.size > 0) {
+                        try {
+                            const base64 = await toBase64(attachment);
+                            fileData = {
+                                file_name: attachment.name,
+                                file_data: base64.split(',')[1] // Remove data URL prefix
+                            };
+                        } catch (fileError) {
+                            console.error('Error processing file:', fileError);
+                        }
+                    }
+
+                    return {
+                        transaction_number: transaction_number || "",
+                        transaction_date: transaction_date || "",
+                        amount: amount ? parseFloat(amount as string) : 0,
+                        ...fileData,
+                    };
+                })
+            )).filter(row => row !== null); // Remove null rows
+
+            // Process received amount breakup table - FILTER EMPTY ROWS
+            dataToSubmit.received_amt_breakup = tableRowsRef.current.received_amt_breakup.map(id => {
+                const account_head = form.get(`account_head_${id} `);
+                const amount_received = form.get(`amount_received_${id} `);
+                const budget_year = form.get(`budget_year_${id} `);
+                const remarks = form.get(`remarks_${id} `);
+
+                // Skip empty rows
+                if (!account_head && (!amount_received || parseFloat(amount_received as string) === 0)) {
+                    return null;
                 }
 
                 return {
-                    transaction_number: transaction_number || "",
-                    transaction_date: transaction_date || "",
-                    amount: amount ? parseFloat(amount as string) : 0,
-                    ...fileData,
+                    account_head: account_head || "",
+                    amount_received: amount_received ? parseFloat(amount_received as string) : 0,
+                    budget_year: budget_year ? parseInt(budget_year as string) : 1,
+                    remarks: remarks || "",
                 };
-            })
-        )).filter(row => row !== null); // Remove null rows
+            }).filter(row => row !== null); // Remove null rows
 
-        // Process received amount breakup table - FILTER EMPTY ROWS
-        dataToSubmit.received_amt_breakup = tableRowsRef.current.received_amt_breakup.map(id => {
-            const account_head = form.get(`account_head_${id}`);
-            const amount_received = form.get(`amount_received_${id}`);
-            const budget_year = form.get(`budget_year_${id}`);
-            const remarks = form.get(`remarks_${id}`);
-            
-            // Skip empty rows
-            if (!account_head && (!amount_received || parseFloat(amount_received as string) === 0)) {
-                return null;
-            }
-            
-            return {
-                account_head: account_head || "",
-                amount_received: amount_received ? parseFloat(amount_received as string) : 0,
-                budget_year: budget_year ? parseInt(budget_year as string) : 1,
-                remarks: remarks || "",
-            };
-        }).filter(row => row !== null); // Remove null rows
+            console.log('Submitting data:', dataToSubmit);
 
-        console.log('Submitting data:', dataToSubmit);
-        
-        // Submit the form
-        const result = await submitForm({ doc_data: JSON.stringify(dataToSubmit) });
-        console.log('Submission result:', result);
-        
-        alert("Fund Received entry saved successfully!");
-        navigate(-1);
-    } catch (err: any) {
-        console.error('Submission error:', submitError || err);
-        alert(`Submission Failed: ${err.message || 'Unknown Error'}`);
-    } finally {
-        setIsSubmitting(false);
-    }
-}; 
+            // Submit the form
+            const result = await submitForm({ doc_data: JSON.stringify(dataToSubmit) });
+            console.log('Submission result:', result);
+
+            alert("Fund Received entry saved successfully!");
+            navigate(-1);
+        } catch (err: any) {
+            console.error('Submission error:', submitError || err);
+            alert(`Submission Failed: ${err.message || 'Unknown Error'} `);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
 
 
-const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE] disabled:opacity-70 disabled:bg-gray-200 read-only:bg-gray-200";
-    const NeoCard = ({ children, className }: any) => ( <div className={cn("bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]", className)}>{children}</div> );
-    const NeoButton = ({ children, onClick, disabled, className, type = "button" }: any) => ( <button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-3 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button> );
+    const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE] disabled:opacity-70 disabled:bg-gray-200 read-only:bg-gray-200";
+    const NeoCard = ({ children, className }: any) => (<div className={cn("bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]", className)}>{children}</div>);
+    const NeoButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-3 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
     const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-2xl font-extrabold text-black uppercase tracking-tight border-b-2 border-black pb-3">{title}</h2>{children}</div>);
 
     const renderFormField = (field: Field) => {
         if (!field || field.hidden || field.fieldtype === 'Section Break') return null;
-        
+
         const commonProps = {
             id: field.fieldname,
             name: field.fieldname,
@@ -414,18 +403,18 @@ const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md
                 case "Link":
                     // FIX: For prjreg_title field, use prjreg_refnum link options if available
                     let linkOpts = linkOptions[field.fieldname] || [];
-                    
+
                     // If prjreg_title doesn't have link options but prjreg_refnum does, use those
                     if (field.fieldname === 'prjreg_title' && linkOpts.length === 0 && linkOptions.prjreg_refnum) {
                         linkOpts = linkOptions.prjreg_refnum;
                     }
-                    
+
                     return (
                         <select {...commonProps}>
                             <option value="">Select..</option>
                             {linkOpts.map((opt) => (
-                                <option 
-                                    key={opt.value} 
+                                <option
+                                    key={opt.value}
                                     value={opt.value}
                                 >
                                     {opt.label}
@@ -533,12 +522,12 @@ const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md
 
     return (
         <div className="bg-[#FDFCEC] min-h-screen">
-            <AppSidebar isPermanentEmployee={!!isPermanentEmployee} />
+            <AppSidebar />
             <main className=" flex-1 p-4 md:p-8">
                 <header className="mb-8 p-6 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
                     <div className="flex items-center gap-4">
-                        <button 
-                            onClick={() => navigate(-1)} 
+                        <button
+                            onClick={() => navigate(-1)}
                             className="p-3 bg-white border-2 border-black rounded-md hover:bg-[#90A4AE] active:translate-y-1 transition-transform"
                         >
                             <ArrowLeftIcon className="h-6 w-6" />
@@ -551,7 +540,7 @@ const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md
                         </div>
                     </div>
                 </header>
-                
+
                 <form onSubmit={handleSubmit}>
                     <NeoCard className="space-y-12">
                         {/* Render sections dynamically */}
@@ -564,7 +553,7 @@ const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                             {section.fields
                                                 .filter(f => ['gst_invoice_issued', 'invoice_no'].includes(f.fieldname))
-                                                .map(field => 
+                                                .map(field =>
                                                     field.fieldname === 'invoice_no' ? (
                                                         <div key={field.fieldname} id="invoice_no_container" style={{ display: 'none' }}>
                                                             {renderFormField(field)}
@@ -575,7 +564,7 @@ const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md
                                                 )
                                             }
                                         </div>
-                                        
+
                                         {/* Transaction Details Table */}
                                         <div>
                                             <h3 className="text-xl font-bold text-black mb-4">Transaction Details</h3>
@@ -588,16 +577,16 @@ const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md
                                                             ))}
                                                         </tr>
                                                     </thead>
-                                                    <tbody 
-                                                        ref={el => { 
-                                                            if (el) containerRef.current['fund_transactions'] = el; 
-                                                        }} 
-                                                        className="divide-y-2 divide-black bg-white" 
+                                                    <tbody
+                                                        ref={el => {
+                                                            if (el) containerRef.current['fund_transactions'] = el;
+                                                        }}
+                                                        className="divide-y-2 divide-black bg-white"
                                                     />
                                                 </table>
                                             </div>
-                                            <NeoButton 
-                                                onClick={() => addTableRow('fund_transactions')} 
+                                            <NeoButton
+                                                onClick={() => addTableRow('fund_transactions')}
                                                 className="bg-[#A5D6A7] hover:bg-[#81C784] mt-4"
                                             >
                                                 + Add Transaction
@@ -616,16 +605,16 @@ const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md
                                                             ))}
                                                         </tr>
                                                     </thead>
-                                                    <tbody 
-                                                        ref={el => { 
-                                                            if (el) containerRef.current['received_amt_breakup'] = el; 
-                                                        }} 
-                                                        className="divide-y-2 divide-black bg-white" 
+                                                    <tbody
+                                                        ref={el => {
+                                                            if (el) containerRef.current['received_amt_breakup'] = el;
+                                                        }}
+                                                        className="divide-y-2 divide-black bg-white"
                                                     />
                                                 </table>
                                             </div>
-                                            <NeoButton 
-                                                onClick={() => addTableRow('received_amt_breakup')} 
+                                            <NeoButton
+                                                onClick={() => addTableRow('received_amt_breakup')}
                                                 className="bg-[#A5D6A7] hover:bg-[#81C784] mt-4"
                                             >
                                                 + Add Budget Item
@@ -644,16 +633,16 @@ const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md
 
                     {/* Submit Button */}
                     <div className="mt-8 flex justify-end gap-4">
-                        <NeoButton 
-                            type="button" 
+                        <NeoButton
+                            type="button"
                             onClick={() => navigate(-1)}
                             className="bg-gray-200 hover:bg-gray-300"
                         >
                             Cancel
                         </NeoButton>
-                        <NeoButton 
-                            type="submit" 
-                            disabled={isSubmitting} 
+                        <NeoButton
+                            type="submit"
+                            disabled={isSubmitting}
                             className="bg-green-300 hover:bg-green-400 disabled:bg-gray-300"
                         >
                             {isSubmitting ? 'Saving...' : 'Save Fund Received Entry'}

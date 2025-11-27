@@ -7,7 +7,6 @@ import React, {
   useImperativeHandle,
   forwardRef,
   useRef,
-  useEffect,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -23,7 +22,7 @@ import {
   ArrowLeftIcon,
   FileTextIcon,
   UsersIcon,
-  DollarSignIcon,
+  IndianRupeeIcon,
   ShieldIcon,
   MessageSquareIcon,
   SettingsIcon,
@@ -38,7 +37,6 @@ import {
   PlusIcon,
   FilePlusIcon,
   MapPinIcon,
-  PhoneIcon,
   MailIcon,
   GlobeIcon,
   TargetIcon,
@@ -64,7 +62,11 @@ interface ActivityStreamProps {
 interface ActivityStreamHandle {
   refetch: () => void;
 }
-interface ProjectDetailsProps {}
+interface ProjectDetailsProps {
+  projectName?: string;
+  backUrl?: string;
+  backLabel?: string;
+}
 
 // --- DESIGN: FieldDisplay Component (No boxes) ---
 const FieldDisplay = ({
@@ -412,41 +414,41 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
           )}
           {activityData?.message && activityData.message.length > 0
             ? activityData.message.map((item, index) => (
-                <div
-                  key={`${item.creation}-${index}`}
-                  className="flex items-start gap-4 p-4 bg-white border-2 border-black rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
-                >
-                  <div className="flex-shrink-0 h-12 w-12 rounded-full bg-cyan-300 border-2 border-black flex items-center justify-center font-bold text-black text-xl">
-                    {item.owner?.charAt(0).toUpperCase() || "U"}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-center mb-1">
-                      <p className="text-base font-bold text-black">
-                        {item.owner || "Unknown User"}
-                      </p>
-                      <p className="text-sm text-gray-600 flex items-center gap-1.5 font-mono">
-                        <ClockIcon className="h-4 w-4" />
-                        {item.creation
-                          ? new Date(item.creation).toLocaleString()
-                          : "N/A"}
-                      </p>
-                    </div>
-                    <div
-                      className="text-base text-gray-800 prose prose-sm max-w-none leading-relaxed font-mono"
-                      dangerouslySetInnerHTML={{
-                        __html: item.content || "No content",
-                      }}
-                    />
-                  </div>
+              <div
+                key={`${item.creation}-${index}`}
+                className="flex items-start gap-4 p-4 bg-white border-2 border-black rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
+              >
+                <div className="flex-shrink-0 h-12 w-12 rounded-full bg-cyan-300 border-2 border-black flex items-center justify-center font-bold text-black text-xl">
+                  {item.owner?.charAt(0).toUpperCase() || "U"}
                 </div>
-              ))
+                <div className="flex-1">
+                  <div className="flex justify-between items-center mb-1">
+                    <p className="text-base font-bold text-black">
+                      {item.owner || "Unknown User"}
+                    </p>
+                    <p className="text-sm text-gray-600 flex items-center gap-1.5 font-mono">
+                      <ClockIcon className="h-4 w-4" />
+                      {item.creation
+                        ? new Date(item.creation).toLocaleString()
+                        : "N/A"}
+                    </p>
+                  </div>
+                  <div
+                    className="text-base text-gray-800 prose prose-sm max-w-none leading-relaxed font-mono"
+                    dangerouslySetInnerHTML={{
+                      __html: item.content || "No content",
+                    }}
+                  />
+                </div>
+              </div>
+            ))
             : !isActivityLoading && (
-                <div className="text-center py-12 text-gray-600 border-2 border-dashed border-black rounded-md bg-white">
-                  <MessageSquareIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="font-bold text-lg">No activity yet.</p>
-                  <p className="text-sm mt-1">Be the first to add a comment.</p>
-                </div>
-              )}
+              <div className="text-center py-12 text-gray-600 border-2 border-dashed border-black rounded-md bg-white">
+                <MessageSquareIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="font-bold text-lg">No activity yet.</p>
+                <p className="text-sm mt-1">Be the first to add a comment.</p>
+              </div>
+            )}
         </div>
       </div>
     );
@@ -513,9 +515,15 @@ const WorkflowActions = ({
 };
 
 // --- Main Component ---
-const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
+const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
+  projectName: propProjectName,
+  backUrl = "/projects-view",
+  backLabel = "Back to Projects",
+}) => {
   // --- LOGIC: All hooks and handlers remain unchanged ---
-  const { projectName } = useParams<{ projectName: string }>();
+  const { projectName: paramProjectName } = useParams<{ projectName: string }>();
+  const projectName = propProjectName || paramProjectName;
+
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview"); // Default to overview
   const activityStreamRef = useRef<ActivityStreamHandle>(null);
@@ -526,6 +534,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
     projectName ?? "",
     { enabled: !!projectName, cacheTime: 0 }
   );
+
   const { call: triggerWorkflowAction, loading: isActionLoading } =
     useFrappePostCall("rndopsapp.rndopsapp.doctype.project_registration.project_registration.handle_dynamic_workflow_action");
   const { call: submitProjectRegistration } = useFrappePostCall(
@@ -537,10 +546,10 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
         action.toLowerCase() === "submit"
           ? submitProjectRegistration({ docname: projectName })
           : triggerWorkflowAction({
-              doctype: "Project Registration",
-              docname: projectName,
-              action: action,
-            });
+            doctype: "Project Registration",
+            docname: projectName,
+            action: action,
+          });
       apiCall
         .then(() => {
           mutate();
@@ -560,7 +569,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
     // { id: "quick-actions", label: "Available Services", icon: SettingsIcon },
     { id: "overview", label: "Overview", icon: FileTextIcon },
     { id: "investigators", label: "Investigators", icon: UsersIcon },
-    { id: "funding", label: "Funding & Budget", icon: DollarSignIcon },
+    { id: "funding", label: "Funding & Budget", icon: IndianRupeeIcon },
     { id: "clearance", label: "Clearance", icon: ShieldIcon },
     { id: "activity", label: "Activity Log", icon: MessageSquareIcon },
   ];
@@ -578,10 +587,10 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
               Select a project to see details.
             </p>
             <NeoButton
-              onClick={() => navigate("/projects-view")}
+              onClick={() => navigate(backUrl)}
               className="bg-cyan-300 hover:bg-cyan-400"
             >
-              Back to Projects
+              {backLabel}
             </NeoButton>
           </div>
         </div>
@@ -606,10 +615,10 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
             </h2>
             <p className="text-red-700 mb-6 font-mono">{error.message}</p>
             <NeoButton
-              onClick={() => navigate("/projects-view")}
+              onClick={() => navigate(backUrl)}
               className="bg-white hover:bg-gray-100"
             >
-              Back to Projects
+              {backLabel}
             </NeoButton>
           </div>
         </div>
@@ -621,7 +630,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
           <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate("/projects-view")}
+                onClick={() => navigate(backUrl)}
                 className="p-3 bg-white border-2 border-black rounded-md hover:bg-[#90A4AE] active:translate-y-1 transition-transform"
               >
                 <ArrowLeftIcon className="h-6 w-6" />
@@ -643,13 +652,13 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
                 <div className="flex gap-3">
                   <NeoButton
                     onClick={handleAddFunds}
-                     className="bg-[#A5D6A7] hover:bg-[#81C784] flex items-center gap-2"
+                    className="bg-[#A5D6A7] hover:bg-[#81C784] flex items-center gap-2"
                   >
                     <PlusIcon className="h-4 w-4" /> Add Funds
                   </NeoButton>
                   <NeoButton
                     onClick={handleAddSanctionDetails}
-                     className="bg-[#A5D6A7] hover:bg-[#81C784] flex items-center gap-2"
+                    className="bg-[#A5D6A7] hover:bg-[#81C784] flex items-center gap-2"
                   >
                     <FilePlusIcon className="h-4 w-4" /> Add Sanction
                   </NeoButton>
@@ -705,9 +714,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
                     />
                     <FieldDisplay
                       label="Project Duration"
-                      value={`${data?.project_duration_months}m ${
-                        data?.project_duration_days || 0
-                      }d`}
+                      value={`${data?.project_duration_months}m ${data?.project_duration_days || 0
+                        }d`}
                       icon={CalendarIcon}
                     />
                     <FieldDisplay
@@ -845,7 +853,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
                     { fieldname: "first_year_budget", label: "Year 1" },
                     { fieldname: "second_year_budget", label: "Year 2" },
                   ]}
-                  icon={DollarSignIcon}
+                  icon={IndianRupeeIcon}
                 />
                 {data?.equipment_checkbox === 1 && (
                   <TableDisplay
@@ -929,7 +937,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = () => {
 
   return (
     <div className="bg-[#FDFCEC]">
-      <AppSidebar isPermanentEmployee={!!isPermanentEmployee} />
+      <AppSidebar />
       <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
         {renderContent()}
       </main>

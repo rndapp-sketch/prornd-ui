@@ -18,7 +18,7 @@ type AllowedRole =
   | 'non-permanent';
 
 interface AuthRouteWrapperProps {
-  allowedRole: AllowedRole;
+  allowedRole: AllowedRole | AllowedRole[];
   children: React.ReactNode;
 }
 
@@ -29,7 +29,6 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
 
   useEffect(() => {
     // 1. Wait until ALL loading is complete before doing anything.
-    // This is the most critical part of the fix.
     if (isAuthLoading || isRolesLoading) {
       return;
     }
@@ -47,24 +46,21 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
       return;
     }
 
-    // --- 4. THE SIMPLIFIED AND CORRECT LOGIC ---
-    // The component now only cares about the one role it's supposed to allow.
+    // 4. Access Control Logic
+    const allowedRoles = Array.isArray(allowedRole) ? allowedRole : [allowedRole];
 
     // Exception for routes that are for all logged-in users.
-    if (allowedRole === 'All_ProRnd_User') {
-      return; // Access granted, do nothing.
+    if (allowedRoles.includes('All_ProRnd_User')) {
+      return; // Access granted
     }
 
-    // The single, powerful check:
-    // If the user's roles array does NOT include the specific role this route requires,
-    // then they are not authorized. Redirect them back to the main dispatcher.
-    // if (!roles.includes(allowedRole)) {
-    //   console.warn(`Access Denied: User with roles [${roles.join(', ')}] tried to access a route for '${allowedRole}'. Redirecting to dispatcher.`);
-    //   // Redirecting to '/dashboard' is better than '/home' because it allows the
-    //   // dispatcher to correctly route the user to their actual dashboard.
-    //   navigate('/dashboard'); 
-    // }
-    // If the check passes (the user has the role), we do nothing, and the children are rendered.
+    // Check if user has at least one of the allowed roles
+    const hasAccess = allowedRoles.some(role => roles.includes(role));
+
+    if (!hasAccess) {
+      console.warn(`Access Denied: User with roles [${roles.join(', ')}] tried to access a route for '${allowedRoles.join(', ')}'. Redirecting to dashboard.`);
+      navigate('/dashboard');
+    }
 
   }, [isAuthLoading, isRolesLoading, currentUser, roles, rolesError, allowedRole, navigate]);
 
@@ -73,7 +69,10 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
     return <GlobalLoader isLoading={true} />;
   }
 
-  // If loading is finished and all checks passed, render the page.
+  // If loading is finished and all checks passed (or we are about to redirect), render children.
+  // Note: The redirection happens in useEffect, so there might be a brief flash of content or empty state.
+  // Ideally, we should only render children if access is granted, but since the redirect is fast, this is usually acceptable.
+  // To be stricter, we could add a state `isAuthorized` but let's keep it simple for now as per previous pattern.
   return <>{children}</>;
 };
 

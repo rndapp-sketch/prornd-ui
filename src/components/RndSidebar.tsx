@@ -32,6 +32,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { useSWRConfig } from "swr";
+import { useUserRoles } from "./UserRole";
 
 // --- LOGIC: Interfaces (Unchanged) ---
 interface SubMenuItem {
@@ -64,6 +65,8 @@ export function AppSidebar() {
       enabled: !!currentUser
     }
   );
+
+  const { roles } = useUserRoles(currentUser || null);
 
   // Fetch pending task count
   const { data: pendingTaskData } = useFrappeGetCall<{ message: { results: Array<{ records: any[] }> } }>(
@@ -112,7 +115,25 @@ export function AppSidebar() {
       icon: ListTodo,
       path: "/pending-task",
     },
-  ];
+  ].filter(item => {
+    if (item.label === "Pending Task") {
+      const allowedRoles = [
+        'Director',
+        'Dean, RnD',
+        'head_approver_1',
+        'Hos, RnD (Head of Section, RnD)',
+        'staff, RnD'
+      ];
+      return roles && allowedRoles.some(role => roles.includes(role));
+    }
+    if (item.label === "Projects") {
+      // Hide Projects tab for "staff, RnD"
+      if (roles && roles.includes("staff, RnD")) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   // --- LOGIC: Event Handlers (Unchanged) ---
   const handleMenuItemClick = (item: MenuItem) => {

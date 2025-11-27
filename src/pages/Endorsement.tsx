@@ -9,7 +9,7 @@ const Endorsement: React.FC = () => {
   return (
     <div >
       {/* Sidebar */}
-      <AppSidebar isPermanentEmployee={isPermanentEmployee} />
+      <AppSidebar />
 
       {/* Main Content */}
       <div >

@@ -26,8 +26,8 @@ interface FormData {
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE] disabled:opacity-70 disabled:bg-gray-200 read-only:bg-gray-200";
 const checkboxClasses = "size-6 shrink-0 appearance-none bg-white border-2 border-black rounded-sm shadow-[2px_2px_0px_rgba(0,0,0,0.25)] checked:bg-black checked:bg-[url('data:image/svg+xml,%3csvg%20viewBox%3d%270%200%2016%2016%27%20fill%3d%27white%27%20xmlns%3d%27http%3a//www.w3.org/2000/svg%27%3e%3cpath%20d%3d%27M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%27/%3e%3c/svg%3e')] bg-center bg-no-repeat";
-const NeoCard = ({ children, className }: { children: React.ReactNode; className?: string }) => ( <div className={cn("bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]", className)}>{children}</div> );
-const NeoButton = ({ children, onClick, disabled, className, type = "button" }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string; type?: "button" | "submit" }) => ( <button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-3 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 disabled:bg-gray-300", className)}>{children}</button> );
+const NeoCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (<div className={cn("bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]", className)}>{children}</div>);
+const NeoButton = ({ children, onClick, disabled, className, type = "button" }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string; type?: "button" | "submit" }) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-3 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 disabled:bg-gray-300", className)}>{children}</button>);
 
 // --- MEMOIZED CHILD COMPONENTS ---
 const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange }: { field: Field; value: any; options?: LinkOption[]; onChange: (fieldname: string, value: any, type?: string) => void; onFileChange: (fieldname: string, file: File | null) => void; }) => {
@@ -36,9 +36,9 @@ const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange 
     const renderInput = () => {
         switch (field.fieldtype) {
             case "Link": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
-            case "Select": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(field.options?.split('\n').filter(o=>o) || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>);
+            case "Select": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(field.options?.split('\n').filter(o => o) || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>);
             case "Text": case "Small Text": case "Text Editor": return <textarea {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} rows={5} className={`${inputClasses} h-auto py-3`} />;
-            case "Check": return (<label className="flex items-center gap-4 font-bold text-black text-lg cursor-pointer"><input type="checkbox" className={checkboxClasses} checked={!!value} onChange={e => onChange(field.fieldname, e.target.checked, 'checkbox')} disabled={field.read_only}/><span>{field.label}{field.mandatory && <span className="text-red-500">*</span>}</span></label>);
+            case "Check": return (<label className="flex items-center gap-4 font-bold text-black text-lg cursor-pointer"><input type="checkbox" className={checkboxClasses} checked={!!value} onChange={e => onChange(field.fieldname, e.target.checked, 'checkbox')} disabled={field.read_only} /><span>{field.label}{field.mandatory && <span className="text-red-500">*</span>}</span></label>);
             case "Date": return <input type="date" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
             case "Attach": return <input type="file" {...commonProps} className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:font-bold file:bg-[#A5D6A7] file:text-black hover:file:bg-[#8BC34A]`} onChange={e => onFileChange(field.fieldname, e.target.files?.[0] || null)} />;
             default: return <input type={(['Int', 'Currency', 'Float', 'Percent'].includes(field.fieldtype)) ? 'number' : 'text'} {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
@@ -46,7 +46,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange 
     };
     if (field.fieldtype === 'Check') {
         return <div className="space-y-2">
-            {field.description ? <div className="prose prose-sm max-w-none font-mono text-black border-2 border-black rounded-md p-4 bg-gray-100" dangerouslySetInnerHTML={{__html: field.description}}/> : null}
+            {field.description ? <div className="prose prose-sm max-w-none font-mono text-black border-2 border-black rounded-md p-4 bg-gray-100" dangerouslySetInnerHTML={{ __html: field.description }} /> : null}
             {renderInput()}
         </div>
     }
@@ -57,11 +57,11 @@ const MemoizedGenericTable = memo(({ tableName, columns, newRow, tableData, onRo
     <div>
         <div className="overflow-x-auto border-2 border-black rounded-md">
             <table className="min-w-full divide-y-2 divide-black">
-                <thead className="bg-[#90A4AE]"><tr className="divide-x-2 divide-black">{[...columns, {key:'actions', label:'Actions', type:'action'}].map((c:any) => (<th key={c.key} className="p-3 font-bold text-white uppercase">{c.label}</th>))}</tr></thead>
+                <thead className="bg-[#90A4AE]"><tr className="divide-x-2 divide-black">{[...columns, { key: 'actions', label: 'Actions', type: 'action' }].map((c: any) => (<th key={c.key} className="p-3 font-bold text-white uppercase">{c.label}</th>))}</tr></thead>
                 <tbody className="divide-y-2 divide-black bg-white">
                     {(tableData || []).map((row: any, i: number) => (
                         <tr key={row.id} className="divide-x-2 divide-black">
-                            {columns.map((col:any) => ( <td key={col.key} className="p-2"> {col.type === 'file' ? (<input type="file" className={`${inputClasses} !h-11 !py-2`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0]||null)} />) : (<input type={col.type} className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => { const value = col.key === 'salary' ? e.target.value.replace(/[^0-9]/g, '') : e.target.value; onRowChange(tableName, i, col.key, value); }} />)} </td> ))}
+                            {columns.map((col: any) => (<td key={col.key} className="p-2"> {col.type === 'file' ? (<input type="file" className={`${inputClasses} !h-11 !py-2`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />) : (<input type={col.type} className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => { const value = col.key === 'salary' ? e.target.value.replace(/[^0-9]/g, '') : e.target.value; onRowChange(tableName, i, col.key, value); }} />)} </td>))}
                             <td className="p-2"><NeoButton onClick={() => onDeleteRow(tableName, i)} className="bg-red-500 text-white w-full text-sm !py-2">Delete</NeoButton></td>
                         </tr>
                     ))}
@@ -179,7 +179,7 @@ const ProjectRegistration: React.FC = () => {
     const [budgetYears, setBudgetYears] = useState([1]);
     const [isDraftSaved, setIsDraftSaved] = useState(false);
     const isPermanentEmployee = useUserRoleCheck();
-    
+
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_project_form_data');
     const { call: submitForm, result: submitResult, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.save_project_data');
     const { call: saveDraft, result: saveResult, error: saveError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.save_project_draft');
@@ -217,14 +217,14 @@ const ProjectRegistration: React.FC = () => {
                 handleFieldChangeWithSideEffects('pi_webmail', prefill_data.pi_webmail);
             }
         }
-        if (formDataError) { 
-            console.error("❌ Failed to fetch form data:", formDataError); 
-            alert("Error fetching form data."); 
-            setLoading(false); 
+        if (formDataError) {
+            console.error("❌ Failed to fetch form data:", formDataError);
+            alert("Error fetching form data.");
+            setLoading(false);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formDataResult, formDataError]);
-    
+
     // --- SIDE EFFECTS for dependent API calls ---
     useEffect(() => {
         if (agencyDetailsResult?.message?.all) {
@@ -239,7 +239,7 @@ const ProjectRegistration: React.FC = () => {
     // --- STABILIZED EVENT HANDLERS & RENDER FUNCTIONS ---
     const handleChange = useCallback((fieldname: string, value: any, type?: string) => { setFormData(prev => ({ ...prev, [fieldname]: type === 'checkbox' ? (value ? 1 : 0) : value })); }, []);
     const handleFileChange = useCallback((fieldname: string, file: File | null) => { setFormData(prev => ({ ...prev, [fieldname]: file })); }, []);
-    
+
     const handleFieldChangeWithSideEffects = useCallback(async (fieldname: string, value: any) => {
         handleChange(fieldname, value);
         if (fieldname === 'pi_webmail') {
@@ -267,55 +267,55 @@ const ProjectRegistration: React.FC = () => {
                 setFormData(prev => ({ ...prev, pi_userid: "", pi_employee_id: "", principal_investigator_name: "", designation: "", applicant_department: "" }));
             }
         }
-        if (fieldname === 'funding_agen' && value) { 
-            fetchAgencyDetails({ agency_name: value }); 
+        if (fieldname === 'funding_agen' && value) {
+            fetchAgencyDetails({ agency_name: value });
         }
     }, [handleChange, fetchPiDetails, fetchAgencyDetails, linkOptions]);
-    
+
     const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => { setFormData(prev => { const t = [...(prev[tableName] || [])]; t[rowIndex] = { ...t[rowIndex], [fieldname]: value }; return { ...prev, [tableName]: t }; }); }, []);
     const handleTableFileChange = useCallback((tableName: string, rowIndex: number, fieldname: string, file: File | null) => { setFormData(prev => { const t = [...(prev[tableName] || [])]; t[rowIndex] = { ...t[rowIndex], [fieldname]: file }; return { ...prev, [tableName]: t }; }); }, []);
     const addTableRow = useCallback((tableName: string, newRow: object) => { const newId = Date.now().toString() + Math.random().toString(36).substring(2, 9); setFormData(prev => ({ ...prev, [tableName]: [...(prev[tableName] || []), { ...newRow, id: newId }] })); }, []);
     const deleteTableRow = useCallback((tableName: string, rowIndex: number) => { setFormData(prev => ({ ...prev, [tableName]: (prev[tableName] || []).filter((_: any, i: number) => i !== rowIndex) })); }, []);
-    
+
     const handleCollaboratorChange = useCallback(
-      async (tableName: string, rowIndex: number, selectedUserEmail: string) => {
-        const user = (linkOptions["pi_webmail"] || []).find(c => c.value === selectedUserEmail);
-        const prefix = tableName === "co_investigator_table" ? "copi" : "pi";
-        let designation = user?.designation || "";
-        if (!designation && selectedUserEmail) {
-          try {
-            const result = await fetchPiDetails({ user_email: selectedUserEmail });
-            designation = result?.message?.designation || "";
-          } catch (err) { console.error("Failed to fetch collaborator details:", err); }
-        }
-        setFormData(prev => {
-          const t = [...(prev[tableName] || [])];
-          t[rowIndex] = { ...t[rowIndex], [`${prefix}_name`]: user?.label || "", [`${prefix}_email`]: user?.value || "", [`${prefix}_designation`]: designation };
-          return { ...prev, [tableName]: t };
-        });
-      }, [linkOptions, fetchPiDetails]
+        async (tableName: string, rowIndex: number, selectedUserEmail: string) => {
+            const user = (linkOptions["pi_webmail"] || []).find(c => c.value === selectedUserEmail);
+            const prefix = tableName === "co_investigator_table" ? "copi" : "pi";
+            let designation = user?.designation || "";
+            if (!designation && selectedUserEmail) {
+                try {
+                    const result = await fetchPiDetails({ user_email: selectedUserEmail });
+                    designation = result?.message?.designation || "";
+                } catch (err) { console.error("Failed to fetch collaborator details:", err); }
+            }
+            setFormData(prev => {
+                const t = [...(prev[tableName] || [])];
+                t[rowIndex] = { ...t[rowIndex], [`${prefix}_name`]: user?.label || "", [`${prefix}_email`]: user?.value || "", [`${prefix}_designation`]: designation };
+                return { ...prev, [tableName]: t };
+            });
+        }, [linkOptions, fetchPiDetails]
     );
 
     const addBudgetRow = useCallback(() => addTableRow("proposed_budget_breakup", { account_head: "", years: budgetYears.map(() => "") }), [addTableRow, budgetYears]);
     const addBudgetYear = useCallback(() => { if (budgetYears.length < 5) { setBudgetYears(prev => [...prev, prev.length + 1]); setFormData(prev => ({ ...prev, proposed_budget_breakup: (prev.proposed_budget_breakup || []).map(row => ({ ...row, years: [...(row.years || []), ""] })) })); } else { alert("Maximum of 5 years allowed."); } }, [budgetYears]);
     const deleteLastBudgetYear = useCallback(() => { if (budgetYears.length > 1) { setBudgetYears(prev => prev.slice(0, -1)); setFormData(prev => ({ ...prev, proposed_budget_breakup: (prev.proposed_budget_breakup || []).map(row => ({ ...row, years: (row.years || []).slice(0, -1) })) })); } }, [budgetYears]);
     const handleBudgetRowChange = useCallback((rowIndex: number, fieldname: string, value: any, yearIndex?: number) => {
-    setFormData(prev => {
-        const table = [...(prev.proposed_budget_breakup || [])];
-        const row = { ...table[rowIndex] } as { head: string; years: (number | string)[] };
+        setFormData(prev => {
+            const table = [...(prev.proposed_budget_breakup || [])];
+            const row = { ...table[rowIndex] } as { head: string; years: (number | string)[] };
 
-        if (fieldname === "years" && yearIndex !== undefined) {
-            const years = [...(row.years || [])];
-            years[yearIndex] = value;
-            row.years = years;
-        } else if (fieldname === "account_head") {
-            row.head = value;
-        }
+            if (fieldname === "years" && yearIndex !== undefined) {
+                const years = [...(row.years || [])];
+                years[yearIndex] = value;
+                row.years = years;
+            } else if (fieldname === "account_head") {
+                row.head = value;
+            }
 
-        table[rowIndex] = row;
-        return { ...prev, proposed_budget_breakup: table };
-    });
-}, []);
+            table[rowIndex] = row;
+            return { ...prev, proposed_budget_breakup: table };
+        });
+    }, []);
 
     const ALWAYS_HIDDEN_FIELDS = ["department_head", "head_approver"];
 
@@ -336,7 +336,7 @@ const ProjectRegistration: React.FC = () => {
     }, [fields, formData, linkOptions, handleFieldChangeWithSideEffects, handleFileChange]);
 
     const renderFields = (fieldnames: string[]) => fieldnames.map(fn => renderField(fn));
-    
+
     const fileToBase64 = (file: File): Promise<{ file_name: string; file_data: string }> => new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = () => res({ file_name: file.name, file_data: r.result as string }); r.onerror = e => rej(e); });
     const prepareDataForApi = async () => { const data = JSON.parse(JSON.stringify(formData)); if (docname) data.name = docname; for (const k in formData) { const v = formData[k]; if (v instanceof File) data[k] = await fileToBase64(v); else if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) for (const rk in v[i]) if (v[i][rk] instanceof File) data[k][i][rk] = await fileToBase64(v[i][rk]); } } return data; };
     const handleSubmit = async (e: React.FormEvent) => { e.preventDefault(); if (isSubmitting || isSavingDraft) return; setIsSubmitting(true); try { const data = await prepareDataForApi(); await submitForm({ doc: data }); } catch (err) { alert("File processing error."); setIsSubmitting(false); } };
@@ -344,11 +344,11 @@ const ProjectRegistration: React.FC = () => {
 
     // --- RENDER LOGIC ---
     if (loading) return (<div className="flex items-center justify-center min-h-screen bg-[#FDFCEC]"><div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-[#90A4AE] mx-auto"></div><p className="mt-4 text-2xl font-bold text-black">LOADING FORM...</p></div></div>);
-    
+
     const budgetTableData = formData.proposed_budget_breakup || [];
     const totalBudgetAmount = budgetTableData.reduce((acc, row) => acc + (row.years || []).reduce((sum: number, val) => sum + Number(val || 0), 0), 0);
     const getYearTotal = (yearIndex: number) => budgetTableData.reduce((sum: number, row) => sum + Number((row.years || [])[yearIndex] || 0), 0);
-    
+
     // const tabButtons = ["Project Details", "PI & Collaborators", "Budget", "Clearance", "Sanction & Funds"];
     const tabButtons = ["Project Details", "PI & Collaborators", "Budget", "Clearance"];
     const renderNextPrevButtons = (showPrev: boolean, showNext: boolean, isLast = false) => (
@@ -357,36 +357,36 @@ const ProjectRegistration: React.FC = () => {
         //     {isLast ? (<div className="flex flex-col sm:flex-row gap-4"><NeoButton onClick={handleSaveDraft} disabled={isSubmitting || isSavingDraft} className="bg-white">{isSavingDraft ? "SAVING..." : "Save As Draft"}</NeoButton><NeoButton type="submit" disabled={isSubmitting || isSavingDraft || !isDraftSaved} className="bg-[#A5D6A7] disabled:bg-gray-300">{isSubmitting ? "SUBMITTING..." : "Submit Registration"}</NeoButton></div>) 
         //     : (<NeoButton onClick={() => setActiveTab(activeTab + 1)} className={cn("bg-[#A5D6A7]", !showNext && "invisible")}>Next Section</NeoButton>)}
         // </div>
-<div className="mt-8 flex justify-between items-center bg-white p-4 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-  {/* Previous Button */}
-  <NeoButton
-    onClick={() => setActiveTab(activeTab - 1)}
-    className={cn("bg-white", !showPrev && "invisible")}
-  >
-    Previous
-  </NeoButton>
+        <div className="mt-8 flex justify-between items-center bg-white p-4 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+            {/* Previous Button */}
+            <NeoButton
+                onClick={() => setActiveTab(activeTab - 1)}
+                className={cn("bg-white", !showPrev && "invisible")}
+            >
+                Previous
+            </NeoButton>
 
-  {/* If Last Tab → Show Only "Save as Draft" */}
-  {isLast ? (
-    <div className="flex flex-col sm:flex-row gap-4">
-      <NeoButton
-        onClick={handleSaveDraft}
-        disabled={isSubmitting || isSavingDraft}
-        className="bg-white"
-      >
-        {isSavingDraft ? "SAVING..." : "Save As Draft"}
-      </NeoButton>
-    </div>
-  ) : (
-    /* Otherwise Show "Next Section" */
-    <NeoButton
-      onClick={() => setActiveTab(activeTab + 1)}
-      className={cn("bg-[#A5D6A7]", !showNext && "invisible")}
-    >
-      Next Section
-    </NeoButton>
-  )}
-</div>
+            {/* If Last Tab → Show Only "Save as Draft" */}
+            {isLast ? (
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <NeoButton
+                        onClick={handleSaveDraft}
+                        disabled={isSubmitting || isSavingDraft}
+                        className="bg-white"
+                    >
+                        {isSavingDraft ? "SAVING..." : "Save As Draft"}
+                    </NeoButton>
+                </div>
+            ) : (
+                /* Otherwise Show "Next Section" */
+                <NeoButton
+                    onClick={() => setActiveTab(activeTab + 1)}
+                    className={cn("bg-[#A5D6A7]", !showNext && "invisible")}
+                >
+                    Next Section
+                </NeoButton>
+            )}
+        </div>
 
 
 
@@ -405,7 +405,7 @@ const ProjectRegistration: React.FC = () => {
 
     return (
         <div className="bg-[#FDFCEC]">
-            <AppSidebar isPermanentEmployee={!!isPermanentEmployee} />
+            <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden bg-[#FDFCEC]]">
                 <header className="mb-3">
                     <h1 className="text-3xl md:text-4xl font-extrabold text-black tracking-tight uppercase">New Project Registration</h1>
@@ -414,7 +414,7 @@ const ProjectRegistration: React.FC = () => {
                 <div className="border-b-2 border-black flex mb-8">
                     {tabButtons.map((title, index) => (<button key={index} type="button" onClick={() => setActiveTab(index)} className={cn("flex-1 py-4 px-2 font-bold text-black text-center transition-all border-r-2 border-black last:border-r-0 text-sm md:text-base", activeTab === index ? "bg-[#B0BEC5] text-white" : "bg-white hover:bg-gray-100")}>{title}</button>))}
                 </div>
-                
+
                 <form id="project-registration-form" onSubmit={handleSubmit}>
                     {fields.length > 0 && <>
                         <div className={activeTab === 0 ? "block" : "hidden"}>
@@ -440,7 +440,7 @@ const ProjectRegistration: React.FC = () => {
                             </NeoCard>
                             {renderNextPrevButtons(false, true)}
                         </div>
-                        
+
                         <div className={activeTab === 1 ? "block" : "hidden"}>
                             <NeoCard className="space-y-10">
                                 <h2 className="text-3xl font-bold uppercase text-black">2. Investigators & Collaborators</h2>
@@ -470,8 +470,8 @@ const ProjectRegistration: React.FC = () => {
                                 <p className="font-mono text-gray-700">Provide a detailed year-wise breakup of the proposed budget.</p>
                                 <MemoizedBudgetTable tableData={budgetTableData} budgetYears={budgetYears} budgetHeadOptions={budgetHeadOptions} onRowChange={handleBudgetRowChange} onAddRow={addBudgetRow} onDeleteRow={deleteTableRow} onAddYear={addBudgetYear} onDeleteYear={deleteLastBudgetYear} getYearTotal={getYearTotal} totalBudgetAmount={totalBudgetAmount} />
                                 <div className="space-y-6 border-t-2 border-black pt-8">{renderFields(tabFieldGroups.budgetToggles)}</div>
-                                {formData.equipment_checkbox ? (<MemoizedGenericTable tableName={'proposed_equipment_details'} columns={[{key: 'item_name', label: 'Equipment Name*', type: 'text'}, {key: 'cost', label: 'Cost (₹)', type: 'number'}]} newRow={{item_name: '', cost: 0}} tableData={formData.proposed_equipment_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
-                                {formData.manpower_checkbox ? (<MemoizedGenericTable tableName={'proposed_manpower_details'} columns={[{key: 'designation_name', label: 'Position*', type: 'text'}, {key: 'salary', label: 'Salary (₹)', type: 'number'}]} newRow={{designation_name: '', salary: 0}} tableData={formData.proposed_manpower_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
+                                {formData.equipment_checkbox ? (<MemoizedGenericTable tableName={'proposed_equipment_details'} columns={[{ key: 'item_name', label: 'Equipment Name*', type: 'text' }, { key: 'cost', label: 'Cost (₹)', type: 'number' }]} newRow={{ item_name: '', cost: 0 }} tableData={formData.proposed_equipment_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
+                                {formData.manpower_checkbox ? (<MemoizedGenericTable tableName={'proposed_manpower_details'} columns={[{ key: 'designation_name', label: 'Position*', type: 'text' }, { key: 'salary', label: 'Salary (₹)', type: 'number' }]} newRow={{ designation_name: '', salary: 0 }} tableData={formData.proposed_manpower_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
                             </NeoCard>
                             {renderNextPrevButtons(true, true)}
                         </div>
@@ -513,88 +513,88 @@ const ProjectRegistration: React.FC = () => {
                                 </div>
                             </NeoCard> */}
 
-<NeoCard className="space-y-10">
-  {/* <h2 className="text-3xl font-bold uppercase text-black">5. Sanction & Funds</h2> */}
-  <div className="space-y-6">
-    {renderField("have_sanction_details")}
+                            <NeoCard className="space-y-10">
+                                {/* <h2 className="text-3xl font-bold uppercase text-black">5. Sanction & Funds</h2> */}
+                                <div className="space-y-6">
+                                    {renderField("have_sanction_details")}
 
-    {formData.have_sanction_details === "Yes" && (
-      <NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
-        <h3 className="text-2xl font-bold uppercase text-black">Sanction Details</h3>
+                                    {formData.have_sanction_details === "Yes" && (
+                                        <NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+                                            <h3 className="text-2xl font-bold uppercase text-black">Sanction Details</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {renderFields(tabFieldGroups.sanction)}
-        </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                {renderFields(tabFieldGroups.sanction)}
+                                            </div>
 
-        <div className="space-y-4">
-          <MemoizedGenericTable
-            tableName={'sanctioned_budget_breakup'}
-            columns={[
-              { key: 'head', label: 'Budget Head', type: 'text' },
-              { key: 'amount', label: 'Amount (₹)', type: 'number' },
-            ]}
-            newRow={{ head: '', amount: 0 }}
-            tableData={formData.sanctioned_budget_breakup}
-            onRowChange={handleTableRowChange}
-            onFileChange={handleTableFileChange}
-            onAddRow={addTableRow}
-            onDeleteRow={deleteTableRow}
-          />
-        </div>
+                                            <div className="space-y-4">
+                                                <MemoizedGenericTable
+                                                    tableName={'sanctioned_budget_breakup'}
+                                                    columns={[
+                                                        { key: 'head', label: 'Budget Head', type: 'text' },
+                                                        { key: 'amount', label: 'Amount (₹)', type: 'number' },
+                                                    ]}
+                                                    newRow={{ head: '', amount: 0 }}
+                                                    tableData={formData.sanctioned_budget_breakup}
+                                                    onRowChange={handleTableRowChange}
+                                                    onFileChange={handleTableFileChange}
+                                                    onAddRow={addTableRow}
+                                                    onDeleteRow={deleteTableRow}
+                                                />
+                                            </div>
 
-        <div className="space-y-4">
-          <MemoizedGenericTable
-            tableName={'sanction_related_files'}
-            columns={[{ key: 'file', label: 'File', type: 'file' }]}
-            newRow={{ file: null }}
-            tableData={formData.sanction_related_files}
-            onRowChange={handleTableRowChange}
-            onFileChange={handleTableFileChange}
-            onAddRow={addTableRow}
-            onDeleteRow={deleteTableRow}
-          />
-        </div>
-      </NeoCard>
-    )}
-  </div>
+                                            <div className="space-y-4">
+                                                <MemoizedGenericTable
+                                                    tableName={'sanction_related_files'}
+                                                    columns={[{ key: 'file', label: 'File', type: 'file' }]}
+                                                    newRow={{ file: null }}
+                                                    tableData={formData.sanction_related_files}
+                                                    onRowChange={handleTableRowChange}
+                                                    onFileChange={handleTableFileChange}
+                                                    onAddRow={addTableRow}
+                                                    onDeleteRow={deleteTableRow}
+                                                />
+                                            </div>
+                                        </NeoCard>
+                                    )}
+                                </div>
 
-  <div className="space-y-6">
-    {renderField("have_fund_details")}
+                                <div className="space-y-6">
+                                    {renderField("have_fund_details")}
 
-    {formData.have_fund_details === "Yes" && (
-      <NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
-        <h3 className="text-2xl font-bold uppercase text-black">Fund Details</h3>
+                                    {formData.have_fund_details === "Yes" && (
+                                        <NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+                                            <h3 className="text-2xl font-bold uppercase text-black">Fund Details</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {renderFields(tabFieldGroups.funds)}
-        </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                {renderFields(tabFieldGroups.funds)}
+                                            </div>
 
-        <div className="space-y-4">
-          <MemoizedGenericTable
-            tableName={'fund_transactions'}
-            columns={[
-              { key: 'installmentNo', label: 'Installment No.', type: 'text' },
-              { key: 'dateReceived', label: 'Date Received', type: 'date' },
-              { key: 'amount', label: 'Amount (₹)', type: 'number' },
-            ]}
-            newRow={{ installmentNo: '', dateReceived: '', amount: 0 }}
-            tableData={formData.fund_transactions}
-            onRowChange={handleTableRowChange}
-            onFileChange={handleTableFileChange}
-            onAddRow={addTableRow}
-            onDeleteRow={deleteTableRow}
-          />
-        </div>
-      </NeoCard>
-    )}
-  </div>
+                                            <div className="space-y-4">
+                                                <MemoizedGenericTable
+                                                    tableName={'fund_transactions'}
+                                                    columns={[
+                                                        { key: 'installmentNo', label: 'Installment No.', type: 'text' },
+                                                        { key: 'dateReceived', label: 'Date Received', type: 'date' },
+                                                        { key: 'amount', label: 'Amount (₹)', type: 'number' },
+                                                    ]}
+                                                    newRow={{ installmentNo: '', dateReceived: '', amount: 0 }}
+                                                    tableData={formData.fund_transactions}
+                                                    onRowChange={handleTableRowChange}
+                                                    onFileChange={handleTableFileChange}
+                                                    onAddRow={addTableRow}
+                                                    onDeleteRow={deleteTableRow}
+                                                />
+                                            </div>
+                                        </NeoCard>
+                                    )}
+                                </div>
 
-  {/* 🟢 Instruction after saving */}
-  <div className="p-4 mt-6 border-l-4 border-green-600 bg-green-50 text-green-800 rounded-md shadow-sm">
-    💡 <strong>Next Step:</strong> After saving this project draft, go to the <strong>Project View</strong> page,
-    open your specific project, and then click <strong>Submit</strong> to proceed.
-  </div>
-</NeoCard>
+                                {/* 🟢 Instruction after saving */}
+                                <div className="p-4 mt-6 border-l-4 border-green-600 bg-green-50 text-green-800 rounded-md shadow-sm">
+                                    💡 <strong>Next Step:</strong> After saving this project draft, go to the <strong>Project View</strong> page,
+                                    open your specific project, and then click <strong>Submit</strong> to proceed.
+                                </div>
+                            </NeoCard>
 
 
 

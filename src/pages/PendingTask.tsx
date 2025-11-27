@@ -11,6 +11,9 @@ import { GlobalLoader } from '@/components/ui/global-loader';
 interface PendingTaskRecord {
     name: string;
     title: string;
+    status: string;
+    modified: string;
+    owner: string;
 }
 
 interface PendingTaskResult {
@@ -44,11 +47,10 @@ const PendingTask: React.FC = () => {
     const itemsPerPage = 5;
 
     // Fetch data from the API
-    const { data, isLoading, error } = useFrappeGetCall<{ message: { results: PendingTaskResult[] } }>(
+    const { data, isLoading, error } = useFrappeGetCall<PendingTaskResponse>(
         "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_task",
         {
-            page_name: "pending-task",
-            status_value: "Pending Staff Approval"
+            page_name: "pending-task"
         }
     );
 
@@ -63,9 +65,9 @@ const PendingTask: React.FC = () => {
                     id: record.name,
                     title: record.title,
                     description: `${group.doctype} - ${record.name}`, // Construct a description
-                    status: 'Pending', // Default status based on API context
+                    status: record.status, // Use actual status from API
                     priority: 'Medium', // Default priority
-                    date: new Date().toISOString().split('T')[0], // Default to today's date or placeholder
+                    date: record.modified?.split(' ')[0] || new Date().toISOString().split('T')[0], // Use modified date
                     doctype: group.doctype
                 });
             });
@@ -106,6 +108,24 @@ const PendingTask: React.FC = () => {
             case 'Low': return 'bg-green-300';
             default: return 'bg-gray-200';
         }
+    };
+
+    const getPageNumbers = () => {
+        const pages: (number | string)[] = [];
+        const maxButtons = 3;
+
+        if (totalPages <= maxButtons) {
+            for (let i = 1; i <= totalPages; i++) pages.push(i);
+        } else {
+            if (currentPage <= 3) {
+                pages.push(1, 2, 3, '...', totalPages);
+            } else if (currentPage >= totalPages - 2) {
+                pages.push(1, '...', totalPages - 2, totalPages - 1, totalPages);
+            } else {
+                pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+            }
+        }
+        return pages;
     };
 
     if (error) {
@@ -212,7 +232,16 @@ const PendingTask: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="p-4">
-                                                <NeoButton className="bg-[#A5D6A7] hover:bg-[#81C784] text-sm py-2 px-4 w-full">
+                                                <NeoButton
+                                                    className="bg-[#A5D6A7] hover:bg-[#81C784] text-sm py-2 px-4 w-full"
+                                                    onClick={() => {
+                                                        if (task.doctype === "Fund Received") {
+                                                            navigate(`/fund-received/${task.id}`);
+                                                        } else {
+                                                            navigate(`/pending-tasks/${task.doctype}/${task.id}`);
+                                                        }
+                                                    }}
+                                                >
                                                     View
                                                 </NeoButton>
                                             </td>
@@ -243,16 +272,18 @@ const PendingTask: React.FC = () => {
                                 >
                                     Previous
                                 </button>
-                                {Array.from({ length: totalPages }, (_, i) => (
+                                {getPageNumbers().map((page, index) => (
                                     <button
-                                        key={i + 1}
-                                        onClick={() => handlePageChange(i + 1)}
+                                        key={index}
+                                        onClick={() => typeof page === 'number' && handlePageChange(page)}
+                                        disabled={typeof page !== 'number'}
                                         className={cn(
                                             "px-3 py-1 border-2 border-black rounded-md font-bold shadow-[2px_2px_0px_rgba(0,0,0,0.25)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all",
-                                            currentPage === i + 1 ? "bg-[#A5D6A7]" : "bg-white hover:bg-gray-200"
+                                            page === currentPage ? "bg-[#A5D6A7]" : "bg-white hover:bg-gray-200",
+                                            typeof page !== 'number' && "cursor-default hover:bg-white shadow-none border-none active:translate-x-0 active:translate-y-0"
                                         )}
                                     >
-                                        {i + 1}
+                                        {page}
                                     </button>
                                 ))}
                                 <button

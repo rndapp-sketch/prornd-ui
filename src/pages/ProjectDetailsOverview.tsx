@@ -770,7 +770,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         )}
 
                         {/* Fund Details Section */}
-                        <FundDetails project_title={projectName || ""} />
+                        <FundDetails project_title={projectName || ""} sanction_ref_no={sanction.name} />
                       </NeoCard>
                     );
                   })

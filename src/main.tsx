@@ -32,7 +32,9 @@ import { ProjectStaffDashboard } from './pages/dashboards/ProjectStaffDashboard.
 import { DirectorDashboard } from './pages/dashboards/DirectorDashboard.tsx';
 import Reimbursement from './pages/reimbursement/Reimbursement.tsx';
 import PendingTask from './pages/PendingTask.tsx';
+import PendingTaskDetails from './pages/PendingTaskDetails.tsx';
 import DynamicFormPage from './pages/DynamicFormPage.tsx'; // Import DynamicFormPage
+import FundReceivedDetails from './pages/FundReceivedDetails.tsx';
 // Add any other page imports you need
 // import TestDoctype from './pages/TestDoctype.tsx';
 // import UserDetails from './pages/UserDetails.tsx';
@@ -225,8 +227,36 @@ const router = createBrowserRouter(
         {
           path: "pending-task",
           element: (
-            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+            <AuthRouteWrapper allowedRole={[
+              'Director',
+              'Dean, RnD',
+              'head_approver_1',
+              'Hos, RnD (Head of Section, RnD)',
+              'staff, RnD'
+            ]}>
               <PendingTask />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "pending-tasks/:doctype/:name",
+          element: (
+            <AuthRouteWrapper allowedRole={[
+              'Director',
+              'Dean, RnD',
+              'head_approver_1',
+              'Hos, RnD (Head of Section, RnD)',
+              'staff, RnD'
+            ]}>
+              <PendingTaskDetails />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "fund-received/:name",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <FundReceivedDetails />
             </AuthRouteWrapper>
           ),
         },

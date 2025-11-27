@@ -109,14 +109,14 @@ function App() {
                           <UserIcon className="h-4 w-4 text-blue-600" />
                         </div>
                       )}
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-700">
+                      {/* <div className="flex flex-col"> */}
+                      {/* <span className="text-sm font-medium text-gray-700">
                           {fullName}
-                        </span>
-                        <span className="text-xs text-gray-500">
+                        </span> */}
+                      {/* <span className="text-xs text-gray-500">
                           {isPermanentEmployee ? "Permanent Employee" : "Project Staff"}
-                        </span>
-                      </div>
+                        </span> */}
+                      {/* </div> */}
                     </div>
                   )}
                 </div>
