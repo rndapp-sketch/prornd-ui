@@ -128,9 +128,25 @@ export function AppSidebar() {
     }
     if (item.label === "Projects") {
       // Hide Projects tab for "staff, RnD"
-      if (roles && roles.includes("staff, RnD")) {
+      // if (roles && roles.includes("staff, RnD")) {
+      //   return false;
+      // }
+      // if (roles?.some(r =>
+      //   r === "staff, RnD" ||
+      //   r === "Hos, RnD (Head of Section, RnD)"
+      // )) {
+      //   return false;
+      // }
+
+      if (
+        roles &&
+        (roles.includes("staff, RnD") ||
+          roles.includes("Hos, RnD (Head of Section, RnD)"))
+      ) {
         return false;
       }
+
+
     }
     return true;
   });

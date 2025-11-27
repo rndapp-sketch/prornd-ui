@@ -64,8 +64,11 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
 
   }, [isAuthLoading, isRolesLoading, currentUser, roles, rolesError, allowedRole, navigate]);
 
-  // Show a loading screen ONLY while loading.
-  if (isAuthLoading || isRolesLoading) {
+  // Show a loading screen ONLY while loading initial data.
+  // If we already have a currentUser, we don't want to block UI on background auth checks.
+  const shouldShowLoader = (isAuthLoading && currentUser === undefined) || isRolesLoading;
+
+  if (shouldShowLoader) {
     return <GlobalLoader isLoading={true} />;
   }
 

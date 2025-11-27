@@ -8,7 +8,7 @@ interface UseUserRolesResult {
 }
 
 export const useUserRoles = (user: string | null): UseUserRolesResult => {
-  const { data, error, isLoading, isValidating } = useFrappeGetCall(
+  const { data, error, isLoading } = useFrappeGetCall(
     "rndopsapp.rndopsapp.api.get_user_roles",
     { user },
     {
@@ -26,8 +26,9 @@ export const useUserRoles = (user: string | null): UseUserRolesResult => {
 
   // Fix race condition: 
   // 1. If user exists but no data/error, we are loading.
-  // 2. If we are validating (refetching in background), treat as loading to ensure we get the latest roles.
-  const isEffectiveLoading = !!user && (isLoading || isValidating || (!data && !error));
+  // 2. We do NOT include isValidating here, because that triggers on background refetches (focus/reconnect)
+  //    and would cause the UI to unmount/remount, losing form state.
+  const isEffectiveLoading = !!user && (isLoading || (data === undefined && !error));
 
   const roles = (data?.message || []) as string[];
   return { roles, isLoading: isEffectiveLoading, error };

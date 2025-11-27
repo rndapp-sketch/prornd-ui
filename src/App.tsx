@@ -3,21 +3,25 @@
 
 
 import { FrappeProvider, useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/RndSidebar";
 import { SidebarProvider, SidebarTrigger, SidebarInset, Sidebar } from "@/components/ui/sidebar";
 import { MenuIcon, UserIcon } from "lucide-react";
 import { GlobalLoader } from "@/components/ui/global-loader";
+import { SWRConfig } from "swr";
 
 function App() {
   const { currentUser } = useFrappeAuth();
+  const location = useLocation();
+  const isPublicPage = location.pathname === "/" || location.pathname === "/login";
+
   const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc("User", currentUser ?? "", {
     fields: ["user_image", "full_name", "roles"],
     enabled: !!currentUser,
   });
 
-  let fullName = "";
-  let isPermanentEmployee = false;
+  // let fullName = "";
+  // let isPermanentEmployee = false;
 
   // Process user data to get the actual user information
   let actualUserData = null;
@@ -33,18 +37,18 @@ function App() {
   }
 
   // Extract user information from the processed data
-  if (actualUserData) {
-    fullName = actualUserData.full_name || currentUser || "User";
+  // if (actualUserData) {
+  //   fullName = actualUserData.full_name || currentUser || "User";
 
-    // Handle roles array to determine if user is permanent employee
-    if (Array.isArray(actualUserData.roles) && actualUserData.roles.length > 0) {
-      if (typeof actualUserData.roles[0] === 'string') {
-        isPermanentEmployee = actualUserData.roles.includes("Permanent Employee");
-      } else if (typeof actualUserData.roles[0] === 'object' && actualUserData.roles[0] !== null && 'role' in actualUserData.roles[0]) {
-        isPermanentEmployee = actualUserData.roles.some((role: any) => role.role === "Permanent Employee");
-      }
-    }
-  }
+  //   // Handle roles array to determine if user is permanent employee
+  //   if (Array.isArray(actualUserData.roles) && actualUserData.roles.length > 0) {
+  //     if (typeof actualUserData.roles[0] === 'string') {
+  //       isPermanentEmployee = actualUserData.roles.includes("Permanent Employee");
+  //     } else if (typeof actualUserData.roles[0] === 'object' && actualUserData.roles[0] !== null && 'role' in actualUserData.roles[0]) {
+  //       isPermanentEmployee = actualUserData.roles.some((role: any) => role.role === "Permanent Employee");
+  //     }
+  //   }
+  // }
 
   // Get user image URL with fallback
   const getUserImageUrl = () => {
@@ -70,63 +74,74 @@ function App() {
         socketPort="9001"
         siteName="prornd.local"
       >
-        <SidebarProvider className="flex h-screen bg-gray-50">
-          {currentUser && (
-            <Sidebar collapsible="offcanvas">
-              <AppSidebar />
-            </Sidebar>
-          )}
-          <SidebarInset>
-            <header className="flex items-center justify-between gap-4 p-4 border-b bg-white shadow-sm">
-              <div className="flex items-center gap-4">
-                <SidebarTrigger className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                  <MenuIcon className="size-5 text-gray-600" />
-                </SidebarTrigger>
-                {/* <h1 className="text-xl font-semibold text-gray-800">R&D Portal</h1> */}
-              </div>
+        <SWRConfig value={{
+          revalidateOnFocus: false,
+          revalidateOnReconnect: false,
+          refreshInterval: 0,
+          shouldRetryOnError: false
+        }}>
+          {isPublicPage ? (
+            <Outlet />
+          ) : (
+            <SidebarProvider className="flex h-screen bg-gray-50">
               {currentUser && (
-                <div className="flex items-center gap-3">
-                  {isUserLoading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse"></div>
-                      <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
-                      {userImageUrl ? (
-                        <img
-                          src={userImageUrl}
-                          alt="User Profile"
-                          className="h-8 w-8 rounded-full object-cover border border-gray-300"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.onerror = null;
-                            target.src = 'https://placehold.co/32x32/E0E7FF/4F46E5?text=NA';
-                          }}
-                        />
+                <Sidebar collapsible="offcanvas">
+                  <AppSidebar />
+                </Sidebar>
+              )}
+              <SidebarInset>
+                <header className="flex items-center justify-between gap-4 p-4 border-b bg-white shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <SidebarTrigger className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                      <MenuIcon className="size-5 text-gray-600" />
+                    </SidebarTrigger>
+                    {/* <h1 className="text-xl font-semibold text-gray-800">R&D Portal</h1> */}
+                  </div>
+                  {currentUser && (
+                    <div className="flex items-center gap-3">
+                      {isUserLoading ? (
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse"></div>
+                          <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
+                        </div>
                       ) : (
-                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center border border-blue-200">
-                          <UserIcon className="h-4 w-4 text-blue-600" />
+                        <div className="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+                          {userImageUrl ? (
+                            <img
+                              src={userImageUrl}
+                              alt="User Profile"
+                              className="h-8 w-8 rounded-full object-cover border border-gray-300"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.onerror = null;
+                                target.src = 'https://placehold.co/32x32/E0E7FF/4F46E5?text=NA';
+                              }}
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center border border-blue-200">
+                              <UserIcon className="h-4 w-4 text-blue-600" />
+                            </div>
+                          )}
+                          {/* <div className="flex flex-col"> */}
+                          {/* <span className="text-sm font-medium text-gray-700">
+                            {fullName}
+                          </span> */}
+                          {/* <span className="text-xs text-gray-500">
+                            {isPermanentEmployee ? "Permanent Employee" : "Project Staff"}
+                          </span> */}
+                          {/* </div> */}
                         </div>
                       )}
-                      {/* <div className="flex flex-col"> */}
-                      {/* <span className="text-sm font-medium text-gray-700">
-                          {fullName}
-                        </span> */}
-                      {/* <span className="text-xs text-gray-500">
-                          {isPermanentEmployee ? "Permanent Employee" : "Project Staff"}
-                        </span> */}
-                      {/* </div> */}
                     </div>
                   )}
-                </div>
-              )}
-            </header>
-            <main className="flex-1 overflow-y-auto p-4 bg-gray-50/50">
-              <Outlet />
-            </main>
-          </SidebarInset>
-        </SidebarProvider>
+                </header>
+                <main className="flex-1 overflow-y-auto p-4 bg-gray-50/50">
+                  <Outlet />
+                </main>
+              </SidebarInset>
+            </SidebarProvider>
+          )}
+        </SWRConfig>
       </FrappeProvider>
     </div>
   );
