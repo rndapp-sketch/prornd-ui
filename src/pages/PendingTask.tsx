@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FaClock, FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
+import { FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import { AppSidebar } from '@/components/RndSidebar';
 import { NeoButton } from '@/components/ui/neo-brutalism';
@@ -12,6 +12,7 @@ interface PendingTaskRecord {
     name: string;
     title: string;
     status: string;
+    creation: string;
     modified: string;
     owner: string;
 }
@@ -33,10 +34,12 @@ interface PendingTaskResponse {
 interface FlattenedTask {
     id: string;
     title: string;
-    description: string; // We'll use the title or doctype as description for now since API doesn't provide one
+    "Project Number": string; // We'll use the title or doctype as description for now since API doesn't provide one
     status: string;
     priority: string; // API doesn't provide priority, will default
-    date: string; // API doesn't provide date, will default
+    creation: string;
+    modified: string;
+    owner: string;
     doctype: string;
 }
 
@@ -64,10 +67,12 @@ const PendingTask: React.FC = () => {
                 tasks.push({
                     id: record.name,
                     title: record.title,
-                    description: `${group.doctype} - ${record.name}`, // Construct a description
+                    "Project Number": record.name, // Use record name as description (Project Number)
                     status: record.status, // Use actual status from API
                     priority: 'Medium', // Default priority
-                    date: record.modified?.split(' ')[0] || new Date().toISOString().split('T')[0], // Use modified date
+                    creation: record.creation,
+                    modified: record.modified,
+                    owner: record.owner,
                     doctype: group.doctype
                 });
             });
@@ -195,8 +200,11 @@ const PendingTask: React.FC = () => {
                                     <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Status</th>
                                     <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Module Name</th>
                                     <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Title</th>
-                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Description</th>
-                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Date</th>
+                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Project Number</th>
+
+                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Creation</th>
+                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Modified</th>
+                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Owner</th>
                                     <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Priority</th>
                                     <th className="p-4 font-extrabold text-black uppercase tracking-wider">Action</th>
                                 </tr>
@@ -218,13 +226,16 @@ const PendingTask: React.FC = () => {
                                                 {task.title}
                                             </td>
                                             <td className="p-4 border-r-2 border-black font-mono text-gray-800">
-                                                {task.description}
+                                                {task["Project Number"]}
                                             </td>
-                                            <td className="p-4 border-r-2 border-black font-mono font-semibold">
-                                                <div className="flex items-center gap-2">
-                                                    <FaClock className="w-4 h-4 text-gray-600" />
-                                                    {task.date}
-                                                </div>
+                                            <td className="p-4 border-r-2 border-black font-mono font-semibold text-sm">
+                                                {task.creation ? new Date(task.creation).toLocaleString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true }) : "-"}
+                                            </td>
+                                            <td className="p-4 border-r-2 border-black font-mono font-semibold text-sm">
+                                                {task.modified ? new Date(task.modified).toLocaleString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true }) : "-"}
+                                            </td>
+                                            <td className="p-4 border-r-2 border-black font-mono text-sm">
+                                                {task.owner}
                                             </td>
                                             <td className="p-4 border-r-2 border-black">
                                                 <span className={cn("px-3 py-1 rounded-md border-2 border-black text-black font-bold text-sm inline-block", getPriorityColor(task.priority))}>
@@ -249,7 +260,7 @@ const PendingTask: React.FC = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={7} className="p-8 text-center font-bold text-gray-500">
+                                        <td colSpan={9} className="p-8 text-center font-bold text-gray-500">
                                             {isLoading ? "Loading tasks..." : "No pending tasks found."}
                                         </td>
                                     </tr>

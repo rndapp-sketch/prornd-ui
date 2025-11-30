@@ -506,7 +506,7 @@
 
 //     return (
 //         <div className="bg-[#FDFCEC]">
-//             <AppSidebar isPermanentEmployee={true} />
+//             <AppSidebar   />
 //             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
 //               <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
 //                   <div className="flex items-center gap-4">

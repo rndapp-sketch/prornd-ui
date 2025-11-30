@@ -115,7 +115,7 @@ const PendingTaskDetails: React.FC = () => {
     // Separate simple fields and table fields
     const simpleFields = Object.entries(data).filter(([key, value]) => {
         // Simple fields are not arrays and not objects (except null), and don't start with underscore
-        return !Array.isArray(value) && (typeof value !== 'object' || value === null) && !key.startsWith('_');
+        return !Array.isArray(value) && (typeof value !== 'object' || value === null) && !key.startsWith('_') && key !== 'docstatus' && key !== 'idx' && key !== 'creation' && key !== 'modified' && key !== 'owner' && key !== 'name' && key !== 'doctype';
     });
 
     const tableFields = Object.entries(data).filter(([key, value]) => {

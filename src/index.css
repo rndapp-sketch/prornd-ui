@@ -114,84 +114,134 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
   }
 
   @font-face {
-  font-family: 'Metropolis';
-  src: url('/fonts/Metropolis-Regular.otf') format('opentype');
-  font-weight: normal;
-  font-style: normal;
-}
+    font-family: 'Metropolis';
+    src: url('/fonts/Metropolis-Regular.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+  }
 
-.title-text {
-  color: #2B2C79;
-  font-size: 20px;
-  font-family: 'Metropolis', sans-serif;
-  font-weight: 400;
-  line-height: 24px;
-  word-wrap: break-word;
-}
+  .title-text {
+    color: #2B2C79;
+    font-size: 20px;
+    font-family: 'Metropolis', sans-serif;
+    font-weight: 400;
+    line-height: 24px;
+    word-wrap: break-word;
+  }
 
-.assamese-text,
-.hindi-text,
-.english-text {
+  .assamese-text,
+  .hindi-text,
+  .english-text {
     color: #1F2327;
     font-family: Satoshi;
     font-weight: 400;
     word-wrap: break-word;
-}
+  }
 
-.assamese-text {
+  .assamese-text {
     font-size: 12px;
-}
+  }
 
-.hindi-text,
-.english-text {
+  .hindi-text,
+  .english-text {
     font-size: 13px;
-}
+  }
 
-.english-text {
+  .english-text {
     font-weight: 500;
-}
+  }
 
-.vertical-line {
+  .vertical-line {
     width: 0px;
-    height: 30px; /* Adjusted height for visibility */
-    border-left: 1px solid #1F2327; /* Use border for vertical line */
-}
+    height: 30px;
+    /* Adjusted height for visibility */
+    border-left: 1px solid #1F2327;
+    /* Use border for vertical line */
+  }
 
-.horizontal-line {
+  .horizontal-line {
     align-self: stretch;
     height: 0px;
     outline: 2px #DDE1E6 solid;
     outline-offset: -1px;
-}
+  }
 
-.external-links-title {
+  .external-links-title {
     color: black;
     font-size: 14px;
     font-family: Satoshi;
     font-weight: 700;
     line-height: 22px;
     word-wrap: break-word;
-}
+  }
 
-.link-text {
+  .link-text {
     color: black;
     font-size: 14px;
     font-family: Satoshi;
     font-weight: 400;
     line-height: 20px;
     word-wrap: break-word;
-    text-decoration: none; /* Remove underline from links */
+    text-decoration: none;
+    /* Remove underline from links */
+  }
+
+  .vertical-line-small {
+    width: 0px;
+    height: 20px;
+    /* Adjusted height for visibility */
+    border-left: 1px solid black;
+    /* Use border for vertical line */
+  }
 }
 
-.vertical-line-small {
-    width: 0px;
-    height: 20px; /* Adjusted height for visibility */
-    border-left: 1px solid black; /* Use border for vertical line */
-}
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  body {
+    background: white;
+  }
+
+  /* Hide sidebar, header, buttons, and other non-print elements */
+  aside,
+  header,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset main container layout */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Ensure the certificate container fits perfectly */
+  .print-container {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    padding: 20mm !important;
+    /* Ensure padding matches the component's design */
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .page-break {
+    break-before: page;
+    page-break-before: always;
+  }
 }

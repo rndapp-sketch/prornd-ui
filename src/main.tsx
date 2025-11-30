@@ -14,6 +14,7 @@ import PiHomePage from './pages/PiHomePage.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import AuthRouteWrapper from './components/AuthRouteWrapper.tsx';
 import ProjectRegistration from './pages/ProjectRegistration.tsx';
+import ProjectProposal from './pages/ProjectProposal.tsx';
 import Endorsement from './pages/Endorsement.tsx';
 import AddFundSanction from './pages/AddFundSanction.tsx';
 // import AddReceivedFunds from './pages/AddReceivedFunds.tsx';
@@ -35,6 +36,8 @@ import PendingTask from './pages/PendingTask.tsx';
 import PendingTaskDetails from './pages/PendingTaskDetails.tsx';
 import DynamicFormPage from './pages/DynamicFormPage.tsx'; // Import DynamicFormPage
 import FundReceivedDetails from './pages/FundReceivedDetails.tsx';
+import ProjectProposalDetails from './pages/ProjectProposalDetails.tsx';
+import EndorsementCertificateView from './pages/EndorsementCertificateView.tsx';
 // Add any other page imports you need
 // import TestDoctype from './pages/TestDoctype.tsx';
 // import UserDetails from './pages/UserDetails.tsx';
@@ -86,10 +89,34 @@ const router = createBrowserRouter(
           ),
         },
         {
+          path: "project-proposal",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User"> {/* Adjust role as needed */}
+              <ProjectProposal />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
           path: "endorsement",
           element: (
             <AuthRouteWrapper allowedRole="Permanent Employee"> {/* Adjust role as needed */}
               <Endorsement />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "project-proposal-details/:name",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <ProjectProposalDetails />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "endorsement-certificate/:name",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <EndorsementCertificateView />
             </AuthRouteWrapper>
           ),
         },

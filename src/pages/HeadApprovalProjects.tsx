@@ -41,7 +41,7 @@ interface Project {
 }
 
 interface Department {
-    name: string;
+  name: string;
 }
 
 // --- Reusable UI Components ---
@@ -83,13 +83,13 @@ const NeoCard = ({
 );
 
 const getStatusBadge = (status: string) => {
-    const s = status?.toLowerCase();
-    let style = "bg-sky-300";
-    if (["pending", "under review", "approval pending", "pending head approval"].some(t => s?.includes(t))) style = "bg-amber-300";
-    else if (s?.includes("approved")) style = "bg-green-300";
-    else if (s?.includes("draft")) style = "bg-slate-300";
-    else if (s?.includes("rejected")) style = "bg-red-500 text-white";
-    return cn("inline-block px-2.5 py-1 rounded-md text-xs font-bold border-2 border-black", style);
+  const s = status?.toLowerCase();
+  let style = "bg-sky-300";
+  if (["pending", "under review", "approval pending", "pending head approval"].some(t => s?.includes(t))) style = "bg-amber-300";
+  else if (s?.includes("approved")) style = "bg-green-300";
+  else if (s?.includes("draft")) style = "bg-slate-300";
+  else if (s?.includes("rejected")) style = "bg-red-500 text-white";
+  return cn("inline-block px-2.5 py-1 rounded-md text-xs font-bold border-2 border-black", style);
 };
 
 
@@ -106,7 +106,7 @@ export function HeadApprovalProjects() {
   const { currentUser } = useFrappeAuth();
 
   // --- Data Fetching ---
-  
+
   // Step 1: Fetch the departments where the current user is the head approver.
   const { data: departmentsData, isLoading: departmentsLoading } = useFrappeGetDocList<Department>(
     "Department_prornd",
@@ -121,15 +121,15 @@ export function HeadApprovalProjects() {
 
   useEffect(() => {
     if (departmentsData) {
-        setUserDepartments(departmentsData.map(d => d.name));
+      setUserDepartments(departmentsData.map(d => d.name));
     }
   }, [departmentsData]);
 
   const projectFilters = useMemo(() => {
-    if (userDepartments.length === 0) return [["name", "=", "NON_EXISTENT_DOC"]]; 
+    if (userDepartments.length === 0) return [["name", "=", "NON_EXISTENT_DOC"]];
     return [
-        ["implementation_department", "in", userDepartments],
-        ["workflow_state", "in", ["Pending Head Approval", "Approved"]],
+      ["implementation_department", "in", userDepartments],
+      ["workflow_state", "in", ["Pending Head Approval", "Approved"]],
     ];
   }, [userDepartments]);
 
@@ -142,7 +142,7 @@ export function HeadApprovalProjects() {
   } = useFrappeGetDocList<Project>(
     "Project Registration",
     {
-      fields: [ "name", "project_title", "workflow_state", "pi_webmail", "creation", "modified", "implementation_department" ],
+      fields: ["name", "project_title", "workflow_state", "pi_webmail", "creation", "modified", "implementation_department"],
       filters: projectFilters as any,
       limit: 1000,
     },
@@ -282,10 +282,10 @@ export function HeadApprovalProjects() {
 
   return (
     <div className="bg-[#FDFCEC]">
-      <AppSidebar isPermanentEmployee={true} />
+      <AppSidebar />
       <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
         <h1 className="text-3xl md:text-4xl font-extrabold text-black tracking-tight uppercase mb-8">
-            Projects for Head Approval
+          Projects for Head Approval
         </h1>
         {renderProjectsTable()}
       </main>

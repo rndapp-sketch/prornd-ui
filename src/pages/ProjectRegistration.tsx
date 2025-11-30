@@ -3,6 +3,7 @@ import { AppSidebar } from "../components/RndSidebar";
 import useUserRoleCheck from "../components/UserRoleCheck";
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
+import { FileText, Users, IndianRupee, Shield } from 'lucide-react';
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -350,7 +351,12 @@ const ProjectRegistration: React.FC = () => {
     const getYearTotal = (yearIndex: number) => budgetTableData.reduce((sum: number, row) => sum + Number((row.years || [])[yearIndex] || 0), 0);
 
     // const tabButtons = ["Project Details", "PI & Collaborators", "Budget", "Clearance", "Sanction & Funds"];
-    const tabButtons = ["Project Details", "PI & Collaborators", "Budget", "Clearance"];
+    const tabs = [
+        { label: "Project Details", icon: FileText },
+        { label: "PI & Collaborators", icon: Users },
+        { label: "Budget", icon: IndianRupee },
+        { label: "Clearance", icon: Shield }
+    ];
     const renderNextPrevButtons = (showPrev: boolean, showNext: boolean, isLast = false) => (
         // <div className="mt-8 flex justify-between items-center bg-white p-4 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
         //     <NeoButton onClick={() => setActiveTab(activeTab - 1)} className={cn("bg-white", !showPrev && "invisible")}>Previous</NeoButton>
@@ -411,97 +417,115 @@ const ProjectRegistration: React.FC = () => {
                     <h1 className="text-3xl md:text-4xl font-extrabold text-black tracking-tight uppercase">New Project Registration</h1>
                     <p className="text-gray-700 mt-2 font-mono">Fill all sections to register a new project.</p>
                 </header>
-                <div className="border-b-2 border-black flex mb-8">
-                    {tabButtons.map((title, index) => (<button key={index} type="button" onClick={() => setActiveTab(index)} className={cn("flex-1 py-4 px-2 font-bold text-black text-center transition-all border-r-2 border-black last:border-r-0 text-sm md:text-base", activeTab === index ? "bg-[#B0BEC5] text-white" : "bg-white hover:bg-gray-100")}>{title}</button>))}
-                </div>
+                <div className="bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+                    <div className="border-b-2 border-black">
+                        <nav className="flex space-x-2 p-2 overflow-x-auto">
+                            {tabs.map((tab, index) => (
+                                <button
+                                    key={index}
+                                    type="button"
+                                    onClick={() => setActiveTab(index)}
+                                    className={cn(
+                                        "flex-shrink-0 flex items-center gap-2 py-3 px-4 font-bold text-sm rounded-md border-2 border-transparent transition-all",
+                                        activeTab === index
+                                            ? "bg-[#90A4AE] border-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
+                                            : "text-black hover:bg-[#CFD8DC]"
+                                    )}
+                                >
+                                    <tab.icon className="h-5 w-5" /> {tab.label}
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
 
-                <form id="project-registration-form" onSubmit={handleSubmit}>
-                    {fields.length > 0 && <>
-                        <div className={activeTab === 0 ? "block" : "hidden"}>
-                            <NeoCard className="space-y-8">
-                                <h2 className="text-3xl font-bold uppercase text-black">1. Project Description</h2>
-                                {renderField("project_title")}
-                                {renderField("project_type")}
-                                {formData.project_type === "Research" && (
-                                    <div className='space-y-8'>
-                                        <NeoCard className="p-6 space-y-6 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"><h3 className="text-2xl font-bold uppercase text-black">Funding Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.fundingDetails)}</div></NeoCard>
-                                        <NeoCard className="p-6 space-y-6 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"><h3 className="text-2xl font-bold uppercase text-black">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.agencyAddress)}</div></NeoCard>
-                                    </div>
-                                )}
-                                {formData.project_type === "Consultancy" && renderField("consultancy_category")}
-                                {formData.project_type === "Other" && renderField("other_project_type_name")}
-                                {renderField("implementation_department")}
-                                {renderField("project_objective")}
-                                {renderField("project_deliverables")}
-                                {renderField("executive_summary")}
-                                {renderField("upload_proj_prop")}
-                                {renderField("my_projects")}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">{formData.project_type !== "Consultancy" ? renderField("project_duration_months") : renderField("project_duration_days")}</div>
-                            </NeoCard>
-                            {renderNextPrevButtons(false, true)}
-                        </div>
-
-                        <div className={activeTab === 1 ? "block" : "hidden"}>
-                            <NeoCard className="space-y-10">
-                                <h2 className="text-3xl font-bold uppercase text-black">2. Investigators & Collaborators</h2>
-                                <div className="p-6 space-y-6 border-2 border-black rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
-                                    <h3 className="text-2xl font-bold uppercase text-black">Principal Investigator (PI)</h3>
-                                    <div className="space-y-8">
-                                        {renderField("pi_webmail")}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-dashed">
-                                            {renderField("principal_investigator_name")}
-                                            {renderField("pi_employee_id")}
-                                            {renderField("designation")}
-                                            {renderField("applicant_department")}
-                                            {renderField("pi_userid")}
-                                        </div>
-                                    </div>
+                    <div className="bg-[#F5F5F5] p-6 md:p-8">
+                        <form id="project-registration-form" onSubmit={handleSubmit}>
+                            {fields.length > 0 && <>
+                                <div className={activeTab === 0 ? "block" : "hidden"}>
+                                    <NeoCard className="space-y-8">
+                                        <h2 className="text-3xl font-bold uppercase text-black">1. Project Description</h2>
+                                        {renderField("project_title")}
+                                        {renderField("project_type")}
+                                        {formData.project_type === "Research" && (
+                                            <div className='space-y-8'>
+                                                <NeoCard className="p-6 space-y-6 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"><h3 className="text-2xl font-bold uppercase text-black">Funding Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.fundingDetails)}</div></NeoCard>
+                                                <NeoCard className="p-6 space-y-6 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"><h3 className="text-2xl font-bold uppercase text-black">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.agencyAddress)}</div></NeoCard>
+                                            </div>
+                                        )}
+                                        {formData.project_type === "Consultancy" && renderField("consultancy_category")}
+                                        {formData.project_type === "Other" && renderField("other_project_type_name")}
+                                        {renderField("implementation_department")}
+                                        {renderField("project_objective")}
+                                        {renderField("project_deliverables")}
+                                        {renderField("executive_summary")}
+                                        {renderField("upload_proj_prop")}
+                                        {renderField("my_projects")}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">{formData.project_type !== "Consultancy" ? renderField("project_duration_months") : renderField("project_duration_days")}</div>
+                                    </NeoCard>
+                                    {renderNextPrevButtons(false, true)}
                                 </div>
-                                <div className="space-y-6">{renderFields(tabFieldGroups.collaboratorToggles)}</div>
-                                {formData.is_additional_pi === "Yes" && <MemoizedCollaboratorTable tableName="additional_pi_table" title="Details of Additional PI(s)" tableData={formData.additional_pi_table} piOptions={linkOptions["pi_webmail"]} onCollaboratorChange={handleCollaboratorChange} onRowChange={handleTableRowChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />}
-                                {formData.has_co_pi === "Yes" && <MemoizedCollaboratorTable tableName="co_investigator_table" title="Details of Co-PI(s)" tableData={formData.co_investigator_table} piOptions={linkOptions["pi_webmail"]} onCollaboratorChange={handleCollaboratorChange} onRowChange={handleTableRowChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />}
-                            </NeoCard>
-                            {renderNextPrevButtons(true, true)}
-                        </div>
 
-                        <div className={activeTab === 2 ? "block" : "hidden"}>
-                            <NeoCard className="space-y-8">
-                                <h2 className="text-3xl font-bold uppercase text-black">3. Proposed Budget</h2>
-                                <p className="font-mono text-gray-700">Provide a detailed year-wise breakup of the proposed budget.</p>
-                                <MemoizedBudgetTable tableData={budgetTableData} budgetYears={budgetYears} budgetHeadOptions={budgetHeadOptions} onRowChange={handleBudgetRowChange} onAddRow={addBudgetRow} onDeleteRow={deleteTableRow} onAddYear={addBudgetYear} onDeleteYear={deleteLastBudgetYear} getYearTotal={getYearTotal} totalBudgetAmount={totalBudgetAmount} />
-                                <div className="space-y-6 border-t-2 border-black pt-8">{renderFields(tabFieldGroups.budgetToggles)}</div>
-                                {formData.equipment_checkbox ? (<MemoizedGenericTable tableName={'proposed_equipment_details'} columns={[{ key: 'item_name', label: 'Equipment Name*', type: 'text' }, { key: 'cost', label: 'Cost (₹)', type: 'number' }]} newRow={{ item_name: '', cost: 0 }} tableData={formData.proposed_equipment_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
-                                {formData.manpower_checkbox ? (<MemoizedGenericTable tableName={'proposed_manpower_details'} columns={[{ key: 'designation_name', label: 'Position*', type: 'text' }, { key: 'salary', label: 'Salary (₹)', type: 'number' }]} newRow={{ designation_name: '', salary: 0 }} tableData={formData.proposed_manpower_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
-                            </NeoCard>
-                            {renderNextPrevButtons(true, true)}
-                        </div>
-                        <div className={activeTab === 3 ? "block" : "hidden"}>
-                            <NeoCard className="space-y-8">
-                                <h2 className="text-3xl font-bold uppercase text-black">4. Clearance & Declaration</h2>
-                                {renderField("needs_committee_clearance")}
-                                {formData.needs_committee_clearance === "Yes" && (
-                                    <div className="space-y-8 pt-8 mt-8 border-t-2 border-dashed border-gray-400">
-                                        {renderField("committees")}
-                                        {formData.committees === "Other" && renderField("other_committee_specify")}
-                                        {formData.committees === "Ethics Committee" && (
-                                            <>
-                                                {renderField("ethics_committee_details")}
-                                                {renderField("ethics_other_details")}
-                                            </>
+                                <div className={activeTab === 1 ? "block" : "hidden"}>
+                                    <NeoCard className="space-y-10">
+                                        <h2 className="text-3xl font-bold uppercase text-black">2. Investigators & Collaborators</h2>
+                                        <div className="p-6 space-y-6 border-2 border-black rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+                                            <h3 className="text-2xl font-bold uppercase text-black">Principal Investigator (PI)</h3>
+                                            <div className="space-y-8">
+                                                {renderField("pi_webmail")}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-dashed">
+                                                    {renderField("principal_investigator_name")}
+                                                    {renderField("pi_employee_id")}
+                                                    {renderField("designation")}
+                                                    {renderField("applicant_department")}
+                                                    {renderField("pi_userid")}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-6">{renderFields(tabFieldGroups.collaboratorToggles)}</div>
+                                        {formData.is_additional_pi === "Yes" && <MemoizedCollaboratorTable tableName="additional_pi_table" title="Details of Additional PI(s)" tableData={formData.additional_pi_table} piOptions={linkOptions["pi_webmail"]} onCollaboratorChange={handleCollaboratorChange} onRowChange={handleTableRowChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />}
+                                        {formData.has_co_pi === "Yes" && <MemoizedCollaboratorTable tableName="co_investigator_table" title="Details of Co-PI(s)" tableData={formData.co_investigator_table} piOptions={linkOptions["pi_webmail"]} onCollaboratorChange={handleCollaboratorChange} onRowChange={handleTableRowChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />}
+                                    </NeoCard>
+                                    {renderNextPrevButtons(true, true)}
+                                </div>
+
+                                <div className={activeTab === 2 ? "block" : "hidden"}>
+                                    <NeoCard className="space-y-8">
+                                        <h2 className="text-3xl font-bold uppercase text-black">3. Proposed Budget</h2>
+                                        <p className="font-mono text-gray-700">Provide a detailed year-wise breakup of the proposed budget.</p>
+                                        <MemoizedBudgetTable tableData={budgetTableData} budgetYears={budgetYears} budgetHeadOptions={budgetHeadOptions} onRowChange={handleBudgetRowChange} onAddRow={addBudgetRow} onDeleteRow={deleteTableRow} onAddYear={addBudgetYear} onDeleteYear={deleteLastBudgetYear} getYearTotal={getYearTotal} totalBudgetAmount={totalBudgetAmount} />
+                                        <div className="space-y-6 border-t-2 border-black pt-8">{renderFields(tabFieldGroups.budgetToggles)}</div>
+                                        {formData.equipment_checkbox ? (<MemoizedGenericTable tableName={'proposed_equipment_details'} columns={[{ key: 'item_name', label: 'Equipment Name*', type: 'text' }, { key: 'cost', label: 'Cost (₹)', type: 'number' }]} newRow={{ item_name: '', cost: 0 }} tableData={formData.proposed_equipment_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
+                                        {formData.manpower_checkbox ? (<MemoizedGenericTable tableName={'proposed_manpower_details'} columns={[{ key: 'designation_name', label: 'Position*', type: 'text' }, { key: 'salary', label: 'Salary (₹)', type: 'number' }]} newRow={{ designation_name: '', salary: 0 }} tableData={formData.proposed_manpower_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
+                                    </NeoCard>
+                                    {renderNextPrevButtons(true, true)}
+                                </div>
+                                <div className={activeTab === 3 ? "block" : "hidden"}>
+                                    <NeoCard className="space-y-8">
+                                        <h2 className="text-3xl font-bold uppercase text-black">4. Clearance & Declaration</h2>
+                                        {renderField("needs_committee_clearance")}
+                                        {formData.needs_committee_clearance === "Yes" && (
+                                            <div className="space-y-8 pt-8 mt-8 border-t-2 border-dashed border-gray-400">
+                                                {renderField("committees")}
+                                                {formData.committees === "Other" && renderField("other_committee_specify")}
+                                                {formData.committees === "Ethics Committee" && (
+                                                    <>
+                                                        {renderField("ethics_committee_details")}
+                                                        {renderField("ethics_other_details")}
+                                                    </>
+                                                )}
+                                                {formData.committees === "Biosafety Committee" && (
+                                                    <>
+                                                        {renderField("biosafety_category")}
+                                                        {renderField("declaration_html")}
+                                                    </>
+                                                )}
+                                            </div>
                                         )}
-                                        {formData.committees === "Biosafety Committee" && (
-                                            <>
-                                                {renderField("biosafety_category")}
-                                                {renderField("declaration_html")}
-                                            </>
-                                        )}
-                                    </div>
-                                )}
-                            </NeoCard>
-                            {renderNextPrevButtons(true, true)}
-                        </div>
-                        <div className={activeTab === 4 ? "block" : "hidden"}>
-                            {/* <NeoCard className="space-y-10">
+                                    </NeoCard>
+                                    {renderNextPrevButtons(true, true)}
+                                </div>
+                                <div className={activeTab === 4 ? "block" : "hidden"}>
+                                    {/* <NeoCard className="space-y-10">
                                 <h2 className="text-3xl font-bold uppercase text-black">5. Sanction & Funds</h2>
                                 <div className="space-y-6">
                                     {renderField("have_sanction_details")}
@@ -513,95 +537,97 @@ const ProjectRegistration: React.FC = () => {
                                 </div>
                             </NeoCard> */}
 
-                            <NeoCard className="space-y-10">
-                                {/* <h2 className="text-3xl font-bold uppercase text-black">5. Sanction & Funds</h2> */}
-                                <div className="space-y-6">
-                                    {renderField("have_sanction_details")}
+                                    <NeoCard className="space-y-10">
+                                        {/* <h2 className="text-3xl font-bold uppercase text-black">5. Sanction & Funds</h2> */}
+                                        <div className="space-y-6">
+                                            {renderField("have_sanction_details")}
 
-                                    {formData.have_sanction_details === "Yes" && (
-                                        <NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
-                                            <h3 className="text-2xl font-bold uppercase text-black">Sanction Details</h3>
+                                            {formData.have_sanction_details === "Yes" && (
+                                                <NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+                                                    <h3 className="text-2xl font-bold uppercase text-black">Sanction Details</h3>
 
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                {renderFields(tabFieldGroups.sanction)}
-                                            </div>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                        {renderFields(tabFieldGroups.sanction)}
+                                                    </div>
 
-                                            <div className="space-y-4">
-                                                <MemoizedGenericTable
-                                                    tableName={'sanctioned_budget_breakup'}
-                                                    columns={[
-                                                        { key: 'head', label: 'Budget Head', type: 'text' },
-                                                        { key: 'amount', label: 'Amount (₹)', type: 'number' },
-                                                    ]}
-                                                    newRow={{ head: '', amount: 0 }}
-                                                    tableData={formData.sanctioned_budget_breakup}
-                                                    onRowChange={handleTableRowChange}
-                                                    onFileChange={handleTableFileChange}
-                                                    onAddRow={addTableRow}
-                                                    onDeleteRow={deleteTableRow}
-                                                />
-                                            </div>
+                                                    <div className="space-y-4">
+                                                        <MemoizedGenericTable
+                                                            tableName={'sanctioned_budget_breakup'}
+                                                            columns={[
+                                                                { key: 'head', label: 'Budget Head', type: 'text' },
+                                                                { key: 'amount', label: 'Amount (₹)', type: 'number' },
+                                                            ]}
+                                                            newRow={{ head: '', amount: 0 }}
+                                                            tableData={formData.sanctioned_budget_breakup}
+                                                            onRowChange={handleTableRowChange}
+                                                            onFileChange={handleTableFileChange}
+                                                            onAddRow={addTableRow}
+                                                            onDeleteRow={deleteTableRow}
+                                                        />
+                                                    </div>
 
-                                            <div className="space-y-4">
-                                                <MemoizedGenericTable
-                                                    tableName={'sanction_related_files'}
-                                                    columns={[{ key: 'file', label: 'File', type: 'file' }]}
-                                                    newRow={{ file: null }}
-                                                    tableData={formData.sanction_related_files}
-                                                    onRowChange={handleTableRowChange}
-                                                    onFileChange={handleTableFileChange}
-                                                    onAddRow={addTableRow}
-                                                    onDeleteRow={deleteTableRow}
-                                                />
-                                            </div>
-                                        </NeoCard>
-                                    )}
+                                                    <div className="space-y-4">
+                                                        <MemoizedGenericTable
+                                                            tableName={'sanction_related_files'}
+                                                            columns={[{ key: 'file', label: 'File', type: 'file' }]}
+                                                            newRow={{ file: null }}
+                                                            tableData={formData.sanction_related_files}
+                                                            onRowChange={handleTableRowChange}
+                                                            onFileChange={handleTableFileChange}
+                                                            onAddRow={addTableRow}
+                                                            onDeleteRow={deleteTableRow}
+                                                        />
+                                                    </div>
+                                                </NeoCard>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-6">
+                                            {renderField("have_fund_details")}
+
+                                            {formData.have_fund_details === "Yes" && (
+                                                <NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+                                                    <h3 className="text-2xl font-bold uppercase text-black">Fund Details</h3>
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                        {renderFields(tabFieldGroups.funds)}
+                                                    </div>
+
+                                                    <div className="space-y-4">
+                                                        <MemoizedGenericTable
+                                                            tableName={'fund_transactions'}
+                                                            columns={[
+                                                                { key: 'installmentNo', label: 'Installment No.', type: 'text' },
+                                                                { key: 'dateReceived', label: 'Date Received', type: 'date' },
+                                                                { key: 'amount', label: 'Amount (₹)', type: 'number' },
+                                                            ]}
+                                                            newRow={{ installmentNo: '', dateReceived: '', amount: 0 }}
+                                                            tableData={formData.fund_transactions}
+                                                            onRowChange={handleTableRowChange}
+                                                            onFileChange={handleTableFileChange}
+                                                            onAddRow={addTableRow}
+                                                            onDeleteRow={deleteTableRow}
+                                                        />
+                                                    </div>
+                                                </NeoCard>
+                                            )}
+                                        </div>
+
+                                        {/* 🟢 Instruction after saving */}
+                                        <div className="p-4 mt-6 border-l-4 border-green-600 bg-green-50 text-green-800 rounded-md shadow-sm">
+                                            💡 <strong>Next Step:</strong> After saving this project draft, go to the <strong>Project View</strong> page,
+                                            open your specific project, and then click <strong>Submit</strong> to proceed.
+                                        </div>
+                                    </NeoCard>
+
+
+
+                                    {renderNextPrevButtons(true, false, true)}
                                 </div>
-
-                                <div className="space-y-6">
-                                    {renderField("have_fund_details")}
-
-                                    {formData.have_fund_details === "Yes" && (
-                                        <NeoCard className="space-y-8 !shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
-                                            <h3 className="text-2xl font-bold uppercase text-black">Fund Details</h3>
-
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                {renderFields(tabFieldGroups.funds)}
-                                            </div>
-
-                                            <div className="space-y-4">
-                                                <MemoizedGenericTable
-                                                    tableName={'fund_transactions'}
-                                                    columns={[
-                                                        { key: 'installmentNo', label: 'Installment No.', type: 'text' },
-                                                        { key: 'dateReceived', label: 'Date Received', type: 'date' },
-                                                        { key: 'amount', label: 'Amount (₹)', type: 'number' },
-                                                    ]}
-                                                    newRow={{ installmentNo: '', dateReceived: '', amount: 0 }}
-                                                    tableData={formData.fund_transactions}
-                                                    onRowChange={handleTableRowChange}
-                                                    onFileChange={handleTableFileChange}
-                                                    onAddRow={addTableRow}
-                                                    onDeleteRow={deleteTableRow}
-                                                />
-                                            </div>
-                                        </NeoCard>
-                                    )}
-                                </div>
-
-                                {/* 🟢 Instruction after saving */}
-                                <div className="p-4 mt-6 border-l-4 border-green-600 bg-green-50 text-green-800 rounded-md shadow-sm">
-                                    💡 <strong>Next Step:</strong> After saving this project draft, go to the <strong>Project View</strong> page,
-                                    open your specific project, and then click <strong>Submit</strong> to proceed.
-                                </div>
-                            </NeoCard>
-
-
-
-                            {renderNextPrevButtons(true, false, true)}
-                        </div>
-                    </>}
-                </form>
+                            </>}
+                        </form>
+                    </div>
+                </div>
             </main>
         </div>
     );
