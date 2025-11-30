@@ -68,6 +68,37 @@ interface ProjectDetailsProps {
   backLabel?: string;
 }
 
+const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: { isOpen: boolean; onClose: () => void; onSubmit: (comment: string) => void; action: string; isLoading: boolean }) => {
+  const [comment, setComment] = useState("");
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white border-2 border-black p-6 rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)] w-full max-w-md">
+        <h3 className="text-xl font-bold mb-4 uppercase">Confirm {action}</h3>
+        <Textarea
+          className="w-full border-2 border-black p-2 rounded-md font-mono mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-cyan-400"
+          rows={4}
+          placeholder="Add a comment (optional)..."
+          value={comment}
+          onChange={e => setComment(e.target.value)}
+        />
+        <div className="flex justify-end gap-2">
+          <NeoButton onClick={onClose} className="bg-gray-200 hover:bg-gray-300" disabled={isLoading}>Cancel</NeoButton>
+          <NeoButton
+            onClick={() => onSubmit(comment)}
+            disabled={isLoading}
+            className="bg-cyan-300 hover:bg-cyan-400"
+          >
+            {isLoading ? "Processing..." : "Confirm"}
+          </NeoButton>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- DESIGN: FieldDisplay Component (No boxes) ---
 const FieldDisplay = ({
   label,
@@ -523,26 +554,39 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
   const { call: submitProjectRegistration } = useFrappePostCall(
     "rndopsapp.rndopsapp.api.submit_project_registration"
   );
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedAction, setSelectedAction] = useState("");
+
   const handleWorkflowAction = useCallback(
     (action: string) => {
+      setSelectedAction(action);
+      setModalOpen(true);
+    },
+    []
+  );
+
+  const handleConfirmAction = useCallback(
+    (comment: string) => {
+      const action = selectedAction;
       const apiCall =
         action.toLowerCase() === "submit"
-          ? submitProjectRegistration({ docname: projectName })
+          ? submitProjectRegistration({ docname: projectName }) // Submit might not need comment, or backend might not support it yet. But generic workflow usually does.
           : triggerWorkflowAction({
             doctype: "Project Registration",
             docname: projectName,
             action: action,
+            comment: comment // Passing comment here
           });
       apiCall
         .then(() => {
-          mutate();
-          activityStreamRef.current?.refetch();
+          setModalOpen(false);
+          window.location.reload();
         })
         .catch((err: any) =>
           console.error(`Error during workflow action:`, err)
         );
     },
-    [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]
+    [triggerWorkflowAction, submitProjectRegistration, mutate, projectName, selectedAction]
   );
   const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
   const handleAddFunds = () => alert("Add Funds functionality will be implemented here.");
@@ -655,6 +699,13 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
             </div>
           </div>
         </header>
+        <CommentModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onSubmit={handleConfirmAction}
+          action={selectedAction}
+          isLoading={isActionLoading}
+        />
         <div className="bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
           <div className="border-b-2 border-black">
             <nav className="flex space-x-2 p-2 overflow-x-auto">

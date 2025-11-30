@@ -304,7 +304,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
         await addComment({
           doctype: doctype,
           docname: docname,
-          comment: newComment,
+          content: newComment,
         });
         setNewComment("");
         refetchActivity();

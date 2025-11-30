@@ -6,6 +6,37 @@ import { AppSidebar } from '@/components/RndSidebar';
 import { NeoButton } from '@/components/ui/neo-brutalism';
 import ProjectDetailsView from "./ProjectDetails";
 
+const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: { isOpen: boolean; onClose: () => void; onSubmit: (comment: string) => void; action: string; isLoading: boolean }) => {
+    const [comment, setComment] = React.useState("");
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white border-2 border-black p-6 rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)] w-full max-w-md">
+                <h3 className="text-xl font-bold mb-4 uppercase">Confirm {action}</h3>
+                <textarea
+                    className="w-full border-2 border-black p-2 rounded-md font-mono mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    rows={4}
+                    placeholder="Add a comment (optional)..."
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                />
+                <div className="flex justify-end gap-2">
+                    <NeoButton onClick={onClose} className="bg-gray-200 hover:bg-gray-300" disabled={isLoading}>Cancel</NeoButton>
+                    <NeoButton
+                        onClick={() => onSubmit(comment)}
+                        disabled={isLoading}
+                        className="bg-cyan-300 hover:bg-cyan-400"
+                    >
+                        {isLoading ? "Processing..." : "Confirm"}
+                    </NeoButton>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const ReimbursementWorkflowActions = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
     const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
         "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_reimbursement_workflow_actions",
@@ -16,9 +47,18 @@ const ReimbursementWorkflowActions = ({ docname, onActionComplete }: { docname: 
         "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.perform_reimbursement_action"
     );
 
-    const handleAction = async (action: string) => {
+    const [modalOpen, setModalOpen] = React.useState(false);
+    const [selectedAction, setSelectedAction] = React.useState("");
+
+    const handleActionClick = (action: string) => {
+        setSelectedAction(action);
+        setModalOpen(true);
+    };
+
+    const handleConfirmAction = async (comment: string) => {
         try {
-            await performAction({ docname, action });
+            await performAction({ docname, action: selectedAction, comment });
+            setModalOpen(false);
             onActionComplete();
         } catch (error) {
             console.error("Error performing action:", error);
@@ -28,18 +68,27 @@ const ReimbursementWorkflowActions = ({ docname, onActionComplete }: { docname: 
     if (actionsLoading || !data?.message?.length) return null;
 
     return (
-        <div className="flex gap-2">
-            {data.message.map((action) => (
-                <NeoButton
-                    key={action}
-                    onClick={() => handleAction(action)}
-                    disabled={actionLoading}
-                    className="bg-yellow-200 hover:bg-yellow-300 text-black border-2 border-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
-                >
-                    {actionLoading ? "Processing..." : action}
-                </NeoButton>
-            ))}
-        </div>
+        <>
+            <div className="flex gap-2">
+                {data.message.map((action) => (
+                    <NeoButton
+                        key={action}
+                        onClick={() => handleActionClick(action)}
+                        disabled={actionLoading}
+                        className="bg-yellow-200 hover:bg-yellow-300 text-black border-2 border-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
+                    >
+                        {action}
+                    </NeoButton>
+                ))}
+            </div>
+            <CommentModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSubmit={handleConfirmAction}
+                action={selectedAction}
+                isLoading={actionLoading}
+            />
+        </>
     );
 };
 
@@ -53,9 +102,18 @@ const FundSanctionWorkflowActions = ({ docname, onActionComplete }: { docname: s
         "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.perform_fund_sanction_action"
     );
 
-    const handleAction = async (action: string) => {
+    const [modalOpen, setModalOpen] = React.useState(false);
+    const [selectedAction, setSelectedAction] = React.useState("");
+
+    const handleActionClick = (action: string) => {
+        setSelectedAction(action);
+        setModalOpen(true);
+    };
+
+    const handleConfirmAction = async (comment: string) => {
         try {
-            await performAction({ docname, action });
+            await performAction({ docname, action: selectedAction, comment });
+            setModalOpen(false);
             onActionComplete();
         } catch (error) {
             console.error("Error performing action:", error);
@@ -65,18 +123,27 @@ const FundSanctionWorkflowActions = ({ docname, onActionComplete }: { docname: s
     if (actionsLoading || !data?.message?.length) return null;
 
     return (
-        <div className="flex gap-2">
-            {data.message.map((action) => (
-                <NeoButton
-                    key={action}
-                    onClick={() => handleAction(action)}
-                    disabled={actionLoading}
-                    className="bg-yellow-200 hover:bg-yellow-300 text-black border-2 border-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
-                >
-                    {actionLoading ? "Processing..." : action}
-                </NeoButton>
-            ))}
-        </div>
+        <>
+            <div className="flex gap-2">
+                {data.message.map((action) => (
+                    <NeoButton
+                        key={action}
+                        onClick={() => handleActionClick(action)}
+                        disabled={actionLoading}
+                        className="bg-yellow-200 hover:bg-yellow-300 text-black border-2 border-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
+                    >
+                        {action}
+                    </NeoButton>
+                ))}
+            </div>
+            <CommentModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSubmit={handleConfirmAction}
+                action={selectedAction}
+                isLoading={actionLoading}
+            />
+        </>
     );
 };
 
@@ -84,7 +151,7 @@ const PendingTaskDetails: React.FC = () => {
     const { doctype, name } = useParams<{ doctype: string; name: string }>();
     const navigate = useNavigate();
 
-    const { data, isLoading, error, mutate } = useFrappeGetDoc(doctype || "", name || "");
+    const { data, isLoading, error } = useFrappeGetDoc(doctype || "", name || "");
 
     if (isLoading) {
         return (
@@ -140,10 +207,10 @@ const PendingTaskDetails: React.FC = () => {
                             </div>
                         </div>
                         {doctype === "Reimbursement" && name && (
-                            <ReimbursementWorkflowActions docname={name} onActionComplete={() => { mutate(); navigate(-1); }} />
+                            <ReimbursementWorkflowActions docname={name} onActionComplete={() => window.location.reload()} />
                         )}
                         {doctype === "Fund Sanction" && name && (
-                            <FundSanctionWorkflowActions docname={name} onActionComplete={() => { mutate(); navigate(-1); }} />
+                            <FundSanctionWorkflowActions docname={name} onActionComplete={() => window.location.reload()} />
                         )}
                     </div>
                 </header>
