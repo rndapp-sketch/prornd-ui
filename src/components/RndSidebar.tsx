@@ -199,7 +199,7 @@ export function AppSidebar() {
   return (
     <>
       <GlobalLoader isLoading={isLoggingOut} />
-      <Sidebar collapsible="icon" variant="sidebar" className="bg-stone-50 border-r-2 border-gray-900">
+      <Sidebar collapsible="icon" variant="sidebar" className="bg-stone-50 border-r-2 border-gray-900 shadow-[4px_0px_0px_rgba(0,0,0,0.25)]">
 
         {/* --- DESIGN: Header with refined typography --- */}
         <SidebarHeader className="px-4 py-5 border-b-2 border-gray-900 bg-white">

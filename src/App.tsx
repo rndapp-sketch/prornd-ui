@@ -90,12 +90,23 @@ function App() {
                 </Sidebar>
               )}
               <SidebarInset>
-                <header className="flex items-center justify-between gap-4 p-4 border-b bg-white shadow-sm">
+                <header className="relative flex items-center justify-between gap-4 p-7 border-b bg-[#EBECF4] shadow-sm">
                   <div className="flex items-center gap-4">
                     <SidebarTrigger className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                       <MenuIcon className="size-5 text-gray-600" />
                     </SidebarTrigger>
                     {/* <h1 className="text-xl font-semibold text-gray-800">R&D Portal</h1> */}
+                  </div>
+
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={{ justifyContent: 'center', alignItems: 'center', gap: '48px', display: 'inline-flex' }}>
+                    <img src="/IITG_Logo.svg" alt="IITG Logo" style={{ width: '80px', height: '80px' }} />
+                    <div style={{ justifyContent: 'flex-start', alignItems: 'center', gap: '50px', display: 'flex' }}>
+                      <div className="assamese-text font-bold text-base whitespace-nowrap">ভাৰতীয় প্ৰযুক্তিবিদ্যা প্ৰতিষ্ঠান গুৱাহাটী</div>
+                      <div className="vertical-line"></div>
+                      <div className="hindi-text font-bold text-lg whitespace-nowrap">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                      <div className="vertical-line"></div>
+                      <div className="english-text font-bold text-lg whitespace-nowrap">Indian Institute of Technology Guwahati</div>
+                    </div>
                   </div>
                   {currentUser && (
                     <div className="flex items-center gap-3">

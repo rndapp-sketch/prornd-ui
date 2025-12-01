@@ -71,72 +71,80 @@ const Login: React.FC = () => {
             </div>
           </>
         ) : (
-          <div className="w-[700px] flex flex-col justify-start items-center gap-12 my-auto">
-            <div className="w-full flex justify-between items-end">
+          <div className="w-[700px] flex flex-col justify-start items-center gap-12 my-auto p-12 bg-white border-2 border-gray-900 rounded-lg shadow-[2px_2px_0px_rgba(0,0,0,0.1)]">
+            <div className="w-full flex flex-col items-center gap-4">
               <img
                 src="/rndops_Logo.svg"
                 alt="R&D Operations Logo"
-                className="w-[166px] h-[60px]"
+                className="w-[200px] h-auto"
               />
-              <div className="pb-[3px] flex items-center gap-2 overflow-hidden">
-                <div className="title-text">
-                  Research and Development Cell Automation Software
-                </div>
+              <div className="text-xl font-semibold text-gray-900 border-b-2 border-gray-900 pb-2">
+                Research and Development Cell
               </div>
             </div>
 
-            <div className="w-full flex flex-col items-end gap-9">
+            <div className="w-full flex flex-col items-center gap-9">
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleSubmit();
                 }}
-                className="w-full flex items-center gap-6"
+                className="w-full flex flex-col items-center gap-6"
               >
-                <div className="flex flex-col gap-1 w-[400px]">
+                <div className="flex flex-col gap-2 w-full">
+                  <label className="font-semibold text-gray-900" htmlFor="username">Username</label>
                   <Input
                     id="username"
                     placeholder="Enter your username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
+                    className="border-2 border-gray-900 rounded-lg shadow-[1px_1px_0px_rgba(0,0,0,0.1)] focus:ring-2 focus:ring-slate-600 focus:outline-none transition-all duration-150"
                   />
                 </div>
-                <div className="flex flex-col gap-1 w-[400px]">
+                <div className="flex flex-col gap-2 w-full">
+                  <label className="font-semibold text-gray-900" htmlFor="password">Password</label>
                   <Input
                     id="password"
                     type="password"
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    className="border-2 border-gray-900 rounded-lg shadow-[1px_1px_0px_rgba(0,0,0,0.1)] focus:ring-2 focus:ring-slate-600 focus:outline-none transition-all duration-150"
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="h-10 px-4 rounded-xl"
+                  className="w-full h-12 mt-4 bg-slate-600 text-white font-semibold text-lg border-2 border-slate-600 rounded-lg shadow-[2px_2px_0px_rgba(0,0,0,0.1)] hover:bg-slate-700 hover:translate-y-[-1px] hover:shadow-[2px_2px_0px_rgba(0,0,0,0.15)] transition-all duration-150"
                 >
-                  Log in
+                  Log In
                 </Button>
               </form>
 
               <div className="flex items-center gap-4">
                 <a
                   href="#"
-                  className="forgot-password-text text-blue-600 underline"
+                  className="font-semibold text-gray-900 hover:underline decoration-2 underline-offset-4"
                 >
                   Forgot password?
                 </a>
-                <span className="reset-here-text text-gray-600">
+                <span className="text-gray-900 font-semibold">|</span>
+                <span className="text-gray-900">
                   Reset here.
                 </span>
               </div>
-              {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
+              {error && (
+                <div className="w-full p-4 bg-red-100 border border-gray-300 rounded-lg text-red-800 font-semibold">
+                  {error}
+                </div>
+              )}
             </div>
           </div>
-        )}
+        )
+        }
 
         <Footer />
-      </div>
-    </SidebarProvider>
+      </div >
+    </SidebarProvider >
   );
 };
 
