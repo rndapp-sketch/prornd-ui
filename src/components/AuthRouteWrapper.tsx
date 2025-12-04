@@ -1,8 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFrappeAuth } from 'frappe-react-sdk';
-import { useUserRoles } from './UserRole'; // This is your existing hook
-import { GlobalLoader } from '@/components/ui/global-loader';
+import { useUserRoles } from './UserRole';
 
 // Type definition remains the same
 type AllowedRole =
@@ -27,26 +26,33 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
   const { currentUser, isLoading: isAuthLoading } = useFrappeAuth();
   const { roles, isLoading: isRolesLoading, error: rolesError } = useUserRoles(currentUser ?? null);
 
+  // Track if we've ever loaded - don't block rendering after initial load
+  const hasInitialized = useRef(false);
+
+  if (roles && roles.length > 0) {
+    hasInitialized.current = true;
+  }
+
   useEffect(() => {
-    // 1. Wait until ALL loading is complete before doing anything.
+    // Wait until ALL loading is complete before doing anything.
     if (isAuthLoading || isRolesLoading) {
       return;
     }
 
-    // 2. If loading is done and there's no user, go to login.
+    // If loading is done and there's no user, go to login.
     if (!currentUser) {
       navigate('/login');
       return;
     }
 
-    // 3. If there was an error fetching roles, redirect to a safe fallback.
+    // If there was an error fetching roles, redirect to a safe fallback.
     if (rolesError || !roles) {
       console.error("AuthRouteWrapper: Error or no roles found, redirecting.");
       navigate('/home');
       return;
     }
 
-    // 4. Access Control Logic
+    // Access Control Logic
     const allowedRoles = Array.isArray(allowedRole) ? allowedRole : [allowedRole];
 
     // Exception for routes that are for all logged-in users.
@@ -64,18 +70,14 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
 
   }, [isAuthLoading, isRolesLoading, currentUser, roles, rolesError, allowedRole, navigate]);
 
-  // Show a loading screen ONLY while loading initial data.
-  // If we already have a currentUser, we don't want to block UI on background auth checks.
-  const shouldShowLoader = (isAuthLoading && currentUser === undefined) || isRolesLoading;
-
-  if (shouldShowLoader) {
-    return <GlobalLoader isLoading={true} />;
+  // Don't block rendering - let the App.tsx handle navigation loading
+  // Only block on initial auth check when we have no user info at all
+  if (!hasInitialized.current && (isAuthLoading || isRolesLoading) && !currentUser) {
+    // Return null briefly during initial auth check - App.tsx handles the loader
+    return null;
   }
 
-  // If loading is finished and all checks passed (or we are about to redirect), render children.
-  // Note: The redirection happens in useEffect, so there might be a brief flash of content or empty state.
-  // Ideally, we should only render children if access is granted, but since the redirect is fast, this is usually acceptable.
-  // To be stricter, we could add a state `isAuthorized` but let's keep it simple for now as per previous pattern.
+  // Render children - loading states are handled by App.tsx
   return <>{children}</>;
 };
 

@@ -352,8 +352,8 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
       { doctype, docname },
       {
         enabled: !!docname,
-        revalidateOnFocus: true,
-        revalidateOnReconnect: true,
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
       }
     );
     const { call: addComment } = useFrappePostCall(

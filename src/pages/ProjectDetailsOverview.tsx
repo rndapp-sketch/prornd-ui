@@ -409,7 +409,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   const { data: sanctionData, error: sanctionError, isLoading: sanctionIsLoading, mutate: refetchSanctions } = useFrappeGetCall(
     'rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project',
     { project_name: projectName },
-    { revalidateOnFocus: true }
+    { revalidateOnFocus: false }
   );
   const { call: submitSanction, loading: isSubmittingSanction } = useFrappePostCall(
     "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.submit_fund_sanction"

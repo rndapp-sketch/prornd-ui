@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useFrappeGetCall } from "frappe-react-sdk";
 
 interface UseUserRolesResult {
@@ -8,15 +8,25 @@ interface UseUserRolesResult {
 }
 
 export const useUserRoles = (user: string | null): UseUserRolesResult => {
+  // Track if we've ever loaded roles - prevents showing loading on revalidation
+  const hasEverLoaded = useRef(false);
+
   const { data, error, isLoading } = useFrappeGetCall(
     "rndopsapp.rndopsapp.api.get_user_roles",
     { user },
     {
       enabled: !!user,
-      revalidateOnFocus: false, // Prevent random refetches
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      refreshInterval: 0,
       key: `user-roles-${user}` // Force unique cache key per user
     }
   );
+
+  // Mark as loaded once we have data
+  if (data?.message) {
+    hasEverLoaded.current = true;
+  }
 
   useEffect(() => {
     if (isLoading && user) console.log("Fetching roles for:", user);
@@ -24,11 +34,9 @@ export const useUserRoles = (user: string | null): UseUserRolesResult => {
     if (data) console.log("Fetched roles data:", data);
   }, [data, error, isLoading, user]);
 
-  // Fix race condition: 
-  // 1. If user exists but no data/error, we are loading.
-  // 2. We do NOT include isValidating here, because that triggers on background refetches (focus/reconnect)
-  //    and would cause the UI to unmount/remount, losing form state.
-  const isEffectiveLoading = !!user && (isLoading || (data === undefined && !error));
+  // Only show loading on INITIAL load, not on revalidation
+  // Once we have data, never show loading again
+  const isEffectiveLoading = !hasEverLoaded.current && !!user && (isLoading || (data === undefined && !error));
 
   const roles = (data?.message || []) as string[];
   return { roles, isLoading: isEffectiveLoading, error };
