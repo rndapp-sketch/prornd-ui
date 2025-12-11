@@ -19,7 +19,7 @@ export function HosRndDashboard() {
   const fullName = userData?.full_name || currentUser || "Guest";
 
   return (
-    <div className="bg-[#FDFCEC] min-h-screen font-sans">
+    <div className="bg-[#F0F4F8] min-h-screen font-sans">
       <AppSidebar />
       <div className="flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
@@ -27,8 +27,8 @@ export function HosRndDashboard() {
           <header className="mb-8">
             <div className="flex justify-between items-start">
               <div>
-                <h1 className="text-4xl font-extrabold text-black uppercase">HoS R&D Dashboard</h1>
-                <p className="text-lg text-neutral-700 font-mono">Welcome, {fullName}</p>
+                <h1 className="text-4xl font-bold text-black ">HoS R&D Dashboard</h1>
+                <p className="text-lg text-gray-700 ">Welcome, {fullName}</p>
               </div>
               <CurrentTime />
             </div>
@@ -59,8 +59,8 @@ export function HosRndDashboard() {
           {/* Analytics Section */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Team Performance */}
-            <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-              <div className="flex items-center mb-4 gap-3"><Users className="size-7" /><h3 className="text-xl font-bold text-black uppercase">Team Performance</h3></div>
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              <div className="flex items-center mb-4 gap-3"><Users className="size-7" /><h3 className="text-xl font-bold text-black ">Team Performance</h3></div>
               <div className="grid grid-cols-2 gap-4">
                 <AnalyticsCard title="Pending My Approval" value="21" subtitle="Awaiting your action" icon={<AlertCircle className="size-5" />} />
                 <AnalyticsCard title="Total in Team Queue" value="112" subtitle="Across all staff" icon={<FolderKanban className="size-5" />} />
@@ -70,9 +70,9 @@ export function HosRndDashboard() {
             </div>
 
             {/* Workflow Bottlenecks */}
-            <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-              <div className="flex items-center mb-4 gap-3"><Filter className="size-7" /><h3 className="text-xl font-bold text-black uppercase">Workflow Hotspots</h3></div>
-              <div className="text-neutral-700 space-y-3 border-t-2 border-black pt-4 font-mono text-sm">
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              <div className="flex items-center mb-4 gap-3"><Filter className="size-7" /><h3 className="text-xl font-bold text-black ">Workflow Hotspots</h3></div>
+              <div className="text-gray-700 space-y-3 border-t border-gray-200 pt-4  text-sm">
                 <p>🐢 Slowest Form: <span className="font-bold">Rate Contract (Avg: 5.2 days)</span></p>
                 <p>🔥 Busiest Dept: <span className="font-bold">CSE (48 active forms)</span></p>
                 <p>📈 High Volume: <span className="font-bold">General Indent requests up 30%</span></p>
@@ -80,10 +80,10 @@ export function HosRndDashboard() {
             </div>
           </section>
 
-          <footer className="text-center text-neutral-600 mt-10 pb-4">
-            <div className="flex items-center justify-center space-x-2 font-mono text-sm">
+          <footer className="text-center text-gray-600 mt-10 pb-4">
+            <div className="flex items-center justify-center space-x-2  text-sm">
               <Mail className="size-4" />
-              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-blue-600 hover:underline font-semibold">ernd@iitg.ac.in</a></p>
+              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#0EA5A4] hover:underline font-semibold">ernd@iitg.ac.in</a></p>
             </div>
           </footer>
         </div>

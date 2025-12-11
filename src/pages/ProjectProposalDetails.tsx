@@ -40,13 +40,15 @@ const SectionWrapper = ({
 }) => (
     <div
         className={cn(
-            "p-4 md:p-6 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]",
+            "p-5 md:p-6 bg-white border border-gray-200 rounded-xl shadow-sm",
             className
         )}
     >
-        <div className="flex items-center gap-3 mb-4">
-            <Icon className="h-5 w-5 text-black" />
-            <h3 className="text-xl font-bold text-black uppercase">{title}</h3>
+        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100">
+            <div className="p-2 bg-[#E0F7F6] rounded-lg">
+                <Icon className="h-5 w-5 text-[#0EA5A4]" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         </div>
         <div className="space-y-4">{children}</div>
     </div>
@@ -64,14 +66,14 @@ const FieldDisplay = ({
 }) => {
     if (!value && value !== 0 && value !== "No") return null;
     return (
-        <div className="py-3">
+        <div className="py-2">
             <div className="flex items-center gap-2 mb-1">
-                {Icon && <Icon className="h-4 w-4 text-black" />}
-                <p className="text-sm font-bold text-black uppercase tracking-wider">
+                {Icon && <Icon className="h-4 w-4 text-[#0EA5A4]" />}
+                <p className="text-xs font-semibold text-gray-700">
                     {label}
                 </p>
             </div>
-            <p className="bg-[#ECEFF1] p-2 text-base text-gray-800 font-mono">
+            <p className="text-sm text-gray-900 font-medium bg-gray-50 px-3 py-2 rounded-lg">
                 {String(value)}
             </p>
         </div>
@@ -92,7 +94,7 @@ const HtmlContent = ({
     return (
         <SectionWrapper title={title} icon={Icon}>
             <div
-                className="prose prose-sm max-w-none text-gray-800 leading-relaxed font-mono"
+                className="prose prose-sm max-w-none text-gray-800 leading-relaxed "
                 dangerouslySetInnerHTML={{ __html: htmlString }}
             />
         </SectionWrapper>
@@ -114,30 +116,30 @@ const TableDisplay = ({
     if (!data || data.length === 0) return null;
     return (
         <SectionWrapper title={label} icon={Icon}>
-            <div className="overflow-x-auto border-2 border-black rounded-md">
-                <table className="min-w-full divide-y-2 divide-black">
-                    <thead className="bg-[#90A4AE]">
-                        <tr className="divide-x-2 divide-black">
+            <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr className="divide-x divide-gray-200">
                             {columns.map((col) => (
                                 <th
                                     key={col.fieldname}
-                                    className="px-4 py-3 text-left text-sm font-bold text-black uppercase tracking-wider"
+                                    className="px-4 py-3 text-left text-sm font-semibold text-gray-700"
                                 >
                                     {col.label}
                                 </th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y-2 divide-black bg-white">
+                    <tbody className="divide-y divide-gray-200 bg-white">
                         {data.map((row, index) => (
                             <tr
                                 key={index}
-                                className="divide-x-2 divide-black hover:bg-[#CFD8DC]"
+                                className="divide-x divide-gray-200 hover:bg-gray-50/50"
                             >
                                 {columns.map((col) => (
                                     <td
                                         key={col.fieldname}
-                                        className="px-4 py-3 text-sm text-gray-800 font-mono"
+                                        className="px-4 py-3 text-sm text-gray-900"
                                     >
                                         {col.type === "file" ? (
                                             row[col.fieldname] ? (
@@ -166,18 +168,17 @@ const TableDisplay = ({
     );
 };
 
-// --- NeoButton Component ---
-const NeoButton = ({
+// --- FrappeButton Component ---
+const FrappeButton = ({
     children,
     className,
     ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button
         className={cn(
-            "px-5 py-2 bg-white border-2 border-black rounded-md font-bold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all",
-            "hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px]",
-            "active:shadow-none active:translate-x-[2px] active:translate-y-[2px]",
-            "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 disabled:bg-gray-300",
+            "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-150",
+            "bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)]",
+            "disabled:opacity-50 disabled:cursor-not-allowed",
             className
         )}
         {...props}
@@ -231,10 +232,10 @@ const ProjectProposalDetails: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#FDFCEC]">
+            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-[#90A4AE] mx-auto"></div>
-                    <p className="mt-4 text-2xl font-bold text-black">
+                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-[#90A4AE] mx-auto"></div>
+                    <p className="mt-4 text-2xl font-bold text-gray-900">
                         LOADING PROPOSAL...
                     </p>
                 </div>
@@ -244,14 +245,14 @@ const ProjectProposalDetails: React.FC = () => {
 
     if (error || !data) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#FDFCEC]">
+            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
                 <div className="text-center">
                     <p className="mt-4 text-2xl font-bold text-red-600">
                         Error loading proposal or not found.
                     </p>
-                    <NeoButton onClick={() => navigate(-1)} className="mt-4 bg-white">
+                    <FrappeButton onClick={() => navigate(-1)} className="mt-4 bg-white">
                         Go Back
-                    </NeoButton>
+                    </FrappeButton>
                 </div>
             </div>
         );
@@ -261,73 +262,73 @@ const ProjectProposalDetails: React.FC = () => {
     const isOwner = data.owner === currentUser;
 
     return (
-        <div className="bg-[#FDFCEC] min-h-screen">
+        <div className="bg-[#F0F4F8] min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+                <header className="mb-8 p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
                     <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => navigate(-1)}
-                                className="p-3 bg-white border-2 border-black rounded-md hover:bg-[#90A4AE] active:translate-y-1 transition-transform"
+                                className="p-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50  transition-transform"
                             >
                                 <ArrowLeftIcon className="h-6 w-6" />
                             </button>
                             <div>
-                                <h1 className="text-3xl font-extrabold text-black">
+                                <h1 className="text-3xl font-bold text-gray-900">
                                     Proposal Details
                                 </h1>
-                                <p className="text-gray-700 font-mono mt-1">
+                                <p className="text-gray-700  mt-1">
                                     ID: {name} | Status:{" "}
-                                    <span className="font-bold text-black">
+                                    <span className="font-bold text-gray-900">
                                         {data.workflow_state || "Draft"}
                                     </span>
                                 </p>
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            <NeoButton
+                            <FrappeButton
                                 onClick={() => window.open(`/endorsement-certificate/${name}`, '_blank')}
                                 className="bg-blue-600 text-white hover:bg-blue-700 border-blue-800 flex items-center gap-2"
                             >
                                 <FileTextIcon className="h-5 w-5" />
                                 Generate Endorsement
-                            </NeoButton>
+                            </FrappeButton>
                             {isDraft && isOwner && (
-                                <NeoButton
+                                <FrappeButton
                                     onClick={handleSubmit}
                                     disabled={isSubmitting}
-                                    className="bg-[#A5D6A7] hover:bg-[#81C784] flex items-center gap-2"
+                                    className="bg-[#0EA5A4] text-white hover:bg-[#81C784] flex items-center gap-2"
                                 >
                                     <CheckCircleIcon className="h-5 w-5" />
                                     {isSubmitting ? "Submitting..." : "Submit Proposal"}
-                                </NeoButton>
+                                </FrappeButton>
                             )}
                         </div>
                     </div>
                 </header>
 
-                <div className="bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-                    <div className="border-b-2 border-black">
-                        <nav className="flex space-x-2 p-2 overflow-x-auto">
+                <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
+                    <div className="border-b border-gray-200 p-4">
+                        <nav className="flex gap-1" aria-label="Tabs">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={cn(
-                                        "flex-shrink-0 flex items-center gap-2 py-3 px-4 font-bold text-sm rounded-md border-2 border-transparent transition-all",
+                                        "flex items-center gap-2 py-3 px-5 font-semibold text-sm rounded-t-xl border border-b-0 transition-all",
                                         activeTab === tab.id
-                                            ? "bg-[#90A4AE] border-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
-                                            : "text-black hover:bg-[#CFD8DC]"
+                                            ? "bg-white text-[#0EA5A4] border-gray-200 shadow-sm"
+                                            : "bg-gray-50 text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-100"
                                     )}
                                 >
-                                    <tab.icon className="h-5 w-5" /> {tab.label}
+                                    <tab.icon className="h-4 w-4" /> {tab.label}
                                 </button>
                             ))}
                         </nav>
                     </div>
 
-                    <div className="bg-[#F5F5F5] p-6 md:p-8">
+                    <div className="bg-[#F0F4F8] p-6 md:p-8">
                         {activeTab === "overview" && (
                             <div className="space-y-8">
                                 <SectionWrapper title="General Information" icon={FileTextIcon}>
@@ -529,11 +530,11 @@ const ProjectProposalDetails: React.FC = () => {
                             <div className="space-y-8">
                                 {/* Budget Breakup Table - Custom rendering for dynamic years */}
                                 <SectionWrapper title="Proposed Budget Breakup" icon={IndianRupeeIcon}>
-                                    <div className="overflow-x-auto border-2 border-black rounded-md">
-                                        <table className="min-w-full divide-y-2 divide-black">
-                                            <thead className="bg-[#90A4AE]">
-                                                <tr className="divide-x-2 divide-black">
-                                                    <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase tracking-wider">
+                                    <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                                        <table className="min-w-full divide-y divide-gray-200">
+                                            <thead className="bg-gray-50">
+                                                <tr className="divide-x divide-gray-200">
+                                                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-900  tracking-wider">
                                                         Account Head
                                                     </th>
                                                     {/* Assuming we can determine max years from the first row or data */}
@@ -543,18 +544,18 @@ const ProjectProposalDetails: React.FC = () => {
                                                             (_: any, i: number) => (
                                                                 <th
                                                                     key={i}
-                                                                    className="px-4 py-3 text-left text-sm font-bold text-black uppercase tracking-wider"
+                                                                    className="px-4 py-3 text-left text-sm font-bold text-gray-900  tracking-wider"
                                                                 >
                                                                     Year {i + 1}
                                                                 </th>
                                                             )
                                                         )}
-                                                    <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase tracking-wider">
+                                                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-900  tracking-wider">
                                                         Total
                                                     </th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y-2 divide-black bg-white">
+                                            <tbody className="divide-y divide-gray-200 bg-white">
                                                 {(data.proposed_budget_breakup || []).map(
                                                     (row: any, index: number) => {
                                                         const years = row.years || [];
@@ -565,20 +566,20 @@ const ProjectProposalDetails: React.FC = () => {
                                                         return (
                                                             <tr
                                                                 key={index}
-                                                                className="divide-x-2 divide-black hover:bg-[#CFD8DC]"
+                                                                className="divide-x divide-gray-200 hover:bg-gray-50"
                                                             >
-                                                                <td className="px-4 py-3 text-sm text-gray-800 font-mono">
+                                                                <td className="px-4 py-3 text-sm text-gray-800 ">
                                                                     {row.account_head}
                                                                 </td>
                                                                 {years.map((val: any, i: number) => (
                                                                     <td
                                                                         key={i}
-                                                                        className="px-4 py-3 text-sm text-gray-800 font-mono"
+                                                                        className="px-4 py-3 text-sm text-gray-800 "
                                                                     >
                                                                         {Number(val).toFixed(2)}
                                                                     </td>
                                                                 ))}
-                                                                <td className="px-4 py-3 text-sm text-gray-800 font-mono font-bold">
+                                                                <td className="px-4 py-3 text-sm text-gray-800  font-bold">
                                                                     {rowTotal.toFixed(2)}
                                                                 </td>
                                                             </tr>

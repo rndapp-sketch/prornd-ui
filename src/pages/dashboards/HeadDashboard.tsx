@@ -19,7 +19,7 @@ export function HeadDashboard() {
   const fullName = userData?.full_name || currentUser || "Guest";
 
   return (
-    <div className="bg-[#FDFCEC] min-h-screen font-sans">
+    <div className="bg-[#F0F4F8] min-h-screen font-sans">
       <AppSidebar /> {/* Pass appropriate props */}
       <div className="flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
@@ -27,8 +27,8 @@ export function HeadDashboard() {
           <header className="mb-8">
             <div className="flex justify-between items-start">
               <div>
-                <h1 className="text-4xl font-extrabold text-black uppercase">Head's Dashboard</h1>
-                <p className="text-lg text-neutral-700 font-mono">Welcome, {fullName}</p>
+                <h1 className="text-4xl font-bold text-black ">Head's Dashboard</h1>
+                <p className="text-lg text-gray-700 ">Welcome, {fullName}</p>
               </div>
               <CurrentTime />
             </div>
@@ -59,8 +59,8 @@ export function HeadDashboard() {
           {/* Analytics Section */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Department Project Analytics */}
-            <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-              <div className="flex items-center mb-4 gap-3"><Briefcase className="size-7" /><h3 className="text-xl font-bold text-black uppercase">Department Overview</h3></div>
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              <div className="flex items-center mb-4 gap-3"><Briefcase className="size-7" /><h3 className="text-xl font-bold text-black ">Department Overview</h3></div>
               <div className="grid grid-cols-2 gap-4">
                 <AnalyticsCard title="Total Projects" value="45" subtitle="In your department" icon={<FileText className="size-5" />} trend="+8%" />
                 <AnalyticsCard title="Active PIs" value="12" subtitle="Leading projects" icon={<Users className="size-5" />} />
@@ -70,8 +70,8 @@ export function HeadDashboard() {
             </div>
 
             {/* Department Fund Analytics */}
-            <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-              <div className="flex items-center mb-4 gap-3"><DollarSign className="size-7 text-green-600" /><h3 className="text-xl font-bold text-black uppercase">Department Funds</h3></div>
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              <div className="flex items-center mb-4 gap-3"><DollarSign className="size-7 text-green-600" /><h3 className="text-xl font-bold text-black ">Department Funds</h3></div>
               <div className="grid grid-cols-2 gap-4">
                 <AnalyticsCard title="Total Allocation" value="₹8.5Cr" subtitle="Current fiscal year" icon={<DollarSign className="size-5" />} />
                 <AnalyticsCard title="Utilization Rate" value="68%" subtitle="₹5.78Cr utilized" icon={<TrendingUp className="size-5" />} trend="+11%" />
@@ -82,9 +82,9 @@ export function HeadDashboard() {
           </section>
 
           {/* Information Section */}
-          <section className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-            <div className="flex items-center mb-4 gap-3"><Megaphone className="size-6" /><h3 className="text-xl font-bold text-black uppercase">Recent Submissions for Approval</h3></div>
-            <div className="text-neutral-700 space-y-4 border-t-2 border-black pt-4 font-mono text-sm">
+          <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+            <div className="flex items-center mb-4 gap-3"><Megaphone className="size-6" /><h3 className="text-xl font-bold text-black ">Recent Submissions for Approval</h3></div>
+            <div className="text-gray-700 space-y-4 border-t border-gray-200 pt-4  text-sm">
               <p>Travel Request - Dr. A. Kumar - Project GTY-567</p>
               <p>Direct Purchase - Dr. S. Verma - Project CXD-102</p>
               <p>Honorarium Claim - Dr. R. Singh - Project MNB-901</p>
@@ -92,10 +92,10 @@ export function HeadDashboard() {
             </div>
           </section>
 
-          <footer className="text-center text-neutral-600 mt-10 pb-4">
-            <div className="flex items-center justify-center space-x-2 font-mono text-sm">
+          <footer className="text-center text-gray-600 mt-10 pb-4">
+            <div className="flex items-center justify-center space-x-2  text-sm">
               <Mail className="size-4" />
-              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-blue-600 hover:underline font-semibold">ernd@iitg.ac.in</a></p>
+              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#0EA5A4] hover:underline font-semibold">ernd@iitg.ac.in</a></p>
             </div>
           </footer>
         </div>

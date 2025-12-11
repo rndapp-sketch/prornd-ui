@@ -17,10 +17,10 @@
 // interface FormData { [key: string]: any; sanctioned_budget_breakup?: (any & { id?: string })[]; sanction_related_files?: (any & { id?: string })[]; }
 
 // // --- STYLES & REUSABLE UI COMPONENTS ---
-// const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE] disabled:opacity-70 disabled:bg-gray-200 read-only:bg-gray-200";
-// const NeoCard = ({ children, className }: any) => ( <div className={cn("bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]", className)}>{children}</div> );
-// const NeoButton = ({ children, onClick, disabled, className, type = "button" }: any) => ( <button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-3 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button> );
-// const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-2xl font-extrabold text-black uppercase tracking-tight border-b-2 border-black pb-3">{title}</h2>{children}</div>);
+// const inputClasses = "w-full h-12 px-4 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-100";
+// const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-xl shadow-sm", className)}>{children}</div>);
+// const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-2.5 border border-gray-200 rounded-lg font-semibold text-gray-700 bg-white shadow-sm transition-all hover:bg-gray-50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
+// const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-3">{title}</h2>{children}</div>);
 
 // // --- MEMOIZED CHILD COMPONENTS ---
 // const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
@@ -50,12 +50,12 @@
 // //     ];
 // //     return (
 // //         <div>
-// //             <div className="overflow-x-auto border-2 border-black rounded-md">
-// //                 <table className="min-w-full divide-y-2 divide-black">
-// //                     <thead className="bg-[#90A4AE]"><tr className="divide-x-2 divide-black">{[...columns, {key:'actions', label:''}].map((c:any) => (<th key={c.key} className="p-3 font-bold text-white uppercase text-sm">{c.label}</th>))}</tr></thead>
-// //                     <tbody className="divide-y-2 divide-black bg-white">
+// //             <div className="overflow-x-auto border border-gray-200 rounded-md">
+// //                 <table className="min-w-full divide-y divide-gray-200">
+// //                     <thead className="bg-gray-50"><tr className="divide-x divide-gray-100">{[...columns, {key:'actions', label:''}].map((c:any) => (<th key={c.key} className="p-3 font-semibold text-gray-700 text-sm text-left text-sm">{c.label}</th>))}</tr></thead>
+// //                     <tbody className="divide-y divide-gray-200 bg-white">
 // //                         {(tableData || []).map((row: any, i: number) => (
-// //                             <tr key={row.id} className="divide-x-2 divide-black">
+// //                             <tr key={row.id} className="divide-x divide-gray-100">
 // //                                 {columns.map((col:any) => ( <td key={col.key} className="p-2"> 
 // //                                     {col.type === 'Select' ? (
 // //                                         <select className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(i, col.key, e.target.value)}>
@@ -66,13 +66,13 @@
 // //                                         <input type="number" className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(i, col.key, e.target.value)} />
 // //                                     )}
 // //                                 </td> ))}
-// //                                 <td className="p-2 text-center"><NeoButton onClick={() => onDeleteRow(i)} className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</NeoButton></td>
+// //                                 <td className="p-2 text-center"><FrappeButton onClick={() => onDeleteRow(i)} className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</FrappeButton></td>
 // //                             </tr>
 // //                         ))}
 // //                     </tbody>
 // //                 </table>
 // //             </div>
-// //             <NeoButton onClick={() => onAddRow(newRow)} className="bg-[#A5D6A7] mt-4">Add Budget Row</NeoButton>
+// //             <FrappeButton onClick={() => onAddRow(newRow)} className="bg-[#A5D6A7] mt-4">Add Budget Row</FrappeButton>
 // //         </div>
 // //     );
 // // });
@@ -121,23 +121,23 @@
 
 // //     return (
 // //         <div>
-// //             <div className="overflow-x-auto border-2 border-black rounded-md">
-// //                 <table className="min-w-full divide-y-2 divide-black">
-// //                     <thead className="bg-[#90A4AE]">
-// //                         <tr className="divide-x-2 divide-black">
+// //             <div className="overflow-x-auto border border-gray-200 rounded-md">
+// //                 <table className="min-w-full divide-y divide-gray-200">
+// //                     <thead className="bg-gray-50">
+// //                         <tr className="divide-x divide-gray-100">
 // //                             {[...columns, { key: 'actions', label: '' }].map((c: any) => (
-// //                                 <th key={c.key} className="p-3 font-bold text-white uppercase text-sm">
+// //                                 <th key={c.key} className="p-3 font-semibold text-gray-700 text-sm text-left text-sm">
 // //                                     {c.label}
 // //                                 </th>
 // //                             ))}
 // //                         </tr>
 // //                     </thead>
 
-// //                     <tbody className="divide-y-2 divide-black bg-white">
+// //                     <tbody className="divide-y divide-gray-200 bg-white">
 // //                         {(tableData || []).map((row: any, i: number) => {
 // //                             const rowTotal = calculateRowTotal(row);
 // //                             return (
-// //                                 <tr key={row.id || i} className="divide-x-2 divide-black">
+// //                                 <tr key={row.id || i} className="divide-x divide-gray-100">
 // //                                     {columns.map((col: any) => (
 // //                                         <td key={col.key} className="p-2">
 // //                                             {col.type === 'Select' ? (
@@ -163,10 +163,10 @@
 // //                                         </td>
 // //                                     ))}
 // //                                     <td className="p-2 text-center">
-// //                                         <NeoButton onClick={() => onDeleteRow(i)}
+// //                                         <FrappeButton onClick={() => onDeleteRow(i)}
 // //                                             className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">
 // //                                             Delete
-// //                                         </NeoButton>
+// //                                         </FrappeButton>
 // //                                     </td>
 // //                                 </tr>
 // //                             );
@@ -174,8 +174,8 @@
 // //                     </tbody>
 
 // //                     {/* Year Wise Totals */}
-// //                     <tfoot className="bg-blue-100 border-t-2 border-black">
-// //                         <tr className="divide-x-2 divide-black font-bold">
+// //                     <tfoot className="bg-blue-100 border-t border-gray-200">
+// //                         <tr className="divide-x divide-gray-100 font-bold">
 // //                             <td className="p-3 text-right">Year Wise Total (₹):</td>
 // //                             <td className="p-3">{yearTotals.first_year_budget}</td>
 // //                             <td className="p-3">{yearTotals.second_year_budget}</td>
@@ -187,7 +187,7 @@
 // //                         </tr>
 
 // //                         {/* Grand Total */}
-// //                         <tr className="divide-x-2 divide-black bg-yellow-200 text-lg font-bold">
+// //                         <tr className="divide-x divide-gray-100 bg-yellow-200 text-lg font-bold">
 // //                             <td colSpan={columns.length - 1} className="p-3 text-right">Grand Total (₹):</td>
 // //                             <td className="p-3">{grandTotal}</td>
 // //                             <td />
@@ -196,7 +196,7 @@
 // //                 </table>
 // //             </div>
 
-// //             <NeoButton
+// //             <FrappeButton
 // //                 onClick={() =>
 // //                     onAddRow({
 // //                         account_head: '',
@@ -210,7 +210,7 @@
 // //                 className="bg-[#A5D6A7] mt-4"
 // //             >
 // //                 Add Budget Row
-// //             </NeoButton>
+// //             </FrappeButton>
 // //         </div>
 // //     );
 // // });
@@ -235,21 +235,21 @@
 
 //     return (
 //         <div>
-//             <div className="overflow-x-auto border-2 border-black rounded-md">
-//                 <table className="min-w-full divide-y-2 divide-black">
-//                     <thead className="bg-[#90A4AE]">
-//                         <tr className="divide-x-2 divide-black">
+//             <div className="overflow-x-auto border border-gray-200 rounded-md">
+//                 <table className="min-w-full divide-y divide-gray-200">
+//                     <thead className="bg-gray-50">
+//                         <tr className="divide-x divide-gray-100">
 //                             {[...columns, {key:'actions', label:''}].map((c:any) => (
-//                                 <th key={c.key} className="p-3 font-bold text-white uppercase text-sm">{c.label}</th>
+//                                 <th key={c.key} className="p-3 font-semibold text-gray-700 text-sm text-left text-sm">{c.label}</th>
 //                             ))}
 //                         </tr>
 //                     </thead>
 
-//                     <tbody className="divide-y-2 divide-black bg-white">
+//                     <tbody className="divide-y divide-gray-200 bg-white">
 //                         {(tableData || []).map((row: any, i: number) => {
 //                             const rowTotal = calculateRowTotal(row);
 //                             return (
-//                                 <tr key={row.id} className="divide-x-2 divide-black">
+//                                 <tr key={row.id} className="divide-x divide-gray-100">
 //                                     {columns.map((col:any) => (
 //                                         <td key={col.key} className="p-2">
 //                                             {col.type === 'Select' ? (
@@ -272,8 +272,8 @@
 //                                         </td>
 //                                     ))}
 //                                     <td className="p-2 text-center">
-//                                         <NeoButton onClick={() => onDeleteRow(i)}
-//                                             className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</NeoButton>
+//                                         <FrappeButton onClick={() => onDeleteRow(i)}
+//                                             className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</FrappeButton>
 //                                     </td>
 //                                 </tr>
 //                             );
@@ -281,8 +281,8 @@
 //                     </tbody>
 
 //                     {/* Footer totals row */}
-//                     <tfoot className="bg-yellow-100 border-t-2 border-black">
-//                         <tr className="divide-x-2 divide-black font-bold">
+//                     <tfoot className="bg-yellow-100 border-t border-gray-200">
+//                         <tr className="divide-x divide-gray-100 font-bold">
 //                             <td colSpan={columns.length - 1} className="p-3 text-right text-lg">Grand Total (₹):</td>
 //                             <td className="p-3 text-lg">{grandTotal}</td>
 //                             <td />
@@ -291,9 +291,9 @@
 //                 </table>
 //             </div>
 
-//             <NeoButton onClick={() => onAddRow({ account_head: '', first_year_budget: 0, second_year_budget: 0, third_year_budget: 0 })} className="bg-[#A5D6A7] mt-4">
+//             <FrappeButton onClick={() => onAddRow({ account_head: '', first_year_budget: 0, second_year_budget: 0, third_year_budget: 0 })} className="bg-[#A5D6A7] mt-4">
 //                 Add Budget Row
-//             </NeoButton>
+//             </FrappeButton>
 //         </div>
 //     );
 // });
@@ -303,12 +303,12 @@
 
 // const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => (
 //     <NeoSection title={title}>
-//         <div className="overflow-x-auto border-2 border-black rounded-md">
-//             <table className="min-w-full divide-y-2 divide-black">
-//                 <thead className="bg-[#90A4AE]"><tr className="divide-x-2 divide-black">{[...columns, {key:'actions', label:''}].map((c:any) => (<th key={c.key} className="p-3 font-bold text-white uppercase text-sm">{c.label}</th>))}</tr></thead>
-//                 <tbody className="divide-y-2 divide-black bg-white">
+//         <div className="overflow-x-auto border border-gray-200 rounded-md">
+//             <table className="min-w-full divide-y divide-gray-200">
+//                 <thead className="bg-gray-50"><tr className="divide-x divide-gray-100">{[...columns, {key:'actions', label:''}].map((c:any) => (<th key={c.key} className="p-3 font-semibold text-gray-700 text-sm text-left text-sm">{c.label}</th>))}</tr></thead>
+//                 <tbody className="divide-y divide-gray-200 bg-white">
 //                     {(tableData || []).map((row: any, i: number) => (
-//                         <tr key={row.id} className="divide-x-2 divide-black">
+//                         <tr key={row.id} className="divide-x divide-gray-100">
 //                             {columns.map((col:any) => ( <td key={col.key} className="p-2"> 
 //                                 {col.type === 'Attach' ? (
 //                                     <input type="file" className={`${inputClasses} !h-11 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:font-bold file:bg-stone-200 hover:file:bg-stone-300`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0]||null)} />
@@ -316,13 +316,13 @@
 //                                     <input type="text" className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)} />
 //                                 )}
 //                             </td> ))}
-//                             <td className="p-2 text-center"><NeoButton onClick={() => onDeleteRow(tableName, i)} className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</NeoButton></td>
+//                             <td className="p-2 text-center"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</FrappeButton></td>
 //                         </tr>
 //                     ))}
 //                 </tbody>
 //             </table>
 //         </div>
-//         <NeoButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#A5D6A7] mt-4">Add Row</NeoButton>
+//         <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#A5D6A7] mt-4">Add Row</FrappeButton>
 //     </NeoSection>
 // ));
 
@@ -505,23 +505,23 @@
 //     }
 
 //     return (
-//         <div className="bg-[#FDFCEC]">
+//         <div className="bg-[#F0F4F8]">
 //             <AppSidebar   />
 //             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-//               <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+//               <header className="mb-8 p-4 bg-white border border-gray-200 rounded-md shadow-sm">
 //                   <div className="flex items-center gap-4">
-//                       <button onClick={() => navigate(-1)} className="p-3 bg-white border-2 border-black rounded-md hover:bg-[#90A4AE] active:translate-y-1 transition-transform">
+//                       <button onClick={() => navigate(-1)} className="p-3 bg-white border border-gray-200 rounded-md hover:bg-gray-50 active:translate-y-1 transition-transform">
 //                           <ArrowLeftIcon className="h-6 w-6" />
 //                       </button>
 //                       <div>
-//                           <h1 className="text-3xl font-extrabold text-black">Add Fund Sanction</h1>
-//                           <p className="text-gray-700 font-mono mt-1">For Project: {formData.refnum_prj_num || projectName}</p>
+//                           <h1 className="text-3xl font-bold text-black">Add Fund Sanction</h1>
+//                           <p className="text-gray-700  mt-1">For Project: {formData.refnum_prj_num || projectName}</p>
 //                       </div>
 //                   </div>
 //               </header>
 
 //                 <form onSubmit={handleSubmit}>
-//                     <NeoCard className="space-y-12">
+//                     <FrappeCard className="space-y-12">
 //                         <NeoSection title="Project & Sanction Details">
 //                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 //                                 {renderField('project_proposal')}
@@ -565,22 +565,22 @@
 //                             onDeleteRow={deleteGenericTableRow}
 //                         />
 
-//                     </NeoCard>
+//                     </FrappeCard>
 //                     {/* <div className="mt-8 flex justify-end">
-//                         <NeoButton type="submit" disabled={isSubmitting} className="bg-green-300">
+//                         <FrappeButton type="submit" disabled={isSubmitting} className="bg-green-300">
 //                             {isSubmitting ? 'Submitting...' : 'Submit Sanction'}
-//                         </NeoButton>
+//                         </FrappeButton>
 //                     </div> */}
 
 //                     <div className="mt-8 flex justify-end gap-4">
 //     {formData.status !== "Draft" ? (
-//         <NeoButton type="submit" disabled={isSubmitting} className="bg-blue-300">
+//         <FrappeButton type="submit" disabled={isSubmitting} className="bg-blue-300">
 //             {isSubmitting ? 'Saving...' : 'Save as Draft'}
-//         </NeoButton>
+//         </FrappeButton>
 //     ) : (
-//         <NeoButton type="submit" disabled={isSubmitting} className="bg-green-400">
+//         <FrappeButton type="submit" disabled={isSubmitting} className="bg-green-400">
 //             {isSubmitting ? 'Submitting...' : 'Submit Sanction'}
-//         </NeoButton>
+//         </FrappeButton>
 //     )}
 // </div>
 
@@ -627,29 +627,11 @@ interface FormData {
 }
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
-const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE] disabled:opacity-70 disabled:bg-gray-200 read-only:bg-gray-200";
-const NeoCard = ({ children, className }: any) => (<div className={cn("bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]", className)}>{children}</div>);
-const NeoButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-1 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
-// const NeoButton = ({
-//   children,
-//   className,
-//   ...props
-// }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-//   <button
-//     className={cn(
-//       "px-5 py-1 bg-white border-2 border-black rounded-md font-bold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all",
-//       "hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px]",
-//       "active:shadow-none active:translate-x-[2px] active:translate-y-[2px]",
-//       "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 disabled:bg-gray-300",
-//       className
-//     )}
-//     {...props}
-//   >
-//     {children}
-//   </button>
-// );
+const inputClasses = "w-full h-12 px-4 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-100";
+const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-xl shadow-sm", className)}>{children}</div>);
+const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-2.5 border border-gray-200 rounded-lg font-semibold text-gray-700 bg-white shadow-sm transition-all hover:bg-gray-50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
 
-const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-2xl font-extrabold text-black uppercase tracking-tight border-b-2 border-black pb-3">{title}</h2>{children}</div>);
+const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-3">{title}</h2>{children}</div>);
 
 // --- MEMOIZED CHILD COMPONENTS ---
 const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
@@ -701,21 +683,21 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
 
     return (
         <div>
-            <div className="overflow-x-auto border-2 border-black rounded-md">
-                <table className="min-w-full divide-y-2 divide-black">
-                    <thead className="bg-[#90A4AE]">
-                        <tr className="divide-x-2 divide-black">
+            <div className="overflow-x-auto border border-gray-200 rounded-md">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr className="divide-x divide-gray-100">
                             {[...columns, { key: 'actions', label: '' }].map((c: any) => (
-                                <th key={c.key} className="p-3 font-bold text-white uppercase text-sm">{c.label}</th>
+                                <th key={c.key} className="p-3 font-semibold text-gray-700 text-sm text-left text-sm">{c.label}</th>
                             ))}
                         </tr>
                     </thead>
 
-                    <tbody className="divide-y-2 divide-black bg-white">
+                    <tbody className="divide-y divide-gray-200 bg-white">
                         {(tableData || []).map((row: any, i: number) => {
                             const rowTotal = calculateRowTotal(row);
                             return (
-                                <tr key={row.id || i} className="divide-x-2 divide-black">
+                                <tr key={row.id || i} className="divide-x divide-gray-100">
                                     {columns.map((col: any) => (
                                         <td key={col.key} className="p-2">
                                             {col.type === 'Select' ? (
@@ -738,8 +720,8 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                                         </td>
                                     ))}
                                     <td className="p-2 text-center">
-                                        <NeoButton onClick={() => onDeleteRow(i)}
-                                            className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</NeoButton>
+                                        <FrappeButton onClick={() => onDeleteRow(i)}
+                                            className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</FrappeButton>
                                     </td>
                                 </tr>
                             );
@@ -747,8 +729,8 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                     </tbody>
 
                     {/* Footer with Year-wise Totals and Grand Total */}
-                    <tfoot className="bg-gray-100 border-t-4 border-black font-bold">
-                        <tr className="divide-x-2 divide-black">
+                    <tfoot className="bg-gray-100 border-t-2 border-gray-300 font-bold">
+                        <tr className="divide-x divide-gray-100">
                             <td className="p-3 text-right">Yearly Totals (₹):</td>
                             {yearKeys.map(key => (
                                 <td key={key} className="p-3">{yearTotals[key]?.toFixed(2) || '0.00'}</td>
@@ -760,7 +742,7 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                 </table>
             </div>
 
-            <NeoButton
+            <FrappeButton
                 onClick={() => onAddRow({
                     account_head: '',
                     first_year_budget: 0,
@@ -771,19 +753,19 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                 })}
                 className="bg-[#A5D6A7] mt-4">
                 Add Budget Row
-            </NeoButton>
+            </FrappeButton>
         </div>
     );
 });
 
 const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => (
     <NeoSection title={title}>
-        <div className="overflow-x-auto border-2 border-black rounded-md">
-            <table className="min-w-full divide-y-2 divide-black">
-                <thead className="bg-[#90A4AE]"><tr className="divide-x-2 divide-black">{[...columns, { key: 'actions', label: '' }].map((c: any) => (<th key={c.key} className="p-3 font-bold text-white uppercase text-sm">{c.label}</th>))}</tr></thead>
-                <tbody className="divide-y-2 divide-black bg-white">
+        <div className="overflow-x-auto border border-gray-200 rounded-md">
+            <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50"><tr className="divide-x divide-gray-100">{[...columns, { key: 'actions', label: '' }].map((c: any) => (<th key={c.key} className="p-3 font-semibold text-gray-700 text-sm text-left text-sm">{c.label}</th>))}</tr></thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
                     {(tableData || []).map((row: any, i: number) => (
-                        <tr key={row.id} className="divide-x-2 divide-black">
+                        <tr key={row.id} className="divide-x divide-gray-100">
                             {columns.map((col: any) => (<td key={col.key} className="p-2">
                                 {col.type === 'Attach' ? (
                                     <input type="file" className={`${inputClasses} !h-11 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:font-bold file:bg-stone-200 hover:file:bg-stone-300`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />
@@ -791,13 +773,13 @@ const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableDat
                                     <input type="text" className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)} />
                                 )}
                             </td>))}
-                            <td className="p-2 text-center"><NeoButton onClick={() => onDeleteRow(tableName, i)} className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</NeoButton></td>
+                            <td className="p-2 text-center"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</FrappeButton></td>
                         </tr>
                     ))}
                 </tbody>
             </table>
         </div>
-        <NeoButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#A5D6A7] mt-4">Add Row</NeoButton>
+        <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#A5D6A7] mt-4">Add Row</FrappeButton>
     </NeoSection>
 ));
 
@@ -939,23 +921,23 @@ const AddFundSanction: React.FC = () => {
     }
 
     return (
-        <div className="bg-[#FDFCEC]">
+        <div className="bg-[#F0F4F8]">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+                <header className="mb-8 p-4 bg-white border border-gray-200 rounded-md shadow-sm">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => navigate(-1)} className="p-3 bg-white border-2 border-black rounded-md hover:bg-[#90A4AE] active:translate-y-1 transition-transform">
+                        <button onClick={() => navigate(-1)} className="p-3 bg-white border border-gray-200 rounded-md hover:bg-gray-50 active:translate-y-1 transition-transform">
                             <ArrowLeftIcon className="h-6 w-6" />
                         </button>
                         <div>
-                            <h1 className="text-3xl font-extrabold text-black">Add Fund Sanction</h1>
-                            <p className="text-gray-700 font-mono mt-1">For Project: {formData.refnum_prj_num || projectName}</p>
+                            <h1 className="text-3xl font-bold text-black">Add Fund Sanction</h1>
+                            <p className="text-gray-700  mt-1">For Project: {formData.refnum_prj_num || projectName}</p>
                         </div>
                     </div>
                 </header>
 
                 <form onSubmit={handleSubmit}>
-                    <NeoCard className="space-y-12">
+                    <FrappeCard className="space-y-12">
                         <NeoSection title="Project & Sanction Details">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                 {renderField('project_proposal')}
@@ -995,17 +977,17 @@ const AddFundSanction: React.FC = () => {
                             onAddRow={addGenericTableRow}
                             onDeleteRow={deleteGenericTableRow}
                         />
-                    </NeoCard>
+                    </FrappeCard>
 
                     <div className="mt-8 flex justify-end gap-4">
                         {formData.status !== "Draft" ? (
-                            <NeoButton type="submit" disabled={isSubmitting} className="bg-blue-300">
+                            <FrappeButton type="submit" disabled={isSubmitting} className="bg-blue-300">
                                 {isSubmitting ? 'Saving...' : 'Save as Draft'}
-                            </NeoButton>
+                            </FrappeButton>
                         ) : (
-                            <NeoButton type="submit" disabled={isSubmitting} className="bg-green-400">
+                            <FrappeButton type="submit" disabled={isSubmitting} className="bg-green-400">
                                 {isSubmitting ? 'Submitting...' : 'Submit Sanction'}
-                            </NeoButton>
+                            </FrappeButton>
                         )}
                     </div>
                 </form>

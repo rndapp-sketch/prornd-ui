@@ -374,7 +374,7 @@ const LandingPage: React.FC = () => {
                 if (targetElement) {
                     e.preventDefault();
                     targetElement.scrollIntoView({ behavior: 'smooth' });
-                    setIsMobileMenuOpen(false); // Close menu on click
+                    setIsMobileMenuOpen(false);
                 }
             }
         };
@@ -395,41 +395,40 @@ const LandingPage: React.FC = () => {
     };
 
     return (
-        <div className="bg-stone-50 text-gray-900 font-sans">
+        <div className="bg-[#F0F4F8] text-gray-900 font-sans">
             {/* Header */}
-            <header className="bg-white border-b-2 border-gray-900 sticky top-0 z-50">
+            <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
                 <div className="container mx-auto px-6 py-4 flex justify-between items-center">
                     <div className="flex items-center space-x-4">
-                        {/* Placeholder for Logo - styled as a brutalist block if no image */}
-                        <div className="h-12 w-12 bg-slate-800 text-white flex items-center justify-center font-bold text-xs border-2 border-gray-900 rounded-lg">
+                        <div className="h-10 w-10 bg-[#0EA5A4] text-white flex items-center justify-center font-bold text-xs rounded-xl">
                             IITG
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold text-gray-900 leading-tight">Research and Development</h1>
-                            <p className="text-sm text-gray-600 font-medium">Indian Institute of Technology Guwahati</p>
+                            <h1 className="text-lg font-semibold text-gray-900 leading-tight">Research and Development</h1>
+                            <p className="text-sm text-[#6B7280]">Indian Institute of Technology Guwahati</p>
                         </div>
                     </div>
 
                     {/* Desktop Nav */}
-                    <nav className="hidden md:flex items-center space-x-2">
+                    <nav className="hidden md:flex items-center space-x-1">
                         {['About', 'Research', 'Facilities', 'News'].map((item) => (
                             <a
                                 key={item}
                                 href={`#${item.toLowerCase()}`}
-                                className="text-gray-900 font-semibold px-4 py-2 rounded-lg hover:bg-stone-100 transition-colors"
+                                className="text-gray-600 font-medium px-4 py-2 rounded-full hover:bg-gray-50 hover:text-gray-900 transition-colors"
                             >
                                 {item}
                             </a>
                         ))}
                         <button
                             onClick={handleLoginClick}
-                            className="ml-2 text-gray-900 font-bold border-2 border-gray-900 px-4 py-2 rounded-lg hover:bg-stone-100 transition-all shadow-[2px_2px_0px_rgba(0,0,0,0.1)] active:translate-y-[1px] active:shadow-none"
+                            className="ml-2 frappe-btn frappe-btn-outline"
                         >
                             Login
                         </button>
                         <a
                             href="#contact"
-                            className="ml-2 bg-slate-700 text-white font-bold border-2 border-slate-700 px-4 py-2 rounded-lg hover:bg-slate-800 transition-all shadow-[2px_2px_0px_rgba(0,0,0,0.1)] active:translate-y-[1px] active:shadow-none"
+                            className="ml-2 frappe-btn frappe-btn-primary"
                         >
                             Contact Us
                         </a>
@@ -437,53 +436,52 @@ const LandingPage: React.FC = () => {
 
                     {/* Mobile Menu Button */}
                     <button
-                        className="md:hidden p-2 border-2 border-gray-900 rounded-lg bg-white"
+                        className="md:hidden p-2 rounded-lg hover:bg-gray-50 transition-colors"
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                        aria-label="Toggle menu"
                     >
-                        <MenuIcon className="text-gray-900" />
+                        <MenuIcon className="text-gray-700" />
                     </button>
                 </div>
 
                 {/* Mobile Menu */}
                 {isMobileMenuOpen && (
-                    <div className="md:hidden border-t-2 border-gray-900 bg-white shadow-xl">
+                    <div className="md:hidden border-t border-gray-200 bg-white">
                         {['About', 'Research', 'Facilities', 'Publications', 'Events', 'News'].map((item) => (
                             <a
                                 key={item}
                                 href={`#${item.toLowerCase()}`}
-                                className="block py-3 px-6 text-sm font-semibold border-b border-gray-100 hover:bg-stone-50 text-gray-900"
+                                className="block py-3 px-6 text-sm font-medium border-b border-gray-50 hover:bg-gray-50 text-gray-700"
                             >
                                 {item}
                             </a>
                         ))}
-                        <div className="p-4 space-y-3 bg-stone-50">
-                            <button onClick={handleLoginClick} className="block w-full py-3 px-4 text-center font-bold border-2 border-gray-900 rounded-lg bg-white shadow-[2px_2px_0px_rgba(0,0,0,0.1)]">Login</button>
-                            <a href="#contact" className="block w-full py-3 px-4 text-center font-bold bg-slate-700 text-white rounded-lg border-2 border-slate-700 shadow-[2px_2px_0px_rgba(0,0,0,0.1)]">Contact Us</a>
+                        <div className="p-4 space-y-3 bg-gray-50">
+                            <button onClick={handleLoginClick} className="block w-full frappe-btn frappe-btn-outline">Login</button>
+                            <a href="#contact" className="block w-full frappe-btn frappe-btn-primary text-center">Contact Us</a>
                         </div>
                     </div>
                 )}
             </header>
 
             {/* Hero Section */}
-            <section
-                className="relative text-white border-b-2 border-gray-900"
-            >
+            <section className="relative text-white">
                 {/* Background Image with Overlay */}
                 <div className="absolute inset-0 z-0">
                     <img src="https://placehold.co/1600x800/3b82f6/ffffff?text=IITG+Campus" alt="Background" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gray-900/70"></div>
+                    <div className="absolute inset-0 bg-gray-900/60"></div>
                 </div>
 
-                <div className="container mx-auto px-6 py-32 text-center relative z-10">
-                    <h2 className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight drop-shadow-md">
+                <div className="container mx-auto px-6 py-28 text-center relative z-10">
+                    <h2 className="text-4xl md:text-5xl font-bold mb-6 tracking-tight">
                         Driving Innovation, <br className="hidden md:block" />Shaping the Future
                     </h2>
-                    <p className="text-lg md:text-xl max-w-3xl mx-auto mb-10 text-gray-200 font-medium leading-relaxed">
+                    <p className="text-lg md:text-xl max-w-3xl mx-auto mb-10 text-gray-200 leading-relaxed">
                         Fostering a culture of cutting-edge research and development to address global challenges and advance scientific knowledge.
                     </p>
                     <a
                         href="#research"
-                        className="inline-block bg-white text-gray-900 font-bold py-4 px-8 rounded-lg border-2 border-gray-900 shadow-[4px_4px_0px_#000] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_#000] transition-all duration-200"
+                        className="inline-block bg-white text-[#0EA5A4] font-semibold py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-200"
                     >
                         Explore Our Research
                     </a>

@@ -45,13 +45,13 @@ interface DynamicFormPageProps {
 }
 
 // --- EYE-COMFORTABLE UI COMPONENTS ---
-const NeoCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
   <div className={cn("bg-white p-6 md:p-8 border-2 border-slate-800 rounded-lg shadow-[2px_2px_0px_rgba(20,20,30,0.1)]", className)}>
     {children}
   </div>
 );
 
-const NeoButton = ({ children, onClick, disabled, className, type = "button" }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string; type?: "button" | "submit" }) => (
+const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string; type?: "button" | "submit" }) => (
   <button
     type={type}
     onClick={onClick}
@@ -84,15 +84,15 @@ const DynamicFormPage: React.FC<DynamicFormPageProps> = ({
   if (!doctype_name) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <NeoCard className="max-w-md text-center border-rose-800 bg-rose-50">
+        <FrappeCard className="max-w-md text-center border-rose-800 bg-rose-50">
           <h2 className="text-2xl font-bold text-rose-800 mb-4">Error</h2>
           <p className="text-rose-700 mb-6">
             Doctype name is missing from the URL. Please provide a valid doctype.
           </p>
-          <NeoButton onClick={() => navigate(-1)}>
+          <FrappeButton onClick={() => navigate(-1)}>
             Go Back
-          </NeoButton>
-        </NeoCard>
+          </FrappeButton>
+        </FrappeCard>
       </div>
     );
   }
@@ -159,15 +159,15 @@ const DynamicFormPage: React.FC<DynamicFormPageProps> = ({
   if (formDataError || !fields.length) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <NeoCard className="max-w-md text-center border-rose-800 bg-rose-50">
+        <FrappeCard className="max-w-md text-center border-rose-800 bg-rose-50">
           <h2 className="text-2xl font-bold text-rose-800 mb-4">Error Loading Form</h2>
           <p className="text-rose-700 mb-6 font-mono">
             {formDataError?.message || 'Failed to load form fields. Please try again.'}
           </p>
-          <NeoButton onClick={() => navigate(-1)}>
+          <FrappeButton onClick={() => navigate(-1)}>
             Go Back
-          </NeoButton>
-        </NeoCard>
+          </FrappeButton>
+        </FrappeCard>
       </div>
     );
   }

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import { AppSidebar } from '@/components/RndSidebar';
-import { NeoButton } from '@/components/ui/neo-brutalism';
 import { useNavigate } from 'react-router-dom';
 import { useFrappeGetCall } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
@@ -34,9 +33,9 @@ interface PendingTaskResponse {
 interface FlattenedTask {
     id: string;
     title: string;
-    "Project Number": string; // We'll use the title or doctype as description for now since API doesn't provide one
+    "Project Number": string;
     status: string;
-    priority: string; // API doesn't provide priority, will default
+    priority: string;
     creation: string;
     modified: string;
     owner: string;
@@ -67,9 +66,9 @@ const PendingTask: React.FC = () => {
                 tasks.push({
                     id: record.name,
                     title: record.title,
-                    "Project Number": record.name, // Use record name as description (Project Number)
-                    status: record.status, // Use actual status from API
-                    priority: 'Medium', // Default priority
+                    "Project Number": record.name,
+                    status: record.status,
+                    priority: 'Medium',
                     creation: record.creation,
                     modified: record.modified,
                     owner: record.owner,
@@ -103,16 +102,16 @@ const PendingTask: React.FC = () => {
 
     const handleModuleChange = (module: string) => {
         setSelectedModule(module);
-        setCurrentPage(1); // Reset to first page when filter changes
+        setCurrentPage(1);
     };
 
-    const getPriorityColor = (priority: string) => {
-        switch (priority) {
-            case 'High': return 'bg-orange-400';
-            case 'Medium': return 'bg-amber-300';
-            case 'Low': return 'bg-green-300';
-            default: return 'bg-gray-200';
-        }
+    const getPriorityBadge = (priority: string) => {
+        const styles: Record<string, string> = {
+            High: 'bg-red-50 text-red-700 border-red-200',
+            Medium: 'bg-amber-50 text-amber-700 border-amber-200',
+            Low: 'bg-green-50 text-green-700 border-green-200',
+        };
+        return cn("px-2.5 py-0.5 rounded-full text-xs font-medium border", styles[priority] || 'bg-gray-50 text-gray-700 border-gray-200');
     };
 
     const getPageNumbers = () => {
@@ -135,41 +134,45 @@ const PendingTask: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex h-screen items-center justify-center bg-[#FDFCEC]">
-                <div className="text-red-600 font-bold text-xl">Error loading tasks: {error.message}</div>
+            <div className="flex h-screen items-center justify-center bg-[#F0F4F8]">
+                <div className="text-red-600 font-medium text-lg">Error loading tasks: {error.message}</div>
             </div>
         );
     }
 
     return (
-        <div className="bg-[#FDFCEC] min-h-screen">
+        <div className="bg-[#F0F4F8] min-h-screen">
             <GlobalLoader isLoading={isLoading} />
             <AppSidebar />
 
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+                <header className="mb-6 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => navigate(-1)} className="p-3 bg-white border-2 border-black rounded-md hover:bg-[#90A4AE] active:translate-y-1 transition-transform">
-                            <FaArrowLeft className="h-6 w-6" />
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="p-2.5 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                            aria-label="Go back"
+                        >
+                            <FaArrowLeft className="h-5 w-5 text-gray-600" />
                         </button>
                         <div>
-                            <h1 className="text-3xl font-extrabold text-black">Pending Tasks</h1>
-                            <p className="text-gray-700 font-mono mt-1">Manage and track your pending tasks.</p>
+                            <h1 className="text-xl font-semibold text-gray-900">Pending Tasks</h1>
+                            <p className="text-sm text-[#6B7280] mt-0.5">Manage and track your pending tasks.</p>
                         </div>
                     </div>
                 </header>
 
                 {/* Filter Section */}
-                <div className="mb-4 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-                    <div className="flex items-center gap-4">
-                        <label htmlFor="module-filter" className="font-bold text-black">
+                <div className="mb-4 p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+                    <div className="flex items-center gap-4 flex-wrap">
+                        <label htmlFor="module-filter" className="frappe-label">
                             Filter by Module:
                         </label>
                         <select
                             id="module-filter"
                             value={selectedModule}
                             onChange={(e) => handleModuleChange(e.target.value)}
-                            className="px-4 py-2 border-2 border-black rounded-md font-bold bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
+                            className="frappe-select"
                         >
                             <option value="all">All Modules</option>
                             {moduleNames.map((module) => (
@@ -181,70 +184,69 @@ const PendingTask: React.FC = () => {
                         {selectedModule !== 'all' && (
                             <button
                                 onClick={() => handleModuleChange('all')}
-                                className="px-3 py-2 border-2 border-black rounded-md font-bold bg-red-100 hover:bg-red-200 text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
+                                className="frappe-btn frappe-btn-ghost text-red-600 hover:bg-red-50"
                             >
                                 Clear Filter
                             </button>
                         )}
-                        <div className="ml-auto text-sm font-bold text-gray-700">
+                        <div className="ml-auto text-sm text-[#6B7280]">
                             Showing {filteredTasks.length} of {allTasks.length} tasks
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col">
+                <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
+                        <table className="frappe-table">
                             <thead>
-                                <tr className="bg-gray-100 border-b-2 border-black">
-                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Status</th>
-                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Module Name</th>
-                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Title</th>
-                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Project Number</th>
-
-                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Creation</th>
-                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Modified</th>
-                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Owner</th>
-                                    <th className="p-4 font-extrabold text-black border-r-2 border-black uppercase tracking-wider">Priority</th>
-                                    <th className="p-4 font-extrabold text-black uppercase tracking-wider">Action</th>
+                                <tr>
+                                    <th>Status</th>
+                                    <th>Module</th>
+                                    <th>Title</th>
+                                    <th>Project Number</th>
+                                    <th>Creation</th>
+                                    <th>Modified</th>
+                                    <th>Owner</th>
+                                    <th>Priority</th>
+                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {currentTasks.length > 0 ? (
                                     currentTasks.map((task) => (
-                                        <tr key={task.id} className="border-b-2 border-black last:border-b-0 hover:bg-[#FDFCEC] transition-colors">
-                                            <td className="p-4 border-r-2 border-black">
-                                                <div className="flex items-center gap-2 text-orange-600 font-bold">
-                                                    <FaExclamationCircle className="w-5 h-5" />
+                                        <tr key={task.id}>
+                                            <td>
+                                                <div className="flex items-center gap-1.5 text-amber-600 font-medium text-sm">
+                                                    <FaExclamationCircle className="w-4 h-4" />
                                                     <span>{task.status}</span>
                                                 </div>
                                             </td>
-                                            <td className="p-4 border-r-2 border-black font-bold text-black">
+                                            <td className="font-medium text-gray-900">
                                                 {task.doctype}
                                             </td>
-                                            <td className="p-4 border-r-2 border-black font-bold text-black">
+                                            <td className="font-medium text-gray-900">
                                                 {task.title}
                                             </td>
-                                            <td className="p-4 border-r-2 border-black font-mono text-gray-800">
+                                            <td className="text-sm text-gray-600">
                                                 {task["Project Number"]}
                                             </td>
-                                            <td className="p-4 border-r-2 border-black font-mono font-semibold text-sm">
+                                            <td className="text-sm text-gray-600">
                                                 {task.creation ? new Date(task.creation).toLocaleString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true }) : "-"}
                                             </td>
-                                            <td className="p-4 border-r-2 border-black font-mono font-semibold text-sm">
+                                            <td className="text-sm text-gray-600">
                                                 {task.modified ? new Date(task.modified).toLocaleString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true }) : "-"}
                                             </td>
-                                            <td className="p-4 border-r-2 border-black font-mono text-sm">
+                                            <td className="text-sm text-gray-600">
                                                 {task.owner}
                                             </td>
-                                            <td className="p-4 border-r-2 border-black">
-                                                <span className={cn("px-3 py-1 rounded-md border-2 border-black text-black font-bold text-sm inline-block", getPriorityColor(task.priority))}>
+                                            <td>
+                                                <span className={getPriorityBadge(task.priority)}>
                                                     {task.priority}
                                                 </span>
                                             </td>
-                                            <td className="p-4">
-                                                <NeoButton
-                                                    className="bg-[#A5D6A7] hover:bg-[#81C784] text-sm py-2 px-4 w-full"
+                                            <td>
+                                                <button
+                                                    className="frappe-btn frappe-btn-primary text-sm"
                                                     onClick={() => {
                                                         if (task.doctype === "Fund Received") {
                                                             navigate(`/fund-received/${task.id}`);
@@ -254,13 +256,13 @@ const PendingTask: React.FC = () => {
                                                     }}
                                                 >
                                                     View
-                                                </NeoButton>
+                                                </button>
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={9} className="p-8 text-center font-bold text-gray-500">
+                                        <td colSpan={9} className="p-8 text-center text-[#6B7280]">
                                             {isLoading ? "Loading tasks..." : "No pending tasks found."}
                                         </td>
                                     </tr>
@@ -271,15 +273,15 @@ const PendingTask: React.FC = () => {
 
                     {/* Pagination Controls */}
                     {filteredTasks.length > 0 && (
-                        <div className="p-4 border-t-2 border-black bg-gray-50 flex justify-between items-center">
-                            <div className="text-sm font-bold text-black">
+                        <div className="p-4 border-t border-gray-200 bg-gray-50/50 flex justify-between items-center">
+                            <div className="text-sm text-[#6B7280]">
                                 Showing {indexOfFirstTask + 1} to {Math.min(indexOfLastTask, filteredTasks.length)} of {filteredTasks.length} entries
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-1">
                                 <button
                                     onClick={() => handlePageChange(currentPage - 1)}
                                     disabled={currentPage === 1}
-                                    className="px-3 py-1 border-2 border-black rounded-md font-bold bg-white hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-[2px_2px_0px_rgba(0,0,0,0.25)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
+                                    className="frappe-btn frappe-btn-ghost disabled:opacity-50"
                                 >
                                     Previous
                                 </button>
@@ -289,9 +291,9 @@ const PendingTask: React.FC = () => {
                                         onClick={() => typeof page === 'number' && handlePageChange(page)}
                                         disabled={typeof page !== 'number'}
                                         className={cn(
-                                            "px-3 py-1 border-2 border-black rounded-md font-bold shadow-[2px_2px_0px_rgba(0,0,0,0.25)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all",
-                                            page === currentPage ? "bg-[#A5D6A7]" : "bg-white hover:bg-gray-200",
-                                            typeof page !== 'number' && "cursor-default hover:bg-white shadow-none border-none active:translate-x-0 active:translate-y-0"
+                                            "frappe-btn",
+                                            page === currentPage ? "frappe-btn-primary" : "frappe-btn-ghost",
+                                            typeof page !== 'number' && "cursor-default"
                                         )}
                                     >
                                         {page}
@@ -300,7 +302,7 @@ const PendingTask: React.FC = () => {
                                 <button
                                     onClick={() => handlePageChange(currentPage + 1)}
                                     disabled={currentPage === totalPages}
-                                    className="px-3 py-1 border-2 border-black rounded-md font-bold bg-white hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-[2px_2px_0px_rgba(0,0,0,0.25)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
+                                    className="frappe-btn frappe-btn-ghost disabled:opacity-50"
                                 >
                                     Next
                                 </button>

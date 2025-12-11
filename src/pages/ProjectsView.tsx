@@ -135,18 +135,21 @@ const taskIcons = {
   "Reimbursement (Max. Limit ₹ 1 lakh)": ReceiptIcon,
 };
 
-// --- DESIGN: Refined Neo-Brutalism Components ---
-const NeoButton = React.forwardRef<
+// --- DESIGN: Frappe-Inspired Components ---
+const FrappeButton = React.forwardRef<
   HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement>
->(({ className, children, ...props }, ref) => (
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' | 'outline' | 'action' }
+>(({ className, children, variant = 'ghost', ...props }, ref) => (
   <button
     ref={ref}
     className={cn(
-      "px-4 py-2 bg-white border-2 border-gray-900 rounded-lg font-semibold text-gray-900 shadow-[1px_1px_0px_rgba(0,0,0,0.1)] transition-all",
-      "hover:shadow-[2px_2px_0px_rgba(0,0,0,0.15)] hover:translate-y-[-1px]",
-      "active:shadow-none active:translate-y-[0px]",
-      "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:bg-stone-100",
+      "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-150",
+      "focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)]",
+      variant === 'primary' && "bg-[#0EA5A4] text-white hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border border-[#0D9494]",
+      variant === 'ghost' && "bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+      variant === 'outline' && "bg-white border-2 border-gray-300 text-gray-700 hover:border-[#0EA5A4] hover:text-[#0EA5A4] hover:bg-gray-50",
+      variant === 'action' && "bg-[#0EA5A4] text-white font-bold hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border-2 border-[#0D9494]",
+      "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
       className
     )}
     {...props}
@@ -154,9 +157,9 @@ const NeoButton = React.forwardRef<
     {children}
   </button>
 ));
-NeoButton.displayName = "NeoButton";
+FrappeButton.displayName = "FrappeButton";
 
-const NeoCard = ({
+const FrappeCard = ({
   className,
   children,
 }: {
@@ -165,7 +168,7 @@ const NeoCard = ({
 }) => (
   <div
     className={cn(
-      "bg-white border-2 border-gray-900 rounded-lg shadow-[2px_2px_0px_rgba(0,0,0,0.1)]",
+      "bg-white rounded-xl border border-gray-200 shadow-sm",
       className
     )}
   >
@@ -420,10 +423,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   const renderPendingTasks = () => {
     if (proposalsLoading) {
       return (
-        <NeoCard className="text-center py-12">
+        <FrappeCard className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-cyan-300 mx-auto mb-4"></div>
           <p className="text-gray-600 text-sm">Loading tasks...</p>
-        </NeoCard>
+        </FrappeCard>
       );
     }
 
@@ -433,26 +436,26 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 
     if (totalTasks === 0) {
       return (
-        <NeoCard className="text-center py-12">
+        <FrappeCard className="text-center py-12">
           <CheckCircleIcon className="h-16 w-16 text-emerald-500 mx-auto mb-4" />
           <h3 className="text-2xl font-bold text-gray-900">NO PENDING TASKS</h3>
           <p className="text-gray-600 text-sm mt-2">All clear. Great job!</p>
-        </NeoCard>
+        </FrappeCard>
       );
     }
 
     return (
       <div className="space-y-6">
-        <NeoCard className="p-4">
+        <FrappeCard className="p-4">
           <h3 className="text-lg font-bold text-gray-900">
             Applications Under Review ({totalTasks})
           </h3>
           <p className="text-sm text-gray-600 mt-1">
             {taskCategories.length} categories
           </p>
-        </NeoCard>
+        </FrappeCard>
 
-        <NeoCard className="overflow-hidden p-0">
+        <FrappeCard className="overflow-hidden p-0">
           <div className="border-b-2 border-gray-900 flex flex-wrap">
             {taskCategories.map((category) => (
               <button
@@ -523,8 +526,9 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                         {new Date(task.actionDate).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="p-3 text-right">
-                        <NeoButton
-                          className="text-xs"
+                        <FrappeButton
+                          variant="action"
+                          className="text-xs px-4 py-2"
                           onClick={() => {
                             if (activeTaskTab === "Project Proposal") {
                               navigate(`/project-proposal-details/${task.id}`);
@@ -535,7 +539,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           }}
                         >
                           View
-                        </NeoButton>
+                        </FrappeButton>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -543,14 +547,14 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
               </Table>
             </div>
           </div>
-        </NeoCard>
+        </FrappeCard>
       </div>
     );
   };
 
   const renderProjectsTable = () => (
     <div className="space-y-6 bg-stone-50">
-      <NeoCard className="p-4">
+      <FrappeCard className="p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
           <div className="relative w-full sm:w-72">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
@@ -602,8 +606,8 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
             </Select>
           </div>
         </div>
-      </NeoCard>
-      <NeoCard className="overflow-hidden p-0">
+      </FrappeCard>
+      <FrappeCard className="overflow-hidden p-0">
         <div className="overflow-x-auto">
           <Table className="divide-y divide-gray-200">
             <TableHeader>
@@ -688,7 +692,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                         </span>
                       </TableCell>
                       <TableCell className="p-4 text-right">
-                        {/* <NeoButton
+                        {/* <FrappeButton
                           onClick={(e) => {
                             e.stopPropagation();
                             const targetPath =
@@ -700,8 +704,9 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           className="text-xs"
                         >
                           View Details
-                        </NeoButton> */}
-                        <NeoButton
+                        </FrappeButton> */}
+                        <FrappeButton
+                          variant="action"
                           onClick={(e) => {
                             e.stopPropagation();
                             const targetPath =
@@ -710,10 +715,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                                 : `/project-details/${p.name}`;
                             navigate(targetPath);
                           }}
-                          className="text-xs"
+                          className="text-xs px-4 py-2"
                         >
                           View Details
-                        </NeoButton>
+                        </FrappeButton>
 
                       </TableCell>
                     </TableRow>
@@ -745,27 +750,27 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
             </TableBody>
           </Table>
         </div>
-      </NeoCard>
+      </FrappeCard>
       {totalPages > 1 && (
         <div className="flex items-center justify-between gap-4 py-4">
           <div className="text-sm font-semibold text-gray-900">
             PAGE {currentPage} OF {totalPages}
           </div>
           <div className="flex items-center gap-2">
-            <NeoButton
+            <FrappeButton
               onClick={() => setCurrentPage((p) => p - 1)}
               disabled={currentPage === 1}
               className="px-3"
             >
               <ChevronLeftIcon className="h-4 w-4" />
-            </NeoButton>
-            <NeoButton
+            </FrappeButton>
+            <FrappeButton
               onClick={() => setCurrentPage((p) => p + 1)}
               disabled={currentPage === totalPages}
               className="px-3"
             >
               <ChevronRight className="h-4 w-4" />
-            </NeoButton>
+            </FrappeButton>
           </div>
         </div>
       )}
@@ -773,35 +778,48 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   );
 
   return (
-    <div className="bg-stone-50 min-h-screen">
+    <div className="bg-[#F0F4F8] min-h-screen">
       <AppSidebar />
       <main className="flex-1 p-4 md:p-8 w-full overflow-auto">
-        <NeoCard className="overflow-hidden">
-          <div className="border-b-2 border-gray-900 flex">
-            {[
-              { id: "myProjects", label: "All Projects" },
-              { id: "pending", label: "Under Review" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "flex-1 py-4 px-4 font-semibold text-gray-900 text-center transition-all border-r-2 border-gray-300 last:border-r-0",
-                  activeTab === tab.id
-                    ? "bg-slate-600 text-white"
-                    : "bg-white hover:bg-stone-50"
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
+        <FrappeCard className="overflow-hidden">
+          <div className="p-4 border-b border-gray-200">
+            <nav className="flex gap-1" aria-label="Project tabs">
+              {[
+                { id: "myProjects", label: "All Projects", count: myProjects?.length || 0 },
+                { id: "pending", label: "Under Review", count: Object.values(allPendingTasks).flat().length },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  aria-selected={activeTab === tab.id}
+                  className={cn(
+                    "relative px-5 py-3 rounded-t-xl font-bold text-base transition-all border border-b-0",
+                    activeTab === tab.id
+                      ? "bg-white text-[#0EA5A4] border-gray-200 shadow-sm"
+                      : "bg-gray-50 text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-100"
+                  )}
+                >
+                  {tab.label}
+                  {tab.id === "pending" && tab.count > 0 && (
+                    <sup className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-[#0EA5A4] text-white rounded-full">
+                      {tab.count}
+                    </sup>
+                  )}
+                  {tab.id === "myProjects" && tab.count > 0 && (
+                    <sup className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-gray-400 text-white rounded-full">
+                      {tab.count}
+                    </sup>
+                  )}
+                </button>
+              ))}
+            </nav>
           </div>
-          <div className="p-6 bg-white">
+          <div className="p-5 bg-[#F0F4F8]">
             {activeTab === "pending"
               ? renderPendingTasks()
               : renderProjectsTable()}
           </div>
-        </NeoCard>
+        </FrappeCard>
       </main>
     </div>
   );

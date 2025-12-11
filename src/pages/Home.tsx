@@ -404,7 +404,7 @@ const Clock = () => {
   }, []);
 
   return (
-    <div className="text-sm text-gray-700 font-semibold border-2 border-gray-900 bg-white px-3 py-1 rounded-lg shadow-[2px_2px_0px_rgba(0,0,0,0.1)]">
+    <div className="text-sm text-gray-700 font-semibold border border-gray-200 bg-white px-3 py-1 rounded-lg shadow-sm">
       {time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} <span className="mx-1">|</span> {time.toLocaleTimeString()}
     </div>
   );
@@ -420,10 +420,10 @@ interface ActionCardProps {
 const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onClick }) => (
   <div
     onClick={onClick}
-    className="bg-white p-6 rounded-lg border-2 border-gray-900 shadow-[2px_2px_0px_rgba(0,0,0,0.1)] hover:shadow-[2px_2px_0px_rgba(0,0,0,0.15)] hover:translate-y-[-2px] transition-all duration-150 cursor-pointer group flex flex-col h-full"
+    className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-[2px_2px_0px_rgba(0,0,0,0.15)] hover:translate-y-[-2px] transition-all duration-150 cursor-pointer group flex flex-col h-full"
   >
     {/* Icon Container: Added border and bg-blue-50 instead of standard sky-100 for better contrast */}
-    <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-blue-50 border-2 border-gray-900 text-slate-800 rounded-lg mb-4 group-hover:bg-slate-600 group-hover:text-white transition-colors duration-150">
+    <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-blue-50 border border-gray-200 text-slate-800 rounded-lg mb-4 group-hover:bg-slate-600 group-hover:text-white transition-colors duration-150">
       {icon}
     </div>
     <h3 className="text-xl font-bold mb-2 text-gray-900">{title}</h3>
@@ -454,7 +454,7 @@ export function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 font-sans text-gray-900">
+    <div className="min-h-screen bg-[#F0F4F8] font-sans text-gray-900">
       <AppSidebar />
       <div className="flex-1 p-4 sm:p-6 md:p-8">
         <div className="max-w-7xl mx-auto">
@@ -471,7 +471,7 @@ export function Home() {
             </div>
 
             {/* Welcome Banner: Hard borders, solid colors */}
-            <div className="bg-emerald-50 border-2 border-gray-900 text-emerald-900 p-4 rounded-lg shadow-[2px_2px_0px_rgba(0,0,0,0.1)] flex items-center">
+            <div className="bg-emerald-50 border border-gray-200 text-emerald-900 p-4 rounded-lg shadow-sm flex items-center">
               <div className="w-2 h-2 bg-emerald-600 rounded-full mr-3 animate-pulse"></div>
               <p className="font-bold text-lg">Welcome back, {fullName || userName}!</p>
             </div>
@@ -481,21 +481,21 @@ export function Home() {
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
 
             {/* Card 1: Your Information */}
-            <div className="bg-white p-6 rounded-lg border-2 border-gray-900 shadow-[2px_2px_0px_rgba(0,0,0,0.1)]">
-              <div className="flex items-center mb-5 pb-4 border-b-2 border-gray-100">
-                <div className="w-10 h-10 mr-4 text-gray-900 flex items-center justify-center bg-stone-100 border-2 border-gray-900 rounded-lg">
+            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+              <div className="flex items-center mb-5 pb-4 border-b-2 border-gray-200">
+                <div className="w-10 h-10 mr-4 text-gray-900 flex items-center justify-center bg-stone-100 border border-gray-200 rounded-lg">
                   <User className="w-5 h-5" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900">Your Information</h3>
               </div>
 
               <div className="text-gray-700 space-y-4 font-medium">
-                <div className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors">
+                <div className="flex justify-between items-center p-2 hover:bg-[#F0F4F8] rounded-lg transition-colors">
                   <span className="text-gray-500">Term Completion</span>
                   <span className="font-bold">2026-04-21</span>
                 </div>
 
-                <div className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors">
+                <div className="flex justify-between items-center p-2 hover:bg-[#F0F4F8] rounded-lg transition-colors">
                   <span className="text-gray-500">Account Number</span>
                   <span className="flex items-center gap-3 font-mono font-bold">
                     {showAccountNumber ? '123456781234' : '•••• •••• 1234'}
@@ -505,7 +505,7 @@ export function Home() {
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors">
+                <div className="flex justify-between items-center p-2 hover:bg-[#F0F4F8] rounded-lg transition-colors">
                   <span className="text-gray-500">Salary Basic</span>
                   <span className="flex items-center gap-3 font-mono font-bold">
                     {showSalary ? '₹ 50,000.00' : '₹ ••••••'}
@@ -515,12 +515,12 @@ export function Home() {
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors">
+                <div className="flex justify-between items-center p-2 hover:bg-[#F0F4F8] rounded-lg transition-colors">
                   <span className="text-gray-500">Hostel</span>
                   <span className="bg-stone-100 text-gray-600 border border-gray-400 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">No</span>
                 </div>
 
-                <div className="flex justify-between items-center p-2 hover:bg-stone-50 rounded-lg transition-colors">
+                <div className="flex justify-between items-center p-2 hover:bg-[#F0F4F8] rounded-lg transition-colors">
                   <span className="text-gray-500">HRA</span>
                   <span className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Yes</span>
                 </div>
@@ -533,9 +533,9 @@ export function Home() {
             </div>
 
             {/* Card 2: Leave & Policies */}
-            <div className="bg-white p-6 rounded-lg border-2 border-gray-900 shadow-[2px_2px_0px_rgba(0,0,0,0.1)] flex flex-col">
-              <div className="flex items-center mb-5 pb-4 border-b-2 border-gray-100">
-                <div className="w-10 h-10 mr-4 text-gray-900 flex items-center justify-center bg-stone-100 border-2 border-gray-900 rounded-lg">
+            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm flex flex-col">
+              <div className="flex items-center mb-5 pb-4 border-b-2 border-gray-200">
+                <div className="w-10 h-10 mr-4 text-gray-900 flex items-center justify-center bg-stone-100 border border-gray-200 rounded-lg">
                   <Info className="w-5 h-5" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900">Leave & Policies</h3>
@@ -549,7 +549,7 @@ export function Home() {
 
                 <button
                   onClick={() => navigate("/leave-application")}
-                  className="w-full bg-slate-600 text-white font-bold py-4 px-4 rounded-lg border-2 border-slate-600 shadow-[2px_2px_0px_rgba(0,0,0,0.1)] hover:shadow-[3px_3px_0px_rgba(0,0,0,0.15)] hover:translate-y-[-2px] transition-all duration-150 active:translate-y-0 active:shadow-none"
+                  className="w-full bg-slate-600 text-white font-bold py-4 px-4 rounded-lg border-2 border-slate-600 shadow-sm hover:shadow-[3px_3px_0px_rgba(0,0,0,0.15)] hover:translate-y-[-2px] transition-all duration-150 active:translate-y-0 active:shadow-none"
                 >
                   Apply for Leave
                 </button>
@@ -581,27 +581,27 @@ export function Home() {
 
           {/* Secondary Information Section */}
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white p-6 rounded-lg border-2 border-gray-900 shadow-[2px_2px_0px_rgba(0,0,0,0.1)]">
+            <div className="lg:col-span-2 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
               <div className="flex items-center mb-4">
                 <div className="w-8 h-8 mr-3 text-gray-900"><Megaphone /></div>
                 <h3 className="text-xl font-bold text-gray-900">Announcements</h3>
               </div>
-              <div className="text-gray-500 space-y-2 border-t-2 border-gray-100 pt-4 font-medium italic">
+              <div className="text-gray-500 space-y-2 border-t-2 border-gray-200 pt-4 font-medium italic">
                 <p>No new announcements. Please check back later for updates.</p>
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-lg border-2 border-gray-900 shadow-[2px_2px_0px_rgba(0,0,0,0.1)]">
+            <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
               <h3 className="text-xl font-bold mb-4 text-gray-900">Resources</h3>
-              <ul className="space-y-3 border-t-2 border-gray-100 pt-4">
+              <ul className="space-y-3 border-t-2 border-gray-200 pt-4">
                 <li>
-                  <a href="#" className="flex items-center text-gray-700 hover:text-slate-600 hover:bg-stone-50 p-2 rounded-lg transition-colors group font-semibold">
+                  <a href="#" className="flex items-center text-gray-700 hover:text-slate-600 hover:bg-[#F0F4F8] p-2 rounded-lg transition-colors group font-semibold">
                     <FileText className="w-5 h-5 mr-3 text-gray-400 group-hover:text-slate-600" />
                     <span>Portal Docs</span>
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="flex items-center text-gray-700 hover:text-slate-600 hover:bg-stone-50 p-2 rounded-lg transition-colors group font-semibold">
+                  <a href="#" className="flex items-center text-gray-700 hover:text-slate-600 hover:bg-[#F0F4F8] p-2 rounded-lg transition-colors group font-semibold">
                     <LifeBuoy className="w-5 h-5 mr-3 text-gray-400 group-hover:text-slate-600" />
                     <span>Contact Support</span>
                   </a>
@@ -611,7 +611,7 @@ export function Home() {
           </section>
 
           {/* Bottom Banner */}
-          <section className="bg-gray-800 text-white p-8 rounded-lg border-2 border-gray-900 shadow-[2px_2px_0px_rgba(0,0,0,0.1)] text-center my-12 relative overflow-hidden">
+          <section className="bg-gray-800 text-white p-8 rounded-lg border border-gray-200 shadow-sm text-center my-12 relative overflow-hidden">
             {/* SVG Background Pattern integrated via inline CSS/Style remains effective for texture */}
             <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 2000 1500\'%3e%3crect fill=\'%23ffffff\' width=\'2000\' height=\'1500\'/%3e%3cdefs%3e%3cpath fill=\'none\' stroke-width=\'2\' stroke-opacity=\'1\' id=\'a\' d=\'M0 750c250 0 250 0 500 0s250 0 500 0s250 0 500 0s250 0 500 0\'/%3e%3c/defs%3e%3cg transform=\'translate(0 0)\'%3e%3cuse xlink:href=\'%23a\' y=\'-150\' transform=\'rotate(5 1000 750)\' stroke=\'%23000000\'/%3e%3cuse xlink:href=\'%23a\' y=\'-100\' transform=\'rotate(10 1000 750)\' stroke=\'%23000000\'/%3e%3c/g%3e%3c/svg%3e")' }}></div>
 

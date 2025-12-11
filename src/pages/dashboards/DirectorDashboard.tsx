@@ -56,7 +56,7 @@ export function DirectorDashboard() {
   const isPermanentEmployee = userData?.user_roles?.some((role: any) => role.role === "Permanent Employee") || false;
 
   const DepartmentTooltipContent = () => (
-    <div className="bg-black text-white p-2 rounded-md border border-white/20 font-mono text-xs">
+    <div className="bg-[#E0F7F6] text-[#0EA5A4] p-2 rounded-md border border-white/20  text-xs">
       <h4 className="font-bold mb-1 border-b border-white/20 pb-1">Projects by Department</h4>
       <ul className="space-y-1 mt-2">
         {departmentWiseProjects.map(dept => (
@@ -70,7 +70,7 @@ export function DirectorDashboard() {
   );
 
   return (
-    <div className="bg-[#FDFCEC] min-h-screen font-sans">
+    <div className="bg-[#F0F4F8] min-h-screen font-sans">
       <AppSidebar />
       <div className="flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
@@ -78,8 +78,8 @@ export function DirectorDashboard() {
           <header className="mb-8">
             <div className="flex justify-between items-start">
               <div>
-                <h1 className="text-4xl font-extrabold text-black uppercase">Director's Dashboard</h1>
-                <p className="text-lg text-neutral-700 font-mono">Strategic Overview for {fullName}</p>
+                <h1 className="text-4xl font-bold text-black ">Director's Dashboard</h1>
+                <p className="text-lg text-gray-700 ">Strategic Overview for {fullName}</p>
               </div>
               <CurrentTime />
             </div>
@@ -98,8 +98,8 @@ export function DirectorDashboard() {
             />
 
             {/* Column 2-4: "Project Overview" takes the remaining 3 column spaces */}
-            <div className="lg:col-span-3 bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-              <div className="flex items-center mb-4 gap-3"><Building2 className="size-7" /><h3 className="text-xl font-bold text-black uppercase">Project Overview</h3></div>
+            <div className="lg:col-span-3 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              <div className="flex items-center mb-4 gap-3"><Building2 className="size-7" /><h3 className="text-xl font-bold text-black ">Project Overview</h3></div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <TooltipProvider>
                   <ShadTooltip>
@@ -121,9 +121,9 @@ export function DirectorDashboard() {
             </div>
 
             {/* Row 2: Fund & Collaborators Analytics takes the full 4 column spaces */}
-            <div className="lg:col-span-4 bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)] grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <div className="lg:col-span-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
               <div>
-                <div className="flex items-center mb-4 gap-3"><Landmark className="size-7 text-green-600" /><h3 className="text-xl font-bold text-black uppercase">Fund Analytics</h3></div>
+                <div className="flex items-center mb-4 gap-3"><Landmark className="size-7 text-green-600" /><h3 className="text-xl font-bold text-black ">Fund Analytics</h3></div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {/* Changed currency symbol and icon */}
                   <AnalyticsCard title="Total Allocation" value="₹250Cr" subtitle="Current fiscal year" icon={<IndianRupee className="size-5" />} />
@@ -132,7 +132,7 @@ export function DirectorDashboard() {
                 </div>
               </div>
               <div>
-                <div className="flex items-center mb-4 gap-3"><Globe className="size-7 text-blue-600" /><h3 className="text-xl font-bold text-black uppercase">International Collaborations</h3></div>
+                <div className="flex items-center mb-4 gap-3"><Globe className="size-7 text-[#0EA5A4]" /><h3 className="text-xl font-bold text-black ">International Collaborations</h3></div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <AnalyticsCard title="Funding Agencies" value="18" subtitle="Active MOUs" icon={<Landmark className="size-5" />} />
                   <AnalyticsCard title="Additional PIs" value="32" subtitle="From partner institutes" icon={<Users className="size-5" />} />
@@ -147,8 +147,8 @@ export function DirectorDashboard() {
           {/* Charts Section (No changes here) */}
           <section className="grid grid-cols-1 lg:grid-cols-5 gap-8">
             {/* Bar Chart */}
-            <div className="lg:col-span-3 bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-              <h3 className="text-xl font-bold text-black uppercase mb-4">Project Status by Year</h3>
+            <div className="lg:col-span-3 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              <h3 className="text-xl font-bold text-black  mb-4">Project Status by Year</h3>
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={projectStatusByYearData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
@@ -166,8 +166,8 @@ export function DirectorDashboard() {
             </div>
 
             {/* Pie Chart */}
-            <div className="lg:col-span-2 bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-              <h3 className="text-xl font-bold text-black uppercase mb-4">Projects by Funding Source</h3>
+            <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              <h3 className="text-xl font-bold text-black  mb-4">Projects by Funding Source</h3>
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -185,10 +185,10 @@ export function DirectorDashboard() {
           </section>
 
           {/* Footer (No changes here) */}
-          <footer className="text-center text-neutral-600 mt-10 pb-4">
-            <div className="flex items-center justify-center space-x-2 font-mono text-sm">
+          <footer className="text-center text-gray-600 mt-10 pb-4">
+            <div className="flex items-center justify-center space-x-2  text-sm">
               <Mail className="size-4" />
-              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-blue-600 hover:underline font-semibold">ernd@iitg.ac.in</a></p>
+              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#0EA5A4] hover:underline font-semibold">ernd@iitg.ac.in</a></p>
             </div>
           </footer>
         </div>

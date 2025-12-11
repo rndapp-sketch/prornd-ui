@@ -199,16 +199,16 @@ export function AppSidebar() {
   return (
     <>
       <GlobalLoader isLoading={isLoggingOut} />
-      <Sidebar collapsible="icon" variant="sidebar" className="bg-stone-50 border-r-2 border-gray-900 shadow-[4px_0px_0px_rgba(0,0,0,0.25)]">
+      <Sidebar collapsible="icon" variant="sidebar" className="bg-[#F0F4F8] border-r-2 border-gray-300">
 
-        {/* --- DESIGN: Header with refined typography --- */}
-        <SidebarHeader className="px-4 py-5 border-b-2 border-gray-900 bg-white">
+        {/* --- Header with Frappe styling --- */}
+        <SidebarHeader className="px-4 py-4 border-b border-gray-200 bg-white">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg border-2 border-gray-900">
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#E0F7F6]">
               <img
                 src="/file.svg"
                 alt="R&D Operations Logo"
-                className="w-5 h-5"
+                className="w-6 h-6"
               />
             </div>
             {state === 'expanded' && (
@@ -219,10 +219,10 @@ export function AppSidebar() {
           </div>
         </SidebarHeader>
 
-        {/* --- DESIGN: Menu with consistent styling rules applied --- */}
+        {/* --- Menu with Frappe styling --- */}
         <SidebarContent className="px-3 py-4">
           <SidebarGroup>
-            <SidebarMenu className="space-y-2">
+            <SidebarMenu className="space-y-1">
               {menuItems.map((item) => {
                 const isAnySubMenuActive = item.subMenu?.some(sub => isActivePath(sub.path)) ?? false;
                 const isActive = (item.path && isActivePath(item.path)) || isAnySubMenuActive;
@@ -233,40 +233,40 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       onClick={() => handleMenuItemClick(item)}
                       className={cn(
-                        "w-full h-10 px-3 rounded-lg font-semibold text-sm transition-all duration-150 border-2",
+                        "w-full h-11 px-3 rounded-xl font-medium text-base transition-all duration-150",
                         isActive
-                          ? "bg-slate-600 text-white border-gray-900 shadow-[2px_2px_0px_rgba(0,0,0,0.1)]"
-                          : "bg-white text-gray-900 border-gray-900 hover:bg-stone-50 hover:-translate-y-0.5"
+                          ? "bg-[#0EA5A4] text-white shadow-sm"
+                          : "bg-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       )}
                       tooltip={item.label}
                     >
-                      <div className="flex items-center gap-2 flex-1">
+                      <div className="flex items-center gap-3 flex-1">
                         <div className={cn(
-                          "flex items-center justify-center w-7 h-7 border-2 rounded-lg transition-colors",
-                          isActive ? "bg-white text-slate-600 border-gray-900" : "bg-stone-50 text-gray-700 border-gray-900"
+                          "flex items-center justify-center w-8 h-8 rounded-lg transition-colors",
+                          isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
                         )}>
-                          <item.icon className="w-4 h-4" strokeWidth={2.5} />
+                          <item.icon className="w-5 h-5" strokeWidth={2} />
                         </div>
-                        {state === 'expanded' && <span className="text-sm">{item.label}</span>}
+                        {state === 'expanded' && <span>{item.label}</span>}
                       </div>
 
-                      {/* Show notification badge for Pending Task */}
+                      {/* Notification badge for Pending Task */}
                       {item.label === "Pending Task" && pendingTaskCount > 0 && (
                         <div className={cn(
-                          "flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full border-2 border-gray-900 text-xs font-bold",
-                          isActive ? "bg-orange-400 text-gray-900" : "bg-orange-500 text-white"
+                          "flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-medium",
+                          isActive ? "bg-white/20 text-white" : "bg-[#0EA5A4] text-white"
                         )}>
                           {pendingTaskCount > 99 ? '99+' : pendingTaskCount}
                         </div>
                       )}
 
                       {state === 'expanded' && item.subMenu && (
-                        <ChevronDownIcon className={cn("w-4 h-4 transition-transform flex-shrink-0", isSubMenuOpen && "rotate-180")} strokeWidth={2.5} />
+                        <ChevronDownIcon className={cn("w-4 h-4 transition-transform flex-shrink-0 text-current opacity-60", isSubMenuOpen && "rotate-180")} strokeWidth={2} />
                       )}
                     </SidebarMenuButton>
 
                     {item.subMenu && isSubMenuOpen && state === 'expanded' && (
-                      <SidebarMenuSub className="ml-2 mt-2 space-y-1 pl-3 border-l-2 border-gray-900">
+                      <SidebarMenuSub className="ml-4 mt-1 space-y-0.5 pl-3 border-l border-gray-200">
                         {item.subMenu.map((subItem) => {
                           const isSubActive = isActivePath(subItem.path);
                           return (
@@ -274,10 +274,10 @@ export function AppSidebar() {
                               <SidebarMenuSubButton
                                 onClick={() => handleSubMenuItemClick(subItem)}
                                 className={cn(
-                                  "w-full px-3 py-2 text-xs rounded-lg font-semibold transition-all duration-150",
+                                  "w-full px-3 py-2.5 text-sm rounded-lg font-medium transition-all duration-150",
                                   isSubActive
-                                    ? "bg-slate-200 text-gray-900"
-                                    : "bg-white text-gray-600 hover:bg-stone-50"
+                                    ? "bg-[#E0F7F6] text-[#0EA5A4]"
+                                    : "bg-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                                 )}
                               >
                                 {subItem.label}
@@ -294,36 +294,36 @@ export function AppSidebar() {
           </SidebarGroup>
         </SidebarContent>
 
-        {/* --- DESIGN: Footer with consistent borders and refined user profile --- */}
-        <SidebarFooter className="px-3 py-4 border-t-2 border-gray-900 bg-white">
+        {/* --- Footer with Frappe styling --- */}
+        <SidebarFooter className="px-3 py-4 border-t border-gray-200 bg-white">
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={handleLogout}
-              className="w-full h-10 px-3 rounded-lg font-semibold text-sm transition-all duration-150 border-2 border-gray-900 bg-white text-gray-900 hover:bg-red-50 hover:border-red-500 hover:text-red-700 hover:-translate-y-0.5"
+              className="w-full h-10 px-3 rounded-xl font-medium text-sm transition-all duration-150 bg-transparent text-gray-600 hover:bg-red-50 hover:text-red-600"
               tooltip="Log out"
             >
-              <div className="flex items-center justify-center w-7 h-7 bg-stone-50 rounded-lg border-2 border-gray-900">
-                <LogOutIcon className="w-4 h-4 text-gray-700" strokeWidth={2.5} />
+              <div className="flex items-center justify-center w-7 h-7 bg-gray-100 rounded-lg">
+                <LogOutIcon className="w-4 h-4 text-gray-500" strokeWidth={2} />
               </div>
               {state === 'expanded' && <span className="ml-2 text-sm">Log out</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
 
           {state === 'expanded' && (
-            <div className="mt-4 pt-4 border-t-2 border-gray-200">
+            <div className="mt-3 pt-3 border-t border-gray-200">
               {(isLoading || isLoadingUserDoc) ? (
-                <div className="p-2 text-xs text-gray-600 font-semibold">Loading user...</div>
+                <div className="p-2 text-xs text-[#6B7280]">Loading user...</div>
               ) : (
-                <div className="flex items-center gap-2 p-2 border-2 border-gray-900 bg-stone-50 rounded-lg">
-                  <div className="flex items-center justify-center flex-shrink-0 w-9 h-9 rounded-lg bg-slate-600 border-2 border-gray-900 font-semibold text-white text-sm">
+                <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-xl">
+                  <div className="flex items-center justify-center flex-shrink-0 w-9 h-9 rounded-lg bg-[#0EA5A4] font-medium text-white text-sm">
                     {userDoc?.user_image ? (
-                      <img src={userDoc.user_image} alt="Profile" className="w-full h-full rounded-md object-cover" />
+                      <img src={userDoc.user_image} alt="Profile" className="w-full h-full rounded-lg object-cover" />
                     ) : (
                       userDoc?.full_name?.charAt(0).toUpperCase() || 'U'
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-gray-900 truncate">
+                    <p className="text-sm font-medium text-gray-900 truncate">
                       {userDoc?.full_name || "User Name"}
                     </p>
                     <p className="text-xs text-gray-500 truncate">

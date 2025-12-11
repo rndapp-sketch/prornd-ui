@@ -5,10 +5,11 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
 import { AppSidebar } from "../components/RndSidebar";
+import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
 import {
   PlusCircle, LayoutGrid, FileText, BarChart, PieChart, TrendingUp,
   AlertCircle, Megaphone, LifeBuoy, Mail, Clock,
-  UsersIcon
+  UsersIcon, SearchIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,9 +21,9 @@ const CurrentTime = () => {
     return () => clearInterval(timerId);
   }, []);
   return (
-    <div className="font-mono text-sm text-neutral-700 text-right">
-      <div>{time.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-      <div>{time.toLocaleTimeString()}</div>
+    <div className="text-sm text-gray-600 text-right bg-white px-4 py-2 rounded-xl border border-gray-200 shadow-sm">
+      <div className="font-medium">{time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+      <div className="text-gray-500">{time.toLocaleTimeString()}</div>
     </div>
   );
 };
@@ -37,13 +38,13 @@ interface ActionCardProps {
 const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onClick }) => (
   <div
     onClick={onClick}
-    className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[2px_2px_0px_rgba(0,0,0,0.25)] hover:translate-x-[2px] hover:translate-y-[2px] cursor-pointer group flex flex-col"
+    className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm transition-all duration-150 hover:shadow-md hover:border-gray-200 cursor-pointer group flex flex-col"
   >
-    <div className="flex-shrink-0 flex items-center justify-center size-12 bg-black text-white rounded-lg border-2 border-black mb-4">
+    <div className="flex-shrink-0 flex items-center justify-center size-11 bg-[#E0F7F6] text-[#0EA5A4] rounded-xl mb-4 group-hover:bg-[#0EA5A4] group-hover:text-white transition-colors">
       {icon}
     </div>
-    <h3 className="text-xl font-bold mb-2 text-black uppercase">{title}</h3>
-    <p className="text-neutral-700 flex-grow text-sm font-mono">{description}</p>
+    <h3 className="text-lg font-semibold mb-2 text-gray-900">{title}</h3>
+    <p className="text-gray-500 flex-grow text-sm">{description}</p>
   </div>
 );
 
@@ -51,16 +52,16 @@ const AnalyticsCard: React.FC<{ title: string; value: string; subtitle: string; 
   ({ title, value, subtitle, icon, trend, onClick }) => (
     <div
       onClick={onClick}
-      className={cn("p-4 rounded-lg border-2 border-black", onClick ? 'cursor-pointer hover:bg-stone-50' : '')}
+      className={cn("p-4 rounded-xl border border-gray-200 bg-gray-50/50", onClick ? 'cursor-pointer hover:bg-[#E0F7F6]/30 hover:border-[#0EA5A4]/20 transition-colors' : '')}
     >
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-base font-bold text-black uppercase">{title}</h3>
-        <div className="text-black">{icon}</div>
+        <h3 className="text-sm font-medium text-gray-600">{title}</h3>
+        <div className="text-[#0EA5A4]">{icon}</div>
       </div>
-      <div className="text-3xl font-bold text-black">{value}</div>
+      <div className="text-2xl font-bold text-gray-900">{value}</div>
       <div className="flex items-center justify-between mt-1">
-        <div className="text-xs text-neutral-600 font-mono">{subtitle}</div>
-        {trend && (<div className={`text-xs font-bold ${trend.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>{trend}</div>)}
+        <div className="text-xs text-gray-500">{subtitle}</div>
+        {trend && (<div className={`text-xs font-semibold ${trend.startsWith('+') ? 'text-emerald-600' : 'text-red-500'}`}>{trend}</div>)}
       </div>
     </div>
   );
@@ -76,9 +77,10 @@ export function PiHomePage() {
 
   const fullName = userData?.full_name || currentUser || "Guest";
   const isPermanentEmployee = userData?.user_roles?.some((role: any) => role.role === "Permanent Employee") || false;
+  const { isOpen: isCommandPaletteOpen, openPalette, closePalette } = useCommandPalette();
 
   return (
-    <div className=" bg-[#FDFCEC] min-h-screen  font-sans">
+    <div className=" bg-[#F0F4F8] min-h-screen  font-sans">
       <AppSidebar />
       <div className="flex-1 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
@@ -86,12 +88,27 @@ export function PiHomePage() {
           <header className="mb-8">
             <div className="flex justify-between items-start">
               <div>
-                <h1 className="text-4xl font-extrabold text-black uppercase">Dashboard</h1>
-                <p className="text-lg text-neutral-700 font-mono">Welcome back, {fullName}</p>
+                <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+                <p className="text-gray-500 mt-1">Welcome back, {fullName}</p>
               </div>
-              <CurrentTime />
+              <div className="flex items-center gap-4">
+                <CurrentTime />
+                {/* Search Button */}
+                <button
+                  onClick={openPalette}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl shadow-sm transition-colors"
+                >
+                  <SearchIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline">Search...</span>
+                  <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-mono bg-gray-50 border border-gray-300 rounded">
+                    ⌘K
+                  </kbd>
+                </button>
+              </div>
             </div>
           </header>
+          {/* Command Palette */}
+          <CommandPalette isOpen={isCommandPaletteOpen} onClose={closePalette} />
 
           {/* Main Action Cards */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -118,8 +135,8 @@ export function PiHomePage() {
           {/* Analytics Section */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             {/* Project Analytics */}
-            <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-              <div className="flex items-center mb-4 gap-3"><BarChart className="size-7" /><h3 className="text-xl font-bold text-black uppercase">Project Overview</h3></div>
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              <div className="flex items-center mb-4 gap-3"><BarChart className="size-6 text-[#0EA5A4]" /><h3 className="text-lg font-semibold text-gray-900">Project Overview</h3></div>
               <div className="grid grid-cols-2 gap-4">
                 <AnalyticsCard title="Total Projects" value="24" subtitle="Active: 18 | Draft: 6" icon={<FileText className="size-5" />} trend="+12%" onClick={() => navigate("/project-analytics")} />
                 <AnalyticsCard title="Completion Rate" value="87%" subtitle="On track projects" icon={<TrendingUp className="size-5" />} trend="+5%" />
@@ -129,8 +146,8 @@ export function PiHomePage() {
             </div>
 
             {/* Fund Analytics */}
-            <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-              <div className="flex items-center mb-4 gap-3"><PieChart className="size-7 text-green-600" /><h3 className="text-xl font-bold text-black uppercase">Fund Analytics</h3></div>
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              <div className="flex items-center mb-4 gap-3"><PieChart className="size-6 text-[#0EA5A4]" /><h3 className="text-lg font-semibold text-gray-900">Fund Analytics</h3></div>
               <div className="grid grid-cols-2 gap-4">
                 <AnalyticsCard title="Total Allocation" value="₹4.2Cr" subtitle="Current fiscal year" icon={<PieChart className="size-5" />} trend="+18%" onClick={() => navigate("/fund-analytics")} />
                 <AnalyticsCard title="Utilization" value="76%" subtitle="₹3.2Cr utilized" icon={<TrendingUp className="size-5" />} trend="+8%" />
@@ -142,29 +159,29 @@ export function PiHomePage() {
 
           {/* Information Section */}
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-              <div className="flex items-center mb-4 gap-3"><Megaphone className="size-6" /><h3 className="text-xl font-bold text-black uppercase">Recent Updates</h3></div>
-              <div className="text-neutral-700 space-y-4 border-t-2 border-black pt-4">
-                <div className="flex items-start gap-3"><div className="size-2 bg-blue-500 rounded-full mt-1.5 flex-shrink-0"></div><div><p className="font-semibold">New funding opportunity for AI research</p><p className="text-sm text-neutral-500 font-mono">Deadline: March 15, 2024</p></div></div>
-                <div className="flex items-start gap-3"><div className="size-2 bg-green-500 rounded-full mt-1.5 flex-shrink-0"></div><div><p className="font-semibold">Quarterly review meeting scheduled</p><p className="text-sm text-neutral-500 font-mono">March 10, 2024 | 10:00 AM</p></div></div>
-                <div className="flex items-start gap-3"><div className="size-2 bg-amber-500 rounded-full mt-1.5 flex-shrink-0"></div><div><p className="font-semibold">System maintenance this weekend</p><p className="text-sm text-neutral-500 font-mono">March 9-10, 2024 | 10 PM - 6 AM</p></div></div>
+            <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              <div className="flex items-center mb-4 gap-3"><Megaphone className="size-5 text-[#0EA5A4]" /><h3 className="text-lg font-semibold text-gray-900">Recent Updates</h3></div>
+              <div className="text-gray-600 space-y-4 border-t border-gray-200 pt-4">
+                <div className="flex items-start gap-3"><div className="size-2 bg-[#0EA5A4] rounded-full mt-1.5 flex-shrink-0"></div><div><p className="font-medium text-gray-900">New funding opportunity for AI research</p><p className="text-sm text-gray-500">Deadline: March 15, 2024</p></div></div>
+                <div className="flex items-start gap-3"><div className="size-2 bg-emerald-500 rounded-full mt-1.5 flex-shrink-0"></div><div><p className="font-medium text-gray-900">Quarterly review meeting scheduled</p><p className="text-sm text-gray-500">March 10, 2024 | 10:00 AM</p></div></div>
+                <div className="flex items-start gap-3"><div className="size-2 bg-amber-500 rounded-full mt-1.5 flex-shrink-0"></div><div><p className="font-medium text-gray-900">System maintenance this weekend</p><p className="text-sm text-gray-500">March 9-10, 2024 | 10 PM - 6 AM</p></div></div>
               </div>
             </div>
-            <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-              <h3 className="text-xl font-bold mb-4 text-black uppercase">Quick Resources</h3>
-              <ul className="space-y-3 border-t-2 border-black pt-4">
-                <li><a href="#" className="flex items-center text-black hover:underline group font-semibold"><FileText className="size-5 mr-3 text-neutral-500" /><span className="group-hover:text-blue-600">Project Guidelines</span></a></li>
-                <li><a href="#" className="flex items-center text-black hover:underline group font-semibold"><LifeBuoy className="size-5 mr-3 text-neutral-500" /><span className="group-hover:text-blue-600">Support Portal</span></a></li>
-                <li><a href="#" className="flex items-center text-black hover:underline group font-semibold"><BarChart className="size-5 mr-3 text-neutral-500" /><span className="group-hover:text-blue-600">Analytics Reports</span></a></li>
-                <li><a href="#" className="flex items-center text-black hover:underline group font-semibold"><PieChart className="size-5 mr-3 text-neutral-500" /><span className="group-hover:text-blue-600">Financial Templates</span></a></li>
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900">Quick Resources</h3>
+              <ul className="space-y-3 border-t border-gray-200 pt-4">
+                <li><a href="#" className="flex items-center text-gray-700 hover:text-[#0EA5A4] p-2 rounded-lg hover:bg-[#E0F7F6]/30 transition-colors group font-medium"><FileText className="size-5 mr-3 text-gray-400 group-hover:text-[#0EA5A4]" /><span>Project Guidelines</span></a></li>
+                <li><a href="#" className="flex items-center text-gray-700 hover:text-[#0EA5A4] p-2 rounded-lg hover:bg-[#E0F7F6]/30 transition-colors group font-medium"><LifeBuoy className="size-5 mr-3 text-gray-400 group-hover:text-[#0EA5A4]" /><span>Support Portal</span></a></li>
+                <li><a href="#" className="flex items-center text-gray-700 hover:text-[#0EA5A4] p-2 rounded-lg hover:bg-[#E0F7F6]/30 transition-colors group font-medium"><BarChart className="size-5 mr-3 text-gray-400 group-hover:text-[#0EA5A4]" /><span>Analytics Reports</span></a></li>
+                <li><a href="#" className="flex items-center text-gray-700 hover:text-[#0EA5A4] p-2 rounded-lg hover:bg-[#E0F7F6]/30 transition-colors group font-medium"><PieChart className="size-5 mr-3 text-gray-400 group-hover:text-[#0EA5A4]" /><span>Financial Templates</span></a></li>
               </ul>
             </div>
           </section>
 
-          <footer className="text-center text-neutral-600 mt-10 pb-4">
-            <div className="flex items-center justify-center space-x-2 font-mono text-sm">
+          <footer className="text-center text-gray-500 mt-10 pb-4">
+            <div className="flex items-center justify-center space-x-2 text-sm">
               <Mail className="size-4" />
-              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-blue-600 hover:underline font-semibold">ernd@iitg.ac.in</a></p>
+              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#0EA5A4] hover:underline font-medium">ernd@iitg.ac.in</a></p>
             </div>
           </footer>
         </div>

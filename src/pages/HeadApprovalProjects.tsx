@@ -45,14 +45,14 @@ interface Department {
 }
 
 // --- Reusable UI Components ---
-const NeoButton = React.forwardRef<
+const FrappeButton = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement>
 >(({ className, children, ...props }, ref) => (
   <button
     ref={ref}
     className={cn(
-      "px-4 py-2 bg-white border-2 border-black rounded-md font-bold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all",
+      "px-4 py-2 bg-white border border-gray-200 rounded-md font-bold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all",
       "hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px]",
       "active:shadow-none active:translate-x-[2px] active:translate-y-[2px]",
       "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:bg-gray-200 disabled:translate-x-0 disabled:translate-y-0",
@@ -63,9 +63,9 @@ const NeoButton = React.forwardRef<
     {children}
   </button>
 ));
-NeoButton.displayName = "NeoButton";
+FrappeButton.displayName = "FrappeButton";
 
-const NeoCard = ({
+const FrappeCard = ({
   className,
   children,
 }: {
@@ -74,7 +74,7 @@ const NeoCard = ({
 }) => (
   <div
     className={cn(
-      "bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]",
+      "bg-white border border-gray-200 rounded-md shadow-sm",
       className
     )}
   >
@@ -89,7 +89,7 @@ const getStatusBadge = (status: string) => {
   else if (s?.includes("approved")) style = "bg-green-300";
   else if (s?.includes("draft")) style = "bg-slate-300";
   else if (s?.includes("rejected")) style = "bg-red-500 text-white";
-  return cn("inline-block px-2.5 py-1 rounded-md text-xs font-bold border-2 border-black", style);
+  return cn("inline-block px-2.5 py-1 rounded-md text-xs font-bold border border-gray-200", style);
 };
 
 
@@ -188,7 +188,7 @@ export function HeadApprovalProjects() {
   // --- Render Function for the Table ---
   const renderProjectsTable = () => (
     <div className="space-y-8">
-      <NeoCard className="p-4">
+      <FrappeCard className="p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
           <div className="relative w-full sm:w-72">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
@@ -197,15 +197,15 @@ export function HeadApprovalProjects() {
               placeholder="Search projects..."
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              className="pl-10 h-12 bg-white border-2 border-black rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-400 font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
+              className="pl-10 h-12 bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-400 font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
             />
           </div>
           <div className="flex gap-3">
             <Select value={sortField} onValueChange={(v: any) => handleSortChange(v)}>
-              <SelectTrigger className="h-12 w-full sm:w-48 bg-white border-2 border-black rounded-md font-bold shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+              <SelectTrigger className="h-12 w-full sm:w-48 bg-white border border-gray-200 rounded-md font-bold shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
-              <SelectContent className="bg-white border-2 border-black rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+              <SelectContent className="bg-white border border-gray-200 rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
                 <SelectItem value="creation">Latest</SelectItem>
                 <SelectItem value="name">Project Number</SelectItem>
                 <SelectItem value="project_title">Project Title</SelectItem>
@@ -213,21 +213,21 @@ export function HeadApprovalProjects() {
               </SelectContent>
             </Select>
             <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
-              <SelectTrigger className="h-12 w-full sm:w-32 bg-white border-2 border-black rounded-md font-bold shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+              <SelectTrigger className="h-12 w-full sm:w-32 bg-white border border-gray-200 rounded-md font-bold shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
                 <SelectValue placeholder="Show" />
               </SelectTrigger>
-              <SelectContent className="bg-white border-2 border-black rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+              <SelectContent className="bg-white border border-gray-200 rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
                 {[5, 10, 20, 50].map((n) => (<SelectItem key={n} value={String(n)}>Show {n}</SelectItem>))}
               </SelectContent>
             </Select>
           </div>
         </div>
-      </NeoCard>
-      <NeoCard className="overflow-hidden p-0">
+      </FrappeCard>
+      <FrappeCard className="overflow-hidden p-0">
         <div className="overflow-x-auto">
-          <Table className="divide-y-2 divide-black">
+          <Table className="divide-y-2 divide-gray-100">
             <TableHeader>
-              <TableRow className="divide-x-2 divide-black bg-[#90A4AE]">
+              <TableRow className="divide-x-2 divide-gray-100 bg-gray-50">
                 {(["Project Number", "Project Title", "Status"] as const).map(
                   (field) => {
                     const fieldKey = field === "Project Number" ? "name" : field === "Project Title" ? "project_title" : "workflow_state";
@@ -241,18 +241,18 @@ export function HeadApprovalProjects() {
                 <TableHead className="p-3 font-bold text-black uppercase tracking-wider text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y-2 divide-black bg-white">
+            <TableBody className="divide-y-2 divide-gray-100 bg-white">
               {isLoading && (<TableRow><TableCell colSpan={4} className="h-32 text-center font-bold">LOADING PROJECTS...</TableCell></TableRow>)}
               {projectsError && (<TableRow><TableCell colSpan={4} className="h-32 text-center font-bold text-red-600">ERROR LOADING PROJECTS</TableCell></TableRow>)}
               {!isLoading && !projectsError && paginatedProjects.length > 0 ? paginatedProjects.map((p) => (
-                <TableRow key={p.name} className="divide-x-2 divide-black hover:bg-slate-100">
+                <TableRow key={p.name} className="divide-x-2 divide-gray-100 hover:bg-slate-100">
                   <TableCell className="p-4 font-mono font-bold">{p.name}</TableCell>
                   <TableCell className="p-4">{p.project_title}</TableCell>
                   <TableCell className="p-4"><span className={getStatusBadge(p.workflow_state)}>{p.workflow_state}</span></TableCell>
                   <TableCell className="p-4 text-right">
-                    <NeoButton onClick={() => navigate(`/project-details/${p.name}`)} className="text-sm">
+                    <FrappeButton onClick={() => navigate(`/project-details/${p.name}`)} className="text-sm">
                       View Details
-                    </NeoButton>
+                    </FrappeButton>
                   </TableCell>
                 </TableRow>
               )) : !projectsError && !isLoading && (
@@ -267,13 +267,13 @@ export function HeadApprovalProjects() {
             </TableBody>
           </Table>
         </div>
-      </NeoCard>
+      </FrappeCard>
       {totalPages > 1 && (
         <div className="flex items-center justify-between gap-4 py-4">
           <div className="text-sm font-bold text-black">PAGE {currentPage} OF {totalPages}</div>
           <div className="flex items-center gap-2">
-            <NeoButton onClick={() => setCurrentPage((p) => p - 1)} disabled={currentPage === 1}><ChevronLeftIcon className="h-4 w-4" /></NeoButton>
-            <NeoButton onClick={() => setCurrentPage((p) => p + 1)} disabled={currentPage === totalPages}><ChevronRight className="h-4 w-4" /></NeoButton>
+            <FrappeButton onClick={() => setCurrentPage((p) => p - 1)} disabled={currentPage === 1}><ChevronLeftIcon className="h-4 w-4" /></FrappeButton>
+            <FrappeButton onClick={() => setCurrentPage((p) => p + 1)} disabled={currentPage === totalPages}><ChevronRight className="h-4 w-4" /></FrappeButton>
           </div>
         </div>
       )}
@@ -281,7 +281,7 @@ export function HeadApprovalProjects() {
   );
 
   return (
-    <div className="bg-[#FDFCEC]">
+    <div className="bg-[#F0F4F8]">
       <AppSidebar />
       <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
         <h1 className="text-3xl md:text-4xl font-extrabold text-black tracking-tight uppercase mb-8">

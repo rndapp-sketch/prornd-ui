@@ -21,12 +21,12 @@ import { GlobalLoader } from '@/components/ui/global-loader';
 // --- Components ---
 
 const StatCard = ({ title, value, icon, colorClass }: { title: string; value: string | number; icon: React.ReactNode; colorClass?: string }) => (
-    <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)] flex items-center justify-between">
+    <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between">
         <div>
             <h3 className="text-sm font-bold text-neutral-600 uppercase mb-1">{title}</h3>
             <div className={cn("text-3xl font-black", colorClass)}>{value}</div>
         </div>
-        <div className="p-3 bg-neutral-100 rounded-full border-2 border-black">
+        <div className="p-3 bg-neutral-100 rounded-full border border-gray-200">
             {icon}
         </div>
     </div>
@@ -62,7 +62,7 @@ const ProjectAnalytics = () => {
     const charts = analyticsData?.charts || { status: [], year: [], funding: [] };
 
     return (
-        <div className="bg-[#FDFCEC] min-h-screen font-sans">
+        <div className="bg-[#F0F4F8] min-h-screen font-sans">
             <AppSidebar />
             <div className="flex-1 p-4 md:p-8">
                 <div className="max-w-7xl mx-auto">
@@ -70,7 +70,7 @@ const ProjectAnalytics = () => {
                     <header className="mb-8 flex items-center gap-4">
                         <button
                             onClick={() => navigate(-1)}
-                            className="p-2 bg-white border-2 border-black rounded-lg shadow-[2px_2px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all"
+                            className="p-2 bg-white border border-gray-200 rounded-lg shadow-[2px_2px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all"
                         >
                             <ArrowLeft className="size-6" />
                         </button>
@@ -92,7 +92,7 @@ const ProjectAnalytics = () => {
                     <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
 
                         {/* Projects by Status (Pie Chart) */}
-                        <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+                        <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                             <h3 className="text-xl font-bold text-black uppercase mb-6">Project Status Distribution</h3>
                             <div className="h-[300px] w-full">
                                 {charts.status.length > 0 ? (
@@ -124,7 +124,7 @@ const ProjectAnalytics = () => {
                         </div>
 
                         {/* Projects Trend (Bar Chart) */}
-                        <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+                        <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                             <h3 className="text-xl font-bold text-black uppercase mb-6">Projects Initiated by Year</h3>
                             <div className="h-[300px] w-full">
                                 {charts.year.length > 0 ? (
@@ -150,7 +150,7 @@ const ProjectAnalytics = () => {
                         </div>
 
                         {/* Funding Source (Pie Chart) */}
-                        <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)] lg:col-span-2">
+                        <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm lg:col-span-2">
                             <h3 className="text-xl font-bold text-black uppercase mb-6">Funding Sources</h3>
                             <div className="h-[300px] w-full">
                                 {charts.funding.length > 0 ? (

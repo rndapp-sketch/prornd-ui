@@ -75,31 +75,31 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: { isOpen
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white border-2 border-black p-6 rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)] w-full max-w-md">
-        <h3 className="text-xl font-bold mb-4 uppercase">Confirm {action}</h3>
+      <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-lg w-full max-w-md">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm {action}</h3>
         <Textarea
-          className="w-full border-2 border-black p-2 rounded-md font-mono mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-cyan-400"
+          className="w-full border border-gray-300 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4]"
           rows={4}
           placeholder="Add a comment (optional)..."
           value={comment}
           onChange={e => setComment(e.target.value)}
         />
         <div className="flex justify-end gap-2">
-          <NeoButton onClick={onClose} className="bg-gray-200 hover:bg-gray-300" disabled={isLoading}>Cancel</NeoButton>
-          <NeoButton
+          <FrappeButton onClick={onClose} className="bg-gray-100 hover:bg-gray-200" disabled={isLoading}>Cancel</FrappeButton>
+          <FrappeButton
             onClick={() => onSubmit(comment)}
             disabled={isLoading}
-            className="bg-cyan-300 hover:bg-cyan-400"
+            className="bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white"
           >
             {isLoading ? "Processing..." : "Confirm"}
-          </NeoButton>
+          </FrappeButton>
         </div>
       </div>
     </div>
   );
 };
 
-// --- DESIGN: FieldDisplay Component (No boxes) ---
+// --- DESIGN: FieldDisplay Component ---
 const FieldDisplay = ({
   label,
   value,
@@ -113,17 +113,17 @@ const FieldDisplay = ({
   return (
     <div className="py-3">
       <div className="flex items-center gap-2 mb-1">
-        {Icon && <Icon className="h-4 w-4 text-black" />}
-        <p className="text-sm font-bold text-black uppercase tracking-wider">
+        {Icon && <Icon className="h-4 w-4 text-gray-500" />}
+        <p className="text-xs font-semibold text-gray-700">
           {label}
         </p>
       </div>
-      <p className="bg-[#ECEFF1] text-base text-gray-800 font-mono">{String(value)}</p>
+      <p className="text-sm font-medium text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{String(value)}</p>
     </div>
   );
 };
 
-// --- Neo-Brutalism Styled Helper Components (Unchanged) ---
+// --- Frappe Styled Helper Components ---
 const HtmlContent = ({
   title,
   htmlString,
@@ -135,13 +135,13 @@ const HtmlContent = ({
 }) => {
   if (!htmlString) return null;
   return (
-    <div className="p-4 md:p-6 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-      <div className="flex items-center gap-3 mb-3">
-        {Icon && <Icon className="h-5 w-5 text-black" />}
-        <h4 className="text-xl font-bold text-black uppercase">{title}</h4>
+    <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
+      <div className="flex items-center gap-2 mb-3">
+        {Icon && <Icon className="h-4 w-4 text-[#0EA5A4]" />}
+        <h4 className="text-base font-semibold text-gray-900">{title}</h4>
       </div>
       <div
-        className="prose prose-sm max-w-none text-gray-800 leading-relaxed font-mono"
+        className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
         dangerouslySetInnerHTML={{ __html: htmlString }}
       />
     </div>
@@ -161,35 +161,35 @@ const TableDisplay = ({
 }) => {
   if (!data || data.length === 0) return null;
   return (
-    <div className="p-4 md:p-6 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-      <div className="flex items-center gap-3 mb-4">
-        {Icon && <Icon className="h-5 w-5 text-black" />}
-        <h3 className="text-xl font-bold text-black uppercase">{label}</h3>
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="flex items-center gap-2 p-4 border-b border-gray-200 bg-gray-50">
+        {Icon && <Icon className="h-4 w-4 text-[#0EA5A4]" />}
+        <h3 className="text-base font-semibold text-gray-900">{label}</h3>
       </div>
-      <div className="overflow-x-auto border-2 border-black rounded-md">
-        <table className="min-w-full divide-y-2 divide-black">
-          <thead className="bg-[#90A4AE]">
-            <tr className="divide-x-2 divide-black">
+      <div className="overflow-x-auto">
+        <table className="min-w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
               {columns.map((col) => (
                 <th
                   key={col.fieldname}
-                  className="px-4 py-3 text-left text-sm font-bold text-black uppercase tracking-wider"
+                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600"
                 >
                   {col.label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y-2 divide-black bg-white">
+          <tbody className="divide-y divide-gray-100">
             {data.map((row, index) => (
               <tr
                 key={index}
-                className="divide-x-2 divide-black hover:bg-[#CFD8DC]"
+                className="hover:bg-gray-50/50 transition-colors"
               >
                 {columns.map((col) => (
                   <td
                     key={col.fieldname}
-                    className="px-4 py-3 text-sm text-gray-800 font-mono"
+                    className="px-4 py-3 text-sm text-gray-700"
                   >
                     {row[col.fieldname]}
                   </td>
@@ -205,17 +205,16 @@ const TableDisplay = ({
 
 
 
-const NeoButton = ({
+const FrappeButton = ({
   children,
   className,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
   <button
     className={cn(
-      "px-5 py-1 bg-white border-2 border-black rounded-md font-bold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all",
-      "hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px]",
-      "active:shadow-none active:translate-x-[2px] active:translate-y-[2px]",
-      "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0 disabled:bg-gray-300",
+      "px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-semibold text-gray-700 shadow-sm transition-all",
+      "hover:bg-gray-50 hover:shadow",
+      "disabled:opacity-50 disabled:cursor-not-allowed",
       className
     )}
     {...props}
@@ -225,7 +224,7 @@ const NeoButton = ({
 );
 
 
-// --- QuickActions Component with Muted Colors ---
+// --- QuickActions Component with Frappe Colors ---
 const QuickActions = () => {
   const ActionButton = ({
     children,
@@ -234,11 +233,11 @@ const QuickActions = () => {
     children: React.ReactNode;
     className?: string;
   }) => (
-    <NeoButton
+    <FrappeButton
       className={cn("w-full justify-start text-sm h-auto py-3", className)}
     >
       {children}
-    </NeoButton>
+    </FrappeButton>
   );
   const Section = ({
     title,
@@ -249,87 +248,87 @@ const QuickActions = () => {
     icon: any;
     children: React.ReactNode;
   }) => (
-    <div className="p-4 pb-6 border-2 border-black rounded-md bg-white shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-      <h3 className="font-bold text-black mb-4 flex items-center gap-3 text-xl uppercase">
-        <Icon className="h-5 w-5" />
+    <div className="p-4 pb-6 border border-gray-200 rounded-xl bg-white shadow-sm">
+      <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2 text-base">
+        <Icon className="h-5 w-5 text-[#0EA5A4]" />
         {title}
       </h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {children}
       </div>
     </div>
   );
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <Section title="Advance" icon={CreditCardIcon}>
-        <ActionButton className="bg-sky-200 hover:bg-sky-300">
+        <ActionButton className="bg-sky-50 hover:bg-sky-100 text-sky-700">
           Reimbursement
         </ActionButton>
-        <ActionButton className="bg-sky-200 hover:bg-sky-300">
+        <ActionButton className="bg-sky-50 hover:bg-sky-100 text-sky-700">
           Temporary Advance Apply
         </ActionButton>
-        <ActionButton className="bg-sky-200 hover:bg-sky-300">
+        <ActionButton className="bg-sky-50 hover:bg-sky-100 text-sky-700">
           Temporary Advance Settle
         </ActionButton>
       </Section>
       <Section title="Disbursal" icon={UploadIcon}>
-        <ActionButton className="bg-emerald-200 hover:bg-emerald-300">
+        <ActionButton className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700">
           One Time Assistantship
         </ActionButton>
-        <ActionButton className="bg-emerald-200 hover:bg-emerald-300">
+        <ActionButton className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700">
           Top Up Fellowship
         </ActionButton>
       </Section>
       <Section title="Purchase" icon={ShoppingCartIcon}>
-        <ActionButton className="bg-amber-200 hover:bg-amber-300">
+        <ActionButton className="bg-amber-50 hover:bg-amber-100 text-amber-700">
           Direct Purchase
         </ActionButton>
-        <ActionButton className="bg-amber-200 hover:bg-amber-300">
+        <ActionButton className="bg-amber-50 hover:bg-amber-100 text-amber-700">
           General Indent
         </ActionButton>
-        <ActionButton className="bg-amber-200 hover:bg-amber-300">
+        <ActionButton className="bg-amber-50 hover:bg-amber-100 text-amber-700">
           Generate NIQ
         </ActionButton>
-        <ActionButton className="bg-amber-200 hover:bg-amber-300">
+        <ActionButton className="bg-amber-50 hover:bg-amber-100 text-amber-700">
           Indent cum Sanction
         </ActionButton>
-        <ActionButton className="bg-amber-200 hover:bg-amber-300">
+        <ActionButton className="bg-amber-50 hover:bg-amber-100 text-amber-700">
           Rate Contract
         </ActionButton>
       </Section>
       <Section title="Recruitment" icon={UsersGroupIcon}>
-        <ActionButton className="bg-rose-200 hover:bg-rose-300">
+        <ActionButton className="bg-rose-50 hover:bg-rose-100 text-rose-700">
           Adhoc
         </ActionButton>
-        <ActionButton className="bg-rose-200 hover:bg-rose-300">
+        <ActionButton className="bg-rose-50 hover:bg-rose-100 text-rose-700">
           Committee Member Change
         </ActionButton>
-        <ActionButton className="bg-rose-200 hover:bg-rose-300">
+        <ActionButton className="bg-rose-50 hover:bg-rose-100 text-rose-700">
           Contractual
         </ActionButton>
-        <ActionButton className="bg-rose-200 hover:bg-rose-300">
+        <ActionButton className="bg-rose-50 hover:bg-rose-100 text-rose-700">
           Selection Committee Report
         </ActionButton>
       </Section>
       <Section title="Travel" icon={PlaneIcon}>
-        <ActionButton className="bg-indigo-200 hover:bg-indigo-300">
+        <ActionButton className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700">
           Apply
         </ActionButton>
-        <ActionButton className="bg-indigo-200 hover:bg-indigo-300">
+        <ActionButton className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700">
           TA-DA Settle
         </ActionButton>
       </Section>
       <Section title="Utilities" icon={SettingsIcon}>
-        <ActionButton className="bg-slate-300 hover:bg-slate-400">
+        <ActionButton className="bg-slate-100 hover:bg-slate-200 text-slate-700">
           Add New User
         </ActionButton>
-        <ActionButton className="bg-slate-300 hover:bg-slate-400">
+        <ActionButton className="bg-slate-100 hover:bg-slate-200 text-slate-700">
           Application History
         </ActionButton>
-        <ActionButton className="bg-slate-300 hover:bg-slate-400">
+        <ActionButton className="bg-slate-100 hover:bg-slate-200 text-slate-700">
           Form Tracking
         </ActionButton>
-        <ActionButton className="bg-slate-300 hover:bg-slate-400">
+        <ActionButton className="bg-slate-100 hover:bg-slate-200 text-slate-700">
           Incharge Assignment
         </ActionButton>
       </Section>
@@ -385,10 +384,10 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
     }));
     return (
       <div className="space-y-6">
-        <div className="p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
           <label
             htmlFor="comment-textarea"
-            className="block text-sm font-bold text-black mb-3 uppercase"
+            className="block text-sm font-medium text-gray-700 mb-3"
           >
             Add a comment
           </label>
@@ -399,56 +398,56 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
             onChange={(e) => setNewComment(e.target.value)}
             onKeyDown={handleKeyPress}
             disabled={isSubmitting}
-            className="resize-none bg-white p-3 border-2 border-black rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-400 font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
+            className="resize-none bg-white p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4]"
             rows={4}
           />
           <div className="flex items-center justify-between mt-4">
-            <span className="text-sm text-gray-600 font-mono">
+            <span className="text-sm text-gray-500">
               {newComment.length}/1000
             </span>
-            <NeoButton
+            <FrappeButton
               onClick={handleCommentSubmit}
               disabled={isSubmitting || !newComment.trim()}
-              className="bg-cyan-300 hover:bg-cyan-400"
+              className="bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white"
             >
               {isSubmitting ? "Submitting..." : "Submit"}
-            </NeoButton>
+            </FrappeButton>
           </div>
         </div>
         <div className="space-y-4">
           {isActivityLoading && (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-cyan-400"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#0EA5A4] border-t-transparent"></div>
             </div>
           )}
           {activityError && (
-            <div className="text-center p-6 text-red-700 border-2 border-red-700 rounded-md bg-red-100 shadow-[4px_4px_0px_#800000]">
-              <p className="font-bold">Failed to load activities</p>
+            <div className="text-center p-6 text-red-700 border border-red-200 rounded-xl bg-red-50">
+              <p className="font-medium">Failed to load activities</p>
             </div>
           )}
           {activityData?.message && activityData.message.length > 0
             ? activityData.message.map((item, index) => (
               <div
                 key={`${item.creation}-${index}`}
-                className="flex items-start gap-4 p-4 bg-white border-2 border-black rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
+                className="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-xl shadow-sm"
               >
-                <div className="flex-shrink-0 h-12 w-12 rounded-full bg-cyan-300 border-2 border-black flex items-center justify-center font-bold text-black text-xl">
+                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#E0F7F6] border border-gray-200 flex items-center justify-center font-semibold text-[#0EA5A4] text-sm">
                   {item.owner?.charAt(0).toUpperCase() || "U"}
                 </div>
                 <div className="flex-1">
                   <div className="flex justify-between items-center mb-1">
-                    <p className="text-base font-bold text-black">
+                    <p className="text-sm font-semibold text-gray-900">
                       {item.owner || "Unknown User"}
                     </p>
-                    <p className="text-sm text-gray-600 flex items-center gap-1.5 font-mono">
-                      <ClockIcon className="h-4 w-4" />
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <ClockIcon className="h-3 w-3" />
                       {item.creation
                         ? new Date(item.creation).toLocaleString()
                         : "N/A"}
                     </p>
                   </div>
                   <div
-                    className="text-base text-gray-800 prose prose-sm max-w-none leading-relaxed font-mono"
+                    className="text-sm text-gray-700 prose prose-sm max-w-none leading-relaxed"
                     dangerouslySetInnerHTML={{
                       __html: item.content || "No content",
                     }}
@@ -457,9 +456,9 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
               </div>
             ))
             : !isActivityLoading && (
-              <div className="text-center py-12 text-gray-600 border-2 border-dashed border-black rounded-md bg-white">
-                <MessageSquareIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="font-bold text-lg">No activity yet.</p>
+              <div className="text-center py-12 text-gray-500 border border-dashed border-gray-300 rounded-xl bg-white">
+                <MessageSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="font-medium text-gray-600">No activity yet.</p>
                 <p className="text-sm mt-1">Be the first to add a comment.</p>
               </div>
             )}
@@ -489,29 +488,27 @@ const WorkflowActions = ({
     { docname }
   );
   if (isActionsLoading) {
-    return <div className="font-bold text-sm">Loading actions...</div>;
+    return <div className="text-sm text-gray-500">Loading actions...</div>;
   }
   if (error || !data?.message || data.message.length === 0) {
     return null;
   }
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2">
       {data.message.map((actionString: string) => (
-        <NeoButton
+        <FrappeButton
           key={actionString}
           onClick={() => onAction(actionString)}
           className={cn("flex items-center gap-2", {
-            "bg-green-300 hover:bg-green-400":
+            "bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white":
               actionString.toLowerCase().includes("approve") ||
               actionString.toLowerCase().includes("submit"),
-            "bg-red-300 hover:bg-red-400": actionString
+            "bg-red-500 hover:bg-red-600 text-white": actionString
               .toLowerCase()
               .includes("reject"),
-            "bg-cyan-300 hover:bg-cyan-400": ![
-              "approve",
-              "reject",
-              "submit",
-            ].some((term) => actionString.toLowerCase().includes(term)),
+            "bg-gray-100 hover:bg-gray-200": !["approve", "reject", "submit"].some((term) =>
+              actionString.toLowerCase().includes(term)
+            ),
           })}
           disabled={isLoading}
         >
@@ -522,7 +519,7 @@ const WorkflowActions = ({
             <XCircleIcon className="h-4 w-4" />
           )}
           {isLoading ? "Processing..." : actionString}
-        </NeoButton>
+        </FrappeButton>
       ))}
     </div>
   );
@@ -605,7 +602,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     if (!projectName) {
       return (
         <div className="flex items-center justify-center p-4 min-h-screen">
-          <div className="text-center p-8 max-w-md w-full bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+          <div className="text-center p-8 max-w-md w-full bg-white border border-gray-200 rounded-md shadow-sm">
             <FileTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-black mb-2">
               No Project Selected
@@ -613,12 +610,12 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
             <p className="text-gray-700 mb-6 font-mono">
               Select a project to see details.
             </p>
-            <NeoButton
+            <FrappeButton
               onClick={() => navigate(backUrl)}
               className="bg-cyan-300 hover:bg-cyan-400"
             >
               {backLabel}
-            </NeoButton>
+            </FrappeButton>
           </div>
         </div>
       );
@@ -627,8 +624,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
       return (
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-cyan-300 mx-auto mb-4"></div>
-            <p className="text-lg font-bold text-black">Loading Project...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#0EA5A4] border-t-transparent mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading Project...</p>
           </div>
         </div>
       );
@@ -636,59 +633,58 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     if (error) {
       return (
         <div className="flex items-center justify-center p-4 min-h-screen">
-          <div className="text-center p-8 max-w-md w-full bg-red-100 border-2 border-red-700 rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-            <h2 className="text-2xl font-bold text-red-800 mb-2">
+          <div className="text-center p-8 max-w-md w-full bg-red-50 border border-red-200 rounded-xl">
+            <h2 className="text-xl font-semibold text-red-800 mb-2">
               Error Loading Project
             </h2>
-            <p className="text-red-700 mb-6 font-mono">{error.message}</p>
-            <NeoButton
+            <p className="text-red-600 mb-6 text-sm">{error.message}</p>
+            <FrappeButton
               onClick={() => navigate(backUrl)}
               className="bg-white hover:bg-gray-100"
             >
               {backLabel}
-            </NeoButton>
+            </FrappeButton>
           </div>
         </div>
       );
     }
     return (
       <>
-        <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+        <header className="mb-6 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
           <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate(backUrl)}
-                className="p-3 bg-white border-2 border-black rounded-md hover:bg-[#90A4AE] active:translate-y-1 transition-transform"
+                className="p-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
               >
-                <ArrowLeftIcon className="h-6 w-6" />
+                <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
               </button>
               <div>
-                <h1 className="text-3xl font-extrabold text-black">
+                <h1 className="text-xl font-semibold text-gray-900">
                   {data?.project_title || "Project Details"}
                 </h1>
-                <p className="text-gray-700 font-mono mt-1">
-                  ID: {projectName} | Status:{" "}
-                  <span className="font-bold text-black">
+                <p className="text-sm text-gray-500 mt-0.5">
+                  ID: {projectName} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E0F7F6] text-[#0EA5A4]">
                     {data?.workflow_state || "Draft"}
                   </span>
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               {isCurrentUserPI && (
-                <div className="flex gap-3">
-                  <NeoButton
+                <div className="flex gap-2">
+                  <FrappeButton
                     onClick={handleAddFunds}
-                    className="bg-[#A5D6A7] hover:bg-[#81C784] flex items-center gap-2"
+                    className="bg-[#E0F7F6] hover:bg-[#B2EBF2] text-[#0EA5A4] flex items-center gap-2"
                   >
                     <PlusIcon className="h-4 w-4" /> Add Funds
-                  </NeoButton>
-                  <NeoButton
+                  </FrappeButton>
+                  <FrappeButton
                     onClick={handleAddSanctionDetails}
-                    className="bg-[#A5D6A7] hover:bg-[#81C784] flex items-center gap-2"
+                    className="bg-[#E0F7F6] hover:bg-[#B2EBF2] text-[#0EA5A4] flex items-center gap-2"
                   >
                     <FilePlusIcon className="h-4 w-4" /> Add Sanction
-                  </NeoButton>
+                  </FrappeButton>
                 </div>
               )}
               <WorkflowActions
@@ -706,31 +702,31 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
           action={selectedAction}
           isLoading={isActionLoading}
         />
-        <div className="bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
-          <div className="border-b-2 border-black">
-            <nav className="flex space-x-2 p-2 overflow-x-auto">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="border-b border-gray-200">
+            <nav className="flex space-x-1 p-1 overflow-x-auto">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    "flex-shrink-0 flex items-center gap-2 py-3 px-4 font-bold text-sm rounded-md border-2 border-transparent transition-all",
+                    "flex-shrink-0 flex items-center gap-2 py-2.5 px-4 font-medium text-sm rounded-lg transition-all",
                     activeTab === tab.id
-                      ? "bg-[#90A4AE] border-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
-                      : "text-black hover:bg-[#CFD8DC]"
+                      ? "bg-[#E0F7F6] text-[#0EA5A4]"
+                      : "text-gray-600 hover:bg-gray-100"
                   )}
                 >
-                  <tab.icon className="h-5 w-5" />
+                  <tab.icon className="h-4 w-4" />
                   {tab.label}
                 </button>
               ))}
             </nav>
           </div>
-          <div className="bg-[#F5F5F5] p-6 md:p-8">
+          <div className="bg-gray-50/50 p-6">
             {activeTab === "overview" && (
-              <div className="space-y-8">
-                <div className="p-4 bg-white border-2 border-black rounded-md">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
+              <div className="space-y-6">
+                <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
                     <FieldDisplay
                       label="Project Type"
                       value={data?.project_type}
@@ -759,11 +755,11 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     />
                   </div>
                 </div>
-                <div className="p-4 bg-white border-2 border-black rounded-md">
-                  <h3 className="text-xl font-bold uppercase text-black mb-2">
+                <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                  <h3 className="text-base font-semibold text-gray-900 mb-3">
                     Funding Agency
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
                     <FieldDisplay
                       label="Agency Name"
                       value={data?.funding_agen}
@@ -814,12 +810,12 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
               </div>
             )}
             {activeTab === "investigators" && (
-              <div className="space-y-8">
-                <div className="p-4 bg-white border-2 border-black rounded-md">
-                  <h3 className="text-xl font-bold uppercase text-black mb-2">
+              <div className="space-y-6">
+                <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                  <h3 className="text-base font-semibold text-gray-900 mb-3">
                     Principal Investigator (PI)
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
                     <FieldDisplay
                       label="Name"
                       value={data?.principal_investigator_name}
@@ -878,7 +874,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
               </div>
             )}
             {activeTab === "funding" && (
-              <div className="space-y-8">
+              <div className="space-y-6">
                 <TableDisplay
                   label="Proposed Budget Breakup"
                   data={data?.proposed_budget_breakup}
@@ -914,9 +910,9 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
               </div>
             )}
             {activeTab === "clearance" && (
-              <div className="space-y-8">
-                <div className="p-4 bg-white border-2 border-black rounded-md">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
+              <div className="space-y-6">
+                <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
                     <FieldDisplay
                       label="Needs Committee Clearance"
                       value={data?.needs_committee_clearance}
@@ -970,7 +966,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
   };
 
   return (
-    <div className="bg-[#FDFCEC]">
+    <div className="bg-[#F0F4F8]">
       <AppSidebar />
       <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
         {renderContent()}

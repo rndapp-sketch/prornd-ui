@@ -16,11 +16,11 @@ interface LinkOption { value: string; label: string; }
 interface FormData { [key: string]: any; }
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
-const inputClasses = "w-full h-12 px-4 bg-white border-2 border-black rounded-md font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)] focus:outline-none focus:ring-2 focus:ring-[#90A4AE] disabled:opacity-70 disabled:bg-gray-200 read-only:bg-gray-200";
-const checkboxClasses = "size-6 shrink-0 appearance-none bg-white border-2 border-black rounded-sm shadow-[2px_2px_0px_rgba(0,0,0,0.25)] checked:bg-black checked:bg-[url('data:image/svg+xml,%3csvg%20viewBox%3d%270%200%2016%2016%27%20fill%3d%27white%27%20xmlns%3d%27http%3a//www.w3.org/2000/svg%27%3e%3cpath%20d%3d%27M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%27/%3e%3c/svg%3e')] bg-center bg-no-repeat";
-const NeoCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (<div className={cn("bg-white p-6 md:p-8 border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]", className)}>{children}</div>);
-const NeoButton = ({ children, onClick, disabled, className, type = "button" }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string; type?: "button" | "submit" }) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-3 border-2 border-black rounded-md font-semibold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
-const NeoSection = ({ title, children }: { title: string, children: React.ReactNode }) => (<div className="space-y-4"><h2 className="text-2xl font-extrabold text-black uppercase tracking-tight border-b-2 border-black pb-2">{title}</h2>{children}</div>);
+const inputClasses = "w-full h-12 px-4 bg-white border border-gray-200 rounded-xl text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-50";
+const checkboxClasses = "size-5 shrink-0 appearance-none bg-white border border-gray-300 rounded checked:bg-[#0EA5A4] checked:border-[#0EA5A4] checked:bg-[url('data:image/svg+xml,%3csvg%20viewBox%3d%270%200%2016%2016%27%20fill%3d%27white%27%20xmlns%3d%27http%3a//www.w3.org/2000/svg%27%3e%3cpath%20d%3d%27M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%27/%3e%3c/svg%3e')] bg-center bg-no-repeat cursor-pointer";
+const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (<div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-xl shadow-sm", className)}>{children}</div>);
+const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string; type?: "button" | "submit" }) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
+const NeoSection = ({ title, children }: { title: string, children: React.ReactNode }) => (<div className="space-y-4"><h2 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-3">{title}</h2>{children}</div>);
 
 // --- MEMOIZED FORM FIELD COMPONENT ---
 const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange }: { field: Field; value: any; options?: LinkOption[]; onChange: (fieldname: string, value: any, type?: string) => void; onFileChange: (fieldname: string, file: File | null) => void; }) => {
@@ -32,14 +32,14 @@ const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange 
             case "Link": return (<select {...commonProps}><option value="">Select...</option>{(options || []).map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
             case "Select": return (<select {...commonProps}><option value="">Select...</option>{(field.options?.split('\n').filter(o => o) || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>);
             case "Small Text": return <textarea {...commonProps} rows={4} className={`${inputClasses} h-auto py-3`} />;
-            case "Check": return (<label className="flex items-center gap-4 font-semibold text-black text-lg cursor-pointer bg-stone-100 p-3 border-2 border-black rounded-md"><input type="checkbox" className={checkboxClasses} checked={!!value} onChange={e => onChange(field.fieldname, e.target.checked, 'checkbox')} disabled={field.read_only} /><span>{field.label}</span></label>);
-            case "Attach": return <input type="file" {...commonProps} className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:font-bold file:bg-[#A5D6A7] file:text-black hover:file:bg-[#8BC34A]`} onChange={e => onFileChange(field.fieldname, e.target.files?.[0] || null)} />;
+            case "Check": return (<label className="flex items-center gap-3 font-medium text-gray-700 cursor-pointer bg-gray-50 p-3 border border-gray-200 rounded-xl"><input type="checkbox" className={checkboxClasses} checked={!!value} onChange={e => onChange(field.fieldname, e.target.checked, 'checkbox')} disabled={field.read_only} /><span>{field.label}</span></label>);
+            case "Attach": return <input type="file" {...commonProps} className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-medium file:bg-[#E0F7F6] file:text-[#0EA5A4] hover:file:bg-[#0EA5A4] hover:file:text-white file:transition-colors`} onChange={e => onFileChange(field.fieldname, e.target.files?.[0] || null)} />;
             default: return <input type="text" {...commonProps} />;
         }
     };
 
     if (field.fieldtype === 'Check') return renderInput();
-    return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-bold text-black text-lg uppercase">{field.label}{!!field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}{field.description && <p className="text-sm text-gray-500">{field.description}</p>}</div>);
+    return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-medium text-gray-700">{field.label}{!!field.mandatory && <span className="text-red-500 ml-1">*</span>}</label>{renderInput()}{field.description && <p className="text-sm text-gray-500">{field.description}</p>}</div>);
 });
 
 // --- ITEMS TABLE COMPONENT ---
@@ -52,21 +52,21 @@ const MemoizedGenericTable = memo(({ tableName, columns, tableData, onRowChange,
 
     return (
         <div className="space-y-4">
-            <div className="overflow-x-auto border-2 border-black rounded-md">
-                <table className="min-w-full divide-y-2 divide-black">
-                    <thead className="bg-[#90A4AE]">
-                        <tr className="divide-x-2 divide-black">
+            <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                <table className="min-w-full divide-y divide-gray-100">
+                    <thead className="bg-gray-50">
+                        <tr className="divide-x divide-gray-100">
                             {columns.map((col: any) => (
-                                <th key={getColKey(col)} className="p-3 font-bold text-white uppercase text-sm whitespace-nowrap">
+                                <th key={getColKey(col)} className="p-3 font-medium text-gray-600 text-sm whitespace-nowrap text-left">
                                     {col.label}
                                 </th>
                             ))}
-                            <th className="p-3 font-bold text-white uppercase text-sm"></th>
+                            <th className="p-3 font-medium text-gray-600 text-sm"></th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y-2 divide-black bg-white">
+                    <tbody className="divide-y divide-gray-100 bg-white">
                         {(tableData || []).map((row: any, rowIndex: number) => (
-                            <tr key={row.id || rowIndex} className="divide-x-2 divide-black">
+                            <tr key={row.id || rowIndex} className="divide-x divide-gray-100 hover:bg-gray-50/50">
                                 {columns.map((col: any) => {
                                     const key = getColKey(col);
                                     const type = getColType(col);
@@ -75,7 +75,7 @@ const MemoizedGenericTable = memo(({ tableName, columns, tableData, onRowChange,
                                             {type === 'Attach' ? (
                                                 <input
                                                     type="file"
-                                                    className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:font-bold file:bg-[#A5D6A7] file:text-black hover:file:bg-[#8BC34A]`}
+                                                    className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-medium file:bg-[#E0F7F6] file:text-[#0EA5A4] hover:file:bg-[#0EA5A4] hover:file:text-white file:transition-colors`}
                                                     onChange={(e) => onFileChange(tableName, rowIndex, key, e.target.files?.[0] || null)}
                                                 />
                                             ) : (
@@ -90,18 +90,18 @@ const MemoizedGenericTable = memo(({ tableName, columns, tableData, onRowChange,
                                     );
                                 })}
                                 <td className="p-2 text-center w-[100px]">
-                                    <NeoButton onClick={() => onDeleteRow(tableName, rowIndex)} className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">
+                                    <FrappeButton onClick={() => onDeleteRow(tableName, rowIndex)} className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100">
                                         Delete
-                                    </NeoButton>
+                                    </FrappeButton>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
-            <NeoButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#A5D6A7]">
+            <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#0EA5A4] text-white hover:bg-[#0D9494]">
                 Add Row
-            </NeoButton>
+            </FrappeButton>
         </div>
     );
 });
@@ -296,7 +296,7 @@ const Reimbursement: React.FC = () => {
     };
 
     // --- RENDER LOGIC ---
-    if (loading) return (<div className="flex items-center justify-center min-h-screen bg-[#FDFCEC]"><div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-[#90A4AE] mx-auto"></div><p className="mt-4 text-2xl font-bold text-black">LOADING FORM...</p></div></div>);
+    if (loading) return (<div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]"><div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-[#90A4AE] mx-auto"></div><p className="mt-4 text-2xl font-bold text-black">LOADING FORM...</p></div></div>);
 
     // Group fields by sections
     const sections: { title: string; fields: Field[] }[] = [];
@@ -321,37 +321,37 @@ const Reimbursement: React.FC = () => {
     if (currentSection) sections.push(currentSection);
 
     return (
-        <div className="bg-[#FDFCEC] min-h-screen">
+        <div className="bg-[#F0F4F8] min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <header className="mb-8 p-4 bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)]">
+                <header className="mb-8 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => navigate(-1)} className="p-3 bg-white border-2 border-black rounded-md hover:bg-[#90A4AE] active:translate-y-1 transition-transform">
-                            <ArrowLeftIcon className="h-6 w-6" />
+                        <button onClick={() => navigate(-1)} className="p-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors">
+                            <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
                         </button>
                         <div>
-                            <h1 className="text-3xl font-extrabold text-black">Reimbursement Application</h1>
-                            <p className="text-gray-700 font-mono mt-1">Fill out the details below to apply for reimbursement.</p>
+                            <h1 className="text-2xl font-bold text-gray-900">Reimbursement Application</h1>
+                            <p className="text-gray-500 mt-1">Fill out the details below to apply for reimbursement.</p>
                         </div>
                     </div>
                 </header>
 
                 <form onSubmit={handleSubmit}>
-                    <NeoCard className="space-y-12">
+                    <FrappeCard className="space-y-12">
                         {htmlContent && htmlContent.options && (
-                            <div className="prose prose-sm max-w-none text-gray-800 font-mono p-4 bg-amber-100 border-2 border-black rounded-md"
+                            <div className="prose prose-sm max-w-none text-gray-700 p-4 bg-amber-50 border border-amber-200 rounded-xl"
                                 dangerouslySetInnerHTML={{ __html: htmlContent.options }}
                             />
                         )}
 
                         {sections.map((section, idx) => (
                             <NeoSection key={idx} title={section.title}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {section.fields.map(field => {
                                         if (field.fieldtype === 'Table') {
                                             return (
                                                 <div key={field.fieldname} className="col-span-full">
-                                                    <h3 className="text-xl font-bold text-black uppercase pt-4 mb-2">{field.label}</h3>
+                                                    <h3 className="text-lg font-semibold text-gray-900 pt-4 mb-3">{field.label}</h3>
                                                     <MemoizedGenericTable
                                                         tableName={field.fieldname}
                                                         columns={field.child_fields || []}
@@ -378,15 +378,15 @@ const Reimbursement: React.FC = () => {
                                 </div>
                             </NeoSection>
                         ))}
-                    </NeoCard>
+                    </FrappeCard>
 
                     <div className="mt-8 flex justify-end gap-4">
-                        <NeoButton onClick={handleSave} disabled={isSubmitting} className="bg-white hover:bg-gray-100">
+                        <FrappeButton onClick={handleSave} disabled={isSubmitting} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50">
                             {isSubmitting ? 'Saving...' : 'Save Draft'}
-                        </NeoButton>
-                        <NeoButton type="submit" disabled={isSubmitting} className="bg-[#A5D6A7] hover:bg-[#81C784]">
+                        </FrappeButton>
+                        <FrappeButton type="submit" disabled={isSubmitting} className="bg-[#0EA5A4] text-white hover:bg-[#0D9494]">
                             {isSubmitting ? 'Submitting...' : 'Submit Application'}
-                        </NeoButton>
+                        </FrappeButton>
                     </div>
                 </form>
             </main>

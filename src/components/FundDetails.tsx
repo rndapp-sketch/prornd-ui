@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { useFrappeGetCall } from "frappe-react-sdk";
-import { ArrowRight, Calendar, FileText } from "lucide-react";
+import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
+import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
@@ -70,6 +70,28 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
             start: 0,
         }
     );
+
+    const { call: performAction, loading: actionLoading } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.fund_received.fund_received.perform_fund_received_action"
+    );
+
+    const handleSubmit = async (docname: string) => {
+        try {
+            await performAction({ docname, action: "Submit" });
+            // Refresh data
+            if (useSdk) {
+                // sdkResponse.mutate(); // If mutate is available, otherwise we might need to rely on re-render or window reload for now as simple fix
+                window.location.reload();
+            } else {
+                // For direct call, we can just trigger a re-fetch by toggling a state or calling the fetch function again
+                // But for simplicity and consistency with the SDK path in this context, reload is safest
+                window.location.reload();
+            }
+        } catch (error) {
+            console.error("Error submitting fund:", error);
+            alert("Failed to submit fund received entry.");
+        }
+    };
     console.log("sdkResponse", sdkResponse);
     useEffect(() => {
         if (!useSdk) {
@@ -112,8 +134,9 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
     const rawMessage = useSdk ? sdkResponse ?? undefined : directData;
     const allFunds = normalizeResponse(rawMessage);
 
+
     const fundsForProject = sanction_ref_no
-        ? allFunds.filter((f: any) => f.sanction_ref_no === sanction_ref_no)
+        ? allFunds.filter((f: any) => f.sanction_ref_no === sanction_ref_no || !f.sanction_ref_no)
         : allFunds;
 
     if (isLoading) {
@@ -145,61 +168,62 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
     }
 
     return (
-        <div className="mt-6 space-y-6">
-            <h4 className="text-lg font-bold text-black uppercase flex items-center gap-2">
-                {/* <DollarSignIcon className="h-5 w-5" /> */}
+        <div className="mt-6 space-y-4">
+            <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 Fund Received History
             </h4>
 
-            <div className="grid grid-cols-1 gap-4">
-                {fundsForProject.map((fund: FundDoc) => (
-                    <div
-                        key={fund.name}
-                        className="group bg-white border-2 border-black rounded-md shadow-[4px_4px_0px_rgba(0,0,0,0.25)] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_rgba(0,0,0,0.25)] transition-all cursor-pointer p-4"
-                        onClick={() => navigate(`/fund-received/${fund.name}`, { state: { prjreg_title: prjregTitle } })}
-                    >
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <span className={cn("px-2 py-0.5 rounded text-xs font-bold uppercase border border-black", {
-                                        "bg-yellow-200": fund.workflow_state === "Draft",
-                                        "bg-blue-200": fund.workflow_state === "Submitted",
-                                        "bg-green-200": fund.workflow_state === "Approved",
+            <div className="overflow-x-auto border border-gray-200 rounded-xl bg-white shadow-sm">
+                <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Fund ID</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Amount</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                        {fundsForProject.map((fund: FundDoc) => (
+                            <tr key={fund.name} className="hover:bg-gray-50/50 transition-colors">
+                                <td className="px-4 py-3 text-sm font-medium text-gray-900">{fund.name}</td>
+                                <td className="px-4 py-3">
+                                    <span className={cn("px-2.5 py-1 rounded-full text-xs font-medium", {
+                                        "bg-yellow-100 text-yellow-800": fund.workflow_state === "Draft",
+                                        "bg-blue-100 text-blue-800": fund.workflow_state === "Submitted" || fund.workflow_state?.includes("Pending"),
+                                        "bg-green-100 text-green-800": fund.workflow_state === "Approved",
+                                        "bg-purple-100 text-purple-800": fund.workflow_state?.includes("Generate"),
+                                        "bg-gray-100 text-gray-800": !fund.workflow_state,
                                     })}>
                                         {fund.workflow_state || "Draft"}
                                     </span>
-                                    <span className="text-xs font-mono text-gray-500">{fund.name}</span>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-2">
-                                        {/* <DollarSignIcon className="h-4 w-4 text-green-600" /> */}
-                                        <span className="font-bold font-mono text-lg">
-                                            {(fund.fund_received_amt || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}
-                                        </span>
-                                    </div>
-                                    {fund.sanction_ref_no && (
-                                        <div className="flex items-center gap-2 text-gray-600">
-                                            <FileText className="h-4 w-4" />
-                                            <span className="text-sm font-mono">{fund.sanction_ref_no}</span>
-                                        </div>
+                                </td>
+                                <td className="px-4 py-3 text-sm font-semibold text-[#0EA5A4] text-right">
+                                    {(fund.fund_received_amt || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600">{fund.modified?.split(" ")[0] || "-"}</td>
+                                <td className="px-4 py-3 text-center">
+                                    <button
+                                        onClick={() => navigate(`/fund-received/${fund.name}`, { state: { prjreg_title: prjregTitle } })}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#0EA5A4] hover:bg-[#0C8F8E] rounded-lg shadow-sm transition-all"
+                                    >
+                                        View <ArrowRight className="h-3 w-3" />
+                                    </button>
+                                    {(!fund.workflow_state || fund.workflow_state === "Draft") && (
+                                        <button
+                                            onClick={() => handleSubmit(fund.name)}
+                                            disabled={actionLoading}
+                                            className="ml-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-all disabled:opacity-50"
+                                        >
+                                            Submit
+                                        </button>
                                     )}
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-between md:justify-end gap-4">
-                                <div className="text-right">
-                                    <div className="flex items-center gap-1 text-gray-500 text-xs">
-                                        <Calendar className="h-3 w-3" />
-                                        <span>{fund.modified?.split(" ")[0]}</span>
-                                    </div>
-                                </div>
-                                <div className="bg-black text-white p-2 rounded-full group-hover:bg-gray-800 transition-colors">
-                                    <ArrowRight className="h-4 w-4" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                ))}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     );
