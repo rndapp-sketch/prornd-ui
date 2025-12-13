@@ -214,7 +214,7 @@ const ProjectProposalDetails: React.FC = () => {
             // We send the existing data as the doc to submit.
             // The API likely expects the full doc structure or at least the name.
             // Based on ProjectProposal.tsx, it sends { doc: data }.
-            await submitForm({ doc: data });
+            await submitForm({ docname: name });
             mutate(); // Refresh data to reflect new status
             alert("Project Proposal Submitted Successfully!");
         } catch (err: any) {
@@ -276,7 +276,7 @@ const ProjectProposalDetails: React.FC = () => {
                             </button>
                             <div>
                                 <h1 className="text-3xl font-bold text-gray-900">
-                                    Proposal Details
+                                    Endorsement Details
                                 </h1>
                                 <p className="text-gray-700  mt-1">
                                     ID: {name} | Status:{" "}

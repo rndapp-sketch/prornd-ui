@@ -406,7 +406,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     }));
 
     return {
-      "Project Proposal": proposals,
+      "Endorsement": proposals,
       ...pendingTasksData,
     };
   }, [projectProposals]);
@@ -530,7 +530,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           variant="action"
                           className="text-xs px-4 py-2"
                           onClick={() => {
-                            if (activeTaskTab === "Project Proposal") {
+                            if (activeTaskTab === "Endorsement") {
                               navigate(`/project-proposal-details/${task.id}`);
                             } else {
                               // Handle other task types or default behavior

@@ -147,6 +147,14 @@ const FundReceivedDetails = () => {
                     })}>
                         {workflow_state}
                     </div>
+
+                    <button
+                        onClick={() => navigate(`/deposit-slip-new/${name}`)}
+                        className="px-4 py-2 bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white font-semibold rounded-lg shadow-sm flex items-center gap-2 transition-colors"
+                    >
+                        <FileText className="h-4 w-4" />
+                        Generate Deposit Slip
+                    </button>
                 </div>
             </header>
 

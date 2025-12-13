@@ -39,8 +39,8 @@ import FundReceivedDetails from './pages/FundReceivedDetails.tsx';
 import ProjectProposalDetails from './pages/ProjectProposalDetails.tsx';
 import EndorsementCertificateView from './pages/EndorsementCertificateView.tsx';
 import ProjectAnalytics from './pages/ProjectAnalytics.tsx';
-// Add any other page imports you need
-// import TestDoctype from './pages/TestDoctype.tsx';
+import DepositSlipForm from './pages/DepositSlipForm.tsx';
+import DepositSlipDetails from './pages/DepositSlipDetails.tsx';
 // import UserDetails from './pages/UserDetails.tsx';
 
 const router = createBrowserRouter(
@@ -295,6 +295,22 @@ const router = createBrowserRouter(
               <FundReceivedDetails />
             </AuthRouteWrapper>
           ),
+        },
+        {
+          path: "deposit-slip-new/:fundReceivedName?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DepositSlipForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "deposit-slip/:name",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DepositSlipDetails />
+            </AuthRouteWrapper>
+          )
         },
       ],
     },

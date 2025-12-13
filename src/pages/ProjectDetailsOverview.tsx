@@ -440,104 +440,131 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
   // Fetch Fund Received Data
   const fundQueryParams = useMemo(() => ({
-    prjreg_title: data?.prjreg_title || "",
+    prjreg_title: projectName || "",
     limit: 200,
     start: 0,
-  }), [data?.prjreg_title]);
+  }), [projectName]);
 
   const fundQueryOptions = useMemo(() => ({
     revalidateOnFocus: false,
-    isPaused: () => !data?.prjreg_title
-  }), [data?.prjreg_title]);
+    isPaused: () => !projectName
+  }), [projectName]);
 
   const { data: fundReceivedData } = useFrappeGetCall(
     "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
     fundQueryParams,
     fundQueryOptions
   );
+
+  const { data: activityData } = useFrappeGetCall<{ message: ActivityItem[] }>(
+    "rndopsapp.rndopsapp.api.get_project_activity",
+    { doctype: "Project Registration", docname: projectName }
+  );
+
   // --- Budget State ---
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
   const [commitHead, setCommitHead] = useState("Travel");
   const [commitAmount, setCommitAmount] = useState("");
   const [budgetData, setBudgetData] = useState<BudgetEntry[]>([]);
-  const [sidebarComment, setSidebarComment] = useState(""); // New state for sidebar comment
-  const [selectedSanctionIndex, setSelectedSanctionIndex] = useState(0); // Track selected sanction
+  const [manualCommitments, setManualCommitments] = useState<BudgetEntry[]>([]); // Track manual commitments
+  const [sidebarComment, setSidebarComment] = useState("");
+  const [selectedSanctionIndex, setSelectedSanctionIndex] = useState(0);
 
-  // API call for adding comment (lifted/duplicated for sidebar)
+  // API call for adding comment
   const { call: addComment, loading: isAddingComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
 
-  // Process Fund Received Data into Budget Ledger
+  // Process Fund Received Data and Manual Commitments into Budget Ledger
   useEffect(() => {
     const funds = normalizeResponse(fundReceivedData);
+    let rawEntries: BudgetEntry[] = [];
 
+    // 1. Process API Funds
     if (funds && funds.length > 0) {
-      const initialEntries: BudgetEntry[] = [];
-      let runningBalance = 0;
-
-      // Sort funds by date if needed, assuming API returns sorted or we process in order
       funds.forEach((fund: any) => {
         if (fund.received_amt_breakup && Array.isArray(fund.received_amt_breakup)) {
           fund.received_amt_breakup.forEach((item: any) => {
-            runningBalance += item.amount_received;
-            initialEntries.push({
-              sl: initialEntries.length + 1,
+            rawEntries.push({
+              sl: 0, // Assigned later
               date: fund.transaction_date || fund.modified?.split(" ")[0] || "",
               particulars: `Fund Received - ${item.account_head}`,
               ref: fund.sanction_ref_no || fund.name,
               received: item.amount_received,
               committed: 0,
-              commitableBalance: runningBalance, // This is global running balance, might need per-head
+              commitableBalance: 0, // Calc later
               bmr: "",
               payment: 0,
-              actualBalance: runningBalance,
+              actualBalance: 0, // Calc later
               type: 'transaction',
-              accountHead: item.account_head // Add this field to track head
+              accountHead: item.account_head
             } as BudgetEntry & { accountHead?: string });
           });
         }
       });
-
-      // If we have existing manual commitments (from local state), we should append them?
-      // For now, let's just set the initial entries. 
-      // If the user adds commitments, they are appended.
-      // Ideally, we should merge or persist commitments. 
-      // Since local state is volatile, we'll just overwrite with fetched data on load.
-      // Only update if data is different to avoid loop
-      // Simple check: if length is different or first item ref is different
-      // Better: deep compare or just trust that initial load happens once if we check length
-      if (initialEntries.length > 0) {
-        setBudgetData(prev => {
-          if (prev.length === initialEntries.length && JSON.stringify(prev) === JSON.stringify(initialEntries)) {
-            return prev;
-          }
-          return initialEntries;
-        });
-      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(fundReceivedData)]);
+
+    // 2. Combine with Manual Commitments
+    // We assume chronological order: Funds first, then commitments. 
+    // You could sort by date here if 'manualCommitments' have dates interleaved with funds.
+    // For now, appending manual commitments as per user workflow.
+    const allRawEntries = [...rawEntries, ...manualCommitments];
+
+    // 3. Calculate Running Totals
+    let runningFundTotal = 0; // Global for Actual Balance
+    const headFundTotals: Record<string, number> = {};
+    const headCommitTotals: Record<string, number> = {};
+
+    const calculatedEntries = allRawEntries.map((entry, idx) => {
+      // Determine Head
+      // Funds have accountHead. Commitments have head.
+      let head = (entry as any).head || (entry as any).accountHead;
+
+      // Fallback parsing if head is missing (e.g. from older state or particulars)
+      if (!head) {
+        if (entry.particulars.startsWith("Commitment for ")) {
+          head = entry.particulars.replace("Commitment for ", "").trim();
+        } else if (entry.particulars.startsWith("Fund Received - ")) {
+          head = entry.particulars.replace("Fund Received - ", "").trim();
+        }
+      }
+      head = head || "Unspecified";
+
+      if (entry.type === 'transaction') {
+        runningFundTotal += (entry.received || 0);
+        headFundTotals[head] = (headFundTotals[head] || 0) + (entry.received || 0);
+      } else if (entry.type === 'commitment') {
+        // Commitments don't affect Global Actual Bal (sum of funds)
+        headCommitTotals[head] = (headCommitTotals[head] || 0) + (entry.committed || 0);
+      }
+
+      // Per-Head Commitable Balance
+      const currentHeadBalance = (headFundTotals[head] || 0) - (headCommitTotals[head] || 0);
+
+      return {
+        ...entry,
+        sl: idx + 1,
+        actualBalance: runningFundTotal, // Global Running Total
+        commitableBalance: currentHeadBalance, // Specific Head Balance
+        head: head // Persist resolved head
+      };
+    });
+
+    setBudgetData(calculatedEntries);
+  }, [JSON.stringify(fundReceivedData), manualCommitments]);
+
 
   // Calculate balances based on selected Commit Head
   // Filter budget data for the selected head to calculate specific balance
   const filteredBudgetData = budgetData.filter((entry: any) => {
-    const entryHead = entry.accountHead?.trim().toLowerCase();
+    const entryHead = (entry.head || entry.accountHead || "").trim().toLowerCase();
     const selectedHead = commitHead.trim().toLowerCase();
-
     const match = (entryHead === selectedHead) ||
       (entry.particulars.toLowerCase().includes(selectedHead));
     return match;
   });
 
-  console.log("Filtered Budget Data for", commitHead, ":", filteredBudgetData);
+  // Sidebar Balances (re-derived from filtered ledger data)
+  const actualBalance = filteredBudgetData.reduce((acc, entry) => acc + (entry.received || 0) - (entry.payment || 0), 0);
 
-  // Calculate actual balance for the selected head
-  const actualBalance = filteredBudgetData.reduce((acc, entry) => {
-    return acc + (entry.received || 0) - (entry.payment || 0); // Actual balance = Received - Payment
-  }, 0);
-
-  console.log("Calculated Actual Balance:", actualBalance);
-
-  // Calculate commitable balance for the selected head
   const commitableBalance = filteredBudgetData.reduce((acc, entry) => {
     return acc + (entry.received || 0) - (entry.committed || 0) - (entry.payment || 0);
   }, 0);
@@ -549,43 +576,51 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
       return;
     }
 
-    const lastEntry = budgetData.length > 0 ? budgetData[budgetData.length - 1] : { commitableBalance: 0, actualBalance: 0 };
-    const newCommitableBalance = (lastEntry.commitableBalance || 0) - amount;
-
-    const newEntry: BudgetEntry = {
-      sl: budgetData.length + 1,
-      date: new Date().toLocaleDateString('en-GB').replace(/\//g, '.'), // DD.MM.YY format
+    const newEntry: BudgetEntry & { _id: number; head: string } = {
+      sl: 0, // Recalculated in effect
+      date: new Date().toLocaleDateString('en-GB').replace(/\//g, '.'),
       particulars: `Commitment for ${commitHead}`,
       ref: '',
       received: 0,
       committed: amount,
-      commitableBalance: newCommitableBalance,
+      commitableBalance: 0, // Recalculated in effect
       bmr: '',
       payment: 0,
-      actualBalance: lastEntry.actualBalance, // Commitment doesn't change actual balance
-      type: 'commitment'
+      actualBalance: 0, // Recalculated in effect
+      type: 'commitment',
+      head: commitHead,
+      _id: Date.now() // Unique ID for removal
     };
 
-    setBudgetData([...budgetData, newEntry]);
+    setManualCommitments(prev => [...prev, newEntry]);
     setCommitAmount("");
+
   };
 
   const handleRemoveLastCommit = () => {
-    if (budgetData.length === 0) return;
-    const lastEntry = budgetData[budgetData.length - 1];
-    if (lastEntry.type === 'commitment') {
-      setBudgetData(budgetData.slice(0, -1));
-    } else {
-      alert("Cannot remove the last entry as it is not a commitment.");
+    if (manualCommitments.length === 0) {
+      alert("No commitments to remove.");
+      return;
     }
+    setManualCommitments(prev => prev.slice(0, -1));
   };
 
   const handleRemoveItem = (index: number) => {
-    const newData = [...budgetData];
-    newData.splice(index, 1);
-    // Re-assign SL numbers
-    const updatedData = newData.map((item, idx) => ({ ...item, sl: idx + 1 }));
-    setBudgetData(updatedData);
+    const itemToRemove = budgetData[index];
+    if (itemToRemove.type === 'transaction') {
+      alert("Cannot remove fund received entries.");
+      return;
+    }
+    // Remove from manualCommitments by matching _id or reference
+    // Since manualCommitments is a subset of budgetData, find match
+    const manualEntry = itemToRemove as any;
+    if (manualEntry._id) {
+      setManualCommitments(prev => prev.filter(c => (c as any)._id !== manualEntry._id));
+    } else {
+      // Fallback if no ID (shouldn't happen for new ones)
+      // Try to match specific props
+      setManualCommitments(prev => prev.filter(c => c !== itemToRemove && c.sl !== itemToRemove.sl));
+    }
   };
 
   const handleSidebarCommentSubmit = async () => {
@@ -704,7 +739,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
     return (
       <>
-        <header className="mb-6 p-5 bg-white rounded-xl border border-gray-200 shadow-sm">
+        <header className="sticky top-0 z-50 mb-6 p-5 bg-white/95 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm transition-all duration-200">
           <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
             <div className="flex items-center gap-4">
               <button
@@ -720,6 +755,21 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
+              {/* Budget Summary in Header */}
+              <div className="hidden lg:flex items-center gap-6 mr-6 border-r border-gray-200 pr-6">
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-0.5">Actual Balance</p>
+                  <p className="text-lg font-bold text-[#0EA5A4] leading-none">₹ {actualBalance.toLocaleString('en-IN')}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-0.5">Commitable</p>
+                  <p className="text-lg font-bold text-gray-700 leading-none">₹ {commitableBalance.toLocaleString('en-IN')}</p>
+                </div>
+                <button onClick={() => setIsLedgerOpen(true)} className="text-xs font-semibold text-[#0EA5A4] bg-[#E0F7F6] px-3 py-1.5 rounded-lg hover:bg-[#B2DFDB] transition-colors">
+                  View Ledger
+                </button>
+              </div>
+
               {isCurrentUserPI && (
                 <div className="flex gap-2">
                   <FrappeButton
@@ -761,6 +811,20 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     )}
                   >
                     <tab.icon className="h-4 w-4" /> {tab.label}
+                    {tab.id === "sanction-details" && (
+                      (() => {
+                        const draftSanctions = (sanctionData?.message || []).filter((s: any) => (s.sanction_workflow_status || '').toLowerCase() === 'draft').length;
+                        const funds = normalizeResponse(fundReceivedData);
+                        const draftFunds = funds.filter((f: any) => (f.workflow_state || '').toLowerCase() === 'draft').length;
+                        const totalDrafts = draftSanctions + draftFunds;
+
+                        return totalDrafts > 0 ? (
+                          <span className="ml-1.5 inline-flex items-center justify-center bg-red-100 text-red-600 text-[10px] font-bold h-4 w-4 rounded-full">
+                            {totalDrafts}
+                          </span>
+                        ) : null;
+                      })()
+                    )}
                   </button>
                 ))}
               </nav>
@@ -1032,30 +1096,64 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
           </div>
 
           {/* Right Sidebar Column */}
-          <aside className="lg:col-span-1 space-y-4 lg:sticky lg:top-4 lg:self-start">
-            {/* Section 1: Budget Head Summary */}
+          <aside className="lg:col-span-1 space-y-4 lg:sticky lg:top-28 lg:self-start">
+            {/* Section 1: Latest Activity */}
             <div className="frappe-widget">
-              <h3 className="frappe-widget-title">Budget Summary</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-[#6B7280]">Actual Balance</span>
-                  <span className="text-base font-semibold text-gray-900">₹ {actualBalance.toLocaleString('en-IN')}</span>
+              <h3 className="frappe-widget-title mb-3 flex items-center justify-between">
+                Latest Activity
+                <span
+                  className="text-xs font-normal text-gray-500 cursor-pointer hover:text-[#0EA5A4]"
+                  onClick={() => setActiveTab('activity')}
+                >
+                  View All
+                </span>
+              </h3>
+              {activityData?.message && activityData.message.length > 0 ? (
+                <div className="space-y-3 max-h-[100px] overflow-y-auto pr-1 custom-scrollbar">
+                  {activityData.message.map((activity, idx) => (
+                    <div key={idx} className="flex items-start gap-3">
+                      <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#E0F7F6] flex items-center justify-center font-bold text-[#0EA5A4] text-xs">
+                        {activity.owner?.charAt(0).toUpperCase() || "U"}
+                      </div>
+                      <div className="min-w-0">
+                        <div
+                          className="text-sm text-gray-800 line-clamp-2 prose prose-sm max-w-none"
+                          dangerouslySetInnerHTML={{ __html: activity.content }}
+                        />
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {activity.owner} · {activity.creation ? new Date(activity.creation).toLocaleString() : ''}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-[#6B7280]">Commitable Balance</span>
-                  <span className="text-base font-semibold text-gray-900">₹ {commitableBalance.toLocaleString('en-IN')}</span>
-                </div>
-              </div>
+              ) : (
+                <p className="text-sm text-gray-500 italic">No recent activity found.</p>
+              )}
+            </div>
+
+            {/* Section 2: Add Comment (Moved Up) */}
+            <div className="frappe-widget">
+              <h3 className="frappe-widget-title">Add Comment</h3>
+              <textarea
+                id="comment-box"
+                className="frappe-textarea"
+                rows={3}
+                placeholder="Type your comment here..."
+                value={sidebarComment}
+                onChange={(e) => setSidebarComment(e.target.value)}
+              />
               <button
-                onClick={() => setIsLedgerOpen(true)}
-                aria-label="View budget ledger"
-                className="frappe-btn frappe-btn-outline w-full mt-4"
+                className="frappe-btn frappe-btn-primary w-full mt-3"
+                onClick={handleSidebarCommentSubmit}
+                disabled={isAddingComment}
+                aria-label="Submit comment"
               >
-                View Ledger
+                {isAddingComment ? "Submitting..." : "Submit Comment"}
               </button>
             </div>
 
-            {/* Section 2: Commits */}
+            {/* Section 3: Commits (Moved Down) */}
             <div className="frappe-widget">
               <h3 className="frappe-widget-title">Make a Commitment</h3>
               <div className="space-y-3">
@@ -1092,27 +1190,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                   <button onClick={handleRemoveLastCommit} className="frappe-btn frappe-btn-ghost">Remove</button>
                 </div>
               </div>
-            </div>
-
-            {/* Section 3: Comments */}
-            <div className="frappe-widget">
-              <h3 className="frappe-widget-title">Add Comment</h3>
-              <textarea
-                id="comment-box"
-                className="frappe-textarea"
-                rows={3}
-                placeholder="Type your comment here..."
-                value={sidebarComment}
-                onChange={(e) => setSidebarComment(e.target.value)}
-              />
-              <button
-                className="frappe-btn frappe-btn-primary w-full mt-3"
-                onClick={handleSidebarCommentSubmit}
-                disabled={isAddingComment}
-                aria-label="Submit comment"
-              >
-                {isAddingComment ? "Submitting..." : "Submit Comment"}
-              </button>
             </div>
           </aside>
         </div>
@@ -1155,12 +1232,12 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         <td>{row.date}</td>
                         <td>{row.particulars}</td>
                         <td>{row.ref}</td>
-                        <td style={{ textAlign: 'right' }}>{row.received ? row.received.toLocaleString('en-IN') : '-'}</td>
-                        <td style={{ textAlign: 'right' }}>{row.committed ? row.committed.toLocaleString('en-IN') : '-'}</td>
-                        <td style={{ textAlign: 'right' }}>{row.commitableBalance?.toLocaleString('en-IN')}</td>
+                        <td style={{ textAlign: 'right' }} className={row.received ? "text-green-600 font-medium" : ""}>{row.received ? row.received.toLocaleString('en-IN') : '-'}</td>
+                        <td style={{ textAlign: 'right' }} className={row.committed ? "text-red-600 font-medium" : ""}>{row.committed ? row.committed.toLocaleString('en-IN') : '-'}</td>
+                        <td style={{ textAlign: 'right' }} className="font-semibold text-gray-900">{row.commitableBalance?.toLocaleString('en-IN')}</td>
                         <td>{row.bmr}</td>
-                        <td style={{ textAlign: 'right' }}>{row.payment ? row.payment.toLocaleString('en-IN') : '-'}</td>
-                        <td style={{ textAlign: 'right' }}>{row.actualBalance?.toLocaleString('en-IN')}</td>
+                        <td style={{ textAlign: 'right' }} className={row.payment ? "text-red-600 font-medium" : ""}>{row.payment ? row.payment.toLocaleString('en-IN') : '-'}</td>
+                        <td style={{ textAlign: 'right' }} className="font-semibold text-gray-900">{row.actualBalance?.toLocaleString('en-IN')}</td>
                         <td style={{ textAlign: 'center' }}>
                           <button
                             onClick={() => handleRemoveItem(index)}
