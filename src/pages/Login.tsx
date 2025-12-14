@@ -9,12 +9,28 @@ import { useNavigate } from 'react-router';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 
 const Login: React.FC = () => {
+  const DOMAINS = [
+    '@iitg.ac.in',
+    '@iisi.iitg.ac.in',
+    '@rnd.iitg.ac.in',
+  ];
+  const DOMAIN_STORAGE_KEY = 'rndops_default_domain';
+
+  const getSavedDomain = (): string => {
+    const d = localStorage.getItem(DOMAIN_STORAGE_KEY);
+    return DOMAINS.includes(d ?? '') ? (d as string) : DOMAINS[0];
+  };
+
   const [username, setUsername] = useState('');
+  // ← initialise from localStorage
+  const [domain, setDomain] = useState<string>(getSavedDomain());
   const [password, setPassword] = useState('');
+
   const { currentUser, login, logout } = useFrappeAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(!!currentUser);
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
+
 
   // useEffect(() => {
   //   if (currentUser) {
@@ -32,14 +48,48 @@ const Login: React.FC = () => {
     }
   }, [currentUser, navigate]);
 
-  const handleSubmit = () => {
+  // useEffect(() => {
+  //   const savedDomain = localStorage.getItem(DOMAIN_STORAGE_KEY);
+  //   if (savedDomain && DOMAINS.includes(savedDomain)) {
+  //     setDomain(savedDomain);
+  //   }
+  // }, []);
+
+  useEffect(() => {
+    localStorage.setItem(DOMAIN_STORAGE_KEY, domain);
+  }, [domain]);
+
+
+  const handleSubmit = async () => {
     setError(null);
-    login({ username, password })
-      .catch((err) => {
-        console.error('Login failed:', err);
-        setError(err.message || 'An unexpected error occurred.');
-      });
+
+    if (!username.trim()) {
+      setError('Please enter your username.');
+      return;
+    }
+
+    const fullUsername = `${username}${domain}`;
+
+    try {
+      await login({ username: fullUsername, password });
+      // Save the domain for next time
+      localStorage.setItem(DOMAIN_STORAGE_KEY, domain);
+    } catch (err: any) {
+      console.error('Login failed:', err);
+      setError(err.message || 'An unexpected error occurred.');
+    }
   };
+
+
+
+  // const handleSubmit = () => {
+  //   setError(null);
+  //   login({ username, password })
+  //     .catch((err) => {
+  //       console.error('Login failed:', err);
+  //       setError(err.message || 'An unexpected error occurred.');
+  //     });
+  // };
 
   return (
     <SidebarProvider>
@@ -91,15 +141,30 @@ const Login: React.FC = () => {
                 className="w-full flex flex-col items-center gap-5"
               >
                 <div className="flex flex-col gap-1.5 w-full">
-                  <label className="frappe-label" htmlFor="username">Username</label>
-                  <Input
-                    id="username"
-                    placeholder="Enter your username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="frappe-input"
-                  />
+                  <label className="frappe-label">Username</label>
+
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter your username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="frappe-input flex-1"
+                    />
+
+                    <select
+                      value={domain}
+                      onChange={(e) => setDomain(e.target.value)}
+                      className="h-9 px-3 rounded-md border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]"
+                    >
+                      {DOMAINS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
+
                 <div className="flex flex-col gap-1.5 w-full">
                   <label className="frappe-label" htmlFor="password">Password</label>
                   <Input
