@@ -404,8 +404,8 @@ const ProjectProposal: React.FC = () => {
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden bg-[#F0F4F8]]">
                 <header className="mb-3">
-                    <h1 className="text-3xl md:text-4xl font-semibold text-gray-900 tracking-tight ">New Project Proposal</h1>
-                    <p className="text-gray-700 mt-2 ">Fill all sections to submit a new project proposal.</p>
+                    <h1 className="text-3xl md:text-4xl font-semibold text-gray-900 tracking-tight ">New Endorsement</h1>
+                    <p className="text-gray-700 mt-2 ">Fill all sections to submit a new endorsement.</p>
                 </header>
                 <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
                     <div className="border-b border-gray-200">

@@ -98,7 +98,7 @@ export function AppSidebar() {
       subMenu: [
         { label: "Projects View", path: "/projects-view" },
         { label: "Registration", path: "/project-registration" },
-        { label: "Project Proposal", path: "/project-proposal" },
+        { label: "Endorsement", path: "/project-proposal" },
       ],
     },
     {
