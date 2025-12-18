@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
@@ -109,43 +109,82 @@ const MemoizedGenericTable = memo(({ tableName, columns, tableData, onRowChange,
 // --- MAIN REIMBURSEMENT COMPONENT ---
 const Reimbursement: React.FC = () => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const editDocName = searchParams.get('edit'); // Get edit document name from URL
+
     const [fields, setFields] = useState<Field[]>([]);
     const [formData, setFormData] = useState<FormData>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [dataLoaded, setDataLoaded] = useState(false);
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_reimbursement_fields');
+    const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: saveForm, error: saveError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.save_reimbursement_data');
-    const { call: submitForm, result: submitResult, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.submit_reimbursement');
+    const { call: editForm, error: editError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.edit_reimbursement');
+    const { call: submitForm, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.submit_reimbursement');
     const { call: fetchPiDetails } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_user_details_for_pi');
 
     // --- DATA FETCHING ---
     useEffect(() => {
-        fetchFormData({});
-    }, [fetchFormData]);
+        if (!dataLoaded) {
+            fetchFormData({});
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
-        if (formDataResult?.message) {
-            const { fields: apiFields, prefill_data, link_options } = formDataResult.message;
-            setFields(apiFields || []);
-            setLinkOptions(link_options || {});
-            const initialData = { ...prefill_data };
-            (apiFields || []).forEach((field: Field) => {
-                if (initialData[field.fieldname] === undefined) {
-                    initialData[field.fieldname] = field.default ?? '';
+        const loadFormAndDocument = async () => {
+            // Only process when we have data and haven't loaded yet
+            if (formDataResult?.message && !dataLoaded) {
+                const { fields: apiFields, prefill_data, link_options } = formDataResult.message;
+                setFields(apiFields || []);
+                setLinkOptions(link_options || {});
+
+                let initialData = { ...prefill_data };
+
+                // If editing, fetch existing document data
+                if (editDocName) {
+                    try {
+                        console.log('Fetching existing document:', editDocName);
+                        const existingDoc = await fetchExistingDoc({
+                            doctype: 'Reimbursement',
+                            name: editDocName
+                        });
+
+                        if (existingDoc?.message) {
+                            console.log('Existing document data:', existingDoc.message);
+                            // Merge existing document data with initial data
+                            initialData = { ...initialData, ...existingDoc.message };
+                        }
+                    } catch (err) {
+                        console.error('Error fetching existing document:', err);
+                        alert('Failed to load document for editing');
+                    }
                 }
-            });
-            setFormData(initialData);
-            setLoading(false);
-        }
-        if (formDataError) {
-            console.error("Failed to load form data:", formDataError);
-            alert("Error: Could not load the reimbursement form.");
-            setLoading(false);
-        }
-    }, [formDataResult, formDataError]);
+
+                // Set defaults for any missing fields
+                (apiFields || []).forEach((field: Field) => {
+                    if (initialData[field.fieldname] === undefined) {
+                        initialData[field.fieldname] = field.default ?? '';
+                    }
+                });
+
+                setFormData(initialData);
+                setDataLoaded(true);
+                setLoading(false);
+            }
+            if (formDataError) {
+                console.error("Failed to load form data:", formDataError);
+                alert("Error: Could not load the reimbursement form.");
+                setLoading(false);
+            }
+        };
+
+        loadFormAndDocument();
+    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, dataLoaded]);
 
     // --- EVENT HANDLERS ---
     const handleChange = useCallback((fieldname: string, value: any, type?: string) => {
@@ -249,15 +288,28 @@ const Reimbursement: React.FC = () => {
         setIsSubmitting(true);
         try {
             const data = await prepareDataForApi();
-            const res = await saveForm({ data: JSON.stringify(data) });
+            let res;
+
+            if (editDocName) {
+                // Use edit endpoint when editing existing document
+                data.name = editDocName;
+                res = await editForm({ data: JSON.stringify(data) });
+            } else {
+                // Use save endpoint for new documents
+                res = await saveForm({ data: JSON.stringify(data) });
+            }
+
             if (res?.message?.status === 'success') {
-                alert("Draft saved successfully!");
-                // Optionally update docname if returned and needed for future updates
+                alert(editDocName ? "Reimbursement updated successfully!" : "Draft saved successfully!");
+                // Navigate back to details page if editing
+                if (editDocName) {
+                    navigate(`/reimbursement/${editDocName}`);
+                }
             } else {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(saveError || err);
+            console.error(editDocName ? editError : saveError || err);
             alert(`Save failed: ${err.message || "Unknown error"}`);
         } finally {
             setIsSubmitting(false);
@@ -330,8 +382,12 @@ const Reimbursement: React.FC = () => {
                             <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-bold text-gray-900">Reimbursement Application</h1>
-                            <p className="text-gray-500 mt-1">Fill out the details below to apply for reimbursement.</p>
+                            <h1 className="text-2xl font-bold text-gray-900">
+                                {editDocName ? `Edit Reimbursement: ${editDocName}` : 'Reimbursement Application'}
+                            </h1>
+                            <p className="text-gray-500 mt-1">
+                                {editDocName ? 'Update the details below and save.' : 'Fill out the details below to apply for reimbursement.'}
+                            </p>
                         </div>
                     </div>
                 </header>

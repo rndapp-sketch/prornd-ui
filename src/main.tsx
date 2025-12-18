@@ -41,6 +41,8 @@ import EndorsementCertificateView from './pages/EndorsementCertificateView.tsx';
 import ProjectAnalytics from './pages/ProjectAnalytics.tsx';
 import DepositSlipForm from './pages/DepositSlipForm.tsx';
 import DepositSlipDetails from './pages/DepositSlipDetails.tsx';
+import TemporaryAdvance from './pages/TemporaryAdvance.tsx';
+import ReimbursementDetails from './pages/application/ReimbursementDetails.tsx';
 // import UserDetails from './pages/UserDetails.tsx';
 
 const router = createBrowserRouter(
@@ -253,6 +255,14 @@ const router = createBrowserRouter(
           ),
         },
         {
+          path: "reimbursement/:id",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <ReimbursementDetails />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
           path: "dynamic-form/:doctype_name",
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User"> {/* Adjust role as needed */}
@@ -309,6 +319,14 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <DepositSlipDetails />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "temporary-advance",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <TemporaryAdvance />
             </AuthRouteWrapper>
           )
         },

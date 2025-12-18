@@ -230,17 +230,74 @@ const FrappeButton = ({
 
 // --- START: REFACTORED QuickActions COMPONENT ---
 
-const QuickActions = () => {
-  const [activeTab, setActiveTab] = useState("Advance");
+interface QuickActionsProps {
+  projectName: string;
+  onNavigate: (path: string) => void;
+}
 
-  const ActionButton = ({ children }: { children: React.ReactNode }) => (
-    <button className={cn(
-      "w-full justify-start text-left text-sm font-medium text-gray-700",
-      "px-4 py-3 rounded-lg bg-white border border-gray-200",
-      "shadow-sm transition-all duration-150",
-      "hover:shadow-md hover:border-[#0EA5A4]/20 hover:text-[#0EA5A4]",
-      "focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)]"
-    )}>
+const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
+  const [activeTab, setActiveTab] = useState("Advance");
+  const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
+  const [applicationData, setApplicationData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Frappe SDK hooks for fetching data
+  const { call: fetchReimbursements } = useFrappePostCall<{ message: any[] }>(
+    'frappe.client.get_list'
+  );
+
+  // Fetch data when application is selected
+  useEffect(() => {
+    const fetchApplicationData = async () => {
+      if (!selectedApplication || !projectName) {
+        setApplicationData([]);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        let data: any[] = [];
+
+        if (selectedApplication === "Reimbursement") {
+          console.log('=== FETCHING REIMBURSEMENTS ===');
+          console.log('Project Name:', projectName);
+
+          const response = await fetchReimbursements({
+            doctype: "Reimbursement",
+            filters: { project_name: projectName },
+            fields: ["name", "creation", "workflow_state", "owner", "project_name", "project_number", "applicant_webmail", "comment"],
+            order_by: "creation desc",
+            limit_page_length: 50
+          });
+
+          console.log('API Response:', response);
+          data = response?.message || [];
+          console.log('Reimbursement data:', data);
+        }
+        // Add more cases for other application types as needed
+
+        setApplicationData(data);
+      } catch (err) {
+        console.error('Error fetching application data:', err);
+        setApplicationData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchApplicationData();
+  }, [selectedApplication, projectName]);
+
+  const ActionButton = ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full justify-start text-left text-sm font-medium text-gray-700",
+        "px-4 py-3 rounded-lg bg-white border border-gray-200",
+        "shadow-sm transition-all duration-150",
+        "hover:shadow-md hover:border-[#0EA5A4]/20 hover:text-[#0EA5A4]",
+        "focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)]"
+      )}>
       {children}
     </button>
   );
@@ -256,6 +313,145 @@ const QuickActions = () => {
 
   const activeGroup = groups.find(g => g.title === activeTab);
 
+  const handleApplicationClick = (item: string) => {
+    setSelectedApplication(item);
+  };
+
+  const handleBack = () => {
+    setSelectedApplication(null);
+    setApplicationData([]);
+  };
+
+  const handleApplyNew = () => {
+    // Navigate based on application type
+    switch (selectedApplication) {
+      case "Reimbursement":
+        onNavigate(`/reimbursement?project=${projectName}`);
+        break;
+      case "Temporary Advance Apply":
+        onNavigate(`/temporary-advance?project=${projectName}`);
+        break;
+      case "Temporary Advance Settle":
+        // TODO: Add route when available
+        alert(`Apply New: ${selectedApplication} - Route not configured yet`);
+        break;
+      default:
+        alert(`Apply New: ${selectedApplication} - Route not configured yet`);
+    }
+  };
+
+  // Format date for display
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  // Table view for selected application
+  if (selectedApplication) {
+
+    return (
+      <div className="p-5 bg-gray-50/50 rounded-xl">
+        {/* Header with back button and Apply New */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleBack}
+              className="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-600 rotate-180" />
+            </button>
+            <h3 className="text-lg font-semibold text-gray-900">{selectedApplication}</h3>
+          </div>
+          <button
+            onClick={handleApplyNew}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
+              "bg-[#0EA5A4] text-white hover:bg-[#0D9494]",
+              "shadow-sm transition-all duration-150"
+            )}
+          >
+            <Plus className="w-4 h-4" />
+            Apply New
+          </button>
+        </div>
+
+        {/* Applications Table */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          {isLoading ? (
+            <div className="p-12 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4] mx-auto"></div>
+              <p className="mt-4 text-sm text-gray-500">Loading applications...</p>
+            </div>
+          ) : applicationData.length > 0 ? (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Application ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Applicant</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {applicationData.map((item: any, index: number) => (
+                  <tr key={item.name || index} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900 font-medium">{item.name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(item.creation)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900">{item.applicant_webmail || item.owner}</td>
+                    <td className="px-4 py-3">
+                      <span className={cn(
+                        "inline-flex px-2 py-1 text-xs font-medium rounded-full",
+                        item.workflow_state === "Approved" && "bg-green-100 text-green-700",
+                        item.workflow_state === "Pending" && "bg-yellow-100 text-yellow-700",
+                        item.workflow_state === "Rejected" && "bg-red-100 text-red-700",
+                        item.workflow_state === "Draft" && "bg-gray-100 text-gray-700",
+                        !["Approved", "Pending", "Rejected", "Draft"].includes(item.workflow_state) && "bg-blue-100 text-blue-700"
+                      )}>
+                        {item.workflow_state || 'Draft'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => onNavigate(`/reimbursement/${item.name}`)}
+                        className="text-sm text-[#0EA5A4] hover:underline"
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="p-12 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                <FileTextIcon className="w-8 h-8 text-gray-400" />
+              </div>
+              <h4 className="text-lg font-medium text-gray-900 mb-1">No applications yet</h4>
+              <p className="text-sm text-gray-500 mb-4">
+                You haven't submitted any {selectedApplication?.toLowerCase()} applications for this project.
+              </p>
+              <button
+                onClick={handleApplyNew}
+                className={cn(
+                  "inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
+                  "bg-[#0EA5A4] text-white hover:bg-[#0D9494]",
+                  "shadow-sm transition-all duration-150"
+                )}
+              >
+                <Plus className="w-4 h-4" />
+                Apply New
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Category selection view
   return (
     <div className="p-5 bg-gray-50/50 rounded-xl">
       {/* Tab Header */}
@@ -286,7 +482,9 @@ const QuickActions = () => {
       <div className="p-5 bg-white rounded-xl border border-gray-200">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {activeGroup?.items.map((item) => (
-            <ActionButton key={item}>{item}</ActionButton>
+            <ActionButton key={item} onClick={() => handleApplicationClick(item)}>
+              {item}
+            </ActionButton>
           ))}
         </div>
       </div>
@@ -1082,7 +1280,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
               {/* --- ADDED THIS BLOCK TO RENDER QUICK ACTIONS --- */}
               {activeTab === "quick-actions" && (
-                <QuickActions />
+                <QuickActions projectName={projectName || ''} onNavigate={navigate} />
               )}
 
               {activeTab === "activity" && (

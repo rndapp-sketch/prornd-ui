@@ -98,7 +98,7 @@ export function AppSidebar() {
       subMenu: [
         { label: "Projects View", path: "/projects-view" },
         { label: "Registration", path: "/project-registration" },
-        { label: "Endorsement", path: "/project-proposal" },
+        // { label: "Endorsement", path: "/project-proposal" },
       ],
     },
     {
@@ -106,11 +106,11 @@ export function AppSidebar() {
       icon: UsersIcon,
       path: "/hr-portal",
     },
-    {
-      label: "Reimbursement",
-      icon: HandCoinsIcon,
-      path: "/reimbursement",
-    },
+    // {
+    //   label: "Reimbursement",
+    //   icon: HandCoinsIcon,
+    //   path: "/reimbursement",
+    // },
     {
       label: "Pending Task",
       icon: ListTodo,

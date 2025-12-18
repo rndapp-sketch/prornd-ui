@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { AppSidebar } from "../components/RndSidebar";
 import useUserRoleCheck from "../components/UserRoleCheck";
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { FileText, Users, IndianRupee, Shield } from 'lucide-react';
+import { FileText, Users, IndianRupee, Shield, FileBadge, X } from 'lucide-react';
+import { EndorsementCertificate } from '../components/EndorsementCertificate';
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -191,7 +192,29 @@ const ProjectRegistration: React.FC = () => {
     const [docname, setDocname] = useState<string | null>(null);
     const [budgetYears, setBudgetYears] = useState([1]);
     const [isDraftSaved, setIsDraftSaved] = useState(false);
+    const [showEndorsementModal, setShowEndorsementModal] = useState(false);
     const isPermanentEmployee = useUserRoleCheck();
+
+    // Check if endorsement fields are filled
+    const isEndorsementEnabled = useMemo(() => {
+        // Project Details
+        const hasProjectTitle = !!formData.project_title?.trim();
+        const hasProjectType = !!formData.project_type;
+        const hasDepartment = !!formData.implementation_department;
+        const hasDuration = formData.project_type === 'Consultancy'
+            ? !!formData.project_duration_days
+            : !!formData.project_duration_months;
+
+        // PI Details
+        const hasPiWebmail = !!formData.pi_webmail;
+        const hasPiName = !!formData.principal_investigator_name?.trim();
+        const hasPiDesignation = !!formData.designation?.trim();
+        const hasPiEmployeeId = !!formData.pi_employee_id?.trim();
+        const hasPiDepartment = !!formData.applicant_department;
+
+        return hasProjectTitle && hasProjectType && hasDepartment && hasDuration &&
+            hasPiWebmail && hasPiName && hasPiDesignation && hasPiEmployeeId && hasPiDepartment;
+    }, [formData]);
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_project_form_data');
     const { call: submitForm, result: submitResult, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.save_project_data');
@@ -447,6 +470,21 @@ const ProjectRegistration: React.FC = () => {
                                     <tab.icon className="h-5 w-5" /> {tab.label}
                                 </button>
                             ))}
+                            {/* Endorsement Button */}
+                            <button
+                                type="button"
+                                onClick={() => setShowEndorsementModal(true)}
+                                disabled={!isEndorsementEnabled}
+                                className={cn(
+                                    "flex-shrink-0 flex items-center gap-2 py-3 px-4 font-bold text-sm rounded-md border-2 transition-all ml-auto",
+                                    isEndorsementEnabled
+                                        ? "bg-[#0EA5A4] text-white border-[#0EA5A4] hover:bg-[#0D9494] shadow-sm cursor-pointer"
+                                        : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                )}
+                                title={isEndorsementEnabled ? "Generate Endorsement Certificate" : "Fill all required Project Details and PI Details to enable"}
+                            >
+                                <FileBadge className="h-5 w-5" /> Generate Endorsement
+                            </button>
                         </nav>
                     </div>
 
@@ -640,6 +678,64 @@ const ProjectRegistration: React.FC = () => {
                         </form>
                     </div>
                 </div>
+
+                {/* Endorsement Certificate Modal */}
+                {showEndorsementModal && (
+                    <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center overflow-y-auto py-8">
+                        <div className="relative bg-white rounded-lg shadow-2xl max-w-[240mm] w-full mx-4">
+                            {/* Modal Header */}
+                            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-lg">
+                                <h2 className="text-xl font-bold text-gray-900">Endorsement Certificate</h2>
+                                <button
+                                    onClick={() => setShowEndorsementModal(false)}
+                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                    title="Close"
+                                >
+                                    <X className="h-6 w-6" />
+                                </button>
+                            </div>
+                            {/* Modal Body */}
+                            <div className="p-0">
+                                <EndorsementCertificate
+                                    proposalId={docname || "IITG/RND/NEW"}
+                                    piName={formData.principal_investigator_name}
+                                    piDesignation={formData.designation}
+                                    piDepartment={formData.applicant_department}
+                                    coPiName={formData.co_investigator_table?.[0]?.copi_name || ""}
+                                    coPiDesignation={formData.co_investigator_table?.[0]?.copi_designation || ""}
+                                    coPiDepartment={formData.co_investigator_table?.[0]?.copi_department || ""}
+                                    projectTitle={formData.project_title}
+                                    fundingAgency={formData.funding_agen}
+                                    duration={formData.project_type === 'Consultancy'
+                                        ? `${formData.project_duration_days} days`
+                                        : `${formData.project_duration_months} months`}
+                                    totalCost={String(budgetTableData.reduce((acc: number, row: any) => acc + (row.years || []).reduce((sum: number, val: any) => sum + Number(val || 0), 0), 0))}
+                                />
+                            </div>
+                            {/* Modal Footer */}
+                            <div className="bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-end rounded-b-lg">
+                                <button
+                                    type="button"
+                                    disabled={isSubmitting}
+                                    onClick={async () => {
+                                        setIsSubmitting(true);
+                                        try {
+                                            const data = await prepareDataForApi();
+                                            await submitForm({ doc: data });
+                                            setShowEndorsementModal(false);
+                                        } catch (err) {
+                                            alert('Error processing endorsement.');
+                                            setIsSubmitting(false);
+                                        }
+                                    }}
+                                    className="px-6 py-3 rounded-full font-bold text-sm bg-[#0EA5A4] text-white hover:bg-[#0D9494] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isSubmitting ? 'Submitting...' : 'Submit'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );
