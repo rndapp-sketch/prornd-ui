@@ -112,7 +112,7 @@
 //             ))}
 //           </select>
 //         );
-      
+
 //       case "Dynamic Link":
 //         return (
 //           <select
@@ -782,10 +782,10 @@ interface TableConfig {
 }
 
 // --- STYLES & REUSABLE UI COMPONENTS (REFINED NEO-BRUTALISM) ---
-const inputClasses = "w-full h-12 px-4 bg-white border border-gray-200 rounded-lg font-mono shadow-[1px_1px_0px_rgba(0,0,0,0.1)] focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:opacity-70 disabled:bg-[#F0F4F8] read-only:bg-[#F0F4F8]";
+const inputClasses = "w-full h-12 px-4 bg-white border border-gray-400 rounded-lg font-mono shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-100 text-black font-bold";
 
 const FrappeCard = ({ children, className }: any) => (
-  <div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-lg shadow-sm", className)}>
+  <div className={cn("bg-white p-6 md:p-8 border border-gray-300 rounded-lg shadow-sm", className)}>
     {children}
   </div>
 );
@@ -795,10 +795,10 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
     type={type}
     onClick={onClick}
     disabled={disabled}
-    className={cn("px-5 py-2.5 border border-gray-200 rounded-lg font-semibold text-gray-900 shadow-sm transition-all duration-150",
-      "hover:bg-[#F0F4F8] hover:-translate-y-0.5",
-      "active:shadow-[1px_1px_0px_rgba(0,0,0,0.1)] active:translate-y-0",
-      "disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 disabled:bg-stone-100", className)}
+    className={cn("px-5 py-2.5 border border-gray-300 rounded-lg font-bold text-black shadow-sm transition-all duration-150",
+      "hover:bg-gray-100 hover:-translate-y-0.5",
+      "active:shadow-none active:translate-y-0",
+      "disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 disabled:bg-gray-200", className)}
   >
     {children}
   </button>
@@ -806,7 +806,7 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 
 const NeoSection = ({ title, children }: any) => (
   <div className="space-y-6">
-    <h2 className="text-2xl font-bold text-gray-900 tracking-tight border-b-2 border-gray-900 pb-3">
+    <h2 className="text-2xl font-bold text-black tracking-tight border-b-2 border-black pb-3 uppercase">
       {title}
     </h2>
     {children}
@@ -830,8 +830,8 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
     switch (field.fieldtype) {
       case "HTML":
         return (
-          <div className="p-4 bg-[#F0F4F8] border border-gray-200 rounded-lg min-h-[8rem]">
-            <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: field.options || value || "" }} />
+          <div className="p-4 bg-gray-50 border border-gray-300 rounded-lg min-h-[8rem]">
+            <div className="prose prose-sm max-w-none text-black font-bold" dangerouslySetInnerHTML={{ __html: field.options || value || "" }} />
           </div>
         );
       case "Link":
@@ -860,7 +860,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
         );
       case "Attach":
         return (
-            <input type="file" className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-semibold file:bg-[#F0F4F8] file:text-gray-900 hover:file:bg-stone-100`} onChange={e => onChange(field.fieldname, e.target.files?.[0] || null)} />
+          <input type="file" className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-gray-200 file:text-black hover:file:bg-gray-300`} onChange={e => onChange(field.fieldname, e.target.files?.[0] || null)} />
         );
       default:
         return (
@@ -871,13 +871,13 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
 
   return (
     <div className='space-y-2'>
-      <label htmlFor={field.fieldname} className="block font-semibold text-gray-900 text-lg">
+      <label htmlFor={field.fieldname} className="block font-bold text-black text-lg uppercase">
         {field.label}
         {field.mandatory && <span className="text-red-500 ml-1">*</span>}
       </label>
       {renderInput()}
       {field.description && (
-        <p className="text-sm text-gray-600 font-mono mt-1">{field.description}</p>
+        <p className="text-sm text-gray-900 font-bold font-mono mt-1">{field.description}</p>
       )}
     </div>
   );
@@ -886,27 +886,27 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
 // --- GENERIC TABLE COMPONENT (REFINED STYLING) ---
 const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => (
   <NeoSection title={title}>
-    <div className="overflow-x-auto border border-gray-200 rounded-lg">
-      <table className="min-w-full divide-y-2 divide-gray-900">
-        <thead className="bg-[#F0F4F8]">
-          <tr className="divide-x-2 divide-gray-900">
+    <div className="overflow-x-auto border border-gray-300 rounded-lg">
+      <table className="min-w-full divide-y-2 divide-black">
+        <thead className="bg-gray-100">
+          <tr className="divide-x-2 divide-black">
             {[...columns, { key: 'actions', label: '' }].map((c: any) => (
-              <th key={c.key} className="p-3 font-semibold text-gray-900 text-sm text-left">
+              <th key={c.key} className="p-3 font-bold text-black text-sm text-left uppercase">
                 {c.label}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y-2 divide-gray-900 bg-white">
+        <tbody className="divide-y-2 divide-black bg-white">
           {(tableData || []).map((row: any, i: number) => (
-            <tr key={row.id || i} className="divide-x-2 divide-gray-900 hover:bg-[#F0F4F8] transition-colors duration-150">
+            <tr key={row.id || i} className="divide-x-2 divide-black hover:bg-gray-50 transition-colors duration-150">
               {columns.map((col: any) => (
                 <td key={col.key} className="p-2">
-                  <input type={col.type || 'text'} className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)}/>
+                  <input type={col.type || 'text'} className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)} />
                 </td>
               ))}
               <td className="p-2 text-center">
-                <FrappeButton onClick={() => onDeleteRow(tableName, i)} className="!py-2 text-sm">
+                <FrappeButton onClick={() => onDeleteRow(tableName, i)} className="!py-2 text-sm bg-red-50 border-red-200 hover:bg-red-100 text-red-700">
                   Delete
                 </FrappeButton>
               </td>
@@ -915,7 +915,7 @@ const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableDat
         </tbody>
       </table>
     </div>
-    <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="mt-4">
+    <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="mt-4 bg-[#A5D6A7] hover:bg-[#8BC34A] border-[#8BC34A]/20">
       Add Row
     </FrappeButton>
   </NeoSection>
@@ -1047,7 +1047,7 @@ export const FormRender: React.FC<UniversalFormProps> = ({
         )}
       </FrappeCard>
       <div className="mt-8 flex justify-end">
-        <FrappeButton onClick={handleSubmitClick} disabled={isSubmitting}>
+        <FrappeButton onClick={handleSubmitClick} disabled={isSubmitting} className="bg-[#0EA5A4] text-white hover:bg-[#0D9494] border-[#0D9494]/20">
           {isSubmitting ? 'Submitting...' : submitButtonText}
         </FrappeButton>
       </div>

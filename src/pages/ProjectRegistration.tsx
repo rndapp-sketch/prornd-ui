@@ -26,10 +26,10 @@ interface FormData {
 }
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
-const inputClasses = "w-full h-12 px-4 bg-white border border-gray-200 rounded-xl font-normal text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-50";
-const checkboxClasses = "size-5 shrink-0 appearance-none bg-white border border-gray-300 rounded checked:bg-[#0EA5A4] checked:border-[#0EA5A4] checked:bg-[url('data:image/svg+xml,%3csvg%20viewBox%3d%270%200%2016%2016%27%20fill%3d%27white%27%20xmlns%3d%27http%3a//www.w3.org/2000/svg%27%3e%3cpath%20d%3d%27M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%27/%3e%3c/svg%3e')] bg-center bg-no-repeat cursor-pointer";
-const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (<div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-xl shadow-sm", className)}>{children}</div>);
-const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string; type?: "button" | "submit" }) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
+const inputClasses = "w-full h-12 px-4 bg-white border border-gray-400 rounded-xl font-medium text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-50";
+const checkboxClasses = "size-5 shrink-0 appearance-none bg-white border border-gray-400 rounded checked:bg-[#0EA5A4] checked:border-[#0EA5A4] checked:bg-[url('data:image/svg+xml,%3csvg%20viewBox%3d%270%200%2016%2016%27%20fill%3d%27white%27%20xmlns%3d%27http%3a//www.w3.org/2000/svg%27%3e%3cpath%20d%3d%27M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%27/%3e%3c/svg%3e')] bg-center bg-no-repeat cursor-pointer";
+const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (<div className={cn("bg-white p-6 md:p-8 border border-gray-300 rounded-xl shadow-sm", className)}>{children}</div>);
+const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string; type?: "button" | "submit" }) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
 
 // --- MEMOIZED CHILD COMPONENTS ---
 const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange }: { field: Field; value: any; options?: LinkOption[]; onChange: (fieldname: string, value: any, type?: string) => void; onFileChange: (fieldname: string, file: File | null) => void; }) => {
@@ -40,7 +40,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange 
             case "Link": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
             case "Select": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(field.options?.split('\n').filter(o => o) || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>);
             case "Text": case "Small Text": case "Text Editor": return <textarea {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} rows={5} className={`${inputClasses} h-auto py-3`} />;
-            case "Check": return (<label className="flex items-center gap-4 font-medium text-gray-700 cursor-pointer"><input type="checkbox" className={checkboxClasses} checked={!!value} onChange={e => onChange(field.fieldname, e.target.checked, 'checkbox')} disabled={field.read_only} /><span>{field.label}{field.mandatory && <span className="text-red-500">*</span>}</span></label>);
+            case "Check": return (<label className="flex items-center gap-4 font-bold text-black cursor-pointer"><input type="checkbox" className={checkboxClasses} checked={!!value} onChange={e => onChange(field.fieldname, e.target.checked, 'checkbox')} disabled={field.read_only} /><span>{field.label}{field.mandatory && <span className="text-red-500">*</span>}</span></label>);
             case "Date": return <input type="date" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
             case "Attach": return <input type="file" {...commonProps} className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:font-bold file:bg-[#A5D6A7] file:text-black hover:file:bg-[#8BC34A]`} onChange={e => onFileChange(field.fieldname, e.target.files?.[0] || null)} />;
             default: return <input type={(['Int', 'Currency', 'Float', 'Percent'].includes(field.fieldtype)) ? 'number' : 'text'} {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
@@ -48,29 +48,29 @@ const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange 
     };
     if (field.fieldtype === 'Check') {
         return <div className="space-y-2">
-            {field.description ? <div className="prose prose-sm max-w-none text-gray-600 border border-gray-200 rounded-md p-4 bg-gray-100" dangerouslySetInnerHTML={{ __html: field.description }} /> : null}
+            {field.description ? <div className="prose prose-sm max-w-none text-black border border-gray-300 rounded-md p-4 bg-gray-100" dangerouslySetInnerHTML={{ __html: field.description }} /> : null}
             {renderInput()}
         </div>
     }
-    return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-medium text-gray-700">{field.label}{field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}{field.description && field.fieldtype !== 'Check' && <p className="text-sm text-gray-700 font-mono mt-2">{field.description}</p>}</div>);
+    return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-bold text-black">{field.label}{field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}{field.description && field.fieldtype !== 'Check' && <p className="text-sm text-black font-mono mt-2">{field.description}</p>}</div>);
 });
 
 const MemoizedGenericTable = memo(({ tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => (
     <div>
-        <div className="overflow-x-auto border border-gray-200 rounded-xl">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr className="divide-x divide-gray-200">
+        <div className="overflow-x-auto border border-gray-300 rounded-xl">
+            <table className="min-w-full divide-y divide-gray-300">
+                <thead className="bg-gray-200">
+                    <tr className="divide-x divide-gray-300">
                         {[...columns, { key: 'actions', label: 'Actions', type: 'action' }].map((c: any) => (
-                            <th key={c.key} className="p-3 font-semibold text-gray-700 text-sm text-left">{c.label}</th>
+                            <th key={c.key} className="p-3 font-bold text-black text-sm text-left">{c.label}</th>
                         ))}
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+                <tbody className="divide-y divide-gray-300 bg-white">
                     {(tableData || []).map((row: any, i: number) => (
-                        <tr key={row.id} className="divide-x divide-gray-200 hover:bg-gray-50/50">
+                        <tr key={row.id} className="divide-x divide-gray-300 hover:bg-gray-50/50">
                             {columns.map((col: any) => (<td key={col.key} className="p-2"> {col.type === 'file' ? (<input type="file" className={`${inputClasses} !h-11 !py-2`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />) : (<input type={col.type} className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => { const value = col.key === 'salary' ? e.target.value.replace(/[^0-9]/g, '') : e.target.value; onRowChange(tableName, i, col.key, value); }} />)} </td>))}
-                            <td className="p-2"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 w-full text-sm">Delete</FrappeButton></td>
+                            <td className="p-2"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="bg-red-50 text-red-700 border border-red-300 hover:bg-red-100 w-full text-sm">Delete</FrappeButton></td>
                         </tr>
                     ))}
                 </tbody>
@@ -85,25 +85,25 @@ const MemoizedCollaboratorTable = memo(({ tableName, title, tableData, piOptions
     const newRow = { [`${prefix}_name`]: '', [`${prefix}_email`]: '', [`${prefix}_designation`]: '', [`${prefix}_address`]: '', [`${prefix}_contact`]: '' };
     return (
         <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
-            <div className="overflow-x-auto border border-gray-200 rounded-xl">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr className="divide-x divide-gray-200">
+            <h3 className="text-lg font-bold text-black mb-4">{title}</h3>
+            <div className="overflow-x-auto border border-gray-300 rounded-xl">
+                <table className="min-w-full divide-y divide-gray-300">
+                    <thead className="bg-gray-200">
+                        <tr className="divide-x divide-gray-300">
                             {["Name*", "Email ID*", "Designation*", "Address*", "Contact*", "Actions"].map(h => (
-                                <th key={h} className="p-3 font-semibold text-gray-700 text-sm text-left">{h}</th>
+                                <th key={h} className="p-3 font-bold text-black text-sm text-left">{h}</th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
+                    <tbody className="divide-y divide-gray-300 bg-white">
                         {(tableData || []).map((row: any, i: number) => (
-                            <tr key={row.id} className="divide-x divide-gray-200 hover:bg-gray-50/50">
+                            <tr key={row.id} className="divide-x divide-gray-300 hover:bg-gray-50/50">
                                 <td className="p-2"><select className={`${inputClasses} !h-11`} value={row[`${prefix}_email`] || ''} onChange={e => onCollaboratorChange(tableName, i, e.target.value)}><option value="">Select Person...</option>{(piOptions || []).map((o: any) => (<option key={o.value} value={o.value}>{o.label}</option>))}</select></td>
-                                <td className="p-2"><input type="email" readOnly className={`${inputClasses} !h-11 bg-gray-100`} value={row[`${prefix}_email`] || ''} /></td>
-                                <td className="p-2"><input type="text" readOnly className={`${inputClasses} !h-11 bg-gray-100`} value={row[`${prefix}_designation`] || ''} /></td>
+                                <td className="p-2"><input type="email" readOnly className={`${inputClasses} !h-11 bg-gray-100 text-black font-medium`} value={row[`${prefix}_email`] || ''} /></td>
+                                <td className="p-2"><input type="text" readOnly className={`${inputClasses} !h-11 bg-gray-100 text-black font-medium`} value={row[`${prefix}_designation`] || ''} /></td>
                                 <td className="p-2"><input type="text" placeholder="Institute/Address" className={`${inputClasses} !h-11`} value={row[`${prefix}_address`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_address`, e.target.value)} /></td>
                                 <td className="p-2"><input type="tel" placeholder="10-digit #" maxLength={10} className={`${inputClasses} !h-11`} value={row[`${prefix}_contact`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_contact`, e.target.value.replace(/[^0-9]/g, ''))} /></td>
-                                <td className="p-2"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 w-full text-sm">Delete</FrappeButton></td>
+                                <td className="p-2"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="bg-red-50 text-red-700 border border-red-300 hover:bg-red-100 w-full text-sm">Delete</FrappeButton></td>
                             </tr>
                         ))}
                     </tbody>
@@ -117,21 +117,21 @@ const MemoizedCollaboratorTable = memo(({ tableName, title, tableData, piOptions
 
 const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, onRowChange, onAddRow, onDeleteRow, onAddYear, onDeleteYear, getYearTotal, totalBudgetAmount }: any) => (
     <div className="space-y-4">
-        <div className="overflow-x-auto border border-gray-200 rounded-xl">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr className="divide-x divide-gray-200">
-                        <th className="p-3 font-semibold text-gray-700 text-sm text-left">Account Head</th>
-                        {budgetYears.map((year: number, index: number) => (<th key={index} className="p-3 font-semibold text-gray-700 text-sm text-left">Year {year} (₹)</th>))}
-                        <th className="p-3 font-semibold text-gray-700 text-sm text-left">Total (₹)</th>
-                        <th className="p-3 font-semibold text-gray-700 text-sm text-left">Actions</th>
+        <div className="overflow-x-auto border border-gray-300 rounded-xl">
+            <table className="min-w-full divide-y divide-gray-300">
+                <thead className="bg-gray-200">
+                    <tr className="divide-x divide-gray-300">
+                        <th className="p-3 font-bold text-black text-sm text-left">Account Head</th>
+                        {budgetYears.map((year: number, index: number) => (<th key={index} className="p-3 font-bold text-black text-sm text-left">Year {year} (₹)</th>))}
+                        <th className="p-3 font-bold text-black text-sm text-left">Total (₹)</th>
+                        <th className="p-3 font-bold text-black text-sm text-left">Actions</th>
                     </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-gray-300">
                     {(tableData || []).map((row: any, rowIndex: number) => {
                         const rowTotal = (row.years || []).reduce((sum: number, val: any) => sum + Number(val || 0), 0);
                         return (
-                            <tr key={row.id} className="divide-x divide-gray-200 hover:bg-gray-50/50">
+                            <tr key={row.id} className="divide-x divide-gray-300 hover:bg-gray-50/50">
                                 <td className="p-2">
                                     <select
                                         className={`${inputClasses} !h-11`}
@@ -147,16 +147,16 @@ const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, o
                                     </select>
                                 </td>
                                 {budgetYears.map((_: any, yearIndex: number) => (<td key={yearIndex} className="p-2"><input type="number" className={`${inputClasses} !h-11`} value={(row.years || [])[yearIndex] || ''} onChange={(e) => onRowChange(rowIndex, 'years', e.target.value, yearIndex)} /></td>))}
-                                <td className="p-2 font-medium text-gray-900 text-right pr-4">{rowTotal.toFixed(2)}</td>
-                                <td className="p-2"><FrappeButton type="button" className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 w-full text-sm" onClick={() => onDeleteRow('proposed_budget_breakup', rowIndex)}>Delete</FrappeButton></td>
+                                <td className="p-2 font-bold text-black text-right pr-4">{rowTotal.toFixed(2)}</td>
+                                <td className="p-2"><FrappeButton type="button" className="bg-red-50 text-red-700 border border-red-300 hover:bg-red-100 w-full text-sm" onClick={() => onDeleteRow('proposed_budget_breakup', rowIndex)}>Delete</FrappeButton></td>
                             </tr>
                         );
                     })}
                 </tbody>
-                <tfoot className="bg-[#E0F7F6] border-t border-gray-200">
-                    <tr className="divide-x divide-gray-200">
-                        <th className="p-3 text-right font-semibold text-gray-900">Yearly Total</th>
-                        {budgetYears.map((_: any, yearIndex: number) => (<td key={yearIndex} className="p-3 font-semibold text-gray-900 text-right pr-4">{Number(getYearTotal(yearIndex)).toFixed(2)}</td>))}
+                <tfoot className="bg-[#E0F7F6] border-t border-gray-300">
+                    <tr className="divide-x divide-gray-300">
+                        <th className="p-3 text-right font-bold text-black">Yearly Total</th>
+                        {budgetYears.map((_: any, yearIndex: number) => (<td key={yearIndex} className="p-3 font-bold text-black text-right pr-4">{Number(getYearTotal(yearIndex)).toFixed(2)}</td>))}
                         <td className="p-3 font-bold text-[#0EA5A4] bg-[#0EA5A4]/10 text-right pr-4">{totalBudgetAmount.toFixed(2)}</td>
                         <td className="p-3"></td>
                     </tr>
@@ -165,12 +165,12 @@ const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, o
         </div>
         <div className="flex flex-wrap gap-4">
             <FrappeButton type="button" className="bg-[#0EA5A4] text-white hover:bg-[#0D9494]" onClick={onAddRow}>Add Budget Row</FrappeButton>
-            <FrappeButton type="button" className="bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200" onClick={onAddYear} disabled={budgetYears.length >= 5}>Add Year</FrappeButton>
-            <FrappeButton type="button" className="bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200" onClick={onDeleteYear}>Delete Last Year</FrappeButton>
+            <FrappeButton type="button" className="bg-gray-200 text-black border border-gray-400 hover:bg-gray-300" onClick={onAddYear} disabled={budgetYears.length >= 5}>Add Year</FrappeButton>
+            <FrappeButton type="button" className="bg-amber-100 text-amber-800 border border-amber-400 hover:bg-amber-200" onClick={onDeleteYear}>Delete Last Year</FrappeButton>
         </div>
         <div className="mt-6 flex justify-end">
             <div className="w-full md:w-1/3 space-y-2">
-                <label className="block text-lg font-semibold text-gray-900">Grand Total (₹)</label>
+                <label className="block text-lg font-bold text-black">Grand Total (₹)</label>
                 <input type="text" className={`${inputClasses} text-xl font-bold bg-[#E0F7F6] text-[#0EA5A4]`} readOnly value={totalBudgetAmount.toFixed(2)} />
             </div>
         </div>
@@ -379,13 +379,12 @@ const ProjectRegistration: React.FC = () => {
     const handleSaveDraft = async () => { if (isSavingDraft || isSubmitting) return; setIsSavingDraft(true); try { const data = await prepareDataForApi(); await saveDraft({ doc_data: JSON.stringify(data) }); } catch (err) { alert("File processing error."); setIsSavingDraft(false); } };
 
     // --- RENDER LOGIC ---
-    if (loading) return (<div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]"><div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-[#90A4AE] mx-auto"></div><p className="mt-4 text-2xl font-medium text-gray-700">LOADING FORM...</p></div></div>);
+    if (loading) return (<div className="flex items-center justify-center min-h-screen bg-gray-100"><div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-[#90A4AE] mx-auto"></div><p className="mt-4 text-2xl font-bold text-black">LOADING FORM...</p></div></div>);
 
     const budgetTableData = formData.proposed_budget_breakup || [];
     const totalBudgetAmount = budgetTableData.reduce((acc, row) => acc + (row.years || []).reduce((sum: number, val) => sum + Number(val || 0), 0), 0);
     const getYearTotal = (yearIndex: number) => budgetTableData.reduce((sum: number, row) => sum + Number((row.years || [])[yearIndex] || 0), 0);
 
-    // const tabButtons = ["Project Details", "PI & Collaborators", "Budget", "Clearance", "Sanction & Funds"];
     const tabs = [
         { label: "Project Details", icon: FileText },
         { label: "PI & Collaborators", icon: Users },
@@ -393,16 +392,11 @@ const ProjectRegistration: React.FC = () => {
         { label: "Clearance", icon: Shield }
     ];
     const renderNextPrevButtons = (showPrev: boolean, showNext: boolean, isLast = false) => (
-        // <div className="mt-8 flex justify-between items-center bg-white p-4 border border-gray-200 rounded-md shadow-sm">
-        //     <FrappeButton onClick={() => setActiveTab(activeTab - 1)} className={cn("bg-white", !showPrev && "invisible")}>Previous</FrappeButton>
-        //     {isLast ? (<div className="flex flex-col sm:flex-row gap-4"><FrappeButton onClick={handleSaveDraft} disabled={isSubmitting || isSavingDraft} className="bg-white">{isSavingDraft ? "SAVING..." : "Save As Draft"}</FrappeButton><FrappeButton type="submit" disabled={isSubmitting || isSavingDraft || !isDraftSaved} className="bg-[#A5D6A7] disabled:bg-gray-300">{isSubmitting ? "SUBMITTING..." : "Submit Registration"}</FrappeButton></div>) 
-        //     : (<FrappeButton onClick={() => setActiveTab(activeTab + 1)} className={cn("bg-[#A5D6A7]", !showNext && "invisible")}>Next Section</FrappeButton>)}
-        // </div>
-        <div className="mt-8 flex justify-between items-center bg-white p-4 border border-gray-200 rounded-md shadow-sm">
+        <div className="mt-8 flex justify-between items-center bg-white p-4 border border-gray-300 rounded-md shadow-sm">
             {/* Previous Button */}
             <FrappeButton
                 onClick={() => setActiveTab(activeTab - 1)}
-                className={cn("bg-white", !showPrev && "invisible")}
+                className={cn("bg-white border border-gray-400 text-black hover:bg-gray-100", !showPrev && "invisible")}
             >
                 Previous
             </FrappeButton>
@@ -413,7 +407,7 @@ const ProjectRegistration: React.FC = () => {
                     <FrappeButton
                         onClick={handleSaveDraft}
                         disabled={isSubmitting || isSavingDraft}
-                        className="bg-white"
+                        className="bg-white border border-gray-400 text-black hover:bg-gray-100"
                     >
                         {isSavingDraft ? "SAVING..." : "Save As Draft"}
                     </FrappeButton>
@@ -422,16 +416,12 @@ const ProjectRegistration: React.FC = () => {
                 /* Otherwise Show "Next Section" */
                 <FrappeButton
                     onClick={() => setActiveTab(activeTab + 1)}
-                    className={cn("bg-[#A5D6A7]", !showNext && "invisible")}
+                    className={cn("bg-[#A5D6A7] text-black hover:bg-[#8BC34A]", !showNext && "invisible")}
                 >
                     Next Section
                 </FrappeButton>
             )}
         </div>
-
-
-
-
     );
 
     const tabFieldGroups = {
@@ -445,15 +435,15 @@ const ProjectRegistration: React.FC = () => {
     };
 
     return (
-        <div className="bg-[#F0F4F8]">
+        <div className="bg-gray-100">
             <AppSidebar />
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden bg-[#F0F4F8]]">
+            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden bg-gray-100">
                 <header className="mb-3">
                     <h1 className="text-3xl md:text-4xl font-extrabold text-black tracking-tight uppercase">New Project Registration</h1>
-                    <p className="text-gray-700 mt-2 font-mono">Fill all sections to register a new project.</p>
+                    <p className="text-black mt-2 font-bold">Fill all sections to register a new project.</p>
                 </header>
-                <div className="bg-white border border-gray-200 rounded-md shadow-sm">
-                    <div className="border-b border-gray-200">
+                <div className="bg-white border border-gray-300 rounded-md shadow-sm">
+                    <div className="border-b border-gray-300">
                         <nav className="flex space-x-2 p-2 overflow-x-auto">
                             {tabs.map((tab, index) => (
                                 <button
@@ -463,8 +453,8 @@ const ProjectRegistration: React.FC = () => {
                                     className={cn(
                                         "flex-shrink-0 flex items-center gap-2 py-3 px-4 font-bold text-sm rounded-md border-2 border-transparent transition-all",
                                         activeTab === index
-                                            ? "bg-gray-50 border-black shadow-sm"
-                                            : "text-black hover:bg-[#CFD8DC]"
+                                            ? "bg-gray-100 border-black shadow-sm text-black"
+                                            : "text-black hover:bg-gray-200"
                                     )}
                                 >
                                     <tab.icon className="h-5 w-5" /> {tab.label}
@@ -479,7 +469,7 @@ const ProjectRegistration: React.FC = () => {
                                     "flex-shrink-0 flex items-center gap-2 py-3 px-4 font-bold text-sm rounded-md border-2 transition-all ml-auto",
                                     isEndorsementEnabled
                                         ? "bg-[#0EA5A4] text-white border-[#0EA5A4] hover:bg-[#0D9494] shadow-sm cursor-pointer"
-                                        : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                                        : "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed"
                                 )}
                                 title={isEndorsementEnabled ? "Generate Endorsement Certificate" : "Fill all required Project Details and PI Details to enable"}
                             >
@@ -488,7 +478,7 @@ const ProjectRegistration: React.FC = () => {
                         </nav>
                     </div>
 
-                    <div className="bg-[#F5F5F5] p-6 md:p-8">
+                    <div className="bg-gray-100 p-6 md:p-8">
                         <form id="project-registration-form" onSubmit={handleSubmit}>
                             {fields.length > 0 && <>
                                 <div className={activeTab === 0 ? "block" : "hidden"}>
@@ -498,8 +488,8 @@ const ProjectRegistration: React.FC = () => {
                                         {renderField("project_type")}
                                         {formData.project_type === "Research" && (
                                             <div className='space-y-8'>
-                                                <FrappeCard className="p-6 space-y-6 !shadow-sm"><h3 className="text-2xl font-bold uppercase text-black">Funding Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.fundingDetails)}</div></FrappeCard>
-                                                <FrappeCard className="p-6 space-y-6 !shadow-sm"><h3 className="text-2xl font-bold uppercase text-black">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.agencyAddress)}</div></FrappeCard>
+                                                <FrappeCard className="p-6 space-y-6 !shadow-sm border-gray-300"><h3 className="text-2xl font-bold uppercase text-black">Funding Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.fundingDetails)}</div></FrappeCard>
+                                                <FrappeCard className="p-6 space-y-6 !shadow-sm border-gray-300"><h3 className="text-2xl font-bold uppercase text-black">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.agencyAddress)}</div></FrappeCard>
                                             </div>
                                         )}
                                         {formData.project_type === "Consultancy" && renderField("consultancy_category")}
@@ -518,11 +508,11 @@ const ProjectRegistration: React.FC = () => {
                                 <div className={activeTab === 1 ? "block" : "hidden"}>
                                     <FrappeCard className="space-y-10">
                                         <h2 className="text-3xl font-bold uppercase text-black">2. Investigators & Collaborators</h2>
-                                        <div className="p-6 space-y-6 border border-gray-200 rounded-md shadow-sm">
+                                        <div className="p-6 space-y-6 border border-gray-300 rounded-md shadow-sm bg-white">
                                             <h3 className="text-2xl font-bold uppercase text-black">Principal Investigator (PI)</h3>
                                             <div className="space-y-8">
                                                 {renderField("pi_webmail")}
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-dashed">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-dashed border-gray-400">
                                                     {renderField("principal_investigator_name")}
                                                     {renderField("pi_employee_id")}
                                                     {renderField("designation")}
@@ -541,9 +531,9 @@ const ProjectRegistration: React.FC = () => {
                                 <div className={activeTab === 2 ? "block" : "hidden"}>
                                     <FrappeCard className="space-y-8">
                                         <h2 className="text-3xl font-bold uppercase text-black">3. Proposed Budget</h2>
-                                        <p className="font-mono text-gray-700">Provide a detailed year-wise breakup of the proposed budget.</p>
+                                        <p className="font-bold text-black">Provide a detailed year-wise breakup of the proposed budget.</p>
                                         <MemoizedBudgetTable tableData={budgetTableData} budgetYears={budgetYears} budgetHeadOptions={budgetHeadOptions} onRowChange={handleBudgetRowChange} onAddRow={addBudgetRow} onDeleteRow={deleteTableRow} onAddYear={addBudgetYear} onDeleteYear={deleteLastBudgetYear} getYearTotal={getYearTotal} totalBudgetAmount={totalBudgetAmount} />
-                                        <div className="space-y-6 border-t border-gray-200 pt-8">{renderFields(tabFieldGroups.budgetToggles)}</div>
+                                        <div className="space-y-6 border-t border-gray-300 pt-8">{renderFields(tabFieldGroups.budgetToggles)}</div>
                                         {formData.equipment_checkbox ? (<MemoizedGenericTable tableName={'proposed_equipment_details'} columns={[{ key: 'item_name', label: 'Equipment Name*', type: 'text' }, { key: 'cost', label: 'Cost (₹)', type: 'number' }]} newRow={{ item_name: '', cost: 0 }} tableData={formData.proposed_equipment_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
                                         {formData.manpower_checkbox ? (<MemoizedGenericTable tableName={'proposed_manpower_details'} columns={[{ key: 'designation_name', label: 'Position*', type: 'text' }, { key: 'salary', label: 'Salary (₹)', type: 'number' }]} newRow={{ designation_name: '', salary: 0 }} tableData={formData.proposed_manpower_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
                                     </FrappeCard>
@@ -575,25 +565,12 @@ const ProjectRegistration: React.FC = () => {
                                     {renderNextPrevButtons(true, true)}
                                 </div>
                                 <div className={activeTab === 4 ? "block" : "hidden"}>
-                                    {/* <FrappeCard className="space-y-10">
-                                <h2 className="text-3xl font-bold uppercase text-black">5. Sanction & Funds</h2>
-                                <div className="space-y-6">
-                                    {renderField("have_sanction_details")}
-                                    {formData.have_sanction_details === "Yes" && (<FrappeCard className="space-y-8 !shadow-sm"><h3 className="text-2xl font-bold uppercase text-black">Sanction Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.sanction)}</div><div className="space-y-4"><MemoizedGenericTable tableName={'sanctioned_budget_breakup'} columns={[{key: 'head', label: 'Budget Head', type: 'text'}, {key: 'amount', label: 'Amount (₹)', type: 'number'}]} newRow={{head: '', amount: 0}} tableData={formData.sanctioned_budget_breakup} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} /></div><div className="space-y-4"><MemoizedGenericTable tableName={'sanction_related_files'} columns={[{key: 'file', label: 'File', type: 'file'}]} newRow={{file: null}} tableData={formData.sanction_related_files} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} /></div></FrappeCard>)}
-                                </div>
-                                <div className="space-y-6">
-                                    {renderField("have_fund_details")}
-                                    {formData.have_fund_details === "Yes" && (<FrappeCard className="space-y-8 !shadow-sm"><h3 className="text-2xl font-bold uppercase text-black">Fund Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.funds)}</div><div className="space-y-4"><MemoizedGenericTable tableName={'fund_transactions'} columns={[{key: 'installmentNo', label: 'Installment No.', type: 'text'}, {key: 'dateReceived', label: 'Date Received', type: 'date'}, {key: 'amount', label: 'Amount (₹)', type: 'number'}]} newRow={{installmentNo: '', dateReceived: '', amount: 0}} tableData={formData.fund_transactions} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} /></div></FrappeCard>)}
-                                </div>
-                            </FrappeCard> */}
-
                                     <FrappeCard className="space-y-10">
-                                        {/* <h2 className="text-3xl font-bold uppercase text-black">5. Sanction & Funds</h2> */}
                                         <div className="space-y-6">
                                             {renderField("have_sanction_details")}
 
                                             {formData.have_sanction_details === "Yes" && (
-                                                <FrappeCard className="space-y-8 !shadow-sm">
+                                                <FrappeCard className="space-y-8 !shadow-sm border-gray-300">
                                                     <h3 className="text-2xl font-bold uppercase text-black">Sanction Details</h3>
 
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -636,7 +613,7 @@ const ProjectRegistration: React.FC = () => {
                                             {renderField("have_fund_details")}
 
                                             {formData.have_fund_details === "Yes" && (
-                                                <FrappeCard className="space-y-8 !shadow-sm">
+                                                <FrappeCard className="space-y-8 !shadow-sm border-gray-300">
                                                     <h3 className="text-2xl font-bold uppercase text-black">Fund Details</h3>
 
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -664,13 +641,11 @@ const ProjectRegistration: React.FC = () => {
                                         </div>
 
                                         {/* 🟢 Instruction after saving */}
-                                        <div className="p-4 mt-6 border-l-4 border-green-600 bg-green-50 text-green-800 rounded-md shadow-sm">
+                                        <div className="p-4 mt-6 border-l-4 border-green-600 bg-green-50 text-green-900 rounded-md shadow-sm font-bold">
                                             💡 <strong>Next Step:</strong> After saving this project draft, go to the <strong>Project View</strong> page,
                                             open your specific project, and then click <strong>Submit</strong> to proceed.
                                         </div>
                                     </FrappeCard>
-
-
 
                                     {renderNextPrevButtons(true, false, true)}
                                 </div>
@@ -682,16 +657,16 @@ const ProjectRegistration: React.FC = () => {
                 {/* Endorsement Certificate Modal */}
                 {showEndorsementModal && (
                     <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center overflow-y-auto py-8">
-                        <div className="relative bg-white rounded-lg shadow-2xl max-w-[240mm] w-full mx-4">
+                        <div className="relative bg-white rounded-lg shadow-2xl max-w-[240mm] w-full mx-4 border border-gray-400">
                             {/* Modal Header */}
-                            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-lg">
-                                <h2 className="text-xl font-bold text-gray-900">Endorsement Certificate</h2>
+                            <div className="bg-white border-b border-gray-300 px-6 py-4 flex items-center justify-between rounded-t-lg">
+                                <h2 className="text-xl font-bold text-black">Endorsement Certificate</h2>
                                 <button
                                     onClick={() => setShowEndorsementModal(false)}
                                     className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                                     title="Close"
                                 >
-                                    <X className="h-6 w-6" />
+                                    <X className="h-6 w-6 text-black" />
                                 </button>
                             </div>
                             {/* Modal Body */}
@@ -713,7 +688,7 @@ const ProjectRegistration: React.FC = () => {
                                 />
                             </div>
                             {/* Modal Footer */}
-                            <div className="bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-end rounded-b-lg">
+                            <div className="bg-white border-t border-gray-300 px-6 py-4 flex items-center justify-end rounded-b-lg">
                                 <button
                                     type="button"
                                     disabled={isSubmitting}

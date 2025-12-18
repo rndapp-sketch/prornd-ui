@@ -138,6 +138,12 @@ export function AppSidebar() {
       // )) {
       //   return false;
       // }
+      // if (roles?.some(r =>
+      //   r === "staff, RnD" ||
+      //   r === "Hos, RnD (Head of Section, RnD)"
+      // )) {
+      //   return false;
+      // }
 
       if (
         roles &&
@@ -199,12 +205,12 @@ export function AppSidebar() {
   return (
     <>
       <GlobalLoader isLoading={isLoggingOut} />
-      <Sidebar collapsible="icon" variant="sidebar" className="bg-[#F0F4F8] border-r-2 border-gray-300">
+      <Sidebar collapsible="icon" variant="sidebar" className="bg-gray-100 border-r-2 border-gray-300">
 
         {/* --- Header with Frappe styling --- */}
-        <SidebarHeader className="px-4 py-4 border-b border-gray-200 bg-white">
+        <SidebarHeader className="px-4 py-4 border-b border-gray-300 bg-white">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#E0F7F6]">
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#E0F7F6] border border-[#0EA5A4]/20">
               <img
                 src="/file.svg"
                 alt="R&D Operations Logo"
@@ -213,7 +219,7 @@ export function AppSidebar() {
             </div>
             {state === 'expanded' && (
               <div>
-                <span className="text-base font-semibold text-gray-900">R&D Portal</span>
+                <span className="text-base font-bold text-black">R&D Portal</span>
               </div>
             )}
           </div>
@@ -233,19 +239,19 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       onClick={() => handleMenuItemClick(item)}
                       className={cn(
-                        "w-full h-11 px-3 rounded-xl font-medium text-base transition-all duration-150",
+                        "w-full h-11 px-3 rounded-xl font-bold text-base transition-all duration-150",
                         isActive
-                          ? "bg-[#0EA5A4] text-white shadow-sm"
-                          : "bg-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          ? "bg-[#0EA5A4] text-white shadow-md"
+                          : "bg-transparent text-gray-900 hover:bg-gray-200 hover:text-black"
                       )}
                       tooltip={item.label}
                     >
                       <div className="flex items-center gap-3 flex-1">
                         <div className={cn(
                           "flex items-center justify-center w-8 h-8 rounded-lg transition-colors",
-                          isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+                          isActive ? "bg-white/20 text-white" : "bg-gray-200 text-gray-900"
                         )}>
-                          <item.icon className="w-5 h-5" strokeWidth={2} />
+                          <item.icon className="w-5 h-5" strokeWidth={2.5} />
                         </div>
                         {state === 'expanded' && <span>{item.label}</span>}
                       </div>
@@ -253,7 +259,7 @@ export function AppSidebar() {
                       {/* Notification badge for Pending Task */}
                       {item.label === "Pending Task" && pendingTaskCount > 0 && (
                         <div className={cn(
-                          "flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-medium",
+                          "flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold",
                           isActive ? "bg-white/20 text-white" : "bg-[#0EA5A4] text-white"
                         )}>
                           {pendingTaskCount > 99 ? '99+' : pendingTaskCount}
@@ -261,12 +267,12 @@ export function AppSidebar() {
                       )}
 
                       {state === 'expanded' && item.subMenu && (
-                        <ChevronDownIcon className={cn("w-4 h-4 transition-transform flex-shrink-0 text-current opacity-60", isSubMenuOpen && "rotate-180")} strokeWidth={2} />
+                        <ChevronDownIcon className={cn("w-4 h-4 transition-transform flex-shrink-0 text-current opacity-80", isSubMenuOpen && "rotate-180")} strokeWidth={2.5} />
                       )}
                     </SidebarMenuButton>
 
                     {item.subMenu && isSubMenuOpen && state === 'expanded' && (
-                      <SidebarMenuSub className="ml-4 mt-1 space-y-0.5 pl-3 border-l border-gray-200">
+                      <SidebarMenuSub className="ml-4 mt-1 space-y-0.5 pl-3 border-l-2 border-gray-300">
                         {item.subMenu.map((subItem) => {
                           const isSubActive = isActivePath(subItem.path);
                           return (
@@ -274,10 +280,10 @@ export function AppSidebar() {
                               <SidebarMenuSubButton
                                 onClick={() => handleSubMenuItemClick(subItem)}
                                 className={cn(
-                                  "w-full px-3 py-2.5 text-sm rounded-lg font-medium transition-all duration-150",
+                                  "w-full px-3 py-2.5 text-sm rounded-lg font-bold transition-all duration-150",
                                   isSubActive
-                                    ? "bg-[#E0F7F6] text-[#0EA5A4]"
-                                    : "bg-transparent text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                                    ? "bg-[#E0F7F6] text-[#0EA5A4] border border-[#0EA5A4]/20"
+                                    : "bg-transparent text-gray-900 hover:bg-gray-200 hover:text-black"
                                 )}
                               >
                                 {subItem.label}
@@ -295,27 +301,27 @@ export function AppSidebar() {
         </SidebarContent>
 
         {/* --- Footer with Frappe styling --- */}
-        <SidebarFooter className="px-3 py-4 border-t border-gray-200 bg-white">
+        <SidebarFooter className="px-3 py-4 border-t border-gray-300 bg-white">
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={handleLogout}
-              className="w-full h-10 px-3 rounded-xl font-medium text-sm transition-all duration-150 bg-transparent text-gray-600 hover:bg-red-50 hover:text-red-600"
+              className="w-full h-10 px-3 rounded-xl font-bold text-sm transition-all duration-150 bg-transparent text-gray-900 hover:bg-red-50 hover:text-red-700 border border-transparent hover:border-red-200"
               tooltip="Log out"
             >
-              <div className="flex items-center justify-center w-7 h-7 bg-gray-100 rounded-lg">
-                <LogOutIcon className="w-4 h-4 text-gray-500" strokeWidth={2} />
+              <div className="flex items-center justify-center w-7 h-7 bg-gray-200 rounded-lg">
+                <LogOutIcon className="w-4 h-4 text-gray-900" strokeWidth={2.5} />
               </div>
               {state === 'expanded' && <span className="ml-2 text-sm">Log out</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
 
           {state === 'expanded' && (
-            <div className="mt-3 pt-3 border-t border-gray-200">
+            <div className="mt-3 pt-3 border-t border-gray-300">
               {(isLoading || isLoadingUserDoc) ? (
-                <div className="p-2 text-xs text-[#6B7280]">Loading user...</div>
+                <div className="p-2 text-xs text-gray-900 font-bold">Loading user...</div>
               ) : (
-                <div className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-xl">
-                  <div className="flex items-center justify-center flex-shrink-0 w-9 h-9 rounded-lg bg-[#0EA5A4] font-medium text-white text-sm">
+                <div className="flex items-center gap-2 p-2.5 bg-gray-100 rounded-xl border border-gray-300">
+                  <div className="flex items-center justify-center flex-shrink-0 w-9 h-9 rounded-lg bg-[#0EA5A4] font-bold text-white text-sm border border-[#0EA5A4]/20 shadow-sm">
                     {userDoc?.user_image ? (
                       <img src={userDoc.user_image} alt="Profile" className="w-full h-full rounded-lg object-cover" />
                     ) : (
@@ -323,10 +329,10 @@ export function AppSidebar() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="text-sm font-bold text-black truncate">
                       {userDoc?.full_name || "User Name"}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className="text-xs text-gray-900 font-medium truncate">
                       {userDoc?.email || ""}
                     </p>
                   </div>

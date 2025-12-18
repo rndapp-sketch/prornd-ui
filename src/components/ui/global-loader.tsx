@@ -39,12 +39,12 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
 
     return (
         <div className={cn(
-            "fixed inset-0 z-50 flex items-center justify-center bg-white/50 backdrop-blur-sm transition-opacity duration-300",
+            "fixed inset-0 z-50 flex items-center justify-center bg-gray-100/50 backdrop-blur-sm transition-opacity duration-300",
             className
         )}>
-            <div className="bg-white p-6 rounded-lg border-2 border-black shadow-[4px_4px_0px_rgba(0,0,0,0.25)] flex flex-col items-center gap-4">
+            <div className="bg-white p-6 rounded-xl border-2 border-black shadow-lg flex flex-col items-center gap-4">
                 <Spinner size={40} />
-                <p className="font-bold text-black font-mono">Loading...</p>
+                <p className="font-bold text-black uppercase tracking-widest">Loading...</p>
             </div>
         </div>
     );

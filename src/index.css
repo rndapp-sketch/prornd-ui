@@ -75,16 +75,18 @@
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
 
-  /* Frappe-inspired Design Tokens */
-  --frappe-bg: #FBFDFF;
+  /* Frappe-inspired Design Tokens - Updated for Darker Text & High Contrast */
+  --frappe-bg: #F3F4F6;
   --frappe-panel: #FFFFFF;
   --frappe-primary: #0EA5A4;
   --frappe-primary-light: #E0F7F6;
-  --frappe-muted: #6B7280;
-  --frappe-border: #E5E7EB;
+  --frappe-muted: #374151;
+  /* Darker muted text (gray-700) */
+  --frappe-border: #D1D5DB;
+  /* Darker borders (gray-300) */
   --frappe-focus-ring: rgba(14, 165, 164, 0.18);
-  --frappe-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  --frappe-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.05);
+  --frappe-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --frappe-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .dark {
@@ -150,7 +152,8 @@
   .assamese-text,
   .hindi-text,
   .english-text {
-    color: #1F2327;
+    color: #111827;
+    /* Darker text (gray-900) */
     font-family: Satoshi;
     font-weight: 400;
     word-wrap: break-word;
@@ -166,7 +169,8 @@
   }
 
   .english-text {
-    font-weight: 500;
+    font-weight: 600;
+    /* Slightly bolder for better readability */
   }
 
   .vertical-line {
@@ -185,7 +189,8 @@
   }
 
   .external-links-title {
-    color: black;
+    color: #000000;
+    /* Pure black */
     font-size: 14px;
     font-family: Satoshi;
     font-weight: 700;
@@ -194,7 +199,8 @@
   }
 
   .link-text {
-    color: black;
+    color: #000000;
+    /* Pure black */
     font-size: 14px;
     font-family: Satoshi;
     font-weight: 400;

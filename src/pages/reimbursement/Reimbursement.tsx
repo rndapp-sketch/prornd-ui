@@ -32,14 +32,14 @@ const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange 
             case "Link": return (<select {...commonProps}><option value="">Select...</option>{(options || []).map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
             case "Select": return (<select {...commonProps}><option value="">Select...</option>{(field.options?.split('\n').filter(o => o) || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>);
             case "Small Text": return <textarea {...commonProps} rows={4} className={`${inputClasses} h-auto py-3`} />;
-            case "Check": return (<label className="flex items-center gap-3 font-medium text-gray-700 cursor-pointer bg-gray-50 p-3 border border-gray-200 rounded-xl"><input type="checkbox" className={checkboxClasses} checked={!!value} onChange={e => onChange(field.fieldname, e.target.checked, 'checkbox')} disabled={field.read_only} /><span>{field.label}</span></label>);
+            case "Check": return (<label className="flex items-center gap-3 font-medium text-gray-900 cursor-pointer bg-gray-50 p-3 border border-gray-200 rounded-xl"><input type="checkbox" className={checkboxClasses} checked={!!value} onChange={e => onChange(field.fieldname, e.target.checked, 'checkbox')} disabled={field.read_only} /><span>{field.label}</span></label>);
             case "Attach": return <input type="file" {...commonProps} className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-medium file:bg-[#E0F7F6] file:text-[#0EA5A4] hover:file:bg-[#0EA5A4] hover:file:text-white file:transition-colors`} onChange={e => onFileChange(field.fieldname, e.target.files?.[0] || null)} />;
             default: return <input type="text" {...commonProps} />;
         }
     };
 
     if (field.fieldtype === 'Check') return renderInput();
-    return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-medium text-gray-700">{field.label}{!!field.mandatory && <span className="text-red-500 ml-1">*</span>}</label>{renderInput()}{field.description && <p className="text-sm text-gray-500">{field.description}</p>}</div>);
+    return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-medium text-gray-900">{field.label}{!!field.mandatory && <span className="text-red-500 ml-1">*</span>}</label>{renderInput()}{field.description && <p className="text-sm text-gray-700">{field.description}</p>}</div>);
 });
 
 // --- ITEMS TABLE COMPONENT ---
@@ -57,11 +57,11 @@ const MemoizedGenericTable = memo(({ tableName, columns, tableData, onRowChange,
                     <thead className="bg-gray-50">
                         <tr className="divide-x divide-gray-100">
                             {columns.map((col: any) => (
-                                <th key={getColKey(col)} className="p-3 font-medium text-gray-600 text-sm whitespace-nowrap text-left">
+                                <th key={getColKey(col)} className="p-3 font-medium text-gray-900 text-sm whitespace-nowrap text-left">
                                     {col.label}
                                 </th>
                             ))}
-                            <th className="p-3 font-medium text-gray-600 text-sm"></th>
+                            <th className="p-3 font-medium text-gray-900 text-sm"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 bg-white">
@@ -379,13 +379,13 @@ const Reimbursement: React.FC = () => {
                 <header className="mb-8 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
                     <div className="flex items-center gap-4">
                         <button onClick={() => navigate(-1)} className="p-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors">
-                            <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
+                            <ArrowLeftIcon className="h-5 w-5 text-gray-900" />
                         </button>
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900">
                                 {editDocName ? `Edit Reimbursement: ${editDocName}` : 'Reimbursement Application'}
                             </h1>
-                            <p className="text-gray-500 mt-1">
+                            <p className="text-gray-700 mt-1">
                                 {editDocName ? 'Update the details below and save.' : 'Fill out the details below to apply for reimbursement.'}
                             </p>
                         </div>
@@ -395,7 +395,7 @@ const Reimbursement: React.FC = () => {
                 <form onSubmit={handleSubmit}>
                     <FrappeCard className="space-y-12">
                         {htmlContent && htmlContent.options && (
-                            <div className="prose prose-sm max-w-none text-gray-700 p-4 bg-amber-50 border border-amber-200 rounded-xl"
+                            <div className="prose prose-sm max-w-none text-gray-900 p-4 bg-amber-50 border border-amber-200 rounded-xl"
                                 dangerouslySetInnerHTML={{ __html: htmlContent.options }}
                             />
                         )}
@@ -437,7 +437,7 @@ const Reimbursement: React.FC = () => {
                     </FrappeCard>
 
                     <div className="mt-8 flex justify-end gap-4">
-                        <FrappeButton onClick={handleSave} disabled={isSubmitting} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50">
+                        <FrappeButton onClick={handleSave} disabled={isSubmitting} className="bg-white border border-gray-200 text-gray-900 hover:bg-gray-50">
                             {isSubmitting ? 'Saving...' : 'Save Draft'}
                         </FrappeButton>
                         <FrappeButton type="submit" disabled={isSubmitting} className="bg-[#0EA5A4] text-white hover:bg-[#0D9494]">

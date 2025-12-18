@@ -146,10 +146,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
             />
 
             {/* Command Palette Modal */}
-            <div className="relative w-full max-w-xl mx-4 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
+            <div className="relative w-full max-w-xl mx-4 bg-white rounded-xl shadow-2xl border border-gray-300 overflow-hidden">
                 {/* Search Input */}
-                <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200">
-                    <SearchIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-300">
+                    <SearchIcon className="h-5 w-5 text-gray-900 flex-shrink-0" />
                     <input
                         ref={inputRef}
                         type="text"
@@ -157,29 +157,29 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        className="flex-1 bg-transparent text-base text-gray-900 placeholder-gray-400 outline-none"
+                        className="flex-1 bg-transparent text-base text-black font-bold placeholder-gray-400 outline-none"
                     />
                     <button
                         onClick={onClose}
                         className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
                     >
-                        <XIcon className="h-4 w-4 text-gray-400" />
+                        <XIcon className="h-4 w-4 text-gray-900" />
                     </button>
                 </div>
 
                 {/* Results */}
                 <div className="max-h-[60vh] overflow-y-auto py-2">
                     {filteredItems.length === 0 ? (
-                        <div className="px-4 py-8 text-center text-gray-500">
-                            <SearchIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                            <p className="text-sm">No results found for "{searchQuery}"</p>
+                        <div className="px-4 py-8 text-center text-gray-900">
+                            <SearchIcon className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                            <p className="text-sm font-bold">No results found for "{searchQuery}"</p>
                         </div>
                     ) : (
                         <>
                             {Object.entries(groupedItems).map(([category, items]) => (
                                 <div key={category}>
                                     <div className="px-4 py-2">
-                                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">
                                             {category === 'navigation' ? 'Pages' : category === 'action' ? 'Actions' : 'Recent'}
                                         </span>
                                     </div>
@@ -200,20 +200,20 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
                                                 )}
                                             >
                                                 <div className={cn(
-                                                    "flex-shrink-0 h-9 w-9 rounded-lg flex items-center justify-center",
-                                                    isSelected ? "bg-[#0EA5A4] text-white" : "bg-gray-100 text-gray-500"
+                                                    "flex-shrink-0 h-9 w-9 rounded-lg flex items-center justify-center border",
+                                                    isSelected ? "bg-[#0EA5A4] text-white border-[#0EA5A4]" : "bg-gray-100 text-gray-900 border-gray-300"
                                                 )}>
                                                     <item.icon className="h-4 w-4" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className={cn(
-                                                        "text-sm font-medium truncate",
-                                                        isSelected ? "text-[#0EA5A4]" : "text-gray-900"
+                                                        "text-sm font-bold truncate",
+                                                        isSelected ? "text-[#0EA5A4]" : "text-black"
                                                     )}>
                                                         {item.label}
                                                     </p>
                                                     {item.description && (
-                                                        <p className="text-xs text-gray-500 truncate">
+                                                        <p className="text-xs text-gray-900 font-medium truncate">
                                                             {item.description}
                                                         </p>
                                                     )}
@@ -231,23 +231,23 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Footer with keyboard hints */}
-                <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-200 bg-gray-50 text-xs text-gray-500">
+                <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-300 bg-gray-100 text-xs text-black font-bold">
                     <div className="flex items-center gap-4">
                         <span className="flex items-center gap-1">
-                            <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-xs font-mono">↑</kbd>
-                            <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-xs font-mono">↓</kbd>
+                            <kbd className="px-1.5 py-0.5 bg-white border border-gray-400 rounded text-xs font-mono text-black">↑</kbd>
+                            <kbd className="px-1.5 py-0.5 bg-white border border-gray-400 rounded text-xs font-mono text-black">↓</kbd>
                             <span className="ml-1">Navigate</span>
                         </span>
                         <span className="flex items-center gap-1">
-                            <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-xs font-mono">↵</kbd>
+                            <kbd className="px-1.5 py-0.5 bg-white border border-gray-400 rounded text-xs font-mono text-black">↵</kbd>
                             <span className="ml-1">Open</span>
                         </span>
                         <span className="flex items-center gap-1">
-                            <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-xs font-mono">Esc</kbd>
+                            <kbd className="px-1.5 py-0.5 bg-white border border-gray-400 rounded text-xs font-mono text-black">Esc</kbd>
                             <span className="ml-1">Close</span>
                         </span>
                     </div>
-                    <span className="text-gray-400">{filteredItems.length} results</span>
+                    <span className="text-gray-900">{filteredItems.length} results</span>
                 </div>
             </div>
         </div>

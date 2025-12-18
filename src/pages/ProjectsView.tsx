@@ -1,6 +1,3 @@
-
-
-
 import * as React from "react";
 import {
   useFrappeGetDocList,
@@ -143,11 +140,11 @@ const FrappeButton = React.forwardRef<
   <button
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-150",
+      "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-150",
       "focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)]",
       variant === 'primary' && "bg-[#0EA5A4] text-white hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border border-[#0D9494]",
-      variant === 'ghost' && "bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900",
-      variant === 'outline' && "bg-white border-2 border-gray-300 text-gray-700 hover:border-[#0EA5A4] hover:text-[#0EA5A4] hover:bg-gray-50",
+      variant === 'ghost' && "bg-transparent text-gray-900 hover:bg-gray-200 hover:text-black",
+      variant === 'outline' && "bg-white border-2 border-gray-400 text-gray-900 hover:border-[#0EA5A4] hover:text-[#0EA5A4] hover:bg-gray-50",
       variant === 'action' && "bg-[#0EA5A4] text-white font-bold hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border-2 border-[#0D9494]",
       "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
       className
@@ -168,7 +165,7 @@ const FrappeCard = ({
 }) => (
   <div
     className={cn(
-      "bg-white rounded-xl border border-gray-200 shadow-sm",
+      "bg-white rounded-xl border border-gray-300 shadow-sm",
       className
     )}
   >
@@ -425,7 +422,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       return (
         <FrappeCard className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-cyan-300 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-sm">Loading tasks...</p>
+          <p className="text-gray-900 text-sm">Loading tasks...</p>
         </FrappeCard>
       );
     }
@@ -438,8 +435,8 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       return (
         <FrappeCard className="text-center py-12">
           <CheckCircleIcon className="h-16 w-16 text-emerald-500 mx-auto mb-4" />
-          <h3 className="text-2xl font-bold text-gray-900">NO PENDING TASKS</h3>
-          <p className="text-gray-600 text-sm mt-2">All clear. Great job!</p>
+          <h3 className="text-2xl font-bold text-black">NO PENDING TASKS</h3>
+          <p className="text-gray-900 text-sm mt-2">All clear. Great job!</p>
         </FrappeCard>
       );
     }
@@ -447,10 +444,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     return (
       <div className="space-y-6">
         <FrappeCard className="p-4">
-          <h3 className="text-lg font-bold text-gray-900">
+          <h3 className="text-lg font-bold text-black">
             Applications Under Review ({totalTasks})
           </h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-gray-900 mt-1">
             {taskCategories.length} categories
           </p>
         </FrappeCard>
@@ -462,21 +459,21 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 key={category}
                 onClick={() => setActiveTaskTab(category)}
                 className={cn(
-                  "flex-grow p-3 font-semibold text-gray-900 text-center transition-all border-r-2 border-gray-300 last:border-r-0 text-sm",
+                  "flex-grow p-3 font-bold text-black text-center transition-all border-r-2 border-gray-400 last:border-r-0 text-sm",
                   activeTaskTab === category
-                    ? "bg-slate-600 text-white border-r-gray-900"
-                    : "bg-white hover:bg-stone-50"
+                    ? "bg-gray-800 text-white border-r-gray-900"
+                    : "bg-white hover:bg-gray-100"
                 )}
               >
                 {category}
               </button>
             ))}
           </div>
-          <div className="p-4 bg-stone-50">
+          <div className="p-4 bg-gray-50">
             <div className="overflow-x-auto">
-              <Table className="divide-y divide-gray-200">
+              <Table className="divide-y divide-gray-300">
                 <TableHeader>
-                  <TableRow className="divide-x divide-gray-200 bg-slate-100">
+                  <TableRow className="divide-x divide-gray-300 bg-gray-200">
                     {[
                       "Task ID",
                       "Project Title",
@@ -488,24 +485,24 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                     ].map((h) => (
                       <TableHead
                         key={h}
-                        className="p-3 font-semibold text-gray-900 text-sm"
+                        className="p-3 font-bold text-black text-sm"
                       >
                         {h}
                       </TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
-                <TableBody className="divide-y divide-gray-200 bg-white">
+                <TableBody className="divide-y divide-gray-300 bg-white">
                   {activeTasks.map((task) => (
                     <TableRow
                       key={task.id}
-                      className="divide-x divide-gray-200 hover:bg-stone-50 transition-colors"
+                      className="divide-x divide-gray-300 hover:bg-gray-50 transition-colors"
                     >
-                      <TableCell className="p-3 font-mono text-sm">{task.id}</TableCell>
-                      <TableCell className="p-3 font-medium text-sm">
+                      <TableCell className="p-3 font-mono text-sm text-black">{task.id}</TableCell>
+                      <TableCell className="p-3 font-bold text-sm text-black">
                         {task.projectTitle}
                         <br />
-                        <span className="font-mono text-gray-500 text-xs">
+                        <span className="font-mono text-gray-700 text-xs">
                           {task.projectNumber}
                         </span>
                       </TableCell>
@@ -519,10 +516,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           {task.priority}
                         </span>
                       </TableCell>
-                      <TableCell className="p-3 font-mono text-sm">
+                      <TableCell className="p-3 font-mono text-sm text-black">
                         {task.assignedTo}
                       </TableCell>
-                      <TableCell className="p-3 font-mono text-sm">
+                      <TableCell className="p-3 font-mono text-sm text-black">
                         {new Date(task.actionDate).toLocaleDateString()}
                       </TableCell>
                       <TableCell className="p-3 text-right">
@@ -553,11 +550,11 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   };
 
   const renderProjectsTable = () => (
-    <div className="space-y-6 bg-stone-50">
+    <div className="space-y-6 bg-gray-50">
       <FrappeCard className="p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
           <div className="relative w-full sm:w-72">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-700" />
             <Input
               type="text"
               placeholder="Search projects..."
@@ -566,7 +563,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-10 h-10 bg-white border-2 border-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-600 font-mono text-sm shadow-[1px_1px_0px_rgba(0,0,0,0.1)]"
+              className="pl-10 h-10 bg-white border-2 border-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-800 font-mono text-sm text-black shadow-[1px_1px_0px_rgba(0,0,0,0.1)]"
             />
           </div>
           <div className="flex gap-3">
@@ -574,7 +571,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
               value={sortField}
               onValueChange={(v: any) => handleSortChange(v)}
             >
-              <SelectTrigger className="h-10 w-full sm:w-48 bg-white border-2 border-gray-900 rounded-lg font-semibold text-sm shadow-[1px_1px_0px_rgba(0,0,0,0.1)]">
+              <SelectTrigger className="h-10 w-full sm:w-48 bg-white border-2 border-gray-900 rounded-lg font-bold text-sm text-black shadow-[1px_1px_0px_rgba(0,0,0,0.1)]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent className="bg-white border-2 border-gray-900 rounded-lg shadow-[2px_2px_0px_rgba(0,0,0,0.1)]">
@@ -593,7 +590,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 setCurrentPage(1);
               }}
             >
-              <SelectTrigger className="h-10 w-full sm:w-32 bg-white border-2 border-gray-900 rounded-lg font-semibold text-sm shadow-[1px_1px_0px_rgba(0,0,0,0.1)]">
+              <SelectTrigger className="h-10 w-full sm:w-32 bg-white border-2 border-gray-900 rounded-lg font-bold text-sm text-black shadow-[1px_1px_0px_rgba(0,0,0,0.1)]">
                 <SelectValue placeholder="Show" />
               </SelectTrigger>
               <SelectContent className="bg-white border-2 border-gray-900 rounded-lg shadow-[2px_2px_0px_rgba(0,0,0,0.1)]">
@@ -609,9 +606,9 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       </FrappeCard>
       <FrappeCard className="overflow-hidden p-0">
         <div className="overflow-x-auto">
-          <Table className="divide-y divide-gray-200">
+          <Table className="divide-y divide-gray-300">
             <TableHeader>
-              <TableRow className="divide-x divide-gray-200 bg-slate-100">
+              <TableRow className="divide-x divide-gray-300 bg-gray-200">
                 {(["Project Number", "Project Title", "Creation", "Modified", "Owner", "Status"] as const).map(
                   (field) => {
                     const fieldKey =
@@ -629,7 +626,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                     return (
                       <TableHead
                         key={field}
-                        className="p-3 font-semibold text-gray-900 text-sm cursor-pointer hover:bg-slate-200 transition-colors"
+                        className="p-3 font-bold text-black text-sm cursor-pointer hover:bg-gray-300 transition-colors"
                         onClick={() => handleSortChange(fieldKey)}
                       >
                         {field} {getSortIcon(fieldKey)}
@@ -637,15 +634,15 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                     );
                   }
                 )}
-                <TableHead className="p-3 font-semibold text-gray-900 text-sm text-right">
+                <TableHead className="p-3 font-bold text-black text-sm text-right">
                   Action
                 </TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-gray-200 bg-white">
+            <TableBody className="divide-y divide-gray-300 bg-white">
               {myProjectsLoading && (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center font-semibold text-gray-900">
+                  <TableCell colSpan={7} className="h-32 text-center font-bold text-black">
                     LOADING...
                   </TableCell>
                 </TableRow>
@@ -654,7 +651,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 <TableRow>
                   <TableCell
                     colSpan={7}
-                    className="h-32 text-center font-semibold text-red-600"
+                    className="h-32 text-center font-bold text-red-600"
                   >
                     ERROR LOADING PROJECTS
                   </TableCell>
@@ -671,19 +668,19 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           openPipeline === p.name ? null : p.name
                         )
                       }
-                      className="bg-stone-50 divide-x divide-gray-200 cursor-pointer hover:bg-stone-100 transition-colors"
+                      className="bg-white divide-x divide-gray-300 cursor-pointer hover:bg-gray-50 transition-colors"
                     >
-                      <TableCell className="p-4 font-mono font-semibold text-sm">
+                      <TableCell className="p-4 font-mono font-bold text-sm text-black">
                         {p.name.length > 40 ? `${p.name.substring(0, 40)}...` : p.name}
                       </TableCell>
-                      <TableCell className="p-4 text-sm">{p.project_title.length > 25 ? `${p.project_title.substring(0, 25)}...` : p.project_title}</TableCell>
-                      <TableCell className="p-4 text-sm font-mono">
+                      <TableCell className="p-4 text-sm text-black font-medium">{p.project_title.length > 25 ? `${p.project_title.substring(0, 25)}...` : p.project_title}</TableCell>
+                      <TableCell className="p-4 text-sm font-mono text-black">
                         {p.creation ? new Date(p.creation).toLocaleString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true }) : "-"}
                       </TableCell>
-                      <TableCell className="p-4 text-sm font-mono">
+                      <TableCell className="p-4 text-sm font-mono text-black">
                         {p.modified ? new Date(p.modified).toLocaleString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true }) : "-"}
                       </TableCell>
-                      <TableCell className="p-4 text-sm font-mono">
+                      <TableCell className="p-4 text-sm font-mono text-black">
                         {p.owner ?? "-"}
                       </TableCell>
                       <TableCell className="p-4">
@@ -692,19 +689,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                         </span>
                       </TableCell>
                       <TableCell className="p-4 text-right">
-                        {/* <FrappeButton
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const targetPath =
-                              p.workflow_state === "Approved"
-                                ? `/project-details-overview/${p.name}`
-                                : `/project-details/${p.name}`;
-                            navigate(targetPath);
-                          }}
-                          className="text-xs"
-                        >
-                          View Details
-                        </FrappeButton> */}
                         <FrappeButton
                           variant="action"
                           onClick={(e) => {
@@ -719,7 +703,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                         >
                           View Details
                         </FrappeButton>
-
                       </TableCell>
                     </TableRow>
                     {openPipeline === p.name && (
@@ -728,6 +711,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           colSpan={7}
                           className="p-6 bg-blue-50 border-t-2 border-gray-900"
                         >
+                          {/* Pipeline details could go here */}
                         </TableCell>
                       </TableRow>
                     )}
@@ -737,11 +721,11 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 !myProjectsLoading && (
                   <TableRow>
                     <TableCell colSpan={7} className="h-48 text-center">
-                      <FileSearchIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-2xl font-bold text-gray-900">
+                      <FileSearchIcon className="h-16 w-16 text-gray-500 mx-auto mb-4" />
+                      <h3 className="text-2xl font-bold text-black">
                         NO PROJECTS FOUND
                       </h3>
-                      <p className="text-gray-600 text-sm mt-2">
+                      <p className="text-gray-900 text-sm mt-2">
                         Try adjusting your search.
                       </p>
                     </TableCell>
@@ -753,7 +737,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       </FrappeCard>
       {totalPages > 1 && (
         <div className="flex items-center justify-between gap-4 py-4">
-          <div className="text-sm font-semibold text-gray-900">
+          <div className="text-sm font-bold text-black">
             PAGE {currentPage} OF {totalPages}
           </div>
           <div className="flex items-center gap-2">
@@ -778,11 +762,11 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   );
 
   return (
-    <div className="bg-[#F0F4F8] min-h-screen">
+    <div className="bg-gray-100 min-h-screen">
       <AppSidebar />
       <main className="flex-1 p-4 md:p-8 w-full overflow-auto">
         <FrappeCard className="overflow-hidden">
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-gray-300">
             <nav className="flex gap-1" aria-label="Project tabs">
               {[
                 { id: "myProjects", label: "All Projects", count: myProjects?.length || 0 },
@@ -795,8 +779,8 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                   className={cn(
                     "relative px-5 py-3 rounded-t-xl font-bold text-base transition-all border border-b-0",
                     activeTab === tab.id
-                      ? "bg-white text-[#0EA5A4] border-gray-200 shadow-sm"
-                      : "bg-gray-50 text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-100"
+                      ? "bg-white text-[#0EA5A4] border-gray-300 shadow-sm"
+                      : "bg-gray-50 text-gray-700 border-transparent hover:text-black hover:bg-gray-100"
                   )}
                 >
                   {tab.label}
@@ -806,7 +790,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                     </sup>
                   )}
                   {tab.id === "myProjects" && tab.count > 0 && (
-                    <sup className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-gray-400 text-white rounded-full">
+                    <sup className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-gray-500 text-white rounded-full">
                       {tab.count}
                     </sup>
                   )}
@@ -814,7 +798,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
               ))}
             </nav>
           </div>
-          <div className="p-5 bg-[#F0F4F8]">
+          <div className="p-5 bg-gray-100">
             {activeTab === "pending"
               ? renderPendingTasks()
               : renderProjectsTable()}

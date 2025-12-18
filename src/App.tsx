@@ -82,28 +82,28 @@ function App() {
           {isPublicPage ? (
             <Outlet />
           ) : (
-            <SidebarProvider className="flex h-screen bg-[#F0F4F8]">
+            <SidebarProvider className="flex h-screen bg-gray-100">
               {currentUser && (
                 <Sidebar collapsible="offcanvas">
                   <AppSidebar />
                 </Sidebar>
               )}
               <SidebarInset>
-                <header className="relative flex items-center justify-between gap-4 px-6 py-4 border-b border-gray-200 bg-white shadow-sm">
+                <header className="relative flex items-center justify-between gap-4 px-6 py-4 border-b border-gray-300 bg-white shadow-sm">
                   <div className="flex items-center gap-4">
-                    <SidebarTrigger className="p-2 hover:bg-gray-50 rounded-xl transition-colors">
-                      <MenuIcon className="size-5 text-gray-500" />
+                    <SidebarTrigger className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                      <MenuIcon className="size-5 text-gray-900" />
                     </SidebarTrigger>
                   </div>
 
                   <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-8">
                     {/* <img src="/IITG_Logo.svg" alt="IITG Logo" className="w-16 h-16" /> */}
                     <div className="flex items-center gap-6">
-                      <div className="assamese-text font-medium text-sm text-gray-600 whitespace-nowrap">ভাৰতীয় প্ৰযুক্তিবিদ্যা প্ৰতিষ্ঠান গুৱাহাটী</div>
-                      <div className="w-px h-6 bg-gray-200"></div>
-                      <div className="hindi-text font-medium text-sm text-gray-600 whitespace-nowrap">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
-                      <div className="w-px h-6 bg-gray-200"></div>
-                      <div className="english-text font-semibold text-sm text-gray-900 whitespace-nowrap">Indian Institute of Technology Guwahati</div>
+                      <div className="assamese-text font-medium text-sm text-gray-900 whitespace-nowrap">ভাৰতীয় প্ৰযুক্তিবিদ্যা প্ৰতিষ্ঠান গুৱাহাটী</div>
+                      <div className="w-px h-6 bg-gray-300"></div>
+                      <div className="hindi-text font-medium text-sm text-gray-900 whitespace-nowrap">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                      <div className="w-px h-6 bg-gray-300"></div>
+                      <div className="english-text font-bold text-sm text-gray-900 whitespace-nowrap">Indian Institute of Technology Guwahati</div>
                     </div>
                   </div>
                   {currentUser && (
@@ -111,25 +111,25 @@ function App() {
                       {/* Search Button */}
                       <button
                         onClick={openPalette}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-xl transition-colors"
                       >
                         <SearchIcon className="h-4 w-4" />
                         <span className="hidden sm:inline">Search...</span>
-                        <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-mono bg-white border border-gray-300 rounded">
+                        <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-mono bg-white border border-gray-400 rounded">
                           ⌘K
                         </kbd>
                       </button>
                       {isUserLoading ? (
                         <div className="flex items-center gap-2">
-                          <div className="h-9 w-9 rounded-xl bg-gray-100 animate-pulse"></div>
+                          <div className="h-9 w-9 rounded-xl bg-gray-200 animate-pulse"></div>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-xl border border-gray-200">
+                        <div className="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-xl border border-gray-300">
                           {userImageUrl ? (
                             <img
                               src={userImageUrl}
                               alt="User Profile"
-                              className="h-9 w-9 rounded-xl object-cover border border-gray-200"
+                              className="h-9 w-9 rounded-xl object-cover border border-gray-300"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement;
                                 target.onerror = null;
@@ -137,7 +137,7 @@ function App() {
                               }}
                             />
                           ) : (
-                            <div className="h-9 w-9 rounded-xl bg-[#E0F7F6] flex items-center justify-center border border-[#0EA5A4]/20">
+                            <div className="h-9 w-9 rounded-xl bg-[#E0F7F6] flex items-center justify-center border border-[#0EA5A4]/30">
                               <UserIcon className="h-4 w-4 text-[#0EA5A4]" />
                             </div>
                           )}
@@ -146,7 +146,7 @@ function App() {
                     </div>
                   )}
                 </header>
-                <main className="flex-1 overflow-y-auto p-4 bg-[#F0F4F8]">
+                <main className="flex-1 overflow-y-auto p-4 bg-gray-100">
                   <Outlet />
                 </main>
                 {/* Command Palette */}
