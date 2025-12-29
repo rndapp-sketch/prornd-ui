@@ -42,6 +42,38 @@ interface FlattenedTask {
     doctype: string;
 }
 
+// Frappe-styled components
+const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div className={cn("bg-white rounded-xl border border-gray-300 shadow-sm", className)}>
+        {children}
+    </div>
+);
+
+const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost' }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+    className?: string;
+    variant?: 'primary' | 'ghost' | 'outline' | 'action';
+}) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        className={cn(
+            "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-150",
+            "focus:outline-none focus:ring-2 focus:ring-gray-400",
+            variant === 'primary' && "bg-[#0EA5A4] text-white hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border border-[#0D9494]",
+            variant === 'ghost' && "bg-transparent text-gray-900 hover:bg-gray-200 hover:text-black",
+            variant === 'outline' && "bg-white border-2 border-gray-400 text-black hover:border-[#0EA5A4] hover:text-[#0EA5A4] hover:bg-gray-50",
+            variant === 'action' && "bg-[#0EA5A4] text-white font-bold hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border-2 border-[#0D9494]",
+            "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
+            className
+        )}
+    >
+        {children}
+    </button>
+);
+
 const PendingTask: React.FC = () => {
     const navigate = useNavigate();
     const [currentPage, setCurrentPage] = useState(1);
@@ -107,11 +139,26 @@ const PendingTask: React.FC = () => {
 
     const getPriorityBadge = (priority: string) => {
         const styles: Record<string, string> = {
-            High: 'bg-red-50 text-red-700 border-red-200',
-            Medium: 'bg-amber-50 text-amber-700 border-amber-200',
-            Low: 'bg-green-50 text-green-700 border-green-200',
+            High: 'bg-red-100 text-red-800 border-red-300',
+            Medium: 'bg-amber-100 text-amber-800 border-amber-300',
+            Low: 'bg-green-100 text-green-800 border-green-300',
         };
-        return cn("px-2.5 py-0.5 rounded-full text-xs font-medium border", styles[priority] || 'bg-gray-50 text-gray-700 border-gray-200');
+        return cn("px-2.5 py-1 rounded-md text-xs font-bold border", styles[priority] || 'bg-gray-100 text-gray-800 border-gray-300');
+    };
+
+    const getStatusBadge = (status: string) => {
+        const s = status?.toLowerCase();
+        let style = "bg-blue-100 text-blue-800 border-blue-300";
+        if (["pending", "under review", "approval pending"].some(t => s?.includes(t))) {
+            style = "bg-amber-100 text-amber-800 border-amber-300";
+        } else if (s?.includes("approved")) {
+            style = "bg-emerald-100 text-emerald-800 border-emerald-300";
+        } else if (s?.includes("draft")) {
+            style = "bg-slate-100 text-slate-800 border-slate-300";
+        } else if (s?.includes("rejected")) {
+            style = "bg-red-100 text-red-800 border-red-300";
+        }
+        return cn("px-2.5 py-1 rounded-md text-xs font-bold border", style);
     };
 
     const getPageNumbers = () => {
@@ -134,45 +181,50 @@ const PendingTask: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex h-screen items-center justify-center bg-[#F0F4F8]">
-                <div className="text-red-600 font-medium text-lg">Error loading tasks: {error.message}</div>
+            <div className="flex h-screen items-center justify-center bg-gray-100">
+                <FrappeCard className="p-8 text-center">
+                    <FaExclamationCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
+                    <h2 className="text-xl font-bold text-black mb-2">Error Loading Tasks</h2>
+                    <p className="text-gray-900">{error.message}</p>
+                </FrappeCard>
             </div>
         );
     }
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
+        <div className="bg-gray-100 min-h-screen">
             <GlobalLoader isLoading={isLoading} />
             <AppSidebar />
 
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <header className="mb-6 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
+                {/* Header */}
+                <FrappeCard className="mb-6 p-5">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => navigate(-1)}
-                            className="p-2.5 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                            className="p-2.5 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300"
                             aria-label="Go back"
                         >
-                            <FaArrowLeft className="h-5 w-5 text-gray-600" />
+                            <FaArrowLeft className="h-5 w-5 text-gray-900" />
                         </button>
                         <div>
-                            <h1 className="text-xl font-semibold text-gray-900">Pending Tasks</h1>
-                            <p className="text-sm text-[#6B7280] mt-0.5">Manage and track your pending tasks.</p>
+                            <h1 className="text-2xl font-bold text-black uppercase tracking-tight">Pending Tasks</h1>
+                            <p className="text-sm text-gray-900 mt-0.5">Manage and track your pending tasks.</p>
                         </div>
                     </div>
-                </header>
+                </FrappeCard>
 
                 {/* Filter Section */}
-                <div className="mb-4 p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+                <FrappeCard className="mb-4 p-4">
                     <div className="flex items-center gap-4 flex-wrap">
-                        <label htmlFor="module-filter" className="frappe-label">
+                        <label htmlFor="module-filter" className="font-bold text-black uppercase text-sm">
                             Filter by Module:
                         </label>
                         <select
                             id="module-filter"
                             value={selectedModule}
                             onChange={(e) => handleModuleChange(e.target.value)}
-                            className="frappe-select"
+                            className="h-10 px-4 bg-white border-2 border-gray-400 rounded-lg font-bold text-sm text-black focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-900"
                         >
                             <option value="all">All Modules</option>
                             {moduleNames.map((module) => (
@@ -182,87 +234,86 @@ const PendingTask: React.FC = () => {
                             ))}
                         </select>
                         {selectedModule !== 'all' && (
-                            <button
+                            <FrappeButton
                                 onClick={() => handleModuleChange('all')}
-                                className="frappe-btn frappe-btn-ghost text-red-600 hover:bg-red-50"
+                                className="text-red-600 hover:bg-red-50 border border-red-200"
                             >
                                 Clear Filter
-                            </button>
+                            </FrappeButton>
                         )}
-                        <div className="ml-auto text-sm text-[#6B7280]">
+                        <div className="ml-auto text-sm text-gray-900 font-bold">
                             Showing {filteredTasks.length} of {allTasks.length} tasks
                         </div>
                     </div>
-                </div>
+                </FrappeCard>
 
-                <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                {/* Table */}
+                <FrappeCard className="overflow-hidden p-0">
                     <div className="overflow-x-auto">
-                        <table className="frappe-table">
-                            <thead>
-                                <tr>
-                                    <th>Status</th>
-                                    <th>Module</th>
-                                    <th>Title</th>
-                                    <th>Project Number</th>
-                                    <th>Creation</th>
-                                    <th>Modified</th>
-                                    <th>Owner</th>
-                                    <th>Priority</th>
-                                    <th>Action</th>
+                        <table className="w-full divide-y divide-gray-300">
+                            <thead className="bg-gray-200">
+                                <tr className="divide-x divide-gray-300">
+                                    <th className="p-3 text-left font-bold text-black text-sm">Status</th>
+                                    <th className="p-3 text-left font-bold text-black text-sm">Module</th>
+                                    <th className="p-3 text-left font-bold text-black text-sm">Title</th>
+                                    <th className="p-3 text-left font-bold text-black text-sm">Project Number</th>
+                                    <th className="p-3 text-left font-bold text-black text-sm">Date</th>
+                                    <th className="p-3 text-left font-bold text-black text-sm">Owner</th>
+                                    <th className="p-3 text-left font-bold text-black text-sm">Priority</th>
+                                    <th className="p-3 text-left font-bold text-black text-sm">Action</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-gray-300 bg-white">
                                 {currentTasks.length > 0 ? (
                                     currentTasks.map((task) => (
-                                        <tr key={task.id}>
-                                            <td>
-                                                <div className="flex items-center gap-1.5 text-amber-600 font-medium text-sm">
-                                                    <FaExclamationCircle className="w-4 h-4" />
-                                                    <span>{task.status}</span>
-                                                </div>
+                                        <tr key={task.id} className="divide-x divide-gray-300 hover:bg-gray-50 transition-colors">
+                                            <td className="p-4">
+                                                <span className={getStatusBadge(task.status)}>
+                                                    {task.status}
+                                                </span>
                                             </td>
-                                            <td className="font-medium text-gray-900">
+                                            <td className="p-4 font-bold text-black text-sm">
                                                 {task.doctype}
                                             </td>
-                                            <td className="font-medium text-gray-900">
-                                                {task.title}
+                                            <td className="p-4 font-medium text-gray-900 text-sm">
+                                                {task.title.length > 30 ? `${task.title.substring(0, 30)}...` : task.title}
                                             </td>
-                                            <td className="text-sm text-gray-600">
-                                                {task["Project Number"]}
+                                            <td className="p-4 text-sm font-mono text-gray-900">
+                                                {task["Project Number"].length > 25 ? `${task["Project Number"].substring(0, 25)}...` : task["Project Number"]}
                                             </td>
-                                            <td className="text-sm text-gray-600">
+                                            <td className="p-4 text-sm font-mono text-gray-900">
                                                 {task.creation ? new Date(task.creation).toLocaleString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true }) : "-"}
                                             </td>
-                                            <td className="text-sm text-gray-600">
-                                                {task.modified ? new Date(task.modified).toLocaleString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true }) : "-"}
+                                            <td className="p-4 text-sm text-gray-900">
+                                                {task.owner.length > 20 ? `${task.owner.substring(0, 20)}...` : task.owner}
                                             </td>
-                                            <td className="text-sm text-gray-600">
-                                                {task.owner}
-                                            </td>
-                                            <td>
+                                            <td className="p-4">
                                                 <span className={getPriorityBadge(task.priority)}>
                                                     {task.priority}
                                                 </span>
                                             </td>
-                                            <td>
-                                                <button
-                                                    className="frappe-btn frappe-btn-primary text-sm"
+                                            <td className="p-4">
+                                                <FrappeButton
+                                                    variant="action"
                                                     onClick={() => {
                                                         if (task.doctype === "Fund Received") {
                                                             navigate(`/fund-received/${task.id}`);
+                                                        } else if (task.doctype === "Reimbursement") {
+                                                            navigate(`/reimbursement/${task.id}`);
                                                         } else {
                                                             navigate(`/pending-tasks/${task.doctype}/${task.id}`);
                                                         }
                                                     }}
+                                                    className="text-xs px-4 py-2"
                                                 >
                                                     View
-                                                </button>
+                                                </FrappeButton>
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={9} className="p-8 text-center text-[#6B7280]">
+                                        <td colSpan={8} className="p-8 text-center text-gray-900 font-bold">
                                             {isLoading ? "Loading tasks..." : "No pending tasks found."}
                                         </td>
                                     </tr>
@@ -273,43 +324,40 @@ const PendingTask: React.FC = () => {
 
                     {/* Pagination Controls */}
                     {filteredTasks.length > 0 && (
-                        <div className="p-4 border-t border-gray-200 bg-gray-50/50 flex justify-between items-center">
-                            <div className="text-sm text-[#6B7280]">
+                        <div className="p-4 border-t border-gray-300 bg-gray-50 flex justify-between items-center">
+                            <div className="text-sm text-gray-900 font-medium">
                                 Showing {indexOfFirstTask + 1} to {Math.min(indexOfLastTask, filteredTasks.length)} of {filteredTasks.length} entries
                             </div>
                             <div className="flex gap-1">
-                                <button
+                                <FrappeButton
                                     onClick={() => handlePageChange(currentPage - 1)}
                                     disabled={currentPage === 1}
-                                    className="frappe-btn frappe-btn-ghost disabled:opacity-50"
+                                    variant="outline"
                                 >
                                     Previous
-                                </button>
+                                </FrappeButton>
                                 {getPageNumbers().map((page, index) => (
-                                    <button
+                                    <FrappeButton
                                         key={index}
                                         onClick={() => typeof page === 'number' && handlePageChange(page)}
                                         disabled={typeof page !== 'number'}
-                                        className={cn(
-                                            "frappe-btn",
-                                            page === currentPage ? "frappe-btn-primary" : "frappe-btn-ghost",
-                                            typeof page !== 'number' && "cursor-default"
-                                        )}
+                                        variant={page === currentPage ? "primary" : "outline"}
+                                        className={cn(typeof page !== 'number' && "cursor-default")}
                                     >
                                         {page}
-                                    </button>
+                                    </FrappeButton>
                                 ))}
-                                <button
+                                <FrappeButton
                                     onClick={() => handlePageChange(currentPage + 1)}
                                     disabled={currentPage === totalPages}
-                                    className="frappe-btn frappe-btn-ghost disabled:opacity-50"
+                                    variant="outline"
                                 >
                                     Next
-                                </button>
+                                </FrappeButton>
                             </div>
                         </div>
                     )}
-                </div>
+                </FrappeCard>
             </main>
         </div>
     );

@@ -4,6 +4,7 @@ import { AppSidebar } from "../../components/RndSidebar";
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { ArrowLeftIcon, FileTextIcon, CalendarIcon, UserIcon } from "lucide-react";
+import { GlobalLoader } from '@/components/ui/global-loader';
 
 // --- TYPE DEFINITIONS ---
 interface ReimbursementData {
@@ -35,6 +36,45 @@ interface ReimbursementData {
     [key: string]: any;
 }
 
+// Frappe-styled components
+const FrappeCard = ({ title, children, className = '' }: { title?: string; children: React.ReactNode; className?: string }) => (
+    <div className={cn("bg-white border border-gray-300 rounded-xl shadow-sm", className)}>
+        {title && (
+            <div className="px-6 py-4 border-b border-gray-300">
+                <h3 className="text-lg font-bold text-black uppercase tracking-tight">{title}</h3>
+            </div>
+        )}
+        <div className="p-6">
+            {children}
+        </div>
+    </div>
+);
+
+const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost' }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+    className?: string;
+    variant?: 'primary' | 'ghost' | 'outline' | 'action';
+}) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        className={cn(
+            "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
+            "focus:outline-none focus:ring-2 focus:ring-gray-400",
+            variant === 'primary' && "bg-[#0EA5A4] text-white hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border border-[#0D9494]",
+            variant === 'ghost' && "bg-transparent text-gray-900 hover:bg-gray-200 hover:text-black",
+            variant === 'outline' && "bg-white border-2 border-gray-400 text-black hover:border-[#0EA5A4] hover:text-[#0EA5A4] hover:bg-gray-50",
+            variant === 'action' && "bg-[#0EA5A4] text-white font-bold hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border-2 border-[#0D9494]",
+            "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
+            className
+        )}
+    >
+        {children}
+    </button>
+);
+
 const ReimbursementDetails: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
@@ -61,15 +101,12 @@ const ReimbursementDetails: React.FC = () => {
     const resolveLinkName = async (doctype: string, docId: string, fieldname: string) => {
         if (!docId) return '';
         try {
-            console.log(`Resolving link: doctype=${doctype}, docId=${docId}, fieldname=${fieldname}`);
             const result = await fetchLinkValue({
                 doctype: doctype,
                 filters: { name: docId },
                 fieldname: fieldname
             });
-            console.log(`Resolve result for ${docId}:`, result);
             const resolvedValue = result?.message?.[fieldname] || docId;
-            console.log(`Resolved value: ${resolvedValue}`);
             return resolvedValue;
         } catch (err) {
             console.error(`Error resolving ${doctype}/${docId}:`, err);
@@ -124,8 +161,6 @@ const ReimbursementDetails: React.FC = () => {
                     name: id
                 });
 
-                console.log('Reimbursement Details:', response?.message);
-
                 if (response?.message) {
                     const docData = response.message;
                     setData(docData);
@@ -178,104 +213,83 @@ const ReimbursementDetails: React.FC = () => {
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'Approved':
-                return 'bg-green-100 text-green-700 border-green-200';
+                return 'bg-emerald-100 text-emerald-800 border-emerald-300';
             case 'Pending':
-                return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+                return 'bg-amber-100 text-amber-800 border-amber-300';
             case 'Rejected':
-                return 'bg-red-100 text-red-700 border-red-200';
+                return 'bg-red-100 text-red-800 border-red-300';
             case 'Draft':
-                return 'bg-gray-100 text-gray-700 border-gray-200';
+                return 'bg-slate-100 text-slate-800 border-slate-300';
             default:
-                return 'bg-blue-100 text-blue-700 border-blue-200';
+                return 'bg-blue-100 text-blue-800 border-blue-300';
         }
     };
 
-    // Card component
-    const Card = ({ title, children, className = '' }: { title: string; children: React.ReactNode; className?: string }) => (
-        <div className={cn("bg-white border border-gray-200 rounded-xl shadow-sm", className)}>
-            <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-            </div>
-            <div className="p-6">
-                {children}
-            </div>
-        </div>
-    );
-
     // Detail row component
     const DetailRow = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
-        <div className="flex justify-between py-2 border-b border-gray-100 last:border-0">
-            <span className="text-sm text-gray-600">{label}</span>
-            <span className="text-sm font-medium text-gray-900">{value || '-'}</span>
+        <div className="flex justify-between py-2 border-b border-gray-200 last:border-0">
+            <span className="text-sm font-medium text-gray-900">{label}</span>
+            <span className="text-sm font-bold text-black">{value || '-'}</span>
         </div>
     );
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0EA5A4] mx-auto"></div>
-                    <p className="mt-4 text-lg font-semibold text-gray-700">Loading reimbursement details...</p>
-                </div>
-            </div>
-        );
+        return <GlobalLoader isLoading={true} />;
     }
 
     if (error || !data) {
         return (
-            <div className="bg-[#F0F4F8] min-h-screen">
+            <div className="bg-gray-100 min-h-screen">
                 <AppSidebar />
                 <main className="flex-1 p-4 md:p-8">
-                    <div className="text-center py-16">
+                    <FrappeCard className="text-center py-16">
                         <FileTextIcon className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                        <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Reimbursement</h2>
-                        <p className="text-gray-600 mb-6">{error || 'Reimbursement not found'}</p>
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="px-4 py-2 bg-[#0EA5A4] text-white rounded-lg hover:bg-[#0D9494] transition-colors"
-                        >
+                        <h2 className="text-xl font-bold text-black mb-2 uppercase">Error Loading Reimbursement</h2>
+                        <p className="text-gray-900 mb-6">{error || 'Reimbursement not found'}</p>
+                        <FrappeButton variant="primary" onClick={() => navigate(-1)}>
                             Go Back
-                        </button>
-                    </div>
+                        </FrappeButton>
+                    </FrappeCard>
                 </main>
             </div>
         );
     }
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
+        <div className="bg-gray-100 min-h-screen">
+            <GlobalLoader isLoading={isSubmitting} />
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8">
                 {/* Header */}
-                <header className="mb-8 p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                <FrappeCard className="mb-8 p-6">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => navigate(-1)}
-                                className="p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 active:translate-y-0.5 transition-all"
+                                className="p-3 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors"
                             >
-                                <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
+                                <ArrowLeftIcon className="h-5 w-5 text-gray-900" />
                             </button>
                             <div>
                                 <div className="flex items-center gap-3">
-                                    <h1 className="text-2xl font-bold text-gray-900">{data.name}</h1>
+                                    <h1 className="text-2xl font-bold text-black uppercase tracking-tight">{data.name}</h1>
                                     <span className={cn(
-                                        "px-3 py-1 text-sm font-medium rounded-full border",
+                                        "px-3 py-1 text-sm font-bold rounded-md border",
                                         getStatusColor(data.workflow_state)
                                     )}>
                                         {data.workflow_state || 'Draft'}
                                     </span>
                                 </div>
-                                <p className="text-gray-600 mt-1">Reimbursement Application</p>
+                                <p className="text-gray-900 mt-1 font-medium">Reimbursement Application</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
-                            <div className="text-right text-sm text-gray-500">
-                                <div className="flex items-center gap-1">
+                            <div className="text-right text-sm text-gray-900">
+                                <div className="flex items-center gap-1 font-medium">
                                     <CalendarIcon className="w-4 h-4" />
                                     Created: {formatDate(data.creation)}
                                 </div>
-                                <div className="flex items-center gap-1 mt-1">
+                                <div className="flex items-center gap-1 mt-1 font-medium">
                                     <UserIcon className="w-4 h-4" />
                                     By: {data.owner}
                                 </div>
@@ -283,98 +297,88 @@ const ReimbursementDetails: React.FC = () => {
                             {/* Edit and Submit buttons - only show for Draft */}
                             {(data.workflow_state === 'Draft' || !data.workflow_state) && (
                                 <>
-                                    <button
+                                    <FrappeButton
+                                        variant="outline"
                                         onClick={() => navigate(`/reimbursement?edit=${data.name}`)}
-                                        className={cn(
-                                            "px-6 py-2.5 rounded-lg font-semibold transition-all",
-                                            "bg-white border border-gray-300 text-gray-700",
-                                            "hover:bg-gray-50 hover:border-gray-400",
-                                            "shadow-sm hover:shadow"
-                                        )}
                                     >
                                         Edit
-                                    </button>
-                                    <button
+                                    </FrappeButton>
+                                    <FrappeButton
+                                        variant="primary"
                                         onClick={handleSubmit}
                                         disabled={isSubmitting}
-                                        className={cn(
-                                            "px-6 py-2.5 rounded-lg font-semibold text-white transition-all",
-                                            "bg-[#0EA5A4] hover:bg-[#0D9494]",
-                                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                                            "shadow-sm hover:shadow"
-                                        )}
                                     >
                                         {isSubmitting ? 'Submitting...' : 'Submit'}
-                                    </button>
+                                    </FrappeButton>
                                 </>
                             )}
                         </div>
                     </div>
-                </header>
+                </FrappeCard>
 
                 {/* Content Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Applicant Details */}
-                    <Card title="Applicant Details">
+                    <FrappeCard title="Applicant Details">
                         <div className="space-y-1">
                             <DetailRow label="Applicant Webmail" value={data.applicant_webmail} />
                             <DetailRow label="Department" value={resolvedNames.applicant_department || data.applicant_department} />
                             <DetailRow label="Designation" value={data.applicant_designation} />
                         </div>
-                    </Card>
+                    </FrappeCard>
 
                     {/* Reimbursement For */}
-                    <Card title="Reimbursement For">
+                    <FrappeCard title="Reimbursement For">
                         <div className="space-y-1">
                             <DetailRow label="Webmail ID" value={data.reimbursement_for_id} />
                             <DetailRow label="Department" value={resolvedNames.reimbursement_for_department || data.reimbursement_for_department} />
                             <DetailRow label="Designation" value={data.reimbursement_for_designation} />
                         </div>
-                    </Card>
+                    </FrappeCard>
 
                     {/* Bank Details */}
-                    <Card title="Bank Details">
+                    <FrappeCard title="Bank Details">
                         <div className="space-y-1">
                             <DetailRow label="Bank Name" value={data.bank_name} />
                             <DetailRow label="Account Holder" value={data.account_holder_name} />
                             <DetailRow label="Account Number" value={data.bank_account_number} />
                             <DetailRow label="IFSC Code" value={data.ifsc_code} />
                         </div>
-                    </Card>
+                    </FrappeCard>
 
                     {/* Project Details */}
-                    <Card title="Project Details">
+                    <FrappeCard title="Project Details">
                         <div className="space-y-1">
                             <DetailRow label="Project Number" value={data.project_number} />
                             <DetailRow label="Project Name" value={data.project_name} />
                             <DetailRow label="Account Head" value={resolvedNames.account_head || data.account_head} />
                             {data.other_head && <DetailRow label="Other Head" value={data.other_head} />}
                         </div>
-                    </Card>
+                    </FrappeCard>
 
                     {/* Particulars of Items Table */}
                     {data.table_bosk && data.table_bosk.length > 0 && (
-                        <Card title="Particulars of Items" className="lg:col-span-2">
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Vendor's Name</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Particulars</th>
-                                            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Amount</th>
-                                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Attachment</th>
+                        <FrappeCard title="Particulars of Items" className="lg:col-span-2">
+                            <div className="overflow-x-auto border border-gray-300 rounded-lg">
+                                <table className="min-w-full divide-y divide-gray-300">
+                                    <thead className="bg-gray-200">
+                                        <tr className="divide-x divide-gray-300">
+                                            <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Date</th>
+                                            <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Vendor's Name</th>
+                                            <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Particulars</th>
+                                            <th className="px-4 py-3 text-right text-sm font-bold text-black uppercase">Amount</th>
+                                            <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Attachment</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-200">
+                                    <tbody className="divide-y divide-gray-300 bg-white">
                                         {data.table_bosk.map((item: any, index: number) => (
-                                            <tr key={item.name || index} className="hover:bg-gray-50">
-                                                <td className="px-4 py-3 text-sm text-gray-900">
+                                            <tr key={item.name || index} className="hover:bg-gray-50 divide-x divide-gray-300">
+                                                <td className="px-4 py-3 text-sm text-gray-900 font-mono">
                                                     {item.r_date ? new Date(item.r_date).toLocaleDateString('en-IN') : '-'}
                                                 </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900">{item.vendors_name || '-'}</td>
+                                                <td className="px-4 py-3 text-sm text-gray-900 font-medium">{item.vendors_name || '-'}</td>
                                                 <td className="px-4 py-3 text-sm text-gray-900">{item.particulars || '-'}</td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 text-right">
+                                                <td className="px-4 py-3 text-sm text-black font-bold text-right">
                                                     ₹{(parseFloat(item.amount) || 0).toLocaleString('en-IN')}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm">
@@ -383,21 +387,21 @@ const ReimbursementDetails: React.FC = () => {
                                                             href={item.uploads}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="text-[#0EA5A4] hover:underline"
+                                                            className="text-[#0EA5A4] font-bold hover:underline"
                                                         >
                                                             View File
                                                         </a>
                                                     ) : (
-                                                        <span className="text-gray-400">No file</span>
+                                                        <span className="text-gray-500">No file</span>
                                                     )}
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
-                                    <tfoot className="bg-gray-50">
+                                    <tfoot className="bg-gray-100 border-t-2 border-gray-300">
                                         <tr>
-                                            <td colSpan={3} className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">Total Amount:</td>
-                                            <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right">
+                                            <td colSpan={3} className="px-4 py-3 text-sm font-bold text-black text-right uppercase">Total Amount:</td>
+                                            <td className="px-4 py-3 text-sm font-bold text-black text-right">
                                                 ₹{data.table_bosk.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString('en-IN')}
                                             </td>
                                             <td></td>
@@ -405,66 +409,41 @@ const ReimbursementDetails: React.FC = () => {
                                     </tfoot>
                                 </table>
                             </div>
-                        </Card>
+                        </FrappeCard>
                     )}
 
                     {/* Comments */}
                     {data.comment && (
-                        <Card title="Comments" className="lg:col-span-2">
-                            <p className="text-gray-700 whitespace-pre-wrap">{data.comment}</p>
-                        </Card>
+                        <FrappeCard title="Comments" className="lg:col-span-2">
+                            <p className="text-gray-900 whitespace-pre-wrap font-medium">{data.comment}</p>
+                        </FrappeCard>
                     )}
 
                     {/* Declarations */}
-                    <Card title="Declarations" className="lg:col-span-2">
-                        <div className="space-y-3">
-                            <div className="flex items-center gap-3">
-                                <div className={cn(
-                                    "w-5 h-5 rounded flex items-center justify-center text-white text-xs",
-                                    data.dec1 ? "bg-green-500" : "bg-gray-300"
-                                )}>
-                                    {data.dec1 ? "✓" : ""}
+                    <FrappeCard title="Declarations" className="lg:col-span-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {[1, 2, 3, 4].map(num => (
+                                <div key={num} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                    <div className={cn(
+                                        "w-6 h-6 rounded flex items-center justify-center text-white text-sm font-bold",
+                                        data[`dec${num}`] ? "bg-emerald-600" : "bg-gray-400"
+                                    )}>
+                                        {data[`dec${num}`] ? "✓" : ""}
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-900">Declaration {num} {data[`dec${num}`] ? 'Accepted' : 'Not Accepted'}</span>
                                 </div>
-                                <span className="text-sm text-gray-700">Declaration 1 accepted</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <div className={cn(
-                                    "w-5 h-5 rounded flex items-center justify-center text-white text-xs",
-                                    data.dec2 ? "bg-green-500" : "bg-gray-300"
-                                )}>
-                                    {data.dec2 ? "✓" : ""}
-                                </div>
-                                <span className="text-sm text-gray-700">Declaration 2 accepted</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <div className={cn(
-                                    "w-5 h-5 rounded flex items-center justify-center text-white text-xs",
-                                    data.dec3 ? "bg-green-500" : "bg-gray-300"
-                                )}>
-                                    {data.dec3 ? "✓" : ""}
-                                </div>
-                                <span className="text-sm text-gray-700">Declaration 3 accepted</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <div className={cn(
-                                    "w-5 h-5 rounded flex items-center justify-center text-white text-xs",
-                                    data.dec4 ? "bg-green-500" : "bg-gray-300"
-                                )}>
-                                    {data.dec4 ? "✓" : ""}
-                                </div>
-                                <span className="text-sm text-gray-700">Declaration 4 accepted</span>
-                            </div>
+                            ))}
                         </div>
-                    </Card>
+                    </FrappeCard>
 
                     {/* Meta Information */}
-                    <Card title="Meta Information" className="lg:col-span-2">
+                    <FrappeCard title="Meta Information" className="lg:col-span-2">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <DetailRow label="Created" value={formatDate(data.creation)} />
                             <DetailRow label="Last Modified" value={formatDate(data.modified)} />
                             <DetailRow label="Owner" value={data.owner} />
                         </div>
-                    </Card>
+                    </FrappeCard>
                 </div>
             </main>
         </div>

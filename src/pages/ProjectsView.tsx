@@ -46,6 +46,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useEffect } from 'react';
 import { useUserRoles } from '../components/UserRole';
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // --- LOGIC: Interfaces & Data ---
 interface Task {
@@ -579,7 +580,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 <SelectItem value="modified">Modified</SelectItem>
                 <SelectItem value="name">Project Number</SelectItem>
                 <SelectItem value="project_title">Project Title</SelectItem>
-                <SelectItem value="owner">Owner</SelectItem>
                 <SelectItem value="workflow_state">Status</SelectItem>
               </SelectContent>
             </Select>
@@ -609,20 +609,16 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
           <Table className="divide-y divide-gray-300">
             <TableHeader>
               <TableRow className="divide-x divide-gray-300 bg-gray-200">
-                {(["Project Number", "Project Title", "Creation", "Modified", "Owner", "Status"] as const).map(
+                {(["Project Number", "Project Title", "Date", "Status"] as const).map(
                   (field) => {
                     const fieldKey =
                       field === "Project Number"
                         ? "name"
                         : field === "Project Title"
                           ? "project_title"
-                          : field === "Creation"
+                          : field === "Date"
                             ? "creation"
-                            : field === "Modified"
-                              ? "modified"
-                              : field === "Owner"
-                                ? "owner"
-                                : "workflow_state";
+                            : "workflow_state";
                     return (
                       <TableHead
                         key={field}
@@ -642,7 +638,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
             <TableBody className="divide-y divide-gray-300 bg-white">
               {myProjectsLoading && (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center font-bold text-black">
+                  <TableCell colSpan={5} className="h-32 text-center font-bold text-black">
                     LOADING...
                   </TableCell>
                 </TableRow>
@@ -650,7 +646,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
               {myProjectsError && (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={5}
                     className="h-32 text-center font-bold text-red-600"
                   >
                     ERROR LOADING PROJECTS
@@ -675,13 +671,16 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                       </TableCell>
                       <TableCell className="p-4 text-sm text-black font-medium">{p.project_title.length > 25 ? `${p.project_title.substring(0, 25)}...` : p.project_title}</TableCell>
                       <TableCell className="p-4 text-sm font-mono text-black">
-                        {p.creation ? new Date(p.creation).toLocaleString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true }) : "-"}
-                      </TableCell>
-                      <TableCell className="p-4 text-sm font-mono text-black">
-                        {p.modified ? new Date(p.modified).toLocaleString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true }) : "-"}
-                      </TableCell>
-                      <TableCell className="p-4 text-sm font-mono text-black">
-                        {p.owner ?? "-"}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help underline decoration-dotted underline-offset-2">
+                              {p.creation ? new Date(p.creation).toLocaleString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true }) : "-"}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Modified: {p.modified ? new Date(p.modified).toLocaleString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: true }) : "-"}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       </TableCell>
                       <TableCell className="p-4">
                         <span className={getStatusBadge(p.workflow_state)}>
@@ -708,7 +707,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                     {openPipeline === p.name && (
                       <TableRow>
                         <TableCell
-                          colSpan={7}
+                          colSpan={5}
                           className="p-6 bg-blue-50 border-t-2 border-gray-900"
                         >
                           {/* Pipeline details could go here */}
