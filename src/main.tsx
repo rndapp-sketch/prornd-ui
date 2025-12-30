@@ -43,6 +43,10 @@ import DepositSlipForm from './pages/DepositSlipForm.tsx';
 import DepositSlipDetails from './pages/DepositSlipDetails.tsx';
 import TemporaryAdvance from './pages/TemporaryAdvance.tsx';
 import ReimbursementDetails from './pages/application/ReimbursementDetails.tsx';
+import RateContractForm from './pages/application/RateContractForm.tsx';
+import TravelForm from './pages/application/TravelForm.tsx';
+import TADASettlementForm from './pages/application/TADASettlementForm.tsx';
+import ProjectStaffResignationForm from './pages/application/ProjectStaffResignationForm.tsx';
 // import UserDetails from './pages/UserDetails.tsx';
 
 const router = createBrowserRouter(
@@ -327,6 +331,38 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <TemporaryAdvance />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "rate-contract",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <RateContractForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "travel",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <TravelForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "ta-da-settlement",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <TADASettlementForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "project-staff-resignation",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <ProjectStaffResignationForm />
             </AuthRouteWrapper>
           )
         },

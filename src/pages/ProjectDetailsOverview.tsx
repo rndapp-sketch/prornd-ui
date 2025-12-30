@@ -273,6 +273,19 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           console.log('API Response:', response);
           data = response?.message || [];
           console.log('Reimbursement data:', data);
+        } else if (selectedApplication === "Project Staff Resignation") {
+          const response = await fetchReimbursements({
+            doctype: "Project Staff Resignation",
+            filters: { project_name: projectName },
+            fields: ["name", "creation", "docstatus", "owner", "applicant_name", "applicant_email_id"],
+            order_by: "creation desc",
+            limit_page_length: 50
+          });
+          data = (response?.message || []).map((item: any) => ({
+            ...item,
+            workflow_state: item.docstatus === 1 ? "Submitted" : item.docstatus === 2 ? "Cancelled" : "Draft",
+            applicant_webmail: item.applicant_email_id // Map for display consistency
+          }));
         }
         // Add more cases for other application types as needed
 
@@ -306,8 +319,8 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
     { title: "Advance", icon: CreditCard, items: ["Reimbursement", "Temporary Advance Apply", "Temporary Advance Settle"] },
     { title: "Disbursal", icon: Upload, items: ["One Time Assistantship", "Top Up Fellowship"] },
     { title: "Purchase", icon: ShoppingCart, items: ["Direct Purchase", "General Indent", "Generate NIQ", "Indent cum Sanction", "Rate Contract"] },
-    { title: "Recruitment", icon: Users, items: ["Adhoc", "Committee Member Change", "Contractual", "Selection Committee Report"] },
-    { title: "Travel", icon: Plane, items: ["Apply", "TA-DA Settle"] },
+    { title: "Recruitment", icon: Users, items: ["Adhoc", "Committee Member Change", "Contractual", "Selection Committee Report", "Project Staff Resignation"] },
+    { title: "Travel", icon: Plane, items: ["Travel Apply", "TA DA Settlement"] },
     { title: "Utilities", icon: Settings, items: ["Add New User", "Application History", "Form Tracking", "Incharge Assignment"] },
   ];
 
@@ -334,6 +347,18 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
       case "Temporary Advance Settle":
         // TODO: Add route when available
         alert(`Apply New: ${selectedApplication} - Route not configured yet`);
+        break;
+      case "Rate Contract":
+        onNavigate(`/rate-contract?project=${projectName}`);
+        break;
+      case "Travel Apply":
+        onNavigate(`/travel?project=${projectName}`);
+        break;
+      case "TA DA Settlement":
+        onNavigate(`/ta-da-settlement?project=${projectName}`);
+        break;
+      case "Project Staff Resignation":
+        onNavigate(`/project-staff-resignation?project=${projectName}`);
         break;
       default:
         alert(`Apply New: ${selectedApplication} - Route not configured yet`);
@@ -414,7 +439,13 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => onNavigate(`/reimbursement/${item.name}`)}
+                        onClick={() => {
+                          if (selectedApplication === "Project Staff Resignation") {
+                            onNavigate(`/project-staff-resignation?edit=${item.name}`);
+                          } else {
+                            onNavigate(`/reimbursement/${item.name}`);
+                          }
+                        }}
                         className="text-sm text-[#0EA5A4] hover:underline"
                       >
                         View
