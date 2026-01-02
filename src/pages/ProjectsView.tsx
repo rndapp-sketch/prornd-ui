@@ -279,6 +279,16 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     limit: 1000,
   });
 
+  const {
+    data: myOwnedProjects,
+    isLoading: ownedLoading,
+    error: ownedError,
+  } = useFrappeGetDocList<Project>("Project Registration", {
+    fields: ["*"],
+    filters: currentUser ? [["owner", "=", currentUser]] : [["name", "=", "NON_EXISTENT_DOC"]],
+    limit: 1000,
+  });
+
   const { myProjects, isLoading: myProjectsLoading, error: myProjectsError } = React.useMemo(() => {
     if (isHosRnd) {
       return { myProjects: hosAprovalProjects, isLoading: hosLoading, error: hosError };
@@ -293,7 +303,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       return { myProjects: doRndApprovalProjects, isLoading: doRndLoading, error: doRndError };
     }
 
-    const combined = [...(myCreatedProjects ?? []), ...(myApprovalProjects ?? [])];
+    const combined = [...(myCreatedProjects ?? []), ...(myApprovalProjects ?? []), ...(myOwnedProjects ?? [])];
     const uniqueProjectsMap = new Map<string, Project>();
     combined.forEach(project => {
       uniqueProjectsMap.set(project.name, project);
@@ -311,6 +321,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     allProjectsForAdmin, adminLoading, adminError,
     myCreatedProjects, createdLoading, createdError,
     myApprovalProjects, approvalLoading, approvalError,
+    myOwnedProjects, ownedLoading, ownedError,
     isHosRnd, hosAprovalProjects, hosLoading, hosError,
     isRndStaff, rndstaffAprovalProjects, rndstaffLoading, rndstaffError
   ]);

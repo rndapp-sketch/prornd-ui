@@ -198,7 +198,7 @@ const router = createBrowserRouter(
           // This is now a nested route. The URL will be /project-details-overview/:projectName/add-fund-sanction
           path: "project-details-overview/:projectName/add-fund-sanction",
           element: (
-            <AuthRouteWrapper allowedRole="Permanent Employee">
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <AddFundSanction />
             </AuthRouteWrapper>
           ),

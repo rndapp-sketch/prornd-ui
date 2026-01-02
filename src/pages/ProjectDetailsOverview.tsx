@@ -55,6 +55,7 @@ import {
   CreditCard, Upload, ShoppingCart, Plane, ZapIcon, Users, Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DepartmentName } from "@/components/DepartmentName";
 
 // --- Interfaces ---
 interface ActivityItem {
@@ -132,7 +133,7 @@ const FieldDisplay = ({
           {label}
         </p>
       </div>
-      <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{String(value)}</p>
+      <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{value}</p>
     </div>
   );
 };
@@ -1065,7 +1066,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                   <SectionWrapper title="General Information" icon={FileTextIcon}>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
                       <FieldDisplay label="Project Type" value={data?.project_type} icon={FileTextIcon} />
-                      <FieldDisplay label="Implementation Dept" value={data?.implementation_department} icon={BuildingIcon} />
+                      <FieldDisplay label="Implementation Dept" value={data?.implementation_department ? <DepartmentName name={data?.implementation_department} /> : null} icon={BuildingIcon} />
                       <FieldDisplay label="Status" value={data?.sanction_workflow_status} icon={TargetIcon} />
                       <FieldDisplay label="Project Duration" value={`${data?.project_duration_months}m ${data?.project_duration_days || 0}d`} icon={CalendarIcon} />
                       <FieldDisplay label="International Travel" value={data?.involves_international_travel} icon={PlaneIcon} />
@@ -1090,7 +1091,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       <FieldDisplay label="Email" value={data?.pi_webmail} icon={MailIcon} />
                       <FieldDisplay label="Employee ID" value={data?.pi_employee_id} icon={UserIcon} />
                       <FieldDisplay label="Designation" value={data?.designation} icon={UsersIcon} />
-                      <FieldDisplay label="Department" value={data?.applicant_department} icon={BuildingIcon} />
+                      <FieldDisplay label="Department" value={data?.applicant_department ? <DepartmentName name={data?.applicant_department} /> : null} icon={BuildingIcon} />
                     </div>
                   </SectionWrapper>
                   {data?.is_additional_pi === "Yes" && <TableDisplay label="Additional PIs" data={data?.additional_pi_table} columns={[{ fieldname: "pi_name", label: "Name" }, { fieldname: "pi_designation", label: "Designation" }, { fieldname: "pi_email", label: "Email" },]} icon={UsersIcon} />}

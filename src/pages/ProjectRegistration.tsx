@@ -5,6 +5,7 @@ import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { FileText, Users, IndianRupee, Shield, FileBadge, X } from 'lucide-react';
 import { EndorsementCertificate } from '../components/EndorsementCertificate';
+import { commonAPI } from '@/services/apiService';
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -135,8 +136,8 @@ const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, o
                                 <td className="p-2">
                                     <select
                                         className={`${inputClasses} !h-11`}
-                                        value={row.account_head || ''}
-                                        onChange={(e) => onRowChange(rowIndex, 'account_head', e.target.value)}
+                                        value={row.head || ''}
+                                        onChange={(e) => onRowChange(rowIndex, 'head', e.target.value)}
                                     >
                                         <option value="">Select Budget Head</option>
                                         {budgetHeadOptions.map((option: any) => (
@@ -219,7 +220,7 @@ const ProjectRegistration: React.FC = () => {
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_project_form_data');
     const { call: submitForm, result: submitResult, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.save_project_data');
     const { call: saveDraft, result: saveResult, error: saveError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.save_project_draft');
-    const { call: fetchPiDetails } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_user_details_for_pi');
+    const { call: fetchPiDetails } = useFrappePostCall(commonAPI.getUserDetailsByEmail);
     const { call: fetchAgencyDetails, result: agencyDetailsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_funding_agency_details');
     const { call: fetchBudgetHeads, result: budgetHeadsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head');
 
@@ -240,7 +241,17 @@ const ProjectRegistration: React.FC = () => {
         if (formDataResult?.message?.fields) {
             const { fields: apiFields, link_options, prefill_data } = formDataResult.message;
             setFields(apiFields);
-            setLinkOptions(link_options || {});
+
+            // Fix: Ensure PI Webmail options show email as label
+            const processedLinkOptions = { ...link_options };
+            if (processedLinkOptions['pi_webmail']) {
+                processedLinkOptions['pi_webmail'] = processedLinkOptions['pi_webmail'].map((opt: LinkOption) => ({
+                    ...opt,
+                    label: opt.value // Show email (value) as label
+                }));
+            }
+
+            setLinkOptions(processedLinkOptions || {});
             const initialFormData = { ...prefill_data };
             apiFields.forEach((field: Field) => {
                 if (initialFormData[field.fieldname] === undefined) {
@@ -285,16 +296,19 @@ const ProjectRegistration: React.FC = () => {
                     if (result?.message) {
                         const details = result.message;
                         let departmentLinkValue = "";
-                        if (details.applicant_department && linkOptions["applicant_department"]) {
-                            const matchedOption = linkOptions["applicant_department"].find(opt => opt.label === details.applicant_department || opt.value === details.applicant_department);
+                        // Handle both old and new API response structures
+                        const deptName = details.department_name || details.department || details.applicant_department;
+
+                        if (deptName && linkOptions["applicant_department"]) {
+                            const matchedOption = linkOptions["applicant_department"].find(opt => opt.label === deptName || opt.value === deptName);
                             departmentLinkValue = matchedOption?.value || "";
                         }
                         setFormData(prev => ({
                             ...prev,
                             pi_userid: value,
-                            pi_employee_id: details.pi_employee_id || "",
-                            principal_investigator_name: details.principal_investigator_name || "",
-                            designation: details.designation || "",
+                            pi_employee_id: details.employee_id || details.pi_employee_id || "",
+                            principal_investigator_name: details.full_name || details.principal_investigator_name || "",
+                            designation: details.designation_name || details.designation || "",
                             applicant_department: departmentLinkValue
                         }));
                     }
@@ -321,7 +335,8 @@ const ProjectRegistration: React.FC = () => {
             if (!designation && selectedUserEmail) {
                 try {
                     const result = await fetchPiDetails({ user_email: selectedUserEmail });
-                    designation = result?.message?.designation || "";
+                    const details = result?.message;
+                    designation = details?.designation_name || details?.designation || "";
                 } catch (err) { console.error("Failed to fetch collaborator details:", err); }
             }
             setFormData(prev => {
@@ -332,7 +347,7 @@ const ProjectRegistration: React.FC = () => {
         }, [linkOptions, fetchPiDetails]
     );
 
-    const addBudgetRow = useCallback(() => addTableRow("proposed_budget_breakup", { account_head: "", years: budgetYears.map(() => "") }), [addTableRow, budgetYears]);
+    const addBudgetRow = useCallback(() => addTableRow("proposed_budget_breakup", { head: "", years: budgetYears.map(() => "") }), [addTableRow, budgetYears]);
     const addBudgetYear = useCallback(() => { if (budgetYears.length < 5) { setBudgetYears(prev => [...prev, prev.length + 1]); setFormData(prev => ({ ...prev, proposed_budget_breakup: (prev.proposed_budget_breakup || []).map(row => ({ ...row, years: [...(row.years || []), ""] })) })); } else { alert("Maximum of 5 years allowed."); } }, [budgetYears]);
     const deleteLastBudgetYear = useCallback(() => { if (budgetYears.length > 1) { setBudgetYears(prev => prev.slice(0, -1)); setFormData(prev => ({ ...prev, proposed_budget_breakup: (prev.proposed_budget_breakup || []).map(row => ({ ...row, years: (row.years || []).slice(0, -1) })) })); } }, [budgetYears]);
     const handleBudgetRowChange = useCallback((rowIndex: number, fieldname: string, value: any, yearIndex?: number) => {
@@ -344,7 +359,7 @@ const ProjectRegistration: React.FC = () => {
                 const years = [...(row.years || [])];
                 years[yearIndex] = value;
                 row.years = years;
-            } else if (fieldname === "account_head") {
+            } else if (fieldname === "head") {
                 row.head = value;
             }
 
@@ -425,7 +440,7 @@ const ProjectRegistration: React.FC = () => {
     );
 
     const tabFieldGroups = {
-        fundingDetails: ["funding_agen", "funding_agency_schemes", "funding_agency_type", "origin_of_funding_agency", "funding_agency_ministry", "fund_agen_initials"],
+        fundingDetails: ["funding_agen", "funding_agency_schemes", "funding_agency_type", "origin_of_funding_agency", "funding_agency_ministry", "funding_agen"],
         agencyAddress: ["address_street_village_locality", "address_state", "address_postal_code", "address_country"],
         piDetails: ["pi_employee_id", "principal_investigator_name", "designation", "applicant_department", "pi_userid"],
         collaboratorToggles: ["is_additional_pi", "has_co_pi"],

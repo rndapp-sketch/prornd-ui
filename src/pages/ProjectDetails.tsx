@@ -47,6 +47,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import AddFundSanction from "./AddFundSanction";
+import { DepartmentName } from "@/components/DepartmentName";
 
 // --- Interfaces (Unchanged) ---
 interface ActivityItem {
@@ -118,7 +119,7 @@ const FieldDisplay = ({
           {label}
         </p>
       </div>
-      <p className="text-sm font-medium text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{String(value)}</p>
+      <p className="text-sm font-medium text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{value}</p>
     </div>
   );
 };
@@ -734,7 +735,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     />
                     <FieldDisplay
                       label="Implementation Dept"
-                      value={data?.implementation_department}
+                      value={data?.implementation_department ? <DepartmentName name={data?.implementation_department} /> : null}
                       icon={BuildingIcon}
                     />
                     <FieldDisplay
