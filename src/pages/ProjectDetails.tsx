@@ -43,6 +43,10 @@ import {
   ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
+  FileBadge,
+  FolderOpenIcon,
+  DownloadIcon,
+  ExternalLinkIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -552,6 +556,10 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
   const { call: submitProjectRegistration } = useFrappePostCall(
     "rndopsapp.rndopsapp.api.submit_project_registration"
   );
+
+  const { call: viewEndorsementFile, loading: isViewingEndorsement } = useFrappePostCall(
+    "rndopsapp.rndopsapp.doctype.project_registration.project_registration.view_endorsement_file"
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedAction, setSelectedAction] = useState("");
 
@@ -596,6 +604,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     { id: "investigators", label: "Investigators", icon: UsersIcon },
     { id: "funding", label: "Funding & Budget", icon: IndianRupeeIcon },
     { id: "clearance", label: "Clearance", icon: ShieldIcon },
+    { id: "endorsement", label: "Endorsement", icon: FileBadge },
+    { id: "files", label: "Files", icon: FolderOpenIcon },
     { id: "activity", label: "Activity Log", icon: MessageSquareIcon },
   ];
 
@@ -839,7 +849,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     />
                     <FieldDisplay
                       label="Department"
-                      value={data?.applicant_department}
+                      value={data?.applicant_department ? <DepartmentName name={data?.applicant_department} /> : null}
                       icon={BuildingIcon}
                     />
                   </div>
@@ -959,9 +969,164 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                 docname={projectName}
               />
             )}
+            {activeTab === "endorsement" && (
+              <div className="space-y-6">
+                <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FileBadge className="h-5 w-5 text-[#0EA5A4]" />
+                    <h3 className="text-base font-semibold text-gray-900">Endorsement Details</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                    <FieldDisplay
+                      label="Needs Endorsement"
+                      value={data?.need_endorsement_copy}
+                      icon={CheckCircleIcon}
+                    />
+                    <FieldDisplay
+                      label="Endorsement Status"
+                      value={data?.endorsement_status || "Pending"}
+                      icon={FileTextIcon}
+                    />
+                    <FieldDisplay
+                      label="Principal Investigator"
+                      value={data?.principal_investigator_name}
+                      icon={UserIcon}
+                    />
+                    <FieldDisplay
+                      label="Department"
+                      value={data?.applicant_department ? <DepartmentName name={data?.applicant_department} /> : null}
+                      icon={BuildingIcon}
+                    />
+                    <FieldDisplay
+                      label="Project Title"
+                      value={data?.project_title}
+                      icon={FileTextIcon}
+                    />
+                    <FieldDisplay
+                      label="Funding Agency"
+                      value={data?.funding_agen}
+                      icon={BuildingIcon}
+                    />
+                  </div>
+                  <div className="mt-6 pt-4 border-t border-gray-200">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await viewEndorsementFile({ docname: projectName });
+                            if (res.message) {
+                              const { pdf_file_url, html_file_url } = res.message;
+
+                              const getFullUrl = (url: string) => {
+                                if (!url) return "";
+                                if (url.startsWith("http")) return url;
+
+                                // Get base URL from env or current window origin
+                                let baseUrl = import.meta.env.VITE_FRAPPE_URL;
+                                if (!baseUrl) {
+                                  // If VITE_FRAPPE_URL is not set, use current origin
+                                  baseUrl = window.location.origin;
+                                } else if (baseUrl.startsWith('/')) {
+                                  // If VITE_FRAPPE_URL is relative, append to origin
+                                  baseUrl = `${window.location.origin}${baseUrl}`;
+                                }
+
+                                return `${baseUrl.replace(/\/$/, "")}/${url.replace(/^\//, "")}`;
+                              };
+
+                              if (pdf_file_url) {
+                                window.open(getFullUrl(pdf_file_url), '_blank');
+                              } else if (html_file_url) {
+                                window.open(getFullUrl(html_file_url), '_blank');
+                              } else {
+                                alert("No endorsement file found.");
+                              }
+                            }
+                          } catch (e: any) {
+                            console.error("View endorsement error:", e);
+                            alert("Error viewing endorsement: " + (e.messages?.[0] || e.message));
+                          }
+                        }}
+                        disabled={isViewingEndorsement}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white rounded-lg font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                      >
+                        <ExternalLinkIcon className="h-4 w-4" />
+                        {isViewingEndorsement ? "Opening..." : "View Endorsement"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          let baseUrl = import.meta.env.VITE_FRAPPE_URL;
+                          if (!baseUrl) {
+                            baseUrl = window.location.origin;
+                          } else if (baseUrl.startsWith('/')) {
+                            baseUrl = `${window.location.origin}${baseUrl}`;
+                          }
+
+                          const downloadUrl = `${baseUrl.replace(/\/$/, "")}/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.download_endorsement_file?docname=${projectName}&file_type=pdf`;
+                          window.open(downloadUrl, '_blank');
+                        }}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-[#E0F7F6] hover:bg-[#B2EBF2] text-[#0EA5A4] rounded-lg font-medium transition-colors"
+                      >
+                        <DownloadIcon className="h-4 w-4" />
+                        Download Certificate
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeTab === "files" && (
+              <div className="space-y-6">
+                <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FolderOpenIcon className="h-5 w-5 text-[#0EA5A4]" />
+                    <h3 className="text-base font-semibold text-gray-900">Project Files</h3>
+                  </div>
+                  {data?.attachments && data.attachments.length > 0 ? (
+                    <div className="space-y-3">
+                      {data.attachments.map((file: any, index: number) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <FileTextIcon className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {file.file_name || file.name || 'Document'}
+                              </p>
+                              {file.file_size && (
+                                <p className="text-xs text-gray-500">
+                                  {(file.file_size / 1024).toFixed(1)} KB
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <a
+                            href={file.file_url || file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#0EA5A4] bg-[#E0F7F6] rounded-lg hover:bg-[#B2EBF2] transition-colors"
+                          >
+                            <DownloadIcon className="h-4 w-4" />
+                            Download
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-gray-500 border border-dashed border-gray-300 rounded-xl">
+                      <FolderOpenIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                      <p className="font-medium text-gray-600">No files attached yet.</p>
+                      <p className="text-sm mt-1">Files related to this project will appear here.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             {activeTab === "quick-actions" && <QuickActions />}
           </div>
-        </div>
+        </div >
       </>
     );
   };

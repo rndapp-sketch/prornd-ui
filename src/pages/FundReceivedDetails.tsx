@@ -5,6 +5,7 @@ import { ArrowLeft, IndianRupee, FileText, CreditCard, Calculator, Building2 } f
 import { cn } from "@/lib/utils";
 import { AppSidebar } from "@/components/RndSidebar";
 import { GlobalLoader } from "@/components/ui/global-loader";
+import { useUserRoleChecks } from "../components/UserRoleCheck";
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -186,7 +187,14 @@ const FormField = memo(({ field, value, options, onChange, formData }: {
 });
 
 // --- WORKFLOW ACTIONS COMPONENT ---
-const FundReceivedWorkflowActions = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
+interface FundReceivedWorkflowActionsProps {
+    docname: string;
+    onActionComplete: () => void;
+    // Callback that returns additional args to send to the API, or null to cancel the action
+    onBeforeAction?: (action: string) => Promise<{ [key: string]: any } | null>;
+}
+
+const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction }: FundReceivedWorkflowActionsProps) => {
     const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_workflow_actions",
         { docname }
@@ -198,7 +206,21 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete }: { docname: s
 
     const handleAction = async (action: string) => {
         try {
-            await performAction({ docname, action });
+            let additionalArgs = {};
+
+            // If callback exists, get extra data (e.g., deposit slip form data)
+            if (onBeforeAction) {
+                const result = await onBeforeAction(action);
+                if (result === null) return; // Action cancelled (e.g., validation failed)
+                additionalArgs = result;
+            }
+
+            // Merge additional args into the API call
+            await performAction({
+                docname,
+                action,
+                ...additionalArgs
+            });
             onActionComplete();
         } catch (error) {
             console.error("Error performing action:", error);
@@ -242,6 +264,9 @@ const FundReceivedDetails = () => {
     const location = useLocation();
     const prjreg_title = location.state?.prjreg_title;
 
+    // Check user roles - show deposit form only for RnD Miscellaneous
+    const { isRndMiscellaneous } = useUserRoleChecks();
+
     // Form state
     const [fields, setFields] = useState<Field[]>([]);
     const [formData, setFormData] = useState<FormData>({});
@@ -283,6 +308,25 @@ const FundReceivedDetails = () => {
     const handleChange = useCallback((fieldname: string, value: any) => {
         setFormData(prev => ({ ...prev, [fieldname]: value }));
     }, []);
+
+    // Handler for workflow actions - attaches deposit slip data when "Forward" is clicked
+    const handleBeforeAction = useCallback(async (action: string): Promise<{ [key: string]: any } | null> => {
+        // Only attach deposit slip data if action is "Forward" and user is RnD Miscellaneous
+        if (action === "Forward" && isRndMiscellaneous) {
+            // Optional: Add validation here
+            // const requiredFields = fields.filter(f => f.mandatory);
+            // const missingFields = requiredFields.filter(f => !formData[f.fieldname]);
+            // if (missingFields.length > 0) {
+            //     alert(`Please fill required fields: ${missingFields.map(f => f.label).join(', ')}`);
+            //     return null; // Cancel action
+            // }
+
+            return {
+                deposit_slip_data: JSON.stringify(formData)
+            };
+        }
+        return {}; // No extra data for other actions
+    }, [isRndMiscellaneous, formData]);
 
     // Normalize fund data
     const normalizeResponse = (raw: any) => {
@@ -370,7 +414,11 @@ const FundReceivedDetails = () => {
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
-                            <FundReceivedWorkflowActions docname={name || ""} onActionComplete={() => mutate()} />
+                            <FundReceivedWorkflowActions
+                                docname={name || ""}
+                                onActionComplete={() => mutate()}
+                                onBeforeAction={handleBeforeAction}
+                            />
                             <span className={cn("px-3 py-1.5 rounded-md border font-bold text-sm", {
                                 "bg-amber-100 text-amber-800 border-amber-300": workflow_state === "Draft",
                                 "bg-blue-100 text-blue-800 border-blue-300": workflow_state === "Submitted",
@@ -379,53 +427,58 @@ const FundReceivedDetails = () => {
                             })}>
                                 {workflow_state}
                             </span>
-                            <FrappeButton onClick={() => navigate(`/deposit-slip-new/${name}`)}>
-                                <FileText className="h-4 w-4" />
-                                Generate Deposit Slip
-                            </FrappeButton>
+                            {/* Hide Generate Deposit Slip button for Permanent Employees */}
+                            {/* {!isPermanentEmployee && (
+                                <FrappeButton onClick={() => navigate(`/deposit-slip-new/${name}`)}>
+                                    <FileText className="h-4 w-4" />
+                                    Generate Deposit Slip
+                                </FrappeButton>
+                            )} */}
                         </div>
                     </div>
                 </FrappeCard>
 
-                {/* Side by Side Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* LEFT SIDE: Deposit Slip Form */}
-                    <div className="space-y-6">
-                        <FrappeCard title="Deposit Slip Form" icon={<FileText className="h-4 w-4 text-[#0EA5A4]" />}>
-                            <form className="space-y-6">
-                                {sections.map((section, idx) => (
-                                    <div key={idx} className="space-y-4">
-                                        {section.title && (
-                                            <h4 className="text-sm font-bold text-gray-900 uppercase border-b border-gray-200 pb-2">
-                                                {section.title}
-                                            </h4>
-                                        )}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {section.fields.map(field => (
-                                                <FormField
-                                                    key={field.fieldname}
-                                                    field={field}
-                                                    value={formData[field.fieldname]}
-                                                    options={linkOptions[field.options as string] || linkOptions[field.fieldname]}
-                                                    onChange={handleChange}
-                                                    formData={formData}
-                                                />
-                                            ))}
+                {/* Side by Side Layout - Full width when deposit form is hidden */}
+                <div className={cn("grid gap-6", isRndMiscellaneous ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1")}>
+                    {/* LEFT SIDE: Deposit Slip Form - Show only for RnD Miscellaneous */}
+                    {isRndMiscellaneous && (
+                        <div className="space-y-6">
+                            <FrappeCard title="Deposit Slip Form" icon={<FileText className="h-4 w-4 text-[#0EA5A4]" />}>
+                                <form className="space-y-6">
+                                    {sections.map((section, idx) => (
+                                        <div key={idx} className="space-y-4">
+                                            {section.title && (
+                                                <h4 className="text-sm font-bold text-gray-900 uppercase border-b border-gray-200 pb-2">
+                                                    {section.title}
+                                                </h4>
+                                            )}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {section.fields.map(field => (
+                                                    <FormField
+                                                        key={field.fieldname}
+                                                        field={field}
+                                                        value={formData[field.fieldname]}
+                                                        options={linkOptions[field.options as string] || linkOptions[field.fieldname]}
+                                                        onChange={handleChange}
+                                                        formData={formData}
+                                                    />
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
 
-                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                                    <FrappeButton variant="outline" onClick={() => navigate(-1)}>
-                                        Cancel
-                                    </FrappeButton>
-                                    <FrappeButton type="submit" disabled={isSubmitting}>
-                                        {isSubmitting ? 'Saving...' : 'Save Deposit Slip'}
-                                    </FrappeButton>
-                                </div>
-                            </form>
-                        </FrappeCard>
-                    </div>
+                                    <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+                                        <p className="text-sm text-gray-600 italic">
+                                            💡 Click "Forward" button above to submit the deposit slip with workflow action
+                                        </p>
+                                        <FrappeButton variant="outline" onClick={() => navigate(-1)}>
+                                            Cancel
+                                        </FrappeButton>
+                                    </div>
+                                </form>
+                            </FrappeCard>
+                        </div>
+                    )}
 
                     {/* RIGHT SIDE: Fund Details */}
                     <div className="space-y-6">

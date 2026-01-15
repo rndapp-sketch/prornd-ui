@@ -52,10 +52,29 @@ import {
   AlertCircleIcon,
   CogIcon as SettingsIcon,
   ChevronDown, CheckCircle2, ChevronRight, LayoutDashboard, MoreVertical, PieChart, Plus, Search, X, Trash2,
-  CreditCard, Upload, ShoppingCart, Plane, ZapIcon, Users, Settings
+  CreditCard, Upload, ShoppingCart, Plane, ZapIcon, Users, Settings, FileSpreadsheet as LedgerIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DepartmentName } from "@/components/DepartmentName";
+
+// --- Ledger Interfaces ---
+interface LedgerTransaction {
+  transactionType: string;
+  transactionId: number;
+  transactionDate: string;
+  particulars: string;
+  refDetails: string;
+  fundReceivedAmount: number | null;
+  commitAmount: number | null;
+  paymentAmount: number | null;
+  commitableBalance: number;
+  paymentBalance: number;
+  balance: number;
+  status: string;
+  bmr: string | null;
+  bankTransactionNumber: string | null;
+  bankTransactionDate: string | null;
+}
 
 // --- Interfaces ---
 interface ActivityItem {
@@ -249,8 +268,11 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
 
   // Fetch data when application is selected
   useEffect(() => {
+    console.log('>>> useEffect triggered. selectedApplication:', selectedApplication, 'projectName:', projectName);
+
     const fetchApplicationData = async () => {
       if (!selectedApplication || !projectName) {
+        console.log('>>> Early return - missing selectedApplication or projectName');
         setApplicationData([]);
         return;
       }
@@ -263,17 +285,35 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           console.log('=== FETCHING REIMBURSEMENTS ===');
           console.log('Project Name:', projectName);
 
-          const response = await fetchReimbursements({
-            doctype: "Reimbursement",
-            filters: { project_name: projectName },
-            fields: ["name", "creation", "workflow_state", "owner", "project_name", "project_number", "applicant_webmail", "comment"],
-            order_by: "creation desc",
-            limit_page_length: 50
-          });
+          try {
+            // Use direct fetch to Frappe REST API
+            const apiUrl = `/api/resource/Reimbursement?fields=["name","creation","workflow_state","owner","project_name","project_number","applicant_webmail","comment"]&order_by=creation%20desc&limit_page_length=0`;
 
-          console.log('API Response:', response);
-          data = response?.message || [];
-          console.log('Reimbursement data:', data);
+            const fetchResponse = await fetch(apiUrl, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+              credentials: 'include'
+            });
+
+            if (!fetchResponse.ok) {
+              throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+            }
+
+            const result = await fetchResponse.json();
+            console.log('API Response:', result);
+
+            const allReimbursements = result?.data || [];
+            console.log('All Reimbursements count:', allReimbursements.length);
+
+            // Filter client-side: match project_name OR project_number
+            data = allReimbursements.filter((item: any) =>
+              item.project_name === projectName || item.project_number === projectName
+            );
+            console.log('Filtered Reimbursement data:', data);
+          } catch (fetchError) {
+            console.error('Direct fetch error:', fetchError);
+            data = [];
+          }
         } else if (selectedApplication === "Project Staff Resignation") {
           const response = await fetchReimbursements({
             doctype: "Project Staff Resignation",
@@ -699,9 +739,111 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   const [manualCommitments, setManualCommitments] = useState<BudgetEntry[]>([]); // Track manual commitments
   const [sidebarComment, setSidebarComment] = useState("");
   const [selectedSanctionIndex, setSelectedSanctionIndex] = useState(0);
+  const [activeLedgerTab, setActiveLedgerTab] = useState("All"); // Tab filter for ledger by head
+
+  // Extract unique heads from budget data for tabs
+  const ledgerHeadTabs = useMemo(() => {
+    const heads = new Set<string>();
+    budgetData.forEach((entry: any) => {
+      const head = entry.head || entry.accountHead;
+      if (head) heads.add(head);
+    });
+    return ["All", ...Array.from(heads).sort()];
+  }, [budgetData]);
+
+  // Filter budget data based on selected ledger tab
+  const filteredLedgerData = useMemo(() => {
+    if (activeLedgerTab === "All") return budgetData;
+    return budgetData.filter((entry: any) => {
+      const head = (entry.head || entry.accountHead || "").trim().toLowerCase();
+      return head === activeLedgerTab.toLowerCase();
+    });
+  }, [budgetData, activeLedgerTab]);
+
+  // Set default commitHead when heads become available
+  useEffect(() => {
+    const availableHeads = ledgerHeadTabs.filter(h => h !== "All");
+    if (availableHeads.length > 0 && !availableHeads.includes(commitHead)) {
+      setCommitHead(availableHeads[0]);
+    }
+  }, [ledgerHeadTabs]);
 
   // API call for adding comment
   const { call: addComment, loading: isAddingComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+
+  // --- LEDGER STATE & API ---
+  const [ledgerTransactions, setLedgerTransactions] = useState<LedgerTransaction[]>([]);
+  const [isLedgerLoading, setIsLedgerLoading] = useState(false);
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
+
+  // Fetch Budget Heads from Frappe v2 API
+  const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: number }[]>([]);
+  const [isBudgetHeadLoading, setIsBudgetHeadLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchBudgetHeads = async () => {
+      try {
+        const response = await fetch('/api/v2/document/Budget Head?fields=["budget_head","id"]&order_by=id asc');
+        const result = await response.json();
+        console.log("Budget Head v2 API data:", result);
+        if (result?.data) {
+          setBudgetHeadList(result.data.map((item: any) => ({
+            name: item.budget_head,
+            id: item.id
+          })));
+        }
+      } catch (err) {
+        console.error("Failed to fetch Budget Heads:", err);
+      } finally {
+        setIsBudgetHeadLoading(false);
+      }
+    };
+    fetchBudgetHeads();
+  }, []);
+
+  // Use budgetHeadList for ledger tabs
+  const ledgerHeads = budgetHeadList;
+
+  // Track selected head by ID
+  const [activeLedgerHeadId, setActiveLedgerHeadId] = useState<string | number>('');
+
+  // Set default active Ledger Head once data is loaded
+  useEffect(() => {
+    if (ledgerHeads.length > 0 && !activeLedgerHeadId) {
+      setActiveLedgerHeadId(ledgerHeads[0].id);
+    }
+  }, [ledgerHeads]);
+
+  // Fetch Ledger Data when tab/head changes
+  useEffect(() => {
+    console.log("Ledger useEffect - activeTab:", activeTab, "activeLedgerHeadId:", activeLedgerHeadId);
+    if (activeTab === 'ledger' && activeLedgerHeadId) {
+      fetchLedgerData(activeLedgerHeadId);
+    }
+  }, [activeTab, activeLedgerHeadId]);
+
+  const fetchLedgerData = async (headId: string | number) => {
+    setIsLedgerLoading(true);
+    setLedgerError(null);
+    try {
+      // Use proxy to avoid CORS - /ledger-api proxies to http://172.16.135.27:18083/api ${projectName}
+      const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${projectName}&accountHeadId=${headId}`);
+      console.log("Ledger API response status:", response, "for projectNumber:", projectName, "headId:", headId);
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      setLedgerTransactions(Array.isArray(result) ? result : []);
+    } catch (err: any) {
+      console.error("Ledger API Error:", err);
+      // Fallback/Mock data if needed, or just show error
+      setLedgerError(err.message || "Failed to load ledger data");
+      setLedgerTransactions([]);
+    } finally {
+      setIsLedgerLoading(false);
+    }
+  };
 
   // Process Fund Received Data and Manual Commitments into Budget Ledger
   useEffect(() => {
@@ -742,6 +884,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     let runningFundTotal = 0; // Global for Actual Balance
     const headFundTotals: Record<string, number> = {};
     const headCommitTotals: Record<string, number> = {};
+    const headPaymentTotals: Record<string, number> = {};
+    const headActualTotals: Record<string, number> = {}; // Per-head running actual balance
 
     const calculatedEntries = allRawEntries.map((entry, idx) => {
       // Determine Head
@@ -761,18 +905,26 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
       if (entry.type === 'transaction') {
         runningFundTotal += (entry.received || 0);
         headFundTotals[head] = (headFundTotals[head] || 0) + (entry.received || 0);
+        headActualTotals[head] = (headActualTotals[head] || 0) + (entry.received || 0) - (entry.payment || 0);
       } else if (entry.type === 'commitment') {
-        // Commitments don't affect Global Actual Bal (sum of funds)
+        // Commitments don't affect Actual Bal (only received - payment)
         headCommitTotals[head] = (headCommitTotals[head] || 0) + (entry.committed || 0);
       }
 
-      // Per-Head Commitable Balance
-      const currentHeadBalance = (headFundTotals[head] || 0) - (headCommitTotals[head] || 0);
+      // Track payments
+      headPaymentTotals[head] = (headPaymentTotals[head] || 0) + (entry.payment || 0);
+
+      // Per-Head Commitable Balance = Received - Committed - Payment
+      const currentHeadBalance = (headFundTotals[head] || 0) - (headCommitTotals[head] || 0) - (headPaymentTotals[head] || 0);
+
+      // Per-Head Actual Balance = Received - Payment (no commitments)
+      const headActualBalance = (headFundTotals[head] || 0) - (headPaymentTotals[head] || 0);
 
       return {
         ...entry,
         sl: idx + 1,
         actualBalance: runningFundTotal, // Global Running Total
+        headActualBalance: headActualBalance, // Per-Head Actual Balance
         commitableBalance: currentHeadBalance, // Specific Head Balance
         head: head // Persist resolved head
       };
@@ -920,7 +1072,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   const tabs = [
     { id: "overview", label: "Overview", icon: FileTextIcon },
     { id: "sanction-details", label: "Sanction Details", icon: CreditCardIcon },
-    { id: "quick-actions", label: "Applications", icon: ZapIcon }, // ADDED THIS LINE
+    { id: "ledger", label: "Ledger", icon: LedgerIcon }, // Added Ledger Tab
+    { id: "quick-actions", label: "Applications", icon: ZapIcon },
     { id: "activity", label: "Activity Log", icon: MessageSquareIcon },
   ];
 
@@ -995,9 +1148,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                   <p className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-0.5">Commitable</p>
                   <p className="text-lg font-bold text-gray-700 leading-none">₹ {commitableBalance.toLocaleString('en-IN')}</p>
                 </div>
-                <button onClick={() => setIsLedgerOpen(true)} className="text-xs font-semibold text-[#0EA5A4] bg-[#E0F7F6] px-3 py-1.5 rounded-lg hover:bg-[#B2DFDB] transition-colors">
+                {/* <button onClick={() => setIsLedgerOpen(true)} className="text-xs font-semibold text-[#0EA5A4] bg-[#E0F7F6] px-3 py-1.5 rounded-lg hover:bg-[#B2DFDB] transition-colors">
                   View Ledger
-                </button>
+                </button> */}
               </div>
 
               {isCurrentUserPI && (
@@ -1310,7 +1463,112 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                 </div>
               )}
 
-              {/* --- ADDED THIS BLOCK TO RENDER QUICK ACTIONS --- */}
+              {/* --- LEDGER TAB CONTENT --- */}
+              {activeTab === "ledger" && (
+                <div className="space-y-6">
+                  {/* Ledger Head Tabs */}
+                  <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
+                    <div className="flex space-x-2">
+                      {ledgerHeads.length > 0 ? (
+                        ledgerHeads.map((head: { name: string; id: string | number }) => (
+                          <button
+                            key={head.id}
+                            onClick={() => setActiveLedgerHeadId(head.id)}
+                            className={cn(
+                              "px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
+                              activeLedgerHeadId === head.id
+                                ? "bg-[#E0F7F6] text-[#0EA5A4]"
+                                : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                            )}
+                          >
+                            {head.name}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-4 py-2 text-sm text-gray-500">Loading Budget Heads...</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Ledger Table */}
+                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[300px]">
+                    {isLedgerLoading ? (
+                      <div className="flex flex-col items-center justify-center py-20">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4] mb-4"></div>
+                        <p className="text-gray-500">Loading ledger...</p>
+                      </div>
+                    ) : ledgerError ? (
+                      <div className="flex flex-col items-center justify-center py-20">
+                        <p className="text-red-500 font-medium mb-2">Failed to load data</p>
+                        <p className="text-sm text-gray-500">{ledgerError}</p>
+                        <button onClick={() => fetchLedgerData(activeLedgerHeadId)} className="mt-4 text-[#0EA5A4] hover:underline text-sm font-medium">Try Again</button>
+                      </div>
+                    ) : ledgerTransactions.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-20">
+                        <FileTextIcon className="h-10 w-10 text-gray-300 mb-3" />
+                        <p className="text-gray-500">No transactions found</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                          <thead className="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                              <th className="px-6 py-3 font-semibold text-gray-600">Date</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600">Particulars</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600">Type</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Commit</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Payment</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Balance</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 text-center">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {ledgerTransactions.map((txn) => (
+                              <tr key={txn.transactionId} className="hover:bg-gray-50/50">
+                                <td className="px-6 py-3 text-gray-900 whitespace-nowrap">
+                                  {txn.transactionDate ? new Date(txn.transactionDate).toLocaleDateString('en-IN') : '-'}
+                                </td>
+                                <td className="px-6 py-3 text-gray-900">
+                                  <div className="max-w-xs truncate" title={txn.particulars}>{txn.particulars}</div>
+                                  {txn.refDetails && <div className="text-xs text-gray-500 mt-0.5">{txn.refDetails}</div>}
+                                </td>
+                                <td className="px-6 py-3 text-gray-600">
+                                  <span className={cn(
+                                    "inline-flex px-2 py-0.5 rounded text-xs font-medium",
+                                    txn.transactionType === 'PAYMENT' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
+                                  )}>
+                                    {txn.transactionType}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-3 text-right font-medium text-gray-900">
+                                  {txn.commitAmount ? `₹${txn.commitAmount.toLocaleString('en-IN')}` : '-'}
+                                </td>
+                                <td className="px-6 py-3 text-right font-medium text-gray-900">
+                                  {txn.paymentAmount ? `₹${txn.paymentAmount.toLocaleString('en-IN')}` : '-'}
+                                </td>
+                                <td className="px-6 py-3 text-right font-bold text-[#0EA5A4]">
+                                  {txn.balance ? `₹${txn.balance.toLocaleString('en-IN')}` : '0'}
+                                </td>
+                                <td className="px-6 py-3 text-center">
+                                  <span className={cn(
+                                    "inline-flex px-2.5 py-1 rounded-full text-xs font-semibold",
+                                    txn.status === 'PAID' ? 'bg-green-100 text-green-700' :
+                                      txn.status === 'PARTIALLY_PAID' ? 'bg-yellow-100 text-yellow-700' :
+                                        txn.status === 'PENDING' ? 'bg-orange-100 text-orange-700' :
+                                          'bg-gray-100 text-gray-700'
+                                  )}>
+                                    {txn.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               {activeTab === "quick-actions" && (
                 <QuickActions projectName={projectName || ''} onNavigate={navigate} />
               )}
@@ -1395,10 +1653,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     value={commitHead}
                     onChange={(e) => setCommitHead(e.target.value)}
                   >
-                    <option value="Travel">Travel</option>
-                    <option value="Contingency">Contingency</option>
-                    <option value="Overhead">Overhead</option>
-                    <option value="Equipment">Equipment</option>
+                    {ledgerHeadTabs.filter(head => head !== "All").map((head) => (
+                      <option key={head} value={head}>{head}</option>
+                    ))}
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
                     Available: <span className="font-medium text-[#0EA5A4]">{actualBalance.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
@@ -1422,69 +1679,147 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
               </div>
             </div>
           </aside>
-        </div>
+        </div >
 
         {/* Budget Ledger Modal */}
-        {isLedgerOpen && (
-          <div className="frappe-modal-backdrop" onClick={() => setIsLedgerOpen(false)} role="dialog" aria-modal="true" aria-labelledby="modal-title">
-            <div className="frappe-modal" onClick={(e) => e.stopPropagation()}>
-              <header className="frappe-modal-header">
-                <h2 id="modal-title">Project Budget Ledger</h2>
-                <button
-                  onClick={() => setIsLedgerOpen(false)}
-                  className="frappe-modal-close"
-                  aria-label="Close modal"
-                >
-                  ×
-                </button>
-              </header>
-              <div className="frappe-modal-body">
-                <table className="frappe-table">
-                  <thead>
-                    <tr>
-                      <th>SL. NO</th>
-                      <th>DATE</th>
-                      <th>PARTICULARS</th>
-                      <th>REF.</th>
-                      <th style={{ textAlign: 'right' }}>RECEIVED</th>
-                      <th style={{ textAlign: 'right' }}>COMMITTED</th>
-                      <th style={{ textAlign: 'right' }}>COMMITABLE BAL.</th>
-                      <th>BMR. NO</th>
-                      <th style={{ textAlign: 'right' }}>PAYMENT</th>
-                      <th style={{ textAlign: 'right' }}>ACTUAL BAL.</th>
-                      <th style={{ textAlign: 'center' }}>ACTION</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {budgetData.map((row, index) => (
-                      <tr key={index}>
-                        <td>{row.sl}</td>
-                        <td>{row.date}</td>
-                        <td>{row.particulars}</td>
-                        <td>{row.ref}</td>
-                        <td style={{ textAlign: 'right' }} className={row.received ? "text-green-600 font-medium" : ""}>{row.received ? row.received.toLocaleString('en-IN') : '-'}</td>
-                        <td style={{ textAlign: 'right' }} className={row.committed ? "text-red-600 font-medium" : ""}>{row.committed ? row.committed.toLocaleString('en-IN') : '-'}</td>
-                        <td style={{ textAlign: 'right' }} className="font-semibold text-gray-900">{row.commitableBalance?.toLocaleString('en-IN')}</td>
-                        <td>{row.bmr}</td>
-                        <td style={{ textAlign: 'right' }} className={row.payment ? "text-red-600 font-medium" : ""}>{row.payment ? row.payment.toLocaleString('en-IN') : '-'}</td>
-                        <td style={{ textAlign: 'right' }} className="font-semibold text-gray-900">{row.actualBalance?.toLocaleString('en-IN')}</td>
-                        <td style={{ textAlign: 'center' }}>
+        {
+          isLedgerOpen && (
+            <div className="frappe-modal-backdrop" onClick={() => setIsLedgerOpen(false)} role="dialog" aria-modal="true" aria-labelledby="modal-title">
+              <div className="frappe-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '1200px', width: '95%' }}>
+                <header className="frappe-modal-header">
+                  <h2 id="modal-title">Project Budget Ledger</h2>
+                  <button
+                    onClick={() => setIsLedgerOpen(false)}
+                    className="frappe-modal-close"
+                    aria-label="Close modal"
+                  >
+                    ×
+                  </button>
+                </header>
+                <div className="frappe-modal-body">
+                  {/* Head-wise Tabs */}
+                  <div className="mb-4 border-b border-gray-200">
+                    <nav className="flex flex-wrap gap-2" aria-label="Ledger tabs">
+                      {ledgerHeadTabs.map((tab) => {
+                        const tabEntries = tab === "All"
+                          ? budgetData
+                          : budgetData.filter((e: any) => (e.head || e.accountHead || "").trim().toLowerCase() === tab.trim().toLowerCase());
+                        // Use the last entry's commitableBalance for that head (running total already calculated)
+                        const lastEntryForHead = tabEntries.length > 0 ? tabEntries[tabEntries.length - 1] : null;
+                        const tabBalance = tab === "All"
+                          ? tabEntries.reduce((acc, e) => acc + (e.received || 0) - (e.committed || 0) - (e.payment || 0), 0)
+                          : (lastEntryForHead?.commitableBalance || 0);
+                        return (
                           <button
-                            onClick={() => handleRemoveItem(index)}
-                            className="p-1 text-gray-500 hover:text-red-600 transition-colors"
-                            title="Remove Item"
+                            key={tab}
+                            onClick={() => setActiveLedgerTab(tab)}
+                            className={cn(
+                              "px-4 py-2.5 text-sm font-bold rounded-t-lg transition-colors border-b-2 flex flex-col items-start",
+                              activeLedgerTab === tab
+                                ? "border-[#0EA5A4] text-[#0EA5A4] bg-[#E0F7F6]"
+                                : "border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                            )}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <span className="flex items-center gap-2">
+                              {tab}
+                              <span className={cn(
+                                "px-1.5 py-0.5 text-xs rounded-full",
+                                activeLedgerTab === tab ? "bg-[#0EA5A4] text-white" : "bg-gray-200 text-gray-600"
+                              )}>
+                                {tabEntries.length}
+                              </span>
+                            </span>
+                            <span className={cn(
+                              "text-xs font-bold mt-0.5",
+                              tabBalance >= 0 ? "text-green-600" : "text-red-600"
+                            )}>
+                              ₹ {tabBalance.toLocaleString('en-IN')}
+                            </span>
                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        );
+                      })}
+                    </nav>
+                  </div>
+
+                  {/* Summary for selected head */}
+                  {activeLedgerTab !== "All" && (() => {
+                    const lastEntry = filteredLedgerData.length > 0 ? filteredLedgerData[filteredLedgerData.length - 1] : null;
+                    return (
+                      <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200 flex flex-wrap gap-6">
+                        <div>
+                          <span className="text-xs text-gray-500 uppercase font-semibold">Total Received</span>
+                          <p className="text-lg font-bold text-green-600">
+                            ₹ {filteredLedgerData.reduce((acc, e) => acc + (e.received || 0), 0).toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-gray-500 uppercase font-semibold">Total Committed</span>
+                          <p className="text-lg font-bold text-red-600">
+                            ₹ {filteredLedgerData.reduce((acc, e) => acc + (e.committed || 0), 0).toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-gray-500 uppercase font-semibold">Available Balance</span>
+                          <p className="text-lg font-bold text-[#0EA5A4]">
+                            ₹ {(lastEntry?.commitableBalance || 0).toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <div className="overflow-x-auto">
+                    <table className="frappe-table">
+                      <thead>
+                        <tr>
+                          <th>SL. NO</th>
+                          <th>DATE</th>
+                          <th>PARTICULARS</th>
+                          <th>REF.</th>
+                          <th style={{ textAlign: 'right' }}>RECEIVED</th>
+                          <th style={{ textAlign: 'right' }}>COMMITTED</th>
+                          <th style={{ textAlign: 'right' }}>COMMITABLE BAL.</th>
+                          <th>BMR. NO</th>
+                          <th style={{ textAlign: 'right' }}>PAYMENT</th>
+                          <th style={{ textAlign: 'right' }}>ACTUAL BAL.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredLedgerData.length === 0 ? (
+                          <tr>
+                            <td colSpan={10} className="text-center py-8 text-gray-500">
+                              No entries found for {activeLedgerTab}
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredLedgerData.map((row, index) => (
+                            <tr key={index}>
+                              <td>{row.sl}</td>
+                              <td>{row.date}</td>
+                              <td>{row.particulars}</td>
+                              <td className="max-w-[200px] truncate" title={row.ref}>{row.ref}</td>
+                              <td style={{ textAlign: 'right' }} className={row.received ? "text-green-600 font-medium" : ""}>{row.received ? row.received.toLocaleString('en-IN') : '-'}</td>
+                              <td style={{ textAlign: 'right' }} className={row.committed ? "text-red-600 font-medium" : ""}>{row.committed ? row.committed.toLocaleString('en-IN') : '-'}</td>
+                              <td style={{ textAlign: 'right' }} className="font-semibold text-gray-900">{row.commitableBalance?.toLocaleString('en-IN')}</td>
+                              <td>{row.bmr}</td>
+                              <td style={{ textAlign: 'right' }} className={row.payment ? "text-red-600 font-medium" : ""}>{row.payment ? row.payment.toLocaleString('en-IN') : '-'}</td>
+                              <td style={{ textAlign: 'right' }} className="font-semibold text-gray-900">
+                                {activeLedgerTab === "All"
+                                  ? row.actualBalance?.toLocaleString('en-IN')
+                                  : (row as any).headActualBalance?.toLocaleString('en-IN')
+                                }
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        }
       </>
     );
   };

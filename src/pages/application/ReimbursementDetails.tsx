@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppSidebar } from "../../components/RndSidebar";
-import { useFrappePostCall } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { ArrowLeftIcon, FileTextIcon, CalendarIcon, UserIcon } from "lucide-react";
+import { ArrowLeftIcon, FileTextIcon, CalendarIcon, UserIcon, DownloadIcon } from "lucide-react";
 import { GlobalLoader } from '@/components/ui/global-loader';
 
 // --- TYPE DEFINITIONS ---
@@ -74,6 +74,101 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
         {children}
     </button>
 );
+
+// --- COMMENT MODAL ---
+const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (comment: string) => void;
+    action: string;
+    isLoading: boolean
+}) => {
+    const [comment, setComment] = useState("");
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-lg w-full max-w-md">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm {action}</h3>
+                <textarea
+                    className="w-full border border-gray-300 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4]"
+                    rows={4}
+                    placeholder="Add a comment (optional)..."
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                />
+                <div className="flex justify-end gap-2">
+                    <FrappeButton variant="outline" onClick={onClose} disabled={isLoading}>Cancel</FrappeButton>
+                    <FrappeButton
+                        variant="primary"
+                        onClick={() => onSubmit(comment)}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? "Processing..." : "Confirm"}
+                    </FrappeButton>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- WORKFLOW ACTIONS COMPONENT ---
+const ReimbursementWorkflowActions = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
+    const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
+        "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_reimbursement_workflow_actions",
+        { docname }
+    );
+
+    const { call: performAction, loading: actionLoading } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.perform_reimbursement_action"
+    );
+
+    const [modalOpen, setModalOpen] = useState(false);
+    const [selectedAction, setSelectedAction] = useState("");
+
+    const handleActionClick = (action: string) => {
+        setSelectedAction(action);
+        setModalOpen(true);
+    };
+
+    const handleConfirmAction = async (comment: string) => {
+        try {
+            await performAction({ docname, action: selectedAction, comment });
+            setModalOpen(false);
+            onActionComplete();
+        } catch (error) {
+            console.error("Error performing action:", error);
+            alert("Failed to perform action. Please try again.");
+        }
+    };
+
+    if (actionsLoading || !data?.message?.length) return null;
+
+    return (
+        <>
+            <div className="flex gap-2">
+                {data.message.map((action) => (
+                    <FrappeButton
+                        key={action}
+                        onClick={() => handleActionClick(action)}
+                        disabled={actionLoading}
+                        variant="action"
+                    >
+                        {action}
+                    </FrappeButton>
+                ))}
+            </div>
+            <CommentModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSubmit={handleConfirmAction}
+                action={selectedAction}
+                isLoading={actionLoading}
+            />
+        </>
+    );
+};
 
 const ReimbursementDetails: React.FC = () => {
     const navigate = useNavigate();
@@ -225,6 +320,204 @@ const ReimbursementDetails: React.FC = () => {
         }
     };
 
+    // Generate HTML for download/print
+    const generateDownloadHTML = () => {
+        if (!data) return '';
+
+        const now = new Date();
+        const formattedDate = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        const formattedTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const applicationDate = data.creation ? new Date(data.creation).toLocaleString('en-IN', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', hour12: true
+        }) : '-';
+
+        // Calculate total amount from items
+        const totalAmount = data.table_bosk?.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0) || 0;
+
+        // Generate expenditure rows
+        const expenditureRows = data.table_bosk?.map((item: any, index: number) => `
+            <tr>
+                <td style="text-align: center;">${index + 1}</td>
+                <td>${item.r_date ? new Date(item.r_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'}</td>
+                <td>${item.particulars || '-'}</td>
+                <td>${item.vendors_name || '-'}</td>
+                <td style="text-align: center;">${(parseFloat(item.amount) || 0).toLocaleString('en-IN')}</td>
+                <td style="color: blue; text-decoration: underline;">${item.uploads ? 'Attached' : 'No file'}</td>
+            </tr>
+        `).join('') || '<tr><td colspan="6" style="text-align: center;">No items</td></tr>';
+
+        // Declaration items
+        const declarations = [
+            'None of the items are purchased or under rate contract.',
+            'The items purchased were approved by the funding agency and I have enclosed the original cash memo/ retail invoice/ money receipt initialed by the Drawer.',
+            '"I, am personally satisfied that goods purchased are of the requisite quality and specification and have been purchased from a reliable supplier at a reasonable price."',
+            'I stock entered the items, and entered the stock entry details on the reverse side of the cash memo/ money receipt with my signature.'
+        ];
+
+        const acceptedDeclarations = declarations
+            .filter((_, i) => data[`dec${i + 1}`])
+            .map((dec) => `<li>${dec}</li>`)
+            .join('');
+
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reimbursement - ${data.name}</title>
+    <style>
+        @page { size: A4; margin: 10mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; font-size: 11px; line-height: 1.3; color: #333; margin: 0; padding: 10px; background-color: #f0f0f0; }
+        .page { width: 190mm; max-width: 100%; margin: 0 auto; background-color: white; padding: 15px 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); position: relative; min-height: 277mm; }
+        .top-meta { display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 8px; color: #666; }
+        .header-box { border: 1px solid #000; padding: 8px 12px; display: flex; align-items: center; margin-bottom: 8px; }
+        .logo-img { width: 60px; height: 60px; margin-right: 15px; object-fit: contain; }
+        .header-text h1 { margin: 0; font-size: 16px; color: #2d3e8b; text-transform: uppercase; }
+        .header-text h2 { margin: 0; font-size: 14px; color: #2d3e8b; }
+        .header-text p { margin: 2px 0 0; font-weight: bold; font-size: 11px; }
+        .barcode-container { margin-top: 5px; text-align: left; font-size: 10px; }
+        .barcode { width: 150px; height: 25px; background: linear-gradient(90deg, #000 2%, transparent 2%, transparent 4%, #000 4%, #000 5%, transparent 5%, transparent 7%, #000 7%, #000 10%, transparent 10%, transparent 12%, #000 12%, #000 13%, transparent 13%, transparent 15%, #000 15%); background-size: 15px 100%; }
+        .date-line { text-align: right; margin-bottom: 10px; font-size: 11px; }
+        h2.main-title { text-align: center; font-weight: normal; font-size: 16px; margin: 10px 0 15px; }
+        .details-grid { display: flex; gap: 20px; margin-bottom: 10px; }
+        .details-section { flex: 1; }
+        .section-header { border: 1px solid #000; text-align: center; font-weight: bold; padding: 4px; margin-bottom: 6px; background-color: #f5f5f5; font-size: 11px; }
+        .info-row { display: flex; margin-bottom: 6px; font-size: 10px; }
+        .info-label { width: 110px; font-weight: normal; color: #555; }
+        .info-value { flex: 1; font-weight: 500; }
+        .comments-box { border: 1px solid #000; margin-top: 10px; }
+        .comment-content { padding: 6px 8px; font-size: 10px; }
+        .comment-timestamp { text-align: right; padding: 2px 8px; color: #666; font-size: 9px; }
+        .declaration-box { margin-top: 10px; border: 1px solid #000; }
+        .declaration-content { padding: 6px 8px; font-size: 9px; }
+        .declaration-content ol { padding-left: 15px; margin: 5px 0; }
+        .declaration-content li { margin-bottom: 6px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 10px; }
+        th, td { border: 1px solid #000; padding: 5px; text-align: left; vertical-align: top; }
+        th { background-color: #f5f5f5; text-align: center; font-size: 10px; }
+        .footer-info { margin-top: 15px; font-size: 10px; }
+        .footer-info p { margin: 3px 0; }
+        .bottom-meta { position: absolute; bottom: 8px; left: 20px; right: 20px; display: flex; justify-content: space-between; font-size: 9px; border-top: 1px solid #ddd; padding-top: 4px; color: #666; }
+        @media print { 
+            body { background: none; padding: 0; } 
+            .page { box-shadow: none; margin: 0; width: 100%; min-height: auto; padding: 10mm; } 
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="top-meta">
+        <span>${data.name}</span>
+        <span>https://rndops.iitg.ac.in</span>
+    </div>
+
+    <div class="header-box">
+        <img src="http://172.16.135.27:8000/files/IITG_logo.png" alt="IITG Logo" class="logo-img" />
+        <div class="header-text">
+            <h1>भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</h1>
+            <h2>INDIAN INSTITUTE OF TECHNOLOGY GUWAHATI</h2>
+            <p>RESEARCH AND DEVELOPMENT CELL</p>
+        </div>
+    </div>
+
+    <div class="barcode-container">
+        <div class="barcode"></div>
+        <div>${data.name}</div>
+    </div>
+
+    <div class="date-line">Date: ${formattedDate}</div>
+
+    <h2 class="main-title">Application for Reimbursement</h2>
+
+    <div class="details-grid">
+        <div class="details-section">
+            <div class="section-header">Applicant Details</div>
+            <div class="info-row"><div class="info-label">Name:</div><div class="info-value">${data.account_holder_name || data.applicant_webmail || '-'}</div></div>
+            <div class="info-row"><div class="info-label">Department:</div><div class="info-value">${resolvedNames.applicant_department || data.applicant_department || '-'}</div></div>
+            <div class="info-row"><div class="info-label">Designation:</div><div class="info-value">${data.applicant_designation || '-'}</div></div>
+            <div class="info-row"><div class="info-label">Email ID:</div><div class="info-value">${data.applicant_webmail || '-'}</div></div>
+            <div class="info-row"><div class="info-label">Application Initiated by:</div><div class="info-value">${data.owner || '-'}</div></div>
+
+            ${data.comment ? `
+            <div class="comments-box">
+                <div class="section-header">Comments</div>
+                <div class="comment-content">${data.comment}</div>
+                <div class="comment-timestamp">${applicationDate} ➔</div>
+            </div>` : ''}
+
+            ${acceptedDeclarations ? `
+            <div class="declaration-box">
+                <div class="section-header">Applicant's Declaration</div>
+                <div class="declaration-content">
+                    <ol>${acceptedDeclarations}</ol>
+                </div>
+            </div>` : ''}
+        </div>
+
+        <div class="details-section">
+            <div class="section-header">Form Details</div>
+            <div class="info-row"><div class="info-label">Own/ Other Project:</div><div class="info-value">${data.self_other || 'Own'}</div></div>
+            <div class="info-row"><div class="info-label">Project Number:</div><div class="info-value">${data.project_number || '-'}</div></div>
+            <div class="info-row"><div class="info-label">Project Name:</div><div class="info-value">${data.project_name || '-'}</div></div>
+            <div class="info-row"><div class="info-label">Account Head:</div><div class="info-value">${resolvedNames.account_head || data.account_head || '-'}</div></div>
+            <div class="info-row"><div class="info-label">Total Amount (₹):</div><div class="info-value">${totalAmount.toLocaleString('en-IN')}</div></div>
+            <div class="info-row"><div class="info-label">Date and Time:</div><div class="info-value">${applicationDate}</div></div>
+            <div class="info-row"><div class="info-label">Bank Name:</div><div class="info-value">${data.bank_name || '-'}</div></div>
+            <div class="info-row"><div class="info-label">Bank Account Number:</div><div class="info-value">${data.bank_account_number || '-'}</div></div>
+            <div class="info-row"><div class="info-label">IFSC Code:</div><div class="info-value">${data.ifsc_code || '-'}</div></div>
+            <div class="info-row"><div class="info-label">Status:</div><div class="info-value">${data.workflow_state || 'Draft'}</div></div>
+        </div>
+    </div>
+
+    <h3 style="text-align: center; margin-top: 30px;">Expenditure Details</h3>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Sl No.</th>
+                <th>Date</th>
+                <th>Particulars</th>
+                <th>Vendors Name</th>
+                <th>Amount (Rs.)</th>
+                <th>Attachments</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${expenditureRows}
+        </tbody>
+    </table>
+
+    <div class="footer-info">
+        <p>Application Status: ${data.workflow_state || 'Draft'}</p>
+        <p>Approved By:</p>
+        <p style="margin-top: 20px;">N.B. This is a system generated form. Signature is not required.</p>
+    </div>
+
+    <div class="bottom-meta">
+        <span>1 of 1</span>
+        <span>${formattedDate}, ${formattedTime}</span>
+    </div>
+</div>
+</body>
+</html>`;
+    };
+
+    // Handle download/print
+    const handleDownload = () => {
+        const htmlContent = generateDownloadHTML();
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+            // Auto-trigger print dialog after a short delay for rendering
+            setTimeout(() => {
+                printWindow.print();
+            }, 500);
+        }
+    };
+
     // Detail row component
     const DetailRow = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
         <div className="flex justify-between py-2 border-b border-gray-200 last:border-0">
@@ -311,6 +604,21 @@ const ReimbursementDetails: React.FC = () => {
                                         {isSubmitting ? 'Submitting...' : 'Submit'}
                                     </FrappeButton>
                                 </>
+                            )}
+                            {/* Download button - always visible */}
+                            <FrappeButton
+                                variant="outline"
+                                onClick={handleDownload}
+                            >
+                                <DownloadIcon className="w-4 h-4" />
+                                Download
+                            </FrappeButton>
+                            {/* Workflow Actions */}
+                            {id && (
+                                <ReimbursementWorkflowActions
+                                    docname={id}
+                                    onActionComplete={() => window.location.reload()}
+                                />
                             )}
                         </div>
                     </div>
