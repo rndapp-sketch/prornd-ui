@@ -248,6 +248,50 @@ const FrappeButton = ({
   </button>
 );
 
+// --- COMMENT MODAL for Sanction/Workflow Actions ---
+const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (comment: string) => void;
+  action: string;
+  isLoading: boolean;
+}) => {
+  const [comment, setComment] = useState("");
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-lg w-full max-w-md">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm {action}</h3>
+        <textarea
+          className="w-full border border-gray-300 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+          rows={4}
+          placeholder="Add a comment (optional)..."
+          value={comment}
+          onChange={e => setComment(e.target.value)}
+        />
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            disabled={isLoading}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => { onSubmit(comment); setComment(""); }}
+            disabled={isLoading}
+            className="px-4 py-2 text-sm font-medium text-white bg-[#0EA5A4] rounded-lg hover:bg-[#0C8F8E] disabled:opacity-50"
+          >
+            {isLoading ? "Processing..." : "Confirm"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- START: REFACTORED QuickActions COMPONENT ---
 
 interface QuickActionsProps {
@@ -741,6 +785,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   const [selectedSanctionIndex, setSelectedSanctionIndex] = useState(0);
   const [activeLedgerTab, setActiveLedgerTab] = useState("All"); // Tab filter for ledger by head
 
+  // --- Modal State for Sanction Submit ---
+  const [sanctionModalOpen, setSanctionModalOpen] = useState(false);
+  const [selectedSanctionName, setSelectedSanctionName] = useState("");
+
   // Extract unique heads from budget data for tabs
   const ledgerHeadTabs = useMemo(() => {
     const heads = new Set<string>();
@@ -1030,16 +1078,38 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     }
   };
 
-  const handleSubmitSanction = useCallback(
-    async (sanctionName: string) => {
+  const handleSanctionSubmitClick = (sanctionName: string) => {
+    setSelectedSanctionName(sanctionName);
+    setSanctionModalOpen(true);
+  };
+
+  const handleConfirmSanctionSubmit = useCallback(
+    async (comment: string) => {
       try {
-        await submitSanction({ sanction_name: sanctionName });
+        await submitSanction({ sanction_name: selectedSanctionName });
+
+        // Add comment as activity if provided
+        if (comment && comment.trim()) {
+          try {
+            await addComment({
+              doctype: "Fund Sanction",
+              docname: selectedSanctionName,
+              content: `[Submit] ${comment.trim()}`
+            });
+          } catch (commentError) {
+            console.error("Error adding comment:", commentError);
+            // Don't fail the whole operation if comment fails
+          }
+        }
+
+        setSanctionModalOpen(false);
         refetchSanctions();
       } catch (error: any) {
         console.error("Error submitting sanction:", error);
+        alert("Failed to submit sanction. Please try again.");
       }
     },
-    [submitSanction, refetchSanctions]
+    [submitSanction, refetchSanctions, selectedSanctionName, addComment]
   );
   const handleWorkflowAction = useCallback(
     (action: string) => {
@@ -1346,7 +1416,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                 {isDraft && (
                                   <div className="flex-shrink-0">
                                     <FrappeButton
-                                      onClick={() => handleSubmitSanction(sanction.name)}
+                                      onClick={() => handleSanctionSubmitClick(sanction.name)}
                                       disabled={isSubmittingSanction}
                                       aria-label="Submit sanction"
                                     >
@@ -1830,6 +1900,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
       <main className="flex-1 p-4 md:p-8 w-full">
         {renderContent()}
       </main>
+
+      {/* Sanction Submit Comment Modal */}
+      <CommentModal
+        isOpen={sanctionModalOpen}
+        onClose={() => setSanctionModalOpen(false)}
+        onSubmit={handleConfirmSanctionSubmit}
+        action="Submit Sanction"
+        isLoading={isSubmittingSanction}
+      />
     </div>
   );
 };

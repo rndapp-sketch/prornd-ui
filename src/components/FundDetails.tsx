@@ -14,6 +14,50 @@ type FundDetailsProps = {
     embedFiles?: boolean;
 };
 
+// --- COMMENT MODAL ---
+const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (comment: string) => void;
+    action: string;
+    isLoading: boolean;
+}) => {
+    const [comment, setComment] = useState("");
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-lg w-full max-w-md">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm {action}</h3>
+                <textarea
+                    className="w-full border border-gray-300 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                    rows={4}
+                    placeholder="Add a comment (optional)..."
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                />
+                <div className="flex justify-end gap-2">
+                    <button
+                        onClick={onClose}
+                        disabled={isLoading}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={() => { onSubmit(comment); setComment(""); }}
+                        disabled={isLoading}
+                        className="px-4 py-2 text-sm font-medium text-white bg-[#0EA5A4] rounded-lg hover:bg-[#0C8F8E] disabled:opacity-50"
+                    >
+                        {isLoading ? "Processing..." : "Confirm"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const normalizeResponse = (raw: any): FundDoc[] => {
     if (!raw) return [];
     // shape: { message: { message: [ ... ] } }
@@ -62,6 +106,10 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
     const [directLoading, setDirectLoading] = useState(false);
     const [directError, setDirectError] = useState<Error | null>(null);
 
+    // Modal state
+    const [modalOpen, setModalOpen] = useState(false);
+    const [selectedFundName, setSelectedFundName] = useState("");
+
     const { data: sdkResponse, isLoading: sdkLoading, error: sdkError } = useFrappeGetCall(
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
         {
@@ -75,18 +123,34 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.perform_fund_received_action"
     );
 
-    const handleSubmit = async (docname: string) => {
+    const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+
+    const handleSubmitClick = (docname: string) => {
+        setSelectedFundName(docname);
+        setModalOpen(true);
+    };
+
+    const handleConfirmSubmit = async (comment: string) => {
         try {
-            await performAction({ docname, action: "Submit" });
-            // Refresh data
-            if (useSdk) {
-                // sdkResponse.mutate(); // If mutate is available, otherwise we might need to rely on re-render or window reload for now as simple fix
-                window.location.reload();
-            } else {
-                // For direct call, we can just trigger a re-fetch by toggling a state or calling the fetch function again
-                // But for simplicity and consistency with the SDK path in this context, reload is safest
-                window.location.reload();
+            await performAction({ docname: selectedFundName, action: "Submit" });
+
+            // Add comment as activity if provided
+            if (comment && comment.trim()) {
+                try {
+                    await addComment({
+                        doctype: "Fund Received",
+                        docname: selectedFundName,
+                        content: `[Submit] ${comment.trim()}`
+                    });
+                } catch (commentError) {
+                    console.error("Error adding comment:", commentError);
+                    // Don't fail the whole operation if comment fails
+                }
             }
+
+            setModalOpen(false);
+            // Refresh data
+            window.location.reload();
         } catch (error) {
             console.error("Error submitting fund:", error);
             alert("Failed to submit fund received entry.");
@@ -212,7 +276,7 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
                                     </button>
                                     {(!fund.workflow_state || fund.workflow_state === "Draft") && (
                                         <button
-                                            onClick={() => handleSubmit(fund.name)}
+                                            onClick={() => handleSubmitClick(fund.name)}
                                             disabled={actionLoading}
                                             className="ml-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-all disabled:opacity-50"
                                         >
@@ -225,6 +289,15 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
                     </tbody>
                 </table>
             </div>
+
+            {/* Comment Modal */}
+            <CommentModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSubmit={handleConfirmSubmit}
+                action="Submit Fund Received"
+                isLoading={actionLoading}
+            />
         </div>
     );
 };

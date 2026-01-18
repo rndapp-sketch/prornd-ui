@@ -1,11 +1,60 @@
-
-// -=-=-=-=-=-=
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+// Multi-Doctype Deposit Slip Form
+import React, { useState, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppSidebar } from "../components/RndSidebar";
-import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronDown } from "lucide-react";
+
+// --- DEPOSIT SLIP TYPE CONFIGURATION ---
+const DEPOSIT_SLIP_TYPES: Record<string, {
+    label: string;
+    getFields: string;
+    save: string;
+    submit: string;
+    getWorkflowActions: string;
+    performAction: string;
+}> = {
+    t_testing: {
+        label: "T Testing Deposit Slip",
+        getFields: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.get_t_testing_deposit_slip_fields",
+        save: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.save_t_testing_deposit_slip",
+        submit: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.submit_t_testing_deposit_slip",
+        getWorkflowActions: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.get_t_testing_deposit_slip_workflow_actions",
+        performAction: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.perform_t_testing_deposit_slip_workflow_action"
+    },
+    research_consultancy: {
+        label: "Research Consultancy Deposit Slip",
+        getFields: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.get_research_consultancy_deposit_slip_fields",
+        save: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.save_research_consultancy_deposit_slip",
+        submit: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.submit_research_consultancy_deposit_slip",
+        getWorkflowActions: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.get_research_consultancy_deposit_slip_workflow_actions",
+        performAction: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.perform_research_consultancy_deposit_slip_workflow_action"
+    },
+    other_event: {
+        label: "Other Event Deposit Slip",
+        getFields: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.get_other_event_deposit_slip_fields",
+        save: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.save_other_event_deposit_slip",
+        submit: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.submit_other_event_deposit_slip",
+        getWorkflowActions: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.get_other_event_deposit_slip_workflow_actions",
+        performAction: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.perform_other_event_deposit_slip_workflow_action"
+    },
+    e_non_routine: {
+        label: "E Non Routine Deposit Slip",
+        getFields: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.get_e_non_routine_deposit_slip_fields",
+        save: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.save_e_non_routine_deposit_slip",
+        submit: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.submit_e_non_routine_deposit_slip",
+        getWorkflowActions: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.get_e_non_routine_deposit_slip_workflow_actions",
+        performAction: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.perform_e_non_routine_deposit_slip_workflow_action"
+    },
+    d_consultancy: {
+        label: "D Consultancy Deposit Slip",
+        getFields: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.get_d_consultancy_deposit_slip_fields",
+        save: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.save_d_consultancy_deposit_slip",
+        submit: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.submit_d_consultancy_deposit_slip",
+        getWorkflowActions: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.get_d_consultancy_deposit_slip_workflow_actions",
+        performAction: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.perform_d_consultancy_deposit_slip_workflow_action"
+    }
+};
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -24,13 +73,6 @@ interface LinkOption {
     value: string;
     label: string;
 }
-interface FormDataResponse {
-    message: {
-        fields: Field[];
-        link_options: { [key: string]: LinkOption[] };
-        prefill_data: { [key: string]: any };
-    }
-}
 
 const inputClasses = "w-full h-10 px-3 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-100";
 const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-xl shadow-sm", className)}>{children}</div>);
@@ -39,201 +81,93 @@ const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2
 
 const DepositSlipForm: React.FC = () => {
     const navigate = useNavigate();
-    // Use doc_name or fundReceivedName to prefill if coming from a context
     const { fundReceivedName } = useParams<{ fundReceivedName: string }>();
 
+    // Selected deposit slip type
+    const [selectedType, setSelectedType] = useState<string>("");
     const [fields, setFields] = useState<Field[]>([]);
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formValues, setFormValues] = useState<Record<string, any>>({});
 
     const tableRowsRef = useRef<{
         ecs_dates: string[];
-    }>({ ecs_dates: [] });
+        credit_distribution: string[];
+    }>({ ecs_dates: [], credit_distribution: [] });
 
     const containerRef = useRef<{ [key: string]: HTMLElement | null }>({});
 
-    const { call: fetchFormData, result, error } = useFrappePostCall<FormDataResponse>('rndopsapp.rndopsapp.doctype.deposit_slip.deposit_slip.get_deposit_slip_fields');
-    const { call: submitForm, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.deposit_slip.deposit_slip.save_deposit_slip');
+    // Handle type change - fetch new fields
+    const handleTypeChange = async (type: string) => {
+        setSelectedType(type);
+        setFields([]);
+        setFormValues({});
+        setLoading(true);
 
-    useEffect(() => {
-        // IND-WORKAROUND: Temporarily disabled prefill fetch due to backend error 
-        // (OperationalError: (1054, "Unknown column 'principal_investigator' in 'SELECT'"))
-        // Pass empty object to just get fields without prefill data
-        fetchFormData({});
-        // fetchFormData({ doc_name: fundReceivedName });
-    }, [fetchFormData, fundReceivedName]);
-
-    useEffect(() => {
-        if (result) {
-            console.log("API Result:", result);
-        }
-
-        if (result?.message) {
-            const { fields: apiFields, link_options, prefill_data } = result.message;
-
-            if (Array.isArray(apiFields)) {
-
-                const processedFields = apiFields.map(field => {
-                    // Normalize Section Break type check
-                    if (field.fieldtype === 'Section Break' || field.fieldtype === 'SectionBreak') return field;
-
-                    // Priority: Prefill Data > Default Value > Empty
-                    if (prefill_data && prefill_data[field.fieldname] !== undefined) {
-                        return { ...field, default: prefill_data[field.fieldname] };
-                    }
-                    return field;
-                });
-
-                setFields(processedFields);
-                console.log("Form Fields Loaded:", processedFields.map(f => f.fieldname));
-                console.log("Form Fields Loaded (incl. virtual):", processedFields.map(f => f.fieldname));
-            } else {
-                console.error("API did not return a valid 'fields' array.", result);
-            }
-
-            setLinkOptions(prev => ({ ...prev, ...(link_options || {}) }));
+        if (!type || !DEPOSIT_SLIP_TYPES[type]) {
             setLoading(false);
+            return;
         }
-        if (error) {
-            console.error("Failed to load form data:", error);
-            // alert("Failed to load form data."); 
-            setLoading(false);
-        }
-    }, [result, error, fundReceivedName]);
 
-
-    useEffect(() => {
-        if (fields.length > 0) {
-            const initialValues: Record<string, any> = {};
-            fields.forEach(f => {
-                if (f.default) initialValues[f.fieldname] = f.default;
+        try {
+            const response = await fetch(`/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ doc_name: fundReceivedName || undefined })
             });
-            // Merge with prefill if any (though currently disabled, logic remains valid)
-            setFormValues(prev => ({ ...prev, ...initialValues }));
+            const result = await response.json();
+
+            if (result?.message) {
+                const { fields: apiFields, link_options, prefill_data } = result.message;
+
+                if (Array.isArray(apiFields)) {
+                    const processedFields = apiFields.map(field => {
+                        if (field.fieldtype === 'Section Break' || field.fieldtype === 'SectionBreak') return field;
+                        if (prefill_data && prefill_data[field.fieldname] !== undefined) {
+                            return { ...field, default: prefill_data[field.fieldname] };
+                        }
+                        return field;
+                    });
+                    setFields(processedFields);
+
+                    // Initialize form values with defaults
+                    const initialValues: Record<string, any> = {};
+                    processedFields.forEach(f => {
+                        if (f.default) initialValues[f.fieldname] = f.default;
+                    });
+                    setFormValues(initialValues);
+                }
+                setLinkOptions(prev => ({ ...prev, ...(link_options || {}) }));
+            }
+        } catch (err) {
+            console.error("Failed to load form fields:", err);
+        } finally {
+            setLoading(false);
         }
-    }, [fields]);
+    };
 
     const handleFieldChange = (fieldname: string, value: any) => {
-        console.log(`Field Changed: ${fieldname} = ${value}, Category: ${formValues.category}`);
-
-        setFormValues(prev => {
-            const newValues = { ...prev, [fieldname]: value };
-
-            // Auto-calculation logic based on Category
-            const category = (newValues.category || '').toLowerCase();
-
-            if (category.includes('research')) {
-                // Research Calculations
-                // Check multiple possible field names for the main amount
-                if (['amount_inclusive_gst', 'total_amount', 'amount', 'capital_component_cost', 'category'].includes(fieldname)) {
-                    // Try to get amount from any of the likely fields
-                    const amountVal = newValues.amount_inclusive_gst || newValues.total_amount || newValues.amount || newValues.capital_component_cost;
-                    const amount = parseFloat(amountVal) || 0;
-
-                    // Assuming 18% GST inclusive
-                    const baseAmount = amount / 1.18;
-                    const gst = amount - baseAmount;
-                    const cgst = gst / 2;
-                    const sgst = gst / 2;
-                    const projectBalance = baseAmount;
-                    const overhead = projectBalance * 0.15; // 15% overhead
-
-                    newValues.cgst_amount = cgst.toFixed(2);
-                    newValues.cgst = cgst.toFixed(2); // Also update non-suffixed version
-                    newValues.sgst_amount = sgst.toFixed(2);
-                    newValues.sgst = sgst.toFixed(2); // Also update non-suffixed version
-                    newValues.project_balance = projectBalance.toFixed(2);
-                    newValues.project_balance_amount = projectBalance.toFixed(2); // Also update suffixed version
-                    newValues.overhead_amount = overhead.toFixed(2);
-                    newValues.overhead = overhead.toFixed(2); // Also update non-suffixed version
-                    console.log("Research Calc Updated:", { cgst, sgst, projectBalance, overhead });
-                }
-            } else if (['consultancy', 'testing', 'non routine'].some(c => category.includes(c))) {
-                // Consultancy Calculations
-                const amountVal = newValues.amount_inclusive_gst || newValues.total_amount || newValues.amount;
-                const amountIncl = parseFloat(amountVal || '0');
-
-                const consultYVal = newValues.consultancy_charge_y || newValues.consultancy_fee;
-                const consultY = parseFloat(consultYVal || '0');
-
-                const operationalZVal = newValues.operational_charge_z || newValues.operational_charge;
-                const operationalZ = parseFloat(operationalZVal || '0');
-
-                // Trigger on relevant fields
-                if (['amount_inclusive_gst', 'total_amount', 'amount', 'consultancy_charge_y', 'consultancy_fee', 'operational_charge_z', 'operational_charge', 'category'].includes(fieldname)) {
-
-                    // 1. IGST @ 18% (or CGST/SGST 9%)
-                    const baseFromIncl = amountIncl / 1.18;
-                    const igst = amountIncl - baseFromIncl;
-                    newValues.igst_amount = igst.toFixed(2);
-                    newValues.igst = igst.toFixed(2); // Also update non-suffixed version
-
-                    const tds = baseFromIncl * 0.02;
-                    newValues.tds_amount = tds.toFixed(2);
-                    newValues.tds = tds.toFixed(2); // Also update non-suffixed version
-
-                    const amountRecv = amountIncl - tds;
-                    newValues.amount_received = amountRecv.toFixed(2);
-                    newValues.amount_received_amount = amountRecv.toFixed(2); // Also update suffixed version
-
-                    const totalCostX = baseFromIncl;
-                    newValues.total_cost_x = totalCostX.toFixed(2);
-                    newValues.total_cost_x_amount = totalCostX.toFixed(2); // Also update suffixed version
-                    console.log("Consultancy Base Calc Updated:", { igst, tds, amountRecv, totalCostX });
-                }
-
-                if (['consultancy_charge_y', 'consultancy_fee', 'operational_charge_z', 'operational_charge', 'category'].includes(fieldname)) {
-                    const ohY = consultY * 0.10;
-                    const ohZ = operationalZ * 0.10;
-                    const totalOh = ohY + ohZ;
-                    const instShare = consultY * 0.20;
-
-                    newValues.overhead_from_y = ohY.toFixed(2);
-                    newValues.overhead_from_y_amount = ohY.toFixed(2); // Map to backend field
-
-                    newValues.overhead_from_z = ohZ.toFixed(2);
-                    newValues.overhead_from_z_amount = ohZ.toFixed(2); // Map to backend field
-
-                    newValues.total_overhead = totalOh.toFixed(2);
-                    newValues.total_overhead_amount = totalOh.toFixed(2); // Map to backend field
-
-                    newValues.institute_share = instShare.toFixed(2);
-                    newValues.institute_share_amount = instShare.toFixed(2); // Map to backend field
-
-                    newValues.overhead_plus_inst_share = (totalOh + instShare).toFixed(2);
-                    console.log("Consultancy Overhead Calc Updated:", { ohY, ohZ, totalOh, instShare });
-                }
-            }
-
-            return newValues;
-        });
+        setFormValues(prev => ({ ...prev, [fieldname]: value }));
     };
 
     const checkDependency = (field: Field | null | undefined) => {
         if (!field || !field['depends_on']) return true;
-
-        // Frappe 'depends_on' can be "eval:..." or just a fieldname sometimes, 
-        // but here we see "eval:" from the user request
         const dep = field['depends_on'] as string;
         if (!dep) return true;
 
         if (dep.startsWith('eval:')) {
             const expression = dep.replace('eval:', '').trim();
-            const doc = formValues; // alias for eval context
+            const doc = formValues;
 
             try {
-                // Handle: doc.category=='Research'
                 if (expression.includes("==")) {
                     const [lhs, rhsraw] = expression.split("==");
                     const key = lhs.replace("doc.", "").trim();
                     const val = rhsraw.replace(/['"]/g, "").trim();
-                    // loose equality
                     return doc[key] == val;
                 }
-
-                // Handle: doc.category!=='Research' or !=
                 if (expression.includes("!==") || expression.includes("!=")) {
                     const operator = expression.includes("!==") ? "!==" : "!=";
                     const [lhs, rhsraw] = expression.split(operator);
@@ -241,15 +175,12 @@ const DepositSlipForm: React.FC = () => {
                     const val = rhsraw.replace(/['"]/g, "").trim();
                     return doc[key] != val;
                 }
-
-                // Handle: doc.category.includes('Consultancy')
                 if (expression.includes(".includes(")) {
                     const [keyPart, rest] = expression.split(".includes(");
                     const key = keyPart.replace("doc.", "").trim();
                     const valueToCheck = rest.replace(")", "").replace(/['"]/g, "").trim();
                     return doc[key]?.includes(valueToCheck);
                 }
-
             } catch (e) {
                 console.warn("Failed to parse dependency:", dep, e);
                 return true;
@@ -258,7 +189,7 @@ const DepositSlipForm: React.FC = () => {
         return true;
     };
 
-    const generateId = () => `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)} `;
+    const generateId = () => `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const addTableRow = useCallback((tableName: keyof typeof tableRowsRef.current) => {
         const newId = generateId();
@@ -277,7 +208,7 @@ const DepositSlipForm: React.FC = () => {
         if (!container) return;
 
         const inputClasses = "w-full h-10 px-3 bg-white border border-gray-200 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#90A4AE]";
-        const neoButtonClasses = "px-5 py-2 !bg-red-200 hover:!bg-red-300 border border-gray-200 rounded-md font-semibold text-black shadow-sm transition-all hover:shadow-xs hover:translate-x-[1px] hover:translate-y-[1px] active:shadow-none active:translate-x-[2px] active:translate-y-[2px]";
+        const neoButtonClasses = "px-5 py-2 !bg-red-200 hover:!bg-red-300 border border-gray-200 rounded-md font-semibold text-black shadow-sm transition-all";
 
         const newRow = document.createElement("tr");
         newRow.setAttribute("data-id", rowId);
@@ -289,7 +220,14 @@ const DepositSlipForm: React.FC = () => {
                 <td class="p-2"><input type="number" step="0.01" name="amount_${rowId}" class="${inputClasses}" placeholder="0.00" /></td>
                 <td class="p-2"><input type="text" name="remarks_${rowId}" class="${inputClasses}" placeholder="Remarks" /></td>
                 <td class="p-2 text-center"><button type="button" class="${neoButtonClasses} delete-btn" data-table="${tableName}" data-id="${rowId}">Delete</button></td>
-`;
+            `;
+        } else if (tableName === 'credit_distribution') {
+            newRow.innerHTML = `
+                <td class="p-2"><input type="text" name="credit_label_${rowId}" class="${inputClasses}" placeholder="Label" /></td>
+                <td class="p-2"><input type="number" step="0.01" name="credit_percentage_${rowId}" class="${inputClasses}" placeholder="%" /></td>
+                <td class="p-2"><input type="number" step="0.01" name="credit_amount_${rowId}" class="${inputClasses}" placeholder="Amount" /></td>
+                <td class="p-2 text-center"><button type="button" class="${neoButtonClasses} delete-btn" data-table="${tableName}" data-id="${rowId}">Delete</button></td>
+            `;
         }
 
         container.appendChild(newRow);
@@ -298,10 +236,9 @@ const DepositSlipForm: React.FC = () => {
         delBtn?.addEventListener('click', () => removeTableRow(tableName, rowId));
     };
 
-
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (isSubmitting) return;
+        if (isSubmitting || !selectedType) return;
         setIsSubmitting(true);
 
         try {
@@ -312,8 +249,8 @@ const DepositSlipForm: React.FC = () => {
             // Collect regular fields
             fields.forEach(field => {
                 if (field.fieldtype !== 'Table' && field.fieldtype !== 'Section Break' && !field.hidden) {
-                    const value = form.get(field.fieldname);
-                    if (value !== null) {
+                    const value = formValues[field.fieldname];
+                    if (value !== undefined && value !== null) {
                         dataToSubmit[field.fieldname] = value;
                     }
                 }
@@ -321,9 +258,9 @@ const DepositSlipForm: React.FC = () => {
 
             // Process ECS Dates table
             dataToSubmit.ecs_dates = tableRowsRef.current.ecs_dates.map(id => {
-                const ecs_date = form.get(`ecs_date_${id} `);
-                const amount = form.get(`amount_${id} `);
-                const remarks = form.get(`remarks_${id} `);
+                const ecs_date = form.get(`ecs_date_${id}`);
+                const amount = form.get(`amount_${id}`);
+                const remarks = form.get(`remarks_${id}`);
 
                 if (!ecs_date && (!amount || parseFloat(amount as string) === 0)) return null;
 
@@ -334,34 +271,51 @@ const DepositSlipForm: React.FC = () => {
                 };
             }).filter(row => row !== null);
 
+            // Process Credit Distribution table
+            dataToSubmit.credit_distribution = tableRowsRef.current.credit_distribution.map(id => {
+                const label = form.get(`credit_label_${id}`);
+                const percentage = form.get(`credit_percentage_${id}`);
+                const amount = form.get(`credit_amount_${id}`);
+
+                if (!label && !percentage && !amount) return null;
+
+                return {
+                    label: label || "",
+                    percentage: percentage ? parseFloat(percentage as string) : 0,
+                    amount: amount ? parseFloat(amount as string) : 0,
+                };
+            }).filter(row => row !== null);
+
             console.log('Submitting Deposit Slip:', dataToSubmit);
 
-            const result = await submitForm({ doc_data: JSON.stringify(dataToSubmit) });
-            console.log('Submission result:', result);
+            // Use the correct save API based on selected type
+            const response = await fetch(`/api/method/${DEPOSIT_SLIP_TYPES[selectedType].save}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ doc_data: JSON.stringify(dataToSubmit) })
+            });
+            const result = await response.json();
+            console.log('Save result:', result);
 
-            alert("Deposit Slip saved successfully!");
+            if (result?.message?.name) {
+                alert(`Deposit Slip saved successfully! Document: ${result.message.name}`);
+            } else {
+                alert("Deposit Slip saved successfully!");
+            }
             navigate(-1);
         } catch (err: any) {
-            console.error('Submission error:', submitError || err);
-            alert(`Submission Failed: ${err.message || 'Unknown Error'} `);
+            console.error('Submission error:', err);
+            alert(`Submission Failed: ${err.message || 'Unknown Error'}`);
         } finally {
             setIsSubmitting(false);
         }
     };
 
-
-
     const renderFormField = (field: Field) => {
-        // Check dependency first
         if (!checkDependency(field)) return null;
-
-        // Handle hidden fields and Section Breaks (which are handled by grouping)
         if (!field || field.hidden || field.fieldtype === 'Section Break' || field.fieldtype === 'SectionBreak' || field.fieldtype === 'Column Break' || field.fieldtype === 'ColumnBreak') return null;
-
-        // Hide backend configuration fields (Multipliers, Labels)
         if (field.fieldname.endsWith('_multiplier') || field.fieldname.endsWith('_label')) return null;
-
-        // Skip Tables as they are rendered separately or need specific custom handling
         if (field.fieldtype === 'Table') return null;
 
         const commonProps = {
@@ -371,7 +325,6 @@ const DepositSlipForm: React.FC = () => {
             readOnly: field.read_only === 1,
             required: field.mandatory === 1,
             disabled: field.read_only === 1,
-            defaultValue: undefined, // Controlled component must not have defaultValue
             value: formValues[field.fieldname] || '',
             onChange: (e: any) => handleFieldChange(field.fieldname, e.target.value)
         };
@@ -379,25 +332,12 @@ const DepositSlipForm: React.FC = () => {
         const renderInput = () => {
             if (field.fieldtype === "Link") {
                 let opts = linkOptions[field.fieldname] || [];
-
-                // Fallback logic for common missing link options
                 if (opts.length === 0) {
                     if (field.fieldname === 'project_title' || field.fieldname === 'research_project') {
                         if (linkOptions['project_ref_no']) opts = linkOptions['project_ref_no'];
                         else if (linkOptions['project_registration']) opts = linkOptions['project_registration'];
                     }
-                    else if (field.fieldname === 'principal_investigator') {
-                        if (linkOptions['pi']) opts = linkOptions['pi'];
-                    }
-                    else if (field.fieldname === 'consultancy_title' || field.fieldname === 'consultancy_event') {
-                        if (linkOptions['consultancy_ref_no']) opts = linkOptions['consultancy_ref_no'];
-                    }
-
-                    if (opts.length === 0) {
-                        console.warn(`No link options found for field: ${field.fieldname} `);
-                    }
                 }
-
                 return (
                     <select {...commonProps}>
                         <option value="">Select...</option>
@@ -438,12 +378,10 @@ const DepositSlipForm: React.FC = () => {
         );
     };
 
-    // Simple grouping: assumes structure
     const groupFieldsBySection = () => {
         const sections: { title: string; fields: Field[]; sectionField?: Field }[] = [];
         let currentSection: { title: string; fields: Field[]; sectionField?: Field } | null = null;
 
-        // Start a default section if first field isn't a break
         if (fields.length > 0 && fields[0].fieldtype !== 'Section Break' && fields[0].fieldtype !== 'SectionBreak') {
             currentSection = { title: 'General Information', fields: [] };
         }
@@ -453,53 +391,12 @@ const DepositSlipForm: React.FC = () => {
                 if (currentSection) sections.push(currentSection);
                 currentSection = { title: field.label || 'Section', fields: [], sectionField: field };
             } else if (currentSection && !field.hidden && field.fieldtype !== 'Table' && field.fieldtype !== 'Column Break' && field.fieldtype !== 'ColumnBreak') {
-                // Skip tables here
                 currentSection.fields.push(field);
             }
         });
         if (currentSection) sections.push(currentSection);
         return sections;
     };
-
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b border-gray-200 mx-auto"></div>
-                    <p className="mt-4 text-lg font-semibold">Loading...</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
-                <div className="text-center p-8 bg-white rounded-xl shadow-sm border border-red-200 max-w-md">
-                    <div className="text-red-500 text-xl font-bold mb-2">Error Loading Form</div>
-                    <p className="text-gray-600 mb-4">{error.message || JSON.stringify(error)}</p>
-                    <button onClick={() => navigate(-1)} className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg">Go Back</button>
-                    <button onClick={() => window.location.reload()} className="ml-4 px-5 py-2.5 bg-[#0EA5A4] text-white hover:bg-[#0C8F8E] rounded-lg">Retry</button>
-                </div>
-            </div>
-        );
-    }
-
-    if (fields.length === 0) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
-                <div className="text-center p-8 bg-white rounded-xl shadow-sm border border-yellow-200 max-w-md">
-                    <div className="text-yellow-600 text-xl font-bold mb-2">No Form Fields Found</div>
-                    <p className="text-gray-600 mb-4">The API returned no fields for this form. Please check the backend configuration.</p>
-                    <div className="text-xs text-gray-400 font-mono mb-4 text-left bg-gray-50 p-2 rounded max-h-40 overflow-auto">
-                        Result: {JSON.stringify(result, null, 2)}
-                    </div>
-                    <button onClick={() => navigate(-1)} className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg">Go Back</button>
-                </div>
-            </div>
-        );
-    }
 
     const sections = groupFieldsBySection();
 
@@ -514,118 +411,119 @@ const DepositSlipForm: React.FC = () => {
                         </button>
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900">New Deposit Slip</h1>
+                            {selectedType && <p className="text-sm text-gray-500 mt-1">{DEPOSIT_SLIP_TYPES[selectedType]?.label}</p>}
                         </div>
                     </div>
                 </header>
 
-                <form onSubmit={handleSubmit}>
-                    <FrappeCard className="space-y-12">
-                        {sections.map((section, index) => {
-                            if (section.sectionField && !checkDependency(section.sectionField)) return null;
+                {/* Deposit Slip Type Selector */}
+                <FrappeCard className="mb-6">
+                    <div className="space-y-2">
+                        <label className="block text-sm font-semibold text-gray-800">
+                            Select Deposit Slip Type <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                            <select
+                                value={selectedType}
+                                onChange={(e) => handleTypeChange(e.target.value)}
+                                className="w-full h-12 px-4 pr-10 bg-white border-2 border-gray-300 rounded-lg text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4] appearance-none"
+                            >
+                                <option value="">-- Select Deposit Slip Type --</option>
+                                {Object.entries(DEPOSIT_SLIP_TYPES).map(([key, config]) => (
+                                    <option key={key} value={key}>{config.label}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+                        </div>
+                    </div>
+                </FrappeCard>
 
-                            return (
-                                <NeoSection key={index} title={section.title}>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                        {section.fields.map(renderFormField)}
-                                    </div>
-                                </NeoSection>
-                            );
-                        })}
+                {/* Loading State */}
+                {loading && (
+                    <div className="flex items-center justify-center py-20">
+                        <div className="text-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0EA5A4] mx-auto"></div>
+                            <p className="mt-4 text-lg font-semibold text-gray-600">Loading form fields...</p>
+                        </div>
+                    </div>
+                )}
 
+                {/* Form Content */}
+                {!loading && selectedType && fields.length > 0 && (
+                    <form onSubmit={handleSubmit}>
+                        <FrappeCard className="space-y-12">
+                            {sections.map((section, index) => {
+                                if (section.sectionField && !checkDependency(section.sectionField)) return null;
 
+                                return (
+                                    <NeoSection key={index} title={section.title}>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                            {section.fields.map(renderFormField)}
+                                        </div>
+                                    </NeoSection>
+                                );
+                            })}
 
-                        <NeoSection title="ECS Dates">
-                            <div className="overflow-x-auto border border-gray-200 rounded-md">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
-                                        <tr className="divide-x divide-gray-100">
-                                            {['Date', 'Amount (₹)', 'Remarks', ''].map((h) => (
-                                                <th key={h} className="p-3 font-semibold text-gray-700 text-sm text-left">{h}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody ref={el => { if (el) containerRef.current['ecs_dates'] = el; }} className="divide-y divide-gray-200 bg-white" />
-                                </table>
-                            </div>
-                            <FrappeButton onClick={() => addTableRow('ecs_dates')} className="bg-[#A5D6A7] hover:bg-[#81C784] mt-4">
-                                + Add Row
-                            </FrappeButton>
-                        </NeoSection>
-
-                        {/* Credits / Breakup Table based on HTML Reference */}
-                        {(formValues.category === 'Research' || formValues.category?.includes('Consultancy')) && (
-                            <NeoSection title="Credit as follows (Calculated)">
-                                <div className="overflow-x-auto border border-gray-200 rounded-md bg-white">
+                            {/* ECS Dates Table */}
+                            <NeoSection title="ECS Dates">
+                                <div className="overflow-x-auto border border-gray-200 rounded-md">
                                     <table className="min-w-full divide-y divide-gray-200">
                                         <thead className="bg-gray-50">
-                                            <tr>
-                                                <th className="p-3 text-left text-sm font-semibold text-gray-700">Label</th>
-                                                <th className="p-3 text-left text-sm font-semibold text-gray-700">% of Overhead</th>
-                                                <th className="p-3 text-left text-sm font-semibold text-gray-700">Amount (₹)</th>
+                                            <tr className="divide-x divide-gray-100">
+                                                {['Date', 'Amount (₹)', 'Remarks', ''].map((h) => (
+                                                    <th key={h} className="p-3 font-semibold text-gray-700 text-sm text-left">{h}</th>
+                                                ))}
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-200">
-                                            {formValues.category === 'Research' ? (
-                                                <>
-                                                    <tr>
-                                                        <td className="p-3 text-sm">IDF (Overhead + Institute Share)</td>
-                                                        <td className="p-3 text-sm">40%</td>
-                                                        <td className="p-3 text-sm">{((parseFloat(formValues.overhead_amount) || 0) * 0.40).toFixed(2)}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td className="p-3 text-sm">DPF / Department</td>
-                                                        <td className="p-3 text-sm">25%</td>
-                                                        <td className="p-3 text-sm">{((parseFloat(formValues.overhead_amount) || 0) * 0.25).toFixed(2)}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td className="p-3 text-sm">Student Welfare Board</td>
-                                                        <td className="p-3 text-sm">5%</td>
-                                                        <td className="p-3 text-sm">{((parseFloat(formValues.overhead_amount) || 0) * 0.05).toFixed(2)}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td className="p-3 text-sm">Staff Welfare Board</td>
-                                                        <td className="p-3 text-sm">5%</td>
-                                                        <td className="p-3 text-sm">{((parseFloat(formValues.overhead_amount) || 0) * 0.05).toFixed(2)}</td>
-                                                    </tr>
-                                                    {/* PDF Dynamic Row logic could go here, for now static breakdown for main items */}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <tr>
-                                                        <td className="p-3 text-sm">IDF (Overhead + Institute Share)</td>
-                                                        <td className="p-3 text-sm">40%</td>
-                                                        <td className="p-3 text-sm">{((parseFloat(formValues.total_overhead) || 0) * 0.40).toFixed(2)}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td className="p-3 text-sm">DPF / Department</td>
-                                                        <td className="p-3 text-sm">50%</td>
-                                                        <td className="p-3 text-sm">{((parseFloat(formValues.total_overhead) || 0) * 0.50).toFixed(2)}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td className="p-3 text-sm">Student Welfare Board</td>
-                                                        <td className="p-3 text-sm">5%</td>
-                                                        <td className="p-3 text-sm">{((parseFloat(formValues.total_overhead) || 0) * 0.05).toFixed(2)}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td className="p-3 text-sm">Staff Welfare Board</td>
-                                                        <td className="p-3 text-sm">5%</td>
-                                                        <td className="p-3 text-sm">{((parseFloat(formValues.total_overhead) || 0) * 0.05).toFixed(2)}</td>
-                                                    </tr>
-                                                </>
-                                            )}
-                                        </tbody>
+                                        <tbody ref={el => { if (el) containerRef.current['ecs_dates'] = el; }} className="divide-y divide-gray-200 bg-white" />
                                     </table>
                                 </div>
+                                <FrappeButton onClick={() => addTableRow('ecs_dates')} className="bg-[#A5D6A7] hover:bg-[#81C784] mt-4">
+                                    + Add Row
+                                </FrappeButton>
                             </NeoSection>
-                        )}
 
-                    </FrappeCard>
+                            {/* Credit Distribution Table */}
+                            <NeoSection title="Credit Distribution">
+                                <div className="overflow-x-auto border border-gray-200 rounded-md">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr className="divide-x divide-gray-100">
+                                                {['Label', 'Percentage (%)', 'Amount (₹)', ''].map((h) => (
+                                                    <th key={h} className="p-3 font-semibold text-gray-700 text-sm text-left">{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody ref={el => { if (el) containerRef.current['credit_distribution'] = el; }} className="divide-y divide-gray-200 bg-white" />
+                                    </table>
+                                </div>
+                                <FrappeButton onClick={() => addTableRow('credit_distribution')} className="bg-[#A5D6A7] hover:bg-[#81C784] mt-4">
+                                    + Add Row
+                                </FrappeButton>
+                            </NeoSection>
+                        </FrappeCard>
 
-                    <div className="mt-8 flex justify-end gap-4">
-                        <FrappeButton type="button" onClick={() => navigate(-1)} className="bg-gray-200 hover:bg-gray-300">Cancel</FrappeButton>
-                        <FrappeButton type="submit" disabled={isSubmitting} className="bg-green-300 hover:bg-green-400 disabled:bg-gray-300">{isSubmitting ? 'Saving...' : 'Save Deposit Slip'}</FrappeButton>
+                        <div className="mt-8 flex justify-end gap-4">
+                            <FrappeButton type="button" onClick={() => navigate(-1)} className="bg-gray-200 hover:bg-gray-300">Cancel</FrappeButton>
+                            <FrappeButton type="submit" disabled={isSubmitting} className="bg-[#0EA5A4] text-white hover:bg-[#0C8F8E] disabled:bg-gray-300">{isSubmitting ? 'Saving...' : 'Save Deposit Slip'}</FrappeButton>
+                        </div>
+                    </form>
+                )}
+
+                {/* No Type Selected */}
+                {!loading && !selectedType && (
+                    <div className="text-center py-20 text-gray-500">
+                        <p className="text-lg">Please select a deposit slip type to continue.</p>
                     </div>
-                </form>
+                )}
+
+                {/* No Fields Loaded */}
+                {!loading && selectedType && fields.length === 0 && (
+                    <div className="text-center py-20 text-yellow-600">
+                        <p className="text-lg font-semibold">No form fields found for this deposit slip type.</p>
+                        <p className="text-sm text-gray-500 mt-2">Please check the backend API configuration.</p>
+                    </div>
+                )}
             </main>
         </div>
     );

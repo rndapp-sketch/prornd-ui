@@ -1,11 +1,62 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useFrappeGetCall, useFrappeGetDoc, useFrappePostCall } from "frappe-react-sdk";
-import { ArrowLeft, IndianRupee, FileText, CreditCard, Calculator, Building2 } from "lucide-react";
+import { ArrowLeft, IndianRupee, FileText, CreditCard, Calculator, Building2, MessageSquare, Clock, X, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppSidebar } from "@/components/RndSidebar";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { useUserRoleChecks } from "../components/UserRoleCheck";
+
+// --- DEPOSIT SLIP TYPE CONFIGURATION ---
+const DEPOSIT_SLIP_TYPES: Record<string, {
+    label: string;
+    getFields: string;
+    save: string;
+    submit: string;
+    getWorkflowActions: string;
+    performAction: string;
+}> = {
+    t_testing: {
+        label: "T Testing Deposit Slip",
+        getFields: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.get_t_testing_deposit_slip_fields",
+        save: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.save_t_testing_deposit_slip",
+        submit: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.submit_t_testing_deposit_slip",
+        getWorkflowActions: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.get_t_testing_deposit_slip_workflow_actions",
+        performAction: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.perform_t_testing_deposit_slip_workflow_action"
+    },
+    research_consultancy: {
+        label: "Research Consultancy Deposit Slip",
+        getFields: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.get_research_consultancy_deposit_slip_fields",
+        save: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.save_research_consultancy_deposit_slip",
+        submit: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.submit_research_consultancy_deposit_slip",
+        getWorkflowActions: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.get_research_consultancy_deposit_slip_workflow_actions",
+        performAction: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.perform_research_consultancy_deposit_slip_workflow_action"
+    },
+    other_event: {
+        label: "Other Event Deposit Slip",
+        getFields: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.get_other_event_deposit_slip_fields",
+        save: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.save_other_event_deposit_slip",
+        submit: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.submit_other_event_deposit_slip",
+        getWorkflowActions: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.get_other_event_deposit_slip_workflow_actions",
+        performAction: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.perform_other_event_deposit_slip_workflow_action"
+    },
+    e_non_routine: {
+        label: "E Non Routine Deposit Slip",
+        getFields: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.get_e_non_routine_deposit_slip_fields",
+        save: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.save_e_non_routine_deposit_slip",
+        submit: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.submit_e_non_routine_deposit_slip",
+        getWorkflowActions: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.get_e_non_routine_deposit_slip_workflow_actions",
+        performAction: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.perform_e_non_routine_deposit_slip_workflow_action"
+    },
+    d_consultancy: {
+        label: "D Consultancy Deposit Slip",
+        getFields: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.get_d_consultancy_deposit_slip_fields",
+        save: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.save_d_consultancy_deposit_slip",
+        submit: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.submit_d_consultancy_deposit_slip",
+        getWorkflowActions: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.get_d_consultancy_deposit_slip_workflow_actions",
+        performAction: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.perform_d_consultancy_deposit_slip_workflow_action"
+    }
+};
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -70,6 +121,44 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'prima
         {children}
     </button>
 );
+
+// --- COMMENT MODAL ---
+const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (comment: string) => void;
+    action: string;
+    isLoading: boolean;
+}) => {
+    const [comment, setComment] = useState("");
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-lg w-full max-w-md">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm {action}</h3>
+                <textarea
+                    className="w-full border border-gray-300 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                    rows={4}
+                    placeholder="Add a comment (optional)..."
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                />
+                <div className="flex justify-end gap-2">
+                    <FrappeButton variant="outline" onClick={onClose} disabled={isLoading}>Cancel</FrappeButton>
+                    <FrappeButton
+                        variant="primary"
+                        onClick={() => { onSubmit(comment); setComment(""); }}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? "Processing..." : "Confirm"}
+                    </FrappeButton>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // --- INPUT STYLES ---
 const inputClasses = "w-full h-11 px-4 bg-white border border-gray-300 rounded-lg text-black font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/30 focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-50";
@@ -204,44 +293,83 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.perform_fund_received_action"
     );
 
-    const handleAction = async (action: string) => {
+    const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+
+    const [modalOpen, setModalOpen] = useState(false);
+    const [selectedAction, setSelectedAction] = useState("");
+
+    const handleActionClick = (action: string) => {
+        setSelectedAction(action);
+        setModalOpen(true);
+    };
+
+    const handleConfirmAction = async (comment: string) => {
         try {
-            let additionalArgs = {};
+            let additionalArgs: { [key: string]: any } = {};
 
             // If callback exists, get extra data (e.g., deposit slip form data)
             if (onBeforeAction) {
-                const result = await onBeforeAction(action);
-                if (result === null) return; // Action cancelled (e.g., validation failed)
+                const result = await onBeforeAction(selectedAction);
+                if (result === null) {
+                    setModalOpen(false);
+                    return; // Action cancelled (e.g., validation failed)
+                }
                 additionalArgs = result;
             }
 
-            // Merge additional args into the API call
+            // Perform the action (without comment in API call)
             await performAction({
                 docname,
-                action,
+                action: selectedAction,
                 ...additionalArgs
             });
+
+            // Add comment as activity if provided
+            if (comment && comment.trim()) {
+                try {
+                    await addComment({
+                        doctype: "Fund Received",
+                        docname: docname,
+                        content: `[${selectedAction}] ${comment.trim()}`
+                    });
+                } catch (commentError) {
+                    console.error("Error adding comment:", commentError);
+                    // Don't fail the whole operation if comment fails
+                }
+            }
+
+            setModalOpen(false);
             onActionComplete();
         } catch (error) {
             console.error("Error performing action:", error);
+            alert("Failed to perform action. Please try again.");
         }
     };
 
     if (actionsLoading || !data?.message?.length) return null;
 
     return (
-        <div className="flex gap-2">
-            {data.message.map((action) => (
-                <FrappeButton
-                    key={action}
-                    onClick={() => handleAction(action)}
-                    disabled={actionLoading}
-                    variant="action"
-                >
-                    {actionLoading ? "Processing..." : action}
-                </FrappeButton>
-            ))}
-        </div>
+        <>
+            <div className="flex gap-2">
+                {data.message.map((action) => (
+                    <FrappeButton
+                        key={action}
+                        onClick={() => handleActionClick(action)}
+                        disabled={actionLoading}
+                        variant="action"
+                    >
+                        {action}
+                    </FrappeButton>
+                ))}
+            </div>
+            <CommentModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSubmit={handleConfirmAction}
+                action={selectedAction}
+                isLoading={actionLoading}
+            />
+        </>
     );
 };
 
@@ -256,6 +384,127 @@ const DetailRow = ({ label, value, isCurrency = false }: { label: string; value:
         </span>
     </div>
 );
+
+// --- ACTIVITY STREAM COMPONENT ---
+interface ActivityItem {
+    owner: string;
+    creation: string;
+    content: string;
+    comment_type: string;
+}
+
+const ActivityStream = ({ doctype, docname, onRefresh }: { doctype: string; docname: string; onRefresh?: () => void }) => {
+    const [newComment, setNewComment] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const { data: activityData, mutate: refetchActivity, isLoading: isActivityLoading, error: activityError } = useFrappeGetCall<{ message: ActivityItem[] }>(
+        "rndopsapp.rndopsapp.api.get_project_activity",
+        { doctype, docname },
+        docname ? undefined : null // Don't fetch if no docname
+    );
+
+    const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+
+    const handleCommentSubmit = async () => {
+        if (!newComment.trim()) return;
+        setIsSubmitting(true);
+        try {
+            await addComment({ doctype, docname, content: newComment.trim() });
+            setNewComment("");
+            await refetchActivity();
+            onRefresh?.();
+        } catch (err: any) {
+            console.error("Failed to add comment:", err);
+            alert("Error: Could not post comment.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+            handleCommentSubmit();
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            {/* Add Comment Section */}
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <label htmlFor="fund-comment-textarea" className="block text-sm font-medium text-gray-700 mb-2">
+                    Add a comment
+                </label>
+                <textarea
+                    id="fund-comment-textarea"
+                    placeholder="Type here... (Ctrl+Enter to submit)"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    disabled={isSubmitting}
+                    className="w-full resize-none bg-white p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4] text-sm"
+                    rows={3}
+                />
+                <div className="flex items-center justify-between mt-3">
+                    <span className="text-xs text-gray-500">{newComment.length}/1000</span>
+                    <FrappeButton
+                        variant="primary"
+                        onClick={handleCommentSubmit}
+                        disabled={isSubmitting || !newComment.trim()}
+                    >
+                        {isSubmitting ? "Posting..." : "Post Comment"}
+                    </FrappeButton>
+                </div>
+            </div>
+
+            {/* Activity List */}
+            <div className="space-y-3">
+                {isActivityLoading && (
+                    <div className="flex justify-center py-6">
+                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#0EA5A4] border-t-transparent"></div>
+                    </div>
+                )}
+                {activityError && (
+                    <div className="text-center p-4 text-red-700 border border-red-200 rounded-lg bg-red-50">
+                        <p className="text-sm font-medium">Failed to load activity</p>
+                    </div>
+                )}
+                {activityData?.message && activityData.message.length > 0
+                    ? activityData.message.map((item, index) => (
+                        <div
+                            key={`${item.creation}-${index}`}
+                            className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg"
+                        >
+                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#E0F7F6] border border-gray-200 flex items-center justify-center font-semibold text-[#0EA5A4] text-xs">
+                                {item.owner?.charAt(0).toUpperCase() || "U"}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center mb-1">
+                                    <p className="text-sm font-semibold text-gray-900 truncate">
+                                        {item.owner || "Unknown User"}
+                                    </p>
+                                    <p className="text-xs text-gray-500 flex items-center gap-1 flex-shrink-0">
+                                        <Clock className="h-3 w-3" />
+                                        {item.creation ? new Date(item.creation).toLocaleString() : "N/A"}
+                                    </p>
+                                </div>
+                                <div
+                                    className="text-sm text-gray-700 prose prose-sm max-w-none leading-relaxed"
+                                    dangerouslySetInnerHTML={{ __html: item.content || "No content" }}
+                                />
+                            </div>
+                        </div>
+                    ))
+                    : !isActivityLoading && (
+                        <div className="text-center py-8 text-gray-500 border border-dashed border-gray-300 rounded-lg bg-white">
+                            <MessageSquare className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                            <p className="text-sm font-medium text-gray-600">No activity yet.</p>
+                            <p className="text-xs mt-1">Be the first to add a comment.</p>
+                        </div>
+                    )}
+            </div>
+        </div>
+    );
+};
 
 // --- MAIN COMPONENT ---
 const FundReceivedDetails = () => {
@@ -272,11 +521,9 @@ const FundReceivedDetails = () => {
     const [formData, setFormData] = useState<FormData>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    // Fetch deposit slip fields
-    const { data: formFieldsData, isLoading: fieldsLoading } = useFrappeGetCall<{
-        message: { fields: Field[]; prefill_data: FormData; link_options: Record<string, LinkOption[]> }
-    }>("rndopsapp.rndopsapp.doctype.deposit_slip.deposit_slip.get_deposit_slip_fields", {});
+    const [selectedDepositSlipType, setSelectedDepositSlipType] = useState<string>("");
+    const [depositFormLoading, setDepositFormLoading] = useState(false);
+    const [showActivityLog, setShowActivityLog] = useState(false);
 
     // Fetch fund received data (conditional fetch: only when prjreg_title exists)
     const { data: apiData, isLoading: listLoading, error: listError, mutate } = useFrappeGetCall(
@@ -287,23 +534,104 @@ const FundReceivedDetails = () => {
 
     const { data: docData, isLoading: docLoading, error: docError } = useFrappeGetDoc("Fund Received", name || "");
 
-    // Initialize form fields
-    useEffect(() => {
-        if (formFieldsData?.message) {
-            const { fields: apiFields, prefill_data, link_options } = formFieldsData.message;
-            setFields(apiFields || []);
-            setLinkOptions(link_options || {});
+    // Normalize fund data
+    const normalizeResponse = (raw: any) => {
+        if (!raw) return [];
+        if (raw.message?.message && Array.isArray(raw.message.message)) return raw.message.message;
+        if (raw.message && Array.isArray(raw.message)) return raw.message;
+        if (Array.isArray(raw)) return raw;
+        return [];
+    };
 
-            // Initialize form data with prefill and defaults
-            const initialData: FormData = { ...prefill_data };
-            apiFields?.forEach((field: Field) => {
-                if (initialData[field.fieldname] === undefined) {
-                    initialData[field.fieldname] = field.default ?? '';
-                }
-            });
-            setFormData(initialData);
+    const funds = normalizeResponse(apiData);
+    const listData = funds.find((f: any) => f.name === name);
+    const fundData = listData || docData;
+
+    const isLoading = listLoading || (!listData && docLoading);
+    const error = listError || (!listData && docError);
+
+    const showDepositSlip = isRndMiscellaneous && (docData?.workflow_state === "Pending Misc. Staff Approval(Deposit Slip Pending)" || listData?.workflow_state === "Pending Misc. Staff Approval(Deposit Slip Pending)");
+
+
+    // Handle deposit slip type change - fetch fields from appropriate API
+    const handleDepositSlipTypeChange = async (type: string) => {
+        setSelectedDepositSlipType(type);
+        setFields([]);
+        setFormData({});
+
+        if (!type || !DEPOSIT_SLIP_TYPES[type]) {
+            return;
         }
-    }, [formFieldsData]);
+
+        setDepositFormLoading(true);
+        try {
+            const response = await fetch(`/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ doc_name: name || undefined })
+            });
+            const result = await response.json();
+
+            if (result?.message) {
+                const { fields: apiFields, link_options, prefill_data } = result.message;
+
+                if (Array.isArray(apiFields)) {
+                    const processedFields = apiFields.map((field: Field) => {
+                        if (field.fieldtype === 'Section Break' || field.fieldtype === 'SectionBreak') return field;
+                        if (prefill_data && prefill_data[field.fieldname] !== undefined) {
+                            return { ...field, default: prefill_data[field.fieldname] };
+                        }
+                        return field;
+                    });
+                    setFields(processedFields);
+
+                    // Initialize form data with defaults
+                    const initialData: FormData = {};
+                    processedFields.forEach((f: Field) => {
+                        if (f.default) initialData[f.fieldname] = f.default;
+                    });
+                    setFormData(initialData);
+                }
+                setLinkOptions(prev => ({ ...prev, ...(link_options || {}) }));
+            }
+        } catch (err) {
+            console.error("Failed to load deposit slip fields:", err);
+        } finally {
+            setDepositFormLoading(false);
+        }
+    };
+
+    // Handle saving the deposit slip
+    const handleSaveDepositSlip = async () => {
+        if (isSubmitting || !selectedDepositSlipType) return;
+        setIsSubmitting(true);
+
+        try {
+            const dataToSubmit: { [key: string]: any } = { ...formData };
+
+            const response = await fetch(`/api/method/${DEPOSIT_SLIP_TYPES[selectedDepositSlipType].save}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ doc_data: JSON.stringify(dataToSubmit) })
+            });
+            const result = await response.json();
+            console.log('Deposit Slip Save result:', result);
+
+            if (result?.message?.name) {
+                alert(`Deposit Slip saved successfully! Document: ${result.message.name}`);
+            } else {
+                alert("Deposit Slip saved successfully!");
+            }
+            mutate(); // Refresh data
+        } catch (err: any) {
+            console.error('Deposit Slip Submission error:', err);
+            alert(`Submission Failed: ${err.message || 'Unknown Error'}`);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const handleChange = useCallback((fieldname: string, value: any) => {
         setFormData(prev => ({ ...prev, [fieldname]: value }));
@@ -328,21 +656,7 @@ const FundReceivedDetails = () => {
         return {}; // No extra data for other actions
     }, [isRndMiscellaneous, formData]);
 
-    // Normalize fund data
-    const normalizeResponse = (raw: any) => {
-        if (!raw) return [];
-        if (raw.message?.message && Array.isArray(raw.message.message)) return raw.message.message;
-        if (raw.message && Array.isArray(raw.message)) return raw.message;
-        if (Array.isArray(raw)) return raw;
-        return [];
-    };
 
-    const funds = normalizeResponse(apiData);
-    const listData = funds.find((f: any) => f.name === name);
-    const fundData = listData || docData;
-
-    const isLoading = fieldsLoading || listLoading || (!listData && docLoading);
-    const error = listError || (!listData && docError);
 
     if (isLoading) return <GlobalLoader isLoading={true} />;
 
@@ -438,49 +752,99 @@ const FundReceivedDetails = () => {
                     </div>
                 </FrappeCard>
 
-                {/* Side by Side Layout - Full width when deposit form is hidden */}
-                <div className={cn("grid gap-6", isRndMiscellaneous ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1")}>
-                    {/* LEFT SIDE: Deposit Slip Form - Show only for RnD Miscellaneous */}
-                    {isRndMiscellaneous && (
-                        <div className="space-y-6">
+                {/* Side by Side Layout - with Deposit Slip and Fund Details */}
+                <div className={cn("grid gap-6 grid-cols-1", showDepositSlip ? "lg:grid-cols-2" : "lg:grid-cols-1")}>
+                    {/* LEFT SIDE: Deposit Slip Form - Show only for specific workflow state */}
+                    {showDepositSlip && (
+                        <div className="lg:col-span-1 space-y-6">
                             <FrappeCard title="Deposit Slip Form" icon={<FileText className="h-4 w-4 text-[#0EA5A4]" />}>
-                                <form className="space-y-6">
-                                    {sections.map((section, idx) => (
-                                        <div key={idx} className="space-y-4">
-                                            {section.title && (
-                                                <h4 className="text-sm font-bold text-gray-900 uppercase border-b border-gray-200 pb-2">
-                                                    {section.title}
-                                                </h4>
-                                            )}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {section.fields.map(field => (
-                                                    <FormField
-                                                        key={field.fieldname}
-                                                        field={field}
-                                                        value={formData[field.fieldname]}
-                                                        options={linkOptions[field.options as string] || linkOptions[field.fieldname]}
-                                                        onChange={handleChange}
-                                                        formData={formData}
-                                                    />
+                                <div className="space-y-6">
+                                    {/* Deposit Slip Type Selector */}
+                                    <div className="space-y-2">
+                                        <label className="block text-sm font-semibold text-gray-800">
+                                            Select Deposit Slip Type <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <select
+                                                value={selectedDepositSlipType}
+                                                onChange={(e) => handleDepositSlipTypeChange(e.target.value)}
+                                                className="w-full h-11 px-4 pr-10 bg-white border-2 border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4] appearance-none"
+                                            >
+                                                <option value="">-- Select Type --</option>
+                                                {Object.entries(DEPOSIT_SLIP_TYPES).map(([key, config]) => (
+                                                    <option key={key} value={key}>{config.label}</option>
                                                 ))}
-                                            </div>
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                                         </div>
-                                    ))}
-
-                                    <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                                        <p className="text-sm text-gray-600 italic">
-                                            💡 Click "Forward" button above to submit the deposit slip with workflow action
-                                        </p>
-                                        <FrappeButton variant="outline" onClick={() => navigate(-1)}>
-                                            Cancel
-                                        </FrappeButton>
                                     </div>
-                                </form>
+
+                                    {/* Loading State */}
+                                    {depositFormLoading && (
+                                        <div className="flex items-center justify-center py-8">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4]"></div>
+                                        </div>
+                                    )}
+
+                                    {/* Dynamic Form Fields */}
+                                    {!depositFormLoading && selectedDepositSlipType && fields.length > 0 && (
+                                        <>
+                                            {sections.map((section, idx) => (
+                                                <div key={idx} className="space-y-4">
+                                                    {section.title && (
+                                                        <h4 className="text-sm font-bold text-gray-900 uppercase border-b border-gray-200 pb-2">
+                                                            {section.title}
+                                                        </h4>
+                                                    )}
+                                                    <div className="grid grid-cols-1 gap-4">
+                                                        {section.fields.map(field => (
+                                                            <FormField
+                                                                key={field.fieldname}
+                                                                field={field}
+                                                                value={formData[field.fieldname]}
+                                                                options={linkOptions[field.options as string] || linkOptions[field.fieldname]}
+                                                                onChange={handleChange}
+                                                                formData={formData}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                                                <FrappeButton variant="outline" onClick={() => setSelectedDepositSlipType("")}>
+                                                    Cancel
+                                                </FrappeButton>
+                                                <FrappeButton
+                                                    variant="primary"
+                                                    onClick={handleSaveDepositSlip}
+                                                    disabled={isSubmitting}
+                                                >
+                                                    {isSubmitting ? 'Saving...' : 'Save Deposit Slip'}
+                                                </FrappeButton>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* No Type Selected */}
+                                    {!depositFormLoading && !selectedDepositSlipType && (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <p className="text-sm">Select a deposit slip type to load the form.</p>
+                                        </div>
+                                    )}
+
+                                    {/* No Fields */}
+                                    {!depositFormLoading && selectedDepositSlipType && fields.length === 0 && (
+                                        <div className="text-center py-8 text-yellow-600">
+                                            <p className="text-sm font-semibold">No form fields found for this type.</p>
+                                        </div>
+                                    )}
+                                </div>
                             </FrappeCard>
                         </div>
                     )}
 
-                    {/* RIGHT SIDE: Fund Details */}
+                    {/* CENTER: Fund Details */}
                     <div className="space-y-6">
                         {/* Summary Cards */}
                         <div className="grid grid-cols-2 gap-4">
@@ -491,25 +855,29 @@ const FundReceivedDetails = () => {
                                     </div>
                                     <span className="font-bold text-gray-700 text-xs uppercase">Total Amount</span>
                                 </div>
-                                <p className="text-xl font-bold text-[#0EA5A4]">
-                                    {fund_received_amt?.toLocaleString("en-IN", { style: "currency", currency: "INR" }) || '₹0'}
+                                <p className="text-2xl font-extrabold text-[#0EA5A4]">
+                                    {(fund_received_amt || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}
                                 </p>
                             </FrappeCard>
                             <FrappeCard className="p-4">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <div className="p-2 bg-[#E0F7F6] rounded-lg">
-                                        <Building2 className="h-4 w-4 text-[#0EA5A4]" />
+                                    <div className="p-2 bg-gray-100 rounded-lg">
+                                        <Building2 className="h-4 w-4 text-gray-600" />
                                     </div>
                                     <span className="font-bold text-gray-700 text-xs uppercase">Bank Account</span>
                                 </div>
-                                <p className="text-lg font-bold text-black">{bank_account || "N/A"}</p>
+                                <p className="text-sm font-bold text-gray-900 truncate">{bank_account || '-'}</p>
                             </FrappeCard>
                         </div>
+
+                        {/* Sanction Reference */}
+                        <FrappeCard title="Sanction Reference" icon={<Calculator className="h-4 w-4 text-[#0EA5A4]" />}>
+                            <DetailRow label="Sanction Reference" value={sanction_ref_no} />
+                        </FrappeCard>
 
                         {/* Fund Info */}
                         <FrappeCard title="Fund Information" icon={<Calculator className="h-4 w-4 text-[#0EA5A4]" />}>
                             <div className="space-y-1">
-                                <DetailRow label="Sanction Reference No." value={sanction_ref_no} />
                                 <DetailRow label="Total Amount Received" value={fund_received_amt} isCurrency />
                                 <DetailRow label="Bank Account" value={bank_account} />
                                 <DetailRow label="Workflow State" value={workflow_state} />
@@ -579,6 +947,50 @@ const FundReceivedDetails = () => {
                         </FrappeCard>
                     </div>
                 </div>
+
+                {/* Floating Activity Log Button */}
+                <button
+                    onClick={() => setShowActivityLog(true)}
+                    className="fixed bottom-8 right-8 p-4 bg-[#0EA5A4] text-white rounded-full shadow-lg hover:bg-[#0C8F8E] transition-all z-40 flex items-center gap-2"
+                >
+                    <MessageSquare className="h-6 w-6" />
+                    <span className="font-semibold hidden md:block">Activity Log</span>
+                </button>
+
+                {/* Activity Log Panel (Slide Over) */}
+                {showActivityLog && (
+                    <div className="fixed inset-0 z-50 flex justify-end">
+                        {/* Backdrop */}
+                        <div
+                            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+                            onClick={() => setShowActivityLog(false)}
+                        ></div>
+
+                        {/* Panel */}
+                        <div className="relative w-full max-w-md bg-white h-full shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-right duration-300">
+                            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+                                <div className="flex items-center gap-2">
+                                    <MessageSquare className="h-5 w-5 text-[#0EA5A4]" />
+                                    <h3 className="font-bold text-lg text-gray-900">Activity Log</h3>
+                                </div>
+                                <button
+                                    onClick={() => setShowActivityLog(false)}
+                                    className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                                >
+                                    <X className="h-5 w-5 text-gray-500" />
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+                                <ActivityStream
+                                    doctype="Fund Received"
+                                    docname={name || ""}
+                                    onRefresh={() => mutate()}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

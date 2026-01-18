@@ -4,7 +4,7 @@ import useUserRoleCheck from "../components/UserRoleCheck";
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { FileText, Users, IndianRupee, Shield, FileBadge, X } from 'lucide-react';
-import { EndorsementCertificate } from '../components/EndorsementCertificate';
+import { EndorsementCertificate, getEndorsementHtml } from '../components/EndorsementCertificate';
 import { commonAPI } from '@/services/apiService';
 
 // --- TYPE DEFINITIONS ---
@@ -388,10 +388,112 @@ const ProjectRegistration: React.FC = () => {
 
     const renderFields = (fieldnames: string[]) => fieldnames.map(fn => renderField(fn));
 
-    const fileToBase64 = (file: File): Promise<{ file_name: string; file_data: string }> => new Promise((res, rej) => { const r = new FileReader(); r.readAsDataURL(file); r.onload = () => res({ file_name: file.name, file_data: r.result as string }); r.onerror = e => rej(e); });
-    const prepareDataForApi = async () => { const data = JSON.parse(JSON.stringify(formData)); if (docname) data.name = docname; for (const k in formData) { const v = formData[k]; if (v instanceof File) data[k] = await fileToBase64(v); else if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) for (const rk in v[i]) if (v[i][rk] instanceof File) data[k][i][rk] = await fileToBase64(v[i][rk]); } } return data; };
-    const handleSubmit = async (e: React.FormEvent) => { e.preventDefault(); if (isSubmitting || isSavingDraft) return; setIsSubmitting(true); try { const data = await prepareDataForApi(); await submitForm({ doc: data }); } catch (err) { alert("File processing error."); setIsSubmitting(false); } };
-    const handleSaveDraft = async () => { if (isSavingDraft || isSubmitting) return; setIsSavingDraft(true); try { const data = await prepareDataForApi(); await saveDraft({ doc_data: JSON.stringify(data) }); } catch (err) { alert("File processing error."); setIsSavingDraft(false); } };
+    const fileToBase64 = (file: File): Promise<{ filename: string; content: string }> => new Promise((res, rej) => {
+        const r = new FileReader();
+        r.readAsDataURL(file);
+        r.onload = () => res({ filename: file.name, content: r.result as string });
+        r.onerror = e => rej(e);
+    });
+
+    /**
+     * Prepares form data for API submission.
+     * Returns { doc_data, files } where files is an array of base64-encoded file objects.
+     */
+    const prepareDataWithFiles = async (): Promise<{ doc_data: Record<string, any>; files: { filename: string; content: string }[] }> => {
+        const data: Record<string, any> = JSON.parse(JSON.stringify(formData));
+        const filesArray: { filename: string; content: string }[] = [];
+
+        if (docname) data.name = docname;
+
+        for (const k in formData) {
+            const v = formData[k];
+            if (v instanceof File) {
+                const fileData = await fileToBase64(v);
+                filesArray.push(fileData);
+                data[k] = v.name; // Store filename in doc_data
+            } else if (Array.isArray(v)) {
+                for (let i = 0; i < v.length; i++) {
+                    for (const rk in v[i]) {
+                        if (v[i][rk] instanceof File) {
+                            const fileData = await fileToBase64(v[i][rk]);
+                            filesArray.push(fileData);
+                            data[k][i][rk] = v[i][rk].name; // Store filename
+                        }
+                    }
+                }
+            }
+        }
+        return { doc_data: data, files: filesArray };
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (isSubmitting || isSavingDraft) return;
+        setIsSubmitting(true);
+        try {
+            const { doc_data, files } = await prepareDataWithFiles();
+            await submitForm({ doc: doc_data, files });
+        } catch (err) {
+            alert("File processing error.");
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleSaveDraft = async () => {
+        console.log(">>> handleSaveDraft called! isSavingDraft:", isSavingDraft, "isSubmitting:", isSubmitting);
+        if (isSavingDraft || isSubmitting) {
+            console.log(">>> Early return due to isSavingDraft or isSubmitting");
+            return;
+        }
+        setIsSavingDraft(true);
+        try {
+            const { doc_data, files } = await prepareDataWithFiles();
+
+            // Generate endorsement HTML content
+            const budgetTotal = (formData.proposed_budget_breakup || []).reduce(
+                (acc: number, row: any) => acc + (row.years || []).reduce((sum: number, val: any) => sum + Number(val || 0), 0),
+                0
+            );
+
+            const endorsementHtml = getEndorsementHtml({
+                proposalId: docname || "IITG/RND/NEW",
+                piName: formData.principal_investigator_name,
+                piDesignation: formData.designation,
+                piDepartment: formData.applicant_department,
+                coPiName: formData.co_investigator_table?.[0]?.copi_name || "",
+                coPiDesignation: formData.co_investigator_table?.[0]?.copi_designation || "",
+                coPiDepartment: formData.co_investigator_table?.[0]?.copi_department || "",
+                projectTitle: formData.project_title,
+                fundingAgency: formData.funding_agen,
+                duration: formData.project_type === 'Consultancy'
+                    ? `${formData.project_duration_days} days`
+                    : `${formData.project_duration_months} months`,
+                totalCost: String(budgetTotal)
+            });
+
+            // Debug logging
+            console.log("=== SAVE DRAFT DEBUG ===");
+            console.log("doc_data keys:", Object.keys(doc_data));
+            console.log("files count:", files.length);
+            console.log("html_content length:", endorsementHtml?.length || 0);
+            console.log("html_content preview:", endorsementHtml?.substring(0, 200));
+
+            const payload = {
+                doc_data: JSON.stringify(doc_data),
+                files: files.length > 0 ? files : null,
+                html_content: endorsementHtml
+            };
+
+            console.log("API Payload keys:", Object.keys(payload));
+            console.log("html_content in payload:", payload.html_content ? `${payload.html_content.length} chars` : "MISSING!");
+
+            await saveDraft(payload);
+        } catch (err) {
+            console.error("Save draft error:", err);
+            alert("File processing error.");
+            setIsSavingDraft(false);
+        }
+    };
 
     // --- RENDER LOGIC ---
     if (loading) return (<div className="flex items-center justify-center min-h-screen bg-gray-100"><div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-[#90A4AE] mx-auto"></div><p className="mt-4 text-2xl font-bold text-black">LOADING FORM...</p></div></div>);
@@ -440,7 +542,7 @@ const ProjectRegistration: React.FC = () => {
     );
 
     const tabFieldGroups = {
-        fundingDetails: ["funding_agen", "funding_agency_schemes", "funding_agency_type", "origin_of_funding_agency", "funding_agency_ministry", "funding_agen"],
+        fundingDetails: ["funding_agen", "funding_agency_schemes", "funding_agency_type", "origin_of_funding_agency", "funding_agency_ministry"],
         agencyAddress: ["address_street_village_locality", "address_state", "address_postal_code", "address_country"],
         piDetails: ["pi_employee_id", "principal_investigator_name", "designation", "applicant_department", "pi_userid"],
         collaboratorToggles: ["is_additional_pi", "has_co_pi"],
@@ -710,8 +812,8 @@ const ProjectRegistration: React.FC = () => {
                                     onClick={async () => {
                                         setIsSubmitting(true);
                                         try {
-                                            const data = await prepareDataForApi();
-                                            await submitForm({ doc: data });
+                                            const { doc_data, files } = await prepareDataWithFiles();
+                                            await submitForm({ doc: doc_data, files });
                                             setShowEndorsementModal(false);
                                         } catch (err) {
                                             alert('Error processing endorsement.');
