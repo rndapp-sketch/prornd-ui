@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useFrappeGetCall, useFrappeGetDoc, useFrappePostCall } from "frappe-react-sdk";
 import { ArrowLeft, IndianRupee, FileText, CreditCard, Calculator, Building2, MessageSquare, Clock, X, ChevronDown } from "lucide-react";
@@ -6,6 +6,11 @@ import { cn } from "@/lib/utils";
 import { AppSidebar } from "@/components/RndSidebar";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { useUserRoleChecks } from "../components/UserRoleCheck";
+import { FormRender } from "../components/FormRender";
+import { useFrappeClientScript } from "../hooks/useFrappeClientScript";
+import { useDepositSlipCalculations } from "../hooks/useDepositSlipCalculations";
+import { useFrappeFetchFrom } from "../hooks/useFrappeFetchFrom";
+import { HoSApprovalView } from "./HoSApprovalView";
 
 // --- DEPOSIT SLIP TYPE CONFIGURATION ---
 const DEPOSIT_SLIP_TYPES: Record<string, {
@@ -64,9 +69,9 @@ interface Field {
     label: string | null;
     fieldtype: string;
     options?: string | null;
-    mandatory: number;
-    hidden: number;
-    read_only: number;
+    mandatory: boolean;
+    hidden: boolean;
+    read_only: boolean;
     description?: string | null;
     default?: any;
     depends_on?: string | null;
@@ -161,8 +166,7 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
 };
 
 // --- INPUT STYLES ---
-const inputClasses = "w-full h-11 px-4 bg-white border border-gray-300 rounded-lg text-black font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/30 focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-50";
-const selectClasses = "w-full h-11 px-4 bg-white border border-gray-300 rounded-lg text-black font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/30 focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100";
+
 
 // --- HELPER: Evaluate depends_on condition ---
 const evaluateDependsOn = (dependsOn: string | null | undefined, formData: FormData): boolean => {
@@ -209,71 +213,7 @@ const evaluateDependsOn = (dependsOn: string | null | undefined, formData: FormD
     }
 };
 
-// --- FORM FIELD COMPONENT ---
-const FormField = memo(({ field, value, options, onChange, formData }: {
-    field: Field;
-    value: any;
-    options?: LinkOption[];
-    onChange: (fieldname: string, value: any) => void;
-    formData: FormData;
-}) => {
-    if (!field || field.hidden || !field.label) return null;
 
-    // Check depends_on condition
-    const dependsOn = field.depends_on || field.depends_on_eval;
-    if (!evaluateDependsOn(dependsOn, formData)) {
-        return null;
-    }
-
-    const commonProps = {
-        id: field.fieldname,
-        name: field.fieldname,
-        readOnly: !!field.read_only,
-        disabled: !!field.read_only,
-        value: value ?? '',
-        onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => onChange(field.fieldname, e.target.value)
-    };
-
-    const renderInput = () => {
-        switch (field.fieldtype) {
-            case "Link":
-            case "Select":
-                const selectOptions = field.fieldtype === "Select"
-                    ? (field.options?.split('\n').filter(o => o) || []).map(opt => ({ value: opt, label: opt }))
-                    : options || [];
-                return (
-                    <select {...commonProps} className={selectClasses}>
-                        <option value="">Select...</option>
-                        {selectOptions.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                        ))}
-                    </select>
-                );
-            case "Currency":
-            case "Float":
-            case "Int":
-                return <input type="number" {...commonProps} className={inputClasses} step={field.fieldtype === 'Int' ? '1' : 'any'} />;
-            case "Date":
-                return <input type="date" {...commonProps} className={inputClasses} />;
-            case "Small Text":
-            case "Text":
-                return <textarea {...commonProps} rows={3} className={`${inputClasses} h-auto py-3`} />;
-            default:
-                return <input type="text" {...commonProps} className={inputClasses} />;
-        }
-    };
-
-    return (
-        <div className="space-y-2">
-            <label htmlFor={field.fieldname} className="block font-bold text-black text-sm uppercase">
-                {field.label}
-                {!!field.mandatory && <span className="text-red-500 ml-1">*</span>}
-            </label>
-            {renderInput()}
-            {field.description && <p className="text-xs text-gray-600">{field.description}</p>}
-        </div>
-    );
-});
 
 // --- WORKFLOW ACTIONS COMPONENT ---
 interface FundReceivedWorkflowActionsProps {
@@ -281,9 +221,11 @@ interface FundReceivedWorkflowActionsProps {
     onActionComplete: () => void;
     // Callback that returns additional args to send to the API, or null to cancel the action
     onBeforeAction?: (action: string) => Promise<{ [key: string]: any } | null>;
+    // Callback to determine if an action button should be disabled
+    disabledCondition?: (action: string) => boolean;
 }
 
-const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction }: FundReceivedWorkflowActionsProps) => {
+const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction, disabledCondition }: FundReceivedWorkflowActionsProps) => {
     const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_workflow_actions",
         { docname }
@@ -299,6 +241,7 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
     const [selectedAction, setSelectedAction] = useState("");
 
     const handleActionClick = (action: string) => {
+        if (disabledCondition && disabledCondition(action)) return;
         setSelectedAction(action);
         setModalOpen(true);
     };
@@ -351,16 +294,20 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
     return (
         <>
             <div className="flex gap-2">
-                {data.message.map((action) => (
-                    <FrappeButton
-                        key={action}
-                        onClick={() => handleActionClick(action)}
-                        disabled={actionLoading}
-                        variant="action"
-                    >
-                        {action}
-                    </FrappeButton>
-                ))}
+                {data.message.map((action) => {
+                    const isDisabled = disabledCondition ? disabledCondition(action) : false;
+                    return (
+                        <FrappeButton
+                            key={action}
+                            onClick={() => handleActionClick(action)}
+                            disabled={actionLoading || isDisabled}
+                            variant={isDisabled ? "outline" : "action"} // Visual feedback
+                            className={isDisabled ? "opacity-50 cursor-not-allowed" : ""}
+                        >
+                            {action}
+                        </FrappeButton>
+                    );
+                })}
             </div>
             <CommentModal
                 isOpen={modalOpen}
@@ -524,6 +471,7 @@ const FundReceivedDetails = () => {
     const [selectedDepositSlipType, setSelectedDepositSlipType] = useState<string>("");
     const [depositFormLoading, setDepositFormLoading] = useState(false);
     const [showActivityLog, setShowActivityLog] = useState(false);
+    const [childTableMeta, setChildTableMeta] = useState<Record<string, any>>({});
 
     // Fetch fund received data (conditional fetch: only when prjreg_title exists)
     const { data: apiData, isLoading: listLoading, error: listError, mutate } = useFrappeGetCall(
@@ -553,11 +501,25 @@ const FundReceivedDetails = () => {
     const showDepositSlip = isRndMiscellaneous && (docData?.workflow_state === "Pending Misc. Staff Approval(Deposit Slip Pending)" || listData?.workflow_state === "Pending Misc. Staff Approval(Deposit Slip Pending)");
 
 
+    // State for client script
+    const [clientScript, setClientScript] = useState<string>("");
+
+    // Initialize dynamic client script engine (fallback/legacy)
+    useFrappeClientScript(clientScript, formData, setFormData);
+
+    // Initialize native calculations hook (primary)
+    useDepositSlipCalculations(formData, setFormData, selectedDepositSlipType);
+
+    // Initialize fetch_from logic (auto-fill)
+    useFrappeFetchFrom(formData, setFormData, fields);
+
     // Handle deposit slip type change - fetch fields from appropriate API
     const handleDepositSlipTypeChange = async (type: string) => {
         setSelectedDepositSlipType(type);
         setFields([]);
         setFormData({});
+        setClientScript(""); // Reset script
+        setChildTableMeta({}); // Reset child table metadata
 
         if (!type || !DEPOSIT_SLIP_TYPES[type]) {
             return;
@@ -574,15 +536,28 @@ const FundReceivedDetails = () => {
             const result = await response.json();
 
             if (result?.message) {
-                const { fields: apiFields, link_options, prefill_data } = result.message;
+                const { fields: apiFields, link_options, prefill_data, client_scripts, child_table_meta } = result.message;
+
+                // Store child table metadata for dynamic table rendering
+                if (child_table_meta) {
+                    setChildTableMeta(child_table_meta);
+                }
 
                 if (Array.isArray(apiFields)) {
-                    const processedFields = apiFields.map((field: Field) => {
+                    const processedFields = apiFields.map((field: any) => {
                         if (field.fieldtype === 'Section Break' || field.fieldtype === 'SectionBreak') return field;
+
+                        const processed: Field = {
+                            ...field,
+                            mandatory: !!field.mandatory,
+                            hidden: !!field.hidden,
+                            read_only: !!field.read_only
+                        };
+
                         if (prefill_data && prefill_data[field.fieldname] !== undefined) {
-                            return { ...field, default: prefill_data[field.fieldname] };
+                            processed.default = prefill_data[field.fieldname];
                         }
-                        return field;
+                        return processed;
                     });
                     setFields(processedFields);
 
@@ -592,6 +567,90 @@ const FundReceivedDetails = () => {
                         if (f.default) initialData[f.fieldname] = f.default;
                     });
                     setFormData(initialData);
+
+                    // Set Client Scripts
+                    if (client_scripts && Array.isArray(client_scripts)) {
+                        console.log("API returned client_scripts:", client_scripts.length, "scripts");
+                        console.log("Script doctypes:", client_scripts.map((cs: any) => cs.dt || cs.doctype || 'unknown'));
+                        // Concatenate all scripts
+                        let combinedScript = client_scripts.map((cs: any) => cs.script).join('\n\n');
+
+                        // --- PATCH: Fix logic when amount is 0 ---
+                        // Strategy: We append a re-definition of `calculate_deposit_slip` at the end of the script.
+                        // In JavaScript, the last function declaration overrides previous ones with the same name.
+                        // This bypasses the need for fragile regex/string replacement.
+
+                        // We define the function with the SAME NAME as the original.
+                        const _fixedFunction = `
+                            function calculate_deposit_slip(frm) {
+                                let total_inclusive = flt(frm.doc.amount_inclusive_gst_capital);
+                                let multiplier = flt(frm.doc.overhead_multiplier) || 15;
+
+                                if (total_inclusive > 0) {
+                                    // Base and GST
+                                    let project_balance = total_inclusive / 1.18;
+                                    let cgst = project_balance * 0.09;
+                                    let sgst = project_balance * 0.09;
+                                    
+                                    // Overhead Calculation
+                                    let overhead_amount = project_balance * (multiplier / (100 + multiplier));
+                                    let project_amount = project_balance - overhead_amount;
+
+                                    // Static Credits
+                                    let idf_amt = overhead_amount * (40.0 / 100);
+                                    let dpf_amt = overhead_amount * (25.0 / 100);
+                                    let staff_amt = overhead_amount * (5.0 / 100);
+                                    let student_amt = overhead_amount * (5.0 / 100);
+
+                                    frm.set_value({
+                                        'project_balance_after_gst': project_balance,
+                                        'cgst_9': cgst,
+                                        'sgst_9': sgst,
+                                        'total_gst': cgst + sgst,
+                                        'total_budget': total_inclusive,
+                                        'overhead_amount': overhead_amount,
+                                        'overhead_amount_label': '<b>Overhead Amount @ ' + multiplier + '% (inclusive)</b>',
+                                        'prj_amount': project_amount,
+                                        'idf_amount': flt(idf_amt, 2),
+                                        'dpf_cle_amount': flt(dpf_amt, 2),
+                                        'staff_welfare_amount': flt(staff_amt, 2),
+                                        'student_welfare_amount': flt(student_amt, 2)
+                                    }).then(() => {
+                                        distribute_pool_share(frm, overhead_amount);
+                                    });
+
+                                } else {
+                                    // --- CORRECT ZERO LOGIC ---
+                                    // Explicitly clear all calculated fields
+                                    frm.set_value({
+                                        'project_balance_after_gst': 0,
+                                        'cgst_9': 0,
+                                        'sgst_9': 0,
+                                        'total_gst': 0,
+                                        'total_budget': 0,
+                                        'overhead_amount': 0,
+                                        'overhead_amount_label': '',
+                                        'prj_amount': 0,
+                                        'idf_amount': 0,
+                                        'dpf_cle_amount': 0,
+                                        'staff_welfare_amount': 0,
+                                        'student_welfare_amount': 0
+                                    }).then(() => {
+                                         distribute_pool_share(frm, 0);
+                                    });
+                                }
+                            }
+                        `;
+
+                        // Just append it
+                        combinedScript += '\n\n' + _fixedFunction;
+                        console.log("Patched client script: Appended fixed calculation function (override).");
+                        console.log("FINAL SCRIPT TO LOAD (first 500 chars):", combinedScript.substring(0, 500));
+
+                        setClientScript(combinedScript);
+                    } else {
+                        console.warn("No client_scripts returned from API for this deposit slip type!");
+                    }
                 }
                 setLinkOptions(prev => ({ ...prev, ...(link_options || {}) }));
             }
@@ -633,14 +692,12 @@ const FundReceivedDetails = () => {
         }
     };
 
-    const handleChange = useCallback((fieldname: string, value: any) => {
-        setFormData(prev => ({ ...prev, [fieldname]: value }));
-    }, []);
 
-    // Handler for workflow actions - attaches deposit slip data when "Forward" is clicked
+
+    // Handler for workflow actions - attaches deposit slip data when "Forward" or "Generate Deposit Slip" is clicked
     const handleBeforeAction = useCallback(async (action: string): Promise<{ [key: string]: any } | null> => {
-        // Only attach deposit slip data if action is "Forward" and user is RnD Miscellaneous
-        if (action === "Forward" && isRndMiscellaneous) {
+        // Only attach deposit slip data if action is "Forward" or "Generate Deposit Slip" and user is RnD Miscellaneous
+        if ((action === "Forward" || action === "Generate Deposit Slip") && isRndMiscellaneous) {
             // Optional: Add validation here
             // const requiredFields = fields.filter(f => f.mandatory);
             // const missingFields = requiredFields.filter(f => !formData[f.fieldname]);
@@ -678,33 +735,25 @@ const FundReceivedDetails = () => {
 
     const { workflow_state, fund_received_amt, bank_account, received_amt_breakup, fund_transactions, sanction_ref_no } = fundData;
 
-    // Group fields by sections with depends_on support
-    const groupFieldsBySections = () => {
-        const sections: { title: string; fields: Field[]; dependsOn?: string | null }[] = [];
-        let currentSection: { title: string; fields: Field[]; dependsOn?: string | null } | null = null;
+    // --- NEW: HoS Approval View ---
+    if (workflow_state === "Pending HoS Approval" || workflow_state === "Approved") {
+        return (
+            <div className="bg-gray-100 min-h-screen">
+                <AppSidebar />
+                <main className="flex-1 p-4 md:p-8">
+                    <FundReceivedWorkflowActions
+                        docname={name || ""}
+                        onActionComplete={() => mutate()}
+                        onBeforeAction={handleBeforeAction}
+                    />
+                    <div className="mb-6"></div>
+                    <HoSApprovalView fundReceivedName={name || ""} />
+                </main>
+            </div>
+        );
+    }
 
-        for (const field of fields) {
-            if (field.fieldtype === 'Section Break') {
-                if (currentSection && currentSection.fields.length > 0) {
-                    sections.push(currentSection);
-                }
-                currentSection = {
-                    title: field.label || '',
-                    fields: [],
-                    dependsOn: field.depends_on || field.depends_on_eval
-                };
-            } else if (field.fieldtype !== 'Column Break' && field.fieldtype !== 'HTML' && !field.hidden && currentSection) {
-                currentSection.fields.push(field);
-            }
-        }
-        if (currentSection && currentSection.fields.length > 0) {
-            sections.push(currentSection);
-        }
-        // Filter sections based on depends_on
-        return sections.filter(s => s.fields.length > 0 && evaluateDependsOn(s.dependsOn, formData));
-    };
 
-    const sections = groupFieldsBySections();
 
     return (
         <div className="bg-gray-100 min-h-screen">
@@ -732,6 +781,20 @@ const FundReceivedDetails = () => {
                                 docname={name || ""}
                                 onActionComplete={() => mutate()}
                                 onBeforeAction={handleBeforeAction}
+                                disabledCondition={(action) => {
+                                    // Disable "Generate Deposit Slip" if form is incomplete
+                                    if (action === "Generate Deposit Slip") {
+                                        if (!showDepositSlip || !selectedDepositSlipType) return true;
+                                        // Check mandatory fields
+                                        const mandatoryFields = fields.filter(f => f.mandatory && !f.hidden);
+                                        const hasEmptyMandatory = mandatoryFields.some(f => {
+                                            const val = formData[f.fieldname];
+                                            return val === undefined || val === null || val === "";
+                                        });
+                                        return hasEmptyMandatory;
+                                    }
+                                    return false;
+                                }}
                             />
                             <span className={cn("px-3 py-1.5 rounded-md border font-bold text-sm", {
                                 "bg-amber-100 text-amber-800 border-amber-300": workflow_state === "Draft",
@@ -786,44 +849,108 @@ const FundReceivedDetails = () => {
                                         </div>
                                     )}
 
-                                    {/* Dynamic Form Fields */}
+                                    {/* Dynamic Form via FormRender */}
                                     {!depositFormLoading && selectedDepositSlipType && fields.length > 0 && (
-                                        <>
-                                            {sections.map((section, idx) => (
-                                                <div key={idx} className="space-y-4">
-                                                    {section.title && (
-                                                        <h4 className="text-sm font-bold text-gray-900 uppercase border-b border-gray-200 pb-2">
-                                                            {section.title}
-                                                        </h4>
-                                                    )}
-                                                    <div className="grid grid-cols-1 gap-4">
-                                                        {section.fields.map(field => (
-                                                            <FormField
-                                                                key={field.fieldname}
-                                                                field={field}
-                                                                value={formData[field.fieldname]}
-                                                                options={linkOptions[field.options as string] || linkOptions[field.fieldname]}
-                                                                onChange={handleChange}
-                                                                formData={formData}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
+                                        <FormRender
+                                            fields={fields.map(f => ({
+                                                ...f,
+                                                hidden: !!f.hidden || !evaluateDependsOn(f.depends_on || f.depends_on_eval, formData)
+                                            }))}
+                                            linkOptions={linkOptions}
+                                            sections={(() => {
+                                                const processed: any[] = [];
+                                                let currentSection: any = { title: "", fields: [], type: 'default' };
 
-                                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                                                <FrappeButton variant="outline" onClick={() => setSelectedDepositSlipType("")}>
-                                                    Cancel
-                                                </FrappeButton>
-                                                <FrappeButton
-                                                    variant="primary"
-                                                    onClick={handleSaveDepositSlip}
-                                                    disabled={isSubmitting}
-                                                >
-                                                    {isSubmitting ? 'Saving...' : 'Save Deposit Slip'}
-                                                </FrappeButton>
-                                            </div>
-                                        </>
+                                                fields.forEach(field => {
+                                                    const isVisible = evaluateDependsOn(field.depends_on || field.depends_on_eval, formData);
+
+                                                    if (field.fieldtype === 'Section Break') {
+                                                        if (currentSection.fields.length > 0) processed.push(currentSection);
+
+                                                        // For Section Break, hide if condition fails
+                                                        if (isVisible) {
+                                                            currentSection = { title: field.label || "", fields: [], type: 'default' };
+                                                        } else {
+                                                            // If section is hidden, we use a dummy hidden section or null
+                                                            // Fields that follow usually belong to this section. 
+                                                            // If we set currentSection to null, we can skip adding fields.
+                                                            currentSection = null;
+                                                        }
+                                                    } else if (field.fieldtype === 'Table') {
+                                                        if (currentSection && currentSection.fields.length > 0) {
+                                                            processed.push(currentSection);
+                                                            currentSection = { title: "", fields: [], type: 'default' };
+                                                        }
+
+                                                        if (isVisible) {
+                                                            // Build table config dynamically from childTableMeta
+                                                            let tableConfig: any = null;
+                                                            const meta = childTableMeta[field.fieldname];
+
+                                                            if (meta && meta.fields) {
+                                                                // Build columns from child_table_meta.fields
+                                                                const columns = meta.fields.map((f: any) => ({
+                                                                    key: f.fieldname,
+                                                                    label: f.label || f.fieldname,
+                                                                    type: f.fieldtype,
+                                                                    options: f.options ? linkOptions[f.fieldname] || [] : undefined
+                                                                }));
+
+                                                                // Build newRowTemplate with default values
+                                                                const newRowTemplate: Record<string, any> = {
+                                                                    doctype: meta.doctype, // Required for locals[cdt][cdn] in scripts
+                                                                    name: `new-${Date.now()}` // Temporary unique ID
+                                                                };
+                                                                meta.fields.forEach((f: any) => {
+                                                                    if (f.default !== null && f.default !== undefined) {
+                                                                        newRowTemplate[f.fieldname] = f.default;
+                                                                    } else if (f.fieldtype === 'Currency' || f.fieldtype === 'Float' || f.fieldtype === 'Int') {
+                                                                        newRowTemplate[f.fieldname] = 0;
+                                                                    } else {
+                                                                        newRowTemplate[f.fieldname] = '';
+                                                                    }
+                                                                });
+
+                                                                tableConfig = {
+                                                                    fieldname: field.fieldname,
+                                                                    columns,
+                                                                    newRowTemplate
+                                                                };
+                                                            } else {
+                                                                // Fallback if no metadata found
+                                                                tableConfig = {
+                                                                    fieldname: field.fieldname,
+                                                                    columns: [{ key: 'name', label: 'Name', type: 'Data' }],
+                                                                    newRowTemplate: {}
+                                                                };
+                                                            }
+
+                                                            processed.push({
+                                                                title: field.label,
+                                                                fields: [],
+                                                                type: 'table',
+                                                                tableConfig
+                                                            });
+                                                        }
+                                                    } else {
+                                                        // Only add field if current section is visible
+                                                        if (currentSection) {
+                                                            currentSection.fields.push(field.fieldname);
+                                                        }
+                                                    }
+                                                });
+                                                if (currentSection && currentSection.fields.length > 0) processed.push(currentSection);
+                                                return processed;
+                                            })()}
+                                            initialData={formData}
+                                            onSubmit={handleSaveDepositSlip}
+                                            onFormChange={(data) => setFormData(data)}
+                                            onCancel={() => setSelectedDepositSlipType("")}
+                                            submitButtonText="Save Deposit Slip"
+                                            isSubmitting={isSubmitting}
+                                            noCard
+                                            hideActions={true}
+                                        />
                                     )}
 
                                     {/* No Type Selected */}
