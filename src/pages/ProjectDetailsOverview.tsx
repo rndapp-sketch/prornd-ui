@@ -300,7 +300,7 @@ interface QuickActionsProps {
 }
 
 const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
-  const [activeTab, setActiveTab] = useState("Advance");
+  const [activeTab, setActiveTab] = useState("Reimbursement");
   const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
   const [applicationData, setApplicationData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -327,11 +327,12 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
 
         if (selectedApplication === "Reimbursement") {
           console.log('=== FETCHING REIMBURSEMENTS ===');
-          console.log('Project Name:', projectName);
+          console.log('Project Name from URL:', projectName);
 
           try {
-            // Use direct fetch to Frappe REST API
-            const apiUrl = `/api/resource/Reimbursement?fields=["name","creation","workflow_state","owner","project_name","project_number","applicant_webmail","comment"]&order_by=creation%20desc&limit_page_length=0`;
+            // Use direct fetch to Frappe REST API with cache-busting
+            const timestamp = Date.now();
+            const apiUrl = `/api/resource/Reimbursement?fields=["name","creation","workflow_state","owner","project_name","project_number","applicant_webmail","comment"]&order_by=creation%20desc&limit_page_length=0&_=${timestamp}`;
 
             const fetchResponse = await fetch(apiUrl, {
               method: 'GET',
@@ -348,11 +349,34 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
 
             const allReimbursements = result?.data || [];
             console.log('All Reimbursements count:', allReimbursements.length);
+            console.log('All Reimbursements data:', allReimbursements);
 
-            // Filter client-side: match project_name OR project_number
-            data = allReimbursements.filter((item: any) =>
-              item.project_name === projectName || item.project_number === projectName
-            );
+            // Log first few items to see field values
+            if (allReimbursements.length > 0) {
+              console.log('Sample reimbursement items:', allReimbursements.slice(0, 3).map((item: any) => ({
+                name: item.name,
+                project_name: item.project_name,
+                project_number: item.project_number
+              })));
+            }
+
+            // Filter client-side: match project_name OR project_number (case-insensitive, partial match)
+            const projectNameLower = projectName?.toLowerCase() || '';
+            data = allReimbursements.filter((item: any) => {
+              const itemProjectName = (item.project_name || '').toLowerCase();
+              const itemProjectNumber = (item.project_number || '').toLowerCase();
+
+              // Check for exact match or contains
+              const matches =
+                itemProjectName === projectNameLower ||
+                itemProjectNumber === projectNameLower ||
+                itemProjectName.includes(projectNameLower) ||
+                itemProjectNumber.includes(projectNameLower) ||
+                projectNameLower.includes(itemProjectName) ||
+                projectNameLower.includes(itemProjectNumber);
+
+              return matches;
+            });
             console.log('Filtered Reimbursement data:', data);
           } catch (fetchError) {
             console.error('Direct fetch error:', fetchError);
@@ -371,8 +395,88 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
             workflow_state: item.docstatus === 1 ? "Submitted" : item.docstatus === 2 ? "Cancelled" : "Draft",
             applicant_webmail: item.applicant_email_id // Map for display consistency
           }));
+        } else if (selectedApplication === "Temporary Advance Apply") {
+          try {
+            const apiUrl = `/api/resource/Temporary Advance?fields=["name","creation","workflow_state","owner","project_code","applicant_webmail","amount_applied"]&order_by=creation%20desc&limit_page_length=0`;
+            const fetchResponse = await fetch(apiUrl, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+              credentials: 'include'
+            });
+            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+            const result = await fetchResponse.json();
+            const allItems = result?.data || [];
+            data = allItems.filter((item: any) =>
+              item.project_code === projectName
+            );
+          } catch (fetchError) {
+            console.error('Temporary Advance fetch error:', fetchError);
+            data = [];
+          }
+        } else if (selectedApplication === "Rate Contract") {
+          try {
+            const apiUrl = `/api/resource/Rate Contract?fields=["name","creation","workflow_state","owner","project_name","email_id"]&order_by=creation%20desc&limit_page_length=0`;
+            const fetchResponse = await fetch(apiUrl, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+              credentials: 'include'
+            });
+            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+            const result = await fetchResponse.json();
+            const allItems = result?.data || [];
+            data = allItems.filter((item: any) =>
+              item.project_name === projectName
+            ).map((item: any) => ({
+              ...item,
+              applicant_webmail: item.email_id
+            }));
+          } catch (fetchError) {
+            console.error('Rate Contract fetch error:', fetchError);
+            data = [];
+          }
+        } else if (selectedApplication === "Travel Apply") {
+          try {
+            const apiUrl = `/api/resource/Travel?fields=["name","creation","workflow_state","owner","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation%20desc&limit_page_length=0`;
+            const fetchResponse = await fetch(apiUrl, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+              credentials: 'include'
+            });
+            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+            const result = await fetchResponse.json();
+            const allItems = result?.data || [];
+            data = allItems.filter((item: any) =>
+              item.travel_project_number === projectName
+            ).map((item: any) => ({
+              ...item,
+              applicant_webmail: item.webmail_id_travel
+            }));
+          } catch (fetchError) {
+            console.error('Travel fetch error:', fetchError);
+            data = [];
+          }
+        } else if (selectedApplication === "TA DA Settlement") {
+          try {
+            const apiUrl = `/api/resource/TA DA Settlement?fields=["name","creation","workflow_state","owner","ta_da_project_code","ta_da_name"]&order_by=creation%20desc&limit_page_length=0`;
+            const fetchResponse = await fetch(apiUrl, {
+              method: 'GET',
+              headers: { 'Accept': 'application/json' },
+              credentials: 'include'
+            });
+            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+            const result = await fetchResponse.json();
+            const allItems = result?.data || [];
+            data = allItems.filter((item: any) =>
+              item.ta_da_project_code === projectName
+            ).map((item: any) => ({
+              ...item,
+              applicant_webmail: item.ta_da_name
+            }));
+          } catch (fetchError) {
+            console.error('TA DA Settlement fetch error:', fetchError);
+            data = [];
+          }
         }
-        // Add more cases for other application types as needed
 
         setApplicationData(data);
       } catch (err) {
@@ -401,7 +505,8 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
   );
 
   const groups = [
-    { title: "Advance", icon: CreditCard, items: ["Reimbursement", "Temporary Advance Apply", "Temporary Advance Settle"] },
+    { title: "Reimbursement", icon: IndianRupeeIcon, items: ["Reimbursement"] },
+    { title: "Advance", icon: CreditCard, items: ["Temporary Advance Apply", "Temporary Advance Settle"] },
     { title: "Disbursal", icon: Upload, items: ["One Time Assistantship", "Top Up Fellowship"] },
     { title: "Purchase", icon: ShoppingCart, items: ["Direct Purchase", "General Indent", "Generate NIQ", "Indent cum Sanction", "Rate Contract"] },
     { title: "Recruitment", icon: Users, items: ["Adhoc", "Committee Member Change", "Contractual", "Selection Committee Report", "Project Staff Resignation"] },
@@ -525,10 +630,26 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                     <td className="px-4 py-3">
                       <button
                         onClick={() => {
-                          if (selectedApplication === "Project Staff Resignation") {
-                            onNavigate(`/project-staff-resignation?edit=${item.name}`);
-                          } else {
-                            onNavigate(`/reimbursement/${item.name}`);
+                          switch (selectedApplication) {
+                            case "Project Staff Resignation":
+                              onNavigate(`/project-staff-resignation?edit=${item.name}`);
+                              break;
+                            case "Temporary Advance Apply":
+                              onNavigate(`/temporary-advance?edit=${item.name}`);
+                              break;
+                            case "Rate Contract":
+                              onNavigate(`/rate-contract?edit=${item.name}`);
+                              break;
+                            case "Travel Apply":
+                              onNavigate(`/travel?edit=${item.name}`);
+                              break;
+                            case "TA DA Settlement":
+                              onNavigate(`/ta-da-settlement?edit=${item.name}`);
+                              break;
+                            case "Reimbursement":
+                            default:
+                              onNavigate(`/reimbursement/${item.name}`);
+                              break;
                           }
                         }}
                         className="text-sm text-[#0EA5A4] hover:underline"
