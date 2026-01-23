@@ -47,7 +47,9 @@ import RateContractForm from './pages/application/RateContractForm.tsx';
 import TravelForm from './pages/application/TravelForm.tsx';
 import TADASettlementForm from './pages/application/TADASettlementForm.tsx';
 import ProjectStaffResignationForm from './pages/application/ProjectStaffResignationForm.tsx';
-// import UserDetails from './pages/UserDetails.tsx';
+import TaskRegistry from './pages/TaskRegistry.tsx';
+import TaskRegistryDetails from './pages/TaskRegistryDetails.tsx';
+import TemporaryAdvanceDetails from './pages/application/TemporaryAdvanceDetails.tsx';
 
 const router = createBrowserRouter(
   [
@@ -55,6 +57,14 @@ const router = createBrowserRouter(
       path: "/",
       element: <App />, // Your main layout component (with navbar, etc.)
       children: [
+        {
+          path: "temporary-advance/:id",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <TemporaryAdvanceDetails />
+            </AuthRouteWrapper>
+          ),
+        },
         {
           path: "",
           element: <LandingPage />, // Public landing page
@@ -363,6 +373,32 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <ProjectStaffResignationForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "task-registry",
+          element: (
+            <AuthRouteWrapper allowedRole={[
+              'staff, RnD',
+              'Hos, RnD (Head of Section, RnD)',
+              'Dean, RnD',
+              'Director'
+            ]}>
+              <TaskRegistry />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "task-registry/:doctype/:name",
+          element: (
+            <AuthRouteWrapper allowedRole={[
+              'staff, RnD',
+              'Hos, RnD (Head of Section, RnD)',
+              'Dean, RnD',
+              'Director'
+            ]}>
+              <TaskRegistryDetails />
             </AuthRouteWrapper>
           )
         },

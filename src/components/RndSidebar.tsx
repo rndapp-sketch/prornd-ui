@@ -116,6 +116,11 @@ export function AppSidebar() {
       icon: ListTodo,
       path: "/pending-task",
     },
+    {
+      label: "Task Registry",
+      icon: FileText,
+      path: "/task-registry",
+    },
   ].filter(item => {
     if (item.label === "Pending Task") {
       const allowedRoles = [
@@ -124,6 +129,16 @@ export function AppSidebar() {
         'head_approver_1',
         'Hos, RnD (Head of Section, RnD)',
         'staff, RnD'
+      ];
+      return roles && allowedRoles.some(role => roles.includes(role));
+    }
+    if (item.label === "Task Registry") {
+      // Visible to staff, HOS, Dean, DoRnD - NOT permanent employees
+      const allowedRoles = [
+        'staff, RnD',
+        'Hos, RnD (Head of Section, RnD)',
+        'Dean, RnD',
+        'Director'
       ];
       return roles && allowedRoles.some(role => roles.includes(role));
     }

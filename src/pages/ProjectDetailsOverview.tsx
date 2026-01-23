@@ -56,6 +56,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DepartmentName } from "@/components/DepartmentName";
+import { useUserRoles } from "../components/UserRole";
 
 // --- Ledger Interfaces ---
 interface LedgerTransaction {
@@ -397,7 +398,9 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           }));
         } else if (selectedApplication === "Temporary Advance Apply") {
           try {
-            const apiUrl = `/api/resource/Temporary Advance?fields=["name","creation","workflow_state","owner","project_code","applicant_webmail","amount_applied"]&order_by=creation%20desc&limit_page_length=0`;
+            console.log('=== FETCHING TEMPORARY ADVANCE (MINIMAL RETRY) ===');
+            // Minimal fields to debug 417 - ensure URL is perfect
+            const apiUrl = `/api/resource/Temporary%20Advance?fields=["name","creation"]&limit_page_length=0`;
             const fetchResponse = await fetch(apiUrl, {
               method: 'GET',
               headers: { 'Accept': 'application/json' },
@@ -406,9 +409,22 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
             if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
             const result = await fetchResponse.json();
             const allItems = result?.data || [];
-            data = allItems.filter((item: any) =>
-              item.project_code === projectName
-            );
+            console.log('Temporary Advance raw items (minimal):', allItems);
+
+            // For now, allow all items through to see if we get ANY data
+            data = allItems;
+
+            // Loose matching like Reimbursement
+            const projectNameLower = projectName?.toLowerCase() || '';
+            data = allItems.filter((item: any) => {
+              // Check project_name
+              const pName = (item.project_name || '').toLowerCase();
+
+              return pName === projectNameLower ||
+                pName.includes(projectNameLower) ||
+                projectNameLower.includes(pName);
+            });
+            console.log('Filtered Temporary Advance items:', data);
           } catch (fetchError) {
             console.error('Temporary Advance fetch error:', fetchError);
             data = [];
@@ -506,7 +522,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
 
   const groups = [
     { title: "Reimbursement", icon: IndianRupeeIcon, items: ["Reimbursement"] },
-    { title: "Advance", icon: CreditCard, items: ["Temporary Advance Apply", "Temporary Advance Settle"] },
+    { title: "Advance", icon: CreditCard, items: ["Temporary Advance Apply"] },
     { title: "Disbursal", icon: Upload, items: ["One Time Assistantship", "Top Up Fellowship"] },
     { title: "Purchase", icon: ShoppingCart, items: ["Direct Purchase", "General Indent", "Generate NIQ", "Indent cum Sanction", "Rate Contract"] },
     { title: "Recruitment", icon: Users, items: ["Adhoc", "Committee Member Change", "Contractual", "Selection Committee Report", "Project Staff Resignation"] },
@@ -533,10 +549,6 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
         break;
       case "Temporary Advance Apply":
         onNavigate(`/temporary-advance?project=${projectName}`);
-        break;
-      case "Temporary Advance Settle":
-        // TODO: Add route when available
-        alert(`Apply New: ${selectedApplication} - Route not configured yet`);
         break;
       case "Rate Contract":
         onNavigate(`/rate-contract?project=${projectName}`);
@@ -628,34 +640,49 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => {
-                          switch (selectedApplication) {
-                            case "Project Staff Resignation":
-                              onNavigate(`/project-staff-resignation?edit=${item.name}`);
-                              break;
-                            case "Temporary Advance Apply":
-                              onNavigate(`/temporary-advance?edit=${item.name}`);
-                              break;
-                            case "Rate Contract":
-                              onNavigate(`/rate-contract?edit=${item.name}`);
-                              break;
-                            case "Travel Apply":
-                              onNavigate(`/travel?edit=${item.name}`);
-                              break;
-                            case "TA DA Settlement":
-                              onNavigate(`/ta-da-settlement?edit=${item.name}`);
-                              break;
-                            case "Reimbursement":
-                            default:
-                              onNavigate(`/reimbursement/${item.name}`);
-                              break;
-                          }
-                        }}
-                        className="text-sm text-[#0EA5A4] hover:underline"
-                      >
-                        View
-                      </button>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => {
+                            switch (selectedApplication) {
+                              case "Project Staff Resignation":
+                                onNavigate(`/project-staff-resignation?edit=${item.name}`);
+                                break;
+                              case "Temporary Advance Apply":
+                                // Navigate to the new details page
+                                onNavigate(`/temporary-advance/${item.name}`);
+                                break;
+                              case "Rate Contract":
+                                onNavigate(`/rate-contract?edit=${item.name}`);
+                                break;
+                              case "Travel Apply":
+                                onNavigate(`/travel?edit=${item.name}`);
+                                break;
+                              case "TA DA Settlement":
+                                onNavigate(`/ta-da-settlement?edit=${item.name}`);
+                                break;
+                              case "Reimbursement":
+                              default:
+                                onNavigate(`/reimbursement/${item.name}`);
+                                break;
+                            }
+                          }}
+                          className="text-sm text-[#0EA5A4] hover:underline whitespace-nowrap"
+                        >
+                          View
+                        </button>
+                        {selectedApplication === "Temporary Advance Apply" && (
+                          <button
+                            onClick={() => {
+                              // Navigate to settlement page for this temporary advance
+                              // Pass the advance ID to pre-fill the settlement form
+                              onNavigate(`/ta-da-settlement?advance_id=${item.name}&project=${projectName}`);
+                            }}
+                            className="text-sm text-amber-600 hover:underline whitespace-nowrap font-medium"
+                          >
+                            Settle
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -866,6 +893,12 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   const { call: triggerWorkflowAction, loading: isActionLoading } = useFrappePostCall("rndopsapp.rndopsapp.api.handle_workflow_action");
   const { call: submitProjectRegistration } = useFrappePostCall("rndopsapp.rndopsapp.api.submit_project_registration");
   const { call: submitSanction, loading: isSubmittingSanction } = useFrappePostCall("rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.submit_fund_sanction");
+
+  const { roles } = useUserRoles(currentUser ?? null);
+  const isRnDStaff = roles.some((r: string) =>
+    r === "RnD Staff" || r === "R&D Staff" || r === "Research and Development Staff" || r === "System Manager" || r === "staff, RnD" || r === "Hos, RnD (Head of Section, RnD)"
+  );
+  // console.log("User Roles:", roles, "Is RnD Staff:", isRnDStaff);
 
   const { data: sanctionData, error: sanctionError, isLoading: sanctionIsLoading, mutate: refetchSanctions } = useFrappeGetCall(
     'rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project',
@@ -1833,42 +1866,52 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
             </div>
 
             {/* Section 3: Commits (Moved Down) */}
-            <div className="frappe-widget">
-              <h3 className="frappe-widget-title">Make a Commitment</h3>
-              <div className="space-y-3">
-                <div>
-                  <label htmlFor="commit-head" className="frappe-label">Budget Head</label>
-                  <select
-                    id="commit-head"
-                    className="frappe-select"
-                    value={commitHead}
-                    onChange={(e) => setCommitHead(e.target.value)}
-                  >
-                    {ledgerHeadTabs.filter(head => head !== "All").map((head) => (
-                      <option key={head} value={head}>{head}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Available: <span className="font-medium text-[#0EA5A4]">{actualBalance.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
-                  </p>
-                </div>
-                <div>
-                  <label htmlFor="commit-amount" className="frappe-label">Amount (₹)</label>
-                  <input
-                    type="number"
-                    id="commit-amount"
-                    className="frappe-input"
-                    placeholder="e.g., 5000"
-                    value={commitAmount}
-                    onChange={(e) => setCommitAmount(e.target.value)}
-                  />
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <button onClick={handleCommit} className="frappe-btn frappe-btn-primary flex-1">Commit</button>
-                  <button onClick={handleRemoveLastCommit} className="frappe-btn frappe-btn-ghost">Remove</button>
+            {isRnDStaff && (
+              <div className="frappe-widget">
+                <h3 className="frappe-widget-title">Make a Commitment</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label htmlFor="commit-head" className="frappe-label">Budget Head</label>
+                    <select
+                      id="commit-head"
+                      className="frappe-select"
+                      value={commitHead}
+                      onChange={(e) => setCommitHead(e.target.value)}
+                    >
+                      {ledgerHeadTabs.filter(head => head !== "All").map((head) => (
+                        <option key={head} value={head}>{head}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Available: <span className="font-medium text-[#0EA5A4]">{actualBalance.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                    </p>
+                  </div>
+                  <div>
+                    <label htmlFor="commit-amount" className="frappe-label">Amount (₹)</label>
+                    <input
+                      type="number"
+                      id="commit-amount"
+                      className="frappe-input"
+                      placeholder="e.g., 5000"
+                      value={commitAmount}
+                      onChange={(e) => setCommitAmount(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={handleCommit} className="frappe-btn frappe-btn-primary flex-1">Commit</button>
+                    <button onClick={handleRemoveLastCommit} className="frappe-btn frappe-btn-ghost">Remove</button>
+                  </div>
+                  <div className="pt-2 border-t border-gray-100 mt-2">
+                    <button
+                      onClick={() => setIsLedgerOpen(true)}
+                      className="w-full text-center text-sm font-medium text-[#0EA5A4] hover:text-[#0C8F8E] hover:underline"
+                    >
+                      View Project Ledger
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </aside>
         </div >
 

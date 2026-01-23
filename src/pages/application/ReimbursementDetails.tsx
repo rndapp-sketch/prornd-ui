@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppSidebar } from "../../components/RndSidebar";
-import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { ArrowLeftIcon, FileTextIcon, CalendarIcon, UserIcon, DownloadIcon } from "lucide-react";
+import { ArrowLeftIcon, FileTextIcon, CalendarIcon, UserIcon, DownloadIcon, FileSpreadsheetIcon as LedgerIcon } from "lucide-react";
 import { GlobalLoader } from '@/components/ui/global-loader';
+import { useProjectBudget } from '@/hooks/useProjectBudget';
+import { useUserRoles } from '../../components/UserRole';
+import { Textarea } from '@/components/ui/textarea'; // Assuming this exists, if not use standard textarea
 
 // --- TYPE DEFINITIONS ---
 interface ReimbursementData {
@@ -170,6 +173,51 @@ const ReimbursementWorkflowActions = ({ docname, onActionComplete }: { docname: 
     );
 };
 
+// --- Activity Stream Component ---
+interface ActivityItem {
+    owner: string;
+    creation: string;
+    content: string;
+    comment_type: string;
+}
+
+const ActivityStream = ({ doctype, docname }: { doctype: string; docname: string }) => {
+    const { data: activityData, mutate: refetchActivity } = useFrappeGetCall<{ message: ActivityItem[] }>(
+        "rndopsapp.rndopsapp.api.get_project_activity",
+        { doctype, docname }
+    );
+
+    // Initial refetch when mounted
+    useEffect(() => {
+        refetchActivity();
+    }, [docname]);
+
+    return (
+        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+            {activityData?.message && activityData.message.length > 0 ? (
+                activityData.message.map((activity, idx) => (
+                    <div key={idx} className="flex items-start gap-3">
+                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#E0F7F6] flex items-center justify-center font-bold text-[#0EA5A4] text-xs">
+                            {activity.owner?.charAt(0).toUpperCase() || "U"}
+                        </div>
+                        <div className="min-w-0">
+                            <div
+                                className="text-sm text-gray-800 line-clamp-2 prose prose-sm max-w-none"
+                                dangerouslySetInnerHTML={{ __html: activity.content }}
+                            />
+                            <p className="text-xs text-gray-500 mt-0.5">
+                                {activity.owner} · {activity.creation ? new Date(activity.creation).toLocaleString() : ''}
+                            </p>
+                        </div>
+                    </div>
+                ))
+            ) : (
+                <p className="text-sm text-gray-500 italic">No recent activity found.</p>
+            )}
+        </div>
+    );
+};
+
 const ReimbursementDetails: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
@@ -210,6 +258,122 @@ const ReimbursementDetails: React.FC = () => {
     };
 
     // Handle submit for draft reimbursement
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+
+    // Sidebar State
+    const [sidebarComment, setSidebarComment] = useState("");
+    const [isAddingComment, setIsAddingComment] = useState(false);
+    const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+
+    // Commitment Widget State
+    const [commitHead, setCommitHead] = useState("");
+    const [commitAmount, setCommitAmount] = useState("");
+    const [paymentAmount, setPaymentAmount] = useState(""); // Payment State
+    const [isLedgerOpen, setIsLedgerOpen] = useState(false);
+
+    // API Hooks for Commit/Payment
+    const { call: submitCommit, loading: isCommitting } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_commit_data");
+    const { call: submitPayment, loading: isPaying } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_payment_data");
+
+    // Fetch Project Budget Data
+    const projectTitle = data?.project_number || ""; // Use project_number as title/ID for budget fetch
+    const { budgetData, heads: budgetHeads, headBalances, actualBalance, commitableBalance } = useProjectBudget(projectTitle);
+
+    // Find existing commitment for this document
+    const linkedCommitment = budgetData.find(e => e.ref === (id || "") && e.type === 'commitment');
+    const isCommitted = !!linkedCommitment;
+
+    // Set default commit head
+    useEffect(() => {
+        if (budgetHeads.length > 0 && !commitHead) {
+            setCommitHead(budgetHeads[0]);
+        }
+    }, [budgetHeads]);
+
+    // Set Payment defaults from Commitment
+    useEffect(() => {
+        if (linkedCommitment) {
+            setCommitHead(linkedCommitment.head || ""); // Lock/Prefill head for visibility
+            if (!paymentAmount) setPaymentAmount(String(linkedCommitment.committed));
+        }
+    }, [linkedCommitment]);
+
+    // Role Check
+    const isRnDStaff = roles.some(r =>
+        r === "RnD Staff" || r === "R&D Staff" || r === "Research and Development Staff" || r === "System Manager" || r === "staff, RnD" || r === "Hos, RnD (Head of Section, RnD)"
+    );
+    // console.log("User Roles:", roles, "Is RnD Staff:", isRnDStaff, "Workflow State:", data?.workflow_state);
+
+    const handleSidebarCommentSubmit = async () => {
+        if (!sidebarComment.trim() || !id) return;
+        setIsAddingComment(true);
+        try {
+            await addComment({
+                doctype: "Reimbursement",
+                docname: id,
+                content: sidebarComment,
+            });
+            setSidebarComment("");
+            // Ideally refetch activity stream here, but it polls or we can trigger a global verify
+            window.location.reload(); // Simple refresh for now to show new comment in activity
+        } catch (error) {
+            console.error("Failed to add comment:", error);
+            alert("Failed to submit comment.");
+        } finally {
+            setIsAddingComment(false);
+        }
+    };
+
+    const handleCommit = async () => {
+        if (!commitAmount || !commitHead || !id || !data) {
+            alert("Please select a budget head and enter an amount.");
+            return;
+        }
+
+        try {
+            await submitCommit({
+                doctype: "Reimbursement",
+                name: id,
+                project_name: data.project_number,
+                commit_amount: parseFloat(commitAmount),
+                budget_head: commitHead,
+                bmr: "" // Optional BMR
+            });
+            alert("Commitment submitted successfully!");
+            setCommitAmount("");
+            // Trigger budget refresh if possible (e.g. reload or refetch hook)
+            window.location.reload();
+        } catch (error: any) {
+            console.error("Commit failed:", error);
+            alert(`Commitment failed: ${error.message || "Unknown error"}`);
+        }
+    };
+
+    const handlePayment = async () => {
+        if (!paymentAmount || !commitHead || !id || !data) {
+            alert("Please select a budget head and enter an amount.");
+            return;
+        }
+
+        try {
+            await submitPayment({
+                doctype: "Reimbursement",
+                name: id,
+                project_name: data.project_number,
+                payment_amount: parseFloat(paymentAmount),
+                budget_head: commitHead,
+                bmr: "" // Optional BMR
+            });
+            alert("Payment recorded successfully!");
+            setPaymentAmount("");
+            window.location.reload();
+        } catch (error: any) {
+            console.error("Payment failed:", error);
+            alert(`Payment failed: ${error.message || "Unknown error"}`);
+        }
+    };
+
     const handleSubmit = async () => {
         if (!data || isSubmitting) return;
 
@@ -624,136 +788,419 @@ const ReimbursementDetails: React.FC = () => {
                     </div>
                 </FrappeCard>
 
-                {/* Content Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Applicant Details */}
-                    <FrappeCard title="Applicant Details">
-                        <div className="space-y-1">
-                            <DetailRow label="Applicant Webmail" value={data.applicant_webmail} />
-                            <DetailRow label="Department" value={resolvedNames.applicant_department || data.applicant_department} />
-                            <DetailRow label="Designation" value={data.applicant_designation} />
-                        </div>
-                    </FrappeCard>
-
-                    {/* Reimbursement For */}
-                    <FrappeCard title="Reimbursement For">
-                        <div className="space-y-1">
-                            <DetailRow label="Webmail ID" value={data.reimbursement_for_id} />
-                            <DetailRow label="Department" value={resolvedNames.reimbursement_for_department || data.reimbursement_for_department} />
-                            <DetailRow label="Designation" value={data.reimbursement_for_designation} />
-                        </div>
-                    </FrappeCard>
-
-                    {/* Bank Details */}
-                    <FrappeCard title="Bank Details">
-                        <div className="space-y-1">
-                            <DetailRow label="Bank Name" value={data.bank_name} />
-                            <DetailRow label="Account Holder" value={data.account_holder_name} />
-                            <DetailRow label="Account Number" value={data.bank_account_number} />
-                            <DetailRow label="IFSC Code" value={data.ifsc_code} />
-                        </div>
-                    </FrappeCard>
-
-                    {/* Project Details */}
-                    <FrappeCard title="Project Details">
-                        <div className="space-y-1">
-                            <DetailRow label="Project Number" value={data.project_number} />
-                            <DetailRow label="Project Name" value={data.project_name} />
-                            <DetailRow label="Account Head" value={resolvedNames.account_head || data.account_head} />
-                            {data.other_head && <DetailRow label="Other Head" value={data.other_head} />}
-                        </div>
-                    </FrappeCard>
-
-                    {/* Particulars of Items Table */}
-                    {data.table_bosk && data.table_bosk.length > 0 && (
-                        <FrappeCard title="Particulars of Items" className="lg:col-span-2">
-                            <div className="overflow-x-auto border border-gray-300 rounded-lg">
-                                <table className="min-w-full divide-y divide-gray-300">
-                                    <thead className="bg-gray-200">
-                                        <tr className="divide-x divide-gray-300">
-                                            <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Date</th>
-                                            <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Vendor's Name</th>
-                                            <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Particulars</th>
-                                            <th className="px-4 py-3 text-right text-sm font-bold text-black uppercase">Amount</th>
-                                            <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Attachment</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-300 bg-white">
-                                        {data.table_bosk.map((item: any, index: number) => (
-                                            <tr key={item.name || index} className="hover:bg-gray-50 divide-x divide-gray-300">
-                                                <td className="px-4 py-3 text-sm text-gray-900 font-mono">
-                                                    {item.r_date ? new Date(item.r_date).toLocaleDateString('en-IN') : '-'}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-gray-900 font-medium">{item.vendors_name || '-'}</td>
-                                                <td className="px-4 py-3 text-sm text-gray-900">{item.particulars || '-'}</td>
-                                                <td className="px-4 py-3 text-sm text-black font-bold text-right">
-                                                    ₹{(parseFloat(item.amount) || 0).toLocaleString('en-IN')}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm">
-                                                    {item.uploads ? (
-                                                        <a
-                                                            href={item.uploads}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-[#0EA5A4] font-bold hover:underline"
-                                                        >
-                                                            View File
-                                                        </a>
-                                                    ) : (
-                                                        <span className="text-gray-500">No file</span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                    <tfoot className="bg-gray-100 border-t-2 border-gray-300">
-                                        <tr>
-                                            <td colSpan={3} className="px-4 py-3 text-sm font-bold text-black text-right uppercase">Total Amount:</td>
-                                            <td className="px-4 py-3 text-sm font-bold text-black text-right">
-                                                ₹{data.table_bosk.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString('en-IN')}
-                                            </td>
-                                            <td></td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        </FrappeCard>
-                    )}
-
-                    {/* Comments */}
-                    {data.comment && (
-                        <FrappeCard title="Comments" className="lg:col-span-2">
-                            <p className="text-gray-900 whitespace-pre-wrap font-medium">{data.comment}</p>
-                        </FrappeCard>
-                    )}
-
-                    {/* Declarations */}
-                    <FrappeCard title="Declarations" className="lg:col-span-2">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {[1, 2, 3, 4].map(num => (
-                                <div key={num} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                    <div className={cn(
-                                        "w-6 h-6 rounded flex items-center justify-center text-white text-sm font-bold",
-                                        data[`dec${num}`] ? "bg-emerald-600" : "bg-gray-400"
-                                    )}>
-                                        {data[`dec${num}`] ? "✓" : ""}
-                                    </div>
-                                    <span className="text-sm font-medium text-gray-900">Declaration {num} {data[`dec${num}`] ? 'Accepted' : 'Not Accepted'}</span>
+                {/* Content Grid with Sidebar */}
+                <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                    {/* Main Content (3 cols) */}
+                    <div className="xl:col-span-3 space-y-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Applicant Details */}
+                            <FrappeCard title="Applicant Details">
+                                <div className="space-y-1">
+                                    <DetailRow label="Applicant Webmail" value={data.applicant_webmail} />
+                                    <DetailRow label="Department" value={resolvedNames.applicant_department || data.applicant_department} />
+                                    <DetailRow label="Designation" value={data.applicant_designation} />
                                 </div>
-                            ))}
-                        </div>
-                    </FrappeCard>
+                            </FrappeCard>
 
-                    {/* Meta Information */}
-                    <FrappeCard title="Meta Information" className="lg:col-span-2">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <DetailRow label="Created" value={formatDate(data.creation)} />
-                            <DetailRow label="Last Modified" value={formatDate(data.modified)} />
-                            <DetailRow label="Owner" value={data.owner} />
+                            {/* Reimbursement For */}
+                            <FrappeCard title="Reimbursement For">
+                                <div className="space-y-1">
+                                    <DetailRow label="Webmail ID" value={data.reimbursement_for_id} />
+                                    <DetailRow label="Department" value={resolvedNames.reimbursement_for_department || data.reimbursement_for_department} />
+                                    <DetailRow label="Designation" value={data.reimbursement_for_designation} />
+                                </div>
+                            </FrappeCard>
+
+                            {/* Bank Details */}
+                            <FrappeCard title="Bank Details">
+                                <div className="space-y-1">
+                                    <DetailRow label="Bank Name" value={data.bank_name} />
+                                    <DetailRow label="Account Holder" value={data.account_holder_name} />
+                                    <DetailRow label="Account Number" value={data.bank_account_number} />
+                                    <DetailRow label="IFSC Code" value={data.ifsc_code} />
+                                </div>
+                            </FrappeCard>
+
+                            {/* Project Details */}
+                            <FrappeCard title="Project Details">
+                                <div className="space-y-1">
+                                    <DetailRow label="Project Number" value={data.project_number} />
+                                    <DetailRow label="Project Name" value={data.project_name} />
+                                    <DetailRow label="Account Head" value={resolvedNames.account_head || data.account_head} />
+                                    {data.other_head && <DetailRow label="Other Head" value={data.other_head} />}
+                                </div>
+                            </FrappeCard>
+
+                            {/* Particulars of Items Table */}
+                            {data.table_bosk && data.table_bosk.length > 0 && (
+                                <FrappeCard title="Particulars of Items" className="lg:col-span-2">
+                                    <div className="overflow-x-auto border border-gray-300 rounded-lg">
+                                        <table className="min-w-full divide-y divide-gray-300">
+                                            <thead className="bg-gray-200">
+                                                <tr className="divide-x divide-gray-300">
+                                                    <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Date</th>
+                                                    <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Vendor's Name</th>
+                                                    <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Particulars</th>
+                                                    <th className="px-4 py-3 text-right text-sm font-bold text-black uppercase">Amount</th>
+                                                    <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Attachment</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-300 bg-white">
+                                                {data.table_bosk.map((item: any, index: number) => (
+                                                    <tr key={item.name || index} className="hover:bg-gray-50 divide-x divide-gray-300">
+                                                        <td className="px-4 py-3 text-sm text-gray-900 font-mono">
+                                                            {item.r_date ? new Date(item.r_date).toLocaleDateString('en-IN') : '-'}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">{item.vendors_name || '-'}</td>
+                                                        <td className="px-4 py-3 text-sm text-gray-900">{item.particulars || '-'}</td>
+                                                        <td className="px-4 py-3 text-sm text-black font-bold text-right">
+                                                            ₹{(parseFloat(item.amount) || 0).toLocaleString('en-IN')}
+                                                        </td>
+                                                        <td className="px-4 py-3 text-sm">
+                                                            {item.uploads ? (
+                                                                <a
+                                                                    href={item.uploads}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-[#0EA5A4] font-bold hover:underline"
+                                                                >
+                                                                    View File
+                                                                </a>
+                                                            ) : (
+                                                                <span className="text-gray-500">No file</span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                            <tfoot className="bg-gray-100 border-t-2 border-gray-300">
+                                                <tr>
+                                                    <td colSpan={3} className="px-4 py-3 text-sm font-bold text-black text-right uppercase">Total Amount:</td>
+                                                    <td className="px-4 py-3 text-sm font-bold text-black text-right">
+                                                        ₹{data.table_bosk.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString('en-IN')}
+                                                    </td>
+                                                    <td></td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </FrappeCard>
+                            )}
+
+                            {/* Comments */}
+                            {data.comment && (
+                                <FrappeCard title="Comments" className="lg:col-span-2">
+                                    <p className="text-gray-900 whitespace-pre-wrap font-medium">{data.comment}</p>
+                                </FrappeCard>
+                            )}
+
+                            {/* Declarations */}
+                            <FrappeCard title="Declarations" className="lg:col-span-2">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {[1, 2, 3, 4].map(num => (
+                                        <div key={num} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                            <div className={cn(
+                                                "w-6 h-6 rounded flex items-center justify-center text-white text-sm font-bold",
+                                                data[`dec${num}`] ? "bg-emerald-600" : "bg-gray-400"
+                                            )}>
+                                                {data[`dec${num}`] ? "✓" : ""}
+                                            </div>
+                                            <span className="text-sm font-medium text-gray-900">Declaration {num} {data[`dec${num}`] ? 'Accepted' : 'Not Accepted'}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </FrappeCard>
+
+                            {/* Meta Information */}
+                            <FrappeCard title="Meta Information" className="lg:col-span-2">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <DetailRow label="Created" value={formatDate(data.creation)} />
+                                    <DetailRow label="Last Modified" value={formatDate(data.modified)} />
+                                    <DetailRow label="Owner" value={data.owner} />
+                                </div>
+                            </FrappeCard>
                         </div>
-                    </FrappeCard>
+                    </div>
+
+                    {/* Right Sidebar (1 col) */}
+                    <aside className="xl:col-span-1 space-y-6">
+                        {/* Section 0: Project Budget Overview */}
+                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                            <h3 className="text-lg font-bold text-gray-900 mb-4">Project Budget</h3>
+                            <div className="flex flex-col gap-4">
+                                <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                    <p className="text-sm font-semibold text-gray-700">Total Available</p>
+                                    <p className="text-xl font-bold text-[#0EA5A4]">₹ {commitableBalance.toLocaleString('en-IN')}</p>
+                                </div>
+                                <button
+                                    onClick={() => setIsLedgerOpen(true)}
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#E0F7F6] text-[#0EA5A4] font-bold text-sm hover:bg-[#B2DFDB] transition-colors"
+                                >
+                                    <LedgerIcon className="w-4 h-4" />
+                                    View Project Ledger
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Section 1: Latest Activity */}
+                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center justify-between">
+                                Latest Activity
+                            </h3>
+                            {id && <ActivityStream doctype="Reimbursement" docname={id} />}
+                        </div>
+
+                        {/* Section 2: Add Comment */}
+                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                            <h3 className="text-lg font-bold text-gray-900 mb-3">Add Comment</h3>
+                            <Textarea
+                                className="w-full border border-gray-300 p-3 rounded-lg text-sm mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                                rows={3}
+                                placeholder="Type your comment here..."
+                                value={sidebarComment}
+                                onChange={(e) => setSidebarComment(e.target.value)}
+                            />
+                            <FrappeButton
+                                className="w-full"
+                                variant="primary"
+                                onClick={handleSidebarCommentSubmit}
+                                disabled={isAddingComment}
+                            >
+                                {isAddingComment ? "Submitting..." : "Submit Comment"}
+                            </FrappeButton>
+                        </div>
+
+                        {/* Section 3: Make a Commitment (Conditional) */}
+                        {(data.workflow_state === "Approved" || data.workflow_state === "Pending Staff Approval") && isRnDStaff && !isCommitted && (
+                            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                                <h3 className="text-lg font-bold text-gray-900 mb-4">Make a Commitment</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Budget Head</label>
+                                        <select
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                                            value={commitHead}
+                                            onChange={(e) => setCommitHead(e.target.value)}
+                                        >
+                                            {budgetHeads.length > 0 ? (
+                                                budgetHeads.map((head) => (
+                                                    <option key={head} value={head}>{head}</option>
+                                                ))
+                                            ) : (
+                                                <option value="">No Budget Heads</option>
+                                            )}
+                                        </select>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Available: <span className="font-medium text-[#0EA5A4]">₹ {actualBalance.toLocaleString('en-IN')}</span>
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
+                                        <input
+                                            type="number"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                                            placeholder="e.g., 5000"
+                                            value={commitAmount}
+                                            onChange={(e) => setCommitAmount(e.target.value)}
+                                        />
+                                    </div>
+                                    <FrappeButton
+                                        className="w-full"
+                                        variant="primary"
+                                        onClick={handleCommit}
+                                        disabled={isCommitting}
+                                    >
+                                        {isCommitting ? "Submitting..." : "Submit Commitment"}
+                                    </FrappeButton>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Section 4: Record Payment (Conditional) */}
+                        {(data.workflow_state === "Approved" || data.workflow_state === "Pending Staff Approval") && isRnDStaff && (
+                            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                                <h3 className="text-lg font-bold text-gray-900 mb-4">Record Payment</h3>
+                                {isCommitted ? (
+                                    <div className="space-y-4">
+                                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
+                                            <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Linked Commitment</p>
+                                            <div className="flex justify-between items-end">
+                                                <p className="text-sm font-medium text-blue-900">{linkedCommitment?.head}</p>
+                                                <p className="text-lg font-bold text-blue-700">₹ {linkedCommitment?.committed.toLocaleString('en-IN')}</p>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Amount (₹)</label>
+                                            <input
+                                                type="number"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                                                placeholder="e.g., 5000"
+                                                value={paymentAmount}
+                                                onChange={(e) => setPaymentAmount(e.target.value)}
+                                                max={linkedCommitment?.committed}
+                                            />
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Paying against commitment. Max: ₹{linkedCommitment?.committed.toLocaleString('en-IN')}
+                                            </p>
+                                        </div>
+                                        <FrappeButton
+                                            className="w-full"
+                                            variant="outline"
+                                            onClick={handlePayment}
+                                            disabled={isPaying || !paymentAmount || parseFloat(paymentAmount) > (linkedCommitment?.committed || 0)}
+                                        >
+                                            {isPaying ? "Processing..." : "Submit Payment"}
+                                        </FrappeButton>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6 px-4 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
+                                        <div className="mx-auto w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mb-3 text-gray-400">
+                                            <LedgerIcon className="w-5 h-5" />
+                                        </div>
+                                        <p className="text-sm font-medium text-gray-900">Commitment Required</p>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Please make a commitment above before recording payment for this reimbursement.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </aside>
                 </div>
             </main>
+
+            {/* Budget Ledger Modal */}
+            {isLedgerOpen && (
+                <BudgetLedgerModal
+                    isOpen={isLedgerOpen}
+                    onClose={() => setIsLedgerOpen(false)}
+                    budgetData={budgetData}
+                    actualBalance={actualBalance}
+                    commitableBalance={commitableBalance}
+                    heads={budgetHeads}
+                />
+            )}
+        </div>
+    );
+};
+
+// --- BUDGET LEDGER MODAL ---
+interface BudgetLedgerModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    budgetData: any[];
+    heads: string[];
+    actualBalance: number;
+    commitableBalance: number;
+}
+
+const BudgetLedgerModal = ({ isOpen, onClose, budgetData, heads, actualBalance, commitableBalance }: BudgetLedgerModalProps) => {
+    const [activeLedgerTab, setActiveLedgerTab] = useState("All");
+    const ledgerHeadTabs = ["All", ...heads];
+
+    if (!isOpen) return null;
+
+    // Filter data based on active tab
+    const filteredLedgerData = activeLedgerTab === "All"
+        ? budgetData
+        : budgetData.filter((e: any) => (e.head || e.accountHead || "").trim().toLowerCase() === activeLedgerTab.trim().toLowerCase());
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+            <div className="bg-white w-full max-w-6xl max-h-[90vh] rounded-xl shadow-2xl flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900">Project Budget Ledger</h2>
+                        <div className="flex gap-4 mt-1 text-sm">
+                            <span className="text-gray-600">Actual: <span className="font-bold text-[#0EA5A4]">₹ {actualBalance.toLocaleString('en-IN')}</span></span>
+                            <span className="text-gray-600">Commitable: <span className="font-bold text-gray-900">₹ {commitableBalance.toLocaleString('en-IN')}</span></span>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                        <span className="sr-only">Close</span>
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-hidden flex flex-col">
+                    {/* Tabs */}
+                    <div className="flex overflow-x-auto border-b border-gray-200 px-6 pt-4 gap-2 bg-white">
+                        {ledgerHeadTabs.map((tab) => {
+                            const tabEntries = tab === "All"
+                                ? budgetData
+                                : budgetData.filter((e: any) => (e.head || e.accountHead || "").trim().toLowerCase() === tab.trim().toLowerCase());
+                            const lastEntryForHead = tabEntries.length > 0 ? tabEntries[tabEntries.length - 1] : null;
+                            const tabBalance = tab === "All"
+                                ? tabEntries.reduce((acc: number, e: any) => acc + (e.received || 0) - (e.committed || 0) - (e.payment || 0), 0)
+                                : (lastEntryForHead?.commitableBalance || 0);
+
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveLedgerTab(tab)}
+                                    className={cn(
+                                        "px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors pb-3",
+                                        activeLedgerTab === tab
+                                            ? "border-[#0EA5A4] text-[#0EA5A4]"
+                                            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                    )}
+                                >
+                                    {tab} <span className="ml-1 text-xs opacity-70">({tabEntries.length})</span>
+                                    {tab !== "All" && <span className="ml-2 font-mono text-xs opacity-90">₹{tabBalance.toLocaleString('en-IN')}</span>}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Table */}
+                    <div className="flex-1 overflow-auto p-6 bg-gray-50">
+                        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                            <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead className="bg-[#F9FAFB]">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">SL</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">Date</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">Particulars</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">Ref</th>
+                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Received</th>
+                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Committed</th>
+                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {filteredLedgerData.length > 0 ? (
+                                        filteredLedgerData.map((row: any, index: number) => (
+                                            <tr key={index} className="hover:bg-gray-50">
+                                                <td className="px-4 py-3 text-gray-500">{row.sl}</td>
+                                                <td className="px-4 py-3 text-gray-900 whitespace-nowrap">{row.date}</td>
+                                                <td className="px-4 py-3 text-gray-900 font-medium">
+                                                    <div className="max-w-xs truncate" title={row.particulars}>{row.particulars}</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-gray-500 max-w-[150px] truncate" title={row.ref}>{row.ref}</td>
+                                                <td className="px-4 py-3 text-right font-medium text-green-600">{row.received ? row.received.toLocaleString('en-IN') : '-'}</td>
+                                                <td className="px-4 py-3 text-right font-medium text-red-600">{row.committed ? row.committed.toLocaleString('en-IN') : '-'}</td>
+                                                <td className="px-4 py-3 text-right font-bold text-gray-800">
+                                                    {activeLedgerTab === "All"
+                                                        ? row.actualBalance?.toLocaleString('en-IN')
+                                                        : (row as any).commitableBalance?.toLocaleString('en-IN')
+                                                    }
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={7} className="px-4 py-12 text-center text-gray-500 italic">No ledger entries found for this selection.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
