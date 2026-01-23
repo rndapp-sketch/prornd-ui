@@ -53,6 +53,14 @@ const DEPOSIT_SLIP_TYPES: Record<string, {
         submit: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.submit_d_consultancy_deposit_slip",
         getWorkflowActions: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.get_d_consultancy_deposit_slip_workflow_actions",
         performAction: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.perform_d_consultancy_deposit_slip_workflow_action"
+    },
+    research_deposit_slip: {
+        label: "Research Deposit Slip",
+        getFields: "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.get_research_deposit_slip_fields",
+        save: "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.save_research_deposit_slip",
+        submit: "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.submit_research_deposit_slip",
+        getWorkflowActions: "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.get_research_deposit_slip_workflow_actions",
+        performAction: "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.perform_research_deposit_slip_workflow_action"
     }
 };
 
@@ -111,6 +119,10 @@ const DepositSlipForm: React.FC = () => {
         }
 
         try {
+            console.log(`Fetching fields for type: ${type}`);
+            console.log(`Endpoint: /api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`);
+            console.log(`Payload:`, { doc_name: fundReceivedName || undefined });
+
             const response = await fetch(`/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -118,9 +130,11 @@ const DepositSlipForm: React.FC = () => {
                 body: JSON.stringify({ doc_name: fundReceivedName || undefined })
             });
             const result = await response.json();
+            console.log("Field fetch result:", result);
 
             if (result?.message) {
                 const { fields: apiFields, link_options, prefill_data } = result.message;
+                console.log("Fields found:", apiFields?.length);
 
                 if (Array.isArray(apiFields)) {
                     const processedFields = apiFields.map(field => {
@@ -140,6 +154,8 @@ const DepositSlipForm: React.FC = () => {
                     setFormValues(initialValues);
                 }
                 setLinkOptions(prev => ({ ...prev, ...(link_options || {}) }));
+            } else {
+                console.warn("No 'message' key in response or empty result");
             }
         } catch (err) {
             console.error("Failed to load form fields:", err);
@@ -401,130 +417,127 @@ const DepositSlipForm: React.FC = () => {
     const sections = groupFieldsBySection();
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
-            <AppSidebar />
-            <main className="flex-1 p-4 md:p-8">
-                <header className="mb-8 p-6 bg-white border border-gray-200 rounded-md shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => navigate(-1)} className="p-3 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-transform">
-                            <ArrowLeftIcon className="h-6 w-6" />
-                        </button>
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">New Deposit Slip</h1>
-                            {selectedType && <p className="text-sm text-gray-500 mt-1">{DEPOSIT_SLIP_TYPES[selectedType]?.label}</p>}
-                        </div>
+        <div className="p-4 md:p-8">
+            <header className="mb-8 p-6 bg-white border border-gray-200 rounded-md shadow-sm">
+                <div className="flex items-center gap-4">
+                    <button onClick={() => navigate(-1)} className="p-3 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-transform">
+                        <ArrowLeftIcon className="h-6 w-6" />
+                    </button>
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-900">New Deposit Slip</h1>
+                        {selectedType && <p className="text-sm text-gray-500 mt-1">{DEPOSIT_SLIP_TYPES[selectedType]?.label}</p>}
                     </div>
-                </header>
+                </div>
+            </header>
 
-                {/* Deposit Slip Type Selector */}
-                <FrappeCard className="mb-6">
-                    <div className="space-y-2">
-                        <label className="block text-sm font-semibold text-gray-800">
-                            Select Deposit Slip Type <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                            <select
-                                value={selectedType}
-                                onChange={(e) => handleTypeChange(e.target.value)}
-                                className="w-full h-12 px-4 pr-10 bg-white border-2 border-gray-300 rounded-lg text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4] appearance-none"
-                            >
-                                <option value="">-- Select Deposit Slip Type --</option>
-                                {Object.entries(DEPOSIT_SLIP_TYPES).map(([key, config]) => (
-                                    <option key={key} value={key}>{config.label}</option>
-                                ))}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
-                        </div>
+            {/* Deposit Slip Type Selector */}
+            <FrappeCard className="mb-6">
+                <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-800">
+                        Select Deposit Slip Type <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                        <select
+                            value={selectedType}
+                            onChange={(e) => handleTypeChange(e.target.value)}
+                            className="w-full h-12 px-4 pr-10 bg-white border-2 border-gray-300 rounded-lg text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4] appearance-none"
+                        >
+                            <option value="">-- Select Deposit Slip Type --</option>
+                            {Object.entries(DEPOSIT_SLIP_TYPES).map(([key, config]) => (
+                                <option key={key} value={key}>{config.label}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
                     </div>
-                </FrappeCard>
+                </div>
+            </FrappeCard>
 
-                {/* Loading State */}
-                {loading && (
-                    <div className="flex items-center justify-center py-20">
-                        <div className="text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0EA5A4] mx-auto"></div>
-                            <p className="mt-4 text-lg font-semibold text-gray-600">Loading form fields...</p>
-                        </div>
+            {/* Loading State */}
+            {loading && (
+                <div className="flex items-center justify-center py-20">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#0EA5A4] mx-auto"></div>
+                        <p className="mt-4 text-lg font-semibold text-gray-600">Loading form fields...</p>
                     </div>
-                )}
+                </div>
+            )}
 
-                {/* Form Content */}
-                {!loading && selectedType && fields.length > 0 && (
-                    <form onSubmit={handleSubmit}>
-                        <FrappeCard className="space-y-12">
-                            {sections.map((section, index) => {
-                                if (section.sectionField && !checkDependency(section.sectionField)) return null;
+            {/* Form Content */}
+            {!loading && selectedType && fields.length > 0 && (
+                <form onSubmit={handleSubmit}>
+                    <FrappeCard className="space-y-12">
+                        {sections.map((section, index) => {
+                            if (section.sectionField && !checkDependency(section.sectionField)) return null;
 
-                                return (
-                                    <NeoSection key={index} title={section.title}>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                            {section.fields.map(renderFormField)}
-                                        </div>
-                                    </NeoSection>
-                                );
-                            })}
+                            return (
+                                <NeoSection key={index} title={section.title}>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                        {section.fields.map(renderFormField)}
+                                    </div>
+                                </NeoSection>
+                            );
+                        })}
 
-                            {/* ECS Dates Table */}
-                            <NeoSection title="ECS Dates">
-                                <div className="overflow-x-auto border border-gray-200 rounded-md">
-                                    <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50">
-                                            <tr className="divide-x divide-gray-100">
-                                                {['Date', 'Amount (₹)', 'Remarks', ''].map((h) => (
-                                                    <th key={h} className="p-3 font-semibold text-gray-700 text-sm text-left">{h}</th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody ref={el => { if (el) containerRef.current['ecs_dates'] = el; }} className="divide-y divide-gray-200 bg-white" />
-                                    </table>
-                                </div>
-                                <FrappeButton onClick={() => addTableRow('ecs_dates')} className="bg-[#A5D6A7] hover:bg-[#81C784] mt-4">
-                                    + Add Row
-                                </FrappeButton>
-                            </NeoSection>
+                        {/* ECS Dates Table */}
+                        <NeoSection title="ECS Dates">
+                            <div className="overflow-x-auto border border-gray-200 rounded-md">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr className="divide-x divide-gray-100">
+                                            {['Date', 'Amount (₹)', 'Remarks', ''].map((h) => (
+                                                <th key={h} className="p-3 font-semibold text-gray-700 text-sm text-left">{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody ref={el => { if (el) containerRef.current['ecs_dates'] = el; }} className="divide-y divide-gray-200 bg-white" />
+                                </table>
+                            </div>
+                            <FrappeButton onClick={() => addTableRow('ecs_dates')} className="bg-[#A5D6A7] hover:bg-[#81C784] mt-4">
+                                + Add Row
+                            </FrappeButton>
+                        </NeoSection>
 
-                            {/* Credit Distribution Table */}
-                            <NeoSection title="Credit Distribution">
-                                <div className="overflow-x-auto border border-gray-200 rounded-md">
-                                    <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50">
-                                            <tr className="divide-x divide-gray-100">
-                                                {['Label', 'Percentage (%)', 'Amount (₹)', ''].map((h) => (
-                                                    <th key={h} className="p-3 font-semibold text-gray-700 text-sm text-left">{h}</th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody ref={el => { if (el) containerRef.current['credit_distribution'] = el; }} className="divide-y divide-gray-200 bg-white" />
-                                    </table>
-                                </div>
-                                <FrappeButton onClick={() => addTableRow('credit_distribution')} className="bg-[#A5D6A7] hover:bg-[#81C784] mt-4">
-                                    + Add Row
-                                </FrappeButton>
-                            </NeoSection>
-                        </FrappeCard>
+                        {/* Credit Distribution Table */}
+                        <NeoSection title="Credit Distribution">
+                            <div className="overflow-x-auto border border-gray-200 rounded-md">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
+                                        <tr className="divide-x divide-gray-100">
+                                            {['Label', 'Percentage (%)', 'Amount (₹)', ''].map((h) => (
+                                                <th key={h} className="p-3 font-semibold text-gray-700 text-sm text-left">{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody ref={el => { if (el) containerRef.current['credit_distribution'] = el; }} className="divide-y divide-gray-200 bg-white" />
+                                </table>
+                            </div>
+                            <FrappeButton onClick={() => addTableRow('credit_distribution')} className="bg-[#A5D6A7] hover:bg-[#81C784] mt-4">
+                                + Add Row
+                            </FrappeButton>
+                        </NeoSection>
+                    </FrappeCard>
 
-                        <div className="mt-8 flex justify-end gap-4">
-                            <FrappeButton type="button" onClick={() => navigate(-1)} className="bg-gray-200 hover:bg-gray-300">Cancel</FrappeButton>
-                            <FrappeButton type="submit" disabled={isSubmitting} className="bg-[#0EA5A4] text-white hover:bg-[#0C8F8E] disabled:bg-gray-300">{isSubmitting ? 'Saving...' : 'Save Deposit Slip'}</FrappeButton>
-                        </div>
-                    </form>
-                )}
-
-                {/* No Type Selected */}
-                {!loading && !selectedType && (
-                    <div className="text-center py-20 text-gray-500">
-                        <p className="text-lg">Please select a deposit slip type to continue.</p>
+                    <div className="mt-8 flex justify-end gap-4">
+                        <FrappeButton type="button" onClick={() => navigate(-1)} className="bg-gray-200 hover:bg-gray-300">Cancel</FrappeButton>
+                        <FrappeButton type="submit" disabled={isSubmitting} className="bg-[#0EA5A4] text-white hover:bg-[#0C8F8E] disabled:bg-gray-300">{isSubmitting ? 'Saving...' : 'Save Deposit Slip'}</FrappeButton>
                     </div>
-                )}
+                </form>
+            )}
 
-                {/* No Fields Loaded */}
-                {!loading && selectedType && fields.length === 0 && (
-                    <div className="text-center py-20 text-yellow-600">
-                        <p className="text-lg font-semibold">No form fields found for this deposit slip type.</p>
-                        <p className="text-sm text-gray-500 mt-2">Please check the backend API configuration.</p>
-                    </div>
-                )}
-            </main>
+            {/* No Type Selected */}
+            {!loading && !selectedType && (
+                <div className="text-center py-20 text-gray-500">
+                    <p className="text-lg">Please select a deposit slip type to continue.</p>
+                </div>
+            )}
+
+            {/* No Fields Loaded */}
+            {!loading && selectedType && fields.length === 0 && (
+                <div className="text-center py-20 text-yellow-600">
+                    <p className="text-lg font-semibold">No form fields found for this deposit slip type.</p>
+                    <p className="text-sm text-gray-500 mt-2">Please check the backend API configuration.</p>
+                </div>
+            )}
         </div>
     );
 };
