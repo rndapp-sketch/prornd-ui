@@ -1,10 +1,3 @@
-
-
-
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-
-
 import React, {
   useState,
   useCallback,
@@ -302,9 +295,19 @@ interface QuickActionsProps {
 
 const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
   const [activeTab, setActiveTab] = useState("Reimbursement");
-  const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
+  const [selectedApplication, setSelectedApplication] = useState<string | null>("Reimbursement"); // Auto-select Reimbursement initially
   const [applicationData, setApplicationData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const groups = [
+    { title: "Reimbursement", icon: IndianRupeeIcon, items: ["Reimbursement"] },
+    { title: "Advance", icon: CreditCard, items: ["Temporary Advance Apply"] },
+    { title: "Disbursal", icon: Upload, items: ["One Time Assistantship", "Top Up Fellowship"] },
+    { title: "Purchase", icon: ShoppingCart, items: ["Direct Purchase", "General Indent", "Generate NIQ", "Indent cum Sanction", "Rate Contract"] },
+    { title: "Recruitment", icon: Users, items: ["Adhoc", "Committee Member Change", "Contractual", "Selection Committee Report", "Project Staff Resignation"] },
+    { title: "Travel", icon: Plane, items: ["Travel"] },
+    { title: "Utilities", icon: Settings, items: ["Add New User", "Application History", "Form Tracking", "Incharge Assignment"] },
+  ];
 
   // Frappe SDK hooks for fetching data
   const { call: fetchReimbursements } = useFrappePostCall<{ message: any[] }>(
@@ -333,7 +336,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           try {
             // Use direct fetch to Frappe REST API with cache-busting
             const timestamp = Date.now();
-            const apiUrl = `/api/resource/Reimbursement?fields=["name","creation","workflow_state","owner","project_name","project_number","applicant_webmail","comment"]&order_by=creation%20desc&limit_page_length=0&_=${timestamp}`;
+            const apiUrl = `/api/resource/Reimbursement?fields=["name","creation","workflow_state","owner","project_name","project_number","applicant_webmail","comment"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
 
             const fetchResponse = await fetch(apiUrl, {
               method: 'GET',
@@ -342,7 +345,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
             });
 
             if (!fetchResponse.ok) {
-              throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+              throw new Error(`HTTP error! status: ${fetchResponse.status} `);
             }
 
             const result = await fetchResponse.json();
@@ -400,13 +403,13 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           try {
             console.log('=== FETCHING TEMPORARY ADVANCE (MINIMAL RETRY) ===');
             // Minimal fields to debug 417 - ensure URL is perfect
-            const apiUrl = `/api/resource/Temporary%20Advance?fields=["name","creation"]&limit_page_length=0`;
+            const apiUrl = `/api/resource/Temporary Advance?fields=["name","creation"]&limit_page_length=0`;
             const fetchResponse = await fetch(apiUrl, {
               method: 'GET',
               headers: { 'Accept': 'application/json' },
               credentials: 'include'
             });
-            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status} `);
             const result = await fetchResponse.json();
             const allItems = result?.data || [];
             console.log('Temporary Advance raw items (minimal):', allItems);
@@ -431,13 +434,13 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           }
         } else if (selectedApplication === "Rate Contract") {
           try {
-            const apiUrl = `/api/resource/Rate Contract?fields=["name","creation","workflow_state","owner","project_name","email_id"]&order_by=creation%20desc&limit_page_length=0`;
+            const apiUrl = `/api/resource/Rate Contract?fields=["name","creation","workflow_state","owner","project_name","email_id"]&order_by=creation desc&limit_page_length=0`;
             const fetchResponse = await fetch(apiUrl, {
               method: 'GET',
               headers: { 'Accept': 'application/json' },
               credentials: 'include'
             });
-            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status} `);
             const result = await fetchResponse.json();
             const allItems = result?.data || [];
             data = allItems.filter((item: any) =>
@@ -450,46 +453,45 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
             console.error('Rate Contract fetch error:', fetchError);
             data = [];
           }
-        } else if (selectedApplication === "Travel Apply") {
+        } else if (selectedApplication === "Travel") {
           try {
-            const apiUrl = `/api/resource/Travel?fields=["name","creation","workflow_state","owner","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation%20desc&limit_page_length=0`;
-            const fetchResponse = await fetch(apiUrl, {
+            // Fetch both Travel Apply and TA DA Settlement
+            const travelPromise = fetch(`/api/resource/Travel?fields=["name","creation","workflow_state","owner","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation desc&limit_page_length=0`, {
               method: 'GET',
               headers: { 'Accept': 'application/json' },
               credentials: 'include'
-            });
-            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
-            const result = await fetchResponse.json();
-            const allItems = result?.data || [];
-            data = allItems.filter((item: any) =>
-              item.travel_project_number === projectName
-            ).map((item: any) => ({
-              ...item,
-              applicant_webmail: item.webmail_id_travel
-            }));
-          } catch (fetchError) {
-            console.error('Travel fetch error:', fetchError);
-            data = [];
-          }
-        } else if (selectedApplication === "TA DA Settlement") {
-          try {
-            const apiUrl = `/api/resource/TA DA Settlement?fields=["name","creation","workflow_state","owner","ta_da_project_code","ta_da_name"]&order_by=creation%20desc&limit_page_length=0`;
-            const fetchResponse = await fetch(apiUrl, {
+            }).then(res => res.ok ? res.json() : { data: [] });
+
+            const settlementPromise = fetch(`/api/resource/TA DA Settlement?fields=["name","creation","workflow_state","owner","ta_da_project_code","ta_da_name"]&order_by=creation desc&limit_page_length=0`, {
               method: 'GET',
               headers: { 'Accept': 'application/json' },
               credentials: 'include'
-            });
-            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
-            const result = await fetchResponse.json();
-            const allItems = result?.data || [];
-            data = allItems.filter((item: any) =>
-              item.ta_da_project_code === projectName
-            ).map((item: any) => ({
-              ...item,
-              applicant_webmail: item.ta_da_name
-            }));
+            }).then(res => res.ok ? res.json() : { data: [] });
+
+            const [travelRes, settlementRes] = await Promise.all([travelPromise, settlementPromise]);
+
+            const travelItems = (travelRes.data || [])
+              .filter((item: any) => item.travel_project_number === projectName)
+              .map((item: any) => ({
+                ...item,
+                applicant_webmail: item.webmail_id_travel,
+                type: 'Travel Apply'
+              }));
+
+            const settlementItems = (settlementRes.data || [])
+              .filter((item: any) => item.ta_da_project_code === projectName)
+              .map((item: any) => ({
+                ...item,
+                applicant_webmail: item.ta_da_name,
+                type: 'TA DA Settlement'
+              }));
+
+            // Combine and sort by creation date desc
+            data = [...travelItems, ...settlementItems].sort((a, b) =>
+              new Date(b.creation).getTime() - new Date(a.creation).getTime()
+            );
           } catch (fetchError) {
-            console.error('TA DA Settlement fetch error:', fetchError);
+            console.error('Travel combined fetch error:', fetchError);
             data = [];
           }
         }
@@ -520,23 +522,32 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
     </button>
   );
 
-  const groups = [
-    { title: "Reimbursement", icon: IndianRupeeIcon, items: ["Reimbursement"] },
-    { title: "Advance", icon: CreditCard, items: ["Temporary Advance Apply"] },
-    { title: "Disbursal", icon: Upload, items: ["One Time Assistantship", "Top Up Fellowship"] },
-    { title: "Purchase", icon: ShoppingCart, items: ["Direct Purchase", "General Indent", "Generate NIQ", "Indent cum Sanction", "Rate Contract"] },
-    { title: "Recruitment", icon: Users, items: ["Adhoc", "Committee Member Change", "Contractual", "Selection Committee Report", "Project Staff Resignation"] },
-    { title: "Travel", icon: Plane, items: ["Travel Apply", "TA DA Settlement"] },
-    { title: "Utilities", icon: Settings, items: ["Add New User", "Application History", "Form Tracking", "Incharge Assignment"] },
-  ];
-
   const activeGroup = groups.find(g => g.title === activeTab);
+
+  // Handle tab change - auto-select for single-item tabs
+  const handleTabChange = (tabTitle: string) => {
+    setActiveTab(tabTitle);
+    const group = groups.find(g => g.title === tabTitle);
+    if (group && group.items.length === 1) {
+      // Auto-select the only item in this tab
+      setSelectedApplication(group.items[0]);
+    } else {
+      // Reset selection for multi-item tabs
+      setSelectedApplication(null);
+      setApplicationData([]);
+    }
+  };
 
   const handleApplicationClick = (item: string) => {
     setSelectedApplication(item);
   };
 
   const handleBack = () => {
+    const group = groups.find(g => g.title === activeTab);
+    if (group && group.items.length === 1) {
+      // For single-item tabs, don't clear - stay on the view
+      return;
+    }
     setSelectedApplication(null);
     setApplicationData([]);
   };
@@ -545,22 +556,22 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
     // Navigate based on application type
     switch (selectedApplication) {
       case "Reimbursement":
-        onNavigate(`/reimbursement?project=${projectName}`);
+        onNavigate(`/ reimbursement ? project = ${projectName} `);
         break;
       case "Temporary Advance Apply":
-        onNavigate(`/temporary-advance?project=${projectName}`);
+        onNavigate(`/ temporary - advance ? project = ${projectName} `);
         break;
       case "Rate Contract":
-        onNavigate(`/rate-contract?project=${projectName}`);
+        onNavigate(`/ rate - contract ? project = ${projectName} `);
         break;
       case "Travel Apply":
-        onNavigate(`/travel?project=${projectName}`);
+        onNavigate(`/ travel ? project = ${projectName} `);
         break;
       case "TA DA Settlement":
-        onNavigate(`/ta-da-settlement?project=${projectName}`);
+        onNavigate(`/ ta - da - settlement ? project = ${projectName} `);
         break;
       case "Project Staff Resignation":
-        onNavigate(`/project-staff-resignation?project=${projectName}`);
+        onNavigate(`/ project - staff - resignation ? project = ${projectName} `);
         break;
       default:
         alert(`Apply New: ${selectedApplication} - Route not configured yet`);
@@ -576,31 +587,87 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
 
   // Table view for selected application
   if (selectedApplication) {
+    // Check if current tab is single-item (hide back button for these)
+    const currentGroup = groups.find(g => g.title === activeTab);
+    const isSingleItemTab = currentGroup && currentGroup.items.length === 1;
 
     return (
       <div className="p-5 bg-gray-50/50 rounded-xl">
+        {/* Tab Header - Always visible */}
+        <div className="mb-5">
+          <nav className="frappe-tabs" aria-label="Quick actions tabs">
+            {groups.map((group) => {
+              const Icon = group.icon;
+              const isActive = activeTab === group.title;
+              return (
+                <button
+                  key={group.title}
+                  onClick={() => handleTabChange(group.title)}
+                  aria-selected={isActive}
+                  className={cn(
+                    "frappe-tab flex items-center gap-2",
+                    isActive && "active"
+                  )}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{group.title}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
         {/* Header with back button and Apply New */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <button
-              onClick={handleBack}
-              className="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-600 rotate-180" />
-            </button>
+            {!isSingleItemTab && (
+              <button
+                onClick={handleBack}
+                className="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                <ChevronRight className="w-5 h-5 text-gray-600 rotate-180" />
+              </button>
+            )}
             <h3 className="text-lg font-semibold text-gray-900">{selectedApplication}</h3>
           </div>
-          <button
-            onClick={handleApplyNew}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
-              "bg-[#0EA5A4] text-white hover:bg-[#0D9494]",
-              "shadow-sm transition-all duration-150"
-            )}
-          >
-            <Plus className="w-4 h-4" />
-            Apply New
-          </button>
+          {selectedApplication === "Travel" ? (
+            <div className="flex gap-2">
+              <button
+                onClick={() => onNavigate(`/ travel ? project = ${projectName} `)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
+                  "bg-[#0EA5A4] text-white hover:bg-[#0D9494]",
+                  "shadow-sm transition-all duration-150"
+                )}
+              >
+                <Plus className="w-4 h-4" />
+                Travel Apply
+              </button>
+              {/* <button
+                onClick={() => onNavigate(`/ ta - da - settlement ? project = ${ projectName } `)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
+                  "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50",
+                  "shadow-sm transition-all duration-150"
+                )}
+              >
+                <Plus className="w-4 h-4" />
+                Settlement
+              </button> */}
+            </div>
+          ) : (
+            <button
+              onClick={handleApplyNew}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
+                "bg-[#0EA5A4] text-white hover:bg-[#0D9494]",
+                "shadow-sm transition-all duration-150"
+              )}
+            >
+              <Plus className="w-4 h-4" />
+              Apply New
+            </button>
+          )}
         </div>
 
         {/* Applications Table */}
@@ -645,24 +712,34 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                           onClick={() => {
                             switch (selectedApplication) {
                               case "Project Staff Resignation":
-                                onNavigate(`/project-staff-resignation?edit=${item.name}`);
+                                onNavigate(`/ project - staff - resignation ? edit = ${item.name} `);
                                 break;
                               case "Temporary Advance Apply":
                                 // Navigate to the new details page
-                                onNavigate(`/temporary-advance/${item.name}`);
+                                onNavigate(`/ temporary - advance / ${item.name} `);
                                 break;
                               case "Rate Contract":
-                                onNavigate(`/rate-contract?edit=${item.name}`);
-                                break;
-                              case "Travel Apply":
-                                onNavigate(`/travel?edit=${item.name}`);
-                                break;
-                              case "TA DA Settlement":
-                                onNavigate(`/ta-da-settlement?edit=${item.name}`);
+                                onNavigate(`/ rate - contract ? edit = ${item.name} `);
                                 break;
                               case "Reimbursement":
+                                onNavigate(`/ reimbursement / ${item.name} `);
+                                break;
+                              case "Travel": // Fallback
+                              case "Travel Apply":
+                                onNavigate(`/ travel ? edit = ${item.name} `);
+                                break;
+                              case "TA DA Settlement":
+                                onNavigate(`/ ta - da - settlement ? edit = ${item.name} `);
+                                break;
                               default:
-                                onNavigate(`/reimbursement/${item.name}`);
+                                // Check item.type for Travel consolidated view
+                                if (item.type === 'Travel Apply') {
+                                  onNavigate(`/ travel ? edit = ${item.name} `);
+                                } else if (item.type === 'TA DA Settlement') {
+                                  onNavigate(`/ ta - da - settlement ? edit = ${item.name} `);
+                                } else {
+                                  onNavigate(`/ reimbursement / ${item.name} `);
+                                }
                                 break;
                             }
                           }}
@@ -670,12 +747,20 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                         >
                           View
                         </button>
+                        {(selectedApplication === "Travel" && item.type === 'Travel Apply') && (
+                          <button
+                            onClick={() => onNavigate(`/ ta - da - settlement ? project = ${projectName}& travel_id=${item.name} `)}
+                            className="text-sm text-gray-600 hover:text-gray-900 hover:underline whitespace-nowrap"
+                          >
+                            Settle
+                          </button>
+                        )}
                         {selectedApplication === "Temporary Advance Apply" && (
                           <button
                             onClick={() => {
                               // Navigate to settlement page for this temporary advance
                               // Pass the advance ID to pre-fill the settlement form
-                              onNavigate(`/ta-da-settlement?advance_id=${item.name}&project=${projectName}`);
+                              onNavigate(`/ ta - da - settlement ? advance_id = ${item.name}& project=${projectName} `);
                             }}
                             className="text-sm text-amber-600 hover:underline whitespace-nowrap font-medium"
                           >
@@ -711,7 +796,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
             </div>
           )}
         </div>
-      </div>
+      </div >
     );
   }
 
@@ -727,7 +812,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
             return (
               <button
                 key={group.title}
-                onClick={() => setActiveTab(group.title)}
+                onClick={() => handleTabChange(group.title)}
                 aria-selected={isActive}
                 className={cn(
                   "frappe-tab flex items-center gap-2",
@@ -822,7 +907,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
         <div className="space-y-3">
           {activityData?.message?.map((item, index) => (
             <div
-              key={`${item.creation}-${index}`}
+              key={`${item.creation} -${index} `}
               className="flex items-start gap-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#E0F7F6] flex items-center justify-center font-semibold text-[#0EA5A4] text-lg">
@@ -1029,10 +1114,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     setLedgerError(null);
     try {
       // Use proxy to avoid CORS - /ledger-api proxies to http://172.16.135.27:18083/api ${projectName}
-      const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${projectName}&accountHeadId=${headId}`);
+      const response = await fetch(`/ ledger - api / commit - payment - transactions ? projectNumber = ${projectName}& accountHeadId=${headId} `);
       console.log("Ledger API response status:", response, "for projectNumber:", projectName, "headId:", headId);
       if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText}`);
+        throw new Error(`API Error: ${response.statusText} `);
       }
 
       const result = await response.json();
@@ -1060,7 +1145,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
             rawEntries.push({
               sl: 0, // Assigned later
               date: fund.transaction_date || fund.modified?.split(" ")[0] || "",
-              particulars: `Fund Received - ${item.account_head}`,
+              particulars: `Fund Received - ${item.account_head} `,
               ref: fund.sanction_ref_no || fund.name,
               received: item.amount_received,
               committed: 0,
@@ -1146,12 +1231,50 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     return match;
   });
 
-  // Sidebar Balances (re-derived from filtered ledger data)
-  const actualBalance = filteredBudgetData.reduce((acc, entry) => acc + (entry.received || 0) - (entry.payment || 0), 0);
+  // Sidebar Balances (re-derived from filtered ledger data) - for commit section
+  const filteredActualBalance = filteredBudgetData.reduce((acc, entry) => acc + (entry.received || 0) - (entry.payment || 0), 0);
 
-  const commitableBalance = filteredBudgetData.reduce((acc, entry) => {
+  const filteredCommitableBalance = filteredBudgetData.reduce((acc, entry) => {
     return acc + (entry.received || 0) - (entry.committed || 0) - (entry.payment || 0);
   }, 0);
+
+  // Total project balances from Frappe API - for header display
+  // Memoize params and options to prevent infinite re-renders
+  const balanceParams = useMemo(() => ({ project_number: projectName || '' }), [projectName]);
+  const balanceOptions = useMemo(() => ({
+    revalidateOnFocus: false,
+    isPaused: () => !projectName
+  }), [projectName]);
+
+  const { data: projectAmounts, isLoading: isBalanceLoading, error: balanceError } = useFrappeGetCall<{
+    message: {
+      status: string;
+      data: {
+        projectNumber: string;
+        totalFundReceived: number;
+        totalCommitted: number;
+        totalPaid: number;
+        availableCommitAmount: number;  // This is the "Actual Balance"
+        availablePaymentAmount: number; // This is the "Commitable"
+      }
+    };
+  }>(
+    'rndopsapp.rndopsapp.commitPayment.get_project_available_amounts',
+    balanceParams,
+    balanceOptions
+  );
+
+  // Extract balance values from API response
+  // Note: useFrappeGetCall may unwrap 'message' automatically in some versions, so check both paths
+  const projectData = (projectAmounts as any)?.message?.data ?? (projectAmounts as any)?.data ?? {};
+  const actualBalance = projectData?.availableCommitAmount ?? 0;
+  const commitableBalance = projectData?.availablePaymentAmount ?? 0;
+
+  // Debug logging
+  console.log('[ProjectDetailsOverview] Current projectName:', projectName);
+  console.log('[ProjectDetailsOverview] Balance Query API status:', { isLoading: isBalanceLoading, error: balanceError, hasData: !!projectAmounts });
+  console.log('[ProjectDetailsOverview] projectAmounts API response:', projectAmounts);
+  console.log('[ProjectDetailsOverview] actualBalance:', actualBalance, 'commitableBalance:', commitableBalance);
 
   const handleCommit = () => {
     const amount = parseFloat(commitAmount);
@@ -1248,7 +1371,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
             await addComment({
               doctype: "Fund Sanction",
               docname: selectedSanctionName,
-              content: `[Submit] ${comment.trim()}`
+              content: `[Submit] ${comment.trim()} `
             });
           } catch (commentError) {
             console.error("Error adding comment:", commentError);
@@ -1281,14 +1404,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
           activityStreamRef.current?.refetch();
         })
         .catch((err: any) =>
-          console.error(`Error during workflow action:`, err)
+          console.error(`Error during workflow action: `, err)
         );
     },
     [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]
   );
 
   const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
-  const handleAddFunds = () => navigate(`/add-fund-received/${projectName}/`);
+  const handleAddFunds = () => navigate(`/ add - fund - received / ${projectName}/`);
   const handleAddSanctionDetails = () => {
     navigate(`/project-details-overview/${projectName}/add-fund-sanction`);
   };
@@ -1366,15 +1489,20 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
               <div className="hidden lg:flex items-center gap-6 mr-6 border-r border-gray-200 pr-6">
                 <div className="text-right">
                   <p className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-0.5">Actual Balance</p>
-                  <p className="text-lg font-bold text-[#0EA5A4] leading-none">₹ {actualBalance.toLocaleString('en-IN')}</p>
+                  {isBalanceLoading ? (
+                    <div className="h-6 w-20 bg-gray-200 animate-pulse rounded" />
+                  ) : (
+                    <p className="text-lg font-bold text-[#0EA5A4] leading-none">₹ {actualBalance.toLocaleString('en-IN')}</p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-0.5">Commitable</p>
-                  <p className="text-lg font-bold text-gray-700 leading-none">₹ {commitableBalance.toLocaleString('en-IN')}</p>
+                  {isBalanceLoading ? (
+                    <div className="h-6 w-20 bg-gray-200 animate-pulse rounded" />
+                  ) : (
+                    <p className="text-lg font-bold text-gray-700 leading-none">₹ {commitableBalance.toLocaleString('en-IN')}</p>
+                  )}
                 </div>
-                {/* <button onClick={() => setIsLedgerOpen(true)} className="text-xs font-semibold text-[#0EA5A4] bg-[#E0F7F6] px-3 py-1.5 rounded-lg hover:bg-[#B2DFDB] transition-colors">
-                  View Ledger
-                </button> */}
               </div>
 
               {isCurrentUserPI && (

@@ -57,17 +57,26 @@ export const useProjectBudget = (projectTitle: string) => { // projectTitle is e
                 const headNames = availableHeads.map((h: any) => h.budget_head);
                 setHeads(headNames);
 
+                console.log('[useProjectBudget] Fetching for project:', projectTitle);
+                console.log('[useProjectBudget] Available heads:', availableHeads);
+
                 // 2. Fetch Ledger Data for EACH head
                 // Using Promise.all to fetch concurrently
-                const promises = availableHeads.map((head: any) =>
-                    fetch(`/ledger-api/commit-payment-transactions?projectNumber=${projectTitle}&accountHeadId=${head.id}`)
+                const promises = availableHeads.map((head: any) => {
+                    const apiUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectTitle)}&accountHeadId=${head.id}`;
+                    console.log(`[useProjectBudget] Fetching: ${apiUrl}`);
+
+                    return fetch(apiUrl)
                         .then(res => res.json())
-                        .then(data => ({ head: head.budget_head, headId: head.id, data: Array.isArray(data) ? data : [] }))
+                        .then(data => {
+                            console.log(`[useProjectBudget] Response for ${head.budget_head}:`, data);
+                            return { head: head.budget_head, headId: head.id, data: Array.isArray(data) ? data : [] };
+                        })
                         .catch(err => {
                             console.error(`Failed to fetch ledger for ${head.budget_head}`, err);
                             return { head: head.budget_head, headId: head.id, data: [] };
-                        })
-                );
+                        });
+                });
 
                 const results = await Promise.all(promises);
 
@@ -142,6 +151,13 @@ export const useProjectBudget = (projectTitle: string) => { // projectTitle is e
                 setHeadBalances(balances);
                 setActualBalance(totalActual);
                 setCommitableBalance(totalCommitable);
+
+                // Debug logging
+                console.log('[useProjectBudget] Project:', projectTitle);
+                console.log('[useProjectBudget] Total Actual Balance:', totalActual);
+                console.log('[useProjectBudget] Total Commitable Balance:', totalCommitable);
+                console.log('[useProjectBudget] All Entries Count:', allEntries.length);
+                console.log('[useProjectBudget] Head Balances:', balances);
 
             } catch (err: any) {
                 console.error("Error in useProjectBudget:", err);
