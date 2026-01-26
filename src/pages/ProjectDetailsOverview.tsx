@@ -1070,7 +1070,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   useEffect(() => {
     const fetchBudgetHeads = async () => {
       try {
-        const response = await fetch('/api/v2/document/Budget Head?fields=["budget_head","id"]&order_by=id asc');
+        const response = await fetch('/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc');
         const result = await response.json();
         console.log("Budget Head v2 API data:", result);
         if (result?.data) {
@@ -1113,8 +1113,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     setIsLedgerLoading(true);
     setLedgerError(null);
     try {
-      // Use proxy to avoid CORS - /ledger-api proxies to http://172.16.135.27:18083/api ${projectName}
-      const response = await fetch(`/ ledger - api / commit - payment - transactions ? projectNumber = ${projectName}& accountHeadId=${headId} `);
+      // Use proxy to avoid CORS - /ledger-api proxies to http://172.16.135.27:18083/api
+      const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${projectName}&accountHeadId=${headId}`);
       console.log("Ledger API response status:", response, "for projectNumber:", projectName, "headId:", headId);
       if (!response.ok) {
         throw new Error(`API Error: ${response.statusText} `);
