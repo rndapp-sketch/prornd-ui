@@ -34,8 +34,6 @@ import {
   ShoppingCartIcon,
   UsersIcon as UsersGroupIcon,
   PlaneIcon,
-  PlusIcon,
-  FilePlusIcon,
   MapPinIcon,
   MailIcon,
   GlobeIcon,
@@ -543,7 +541,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview"); // Default to overview
   const activityStreamRef = useRef<ActivityStreamHandle>(null);
-  const { currentUser } = useFrappeAuth();
+  const { } = useFrappeAuth();
   const isPermanentEmployee = useUserRoleCheck();
   const { data, error, isLoading, mutate } = useFrappeGetDoc(
     "Project Registration",
@@ -594,9 +592,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     },
     [triggerWorkflowAction, submitProjectRegistration, mutate, projectName, selectedAction]
   );
-  const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
-  const handleAddFunds = () => alert("Add Funds functionality will be implemented here.");
-  const handleAddSanctionDetails = () => navigate('/add-fund-sanction');
+
 
   const tabs = [
     // { id: "quick-actions", label: "Available Services", icon: SettingsIcon },
@@ -682,22 +678,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {isCurrentUserPI && (
-                <div className="flex gap-2">
-                  <FrappeButton
-                    onClick={handleAddFunds}
-                    className="bg-[#E0F7F6] hover:bg-[#B2EBF2] text-[#0EA5A4] flex items-center gap-2"
-                  >
-                    <PlusIcon className="h-4 w-4" /> Add Funds
-                  </FrappeButton>
-                  <FrappeButton
-                    onClick={handleAddSanctionDetails}
-                    className="bg-[#E0F7F6] hover:bg-[#B2EBF2] text-[#0EA5A4] flex items-center gap-2"
-                  >
-                    <FilePlusIcon className="h-4 w-4" /> Add Sanction
-                  </FrappeButton>
-                </div>
-              )}
+
               <WorkflowActions
                 docname={projectName}
                 onAction={handleWorkflowAction}
@@ -760,12 +741,83 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                       icon={CalendarIcon}
                     />
                     <FieldDisplay
+                      label="Start Date"
+                      value={data?.prj_start_date}
+                      icon={CalendarIcon}
+                    />
+                    <FieldDisplay
+                      label="End Date"
+                      value={data?.prj_end_date}
+                      icon={CalendarIcon}
+                    />
+                    <FieldDisplay
                       label="International Travel"
                       value={data?.involves_international_travel}
                       icon={PlaneIcon}
                     />
+                    {data?.upload_proj_prop && (
+                      <div className="py-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <FileTextIcon className="h-4 w-4 text-gray-500" />
+                          <p className="text-xs font-semibold text-gray-700">Project Proposal</p>
+                        </div>
+                        <a
+                          href={data.upload_proj_prop.startsWith('http') ? data.upload_proj_prop : `/files/${data.upload_proj_prop}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-[#0EA5A4] hover:underline flex items-center gap-1"
+                        >
+                          <ExternalLinkIcon className="h-3 w-3" /> View File
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
+                {/* Consultancy Details */}
+                {data?.project_type === "Consultancy" && (
+                  <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                    <h3 className="text-base font-semibold text-gray-900 mb-3">
+                      Consultancy Details
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                      <FieldDisplay label="Consultancy Category" value={data?.consultancy_category} icon={FileTextIcon} />
+                      <FieldDisplay label="GSTIN" value={data?.consultancy_gstin} icon={FileTextIcon} />
+                      <FieldDisplay label="GST Rate" value={data?.consultancy_gst_rate} icon={IndianRupeeIcon} />
+
+                      {data?.consultancy_category?.startsWith("Category D") && (
+                        <>
+                          <FieldDisplay label="Category D Note" value={data?.category_d_note} icon={FileTextIcon} />
+                          <FieldDisplay label="Total Cost (Excl. GST)" value={data?.cat_d_project_cost_excl_gst} icon={IndianRupeeIcon} />
+                          <FieldDisplay label="Consultancy Fee" value={data?.cat_d_consultancy_fee_input} icon={IndianRupeeIcon} />
+                          <FieldDisplay label="Operational Expense (+OH)" value={data?.operational_expense_input_inc_10_oh} icon={IndianRupeeIcon} />
+                          <FieldDisplay label="Institute Share" value={data?.cat_d_institute_share} icon={IndianRupeeIcon} />
+                          <FieldDisplay label="Total Overhead" value={data?.cat_d_total_overhead} icon={IndianRupeeIcon} />
+                          <FieldDisplay label="GST Amount" value={data?.cat_d_gst_amt} icon={IndianRupeeIcon} />
+                          <FieldDisplay label="Grand Total" value={data?.cat_d_grand_total_calc} icon={IndianRupeeIcon} />
+                        </>
+                      )}
+
+                      {(!data?.consultancy_category?.startsWith("Category D") && data?.consultancy_category) && (
+                        <>
+                          <FieldDisplay label="Category Note" value={data?.category_e_note || data?.category_t_note} icon={FileTextIcon} />
+                          <FieldDisplay label="Total Amount" value={data?.cat_ef_total_amount} icon={IndianRupeeIcon} />
+                          <FieldDisplay label="Honorarium" value={data?.cat_ef_honorarium} icon={IndianRupeeIcon} />
+                          <FieldDisplay label="Institute Share" value={data?.cat_ef_institute_share} icon={IndianRupeeIcon} />
+                          <FieldDisplay label="GST" value={data?.cat_ef_gst} icon={IndianRupeeIcon} />
+                          <FieldDisplay label="Grand Total" value={data?.cat_ef_grand_total} icon={IndianRupeeIcon} />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {/* Other Project Type */}
+                {data?.project_type === "Other" && (
+                  <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                      <FieldDisplay label="Other Project Type" value={data?.other_project_type_name} icon={FileTextIcon} />
+                    </div>
+                  </div>
+                )}
                 <div className="p-5 bg-white border border-gray-200 rounded-xl">
                   <h3 className="text-base font-semibold text-gray-900 mb-3">
                     Funding Agency

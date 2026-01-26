@@ -45,7 +45,8 @@ import {
   AlertCircleIcon,
   CogIcon as SettingsIcon,
   ChevronDown, CheckCircle2, ChevronRight, LayoutDashboard, MoreVertical, PieChart, Plus, Search, X, Trash2,
-  CreditCard, Upload, ShoppingCart, Plane, ZapIcon, Users, Settings, FileSpreadsheet as LedgerIcon
+  CreditCard, Upload, ShoppingCart, Plane, ZapIcon, Users, Settings, FileSpreadsheet as LedgerIcon,
+  ExternalLinkIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DepartmentName } from "@/components/DepartmentName";
@@ -1574,9 +1575,71 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       <FieldDisplay label="Implementation Dept" value={data?.implementation_department ? <DepartmentName name={data?.implementation_department} /> : null} icon={BuildingIcon} />
                       <FieldDisplay label="Status" value={data?.sanction_workflow_status} icon={TargetIcon} />
                       <FieldDisplay label="Project Duration" value={`${data?.project_duration_months}m ${data?.project_duration_days || 0}d`} icon={CalendarIcon} />
+                      <FieldDisplay label="Start Date" value={data?.prj_start_date} icon={CalendarIcon} />
+                      <FieldDisplay label="End Date" value={data?.prj_end_date} icon={CalendarIcon} />
                       <FieldDisplay label="International Travel" value={data?.involves_international_travel} icon={PlaneIcon} />
+                      {data?.upload_proj_prop && (
+                        <div className="py-2">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <FileTextIcon className="h-3.5 w-3.5 text-gray-500" />
+                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Project Proposal</p>
+                          </div>
+                          <a
+                            href={data.upload_proj_prop.startsWith('http') ? data.upload_proj_prop : `/files/${data.upload_proj_prop}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-[#0EA5A4] hover:underline flex items-center gap-1"
+                          >
+                            <ExternalLinkIcon className="h-3 w-3" /> View File
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </SectionWrapper>
+
+                  {/* Consultancy Details */}
+                  {data?.project_type === "Consultancy" && (
+                    <SectionWrapper title="Consultancy Details" icon={FileTextIcon}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
+                        <FieldDisplay label="Consultancy Category" value={data?.consultancy_category} icon={FileTextIcon} />
+                        <FieldDisplay label="GSTIN" value={data?.consultancy_gstin} icon={FileTextIcon} />
+                        <FieldDisplay label="GST Rate" value={data?.consultancy_gst_rate} icon={IndianRupeeIcon} />
+
+                        {data?.consultancy_category?.startsWith("Category D") && (
+                          <>
+                            <FieldDisplay label="Category D Note" value={data?.category_d_note} icon={FileTextIcon} />
+                            <FieldDisplay label="Total Cost (Excl. GST)" value={data?.cat_d_project_cost_excl_gst} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Consultancy Fee" value={data?.cat_d_consultancy_fee_input} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Operational Expense (+OH)" value={data?.operational_expense_input_inc_10_oh} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Institute Share" value={data?.cat_d_institute_share} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Total Overhead" value={data?.cat_d_total_overhead} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="GST Amount" value={data?.cat_d_gst_amt} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Grand Total" value={data?.cat_d_grand_total_calc} icon={IndianRupeeIcon} />
+                          </>
+                        )}
+
+                        {(!data?.consultancy_category?.startsWith("Category D") && data?.consultancy_category) && (
+                          <>
+                            <FieldDisplay label="Category Note" value={data?.category_e_note || data?.category_t_note} icon={FileTextIcon} />
+                            <FieldDisplay label="Total Amount" value={data?.cat_ef_total_amount} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Honorarium" value={data?.cat_ef_honorarium} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Institute Share" value={data?.cat_ef_institute_share} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="GST" value={data?.cat_ef_gst} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Grand Total" value={data?.cat_ef_grand_total} icon={IndianRupeeIcon} />
+                          </>
+                        )}
+                      </div>
+                    </SectionWrapper>
+                  )}
+
+                  {/* Other Project Type */}
+                  {data?.project_type === "Other" && (
+                    <SectionWrapper title="Other Project Details" icon={FileTextIcon}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                        <FieldDisplay label="Other Project Type" value={data?.other_project_type_name} icon={FileTextIcon} />
+                      </div>
+                    </SectionWrapper>
+                  )}
 
                   <SectionWrapper title="Funding Agency" icon={BuildingIcon}>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
