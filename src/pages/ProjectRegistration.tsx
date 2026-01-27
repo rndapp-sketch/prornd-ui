@@ -902,45 +902,49 @@ const ProjectRegistration: React.FC = () => {
                                             </div>
                                         )}
                                         {formData.project_type === "Consultancy" && (
-                                            <div className="space-y-4">
-                                                {renderField("consultancy_category")}
-                                                {renderField("consultancy_gstin")}
-                                                {renderField("consultancy_gst_rate")}
-                                                {renderField("involves_international_travel")}
+                                            <div className="space-y-8">
+                                                <div className="space-y-4">
+                                                    {renderField("consultancy_category")}
+                                                    {renderField("consultancy_gstin")}
+                                                    {renderField("consultancy_gst_rate")}
+                                                    {renderField("involves_international_travel")}
 
-                                                {/* Category D Fields */}
-                                                {formData.consultancy_category?.startsWith("Category D") && (
-                                                    <div className="space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                                                        <h4 className="font-bold text-lg text-gray-700">Category D Details</h4>
-                                                        {renderField("category_d_note")}
-                                                        {renderField("cat_d_grand_total_input")}
-                                                        {renderField("cat_d_project_cost_excl_gst")}
-                                                        {renderField("cat_d_consultancy_fee_input")}
-                                                        {renderField("operational_expense_input_inc_10_oh")}
-                                                        {renderField("cat_d_cf_base")}
-                                                        {renderField("cat_d_oe_base")}
-                                                        {renderField("cat_d_total_overhead")}
-                                                        {renderField("cat_d_institute_share")}
-                                                        {renderField("cat_d_gst_amt")}
-                                                        {renderField("cat_d_grand_total_calc")}
-                                                    </div>
-                                                )}
+                                                    {/* Category D Fields */}
+                                                    {formData.consultancy_category?.startsWith("Category D") && (
+                                                        <div className="space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                                                            <h4 className="font-bold text-lg text-gray-700">Category D Details</h4>
+                                                            {renderField("category_d_note")}
+                                                            {renderField("cat_d_grand_total_input")}
+                                                            {renderField("cat_d_project_cost_excl_gst")}
+                                                            {renderField("cat_d_consultancy_fee_input")}
+                                                            {renderField("operational_expense_input_inc_10_oh")}
+                                                            {renderField("cat_d_cf_base")}
+                                                            {renderField("cat_d_oe_base")}
+                                                            {renderField("cat_d_total_overhead")}
+                                                            {renderField("cat_d_institute_share")}
+                                                            {renderField("cat_d_gst_amt")}
+                                                            {renderField("cat_d_grand_total_calc")}
+                                                        </div>
+                                                    )}
 
-                                                {/* Category T & E Fields */}
-                                                {(!formData.consultancy_category?.startsWith("Category D") && formData.consultancy_category) && (
-                                                    <div className="space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                                                        <h4 className="font-bold text-lg text-gray-700">
-                                                            {formData.consultancy_category?.includes("Routine") && !formData.consultancy_category?.includes("Non-Routine") ? "Category T Details" : "Category E Details"}
-                                                        </h4>
-                                                        {renderField("category_e_note")}
-                                                        {renderField("category_t_note")}
-                                                        {renderField("cat_ef_total_amount")}
-                                                        {renderField("cat_ef_honorarium")}
-                                                        {renderField("cat_ef_institute_share")}
-                                                        {renderField("cat_ef_gst")}
-                                                        {renderField("cat_ef_grand_total")}
-                                                    </div>
-                                                )}
+                                                    {/* Category T & E Fields */}
+                                                    {(!formData.consultancy_category?.startsWith("Category D") && formData.consultancy_category) && (
+                                                        <div className="space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                                                            <h4 className="font-bold text-lg text-gray-700">
+                                                                {formData.consultancy_category?.includes("Routine") && !formData.consultancy_category?.includes("Non-Routine") ? "Category T Details" : "Category E Details"}
+                                                            </h4>
+                                                            {renderField("category_e_note")}
+                                                            {renderField("category_t_note")}
+                                                            {renderField("cat_ef_total_amount")}
+                                                            {renderField("cat_ef_honorarium")}
+                                                            {renderField("cat_ef_institute_share")}
+                                                            {renderField("cat_ef_gst")}
+                                                            {renderField("cat_ef_grand_total")}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <FrappeCard className="p-6 space-y-6 !shadow-sm border-gray-300"><h3 className="text-2xl font-bold uppercase text-black">Funding Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.fundingDetails)}</div></FrappeCard>
+                                                <FrappeCard className="p-6 space-y-6 !shadow-sm border-gray-300"><h3 className="text-2xl font-bold uppercase text-black">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.agencyAddress)}</div></FrappeCard>
                                             </div>
                                         )}
                                         {formData.project_type === "Other" && renderField("other_project_type_name")}
