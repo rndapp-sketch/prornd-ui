@@ -713,33 +713,33 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                           onClick={() => {
                             switch (selectedApplication) {
                               case "Project Staff Resignation":
-                                onNavigate(`/ project - staff - resignation ? edit = ${item.name} `);
+                                onNavigate(`/project-staff-resignation?edit=${item.name}`);
                                 break;
                               case "Temporary Advance Apply":
                                 // Navigate to the new details page
-                                onNavigate(`/ temporary - advance / ${item.name} `);
+                                onNavigate(`/temporary-advance/${item.name}`);
                                 break;
                               case "Rate Contract":
-                                onNavigate(`/ rate - contract ? edit = ${item.name} `);
+                                onNavigate(`/rate-contract?edit=${item.name}`);
                                 break;
                               case "Reimbursement":
-                                onNavigate(`/ reimbursement / ${item.name} `);
+                                onNavigate(`/reimbursement/${item.name}`);
                                 break;
                               case "Travel": // Fallback
                               case "Travel Apply":
-                                onNavigate(`/ travel ? edit = ${item.name} `);
+                                onNavigate(`/travel?edit=${item.name}`);
                                 break;
                               case "TA DA Settlement":
-                                onNavigate(`/ ta - da - settlement ? edit = ${item.name} `);
+                                onNavigate(`/ta-da-settlement?edit=${item.name}`);
                                 break;
                               default:
                                 // Check item.type for Travel consolidated view
                                 if (item.type === 'Travel Apply') {
-                                  onNavigate(`/ travel ? edit = ${item.name} `);
+                                  onNavigate(`/travel?edit=${item.name}`);
                                 } else if (item.type === 'TA DA Settlement') {
-                                  onNavigate(`/ ta - da - settlement ? edit = ${item.name} `);
+                                  onNavigate(`/ta-da-settlement?edit=${item.name}`);
                                 } else {
-                                  onNavigate(`/ reimbursement / ${item.name} `);
+                                  onNavigate(`/reimbursement/${item.name}`);
                                 }
                                 break;
                             }
@@ -750,7 +750,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                         </button>
                         {(selectedApplication === "Travel" && item.type === 'Travel Apply') && (
                           <button
-                            onClick={() => onNavigate(`/ ta - da - settlement ? project = ${projectName}& travel_id=${item.name} `)}
+                            onClick={() => onNavigate(`/ta-da-settlement?project=${projectName}&travel_id=${item.name}`)}
                             className="text-sm text-gray-600 hover:text-gray-900 hover:underline whitespace-nowrap"
                           >
                             Settle
@@ -761,7 +761,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                             onClick={() => {
                               // Navigate to settlement page for this temporary advance
                               // Pass the advance ID to pre-fill the settlement form
-                              onNavigate(`/ ta - da - settlement ? advance_id = ${item.name}& project=${projectName} `);
+                              onNavigate(`/ta-da-settlement?advance_id=${item.name}&project=${projectName}`);
                             }}
                             className="text-sm text-amber-600 hover:underline whitespace-nowrap font-medium"
                           >
