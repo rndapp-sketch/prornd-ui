@@ -557,22 +557,22 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
     // Navigate based on application type
     switch (selectedApplication) {
       case "Reimbursement":
-        onNavigate(`/ reimbursement ? project = ${projectName} `);
+        onNavigate(`/reimbursement?project=${projectName}`);
         break;
       case "Temporary Advance Apply":
-        onNavigate(`/ temporary - advance ? project = ${projectName} `);
+        onNavigate(`/temporary-advance?project=${projectName}`);
         break;
       case "Rate Contract":
-        onNavigate(`/ rate - contract ? project = ${projectName} `);
+        onNavigate(`/rate-contract?project=${projectName}`);
         break;
       case "Travel Apply":
-        onNavigate(`/ travel ? project = ${projectName} `);
+        onNavigate(`/travel?project=${projectName}`);
         break;
       case "TA DA Settlement":
-        onNavigate(`/ ta - da - settlement ? project = ${projectName} `);
+        onNavigate(`/ta-da-settlement?project=${projectName}`);
         break;
       case "Project Staff Resignation":
-        onNavigate(`/ project - staff - resignation ? project = ${projectName} `);
+        onNavigate(`/project-staff-resignation?project=${projectName}`);
         break;
       default:
         alert(`Apply New: ${selectedApplication} - Route not configured yet`);
