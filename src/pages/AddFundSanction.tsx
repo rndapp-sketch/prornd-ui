@@ -649,9 +649,9 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
     return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-bold text-black text-lg uppercase">{field.label}{field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}</div>);
 });
 
-const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRow }: any) => {
+const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRow, budgetHeadOptions }: any) => {
     const columns = [
-        { key: 'account_head', label: 'Account Head', type: 'Select', options: ['Consumable', 'Equipment', 'Contingency', 'Travel', 'Manpower', 'Overhead', 'Other'] },
+        { key: 'account_head', label: 'Account Head', type: 'Select', options: budgetHeadOptions || [] },
         { key: 'first_year_budget', label: 'Year 1 (₹)', type: 'Currency' },
         { key: 'second_year_budget', label: 'Year 2 (₹)', type: 'Currency' },
         { key: 'third_year_budget', label: 'Year 3 (₹)', type: 'Currency' },
@@ -791,18 +791,28 @@ const AddFundSanction: React.FC = () => {
     const [fields, setFields] = useState<Field[]>([]);
     const [formData, setFormData] = useState<FormData>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [budgetHeadOptions, setBudgetHeadOptions] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_fund_sanction_form_data');
     const { call: submitForm } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.save_fund_sanction_data');
+    const { call: fetchBudgetHeads, result: budgetHeadsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head');
 
-    // Initial data fetch effect based on project name from URL
     useEffect(() => {
         if (projectName) {
             fetchFormData({ project_proposal: projectName });
         }
-    }, [fetchFormData, projectName]);
+        fetchBudgetHeads({});
+    }, [fetchFormData, fetchBudgetHeads, projectName]);
+
+    useEffect(() => {
+        if (budgetHeadsResult?.message) {
+            const heads = budgetHeadsResult.message.map((item: any) => item.budget_head);
+            setBudgetHeadOptions(heads);
+        }
+    }, [budgetHeadsResult]);
+
 
     // Effect to process the fetched data from API
     useEffect(() => {
@@ -960,6 +970,7 @@ const AddFundSanction: React.FC = () => {
                                 onDeleteRow={(rowIndex: number) =>
                                     deleteGenericTableRow("sanctioned_budget_breakup", rowIndex)
                                 }
+                                budgetHeadOptions={budgetHeadOptions}
                             />
                         </NeoSection>
 
