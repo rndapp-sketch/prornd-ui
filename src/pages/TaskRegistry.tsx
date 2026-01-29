@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaExclamationCircle, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import { AppSidebar } from '@/components/RndSidebar';
@@ -60,7 +60,7 @@ const FrappeCard = ({ children, className }: { children: React.ReactNode; classN
 
 const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost' }: {
     children: React.ReactNode;
-    onClick?: () => void;
+    onClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void;
     disabled?: boolean;
     className?: string;
     variant?: 'primary' | 'ghost' | 'outline' | 'action';
@@ -340,6 +340,8 @@ const TaskRegistry: React.FC = () => {
                                                     navigate(`/fund-received/${task.id}`);
                                                 } else if (task.doctype === "Reimbursement") {
                                                     navigate(`/reimbursement/${task.id}`);
+                                                } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
+                                                    navigate(`/project-details-overview/${task.id}`);
                                                 } else {
                                                     navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                 }
@@ -372,11 +374,14 @@ const TaskRegistry: React.FC = () => {
                                             <td className="p-4">
                                                 <FrappeButton
                                                     variant="action"
-                                                    onClick={() => {
+                                                    onClick={(e) => {
+                                                        e?.stopPropagation();
                                                         if (task.doctype === "Fund Received") {
                                                             navigate(`/fund-received/${task.id}`);
                                                         } else if (task.doctype === "Reimbursement") {
                                                             navigate(`/reimbursement/${task.id}`);
+                                                        } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
+                                                            navigate(`/project-details-overview/${task.id}`);
                                                         } else {
                                                             navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                         }

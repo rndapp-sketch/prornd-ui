@@ -1,10 +1,3 @@
-
-
-
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-
-
 import React, {
   useState,
   useCallback,
@@ -52,7 +45,8 @@ import {
   AlertCircleIcon,
   CogIcon as SettingsIcon,
   ChevronDown, CheckCircle2, ChevronRight, LayoutDashboard, MoreVertical, PieChart, Plus, Search, X, Trash2,
-  CreditCard, Upload, ShoppingCart, Plane, ZapIcon, Users, Settings, FileSpreadsheet as LedgerIcon
+  CreditCard, Upload, ShoppingCart, Plane, ZapIcon, Users, Settings, FileSpreadsheet as LedgerIcon,
+  ExternalLinkIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DepartmentName } from "@/components/DepartmentName";
@@ -302,9 +296,19 @@ interface QuickActionsProps {
 
 const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
   const [activeTab, setActiveTab] = useState("Reimbursement");
-  const [selectedApplication, setSelectedApplication] = useState<string | null>(null);
+  const [selectedApplication, setSelectedApplication] = useState<string | null>("Reimbursement"); // Auto-select Reimbursement initially
   const [applicationData, setApplicationData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const groups = [
+    { title: "Reimbursement", icon: IndianRupeeIcon, items: ["Reimbursement"] },
+    { title: "Advance", icon: CreditCard, items: ["Temporary Advance Apply"] },
+    { title: "Disbursal", icon: Upload, items: ["One Time Assistantship", "Top Up Fellowship"] },
+    { title: "Purchase", icon: ShoppingCart, items: ["Direct Purchase", "General Indent", "Generate NIQ", "Indent cum Sanction", "Rate Contract"] },
+    { title: "Recruitment", icon: Users, items: ["Adhoc", "Committee Member Change", "Contractual", "Selection Committee Report", "Project Staff Resignation"] },
+    { title: "Travel", icon: Plane, items: ["Travel"] },
+    { title: "Utilities", icon: Settings, items: ["Add New User", "Application History", "Form Tracking", "Incharge Assignment"] },
+  ];
 
   // Frappe SDK hooks for fetching data
   const { call: fetchReimbursements } = useFrappePostCall<{ message: any[] }>(
@@ -333,7 +337,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           try {
             // Use direct fetch to Frappe REST API with cache-busting
             const timestamp = Date.now();
-            const apiUrl = `/api/resource/Reimbursement?fields=["name","creation","workflow_state","owner","project_name","project_number","applicant_webmail","comment"]&order_by=creation%20desc&limit_page_length=0&_=${timestamp}`;
+            const apiUrl = `/api/resource/Reimbursement?fields=["name","creation","workflow_state","owner","project_name","project_number","applicant_webmail","comment"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
 
             const fetchResponse = await fetch(apiUrl, {
               method: 'GET',
@@ -342,7 +346,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
             });
 
             if (!fetchResponse.ok) {
-              throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+              throw new Error(`HTTP error! status: ${fetchResponse.status} `);
             }
 
             const result = await fetchResponse.json();
@@ -400,13 +404,13 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           try {
             console.log('=== FETCHING TEMPORARY ADVANCE (MINIMAL RETRY) ===');
             // Minimal fields to debug 417 - ensure URL is perfect
-            const apiUrl = `/api/resource/Temporary%20Advance?fields=["name","creation"]&limit_page_length=0`;
+            const apiUrl = `/api/resource/Temporary Advance?fields=["name","creation"]&limit_page_length=0`;
             const fetchResponse = await fetch(apiUrl, {
               method: 'GET',
               headers: { 'Accept': 'application/json' },
               credentials: 'include'
             });
-            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status} `);
             const result = await fetchResponse.json();
             const allItems = result?.data || [];
             console.log('Temporary Advance raw items (minimal):', allItems);
@@ -431,13 +435,13 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           }
         } else if (selectedApplication === "Rate Contract") {
           try {
-            const apiUrl = `/api/resource/Rate Contract?fields=["name","creation","workflow_state","owner","project_name","email_id"]&order_by=creation%20desc&limit_page_length=0`;
+            const apiUrl = `/api/resource/Rate Contract?fields=["name","creation","workflow_state","owner","project_name","email_id"]&order_by=creation desc&limit_page_length=0`;
             const fetchResponse = await fetch(apiUrl, {
               method: 'GET',
               headers: { 'Accept': 'application/json' },
               credentials: 'include'
             });
-            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status} `);
             const result = await fetchResponse.json();
             const allItems = result?.data || [];
             data = allItems.filter((item: any) =>
@@ -450,46 +454,45 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
             console.error('Rate Contract fetch error:', fetchError);
             data = [];
           }
-        } else if (selectedApplication === "Travel Apply") {
+        } else if (selectedApplication === "Travel") {
           try {
-            const apiUrl = `/api/resource/Travel?fields=["name","creation","workflow_state","owner","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation%20desc&limit_page_length=0`;
-            const fetchResponse = await fetch(apiUrl, {
+            // Fetch both Travel Apply and TA DA Settlement
+            const travelPromise = fetch(`/api/resource/Travel?fields=["name","creation","workflow_state","owner","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation desc&limit_page_length=0`, {
               method: 'GET',
               headers: { 'Accept': 'application/json' },
               credentials: 'include'
-            });
-            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
-            const result = await fetchResponse.json();
-            const allItems = result?.data || [];
-            data = allItems.filter((item: any) =>
-              item.travel_project_number === projectName
-            ).map((item: any) => ({
-              ...item,
-              applicant_webmail: item.webmail_id_travel
-            }));
-          } catch (fetchError) {
-            console.error('Travel fetch error:', fetchError);
-            data = [];
-          }
-        } else if (selectedApplication === "TA DA Settlement") {
-          try {
-            const apiUrl = `/api/resource/TA DA Settlement?fields=["name","creation","workflow_state","owner","ta_da_project_code","ta_da_name"]&order_by=creation%20desc&limit_page_length=0`;
-            const fetchResponse = await fetch(apiUrl, {
+            }).then(res => res.ok ? res.json() : { data: [] });
+
+            const settlementPromise = fetch(`/api/resource/TA DA Settlement?fields=["name","creation","workflow_state","owner","ta_da_project_code","ta_da_name"]&order_by=creation desc&limit_page_length=0`, {
               method: 'GET',
               headers: { 'Accept': 'application/json' },
               credentials: 'include'
-            });
-            if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
-            const result = await fetchResponse.json();
-            const allItems = result?.data || [];
-            data = allItems.filter((item: any) =>
-              item.ta_da_project_code === projectName
-            ).map((item: any) => ({
-              ...item,
-              applicant_webmail: item.ta_da_name
-            }));
+            }).then(res => res.ok ? res.json() : { data: [] });
+
+            const [travelRes, settlementRes] = await Promise.all([travelPromise, settlementPromise]);
+
+            const travelItems = (travelRes.data || [])
+              .filter((item: any) => item.travel_project_number === projectName)
+              .map((item: any) => ({
+                ...item,
+                applicant_webmail: item.webmail_id_travel,
+                type: 'Travel Apply'
+              }));
+
+            const settlementItems = (settlementRes.data || [])
+              .filter((item: any) => item.ta_da_project_code === projectName)
+              .map((item: any) => ({
+                ...item,
+                applicant_webmail: item.ta_da_name,
+                type: 'TA DA Settlement'
+              }));
+
+            // Combine and sort by creation date desc
+            data = [...travelItems, ...settlementItems].sort((a, b) =>
+              new Date(b.creation).getTime() - new Date(a.creation).getTime()
+            );
           } catch (fetchError) {
-            console.error('TA DA Settlement fetch error:', fetchError);
+            console.error('Travel combined fetch error:', fetchError);
             data = [];
           }
         }
@@ -520,23 +523,32 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
     </button>
   );
 
-  const groups = [
-    { title: "Reimbursement", icon: IndianRupeeIcon, items: ["Reimbursement"] },
-    { title: "Advance", icon: CreditCard, items: ["Temporary Advance Apply"] },
-    { title: "Disbursal", icon: Upload, items: ["One Time Assistantship", "Top Up Fellowship"] },
-    { title: "Purchase", icon: ShoppingCart, items: ["Direct Purchase", "General Indent", "Generate NIQ", "Indent cum Sanction", "Rate Contract"] },
-    { title: "Recruitment", icon: Users, items: ["Adhoc", "Committee Member Change", "Contractual", "Selection Committee Report", "Project Staff Resignation"] },
-    { title: "Travel", icon: Plane, items: ["Travel Apply", "TA DA Settlement"] },
-    { title: "Utilities", icon: Settings, items: ["Add New User", "Application History", "Form Tracking", "Incharge Assignment"] },
-  ];
-
   const activeGroup = groups.find(g => g.title === activeTab);
+
+  // Handle tab change - auto-select for single-item tabs
+  const handleTabChange = (tabTitle: string) => {
+    setActiveTab(tabTitle);
+    const group = groups.find(g => g.title === tabTitle);
+    if (group && group.items.length === 1) {
+      // Auto-select the only item in this tab
+      setSelectedApplication(group.items[0]);
+    } else {
+      // Reset selection for multi-item tabs
+      setSelectedApplication(null);
+      setApplicationData([]);
+    }
+  };
 
   const handleApplicationClick = (item: string) => {
     setSelectedApplication(item);
   };
 
   const handleBack = () => {
+    const group = groups.find(g => g.title === activeTab);
+    if (group && group.items.length === 1) {
+      // For single-item tabs, don't clear - stay on the view
+      return;
+    }
     setSelectedApplication(null);
     setApplicationData([]);
   };
@@ -576,31 +588,87 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
 
   // Table view for selected application
   if (selectedApplication) {
+    // Check if current tab is single-item (hide back button for these)
+    const currentGroup = groups.find(g => g.title === activeTab);
+    const isSingleItemTab = currentGroup && currentGroup.items.length === 1;
 
     return (
       <div className="p-5 bg-gray-50/50 rounded-xl">
+        {/* Tab Header - Always visible */}
+        <div className="mb-5">
+          <nav className="frappe-tabs" aria-label="Quick actions tabs">
+            {groups.map((group) => {
+              const Icon = group.icon;
+              const isActive = activeTab === group.title;
+              return (
+                <button
+                  key={group.title}
+                  onClick={() => handleTabChange(group.title)}
+                  aria-selected={isActive}
+                  className={cn(
+                    "frappe-tab flex items-center gap-2",
+                    isActive && "active"
+                  )}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{group.title}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
         {/* Header with back button and Apply New */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <button
-              onClick={handleBack}
-              className="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-600 rotate-180" />
-            </button>
+            {!isSingleItemTab && (
+              <button
+                onClick={handleBack}
+                className="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                <ChevronRight className="w-5 h-5 text-gray-600 rotate-180" />
+              </button>
+            )}
             <h3 className="text-lg font-semibold text-gray-900">{selectedApplication}</h3>
           </div>
-          <button
-            onClick={handleApplyNew}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
-              "bg-[#0EA5A4] text-white hover:bg-[#0D9494]",
-              "shadow-sm transition-all duration-150"
-            )}
-          >
-            <Plus className="w-4 h-4" />
-            Apply New
-          </button>
+          {selectedApplication === "Travel" ? (
+            <div className="flex gap-2">
+              <button
+                onClick={() => onNavigate(`/ travel ? project = ${projectName} `)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
+                  "bg-[#0EA5A4] text-white hover:bg-[#0D9494]",
+                  "shadow-sm transition-all duration-150"
+                )}
+              >
+                <Plus className="w-4 h-4" />
+                Travel Apply
+              </button>
+              {/* <button
+                onClick={() => onNavigate(`/ ta - da - settlement ? project = ${ projectName } `)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
+                  "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50",
+                  "shadow-sm transition-all duration-150"
+                )}
+              >
+                <Plus className="w-4 h-4" />
+                Settlement
+              </button> */}
+            </div>
+          ) : (
+            <button
+              onClick={handleApplyNew}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
+                "bg-[#0EA5A4] text-white hover:bg-[#0D9494]",
+                "shadow-sm transition-all duration-150"
+              )}
+            >
+              <Plus className="w-4 h-4" />
+              Apply New
+            </button>
+          )}
         </div>
 
         {/* Applications Table */}
@@ -654,15 +722,25 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                               case "Rate Contract":
                                 onNavigate(`/rate-contract?edit=${item.name}`);
                                 break;
+                              case "Reimbursement":
+                                onNavigate(`/reimbursement/${item.name}`);
+                                break;
+                              case "Travel": // Fallback
                               case "Travel Apply":
                                 onNavigate(`/travel?edit=${item.name}`);
                                 break;
                               case "TA DA Settlement":
                                 onNavigate(`/ta-da-settlement?edit=${item.name}`);
                                 break;
-                              case "Reimbursement":
                               default:
-                                onNavigate(`/reimbursement/${item.name}`);
+                                // Check item.type for Travel consolidated view
+                                if (item.type === 'Travel Apply') {
+                                  onNavigate(`/travel?edit=${item.name}`);
+                                } else if (item.type === 'TA DA Settlement') {
+                                  onNavigate(`/ta-da-settlement?edit=${item.name}`);
+                                } else {
+                                  onNavigate(`/reimbursement/${item.name}`);
+                                }
                                 break;
                             }
                           }}
@@ -670,6 +748,14 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                         >
                           View
                         </button>
+                        {(selectedApplication === "Travel" && item.type === 'Travel Apply') && (
+                          <button
+                            onClick={() => onNavigate(`/ta-da-settlement?project=${projectName}&travel_id=${item.name}`)}
+                            className="text-sm text-gray-600 hover:text-gray-900 hover:underline whitespace-nowrap"
+                          >
+                            Settle
+                          </button>
+                        )}
                         {selectedApplication === "Temporary Advance Apply" && (
                           <button
                             onClick={() => {
@@ -711,7 +797,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
             </div>
           )}
         </div>
-      </div>
+      </div >
     );
   }
 
@@ -727,7 +813,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
             return (
               <button
                 key={group.title}
-                onClick={() => setActiveTab(group.title)}
+                onClick={() => handleTabChange(group.title)}
                 aria-selected={isActive}
                 className={cn(
                   "frappe-tab flex items-center gap-2",
@@ -822,7 +908,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
         <div className="space-y-3">
           {activityData?.message?.map((item, index) => (
             <div
-              key={`${item.creation}-${index}`}
+              key={`${item.creation} -${index} `}
               className="flex items-start gap-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#E0F7F6] flex items-center justify-center font-semibold text-[#0EA5A4] text-lg">
@@ -943,6 +1029,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   const [sanctionModalOpen, setSanctionModalOpen] = useState(false);
   const [selectedSanctionName, setSelectedSanctionName] = useState("");
 
+  // --- Payment Modal State ---
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedCommitmentForPayment, setSelectedCommitmentForPayment] = useState<BudgetEntry | null>(null);
+  const [paymentFormData, setPaymentFormData] = useState<Record<string, any>>({});
+  const [paymentFieldDefs, setPaymentFieldDefs] = useState<any[]>([]);
+  const [paymentLinkOptions, setPaymentLinkOptions] = useState<Record<string, any[]>>({});
+  const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
+
   // Extract unique heads from budget data for tabs
   const ledgerHeadTabs = useMemo(() => {
     const heads = new Set<string>();
@@ -985,7 +1079,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   useEffect(() => {
     const fetchBudgetHeads = async () => {
       try {
-        const response = await fetch('/api/v2/document/Budget Head?fields=["budget_head","id"]&order_by=id asc');
+        const response = await fetch('/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc');
         const result = await response.json();
         console.log("Budget Head v2 API data:", result);
         if (result?.data) {
@@ -1028,11 +1122,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     setIsLedgerLoading(true);
     setLedgerError(null);
     try {
-      // Use proxy to avoid CORS - /ledger-api proxies to http://172.16.135.27:18083/api ${projectName}
+      // Use proxy to avoid CORS - /ledger-api proxies to http://172.16.135.27:18083/api
       const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${projectName}&accountHeadId=${headId}`);
       console.log("Ledger API response status:", response, "for projectNumber:", projectName, "headId:", headId);
       if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText}`);
+        throw new Error(`API Error: ${response.statusText} `);
       }
 
       const result = await response.json();
@@ -1060,7 +1154,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
             rawEntries.push({
               sl: 0, // Assigned later
               date: fund.transaction_date || fund.modified?.split(" ")[0] || "",
-              particulars: `Fund Received - ${item.account_head}`,
+              particulars: `Fund Received - ${item.account_head} `,
               ref: fund.sanction_ref_no || fund.name,
               received: item.amount_received,
               committed: 0,
@@ -1146,12 +1240,50 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     return match;
   });
 
-  // Sidebar Balances (re-derived from filtered ledger data)
-  const actualBalance = filteredBudgetData.reduce((acc, entry) => acc + (entry.received || 0) - (entry.payment || 0), 0);
+  // Sidebar Balances (re-derived from filtered ledger data) - for commit section
+  const filteredActualBalance = filteredBudgetData.reduce((acc, entry) => acc + (entry.received || 0) - (entry.payment || 0), 0);
 
-  const commitableBalance = filteredBudgetData.reduce((acc, entry) => {
+  const filteredCommitableBalance = filteredBudgetData.reduce((acc, entry) => {
     return acc + (entry.received || 0) - (entry.committed || 0) - (entry.payment || 0);
   }, 0);
+
+  // Total project balances from Frappe API - for header display
+  // Memoize params and options to prevent infinite re-renders
+  const balanceParams = useMemo(() => ({ project_number: projectName || '' }), [projectName]);
+  const balanceOptions = useMemo(() => ({
+    revalidateOnFocus: false,
+    isPaused: () => !projectName
+  }), [projectName]);
+
+  const { data: projectAmounts, isLoading: isBalanceLoading, error: balanceError } = useFrappeGetCall<{
+    message: {
+      status: string;
+      data: {
+        projectNumber: string;
+        totalFundReceived: number;
+        totalCommitted: number;
+        totalPaid: number;
+        availableCommitAmount: number;  // This is the "Actual Balance"
+        availablePaymentAmount: number; // This is the "Commitable"
+      }
+    };
+  }>(
+    'rndopsapp.rndopsapp.commitPayment.get_project_available_amounts',
+    balanceParams,
+    balanceOptions
+  );
+
+  // Extract balance values from API response
+  // Note: useFrappeGetCall may unwrap 'message' automatically in some versions, so check both paths
+  const projectData = (projectAmounts as any)?.message?.data ?? (projectAmounts as any)?.data ?? {};
+  const actualBalance = projectData?.availableCommitAmount ?? 0;
+  const commitableBalance = projectData?.availablePaymentAmount ?? 0;
+
+  // Debug logging
+  console.log('[ProjectDetailsOverview] Current projectName:', projectName);
+  console.log('[ProjectDetailsOverview] Balance Query API status:', { isLoading: isBalanceLoading, error: balanceError, hasData: !!projectAmounts });
+  console.log('[ProjectDetailsOverview] projectAmounts API response:', projectAmounts);
+  console.log('[ProjectDetailsOverview] actualBalance:', actualBalance, 'commitableBalance:', commitableBalance);
 
   const handleCommit = () => {
     const amount = parseFloat(commitAmount);
@@ -1248,7 +1380,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
             await addComment({
               doctype: "Fund Sanction",
               docname: selectedSanctionName,
-              content: `[Submit] ${comment.trim()}`
+              content: `[Submit] ${comment.trim()} `
             });
           } catch (commentError) {
             console.error("Error adding comment:", commentError);
@@ -1265,6 +1397,87 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     },
     [submitSanction, refetchSanctions, selectedSanctionName, addComment]
   );
+
+  // --- Payment Modal Handlers ---
+  const openPaymentModal = useCallback(async (row: BudgetEntry) => {
+    setSelectedCommitmentForPayment(row);
+    try {
+      // Fetch payment field definitions from API
+      const response = await fetch('/api/method/rndopsapp.rndopsapp.commitPayment.get_account_head_payment_fields');
+      const result = await response.json();
+      if (result?.message) {
+        const { fields, prefill_data, link_options } = result.message;
+        setPaymentFieldDefs(fields || []);
+        setPaymentLinkOptions(link_options || {});
+
+        // Prefill form data from the committed row
+        const accountHeadValue = budgetHeadList.find(bh =>
+          bh.name.toLowerCase() === ((row as any).head || (row as any).accountHead || '').toLowerCase()
+        );
+
+        setPaymentFormData({
+          ...prefill_data,
+          project_ref_number: projectName || '',
+          payment_amount: row.committed || 0,
+          budget_head: accountHeadValue?.name || (row as any).head || '',
+          payment_bmr: row.bmr || '',
+          payment_date: new Date().toISOString().split('T')[0],
+          payment_particular: row.particulars || '',
+          commit_id: (row as any).transactionId || '',
+        });
+      }
+      setPaymentModalOpen(true);
+    } catch (err) {
+      console.error('Failed to fetch payment fields:', err);
+      alert('Failed to load payment form. Please try again.');
+    }
+  }, [projectName, budgetHeadList]);
+
+  const handlePaymentFieldChange = (fieldname: string, value: any) => {
+    setPaymentFormData(prev => ({ ...prev, [fieldname]: value }));
+  };
+
+  const handleSubmitPayment = useCallback(async () => {
+    if (!selectedCommitmentForPayment) return;
+    setIsPaymentSubmitting(true);
+    try {
+      const response = await fetch('/api/method/rndopsapp.rndopsapp.doctype.accountheadpayment.accountheadpayment.submit_payment_data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          doctype: 'AccountHeadPayment',
+          name: '',
+          project_name: paymentFormData.project_ref_number || projectName,
+          payment_amount: paymentFormData.payment_amount,
+          budget_head: paymentFormData.budget_head,
+          bmr: paymentFormData.payment_bmr,
+        })
+      });
+      const result = await response.json();
+      if (result.exc || result.exception) {
+        throw new Error(result.exc || result.exception);
+      }
+      // Success - close modal and refresh ledger
+      setPaymentModalOpen(false);
+      setSelectedCommitmentForPayment(null);
+      setPaymentFormData({});
+      // Refresh ledger data
+      if (activeLedgerHeadId) {
+        fetchLedgerData(activeLedgerHeadId);
+      }
+      alert('Payment submitted successfully!');
+    } catch (err: any) {
+      console.error('Payment submission failed:', err);
+      alert('Failed to submit payment: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsPaymentSubmitting(false);
+    }
+  }, [selectedCommitmentForPayment, paymentFormData, projectName, activeLedgerHeadId]);
+
   const handleWorkflowAction = useCallback(
     (action: string) => {
       const apiCall =
@@ -1281,7 +1494,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
           activityStreamRef.current?.refetch();
         })
         .catch((err: any) =>
-          console.error(`Error during workflow action:`, err)
+          console.error(`Error during workflow action: `, err)
         );
     },
     [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]
@@ -1366,13 +1579,25 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
               <div className="hidden lg:flex items-center gap-6 mr-6 border-r border-gray-200 pr-6">
                 <div className="text-right">
                   <p className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-0.5">Actual Balance</p>
-                  <p className="text-lg font-bold text-[#0EA5A4] leading-none">₹ {actualBalance.toLocaleString('en-IN')}</p>
+                  {isBalanceLoading ? (
+                    <div className="h-6 w-20 bg-gray-200 animate-pulse rounded" />
+                  ) : (
+                    <p className="text-lg font-bold text-[#0EA5A4] leading-none">₹ {actualBalance.toLocaleString('en-IN')}</p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-0.5">Commitable</p>
-                  <p className="text-lg font-bold text-gray-700 leading-none">₹ {commitableBalance.toLocaleString('en-IN')}</p>
+                  {isBalanceLoading ? (
+                    <div className="h-6 w-20 bg-gray-200 animate-pulse rounded" />
+                  ) : (
+                    <p className="text-lg font-bold text-gray-700 leading-none">₹ {commitableBalance.toLocaleString('en-IN')}</p>
+                  )}
                 </div>
-                {/* <button onClick={() => setIsLedgerOpen(true)} className="text-xs font-semibold text-[#0EA5A4] bg-[#E0F7F6] px-3 py-1.5 rounded-lg hover:bg-[#B2DFDB] transition-colors">
+                {/* <button
+                  onClick={() => setActiveTab('ledger')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0EA5A4] bg-[#E0F7F6] hover:bg-[#B2DFDB] rounded-lg transition-colors"
+                >
+                  <LedgerIcon className="w-3.5 h-3.5" />
                   View Ledger
                 </button> */}
               </div>
@@ -1446,9 +1671,71 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       <FieldDisplay label="Implementation Dept" value={data?.implementation_department ? <DepartmentName name={data?.implementation_department} /> : null} icon={BuildingIcon} />
                       <FieldDisplay label="Status" value={data?.sanction_workflow_status} icon={TargetIcon} />
                       <FieldDisplay label="Project Duration" value={`${data?.project_duration_months}m ${data?.project_duration_days || 0}d`} icon={CalendarIcon} />
+                      <FieldDisplay label="Start Date" value={data?.prj_start_date} icon={CalendarIcon} />
+                      <FieldDisplay label="End Date" value={data?.prj_end_date} icon={CalendarIcon} />
                       <FieldDisplay label="International Travel" value={data?.involves_international_travel} icon={PlaneIcon} />
+                      {data?.upload_proj_prop && (
+                        <div className="py-2">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <FileTextIcon className="h-3.5 w-3.5 text-gray-500" />
+                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Project Proposal</p>
+                          </div>
+                          <a
+                            href={data.upload_proj_prop.startsWith('http') ? data.upload_proj_prop : `/files/${data.upload_proj_prop}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-[#0EA5A4] hover:underline flex items-center gap-1"
+                          >
+                            <ExternalLinkIcon className="h-3 w-3" /> View File
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </SectionWrapper>
+
+                  {/* Consultancy Details */}
+                  {data?.project_type === "Consultancy" && (
+                    <SectionWrapper title="Consultancy Details" icon={FileTextIcon}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
+                        <FieldDisplay label="Consultancy Category" value={data?.consultancy_category} icon={FileTextIcon} />
+                        <FieldDisplay label="GSTIN" value={data?.consultancy_gstin} icon={FileTextIcon} />
+                        <FieldDisplay label="GST Rate" value={data?.consultancy_gst_rate} icon={IndianRupeeIcon} />
+
+                        {data?.consultancy_category?.startsWith("Category D") && (
+                          <>
+                            <FieldDisplay label="Category D Note" value={data?.category_d_note} icon={FileTextIcon} />
+                            <FieldDisplay label="Total Cost (Excl. GST)" value={data?.cat_d_project_cost_excl_gst} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Consultancy Fee" value={data?.cat_d_consultancy_fee_input} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Operational Expense (+OH)" value={data?.operational_expense_input_inc_10_oh} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Institute Share" value={data?.cat_d_institute_share} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Total Overhead" value={data?.cat_d_total_overhead} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="GST Amount" value={data?.cat_d_gst_amt} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Grand Total" value={data?.cat_d_grand_total_calc} icon={IndianRupeeIcon} />
+                          </>
+                        )}
+
+                        {(!data?.consultancy_category?.startsWith("Category D") && data?.consultancy_category) && (
+                          <>
+                            <FieldDisplay label="Category Note" value={data?.category_e_note || data?.category_t_note} icon={FileTextIcon} />
+                            <FieldDisplay label="Total Amount" value={data?.cat_ef_total_amount} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Honorarium" value={data?.cat_ef_honorarium} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Institute Share" value={data?.cat_ef_institute_share} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="GST" value={data?.cat_ef_gst} icon={IndianRupeeIcon} />
+                            <FieldDisplay label="Grand Total" value={data?.cat_ef_grand_total} icon={IndianRupeeIcon} />
+                          </>
+                        )}
+                      </div>
+                    </SectionWrapper>
+                  )}
+
+                  {/* Other Project Type */}
+                  {data?.project_type === "Other" && (
+                    <SectionWrapper title="Other Project Details" icon={FileTextIcon}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                        <FieldDisplay label="Other Project Type" value={data?.other_project_type_name} icon={FileTextIcon} />
+                      </div>
+                    </SectionWrapper>
+                  )}
 
                   <SectionWrapper title="Funding Agency" icon={BuildingIcon}>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
@@ -1474,7 +1761,61 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                   {data?.is_additional_pi === "Yes" && <TableDisplay label="Additional PIs" data={data?.additional_pi_table} columns={[{ fieldname: "pi_name", label: "Name" }, { fieldname: "pi_designation", label: "Designation" }, { fieldname: "pi_email", label: "Email" },]} icon={UsersIcon} />}
                   {data?.has_co_pi === "Yes" && <TableDisplay label="Co-Investigators" data={data?.co_investigator_table} columns={[{ fieldname: "copi_name", label: "Name" }, { fieldname: "copi_designation", label: "Designation" }, { fieldname: "copi_email", label: "Email" },]} icon={UsersIcon} />}
 
-                  <TableDisplay label="Proposed Budget Breakup" data={data?.proposed_budget_breakup} columns={[{ fieldname: "account_head", label: "Budget Head" }, { fieldname: "first_year_budget", label: "Year 1" }, { fieldname: "second_year_budget", label: "Year 2" },]} icon={IndianRupeeIcon} />
+                  {/* Enhanced Proposed Budget Breakup with Grand Total */}
+                  {data?.proposed_budget_breakup && data.proposed_budget_breakup.length > 0 && (
+                    <SectionWrapper title="Proposed Budget Breakup" icon={IndianRupeeIcon}>
+                      <div className="overflow-x-auto rounded-lg border border-gray-200">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Budget Head</th>
+                              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Year 1</th>
+                              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Year 2</th>
+                              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Year 3</th>
+                              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Year 4</th>
+                              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Year 5</th>
+                              <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {data.proposed_budget_breakup.map((row: any, index: number) => (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">{row.account_head}</td>
+                                <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">{(row.first_year_budget || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">{(row.second_year_budget || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">{(row.third_year_budget || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">{(row.fourth_year_budget || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">{(row.fifth_year_budget || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">
+                                  {((row.first_year_budget || 0) + (row.second_year_budget || 0) + (row.third_year_budget || 0) + (row.fourth_year_budget || 0) + (row.fifth_year_budget || 0)).toLocaleString('en-IN')}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot className="bg-gray-100">
+                            <tr>
+                              <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap">GRAND TOTAL</td>
+                              <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.first_year_budget || 0), 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.second_year_budget || 0), 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.third_year_budget || 0), 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.fourth_year_budget || 0), 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.fifth_year_budget || 0), 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 py-3 text-sm font-bold text-[#0EA5A4] text-right whitespace-nowrap">
+                                ₹ {(data.total_budget_amount || data.proposed_budget_breakup.reduce((sum: number, row: any) =>
+                                  sum + (row.first_year_budget || 0) + (row.second_year_budget || 0) + (row.third_year_budget || 0) + (row.fourth_year_budget || 0) + (row.fifth_year_budget || 0), 0
+                                )).toLocaleString('en-IN')}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                      {/* Display total_budget_amount from project data */}
+                      <div className="mt-4 p-4 bg-[#E0F7F6] rounded-lg flex justify-between items-center">
+                        <span className="text-sm font-semibold text-gray-700 uppercase">Total Budget Amount (from proposal)</span>
+                        <span className="text-xl font-bold text-[#0EA5A4]">₹ {(data.total_budget_amount || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                    </SectionWrapper>
+                  )}
                   {data?.equipment_checkbox === 1 && <TableDisplay label="Proposed Equipment" data={data?.proposed_equipment_details} columns={[{ fieldname: "item_name", label: "Equipment Name" }, { fieldname: "equip_total_unit_cost", label: "Cost" },]} icon={ShoppingCartIcon} />}
                   {data?.manpower_checkbox === 1 && <TableDisplay label="Proposed Manpower" data={data?.proposed_manpower_details} columns={[{ fieldname: "designation_name", label: "Position" }, { fieldname: "manpower_salary", label: "Salary" },]} icon={UsersGroupIcon} />}
 
@@ -1525,7 +1866,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         const sanction = sanctionData.message[selectedSanctionIndex];
                         if (!sanction) return null;
 
-                        const budgetColumns = [
+                        const budgetColumnsAll = [
                           { fieldname: "account_head", label: "Account Head" },
                           { fieldname: "first_year_budget", label: "Year 1" },
                           { fieldname: "second_year_budget", label: "Year 2" },
@@ -1533,6 +1874,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                           { fieldname: "fourth_year_budget", label: "Year 4" },
                           { fieldname: "fifth_year_budget", label: "Year 5" },
                         ];
+                        // Filter to only show years that have data
+                        const budgetColumns = budgetColumnsAll.filter(c => {
+                          if (c.fieldname === 'account_head') return true;
+                          return (sanction.sanctioned_budget_breakup || []).some((row: any) => (parseFloat(row[c.fieldname]) || 0) > 0);
+                        });
                         const budgetYearFieldnames = budgetColumns.filter(c => c.fieldname !== 'account_head').map(c => c.fieldname);
                         const columnTotals: { [key: string]: number } = budgetYearFieldnames.reduce((totals: { [key: string]: number }, fieldname) => {
                           totals[fieldname] = (sanction.sanctioned_budget_breakup || []).reduce((sum: number, row: any) => {
@@ -1599,42 +1945,42 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                               <div>
                                 <h4 className="text-sm font-semibold text-gray-800 mb-3">Budget Breakup</h4>
                                 <div className="overflow-x-auto rounded-lg border border-gray-200">
-                                  <table className="frappe-table">
-                                    <thead>
+                                  <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
                                       <tr>
                                         {budgetColumns.map(c => (
-                                          <th key={c.fieldname}>{c.label}</th>
+                                          <th key={c.fieldname} className={`px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider ${c.fieldname === 'account_head' ? 'text-left' : 'text-right'}`}>{c.label}</th>
                                         ))}
-                                        <th>Total</th>
+                                        <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Total</th>
                                       </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody className="bg-white divide-y divide-gray-200">
                                       {(sanction.sanctioned_budget_breakup || []).map((row: any, i: number) => {
                                         const rowTotal = budgetYearFieldnames.reduce((sum, fieldname) => {
                                           return sum + (parseFloat(row[fieldname]) || 0);
                                         }, 0);
 
                                         return (
-                                          <tr key={i}>
+                                          <tr key={i} className="hover:bg-gray-50">
                                             {budgetColumns.map(c => (
-                                              <td key={c.fieldname}>
+                                              <td key={c.fieldname} className={`px-4 py-3 text-sm whitespace-nowrap ${c.fieldname === 'account_head' ? 'text-gray-900 text-left' : 'text-gray-700 text-right'}`}>
                                                 {c.fieldname === 'account_head' ? row[c.fieldname] : (parseFloat(row[c.fieldname]) || 0).toLocaleString('en-IN')}
                                               </td>
                                             ))}
-                                            <td className="font-semibold">{rowTotal.toLocaleString('en-IN')}</td>
+                                            <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">{rowTotal.toLocaleString('en-IN')}</td>
                                           </tr>
                                         );
                                       })}
                                     </tbody>
-                                    <tfoot className="bg-gray-50 border-t border-gray-200">
+                                    <tfoot className="bg-gray-100">
                                       <tr>
-                                        <td className="font-semibold text-gray-900">Total</td>
+                                        <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap">Total</td>
                                         {budgetYearFieldnames.map(fieldname => (
-                                          <td key={fieldname} className="font-semibold text-gray-900">
+                                          <td key={fieldname} className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">
                                             {columnTotals[fieldname].toLocaleString('en-IN')}
                                           </td>
                                         ))}
-                                        <td className="font-bold text-[#0EA5A4]">
+                                        <td className="px-4 py-3 text-sm font-bold text-[#0EA5A4] text-right whitespace-nowrap">
                                           {grandTotal.toLocaleString('en-IN')}
                                         </td>
                                       </tr>
@@ -1901,14 +2247,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     <button onClick={handleCommit} className="frappe-btn frappe-btn-primary flex-1">Commit</button>
                     <button onClick={handleRemoveLastCommit} className="frappe-btn frappe-btn-ghost">Remove</button>
                   </div>
-                  <div className="pt-2 border-t border-gray-100 mt-2">
+                  {/* <div className="pt-2 border-t border-gray-100 mt-2">
                     <button
                       onClick={() => setIsLedgerOpen(true)}
                       className="w-full text-center text-sm font-medium text-[#0EA5A4] hover:text-[#0C8F8E] hover:underline"
                     >
                       View Project Ledger
                     </button>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             )}
@@ -2016,12 +2362,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                           <th>BMR. NO</th>
                           <th style={{ textAlign: 'right' }}>PAYMENT</th>
                           <th style={{ textAlign: 'right' }}>ACTUAL BAL.</th>
+                          <th>ACTIONS</th>
                         </tr>
                       </thead>
                       <tbody>
                         {filteredLedgerData.length === 0 ? (
                           <tr>
-                            <td colSpan={10} className="text-center py-8 text-gray-500">
+                            <td colSpan={11} className="text-center py-8 text-gray-500">
                               No entries found for {activeLedgerTab}
                             </td>
                           </tr>
@@ -2042,6 +2389,16 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                   ? row.actualBalance?.toLocaleString('en-IN')
                                   : (row as any).headActualBalance?.toLocaleString('en-IN')
                                 }
+                              </td>
+                              <td>
+                                {row.committed > 0 && !row.payment && (
+                                  <button
+                                    onClick={() => openPaymentModal(row)}
+                                    className="px-3 py-1.5 text-xs font-semibold text-white bg-[#0EA5A4] hover:bg-[#0D9494] rounded-md shadow-sm transition-colors"
+                                  >
+                                    Pay
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           ))
@@ -2073,6 +2430,123 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
         action="Submit Sanction"
         isLoading={isSubmittingSanction}
       />
+
+      {/* Payment Form Modal */}
+      {paymentModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPaymentModalOpen(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Record Payment</h2>
+                <p className="text-sm text-gray-600 mt-0.5">Submit payment for committed amount</p>
+              </div>
+              <button onClick={() => setPaymentModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-auto p-6 space-y-4">
+              {paymentFieldDefs.filter((f: any) => !f.hidden).map((field: any) => {
+                const value = paymentFormData[field.fieldname] || '';
+                const options = paymentLinkOptions[field.fieldname] || [];
+
+                if (field.fieldtype === 'Section Break') {
+                  return (
+                    <div key={field.fieldname} className="pt-4 border-t border-gray-200 first:border-0 first:pt-0">
+                      <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{field.label}</h3>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={field.fieldname}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {field.label} {field.mandatory ? <span className="text-red-500">*</span> : ''}
+                    </label>
+
+                    {/* Select for Select/Link fieldtypes */}
+                    {(field.fieldtype === 'Select' || field.fieldtype === 'Link') ? (
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                        value={value}
+                        onChange={(e) => handlePaymentFieldChange(field.fieldname, e.target.value)}
+                        disabled={field.read_only}
+                      >
+                        <option value="">Select {field.label}...</option>
+                        {options.map((opt: any) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label || opt.value}
+                          </option>
+                        ))}
+                      </select>
+                    ) : field.fieldtype === 'Date' ? (
+                      <input
+                        type="date"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                        value={value}
+                        onChange={(e) => handlePaymentFieldChange(field.fieldname, e.target.value)}
+                        disabled={field.read_only}
+                      />
+                    ) : field.fieldtype === 'Currency' ? (
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                        value={value}
+                        onChange={(e) => handlePaymentFieldChange(field.fieldname, parseFloat(e.target.value) || 0)}
+                        disabled={field.read_only}
+                        placeholder="0.00"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                        value={value}
+                        onChange={(e) => handlePaymentFieldChange(field.fieldname, e.target.value)}
+                        disabled={field.read_only}
+                        placeholder={field.description || ''}
+                      />
+                    )}
+                    {field.description && <p className="text-xs text-gray-500 mt-1">{field.description}</p>}
+                  </div>
+                );
+              })}
+
+              {/* Commitment Info */}
+              {selectedCommitmentForPayment && (
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <h4 className="text-sm font-semibold text-blue-800 mb-2">Commitment Details</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div><span className="text-blue-600">Particulars:</span> <span className="text-blue-900">{selectedCommitmentForPayment.particulars}</span></div>
+                    <div><span className="text-blue-600">Committed:</span> <span className="font-bold text-blue-900">₹{selectedCommitmentForPayment.committed?.toLocaleString('en-IN')}</span></div>
+                    <div><span className="text-blue-600">BMR:</span> <span className="text-blue-900">{selectedCommitmentForPayment.bmr || '-'}</span></div>
+                    <div><span className="text-blue-600">Head:</span> <span className="text-blue-900">{(selectedCommitmentForPayment as any).head || '-'}</span></div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setPaymentModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitPayment}
+                disabled={isPaymentSubmitting}
+                className="px-4 py-2 text-sm font-medium text-white bg-[#0EA5A4] rounded-lg hover:bg-[#0D9494] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isPaymentSubmitting ? 'Submitting...' : 'Submit Payment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -12,6 +12,12 @@ interface Field {
     fieldname: string; label: string | null; fieldtype: string; default?: any;
     mandatory: boolean; read_only: boolean; hidden: boolean;
     description?: string | null; options?: string | null;
+    depends_on?: string | null;
+    mandatory_depends_on?: string | null;
+    read_only_depends_on?: string | null;
+    depends_on_eval?: string | null;
+    mandatory_depends_on_eval?: string | null;
+    read_only_depends_on_eval?: string | null;
 }
 interface LinkOption { value: string; label: string; designation?: string; }
 interface FormData {
@@ -32,6 +38,21 @@ const checkboxClasses = "size-5 shrink-0 appearance-none bg-white border border-
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (<div className={cn("bg-white p-6 md:p-8 border border-gray-300 rounded-xl shadow-sm", className)}>{children}</div>);
 const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string; type?: "button" | "submit" }) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
 
+const evaluateDependsOn = (expression: string | null | undefined, doc: any): boolean => {
+    if (!expression) return true;
+    try {
+        // Handle "eval:" prefix if present
+        const cleanExpression = expression.startsWith('eval:') ? expression.substring(5) : expression;
+        // eslint-disable-next-line no-new-func
+        const result = new Function('doc', `return ${cleanExpression}`)(doc);
+        // console.log(`Eval '${expression}' -> ${result} (doc.project_type: ${doc.project_type})`);
+        return !!result;
+    } catch (e) {
+        console.warn('Error evaluating depends_on:', expression, e);
+        return false; // Default to false (hidden) on error to prevent broken UI
+    }
+};
+
 // --- MEMOIZED CHILD COMPONENTS ---
 const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange }: { field: Field; value: any; options?: LinkOption[]; onChange: (fieldname: string, value: any, type?: string) => void; onFileChange: (fieldname: string, file: File | null) => void; }) => {
     if (!field || field.hidden || !field.label) return null;
@@ -42,7 +63,9 @@ const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange 
             case "Select": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(field.options?.split('\n').filter(o => o) || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>);
             case "Text": case "Small Text": case "Text Editor": return <textarea {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} rows={5} className={`${inputClasses} h-auto py-3`} />;
             case "Check": return (<label className="flex items-center gap-4 font-bold text-black cursor-pointer"><input type="checkbox" className={checkboxClasses} checked={!!value} onChange={e => onChange(field.fieldname, e.target.checked, 'checkbox')} disabled={field.read_only} /><span>{field.label}{field.mandatory && <span className="text-red-500">*</span>}</span></label>);
-            case "Date": return <input type="date" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
+            case "Date":
+            case "date": // Handle lowercase date type
+                return <input type="date" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
             case "Attach": return <input type="file" {...commonProps} className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:font-bold file:bg-[#A5D6A7] file:text-black hover:file:bg-[#8BC34A]`} onChange={e => onFileChange(field.fieldname, e.target.files?.[0] || null)} />;
             default: return <input type={(['Int', 'Currency', 'Float', 'Percent'].includes(field.fieldtype)) ? 'number' : 'text'} {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
         }
@@ -223,6 +246,7 @@ const ProjectRegistration: React.FC = () => {
     const { call: fetchPiDetails } = useFrappePostCall(commonAPI.getUserDetailsByEmail);
     const { call: fetchAgencyDetails, result: agencyDetailsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_funding_agency_details');
     const { call: fetchBudgetHeads, result: budgetHeadsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head');
+    const { call: fetchDeptHead } = useFrappePostCall('frappe.client.get_value');
 
     // --- DATA FETCHING & INITIALIZATION ---
     useEffect(() => {
@@ -287,8 +311,182 @@ const ProjectRegistration: React.FC = () => {
     const handleChange = useCallback((fieldname: string, value: any, type?: string) => { setFormData(prev => ({ ...prev, [fieldname]: type === 'checkbox' ? (value ? 1 : 0) : value })); }, []);
     const handleFileChange = useCallback((fieldname: string, file: File | null) => { setFormData(prev => ({ ...prev, [fieldname]: file })); }, []);
 
+    // --- BUSINESS LOGIC HELPERS ---
+
+    const calculateConsultancy = useCallback((currentData: FormData) => {
+        const category = currentData.consultancy_category;
+        const gstRate = parseFloat(currentData.consultancy_gst_rate) || 18;
+        const updates: Partial<FormData> = {};
+
+        if (!category) return updates;
+
+        // --- LOGIC FOR CATEGORY D (Technology Transfer) ---
+        if (category.startsWith("Category D")) {
+            const grandTotal = parseFloat(currentData.cat_d_grand_total_input) || 0;
+            const cfInput = parseFloat(currentData.cat_d_consultancy_fee_input) || 0; // Gross CF
+            const oeInput = parseFloat(currentData.operational_expense_input_inc_10_oh) || 0; // Gross OE
+
+            // 1. Calculate Total Project Cost (Back calculate from Grand Total)
+            const totalProjectCost = Math.round(grandTotal / (1 + (gstRate / 100)));
+            const gstAmt = grandTotal - totalProjectCost;
+
+            // 2. Breakdown Calculations
+            // Institute Share = 20% of Gross CF Input
+            const instShare = Math.round(cfInput * 0.20);
+
+            // Overhead = 10% of Gross CF + 10% of Gross OE
+            const overheadCf = cfInput * 0.10;
+            const overheadOe = oeInput * 0.10;
+            const totalOverhead = Math.round(overheadCf + overheadOe);
+
+            // Net CF (Base) = Input - Inst Share - Overhead on CF
+            const netCf = Math.round(cfInput - instShare - overheadCf);
+
+            // Net OE (Base) = Input - Overhead on OE
+            const netOe = Math.round(oeInput - overheadOe);
+
+            // 3. Validation: CF Check (Consultancy fee should be less than 30% of total project cost)
+            const limit = totalProjectCost * 0.30;
+            if (totalProjectCost > 0 && cfInput > limit) {
+                // We use alert here as we don't have a toast library connected in this context yet
+                // console.warn(`Consultancy Fee Input (${cfInput}) exceeds 30% of Total Project Cost (${Math.round(limit)})`);
+            }
+
+            // 4. Set Values
+            updates.cat_d_project_cost_excl_gst = totalProjectCost;
+            updates.cat_d_cf_base = netCf;
+            updates.cat_d_oe_base = netOe;
+            updates.cat_d_total_overhead = totalOverhead;
+            updates.cat_d_institute_share = instShare;
+            updates.cat_d_gst_amt = gstAmt;
+            updates.cat_d_grand_total_calc = grandTotal;
+
+        }
+        // --- LOGIC FOR CATEGORY T (Routine) & E (Non-Routine) ---
+        else {
+            const te = parseFloat(currentData.cat_ef_total_amount) || 0; // Total Cost Excluding GST
+            let honorariumRatio = 0;
+            let instituteRatio = 0;
+
+            if (category.includes("Routine") && !category.includes("Non-Routine")) {
+                // Category T: 30% Honorarium, 70% Institute
+                honorariumRatio = 0.30;
+                instituteRatio = 0.70;
+            } else if (category.includes("Non-Routine")) {
+                // Category E: 70% Honorarium, 30% Institute
+                honorariumRatio = 0.70;
+                instituteRatio = 0.30;
+            }
+
+            const honorarium = Math.round(te * honorariumRatio);
+            const instShare = Math.round(te * instituteRatio);
+
+            const gstAmtEf = Math.round(te * (gstRate / 100));
+            const grandTotalEf = te + gstAmtEf;
+
+            updates.cat_ef_honorarium = honorarium;
+            updates.cat_ef_institute_share = instShare;
+            updates.cat_ef_gst = gstAmtEf;
+            updates.cat_ef_grand_total = grandTotalEf;
+        }
+        return updates;
+    }, []);
+
+    const calculateParentTotals = useCallback((currentData: FormData) => {
+        let total1st = 0, total2nd = 0, total3rd = 0, total4th = 0, total5th = 0;
+        let grandTotal = 0;
+
+        (currentData.proposed_budget_breakup || []).forEach((row: any) => {
+            const years = row.years || [];
+            total1st += parseFloat(years[0] || 0);
+            total2nd += parseFloat(years[1] || 0);
+            total3rd += parseFloat(years[2] || 0);
+            total4th += parseFloat(years[3] || 0);
+            total5th += parseFloat(years[4] || 0);
+            grandTotal += (years as any[]).reduce((a, b) => a + (parseFloat(b) || 0), 0);
+        });
+
+        return {
+            total_first_year_budget: total1st,
+            total_second_year_budget: total2nd,
+            total_third_year_budget: total3rd,
+            total_fourth_year_budget: total4th,
+            total_fifth_year_budget: total5th,
+            grand_total_proposal: grandTotal,
+            total_budget_amount: grandTotal
+        };
+    }, []);
+
+    const calculateEndDate = useCallback((currentData: FormData) => {
+        const startDate = currentData.prj_start_date;
+        const durationMonths = parseInt(currentData.project_duration_months) || 0;
+        const durationDays = parseInt(currentData.project_duration_days) || 0;
+
+        if (!startDate) return null;
+
+        const date = new Date(startDate);
+        if (durationMonths > 0) {
+            date.setMonth(date.getMonth() + durationMonths);
+            date.setDate(date.getDate() - 1); // Subtract 1 day
+        } else if (durationDays > 0) {
+            date.setDate(date.getDate() + durationDays);
+        } else {
+            return null;
+        }
+        return date.toISOString().split('T')[0];
+    }, []);
+
+    const controlYearFieldsVisibility = useCallback((durationMonths: number) => {
+        const years = durationMonths <= 12 ? 1 : durationMonths <= 24 ? 2 : durationMonths <= 36 ? 3 : durationMonths <= 48 ? 4 : 5;
+        // Update fields visibility state
+        setFields(prevFields => prevFields.map(field => {
+            const totals = ["total_first_year_budget", "total_second_year_budget", "total_third_year_budget", "total_fourth_year_budget", "total_fifth_year_budget"];
+            if (totals.includes(field.fieldname)) {
+                const yearIndex = totals.indexOf(field.fieldname);
+                return { ...field, hidden: (yearIndex + 1) > years };
+            }
+            return field;
+        }));
+        // Update budget table years
+        setBudgetYears(Array.from({ length: years }, (_, i) => i + 1));
+        // Resize budget rows if years reduced (optional, or just handle in render)
+        // We'll update the rows in formData to ensure data consistency
+        setFormData(prev => {
+            const updatedRows = (prev.proposed_budget_breakup || []).map(row => {
+                const currentYears = row.years || [];
+                // Resize array
+                const newYears = Array(years).fill(0).map((_, i) => currentYears[i] || 0);
+                return { ...row, years: newYears };
+            });
+            // Recalculate totals with new years
+            // We can call calculateParentTotals here but we need the function reference which is defined above.
+            // Ideally we should use a separate effect or just return updates.
+            // For simplicity, we just update the structure here.
+            return {
+                ...prev,
+                proposed_budget_breakup: updatedRows
+            };
+        });
+    }, []);
+
+    const updateApproverAndHead = useCallback(async (deptId: string) => {
+        if (!deptId) return {};
+        try {
+            const r = await fetchDeptHead({ doctype: 'Department_prornd', fieldname: 'dept_head', name: deptId });
+            if (r?.message?.dept_head) {
+                return { department_head: r.message.dept_head, head_approver: r.message.dept_head };
+            }
+        } catch (e) {
+            console.error("Failed to fetch department head", e);
+        }
+        return {};
+    }, [fetchDeptHead]);
+
     const handleFieldChangeWithSideEffects = useCallback(async (fieldname: string, value: any) => {
-        handleChange(fieldname, value);
+        // 1. Update the specific field first
+        let updatedData = { ...formData, [fieldname]: value };
+
+        // 2. Run Side Effects based on fieldname
         if (fieldname === 'pi_webmail') {
             if (value) {
                 try {
@@ -303,24 +501,71 @@ const ProjectRegistration: React.FC = () => {
                             const matchedOption = linkOptions["applicant_department"].find(opt => opt.label === deptName || opt.value === deptName);
                             departmentLinkValue = matchedOption?.value || "";
                         }
-                        setFormData(prev => ({
-                            ...prev,
+                        updatedData = {
+                            ...updatedData,
                             pi_userid: value,
                             pi_employee_id: details.employee_id || details.pi_employee_id || "",
                             principal_investigator_name: details.full_name || details.principal_investigator_name || "",
                             designation: details.designation_name || details.designation || "",
                             applicant_department: departmentLinkValue
-                        }));
+                        };
+                        // Trigger Approver Update for Applicant Dept
+                        const approverUpdates = await updateApproverAndHead(departmentLinkValue);
+                        updatedData = { ...updatedData, ...approverUpdates };
                     }
                 } catch (err) { console.error("Failed to fetch main PI details:", err); }
             } else {
-                setFormData(prev => ({ ...prev, pi_userid: "", pi_employee_id: "", principal_investigator_name: "", designation: "", applicant_department: "" }));
+                updatedData = { ...updatedData, pi_userid: "", pi_employee_id: "", principal_investigator_name: "", designation: "", applicant_department: "" };
             }
         }
-        if (fieldname === 'funding_agen' && value) {
-            fetchAgencyDetails({ agency_name: value });
+
+        if (fieldname === 'funding_agen') {
+            if (value) {
+                fetchAgencyDetails({ agency_name: value });
+            } else {
+                // Clear agency details if cleared
+                updatedData = {
+                    ...updatedData,
+                    funding_agency_type: "",
+                    origin_of_funding_agency: "",
+                    funding_agency_ministry: "",
+                    funding_agency_schemes: "",
+                    address_street_village_locality: "",
+                    address_state: "",
+                    address_postal_code: "",
+                    address_country: ""
+                };
+            }
         }
-    }, [handleChange, fetchPiDetails, fetchAgencyDetails, linkOptions]);
+
+        // Approver Logic for Implementation Dept Change
+        if (fieldname === 'implementation_department') {
+            const approverUpdates = await updateApproverAndHead(value);
+            updatedData = { ...updatedData, ...approverUpdates };
+        }
+
+        // 3. Consultancy Calculations
+        if ([
+            'consultancy_category', 'consultancy_gst_rate',
+            'cat_d_grand_total_input', 'cat_d_consultancy_fee_input', 'operational_expense_input_inc_10_oh',
+            'cat_ef_total_amount'
+        ].includes(fieldname)) {
+            const consultancyUpdates = calculateConsultancy(updatedData);
+            updatedData = { ...updatedData, ...consultancyUpdates };
+        }
+
+        // 4. Project Duration / End Date Logic
+        if (['prj_start_date', 'project_duration_months', 'project_duration_days'].includes(fieldname)) {
+            const newEndDate = calculateEndDate(updatedData);
+            if (newEndDate) updatedData.prj_end_date = newEndDate;
+
+            if (fieldname === 'project_duration_months') {
+                controlYearFieldsVisibility(parseInt(value) || 0);
+            }
+        }
+
+        setFormData(updatedData);
+    }, [formData, fetchPiDetails, fetchAgencyDetails, linkOptions, calculateConsultancy, updateApproverAndHead, calculateEndDate, controlYearFieldsVisibility]);
 
     const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => { setFormData(prev => { const t = [...(prev[tableName] || [])]; t[rowIndex] = { ...t[rowIndex], [fieldname]: value }; return { ...prev, [tableName]: t }; }); }, []);
     const handleTableFileChange = useCallback((tableName: string, rowIndex: number, fieldname: string, file: File | null) => { setFormData(prev => { const t = [...(prev[tableName] || [])]; t[rowIndex] = { ...t[rowIndex], [fieldname]: file }; return { ...prev, [tableName]: t }; }); }, []);
@@ -364,7 +609,9 @@ const ProjectRegistration: React.FC = () => {
             }
 
             table[rowIndex] = row;
-            return { ...prev, proposed_budget_breakup: table };
+            const newData = { ...prev, proposed_budget_breakup: table };
+            const totals = calculateParentTotals(newData);
+            return { ...newData, ...totals };
         });
     }, []);
 
@@ -372,12 +619,57 @@ const ProjectRegistration: React.FC = () => {
 
     const renderField = useCallback((fieldname: string) => {
         const field = fields.find(f => f.fieldname === fieldname);
-        if (!field || ALWAYS_HIDDEN_FIELDS.includes(fieldname)) return null;
+        if (!field) {
+            if (!ALWAYS_HIDDEN_FIELDS.includes(fieldname)) {
+                // console.warn(`⚠️ Warning: Field '${fieldname}' expected for rendering but not found in API response.`);
+            }
+            return null;
+        }
+
+        if (ALWAYS_HIDDEN_FIELDS.includes(fieldname)) return null;
+
+        // Evaluate depends_on for visibility
+        let evalExpr = field.depends_on_eval;
+        if (!evalExpr && field.depends_on) {
+            evalExpr = field.depends_on;
+        }
+
+        if (evalExpr) {
+            const isVisible = evaluateDependsOn(evalExpr, formData);
+            if (!isVisible) return null;
+        }
+
+        // Evaluate dynamic mandatory and read_only states
+        let isMandatory = field.mandatory;
+        let isReadOnly = field.read_only;
+
+        let mandatoryEval = field.mandatory_depends_on_eval;
+        if (!mandatoryEval && field.mandatory_depends_on) {
+            mandatoryEval = field.mandatory_depends_on;
+        }
+        if (mandatoryEval) {
+            if (evaluateDependsOn(mandatoryEval, formData)) {
+                isMandatory = true;
+            }
+        }
+
+        let readOnlyEval = field.read_only_depends_on_eval;
+        if (!readOnlyEval && field.read_only_depends_on) {
+            readOnlyEval = field.read_only_depends_on;
+        }
+        if (readOnlyEval) {
+            if (evaluateDependsOn(readOnlyEval, formData)) {
+                isReadOnly = true;
+            }
+        }
+
+        const effectiveField = { ...field, mandatory: isMandatory, read_only: isReadOnly };
         const options = linkOptions[field.options as string] || linkOptions[fieldname];
+
         return (
             <MemoizedFormField
                 key={field.fieldname}
-                field={field}
+                field={effectiveField}
                 value={formData[fieldname]}
                 options={options}
                 onChange={handleFieldChangeWithSideEffects}
@@ -542,7 +834,7 @@ const ProjectRegistration: React.FC = () => {
     );
 
     const tabFieldGroups = {
-        fundingDetails: ["funding_agen", "funding_agency_schemes", "funding_agency_type", "origin_of_funding_agency", "funding_agency_ministry"],
+        fundingDetails: ["funding_agen", "funding_agency_other", "funding_agency_schemes", "funding_agency_type", "funding_agency_type_other", "nature_funding_agency_non_govt", "select_funding_agency", "origin_of_funding_agency", "funding_agency_ministry", "fund_agen_initials"],
         agencyAddress: ["address_street_village_locality", "address_state", "address_postal_code", "address_country"],
         piDetails: ["pi_employee_id", "principal_investigator_name", "designation", "applicant_department", "pi_userid"],
         collaboratorToggles: ["is_additional_pi", "has_co_pi"],
@@ -609,7 +901,52 @@ const ProjectRegistration: React.FC = () => {
                                                 <FrappeCard className="p-6 space-y-6 !shadow-sm border-gray-300"><h3 className="text-2xl font-bold uppercase text-black">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.agencyAddress)}</div></FrappeCard>
                                             </div>
                                         )}
-                                        {formData.project_type === "Consultancy" && renderField("consultancy_category")}
+                                        {formData.project_type === "Consultancy" && (
+                                            <div className="space-y-8">
+                                                <div className="space-y-4">
+                                                    {renderField("consultancy_category")}
+                                                    {renderField("consultancy_gstin")}
+                                                    {renderField("consultancy_gst_rate")}
+                                                    {renderField("involves_international_travel")}
+
+                                                    {/* Category D Fields */}
+                                                    {formData.consultancy_category?.startsWith("Category D") && (
+                                                        <div className="space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                                                            <h4 className="font-bold text-lg text-gray-700">Category D Details</h4>
+                                                            {renderField("category_d_note")}
+                                                            {renderField("cat_d_grand_total_input")}
+                                                            {renderField("cat_d_project_cost_excl_gst")}
+                                                            {renderField("cat_d_consultancy_fee_input")}
+                                                            {renderField("operational_expense_input_inc_10_oh")}
+                                                            {renderField("cat_d_cf_base")}
+                                                            {renderField("cat_d_oe_base")}
+                                                            {renderField("cat_d_total_overhead")}
+                                                            {renderField("cat_d_institute_share")}
+                                                            {renderField("cat_d_gst_amt")}
+                                                            {renderField("cat_d_grand_total_calc")}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Category T & E Fields */}
+                                                    {(!formData.consultancy_category?.startsWith("Category D") && formData.consultancy_category) && (
+                                                        <div className="space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                                                            <h4 className="font-bold text-lg text-gray-700">
+                                                                {formData.consultancy_category?.includes("Routine") && !formData.consultancy_category?.includes("Non-Routine") ? "Category T Details" : "Category E Details"}
+                                                            </h4>
+                                                            {renderField("category_e_note")}
+                                                            {renderField("category_t_note")}
+                                                            {renderField("cat_ef_total_amount")}
+                                                            {renderField("cat_ef_honorarium")}
+                                                            {renderField("cat_ef_institute_share")}
+                                                            {renderField("cat_ef_gst")}
+                                                            {renderField("cat_ef_grand_total")}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <FrappeCard className="p-6 space-y-6 !shadow-sm border-gray-300"><h3 className="text-2xl font-bold uppercase text-black">Funding Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.fundingDetails)}</div></FrappeCard>
+                                                <FrappeCard className="p-6 space-y-6 !shadow-sm border-gray-300"><h3 className="text-2xl font-bold uppercase text-black">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.agencyAddress)}</div></FrappeCard>
+                                            </div>
+                                        )}
                                         {formData.project_type === "Other" && renderField("other_project_type_name")}
                                         {renderField("implementation_department")}
                                         {renderField("project_objective")}
@@ -618,6 +955,10 @@ const ProjectRegistration: React.FC = () => {
                                         {renderField("upload_proj_prop")}
                                         {renderField("my_projects")}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">{formData.project_type !== "Consultancy" ? renderField("project_duration_months") : renderField("project_duration_days")}</div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            {renderField("prj_start_date")}
+                                            {renderField("prj_end_date")}
+                                        </div>
                                     </FrappeCard>
                                     {renderNextPrevButtons(false, true)}
                                 </div>

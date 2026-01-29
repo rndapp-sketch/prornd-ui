@@ -65,6 +65,11 @@ export const useDepositSlipCalculations = (
             const tableSig = table.map((r: any) => `T:${r.percentage_of_overhead}`).join('|');
 
             return `tt:${amount}:${cgst}:${sgst}:${multiplier}:${tableSig}`;
+        } else if (depositSlipType === 'research_deposit_slip') {
+            // Research Deposit Slip - trigger on total_amount or overhead_amount changes
+            const total = flt(formData.total_amount);
+            const overhead = flt(formData.overhead_amount);
+            return `rds:${total}:${overhead}`;
         }
         return '';
     };
@@ -73,7 +78,7 @@ export const useDepositSlipCalculations = (
 
     useEffect(() => {
         // Guard: unsupported type
-        if (!['research_consultancy', 't_testing'].includes(depositSlipType)) {
+        if (!['research_consultancy', 't_testing', 'research_deposit_slip'].includes(depositSlipType)) {
             return;
         }
 
@@ -92,6 +97,12 @@ export const useDepositSlipCalculations = (
             lastSignatureRef.current = currentSignature;
             return;
         }
+        // Research Deposit Slip: allow calculation even if overhead is 0 (to reset fields)
+        // Only skip if both values are empty
+        if (depositSlipType === 'research_deposit_slip' && flt(data.total_amount) <= 0 && flt(data.overhead_amount) <= 0) {
+            lastSignatureRef.current = currentSignature;
+            return;
+        }
 
         console.log(`useDepositSlipCalculations [${depositSlipType}]: Calculating...`);
 
@@ -104,6 +115,8 @@ export const useDepositSlipCalculations = (
             updates = calculateResearchConsultancy(data);
         } else if (depositSlipType === 't_testing') {
             updates = calculateTTesting(data);
+        } else if (depositSlipType === 'research_deposit_slip') {
+            updates = calculateResearchDeposit(data);
         }
 
         setFormData(prev => ({ ...prev, ...updates }));
@@ -219,4 +232,52 @@ function calculateTTesting(formData: FormData): FormData {
         total_budget: flt(amountInclGst),
         credit_distribution: updatedDist,
     };
+}
+
+// =============================================================
+// RESEARCH DEPOSIT SLIP CALCULATIONS
+// Based on Frappe client script logic:
+// - IDF: 40% of overhead
+// - DPF: 25% of overhead  
+// - PDF: 25% of overhead
+// - Staff Welfare: 5% of overhead
+// - Student Welfare: 5% of overhead
+// - Project Balance: total - overhead
+// - Grand Total: overhead + project balance (= total)
+// =============================================================
+function calculateResearchDeposit(formData: FormData): FormData {
+    const total = flt(formData.total_amount);
+    const overhead = flt(formData.overhead_amount);
+
+    if (overhead > 0) {
+        const idfAmt = overhead * 0.40;         // 40% of overhead
+        const dpfAmt = overhead * 0.25;         // 25% of overhead
+        const pdfAmt = overhead * 0.25;         // 25% of overhead
+        const staffWelfare = overhead * 0.05;   // 5% of overhead
+        const studentWelfare = overhead * 0.05; // 5% of overhead
+
+        const projectBalance = total - overhead;
+        const grandTotal = overhead + projectBalance; // Equals total
+
+        return {
+            idf_amount: flt(idfAmt),
+            dpf_amount: flt(dpfAmt),
+            pdf_amount: flt(pdfAmt),
+            staff_welfare_amount: flt(staffWelfare),
+            student_welfare_fund: flt(studentWelfare).toFixed(2), // Data field, stored as string
+            project_account_balance: flt(projectBalance),
+            grand_total: flt(grandTotal)
+        };
+    } else {
+        // Reset all calculated fields when overhead is 0
+        return {
+            idf_amount: 0,
+            dpf_amount: 0,
+            pdf_amount: 0,
+            staff_welfare_amount: 0,
+            student_welfare_fund: '0',
+            project_account_balance: flt(total), // When no overhead, balance = total
+            grand_total: flt(total)
+        };
+    }
 }

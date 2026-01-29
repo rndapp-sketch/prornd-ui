@@ -543,8 +543,14 @@ const FundReceivedDetails = () => {
             });
             const result = await response.json();
 
+            console.log('Deposit slip API response for type:', type, result);
+            console.log('Response status:', response.status, response.ok);
+
             if (result?.message) {
                 const { fields: apiFields, link_options, prefill_data, client_scripts, child_table_meta } = result.message;
+
+                console.log('apiFields:', apiFields);
+                console.log('Number of fields:', apiFields?.length);
 
                 // Store child table metadata for dynamic table rendering
                 if (child_table_meta) {
