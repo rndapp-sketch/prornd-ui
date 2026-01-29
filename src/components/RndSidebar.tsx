@@ -22,8 +22,8 @@ import {
   ChevronDownIcon,
   LogOutIcon,
   UsersIcon,
-  HandCoinsIcon,
   ListTodo,
+  CreditCard,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
@@ -121,6 +121,11 @@ export function AppSidebar() {
       icon: FileText,
       path: "/task-registry",
     },
+    {
+      label: "Payments",
+      icon: CreditCard,
+      path: "/payments",
+    },
   ].filter(item => {
     if (item.label === "Pending Task") {
       const allowedRoles = [
@@ -139,6 +144,14 @@ export function AppSidebar() {
         'Hos, RnD (Head of Section, RnD)',
         'Dean, RnD',
         'Director'
+      ];
+      return roles && allowedRoles.some(role => roles.includes(role));
+    }
+    if (item.label === "Payments") {
+      // Visible only to staff
+      const allowedRoles = [
+        'staff, RnD',
+        'Hos, RnD (Head of Section, RnD)',
       ];
       return roles && allowedRoles.some(role => roles.includes(role));
     }

@@ -1161,13 +1161,16 @@ const BudgetLedgerModal = ({ isOpen, onClose, budgetData, heads, actualBalance, 
                             <table className="min-w-full divide-y divide-gray-200 text-sm">
                                 <thead className="bg-[#F9FAFB]">
                                     <tr>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">SL</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">TID</th>
                                         <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">Date</th>
                                         <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">Particulars</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">Ref</th>
-                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Received</th>
-                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Committed</th>
-                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Balance</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">BMR</th>
+                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Fund Received</th>
+                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Commit Amt</th>
+                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Commitable Bal</th>
+                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Payment Amt</th>
+                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Payment Bal</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
@@ -1179,20 +1182,27 @@ const BudgetLedgerModal = ({ isOpen, onClose, budgetData, heads, actualBalance, 
                                                 <td className="px-4 py-3 text-gray-900 font-medium">
                                                     <div className="max-w-xs truncate" title={row.particulars}>{row.particulars}</div>
                                                 </td>
-                                                <td className="px-4 py-3 text-gray-500 max-w-[150px] truncate" title={row.ref}>{row.ref}</td>
+                                                <td className="px-4 py-3 text-gray-500">{row.bmr || '-'}</td>
                                                 <td className="px-4 py-3 text-right font-medium text-green-600">{row.received ? row.received.toLocaleString('en-IN') : '-'}</td>
                                                 <td className="px-4 py-3 text-right font-medium text-red-600">{row.committed ? row.committed.toLocaleString('en-IN') : '-'}</td>
+                                                <td className="px-4 py-3 text-right font-bold text-gray-800">{row.commitableBalance?.toLocaleString('en-IN') || '-'}</td>
+                                                <td className="px-4 py-3 text-right font-medium text-red-600">{row.payment ? row.payment.toLocaleString('en-IN') : '-'}</td>
                                                 <td className="px-4 py-3 text-right font-bold text-gray-800">
                                                     {activeLedgerTab === "All"
                                                         ? row.actualBalance?.toLocaleString('en-IN')
-                                                        : (row as any).commitableBalance?.toLocaleString('en-IN')
+                                                        : (row as any).headActualBalance?.toLocaleString('en-IN')
                                                     }
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className={row.status === 'Paid' ? 'text-green-600 font-medium' : row.status === 'Pending' ? 'text-amber-600 font-medium' : ''}>
+                                                        {row.status || '-'}
+                                                    </span>
                                                 </td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={7} className="px-4 py-12 text-center text-gray-500 italic">No ledger entries found for this selection.</td>
+                                            <td colSpan={10} className="px-4 py-12 text-center text-gray-500 italic">No ledger entries found for this selection.</td>
                                         </tr>
                                     )}
                                 </tbody>

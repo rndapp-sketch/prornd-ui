@@ -50,6 +50,7 @@ import ProjectStaffResignationForm from './pages/application/ProjectStaffResigna
 import TaskRegistry from './pages/TaskRegistry.tsx';
 import TaskRegistryDetails from './pages/TaskRegistryDetails.tsx';
 import TemporaryAdvanceDetails from './pages/application/TemporaryAdvanceDetails.tsx';
+import Payments from './pages/Payments.tsx';
 
 const router = createBrowserRouter(
   [
@@ -399,6 +400,17 @@ const router = createBrowserRouter(
               'Director'
             ]}>
               <TaskRegistryDetails />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "payments",
+          element: (
+            <AuthRouteWrapper allowedRole={[
+              'staff, RnD',
+              'Hos, RnD (Head of Section, RnD)',
+            ]}>
+              <Payments />
             </AuthRouteWrapper>
           )
         },

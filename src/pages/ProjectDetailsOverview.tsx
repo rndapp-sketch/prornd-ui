@@ -1130,6 +1130,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
       }
 
       const result = await response.json();
+      console.log("Ledger API response data:", result, "for projectNumber:", projectName, "headId:", headId);
       setLedgerTransactions(Array.isArray(result) ? result : []);
     } catch (err: any) {
       console.error("Ledger API Error:", err);
@@ -2083,18 +2084,22 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         <table className="w-full text-sm text-left">
                           <thead className="bg-gray-50 border-b border-gray-200">
                             <tr>
+                              <th className="px-6 py-3 font-semibold text-gray-600">TID</th>
                               <th className="px-6 py-3 font-semibold text-gray-600">Date</th>
                               <th className="px-6 py-3 font-semibold text-gray-600">Particulars</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600">Type</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Commit</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Payment</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Balance</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600">BMR</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Fund Received</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Commit Amt</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Commitable Bal</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Payment Amt</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Payment Bal</th>
                               <th className="px-6 py-3 font-semibold text-gray-600 text-center">Status</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
                             {ledgerTransactions.map((txn) => (
                               <tr key={txn.transactionId} className="hover:bg-gray-50/50">
+                                <td className="px-6 py-3 text-gray-500 font-mono">{txn.transactionId || '-'}</td>
                                 <td className="px-6 py-3 text-gray-900 whitespace-nowrap">
                                   {txn.transactionDate ? new Date(txn.transactionDate).toLocaleDateString('en-IN') : '-'}
                                 </td>
@@ -2102,18 +2107,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                   <div className="max-w-xs truncate" title={txn.particulars}>{txn.particulars}</div>
                                   {txn.refDetails && <div className="text-xs text-gray-500 mt-0.5">{txn.refDetails}</div>}
                                 </td>
-                                <td className="px-6 py-3 text-gray-600">
-                                  <span className={cn(
-                                    "inline-flex px-2 py-0.5 rounded text-xs font-medium",
-                                    txn.transactionType === 'PAYMENT' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'
-                                  )}>
-                                    {txn.transactionType}
-                                  </span>
+                                <td className="px-6 py-3 text-gray-600">{txn.bmr || '-'}</td>
+                                <td className="px-6 py-3 text-right font-medium text-green-600">
+                                  {txn.fundReceivedAmount ? `₹${txn.fundReceivedAmount.toLocaleString('en-IN')}` : '-'}
                                 </td>
-                                <td className="px-6 py-3 text-right font-medium text-gray-900">
+                                <td className="px-6 py-3 text-right font-medium text-red-600">
                                   {txn.commitAmount ? `₹${txn.commitAmount.toLocaleString('en-IN')}` : '-'}
                                 </td>
-                                <td className="px-6 py-3 text-right font-medium text-gray-900">
+                                <td className="px-6 py-3 text-right font-bold text-gray-900">
+                                  {txn.commitableBalance ? `₹${txn.commitableBalance.toLocaleString('en-IN')}` : '-'}
+                                </td>
+                                <td className="px-6 py-3 text-right font-medium text-red-600">
                                   {txn.paymentAmount ? `₹${txn.paymentAmount.toLocaleString('en-IN')}` : '-'}
                                 </td>
                                 <td className="px-6 py-3 text-right font-bold text-[#0EA5A4]">
@@ -2352,16 +2356,16 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     <table className="frappe-table">
                       <thead>
                         <tr>
-                          <th>SL. NO</th>
-                          <th>DATE</th>
-                          <th>PARTICULARS</th>
-                          <th>REF.</th>
-                          <th style={{ textAlign: 'right' }}>RECEIVED</th>
-                          <th style={{ textAlign: 'right' }}>COMMITTED</th>
-                          <th style={{ textAlign: 'right' }}>COMMITABLE BAL.</th>
-                          <th>BMR. NO</th>
-                          <th style={{ textAlign: 'right' }}>PAYMENT</th>
-                          <th style={{ textAlign: 'right' }}>ACTUAL BAL.</th>
+                          <th>TID</th>
+                          <th>Date</th>
+                          <th>Particulars</th>
+                          <th>BMR</th>
+                          <th style={{ textAlign: 'right' }}>Fund Received</th>
+                          <th style={{ textAlign: 'right' }}>Commit Amt</th>
+                          <th style={{ textAlign: 'right' }}>Commitable Bal</th>
+                          <th style={{ textAlign: 'right' }}>Payment Amt</th>
+                          <th style={{ textAlign: 'right' }}>Payment Bal</th>
+                          <th>Status</th>
                           <th>ACTIONS</th>
                         </tr>
                       </thead>
@@ -2378,17 +2382,21 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                               <td>{row.sl}</td>
                               <td>{row.date}</td>
                               <td>{row.particulars}</td>
-                              <td className="max-w-[200px] truncate" title={row.ref}>{row.ref}</td>
+                              <td>{row.bmr}</td>
                               <td style={{ textAlign: 'right' }} className={row.received ? "text-green-600 font-medium" : ""}>{row.received ? row.received.toLocaleString('en-IN') : '-'}</td>
                               <td style={{ textAlign: 'right' }} className={row.committed ? "text-red-600 font-medium" : ""}>{row.committed ? row.committed.toLocaleString('en-IN') : '-'}</td>
                               <td style={{ textAlign: 'right' }} className="font-semibold text-gray-900">{row.commitableBalance?.toLocaleString('en-IN')}</td>
-                              <td>{row.bmr}</td>
                               <td style={{ textAlign: 'right' }} className={row.payment ? "text-red-600 font-medium" : ""}>{row.payment ? row.payment.toLocaleString('en-IN') : '-'}</td>
                               <td style={{ textAlign: 'right' }} className="font-semibold text-gray-900">
                                 {activeLedgerTab === "All"
                                   ? row.actualBalance?.toLocaleString('en-IN')
                                   : (row as any).headActualBalance?.toLocaleString('en-IN')
                                 }
+                              </td>
+                              <td>
+                                <span className={(row as any).status === 'Paid' ? 'text-green-600 font-medium' : (row as any).status === 'Pending' ? 'text-amber-600 font-medium' : ''}>
+                                  {(row as any).status || '-'}
+                                </span>
                               </td>
                               <td>
                                 {row.committed > 0 && !row.payment && (
