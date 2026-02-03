@@ -1,369 +1,1177 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import type { FC, ReactNode, ChangeEvent, FormEvent } from 'react';
+import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
+import { AppSidebar } from "../components/RndSidebar";
+import useUserRoleCheck from "../components/UserRoleCheck";
+import { useFrappePostCall } from 'frappe-react-sdk';
+import { cn } from '@/lib/utils';
+import { FileText, Users, IndianRupee, Shield, FileBadge, X } from 'lucide-react';
+import { EndorsementCertificate, getEndorsementHtml } from '../components/EndorsementCertificate';
+import { commonAPI } from '@/services/apiService';
 
-// --- Type Definitions for TypeScript ---
-
-// Declare jspdf and html2canvas on the window object to avoid TypeScript errors
-// These are loaded via script tags in the useEffect hook.
-declare global {
-    interface Window {
-        jspdf: any;
-        html2canvas: any;
-    }
-}
-
+// --- TYPE DEFINITIONS ---
 interface Field {
-  fieldname: string;
-  fieldtype: 'Data' | 'Link' | 'Text' | 'Long Text' | 'Check' | 'Int' | 'Float';
-  label: string;
-  reqd?: number;
-  options?: string;
-  default?: string;
-  precision?: string;
-  section: string;
+    fieldname: string; label: string | null; fieldtype: string; default?: any;
+    mandatory: boolean; read_only: boolean; hidden: boolean;
+    description?: string | null; options?: string | null;
+    depends_on?: string | null;
+    mandatory_depends_on?: string | null;
+    read_only_depends_on?: string | null;
+    depends_on_eval?: string | null;
+    mandatory_depends_on_eval?: string | null;
+    read_only_depends_on_eval?: string | null;
 }
-
-interface FormSchema {
-  fields: Field[];
-}
-
+interface LinkOption { value: string; label: string; designation?: string; }
 interface FormData {
-  [key: string]: string | number | boolean | File[];
-  files: File[];
+    [key: string]: any;
+    additional_pi_table?: (any & { id?: string })[];
+    co_investigator_table?: (any & { id?: string })[];
+    proposed_equipment_details?: (any & { id?: string })[];
+    proposed_manpower_details?: (any & { id?: string })[];
+    proposed_budget_breakup?: ({ head: string; years: (number | string)[]; id?: string })[];
+    sanctioned_budget_breakup?: (any & { id?: string })[];
+    sanction_related_files?: (any & { id?: string })[];
+    fund_transactions?: (any & { id?: string })[];
 }
 
-interface Section {
-    title: string;
-    description: string;
-    icon: ReactNode;
-}
+// --- STYLES & REUSABLE UI COMPONENTS ---
+const inputClasses = "w-full h-12 px-4 bg-white border border-gray-400 rounded-xl font-medium text-black shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-50";
+const checkboxClasses = "size-5 shrink-0 appearance-none bg-white border border-gray-400 rounded checked:bg-[#0EA5A4] checked:border-[#0EA5A4] checked:bg-[url('data:image/svg+xml,%3csvg%20viewBox%3d%270%200%2016%2016%27%20fill%3d%27white%27%20xmlns%3d%27http%3a//www.w3.org/2000/svg%27%3e%3cpath%20d%3d%27M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%27/%3e%3c/svg%3e')] bg-center bg-no-repeat cursor-pointer";
+const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (<div className={cn("bg-white p-6 md:p-8 border border-gray-300 rounded-xl shadow-sm", className)}>{children}</div>);
+const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; className?: string; type?: "button" | "submit" }) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)] disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
 
-// --- Helper Data from JSON Schema ---
-const formSchema: FormSchema = {
-  fields: [
-    { fieldname: "project_number", fieldtype: "Data", label: "Project Number", reqd: 1, section: "Core Details" },
-    { fieldname: "ref_num", fieldtype: "Data", label: "Reference Number", reqd: 1, section: "Core Details" },
-    { fieldname: "project_title", fieldtype: "Text", label: "Project Title", reqd: 1, section: "Core Details" },
-    { fieldname: "project_type", fieldtype: "Data", label: "Project Type", section: "Core Details" },
-    { fieldname: "project_category", fieldtype: "Data", label: "Project Category", section: "Core Details" },
-    { fieldname: "other_project_category_name", fieldtype: "Data", label: "Other Project Category", section: "Core Details" },
-    { fieldname: "employee_id", fieldtype: "Link", label: "Employee ID", options: "loginuser_", section: "PI Information" },
-    { fieldname: "initiated_employee_id", fieldtype: "Link", label: "Initiated By Employee ID", options: "loginuser_", section: "PI Information" },
-    { fieldname: "name_of_registrant", fieldtype: "Data", label: "Registrant Name", section: "PI Information" },
-    { fieldname: "project_registered_by", fieldtype: "Data", label: "Project Registered By", section: "PI Information" },
-    { fieldname: "pi_webmail", fieldtype: "Data", label: "PI Webmail", options: "Email", section: "PI Information" },
-    { fieldname: "designation", fieldtype: "Data", label: "Designation", section: "PI Information" },
-    { fieldname: "department_id", fieldtype: "Int", label: "Department ID", section: "PI Information" },
-    { fieldname: "project_objectives", fieldtype: "Long Text", label: "Project Objectives", section: "Scope & Funding" },
-    { fieldname: "project_deliverables", fieldtype: "Long Text", label: "Project Deliverables", section: "Scope & Funding" },
-    { fieldname: "project_executive_summery", fieldtype: "Long Text", label: "Executive Summary", section: "Scope & Funding" },
-    { fieldname: "funding_agency_type", fieldtype: "Data", label: "Funding Agency Type", section: "Scope & Funding" },
-    { fieldname: "funding_agency", fieldtype: "Link", label: "Funding Agency", options: "fundingagency_", section: "Scope & Funding" },
-    { fieldname: "project_scheme", fieldtype: "Data", label: "Project Scheme", section: "Scope & Funding" },
-    { fieldname: "gstin_number", fieldtype: "Data", label: "GSTIN Number", section: "Scope & Funding" },
-    { fieldname: "pi_from_iitg", fieldtype: "Check", label: "PI from IITG", default: "0", section: "Scope & Funding" },
-    { fieldname: "has_copi", fieldtype: "Check", label: "Has Co-PI", default: "0", section: "Scope & Funding" },
-    { fieldname: "collaborating_institute", fieldtype: "Data", label: "Collaborating Institute", section: "Scope & Funding" },
-    { fieldname: "total_budget_amount", fieldtype: "Float", label: "Total Budget Amount", precision: "2", section: "Budget & Duration" },
-    { fieldname: "overhead_amount_percentage", fieldtype: "Float", label: "Overhead Percentage", precision: "2", section: "Budget & Duration" },
-    { fieldname: "overhead_amount", fieldtype: "Float", label: "Overhead Amount", precision: "2", section: "Budget & Duration" },
-    { fieldname: "budget_with_overhead_amount", fieldtype: "Float", label: "Budget with Overhead", precision: "2", section: "Budget & Duration" },
-    { fieldname: "gst", fieldtype: "Float", label: "GST", precision: "2", section: "Budget & Duration" },
-    { fieldname: "grand_total", fieldtype: "Float", label: "Grand Total", precision: "2", section: "Budget & Duration" },
-    { fieldname: "duration_in_month", fieldtype: "Data", label: "Duration (Months)", section: "Budget & Duration" },
-    { fieldname: "duration_in_days", fieldtype: "Data", label: "Duration (Days)", section: "Budget & Duration" },
-    { fieldname: "project_implementation_location", fieldtype: "Data", label: "Implementation Location", section: "Logistics" },
-    { fieldname: "clearance_required", fieldtype: "Data", label: "Clearance Required", section: "Logistics" },
-    { fieldname: "clearance_ethics_committee", fieldtype: "Data", label: "Ethics Committee Clearance", section: "Logistics" },
-    { fieldname: "international_travel", fieldtype: "Check", label: "International Travel Required", default: "0", section: "Logistics" },
-    { fieldname: "space_required", fieldtype: "Check", label: "Space Required", default: "0", section: "Logistics" },
-  ]
-};
-
-// --- SVG Icons ---
-const FileSignatureIcon: FC<React.SVGProps<SVGSVGElement>> = (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 19.5v.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8.5L20 7.5V11" /><polyline points="14 2 14 8 20 8" /><path d="M15 18v2" /><path d="M12 18h6" /></svg> );
-const CheckCircleIcon: FC<React.SVGProps<SVGSVGElement>> = (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>);
-const InfoIcon: FC<React.SVGProps<SVGSVGElement>> = (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> );
-const UserIcon: FC<React.SVGProps<SVGSVGElement>> = (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> );
-const BriefcaseIcon: FC<React.SVGProps<SVGSVGElement>> = (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> );
-const DollarSignIcon: FC<React.SVGProps<SVGSVGElement>> = (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> );
-const SettingsIcon: FC<React.SVGProps<SVGSVGElement>> = (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0-2l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg> );
-const UploadCloudIcon: FC<React.SVGProps<SVGSVGElement>> = (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/></svg> );
-const XIcon: FC<React.SVGProps<SVGSVGElement>> = (props) => ( <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg> );
-
-// --- Reusable Components ---
-
-interface FormInputProps {
-  field: Field;
-  value: string | number | boolean;
-  onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
-}
-
-const FormInput: FC<FormInputProps> = ({ field, value, onChange }) => {
-  const { fieldname, fieldtype, label, reqd, options } = field;
-  const commonClasses = "w-full px-4 py-2 mt-1 text-gray-700 bg-white border border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-indigo-500 focus:ring-opacity-50 transition duration-150 ease-in-out shadow-sm";
-  const renderInput = () => {
-    switch (fieldtype) {
-      case 'Text': case 'Long Text': return <textarea id={fieldname} name={fieldname} value={value as string} onChange={onChange} required={!!reqd} className={`${commonClasses} h-28`} placeholder={`Enter ${label.toLowerCase()}...`} />;
-      case 'Check': return ( <label htmlFor={fieldname} className="flex items-center space-x-3 h-10 mt-1 cursor-pointer"><input id={fieldname} name={fieldname} type="checkbox" checked={value as boolean} onChange={onChange} className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" /><span className="text-sm font-medium text-gray-800">{label}</span></label> );
-      case 'Int': case 'Float': return <input id={fieldname} name={fieldname} type="number" value={value as string | number} onChange={onChange} required={!!reqd} className={commonClasses} step={fieldtype === 'Float' ? '0.01' : '1'} placeholder="0.00" />;
-      default: const inputType = options === 'Email' ? 'email' : 'text'; return <input id={fieldname} name={fieldname} type={inputType} value={value as string} onChange={onChange} required={!!reqd} className={commonClasses} placeholder={`Enter ${label.toLowerCase()}`} />;
+const evaluateDependsOn = (expression: string | null | undefined, doc: any): boolean => {
+    if (!expression) return true;
+    try {
+        // Handle "eval:" prefix if present
+        const cleanExpression = expression.startsWith('eval:') ? expression.substring(5) : expression;
+        // eslint-disable-next-line no-new-func
+        const result = new Function('doc', `return ${cleanExpression}`)(doc);
+        // console.log(`Eval '${expression}' -> ${result} (doc.project_type: ${doc.project_type})`);
+        return !!result;
+    } catch (e) {
+        console.warn('Error evaluating depends_on:', expression, e);
+        return false; // Default to false (hidden) on error to prevent broken UI
     }
-  };
-  if (fieldtype === 'Check') return <div className="md:col-span-2">{renderInput()}</div>;
-  return ( <div className={fieldtype === 'Long Text' || fieldtype === 'Text' ? 'md:col-span-2' : ''}> <label htmlFor={fieldname} className="block text-sm font-medium text-gray-800"> {label} {reqd ? <span className="text-red-500">*</span> : ''} </label> {renderInput()} </div> );
 };
 
-interface FileUploadProps {
-    files: File[];
-    onFilesChange: (files: File[]) => void;
-}
-
-const FileUpload: FC<FileUploadProps> = ({ files, onFilesChange }) => {
-    const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => { onFilesChange(e.target.files ? [...e.target.files] : []); };
-    const removeFile = (indexToRemove: number) => { onFilesChange(files.filter((_, index) => index !== indexToRemove)); };
-    return (
-        <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-800 mb-1"> Attach Documents </label>
-            <div className="mt-1 flex justify-center px-6 pt-8 pb-8 border-2 border-gray-300 border-dashed rounded-lg bg-gray-50">
-                <div className="space-y-1 text-center">
-                    <UploadCloudIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    <div className="flex text-sm text-gray-600">
-                        <label htmlFor="file-upload" className="relative cursor-pointer bg-gray-50 rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-offset-gray-50 focus-within:ring-indigo-500">
-                            <span>Upload files</span>
-                            <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple onChange={handleFileChange} />
-                        </label>
-                        <p className="pl-1">or drag and drop</p>
-                    </div>
-                    <p className="text-xs text-gray-500">PNG, JPG, PDF up to 10MB</p>
-                </div>
-            </div>
-            {files.length > 0 && (
-                <div className="mt-4"><ul className="space-y-2">{files.map((file, index) => ( <li key={index} className="flex items-center justify-between bg-white p-2.5 rounded-lg border border-gray-200 shadow-sm"><span className="text-sm text-gray-800 truncate font-medium">{file.name}</span><button type="button" onClick={() => removeFile(index)} className="text-gray-400 hover:text-red-600 transition-colors"><XIcon className="w-5 h-5" /></button></li> ))}</ul></div>
-            )}
+// --- MEMOIZED CHILD COMPONENTS ---
+const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange }: { field: Field; value: any; options?: LinkOption[]; onChange: (fieldname: string, value: any, type?: string) => void; onFileChange: (fieldname: string, file: File | null) => void; }) => {
+    if (!field || field.hidden || !field.label) return null;
+    const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: field.read_only, required: field.mandatory, disabled: field.read_only };
+    const renderInput = () => {
+        switch (field.fieldtype) {
+            case "Link": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
+            case "Select": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(field.options?.split('\n').filter(o => o) || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>);
+            case "Text": case "Small Text": case "Text Editor": return <textarea {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} rows={5} className={`${inputClasses} h-auto py-3`} />;
+            case "Check": return (<label className="flex items-center gap-4 font-bold text-black cursor-pointer"><input type="checkbox" className={checkboxClasses} checked={!!value} onChange={e => onChange(field.fieldname, e.target.checked, 'checkbox')} disabled={field.read_only} /><span>{field.label}{field.mandatory && <span className="text-red-500">*</span>}</span></label>);
+            case "Date":
+            case "date": // Handle lowercase date type
+                return <input type="date" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
+            case "Attach": return <input type="file" {...commonProps} className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:font-bold file:bg-[#A5D6A7] file:text-black hover:file:bg-[#8BC34A]`} onChange={e => onFileChange(field.fieldname, e.target.files?.[0] || null)} />;
+            default: return <input type={(['Int', 'Currency', 'Float', 'Percent'].includes(field.fieldtype)) ? 'number' : 'text'} {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
+        }
+    };
+    if (field.fieldtype === 'Check') {
+        return <div className="space-y-2">
+            {field.description ? <div className="prose prose-sm max-w-none text-black border border-gray-300 rounded-md p-4 bg-gray-100" dangerouslySetInnerHTML={{ __html: field.description }} /> : null}
+            {renderInput()}
         </div>
-    );
-};
+    }
+    return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-bold text-black">{field.label}{field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}{field.description && field.fieldtype !== 'Check' && <p className="text-sm text-black font-mono mt-2">{field.description}</p>}</div>);
+});
 
-interface StepperProps {
-    sections: Section[];
-    currentSection: string;
-    setCurrentSection: (section: string) => void;
-}
+const MemoizedGenericTable = memo(({ tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => (
+    <div>
+        <div className="overflow-x-auto border border-gray-300 rounded-xl">
+            <table className="min-w-full divide-y divide-gray-300">
+                <thead className="bg-gray-200">
+                    <tr className="divide-x divide-gray-300">
+                        {[...columns, { key: 'actions', label: 'Actions', type: 'action' }].map((c: any) => (
+                            <th key={c.key} className="p-3 font-bold text-black text-sm text-left">{c.label}</th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-300 bg-white">
+                    {(tableData || []).map((row: any, i: number) => (
+                        <tr key={row.id} className="divide-x divide-gray-300 hover:bg-gray-50/50">
+                            {columns.map((col: any) => (<td key={col.key} className="p-2"> {col.type === 'file' ? (<input type="file" className={`${inputClasses} !h-11 !py-2`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />) : (<input type={col.type} className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => { const value = col.key === 'salary' ? e.target.value.replace(/[^0-9]/g, '') : e.target.value; onRowChange(tableName, i, col.key, value); }} />)} </td>))}
+                            <td className="p-2"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="bg-red-50 text-red-700 border border-red-300 hover:bg-red-100 w-full text-sm">Delete</FrappeButton></td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+        <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#0EA5A4] text-white hover:bg-[#0D9494] mt-4">Add Row</FrappeButton>
+    </div>
+));
 
-const Stepper: FC<StepperProps> = ({ sections, currentSection, setCurrentSection }) => {
-    const sectionIcons: {[key: string]: ReactNode} = { "Core Details": <InfoIcon className="w-5 h-5"/>, "PI Information": <UserIcon className="w-5 h-5"/>, "Scope & Funding": <BriefcaseIcon className="w-5 h-5"/>, "Budget & Duration": <DollarSignIcon className="w-5 h-5"/>, "Logistics": <SettingsIcon className="w-5 h-5"/>, "Documents": <UploadCloudIcon className="w-5 h-5"/> };
-    const currentSectionIndex = sections.findIndex(s => s.title === currentSection);
+const MemoizedCollaboratorTable = memo(({ tableName, title, tableData, piOptions, onCollaboratorChange, onRowChange, onAddRow, onDeleteRow }: any) => {
+    const prefix = tableName === 'co_investigator_table' ? 'copi' : 'pi';
+    const newRow = { [`${prefix}_name`]: '', [`${prefix}_email`]: '', [`${prefix}_designation`]: '', [`${prefix}_address`]: '', [`${prefix}_contact`]: '' };
     return (
-        <aside className=" lg:col-span-1 p-6 bg-white rounded-xl shadow-md border border-gray-100 h-fit sticky top-8">
-            <h2 className="text-lg font-bold text-gray-800 mb-1">Registration Progress</h2>
-            <p className="text-sm text-gray-500 mb-6">Follow the steps to complete.</p>
-            <nav><ul className="space-y-2">{sections.map((section, index) => { const isCompleted = index < currentSectionIndex; const isCurrent = index === currentSectionIndex; return ( <li key={section.title}><button type="button" onClick={() => setCurrentSection(section.title)} className={`w-full flex items-center text-left p-3 rounded-lg transition-all duration-200 ${ isCurrent ? 'bg-indigo-50 text-indigo-700 shadow-sm' : isCompleted ? 'text-gray-700 hover:bg-gray-100' : 'text-gray-400 cursor-not-allowed' }`} disabled={!isCurrent && !isCompleted}><div className={`flex items-center justify-center w-8 h-8 rounded-full mr-4 ${ isCurrent ? 'bg-indigo-600 text-white' : isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500' }`}>{isCompleted ? <CheckCircleIcon className="w-5 h-5"/> : sectionIcons[section.title]}</div><div className="flex-grow"><p className={`font-bold text-sm ${isCurrent ? 'text-indigo-800' : 'text-gray-800'}`}>{section.title}</p><p className="text-xs text-gray-500">{section.description}</p></div></button></li> )})}</ul></nav>
-        </aside>
-    );
-};
-
-interface SubmissionReportProps {
-    formData: FormData;
-    sections: Section[];
-    schema: FormSchema;
-}
-
-const SubmissionReport = React.forwardRef<HTMLDivElement, SubmissionReportProps>(({ formData, sections, schema }, ref) => {
-    return (
-        <div ref={ref} className="p-10 bg-white text-gray-800" style={{ width: '800px', fontFamily: 'sans-serif' }}>
-            <div className="text-center mb-8 border-b-2 border-gray-200 pb-6">
-                 <h1 className="text-3xl font-bold text-gray-900">Project Registration Summary</h1>
-                 <p className="text-sm text-gray-500 mt-2">Date Generated: {new Date().toLocaleDateString()}</p>
+        <div>
+            <h3 className="text-lg font-bold text-black mb-4">{title}</h3>
+            <div className="overflow-x-auto border border-gray-300 rounded-xl">
+                <table className="min-w-full divide-y divide-gray-300">
+                    <thead className="bg-gray-200">
+                        <tr className="divide-x divide-gray-300">
+                            {["Name*", "Email ID*", "Designation*", "Address*", "Contact*", "Actions"].map(h => (
+                                <th key={h} className="p-3 font-bold text-black text-sm text-left">{h}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-300 bg-white">
+                        {(tableData || []).map((row: any, i: number) => (
+                            <tr key={row.id} className="divide-x divide-gray-300 hover:bg-gray-50/50">
+                                <td className="p-2"><select className={`${inputClasses} !h-11`} value={row[`${prefix}_email`] || ''} onChange={e => onCollaboratorChange(tableName, i, e.target.value)}><option value="">Select Person...</option>{(piOptions || []).map((o: any) => (<option key={o.value} value={o.value}>{o.label}</option>))}</select></td>
+                                <td className="p-2"><input type="email" readOnly className={`${inputClasses} !h-11 bg-gray-100 text-black font-medium`} value={row[`${prefix}_email`] || ''} /></td>
+                                <td className="p-2"><input type="text" readOnly className={`${inputClasses} !h-11 bg-gray-100 text-black font-medium`} value={row[`${prefix}_designation`] || ''} /></td>
+                                <td className="p-2"><input type="text" placeholder="Institute/Address" className={`${inputClasses} !h-11`} value={row[`${prefix}_address`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_address`, e.target.value)} /></td>
+                                <td className="p-2"><input type="tel" placeholder="10-digit #" maxLength={10} className={`${inputClasses} !h-11`} value={row[`${prefix}_contact`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_contact`, e.target.value.replace(/[^0-9]/g, ''))} /></td>
+                                <td className="p-2"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="bg-red-50 text-red-700 border border-red-300 hover:bg-red-100 w-full text-sm">Delete</FrappeButton></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
-            {sections.map(section => {
-                 if (section.title === 'Documents') return null;
-                 const sectionFields = schema.fields.filter(f => f.section === section.title);
-                 const hasData = sectionFields.some(field => formData[field.fieldname] && formData[field.fieldname] !== '');
-                 if (!hasData) return null;
-
-                 return (
-                     <div key={section.title} className="mb-8 break-inside-avoid">
-                         <h2 className="text-xl font-bold border-b-2 border-indigo-500 pb-2 mb-4 text-indigo-700">{section.title}</h2>
-                         <div className="grid grid-cols-2 gap-x-12 gap-y-4">
-                             {sectionFields.map(field => {
-                                 const value = formData[field.fieldname];
-                                 if (value === '' || value === false || value === null || value === undefined) return null;
-                                 return (
-                                     <div key={field.fieldname} className={`flex flex-col ${field.fieldtype === 'Long Text' || field.fieldtype === 'Text' ? 'col-span-2' : ''}`}>
-                                         <span className="text-sm font-semibold text-gray-500">{field.label}</span>
-                                         <span className="text-md mt-1 text-gray-800 whitespace-pre-wrap">{typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)}</span>
-                                     </div>
-                                 );
-                             })}
-                         </div>
-                     </div>
-                 );
-            })}
-             {formData.files && formData.files.length > 0 && (
-                 <div className="mb-6 break-inside-avoid">
-                      <h2 className="text-xl font-bold border-b-2 border-indigo-500 pb-2 mb-4 text-indigo-700">Attached Documents</h2>
-                      <ul className="list-disc list-inside space-y-1">
-                          {formData.files.map((file, index) => <li key={index} className="text-gray-800">{file.name}</li>)}
-                      </ul>
-                 </div>
-             )}
+            <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#0EA5A4] text-white hover:bg-[#0D9494] mt-4">Add Collaborator</FrappeButton>
         </div>
     );
 });
 
-const ProjectRegistration: FC = () => {
-  const sections: Section[] = useMemo(() => [ { title: 'Core Details', description: "Project identification", icon: <InfoIcon/> }, { title: 'PI Information', description: "Registrant & leader details", icon: <UserIcon/> }, { title: 'Scope & Funding', description: "Goals & financial backing", icon: <BriefcaseIcon/> }, { title: 'Budget & Duration', description: "Financials & timeline", icon: <DollarSignIcon/> }, { title: 'Logistics', description: "Resources & clearances", icon: <SettingsIcon/> }, { title: 'Documents', description: "Attach supporting files", icon: <UploadCloudIcon/> } ], []);
-  
-  const getInitialState = (): FormData => {
-      const initialState: FormData = { files: [] };
-      formSchema.fields.forEach(field => {
-          if (field.fieldtype === 'Check') {
-              initialState[field.fieldname] = field.default === '1';
-          } else {
-              initialState[field.fieldname] = '';
-          }
-      });
-      return initialState;
-  };
 
-  const [formData, setFormData] = useState<FormData>(getInitialState());
-  const [submitted, setSubmitted] = useState<boolean>(false);
-  const [currentSection, setCurrentSection] = useState<string>(sections[0].title);
-  const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const reportRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    const loadScript = (src: string): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) {
-          resolve();
-          return;
-        }
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error(`Script load error for ${src}`));
-        document.body.appendChild(script);
-      });
-    };
-    loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js').catch(err => console.error(err));
-    loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js').catch(err => console.error(err));
-  }, []);
-
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-      const { name, value, type } = e.target;
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prevState => ({ ...prevState, [name]: type === 'checkbox' ? checked : value }));
-  };
-  
-  const handleFilesChange = (selectedFiles: File[]) => { setFormData(prevState => ({...prevState, files: selectedFiles})); };
-  const handleNext = () => { const currentIndex = sections.findIndex(s => s.title === currentSection); if (currentIndex < sections.length - 1) { setCurrentSection(sections[currentIndex + 1].title); } };
-  const handleBack = () => { const currentIndex = sections.findIndex(s => s.title === currentSection); if (currentIndex > 0) { setCurrentSection(sections[currentIndex - 1].title); } };
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => { e.preventDefault(); console.log("Form Submitted:", formData); setSubmitted(true); };
-
-  const handleDownloadPdf = async () => {
-    if (!reportRef.current || typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
-        alert("PDF generation library is still loading. Please try again in a moment.");
-        return;
-    }
-    setIsDownloading(true);
-    try {
-        const { jsPDF } = window.jspdf;
-        const canvas = await window.html2canvas(reportRef.current, { scale: 2, useCORS: true });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const imgProps = pdf.getImageProperties(imgData);
-        const ratio = imgProps.height / imgProps.width;
-        const imgHeight = pdfWidth * ratio;
-        let heightLeft = imgHeight;
-        let position = 0;
-        
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-        heightLeft -= pdfHeight;
-
-        while (heightLeft > 0) {
-            position -= pdfHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
-            heightLeft -= pdfHeight;
-        }
-        pdf.save('project-registration-summary.pdf');
-    } catch (error) {
-        console.error("Error generating PDF:", error);
-        alert("Sorry, an error occurred while generating the PDF.");
-    } finally {
-        setIsDownloading(false);
-    }
-  };
-  
-  const renderFieldsForSection = (sectionTitle: string) => { 
-      const sectionFields = formSchema.fields.filter(field => field.section === sectionTitle);
-      if (sectionTitle === 'Documents') { 
-          return <FileUpload files={formData.files} onFilesChange={handleFilesChange} />; 
-      } 
-      return sectionFields.map(field => <FormInput key={field.fieldname} field={field} value={formData[field.fieldname] as string | number | boolean} onChange={handleChange} />); 
-  };
-  const currentSectionIndex = sections.findIndex(s => s.title === currentSection);
-
-  if (submitted) {
-    return (
-      <>
-        <div style={{ position: 'fixed', left: '-9999px', top: 0, zIndex: -1 }}>
-            <SubmissionReport ref={reportRef} formData={formData} sections={sections} schema={formSchema} />
+const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, onRowChange, onAddRow, onDeleteRow, onAddYear, onDeleteYear, getYearTotal, totalBudgetAmount }: any) => (
+    <div className="space-y-4">
+        <div className="overflow-x-auto border border-gray-300 rounded-xl">
+            <table className="min-w-full divide-y divide-gray-300">
+                <thead className="bg-gray-200">
+                    <tr className="divide-x divide-gray-300">
+                        <th className="p-3 font-bold text-black text-sm text-left">Account Head</th>
+                        {budgetYears.map((year: number, index: number) => (<th key={index} className="p-3 font-bold text-black text-sm text-left">Year {year} (₹)</th>))}
+                        <th className="p-3 font-bold text-black text-sm text-left">Total (₹)</th>
+                        <th className="p-3 font-bold text-black text-sm text-left">Actions</th>
+                    </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-300">
+                    {(tableData || []).map((row: any, rowIndex: number) => {
+                        const rowTotal = (row.years || []).reduce((sum: number, val: any) => sum + Number(val || 0), 0);
+                        return (
+                            <tr key={row.id} className="divide-x divide-gray-300 hover:bg-gray-50/50">
+                                <td className="p-2">
+                                    <select
+                                        className={`${inputClasses} !h-11`}
+                                        value={row.head || ''}
+                                        onChange={(e) => onRowChange(rowIndex, 'head', e.target.value)}
+                                    >
+                                        <option value="">Select Budget Head</option>
+                                        {budgetHeadOptions.map((option: any) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </td>
+                                {budgetYears.map((_: any, yearIndex: number) => (<td key={yearIndex} className="p-2"><input type="number" className={`${inputClasses} !h-11`} value={(row.years || [])[yearIndex] || ''} onChange={(e) => onRowChange(rowIndex, 'years', e.target.value, yearIndex)} /></td>))}
+                                <td className="p-2 font-bold text-black text-right pr-4">{rowTotal.toFixed(2)}</td>
+                                <td className="p-2"><FrappeButton type="button" className="bg-red-50 text-red-700 border border-red-300 hover:bg-red-100 w-full text-sm" onClick={() => onDeleteRow('proposed_budget_breakup', rowIndex)}>Delete</FrappeButton></td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+                <tfoot className="bg-[#E0F7F6] border-t border-gray-300">
+                    <tr className="divide-x divide-gray-300">
+                        <th className="p-3 text-right font-bold text-black">Yearly Total</th>
+                        {budgetYears.map((_: any, yearIndex: number) => (<td key={yearIndex} className="p-3 font-bold text-black text-right pr-4">{Number(getYearTotal(yearIndex)).toFixed(2)}</td>))}
+                        <td className="p-3 font-bold text-[#0EA5A4] bg-[#0EA5A4]/10 text-right pr-4">{totalBudgetAmount.toFixed(2)}</td>
+                        <td className="p-3"></td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-            <div className="max-w-md w-full text-center py-12 px-6 bg-white rounded-xl shadow-lg border border-gray-100">
-                <CheckCircleIcon className="w-16 h-16 text-green-500 mx-auto mb-4"/>
-                <h2 className="text-3xl font-bold text-gray-800">Thank You!</h2>
-                <p className="mt-2 text-gray-600">Your project registration has been submitted successfully.</p>
-                <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                    <button onClick={handleDownloadPdf} disabled={isDownloading} className="px-6 py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 disabled:bg-indigo-400 transition-all duration-200 ease-in-out shadow-md hover:shadow-lg w-full sm:w-auto">
-                        {isDownloading ? 'Downloading...' : 'Download PDF'}
-                    </button>
-                    <button onClick={() => { setFormData(getInitialState()); setCurrentSection(sections[0].title); setSubmitted(false); }} className="px-6 py-2.5 bg-white text-gray-700 font-semibold rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-500/20 transition-all duration-200 ease-in-out border border-gray-300 shadow-sm w-full sm:w-auto">
-                      Register Another Project
-                    </button>
-                </div>
+        <div className="flex flex-wrap gap-4">
+            <FrappeButton type="button" className="bg-[#0EA5A4] text-white hover:bg-[#0D9494]" onClick={onAddRow}>Add Budget Row</FrappeButton>
+            <FrappeButton type="button" className="bg-gray-200 text-black border border-gray-400 hover:bg-gray-300" onClick={onAddYear} disabled={budgetYears.length >= 5}>Add Year</FrappeButton>
+            <FrappeButton type="button" className="bg-amber-100 text-amber-800 border border-amber-400 hover:bg-amber-200" onClick={onDeleteYear}>Delete Last Year</FrappeButton>
+        </div>
+        <div className="mt-6 flex justify-end">
+            <div className="w-full md:w-1/3 space-y-2">
+                <label className="block text-lg font-bold text-black">Grand Total (₹)</label>
+                <input type="text" className={`${inputClasses} text-xl font-bold bg-[#E0F7F6] text-[#0EA5A4]`} readOnly value={totalBudgetAmount.toFixed(2)} />
             </div>
         </div>
-      </>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-slate-50 font-sans text-gray-900">
-      <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-        <header className="mb-10 text-center">
-            <div className="inline-flex items-center justify-center bg-indigo-100 p-4 rounded-full mb-4 ring-8 ring-indigo-50"><FileSignatureIcon className="h-10 w-10 text-indigo-600" /></div>
-            <h1 className="text-4xl font-extrabold text-gray-800 tracking-tight">Project Registration Form</h1>
-            <p className="text-gray-500 mt-2 max-w-2xl mx-auto">Please fill out all sections accurately to register your new project.</p>
-        </header>
-        <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-12">
-            <Stepper sections={sections} currentSection={currentSection} setCurrentSection={setCurrentSection} />
-            <div className="lg:col-span-3">
-                <form onSubmit={handleSubmit}>
-                    <div className="bg-white p-8 rounded-xl shadow-md border border-gray-100">
-                        <h2 className="text-2xl font-bold text-gray-800">{sections[currentSectionIndex].title}</h2>
-                        <p className="text-sm text-gray-500 mt-1 mb-8">{sections[currentSectionIndex].description}</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">{renderFieldsForSection(currentSection)}</div>
-                    </div>
-                    <div className="mt-8 pt-6 flex justify-between items-center border-t border-gray-200">
-                        <button type="button" onClick={handleBack} disabled={currentSectionIndex === 0} className="px-6 py-2.5 bg-white text-gray-700 font-semibold rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out border border-gray-300 shadow-sm">Back</button>
-                        {currentSectionIndex < sections.length - 1 ? (
-                            <button type="button" onClick={handleNext} className="px-6 py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 transition-all duration-200 ease-in-out shadow-md hover:shadow-lg">Next Step</button>
-                        ) : (
-                            <button type="submit" className="px-8 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500/50 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 duration-200 ease-in-out">Submit Registration</button>
-                        )}
-                    </div>
-                </form>
-            </div>
-        </main>
-      </div>
     </div>
-  );
-}
+));
+
+
+// --- MAIN COMPONENT ---
+const ProjectRegistration: React.FC = () => {
+    // --- STATE & API HOOKS ---
+    const [activeTab, setActiveTab] = useState(0);
+    const [fields, setFields] = useState<Field[]>([]);
+    const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [budgetHeadOptions, setBudgetHeadOptions] = useState<LinkOption[]>([]);
+    const [formData, setFormData] = useState<FormData>({});
+    const [loading, setLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSavingDraft, setIsSavingDraft] = useState(false);
+    const [docname, setDocname] = useState<string | null>(null);
+    const [budgetYears, setBudgetYears] = useState([1]);
+    const [isDraftSaved, setIsDraftSaved] = useState(false);
+    const [showEndorsementModal, setShowEndorsementModal] = useState(false);
+    const isPermanentEmployee = useUserRoleCheck();
+
+    // Check if endorsement fields are filled
+    const isEndorsementEnabled = useMemo(() => {
+        // Project Details
+        const hasProjectTitle = !!formData.project_title?.trim();
+        const hasProjectType = !!formData.project_type;
+        const hasDepartment = !!formData.implementation_department;
+        const hasDuration = formData.project_type === 'Consultancy'
+            ? !!formData.project_duration_days
+            : !!formData.project_duration_months;
+
+        // PI Details
+        const hasPiWebmail = !!formData.pi_webmail;
+        const hasPiName = !!formData.principal_investigator_name?.trim();
+        const hasPiDesignation = !!formData.designation?.trim();
+        const hasPiEmployeeId = !!formData.pi_employee_id?.trim();
+        const hasPiDepartment = !!formData.applicant_department;
+
+        return hasProjectTitle && hasProjectType && hasDepartment && hasDuration &&
+            hasPiWebmail && hasPiName && hasPiDesignation && hasPiEmployeeId && hasPiDepartment;
+    }, [formData]);
+
+    const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_project_form_data');
+    const { call: submitForm, result: submitResult, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.save_project_data');
+    const { call: saveDraft, result: saveResult, error: saveError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.save_project_draft');
+    const { call: fetchPiDetails } = useFrappePostCall(commonAPI.getUserDetailsByEmail);
+    const { call: fetchAgencyDetails, result: agencyDetailsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_funding_agency_details');
+    const { call: fetchBudgetHeads, result: budgetHeadsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head');
+    const { call: fetchDeptHead } = useFrappePostCall('frappe.client.get_value');
+
+    // --- DATA FETCHING & INITIALIZATION ---
+    useEffect(() => {
+        fetchFormData({});
+        fetchBudgetHeads({});
+    }, [fetchFormData, fetchBudgetHeads]);
+
+    useEffect(() => {
+        if (budgetHeadsResult) {
+            const options = budgetHeadsResult.message.map((item: any) => ({ value: item.budget_head, label: item.budget_head, }));
+            setBudgetHeadOptions(options);
+        }
+    }, [budgetHeadsResult]);
+
+    useEffect(() => {
+        if (formDataResult?.message?.fields) {
+            const { fields: apiFields, link_options, prefill_data } = formDataResult.message;
+            setFields(apiFields);
+
+            // Fix: Ensure PI Webmail options show email as label
+            const processedLinkOptions = { ...link_options };
+            if (processedLinkOptions['pi_webmail']) {
+                processedLinkOptions['pi_webmail'] = processedLinkOptions['pi_webmail'].map((opt: LinkOption) => ({
+                    ...opt,
+                    label: opt.value // Show email (value) as label
+                }));
+            }
+
+            setLinkOptions(processedLinkOptions || {});
+            const initialFormData = { ...prefill_data };
+            apiFields.forEach((field: Field) => {
+                if (initialFormData[field.fieldname] === undefined) {
+                    initialFormData[field.fieldname] = field.default ?? '';
+                }
+            });
+            setFormData(initialFormData);
+            setLoading(false);
+            if (prefill_data?.pi_webmail) {
+                handleFieldChangeWithSideEffects('pi_webmail', prefill_data.pi_webmail);
+            }
+        }
+        if (formDataError) {
+            console.error("❌ Failed to fetch form data:", formDataError);
+            alert("Error fetching form data.");
+            setLoading(false);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formDataResult, formDataError]);
+
+    // --- SIDE EFFECTS for dependent API calls ---
+    useEffect(() => {
+        if (agencyDetailsResult?.message?.all) {
+            const d = agencyDetailsResult.message.all;
+            setFormData(prev => ({ ...prev, funding_agency_type: d.funding_agency_type_1, origin_of_funding_agency: d.origin_of_funding_agency, funding_agency_ministry: d.ministry_funding_agency, funding_agency_schemes: d.funding_agency_schemes, address_street_village_locality: d.fundingagency_address, address_state: d.fundingagency_state, address_postal_code: d.fundingagency_postalcode, address_country: d.fundingagency_country }));
+        }
+    }, [agencyDetailsResult]);
+
+    useEffect(() => { if (submitResult) { alert(`Project registered: ${submitResult.message.docname}`); setDocname(submitResult.message.docname); } if (submitError) alert(`Submission error: ${submitError.message}`); setIsSubmitting(false); }, [submitResult, submitError]);
+    useEffect(() => { if (saveResult) { alert(`Draft saved: ${saveResult.message.docname}`); setDocname(saveResult.message.docname); setIsDraftSaved(true); } if (saveError) alert(`Draft save error: ${saveError.message}`); setIsSavingDraft(false); }, [saveResult, saveError]);
+
+    // --- STABILIZED EVENT HANDLERS & RENDER FUNCTIONS ---
+    const handleChange = useCallback((fieldname: string, value: any, type?: string) => { setFormData(prev => ({ ...prev, [fieldname]: type === 'checkbox' ? (value ? 1 : 0) : value })); }, []);
+    const handleFileChange = useCallback((fieldname: string, file: File | null) => { setFormData(prev => ({ ...prev, [fieldname]: file })); }, []);
+
+    // --- BUSINESS LOGIC HELPERS ---
+
+    const calculateConsultancy = useCallback((currentData: FormData) => {
+        const category = currentData.consultancy_category;
+        const gstRate = parseFloat(currentData.consultancy_gst_rate) || 18;
+        const updates: Partial<FormData> = {};
+
+        if (!category) return updates;
+
+        // --- LOGIC FOR CATEGORY D (Technology Transfer) ---
+        if (category.startsWith("Category D")) {
+            const grandTotal = parseFloat(currentData.cat_d_grand_total_input) || 0;
+            const cfInput = parseFloat(currentData.cat_d_consultancy_fee_input) || 0; // Gross CF
+            const oeInput = parseFloat(currentData.operational_expense_input_inc_10_oh) || 0; // Gross OE
+
+            // 1. Calculate Total Project Cost (Back calculate from Grand Total)
+            const totalProjectCost = Math.round(grandTotal / (1 + (gstRate / 100)));
+            const gstAmt = grandTotal - totalProjectCost;
+
+            // 2. Breakdown Calculations
+            // Institute Share = 20% of Gross CF Input
+            const instShare = Math.round(cfInput * 0.20);
+
+            // Overhead = 10% of Gross CF + 10% of Gross OE
+            const overheadCf = cfInput * 0.10;
+            const overheadOe = oeInput * 0.10;
+            const totalOverhead = Math.round(overheadCf + overheadOe);
+
+            // Net CF (Base) = Input - Inst Share - Overhead on CF
+            const netCf = Math.round(cfInput - instShare - overheadCf);
+
+            // Net OE (Base) = Input - Overhead on OE
+            const netOe = Math.round(oeInput - overheadOe);
+
+            // 3. Validation: CF Check (Consultancy fee should be less than 30% of total project cost)
+            const limit = totalProjectCost * 0.30;
+            if (totalProjectCost > 0 && cfInput > limit) {
+                // We use alert here as we don't have a toast library connected in this context yet
+                // console.warn(`Consultancy Fee Input (${cfInput}) exceeds 30% of Total Project Cost (${Math.round(limit)})`);
+            }
+
+            // 4. Set Values
+            updates.cat_d_project_cost_excl_gst = totalProjectCost;
+            updates.cat_d_cf_base = netCf;
+            updates.cat_d_oe_base = netOe;
+            updates.cat_d_total_overhead = totalOverhead;
+            updates.cat_d_institute_share = instShare;
+            updates.cat_d_gst_amt = gstAmt;
+            updates.cat_d_grand_total_calc = grandTotal;
+
+        }
+        // --- LOGIC FOR CATEGORY T (Routine) & E (Non-Routine) ---
+        else {
+            const te = parseFloat(currentData.cat_ef_total_amount) || 0; // Total Cost Excluding GST
+            let honorariumRatio = 0;
+            let instituteRatio = 0;
+
+            if (category.includes("Routine") && !category.includes("Non-Routine")) {
+                // Category T: 30% Honorarium, 70% Institute
+                honorariumRatio = 0.30;
+                instituteRatio = 0.70;
+            } else if (category.includes("Non-Routine")) {
+                // Category E: 70% Honorarium, 30% Institute
+                honorariumRatio = 0.70;
+                instituteRatio = 0.30;
+            }
+
+            const honorarium = Math.round(te * honorariumRatio);
+            const instShare = Math.round(te * instituteRatio);
+
+            const gstAmtEf = Math.round(te * (gstRate / 100));
+            const grandTotalEf = te + gstAmtEf;
+
+            updates.cat_ef_honorarium = honorarium;
+            updates.cat_ef_institute_share = instShare;
+            updates.cat_ef_gst = gstAmtEf;
+            updates.cat_ef_grand_total = grandTotalEf;
+        }
+        return updates;
+    }, []);
+
+    const calculateParentTotals = useCallback((currentData: FormData) => {
+        let total1st = 0, total2nd = 0, total3rd = 0, total4th = 0, total5th = 0;
+        let grandTotal = 0;
+
+        (currentData.proposed_budget_breakup || []).forEach((row: any) => {
+            const years = row.years || [];
+            total1st += parseFloat(years[0] || 0);
+            total2nd += parseFloat(years[1] || 0);
+            total3rd += parseFloat(years[2] || 0);
+            total4th += parseFloat(years[3] || 0);
+            total5th += parseFloat(years[4] || 0);
+            grandTotal += (years as any[]).reduce((a, b) => a + (parseFloat(b) || 0), 0);
+        });
+
+        return {
+            total_first_year_budget: total1st,
+            total_second_year_budget: total2nd,
+            total_third_year_budget: total3rd,
+            total_fourth_year_budget: total4th,
+            total_fifth_year_budget: total5th,
+            grand_total_proposal: grandTotal,
+            total_budget_amount: grandTotal
+        };
+    }, []);
+
+    const calculateEndDate = useCallback((currentData: FormData) => {
+        const startDate = currentData.prj_start_date;
+        const durationMonths = parseInt(currentData.project_duration_months) || 0;
+        const durationDays = parseInt(currentData.project_duration_days) || 0;
+
+        if (!startDate) return null;
+
+        const date = new Date(startDate);
+        if (durationMonths > 0) {
+            date.setMonth(date.getMonth() + durationMonths);
+            date.setDate(date.getDate() - 1); // Subtract 1 day
+        } else if (durationDays > 0) {
+            date.setDate(date.getDate() + durationDays);
+        } else {
+            return null;
+        }
+        return date.toISOString().split('T')[0];
+    }, []);
+
+    const controlYearFieldsVisibility = useCallback((durationMonths: number) => {
+        const years = durationMonths <= 12 ? 1 : durationMonths <= 24 ? 2 : durationMonths <= 36 ? 3 : durationMonths <= 48 ? 4 : 5;
+        // Update fields visibility state
+        setFields(prevFields => prevFields.map(field => {
+            const totals = ["total_first_year_budget", "total_second_year_budget", "total_third_year_budget", "total_fourth_year_budget", "total_fifth_year_budget"];
+            if (totals.includes(field.fieldname)) {
+                const yearIndex = totals.indexOf(field.fieldname);
+                return { ...field, hidden: (yearIndex + 1) > years };
+            }
+            return field;
+        }));
+        // Update budget table years
+        setBudgetYears(Array.from({ length: years }, (_, i) => i + 1));
+        // Resize budget rows if years reduced (optional, or just handle in render)
+        // We'll update the rows in formData to ensure data consistency
+        setFormData(prev => {
+            const updatedRows = (prev.proposed_budget_breakup || []).map(row => {
+                const currentYears = row.years || [];
+                // Resize array
+                const newYears = Array(years).fill(0).map((_, i) => currentYears[i] || 0);
+                return { ...row, years: newYears };
+            });
+            // Recalculate totals with new years
+            // We can call calculateParentTotals here but we need the function reference which is defined above.
+            // Ideally we should use a separate effect or just return updates.
+            // For simplicity, we just update the structure here.
+            return {
+                ...prev,
+                proposed_budget_breakup: updatedRows
+            };
+        });
+    }, []);
+
+    const updateApproverAndHead = useCallback(async (deptId: string) => {
+        if (!deptId) return {};
+        try {
+            const r = await fetchDeptHead({ doctype: 'Department_prornd', fieldname: 'dept_head', name: deptId });
+            if (r?.message?.dept_head) {
+                return { department_head: r.message.dept_head, head_approver: r.message.dept_head };
+            }
+        } catch (e) {
+            console.error("Failed to fetch department head", e);
+        }
+        return {};
+    }, [fetchDeptHead]);
+
+    const handleFieldChangeWithSideEffects = useCallback(async (fieldname: string, value: any) => {
+        // 1. Update the specific field first
+        let updatedData = { ...formData, [fieldname]: value };
+
+        // 2. Run Side Effects based on fieldname
+        if (fieldname === 'pi_webmail') {
+            if (value) {
+                try {
+                    const result = await fetchPiDetails({ user_email: value });
+                    if (result?.message) {
+                        const details = result.message;
+                        let departmentLinkValue = "";
+                        // Handle both old and new API response structures
+                        const deptName = details.department_name || details.department || details.applicant_department;
+
+                        if (deptName && linkOptions["applicant_department"]) {
+                            const matchedOption = linkOptions["applicant_department"].find(opt => opt.label === deptName || opt.value === deptName);
+                            departmentLinkValue = matchedOption?.value || "";
+                        }
+                        updatedData = {
+                            ...updatedData,
+                            pi_userid: value,
+                            pi_employee_id: details.employee_id || details.pi_employee_id || "",
+                            principal_investigator_name: details.full_name || details.principal_investigator_name || "",
+                            designation: details.designation_name || details.designation || "",
+                            applicant_department: departmentLinkValue
+                        };
+                        // Trigger Approver Update for Applicant Dept
+                        const approverUpdates = await updateApproverAndHead(departmentLinkValue);
+                        updatedData = { ...updatedData, ...approverUpdates };
+                    }
+                } catch (err) { console.error("Failed to fetch main PI details:", err); }
+            } else {
+                updatedData = { ...updatedData, pi_userid: "", pi_employee_id: "", principal_investigator_name: "", designation: "", applicant_department: "" };
+            }
+        }
+
+        if (fieldname === 'funding_agen') {
+            if (value) {
+                fetchAgencyDetails({ agency_name: value });
+            } else {
+                // Clear agency details if cleared
+                updatedData = {
+                    ...updatedData,
+                    funding_agency_type: "",
+                    origin_of_funding_agency: "",
+                    funding_agency_ministry: "",
+                    funding_agency_schemes: "",
+                    address_street_village_locality: "",
+                    address_state: "",
+                    address_postal_code: "",
+                    address_country: ""
+                };
+            }
+        }
+
+        // Approver Logic for Implementation Dept Change
+        if (fieldname === 'implementation_department') {
+            const approverUpdates = await updateApproverAndHead(value);
+            updatedData = { ...updatedData, ...approverUpdates };
+        }
+
+        // 3. Consultancy Calculations
+        if ([
+            'consultancy_category', 'consultancy_gst_rate',
+            'cat_d_grand_total_input', 'cat_d_consultancy_fee_input', 'operational_expense_input_inc_10_oh',
+            'cat_ef_total_amount'
+        ].includes(fieldname)) {
+            const consultancyUpdates = calculateConsultancy(updatedData);
+            updatedData = { ...updatedData, ...consultancyUpdates };
+        }
+
+        // 4. Project Duration / End Date Logic
+        if (['prj_start_date', 'project_duration_months', 'project_duration_days'].includes(fieldname)) {
+            const newEndDate = calculateEndDate(updatedData);
+            if (newEndDate) updatedData.prj_end_date = newEndDate;
+
+            if (fieldname === 'project_duration_months') {
+                controlYearFieldsVisibility(parseInt(value) || 0);
+            }
+        }
+
+        setFormData(updatedData);
+    }, [formData, fetchPiDetails, fetchAgencyDetails, linkOptions, calculateConsultancy, updateApproverAndHead, calculateEndDate, controlYearFieldsVisibility]);
+
+    const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => { setFormData(prev => { const t = [...(prev[tableName] || [])]; t[rowIndex] = { ...t[rowIndex], [fieldname]: value }; return { ...prev, [tableName]: t }; }); }, []);
+    const handleTableFileChange = useCallback((tableName: string, rowIndex: number, fieldname: string, file: File | null) => { setFormData(prev => { const t = [...(prev[tableName] || [])]; t[rowIndex] = { ...t[rowIndex], [fieldname]: file }; return { ...prev, [tableName]: t }; }); }, []);
+    const addTableRow = useCallback((tableName: string, newRow: object) => { const newId = Date.now().toString() + Math.random().toString(36).substring(2, 9); setFormData(prev => ({ ...prev, [tableName]: [...(prev[tableName] || []), { ...newRow, id: newId }] })); }, []);
+    const deleteTableRow = useCallback((tableName: string, rowIndex: number) => { setFormData(prev => ({ ...prev, [tableName]: (prev[tableName] || []).filter((_: any, i: number) => i !== rowIndex) })); }, []);
+
+    const handleCollaboratorChange = useCallback(
+        async (tableName: string, rowIndex: number, selectedUserEmail: string) => {
+            const user = (linkOptions["pi_webmail"] || []).find(c => c.value === selectedUserEmail);
+            const prefix = tableName === "co_investigator_table" ? "copi" : "pi";
+            let designation = user?.designation || "";
+            if (!designation && selectedUserEmail) {
+                try {
+                    const result = await fetchPiDetails({ user_email: selectedUserEmail });
+                    const details = result?.message;
+                    designation = details?.designation_name || details?.designation || "";
+                } catch (err) { console.error("Failed to fetch collaborator details:", err); }
+            }
+            setFormData(prev => {
+                const t = [...(prev[tableName] || [])];
+                t[rowIndex] = { ...t[rowIndex], [`${prefix}_name`]: user?.label || "", [`${prefix}_email`]: user?.value || "", [`${prefix}_designation`]: designation };
+                return { ...prev, [tableName]: t };
+            });
+        }, [linkOptions, fetchPiDetails]
+    );
+
+    const addBudgetRow = useCallback(() => addTableRow("proposed_budget_breakup", { head: "", years: budgetYears.map(() => "") }), [addTableRow, budgetYears]);
+    const addBudgetYear = useCallback(() => { if (budgetYears.length < 5) { setBudgetYears(prev => [...prev, prev.length + 1]); setFormData(prev => ({ ...prev, proposed_budget_breakup: (prev.proposed_budget_breakup || []).map(row => ({ ...row, years: [...(row.years || []), ""] })) })); } else { alert("Maximum of 5 years allowed."); } }, [budgetYears]);
+    const deleteLastBudgetYear = useCallback(() => { if (budgetYears.length > 1) { setBudgetYears(prev => prev.slice(0, -1)); setFormData(prev => ({ ...prev, proposed_budget_breakup: (prev.proposed_budget_breakup || []).map(row => ({ ...row, years: (row.years || []).slice(0, -1) })) })); } }, [budgetYears]);
+    const handleBudgetRowChange = useCallback((rowIndex: number, fieldname: string, value: any, yearIndex?: number) => {
+        setFormData(prev => {
+            const table = [...(prev.proposed_budget_breakup || [])];
+            const row = { ...table[rowIndex] } as { head: string; years: (number | string)[] };
+
+            if (fieldname === "years" && yearIndex !== undefined) {
+                const years = [...(row.years || [])];
+                years[yearIndex] = value;
+                row.years = years;
+            } else if (fieldname === "head") {
+                row.head = value;
+            }
+
+            table[rowIndex] = row;
+            const newData = { ...prev, proposed_budget_breakup: table };
+            const totals = calculateParentTotals(newData);
+            return { ...newData, ...totals };
+        });
+    }, []);
+
+    const ALWAYS_HIDDEN_FIELDS = ["department_head", "head_approver"];
+
+    const renderField = useCallback((fieldname: string) => {
+        const field = fields.find(f => f.fieldname === fieldname);
+        if (!field) {
+            if (!ALWAYS_HIDDEN_FIELDS.includes(fieldname)) {
+                // console.warn(`⚠️ Warning: Field '${fieldname}' expected for rendering but not found in API response.`);
+            }
+            return null;
+        }
+
+        if (ALWAYS_HIDDEN_FIELDS.includes(fieldname)) return null;
+
+        // Evaluate depends_on for visibility
+        let evalExpr = field.depends_on_eval;
+        if (!evalExpr && field.depends_on) {
+            evalExpr = field.depends_on;
+        }
+
+        if (evalExpr) {
+            const isVisible = evaluateDependsOn(evalExpr, formData);
+            if (!isVisible) return null;
+        }
+
+        // Evaluate dynamic mandatory and read_only states
+        let isMandatory = field.mandatory;
+        let isReadOnly = field.read_only;
+
+        let mandatoryEval = field.mandatory_depends_on_eval;
+        if (!mandatoryEval && field.mandatory_depends_on) {
+            mandatoryEval = field.mandatory_depends_on;
+        }
+        if (mandatoryEval) {
+            if (evaluateDependsOn(mandatoryEval, formData)) {
+                isMandatory = true;
+            }
+        }
+
+        let readOnlyEval = field.read_only_depends_on_eval;
+        if (!readOnlyEval && field.read_only_depends_on) {
+            readOnlyEval = field.read_only_depends_on;
+        }
+        if (readOnlyEval) {
+            if (evaluateDependsOn(readOnlyEval, formData)) {
+                isReadOnly = true;
+            }
+        }
+
+        const effectiveField = { ...field, mandatory: isMandatory, read_only: isReadOnly };
+        const options = linkOptions[field.options as string] || linkOptions[fieldname];
+
+        return (
+            <MemoizedFormField
+                key={field.fieldname}
+                field={effectiveField}
+                value={formData[fieldname]}
+                options={options}
+                onChange={handleFieldChangeWithSideEffects}
+                onFileChange={handleFileChange}
+            />
+        );
+    }, [fields, formData, linkOptions, handleFieldChangeWithSideEffects, handleFileChange]);
+
+    const renderFields = (fieldnames: string[]) => fieldnames.map(fn => renderField(fn));
+
+    const fileToBase64 = (file: File): Promise<{ filename: string; content: string }> => new Promise((res, rej) => {
+        const r = new FileReader();
+        r.readAsDataURL(file);
+        r.onload = () => res({ filename: file.name, content: r.result as string });
+        r.onerror = e => rej(e);
+    });
+
+    /**
+     * Prepares form data for API submission.
+     * Returns { doc_data, files } where files is an array of base64-encoded file objects.
+     */
+    const prepareDataWithFiles = async (): Promise<{ doc_data: Record<string, any>; files: { filename: string; content: string }[] }> => {
+        const data: Record<string, any> = JSON.parse(JSON.stringify(formData));
+        const filesArray: { filename: string; content: string }[] = [];
+
+        if (docname) data.name = docname;
+
+        for (const k in formData) {
+            const v = formData[k];
+            if (v instanceof File) {
+                const fileData = await fileToBase64(v);
+                filesArray.push(fileData);
+                data[k] = v.name; // Store filename in doc_data
+            } else if (Array.isArray(v)) {
+                for (let i = 0; i < v.length; i++) {
+                    for (const rk in v[i]) {
+                        if (v[i][rk] instanceof File) {
+                            const fileData = await fileToBase64(v[i][rk]);
+                            filesArray.push(fileData);
+                            data[k][i][rk] = v[i][rk].name; // Store filename
+                        }
+                    }
+                }
+            }
+        }
+        return { doc_data: data, files: filesArray };
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (isSubmitting || isSavingDraft) return;
+        setIsSubmitting(true);
+        try {
+            const { doc_data, files } = await prepareDataWithFiles();
+            await submitForm({ doc: doc_data, files });
+        } catch (err) {
+            alert("File processing error.");
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleSaveDraft = async () => {
+        console.log(">>> handleSaveDraft called! isSavingDraft:", isSavingDraft, "isSubmitting:", isSubmitting);
+        if (isSavingDraft || isSubmitting) {
+            console.log(">>> Early return due to isSavingDraft or isSubmitting");
+            return;
+        }
+        setIsSavingDraft(true);
+        try {
+            const { doc_data, files } = await prepareDataWithFiles();
+
+            // Generate endorsement HTML content
+            const budgetTotal = (formData.proposed_budget_breakup || []).reduce(
+                (acc: number, row: any) => acc + (row.years || []).reduce((sum: number, val: any) => sum + Number(val || 0), 0),
+                0
+            );
+
+            const endorsementHtml = getEndorsementHtml({
+                proposalId: docname || "IITG/RND/NEW",
+                piName: formData.principal_investigator_name,
+                piDesignation: formData.designation,
+                piDepartment: formData.applicant_department,
+                coPiName: formData.co_investigator_table?.[0]?.copi_name || "",
+                coPiDesignation: formData.co_investigator_table?.[0]?.copi_designation || "",
+                coPiDepartment: formData.co_investigator_table?.[0]?.copi_department || "",
+                projectTitle: formData.project_title,
+                fundingAgency: formData.funding_agen,
+                duration: formData.project_type === 'Consultancy'
+                    ? `${formData.project_duration_days} days`
+                    : `${formData.project_duration_months} months`,
+                totalCost: String(budgetTotal)
+            });
+
+            // Debug logging
+            console.log("=== SAVE DRAFT DEBUG ===");
+            console.log("doc_data keys:", Object.keys(doc_data));
+            console.log("files count:", files.length);
+            console.log("html_content length:", endorsementHtml?.length || 0);
+            console.log("html_content preview:", endorsementHtml?.substring(0, 200));
+
+            const payload = {
+                doc_data: JSON.stringify(doc_data),
+                files: files.length > 0 ? files : null,
+                html_content: endorsementHtml
+            };
+
+            console.log("API Payload keys:", Object.keys(payload));
+            console.log("html_content in payload:", payload.html_content ? `${payload.html_content.length} chars` : "MISSING!");
+
+            await saveDraft(payload);
+        } catch (err) {
+            console.error("Save draft error:", err);
+            alert("File processing error.");
+            setIsSavingDraft(false);
+        }
+    };
+
+    // --- RENDER LOGIC ---
+    if (loading) return (<div className="flex items-center justify-center min-h-screen bg-gray-100"><div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-[#90A4AE] mx-auto"></div><p className="mt-4 text-2xl font-bold text-black">LOADING FORM...</p></div></div>);
+
+    const budgetTableData = formData.proposed_budget_breakup || [];
+    const totalBudgetAmount = budgetTableData.reduce((acc, row) => acc + (row.years || []).reduce((sum: number, val) => sum + Number(val || 0), 0), 0);
+    const getYearTotal = (yearIndex: number) => budgetTableData.reduce((sum: number, row) => sum + Number((row.years || [])[yearIndex] || 0), 0);
+
+    const tabs = [
+        { label: "Project Details", icon: FileText },
+        { label: "PI & Collaborators", icon: Users },
+        { label: "Budget", icon: IndianRupee },
+        { label: "Clearance", icon: Shield }
+    ];
+    const renderNextPrevButtons = (showPrev: boolean, showNext: boolean, isLast = false) => (
+        <div className="mt-8 flex justify-between items-center bg-white p-4 border border-gray-300 rounded-md shadow-sm">
+            {/* Previous Button */}
+            <FrappeButton
+                onClick={() => setActiveTab(activeTab - 1)}
+                className={cn("bg-white border border-gray-400 text-black hover:bg-gray-100", !showPrev && "invisible")}
+            >
+                Previous
+            </FrappeButton>
+
+            {/* If Last Tab → Show Only "Save as Draft" */}
+            {isLast ? (
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <FrappeButton
+                        onClick={handleSaveDraft}
+                        disabled={isSubmitting || isSavingDraft}
+                        className="bg-white border border-gray-400 text-black hover:bg-gray-100"
+                    >
+                        {isSavingDraft ? "SAVING..." : "Save As Draft"}
+                    </FrappeButton>
+                </div>
+            ) : (
+                /* Otherwise Show "Next Section" */
+                <FrappeButton
+                    onClick={() => setActiveTab(activeTab + 1)}
+                    className={cn("bg-[#A5D6A7] text-black hover:bg-[#8BC34A]", !showNext && "invisible")}
+                >
+                    Next Section
+                </FrappeButton>
+            )}
+        </div>
+    );
+
+    const tabFieldGroups = {
+        fundingDetails: ["funding_agen", "funding_agency_other", "funding_agency_schemes", "funding_agency_type", "funding_agency_type_other", "nature_funding_agency_non_govt", "select_funding_agency", "origin_of_funding_agency", "funding_agency_ministry", "fund_agen_initials"],
+        agencyAddress: ["address_street_village_locality", "address_state", "address_postal_code", "address_country"],
+        piDetails: ["pi_employee_id", "principal_investigator_name", "designation", "applicant_department", "pi_userid"],
+        collaboratorToggles: ["is_additional_pi", "has_co_pi"],
+        budgetToggles: ["equipment_checkbox", "manpower_checkbox"],
+        sanction: ["total_sanctioned_amount", "sanctioned_letter_no", "sanctioned_letter_date"],
+        funds: ["is_gst_invoice_issued", "invoice_details", "amount_received", "iitg_bank_account_number"]
+    };
+
+    return (
+        <div className="bg-gray-100">
+            <AppSidebar />
+            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden bg-gray-100">
+                <header className="mb-3">
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-black tracking-tight uppercase">New Project Registration</h1>
+                    <p className="text-black mt-2 font-bold">Fill all sections to register a new project.</p>
+                </header>
+                <div className="bg-white border border-gray-300 rounded-md shadow-sm">
+                    <div className="border-b border-gray-300">
+                        <nav className="flex space-x-2 p-2 overflow-x-auto">
+                            {tabs.map((tab, index) => (
+                                <button
+                                    key={index}
+                                    type="button"
+                                    onClick={() => setActiveTab(index)}
+                                    className={cn(
+                                        "flex-shrink-0 flex items-center gap-2 py-3 px-4 font-bold text-sm rounded-md border-2 border-transparent transition-all",
+                                        activeTab === index
+                                            ? "bg-gray-100 border-black shadow-sm text-black"
+                                            : "text-black hover:bg-gray-200"
+                                    )}
+                                >
+                                    <tab.icon className="h-5 w-5" /> {tab.label}
+                                </button>
+                            ))}
+                            {/* Endorsement Button */}
+                            <button
+                                type="button"
+                                onClick={() => setShowEndorsementModal(true)}
+                                disabled={!isEndorsementEnabled}
+                                className={cn(
+                                    "flex-shrink-0 flex items-center gap-2 py-3 px-4 font-bold text-sm rounded-md border-2 transition-all ml-auto",
+                                    isEndorsementEnabled
+                                        ? "bg-[#0EA5A4] text-white border-[#0EA5A4] hover:bg-[#0D9494] shadow-sm cursor-pointer"
+                                        : "bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed"
+                                )}
+                                title={isEndorsementEnabled ? "Generate Endorsement Certificate" : "Fill all required Project Details and PI Details to enable"}
+                            >
+                                <FileBadge className="h-5 w-5" /> Generate Endorsement
+                            </button>
+                        </nav>
+                    </div>
+
+                    <div className="bg-gray-100 p-6 md:p-8">
+                        <form id="project-registration-form" onSubmit={handleSubmit}>
+                            {fields.length > 0 && <>
+                                <div className={activeTab === 0 ? "block" : "hidden"}>
+                                    <FrappeCard className="space-y-8">
+                                        <h2 className="text-3xl font-bold uppercase text-black">1. Project Description</h2>
+                                        {renderField("project_title")}
+                                        {renderField("project_type")}
+                                        {formData.project_type === "Research" && (
+                                            <div className='space-y-8'>
+                                                <FrappeCard className="p-6 space-y-6 !shadow-sm border-gray-300"><h3 className="text-2xl font-bold uppercase text-black">Funding Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.fundingDetails)}</div></FrappeCard>
+                                                <FrappeCard className="p-6 space-y-6 !shadow-sm border-gray-300"><h3 className="text-2xl font-bold uppercase text-black">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.agencyAddress)}</div></FrappeCard>
+                                            </div>
+                                        )}
+                                        {formData.project_type === "Consultancy" && (
+                                            <div className="space-y-8">
+                                                <div className="space-y-4">
+                                                    {renderField("consultancy_category")}
+                                                    {renderField("consultancy_gstin")}
+                                                    {renderField("consultancy_gst_rate")}
+                                                    {renderField("involves_international_travel")}
+
+                                                    {/* Category D Fields */}
+                                                    {formData.consultancy_category?.startsWith("Category D") && (
+                                                        <div className="space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                                                            <h4 className="font-bold text-lg text-gray-700">Category D Details</h4>
+                                                            {renderField("category_d_note")}
+                                                            {renderField("cat_d_grand_total_input")}
+                                                            {renderField("cat_d_project_cost_excl_gst")}
+                                                            {renderField("cat_d_consultancy_fee_input")}
+                                                            {renderField("operational_expense_input_inc_10_oh")}
+                                                            {renderField("cat_d_cf_base")}
+                                                            {renderField("cat_d_oe_base")}
+                                                            {renderField("cat_d_total_overhead")}
+                                                            {renderField("cat_d_institute_share")}
+                                                            {renderField("cat_d_gst_amt")}
+                                                            {renderField("cat_d_grand_total_calc")}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Category T & E Fields */}
+                                                    {(!formData.consultancy_category?.startsWith("Category D") && formData.consultancy_category) && (
+                                                        <div className="space-y-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                                                            <h4 className="font-bold text-lg text-gray-700">
+                                                                {formData.consultancy_category?.includes("Routine") && !formData.consultancy_category?.includes("Non-Routine") ? "Category T Details" : "Category E Details"}
+                                                            </h4>
+                                                            {renderField("category_e_note")}
+                                                            {renderField("category_t_note")}
+                                                            {renderField("cat_ef_total_amount")}
+                                                            {renderField("cat_ef_honorarium")}
+                                                            {renderField("cat_ef_institute_share")}
+                                                            {renderField("cat_ef_gst")}
+                                                            {renderField("cat_ef_grand_total")}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <FrappeCard className="p-6 space-y-6 !shadow-sm border-gray-300"><h3 className="text-2xl font-bold uppercase text-black">Funding Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.fundingDetails)}</div></FrappeCard>
+                                                <FrappeCard className="p-6 space-y-6 !shadow-sm border-gray-300"><h3 className="text-2xl font-bold uppercase text-black">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-8">{renderFields(tabFieldGroups.agencyAddress)}</div></FrappeCard>
+                                            </div>
+                                        )}
+                                        {formData.project_type === "Other" && renderField("other_project_type_name")}
+                                        {renderField("implementation_department")}
+                                        {renderField("project_objective")}
+                                        {renderField("project_deliverables")}
+                                        {renderField("executive_summary")}
+                                        {renderField("upload_proj_prop")}
+                                        {renderField("my_projects")}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">{formData.project_type !== "Consultancy" ? renderField("project_duration_months") : renderField("project_duration_days")}</div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            {renderField("prj_start_date")}
+                                            {renderField("prj_end_date")}
+                                        </div>
+                                    </FrappeCard>
+                                    {renderNextPrevButtons(false, true)}
+                                </div>
+
+                                <div className={activeTab === 1 ? "block" : "hidden"}>
+                                    <FrappeCard className="space-y-10">
+                                        <h2 className="text-3xl font-bold uppercase text-black">2. Investigators & Collaborators</h2>
+                                        <div className="p-6 space-y-6 border border-gray-300 rounded-md shadow-sm bg-white">
+                                            <h3 className="text-2xl font-bold uppercase text-black">Principal Investigator (PI)</h3>
+                                            <div className="space-y-8">
+                                                {renderField("pi_webmail")}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-dashed border-gray-400">
+                                                    {renderField("principal_investigator_name")}
+                                                    {renderField("pi_employee_id")}
+                                                    {renderField("designation")}
+                                                    {renderField("applicant_department")}
+                                                    {renderField("pi_userid")}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-6">{renderFields(tabFieldGroups.collaboratorToggles)}</div>
+                                        {formData.is_additional_pi === "Yes" && <MemoizedCollaboratorTable tableName="additional_pi_table" title="Details of Additional PI(s)" tableData={formData.additional_pi_table} piOptions={linkOptions["pi_webmail"]} onCollaboratorChange={handleCollaboratorChange} onRowChange={handleTableRowChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />}
+                                        {formData.has_co_pi === "Yes" && <MemoizedCollaboratorTable tableName="co_investigator_table" title="Details of Co-PI(s)" tableData={formData.co_investigator_table} piOptions={linkOptions["pi_webmail"]} onCollaboratorChange={handleCollaboratorChange} onRowChange={handleTableRowChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />}
+                                    </FrappeCard>
+                                    {renderNextPrevButtons(true, true)}
+                                </div>
+
+                                <div className={activeTab === 2 ? "block" : "hidden"}>
+                                    <FrappeCard className="space-y-8">
+                                        <h2 className="text-3xl font-bold uppercase text-black">3. Proposed Budget</h2>
+                                        <p className="font-bold text-black">Provide a detailed year-wise breakup of the proposed budget.</p>
+                                        <MemoizedBudgetTable tableData={budgetTableData} budgetYears={budgetYears} budgetHeadOptions={budgetHeadOptions} onRowChange={handleBudgetRowChange} onAddRow={addBudgetRow} onDeleteRow={deleteTableRow} onAddYear={addBudgetYear} onDeleteYear={deleteLastBudgetYear} getYearTotal={getYearTotal} totalBudgetAmount={totalBudgetAmount} />
+                                        <div className="space-y-6 border-t border-gray-300 pt-8">{renderFields(tabFieldGroups.budgetToggles)}</div>
+                                        {formData.equipment_checkbox ? (<MemoizedGenericTable tableName={'proposed_equipment_details'} columns={[{ key: 'item_name', label: 'Equipment Name*', type: 'text' }, { key: 'cost', label: 'Cost (₹)', type: 'number' }]} newRow={{ item_name: '', cost: 0 }} tableData={formData.proposed_equipment_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
+                                        {formData.manpower_checkbox ? (<MemoizedGenericTable tableName={'proposed_manpower_details'} columns={[{ key: 'designation_name', label: 'Position*', type: 'text' }, { key: 'salary', label: 'Salary (₹)', type: 'number' }]} newRow={{ designation_name: '', salary: 0 }} tableData={formData.proposed_manpower_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
+                                    </FrappeCard>
+                                    {renderNextPrevButtons(true, true)}
+                                </div>
+                                <div className={activeTab === 3 ? "block" : "hidden"}>
+                                    <FrappeCard className="space-y-8">
+                                        <h2 className="text-3xl font-bold uppercase text-black">4. Clearance & Declaration</h2>
+                                        {renderField("needs_committee_clearance")}
+                                        {formData.needs_committee_clearance === "Yes" && (
+                                            <div className="space-y-8 pt-8 mt-8 border-t-2 border-dashed border-gray-400">
+                                                {renderField("committees")}
+                                                {formData.committees === "Other" && renderField("other_committee_specify")}
+                                                {formData.committees === "Ethics Committee" && (
+                                                    <>
+                                                        {renderField("ethics_committee_details")}
+                                                        {renderField("ethics_other_details")}
+                                                    </>
+                                                )}
+                                                {formData.committees === "Biosafety Committee" && (
+                                                    <>
+                                                        {renderField("biosafety_category")}
+                                                        {renderField("declaration_html")}
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                    </FrappeCard>
+                                    {renderNextPrevButtons(true, true)}
+                                </div>
+                                <div className={activeTab === 4 ? "block" : "hidden"}>
+                                    <FrappeCard className="space-y-10">
+                                        <div className="space-y-6">
+                                            {renderField("have_sanction_details")}
+
+                                            {formData.have_sanction_details === "Yes" && (
+                                                <FrappeCard className="space-y-8 !shadow-sm border-gray-300">
+                                                    <h3 className="text-2xl font-bold uppercase text-black">Sanction Details</h3>
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                        {renderFields(tabFieldGroups.sanction)}
+                                                    </div>
+
+                                                    <div className="space-y-4">
+                                                        <MemoizedGenericTable
+                                                            tableName={'sanctioned_budget_breakup'}
+                                                            columns={[
+                                                                { key: 'head', label: 'Budget Head', type: 'text' },
+                                                                { key: 'amount', label: 'Amount (₹)', type: 'number' },
+                                                            ]}
+                                                            newRow={{ head: '', amount: 0 }}
+                                                            tableData={formData.sanctioned_budget_breakup}
+                                                            onRowChange={handleTableRowChange}
+                                                            onFileChange={handleTableFileChange}
+                                                            onAddRow={addTableRow}
+                                                            onDeleteRow={deleteTableRow}
+                                                        />
+                                                    </div>
+
+                                                    <div className="space-y-4">
+                                                        <MemoizedGenericTable
+                                                            tableName={'sanction_related_files'}
+                                                            columns={[{ key: 'file', label: 'File', type: 'file' }]}
+                                                            newRow={{ file: null }}
+                                                            tableData={formData.sanction_related_files}
+                                                            onRowChange={handleTableRowChange}
+                                                            onFileChange={handleTableFileChange}
+                                                            onAddRow={addTableRow}
+                                                            onDeleteRow={deleteTableRow}
+                                                        />
+                                                    </div>
+                                                </FrappeCard>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-6">
+                                            {renderField("have_fund_details")}
+
+                                            {formData.have_fund_details === "Yes" && (
+                                                <FrappeCard className="space-y-8 !shadow-sm border-gray-300">
+                                                    <h3 className="text-2xl font-bold uppercase text-black">Fund Details</h3>
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                        {renderFields(tabFieldGroups.funds)}
+                                                    </div>
+
+                                                    <div className="space-y-4">
+                                                        <MemoizedGenericTable
+                                                            tableName={'fund_transactions'}
+                                                            columns={[
+                                                                { key: 'installmentNo', label: 'Installment No.', type: 'text' },
+                                                                { key: 'dateReceived', label: 'Date Received', type: 'date' },
+                                                                { key: 'amount', label: 'Amount (₹)', type: 'number' },
+                                                            ]}
+                                                            newRow={{ installmentNo: '', dateReceived: '', amount: 0 }}
+                                                            tableData={formData.fund_transactions}
+                                                            onRowChange={handleTableRowChange}
+                                                            onFileChange={handleTableFileChange}
+                                                            onAddRow={addTableRow}
+                                                            onDeleteRow={deleteTableRow}
+                                                        />
+                                                    </div>
+                                                </FrappeCard>
+                                            )}
+                                        </div>
+
+                                        {/* 🟢 Instruction after saving */}
+                                        <div className="p-4 mt-6 border-l-4 border-green-600 bg-green-50 text-green-900 rounded-md shadow-sm font-bold">
+                                            💡 <strong>Next Step:</strong> After saving this project draft, go to the <strong>Project View</strong> page,
+                                            open your specific project, and then click <strong>Submit</strong> to proceed.
+                                        </div>
+                                    </FrappeCard>
+
+                                    {renderNextPrevButtons(true, false, true)}
+                                </div>
+                            </>}
+                        </form>
+                    </div>
+                </div>
+
+                {/* Endorsement Certificate Modal */}
+                {showEndorsementModal && (
+                    <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center overflow-y-auto py-8">
+                        <div className="relative bg-white rounded-lg shadow-2xl max-w-[240mm] w-full mx-4 border border-gray-400">
+                            {/* Modal Header */}
+                            <div className="bg-white border-b border-gray-300 px-6 py-4 flex items-center justify-between rounded-t-lg">
+                                <h2 className="text-xl font-bold text-black">Endorsement Certificate</h2>
+                                <button
+                                    onClick={() => setShowEndorsementModal(false)}
+                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                    title="Close"
+                                >
+                                    <X className="h-6 w-6 text-black" />
+                                </button>
+                            </div>
+                            {/* Modal Body */}
+                            <div className="p-0">
+                                <EndorsementCertificate
+                                    proposalId={docname || "IITG/RND/NEW"}
+                                    piName={formData.principal_investigator_name}
+                                    piDesignation={formData.designation}
+                                    piDepartment={formData.applicant_department}
+                                    coPiName={formData.co_investigator_table?.[0]?.copi_name || ""}
+                                    coPiDesignation={formData.co_investigator_table?.[0]?.copi_designation || ""}
+                                    coPiDepartment={formData.co_investigator_table?.[0]?.copi_department || ""}
+                                    projectTitle={formData.project_title}
+                                    fundingAgency={formData.funding_agen}
+                                    duration={formData.project_type === 'Consultancy'
+                                        ? `${formData.project_duration_days} days`
+                                        : `${formData.project_duration_months} months`}
+                                    totalCost={String(budgetTableData.reduce((acc: number, row: any) => acc + (row.years || []).reduce((sum: number, val: any) => sum + Number(val || 0), 0), 0))}
+                                />
+                            </div>
+                            {/* Modal Footer */}
+                            <div className="bg-white border-t border-gray-300 px-6 py-4 flex items-center justify-end rounded-b-lg">
+                                <button
+                                    type="button"
+                                    disabled={isSubmitting}
+                                    onClick={async () => {
+                                        setIsSubmitting(true);
+                                        try {
+                                            const { doc_data, files } = await prepareDataWithFiles();
+                                            await submitForm({ doc: doc_data, files });
+                                            setShowEndorsementModal(false);
+                                        } catch (err) {
+                                            alert('Error processing endorsement.');
+                                            setIsSubmitting(false);
+                                        }
+                                    }}
+                                    className="px-6 py-3 rounded-full font-bold text-sm bg-[#0EA5A4] text-white hover:bg-[#0D9494] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isSubmitting ? 'Submitting...' : 'Submit'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </main>
+        </div>
+    );
+};
 
 export default ProjectRegistration;

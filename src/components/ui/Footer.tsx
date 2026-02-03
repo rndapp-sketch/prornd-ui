@@ -2,44 +2,44 @@ import React from 'react';
 
 const Footer: React.FC = () => {
     return (
-        <div style={{ width: '1400px', padding: '4px', flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start', gap: '10px', display: 'flex' }}>
-            <div style={{ alignSelf: 'stretch', paddingTop: '4px', paddingBottom: '8px', paddingLeft: '8px', paddingRight: '8px', background: 'white', borderRadius: '24px', outline: '1px #DDE1E6 solid', outlineOffset: '-1px', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '24px', display: 'flex' }}>
-                <div style={{ justifyContent: 'center', alignItems: 'center', gap: '48px', display: 'inline-flex' }}>
-                    <img src="/IITG_Logo.svg" alt="IITG Logo" style={{ width: '71px', height: '71px' }} />
-                    <div style={{ justifyContent: 'flex-start', alignItems: 'center', gap: '26px', display: 'flex' }}>
-                        <div className="assamese-text">ভাৰতীয় প্ৰযুক্তিবিদ্যা প্ৰতিষ্ঠান গুৱাহাটী</div>
-                        <div className="vertical-line"></div>
-                        <div className="hindi-text">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
-                        <div className="vertical-line"></div>
-                        <div className="english-text">Indian Institute of Technology Guwahati</div>
+        <div className="w-full max-w-[1400px] p-1 flex flex-col gap-2.5">
+            <div className="w-full p-6 bg-white border-2 border-black rounded-lg shadow-md flex flex-col items-center gap-6">
+                <div className="flex justify-center items-center gap-12">
+                    <img src="/IITG_Logo.svg" alt="IITG Logo" className="w-[71px] h-[71px]" />
+                    <div className="flex items-center gap-6">
+                        <div className="text-black font-bold">ভাৰতীয় প্ৰযুক্তিবিদ্যা প্ৰতিষ্ঠান গুৱাহাটী</div>
+                        <div className="h-6 w-px bg-gray-400"></div>
+                        <div className="text-black font-bold">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                        <div className="h-6 w-px bg-gray-400"></div>
+                        <div className="text-black font-bold">Indian Institute of Technology Guwahati</div>
                     </div>
                 </div>
-                <div className="horizontal-line"></div>
-                <div style={{ alignSelf: 'stretch', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '24px', display: 'flex' }}>
-                    <div className="external-links-title">External Links</div>
-                    <div style={{ justifyContent: 'center', alignItems: 'center', gap: '36px', display: 'inline-flex' }}>
-                        <div data-property-1="Frame 60" style={{ justifyContent: 'flex-start', alignItems: 'center', gap: '10px', display: 'flex' }}>
-                            <a href="#" className="link-text">Interview Candidate Registration</a>
+                <div className="w-full h-px bg-gray-400"></div>
+                <div className="w-full flex flex-col items-center gap-6">
+                    <div className="text-lg font-bold text-black uppercase">External Links</div>
+                    <div className="flex justify-center items-center gap-9 flex-wrap">
+                        <div className="flex items-center gap-2.5">
+                            <a href="#" className="text-black font-bold hover:underline decoration-2 underline-offset-4 transition-all duration-150">Interview Candidate Registration</a>
                         </div>
-                        <div className="vertical-line-small"></div>
-                        <div data-property-1="Frame 60" style={{ justifyContent: 'flex-start', alignItems: 'center', gap: '10px', display: 'flex' }}>
-                            <a href="#" className="link-text">IITG Main Website</a>
+                        <div className="h-4 w-px bg-gray-400"></div>
+                        <div className="flex items-center gap-2.5">
+                            <a href="#" className="text-black font-bold hover:underline decoration-2 underline-offset-4 transition-all duration-150">IITG Main Website</a>
                         </div>
-                        <div className="vertical-line-small"></div>
-                        <div data-property-1="Frame 60" style={{ justifyContent: 'flex-start', alignItems: 'center', gap: '10px', display: 'flex' }}>
-                            <a href="#" className="link-text">IITG Intranet Website</a>
+                        <div className="h-4 w-px bg-gray-400"></div>
+                        <div className="flex items-center gap-2.5">
+                            <a href="#" className="text-black font-bold hover:underline decoration-2 underline-offset-4 transition-all duration-150">IITG Intranet Website</a>
                         </div>
-                        <div className="vertical-line-small"></div>
-                        <div data-property-1="Frame 60" style={{ justifyContent: 'flex-start', alignItems: 'center', gap: '10px', display: 'flex' }}>
-                            <a href="#" className="link-text">R&D Cell</a>
+                        <div className="h-4 w-px bg-gray-400"></div>
+                        <div className="flex items-center gap-2.5">
+                            <a href="#" className="text-black font-bold hover:underline decoration-2 underline-offset-4 transition-all duration-150">R&D Cell</a>
                         </div>
-                        <div className="vertical-line-small"></div>
-                        <div data-property-1="Frame 60" style={{ justifyContent: 'flex-start', alignItems: 'center', gap: '10px', display: 'flex' }}>
-                            <a href="#" className="link-text">R&D Rules</a>
+                        <div className="h-4 w-px bg-gray-400"></div>
+                        <div className="flex items-center gap-2.5">
+                            <a href="#" className="text-black font-bold hover:underline decoration-2 underline-offset-4 transition-all duration-150">R&D Rules</a>
                         </div>
-                        <div className="vertical-line-small"></div>
-                        <div data-property-1="Frame 60" style={{ justifyContent: 'flex-start', alignItems: 'center', gap: '10px', display: 'flex' }}>
-                            <a href="#" className="link-text">Feedback and Suggestions</a>
+                        <div className="h-4 w-px bg-gray-400"></div>
+                        <div className="flex items-center gap-2.5">
+                            <a href="#" className="text-black font-bold hover:underline decoration-2 underline-offset-4 transition-all duration-150">Feedback and Suggestions</a>
                         </div>
                     </div>
                 </div>

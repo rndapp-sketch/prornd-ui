@@ -38,6 +38,7 @@ const UserDetails = () => {
             'roles'
         ]
     });
+    console.log("userdetails:",user)
     const [activeTab, setActiveTab] = useState('details');
 
     // Skeleton loader for when data is being fetched
