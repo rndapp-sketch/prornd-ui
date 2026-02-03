@@ -5,7 +5,8 @@ import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { ArrowLeftIcon, CalendarIcon, UserIcon } from "lucide-react";
 import { GlobalLoader } from '@/components/ui/global-loader';
-import { Textarea } from '@/components/ui/textarea'; // Assuming shared UI component
+import { Textarea } from '@/components/ui/textarea';
+import TemporaryAdvanceActionButtons from '../../components/TemporaryAdvanceActionButtons';
 
 // --- TYPE DEFINITIONS ---
 interface TemporaryAdvanceData {

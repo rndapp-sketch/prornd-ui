@@ -151,10 +151,10 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
     <div className='space-y-2'>
       <label htmlFor={field.fieldname} className="block font-bold text-black text-lg uppercase">
         {field.label}
-        {field.mandatory && <span className="text-red-500 ml-1">*</span>}
+        {!!field.mandatory && <span className="text-red-500 ml-1">*</span>}
       </label>
       {renderInput()}
-      {field.description && (
+      {!!field.description && (
         <p className="text-sm text-gray-900 font-bold font-mono mt-1">{field.description}</p>
       )}
     </div>
@@ -162,42 +162,87 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
 });
 
 // --- GENERIC TABLE COMPONENT (REFINED STYLING) ---
-const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => (
-  <NeoSection title={title}>
-    <div className="overflow-x-auto border border-gray-300 rounded-lg">
-      <table className="min-w-full divide-y-2 divide-black">
-        <thead className="bg-gray-100">
-          <tr className="divide-x-2 divide-black">
-            {[...columns, { key: 'actions', label: '' }].map((c: any) => (
-              <th key={c.key} className="p-3 font-bold text-black text-sm text-left uppercase">
-                {c.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y-2 divide-black bg-white">
-          {(tableData || []).map((row: any, i: number) => (
-            <tr key={row.id || i} className="divide-x-2 divide-black hover:bg-gray-50 transition-colors duration-150">
-              {columns.map((col: any) => (
-                <td key={col.key} className="p-2">
-                  <input type={col.type || 'text'} className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)} />
-                </td>
+const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => {
+  const renderCell = (col: any, row: any, i: number) => {
+    if (col.type === 'Link' || col.type === 'Dynamic Link' || col.type === 'Select') {
+      return (
+        <select
+          className={`${inputClasses} !h-11`}
+          value={row[col.key] || ''}
+          onChange={e => onRowChange(tableName, i, col.key, e.target.value)}
+        >
+          <option value="">Select...</option>
+          {(col.options || []).map((opt: any) => {
+            const val = typeof opt === 'object' ? opt.value : opt;
+            const lbl = typeof opt === 'object' ? opt.label : opt;
+            return <option key={val} value={val}>{lbl}</option>;
+          })}
+        </select>
+      );
+    }
+
+    if (col.type === 'Date') {
+      return (
+        <input
+          type="date"
+          className={`${inputClasses} !h-11`}
+          value={row[col.key] || ''}
+          onChange={e => onRowChange(tableName, i, col.key, e.target.value)}
+        />
+      );
+    }
+
+    const type = (col.type === 'Currency' || col.type === 'Float' || col.type === 'Int') ? 'number' : 'text';
+    const step = col.type === 'Int' ? "1" : "0.01";
+
+    return (
+      <input
+        type={type}
+        step={type === 'number' ? step : undefined}
+        className={`${inputClasses} !h-11`}
+        value={row[col.key] || ''}
+        onChange={e => onRowChange(tableName, i, col.key, e.target.value)}
+      />
+    );
+  };
+
+  return (
+    <NeoSection title={title}>
+      <div className="overflow-x-auto border border-gray-300 rounded-lg">
+        <table className="min-w-full divide-y-2 divide-black">
+          <thead className="bg-gray-100">
+            <tr className="divide-x-2 divide-black">
+              {[...columns, { key: 'actions', label: '' }].map((c: any) => (
+                <th key={c.key} className="p-3 font-bold text-black text-sm text-left uppercase">
+                  {c.label}
+                </th>
               ))}
-              <td className="p-2 text-center">
-                <FrappeButton onClick={() => onDeleteRow(tableName, i)} className="!py-2 text-sm bg-red-50 border-red-200 hover:bg-red-100 text-red-700">
-                  Delete
-                </FrappeButton>
-              </td>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-    <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="mt-4 bg-[#A5D6A7] hover:bg-[#8BC34A] border-[#8BC34A]/20">
-      Add Row
-    </FrappeButton>
-  </NeoSection>
-));
+          </thead>
+          <tbody className="divide-y-2 divide-black bg-white">
+            {(tableData || []).map((row: any, i: number) => (
+              <tr key={row.id || i} className="divide-x-2 divide-black hover:bg-gray-50 transition-colors duration-150">
+                {columns.map((col: any) => (
+                  <td key={col.key} className="p-2 min-w-[150px]">
+                    {renderCell(col, row, i)}
+                  </td>
+                ))}
+                <td className="p-2 text-center w-[100px]">
+                  <FrappeButton onClick={() => onDeleteRow(tableName, i)} className="!py-2 text-sm bg-red-50 border-red-200 hover:bg-red-100 text-red-700 w-full">
+                    Delete
+                  </FrappeButton>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="mt-4 bg-[#A5D6A7] hover:bg-[#8BC34A] border-[#8BC34A]/20">
+        Add Row
+      </FrappeButton>
+    </NeoSection>
+  );
+});
 
 // --- UNIVERSAL FORM RENDERER ---
 export const FormRender: React.FC<UniversalFormProps & {

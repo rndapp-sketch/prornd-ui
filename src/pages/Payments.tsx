@@ -2,9 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FaExclamationCircle, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
 import { AppSidebar } from '@/components/RndSidebar';
 import { useNavigate } from 'react-router-dom';
 import { GlobalLoader } from '@/components/ui/global-loader';
+
+import { ledgerService } from '@/services/ledgerService';
+import type { CommitRecord } from '@/types/ledgerTypes';
+import { PaymentForm } from '@/components/PaymentForm';
 
 // Define interfaces for payments
 interface PaymentRecord {
@@ -64,15 +69,16 @@ const Payments: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [payments, setPayments] = useState<PaymentRecord[]>([]);
+
+    // New State for Commits and Tabs
+    const [pendingCommits, setPendingCommits] = useState<CommitRecord[]>([]);
+    const [activeTab, setActiveTab] = useState<'history' | 'commits'>('commits'); // Default to commits context
     const itemsPerPage = 10;
 
     // Payment Modal State
     const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-    const [selectedPayment, setSelectedPayment] = useState<PaymentRecord | null>(null);
-    const [paymentFormData, setPaymentFormData] = useState<Record<string, any>>({});
-    const [paymentFieldDefs, setPaymentFieldDefs] = useState<any[]>([]);
-    const [paymentLinkOptions, setPaymentLinkOptions] = useState<Record<string, any[]>>({});
-    const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
+    const [selectedPaymentName, setSelectedPaymentName] = useState<string | null>(null);
+    const [selectedCommit, setSelectedCommit] = useState<CommitRecord | null>(null); // For new payments
 
     // Debounce search input
     useEffect(() => {
@@ -110,9 +116,47 @@ const Payments: React.FC = () => {
         }
     }, []);
 
+    // Fetch Pending Commits
+    const fetchPendingCommits = useCallback(async () => {
+        try {
+            // Fetch commits for each status
+            const statuses = ['COMMITTED', 'SETTLED', 'PARTIALLY_PAID', 'OVERPAYMENT'];
+            const promises = statuses.map(status => ledgerService.getCommitsByStatus(status));
+
+            const results = await Promise.all(promises);
+            // Flatten results
+            const allCommits = results.flat();
+            setPendingCommits(allCommits);
+        } catch (err) {
+            console.error('Failed to fetch pending commits', err);
+        }
+    }, []);
+
+    // State for Budget Head Mapping
+    const [budgetHeadMap, setBudgetHeadMap] = useState<Record<string, string>>({});
+
+    // Fetch Budget Heads for mapping
+    const fetchBudgetHeads = useCallback(async () => {
+        try {
+            const response = await fetch('/api/v2/document/Budget Head?fields=["budget_head","id"]&order_by=id asc');
+            const data = await response.json();
+            if (data?.data) {
+                const map: Record<string, string> = {};
+                data.data.forEach((h: any) => {
+                    map[String(h.id)] = h.budget_head;
+                });
+                setBudgetHeadMap(map);
+            }
+        } catch (err) {
+            console.error('Failed to fetch budget heads:', err);
+        }
+    }, []);
+
     useEffect(() => {
         fetchPayments();
-    }, [fetchPayments]);
+        fetchPendingCommits();
+        fetchBudgetHeads();
+    }, [fetchPayments, fetchPendingCommits, fetchBudgetHeads]);
 
     // Client-side filtering
     const filteredPayments = React.useMemo(() => {
@@ -129,11 +173,11 @@ const Payments: React.FC = () => {
         }
 
         if (selectedStatus) {
-            result = result.filter(p => p.payment_status === selectedStatus);
+            result = result.filter(p => (p.payment_status || 'PENDING') === selectedStatus);
         }
 
         if (selectedDoctype) {
-            result = result.filter(p => p.doctype === selectedDoctype);
+            result = result.filter(p => (p.doctype || 'AccountHeadPayment') === selectedDoctype);
         }
 
         return result;
@@ -164,16 +208,18 @@ const Payments: React.FC = () => {
     };
 
     const getStatusBadge = (status: string) => {
-        const s = status?.toLowerCase();
-        let style = "bg-blue-100 text-blue-800 border-blue-300";
-        if (s === "pending") {
-            style = "bg-amber-100 text-amber-800 border-amber-300";
-        } else if (s === "paid") {
+        const s = status?.toUpperCase();
+        let style = "bg-gray-100 text-gray-800 border-gray-300";
+        if (s === "COMMITTED") {
+            style = "bg-blue-100 text-blue-800 border-blue-300";
+        } else if (s === "SETTLED") {
             style = "bg-emerald-100 text-emerald-800 border-emerald-300";
-        } else if (s === "rejected") {
-            style = "bg-red-100 text-red-800 border-red-300";
-        } else if (s === "rectification") {
+        } else if (s === "PARTIALLY_PAID") {
+            style = "bg-amber-100 text-amber-800 border-amber-300";
+        } else if (s === "OVERPAYMENT") {
             style = "bg-purple-100 text-purple-800 border-purple-300";
+        } else if (s === "PENDING" || s === "DRAFT") {
+            style = "bg-gray-100 text-gray-800 border-gray-400";
         }
         return cn("px-2.5 py-1 rounded-md text-xs font-bold border uppercase", style);
     };
@@ -198,71 +244,19 @@ const Payments: React.FC = () => {
     };
 
     // Open payment modal for editing
-    const openPaymentModal = useCallback(async (payment: PaymentRecord) => {
-        setSelectedPayment(payment);
-        try {
-            const response = await fetch(`/api/method/rndopsapp.rndopsapp.commitPayment.get_account_head_payment_fields?doc_name=${payment.name}`);
-            const result = await response.json();
-            if (result?.message) {
-                const { fields, prefill_data, link_options } = result.message;
-                setPaymentFieldDefs(fields || []);
-                setPaymentLinkOptions(link_options || {});
-                setPaymentFormData({
-                    ...prefill_data,
-                    name: payment.name,
-                    project_ref_number: payment.project_ref_number,
-                    payment_amount: payment.payment_amount,
-                    budget_head: payment.budget_head,
-                    payment_bmr: payment.payment_bmr,
-                    payment_date: payment.payment_date,
-                    payment_particular: payment.payment_particular,
-                    payment_status: payment.payment_status,
-                });
-            }
-            setPaymentModalOpen(true);
-        } catch (err) {
-            console.error('Failed to fetch payment fields:', err);
-            alert('Failed to load payment form. Please try again.');
-        }
+    const openPaymentModal = useCallback((payment: PaymentRecord) => {
+        setSelectedPaymentName(payment.name);
+        setSelectedCommit(null);
+        setPaymentModalOpen(true);
     }, []);
 
-    const handlePaymentFieldChange = (fieldname: string, value: any) => {
-        setPaymentFormData(prev => ({ ...prev, [fieldname]: value }));
-    };
+    // Create New Payment from Commit
+    const initiatePaymentForCommit = useCallback((commit: CommitRecord) => {
+        setSelectedPaymentName(null);
+        setSelectedCommit(commit);
+        setPaymentModalOpen(true);
+    }, []);
 
-    const handleSubmitPayment = useCallback(async () => {
-        if (!selectedPayment) return;
-        setIsPaymentSubmitting(true);
-        try {
-            const response = await fetch('/api/method/rndopsapp.rndopsapp.doctype.accountheadpayment.accountheadpayment.submit_payment_data', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    doctype: 'AccountHeadPayment',
-                    name: selectedPayment.name,
-                    ...paymentFormData
-                })
-            });
-            const result = await response.json();
-            if (result.exc || result.exception) {
-                throw new Error(result.exc || result.exception);
-            }
-            setPaymentModalOpen(false);
-            setSelectedPayment(null);
-            setPaymentFormData({});
-            fetchPayments(); // Refresh list
-            alert('Payment updated successfully!');
-        } catch (err: any) {
-            console.error('Payment submission failed:', err);
-            alert('Failed to submit payment: ' + (err.message || 'Unknown error'));
-        } finally {
-            setIsPaymentSubmitting(false);
-        }
-    }, [selectedPayment, paymentFormData, fetchPayments]);
 
     if (error) {
         return (
@@ -307,309 +301,319 @@ const Payments: React.FC = () => {
                     </div>
                 </FrappeCard>
 
-                {/* Filter & Search Section */}
-                <FrappeCard className="mb-4 p-4">
-                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                        <div className="flex flex-1 items-center gap-4 w-full flex-wrap">
-                            {/* Search Input */}
-                            <div className="relative w-full md:w-64">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <FaSearch className="text-gray-400" />
-                                </div>
-                                <input
-                                    type="text"
-                                    placeholder="Search payments..."
-                                    value={searchQuery}
-                                    onChange={handleSearchChange}
-                                    className="w-full pl-10 pr-4 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-gray-900 focus:ring-0 transition-colors"
-                                />
-                            </div>
+                {/* Tabs */}
+                <div className="flex gap-4 mb-4 border-b border-gray-300 pb-2">
+                    <button
+                        onClick={() => setActiveTab('commits')}
+                        className={cn(
+                            "px-4 py-2 font-bold text-sm uppercase border-b-2 transition-colors",
+                            activeTab === 'commits'
+                                ? "text-[#0EA5A4] border-[#0EA5A4]"
+                                : "text-gray-500 border-transparent hover:text-gray-700"
+                        )}
+                    >
+                        Pending Commits
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('history')}
+                        className={cn(
+                            "px-4 py-2 font-bold text-sm uppercase border-b-2 transition-colors",
+                            activeTab === 'history'
+                                ? "text-[#0EA5A4] border-[#0EA5A4]"
+                                : "text-gray-500 border-transparent hover:text-gray-700"
+                        )}
+                    >
+                        Payment History
+                    </button>
+                </div>
 
-                            {/* Doctype/Module Filter */}
-                            <div className="flex items-center gap-2">
-                                <label htmlFor="doctype-filter" className="font-bold text-black uppercase text-sm whitespace-nowrap hidden md:block">
-                                    Module:
-                                </label>
-                                <select
-                                    id="doctype-filter"
-                                    value={selectedDoctype}
-                                    onChange={(e) => handleDoctypeChange(e.target.value)}
-                                    className="h-10 px-4 bg-white border-2 border-gray-400 rounded-lg font-bold text-sm text-black focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-900"
-                                >
-                                    <option value="">All Modules</option>
-                                    <option value="AccountHeadPayment">AccountHeadPayment</option>
-                                    <option value="Fund Received">Fund Received</option>
-                                    <option value="Reimbursement">Reimbursement</option>
-                                    <option value="Fund Sanction">Fund Sanction</option>
-                                    <option value="Temporary Advance">Temporary Advance</option>
-                                </select>
-                            </div>
-
-                            {/* Status Filter */}
-                            <div className="flex items-center gap-2">
-                                <label htmlFor="status-filter" className="font-bold text-black uppercase text-sm whitespace-nowrap hidden md:block">
-                                    Status:
-                                </label>
-                                <select
-                                    id="status-filter"
-                                    value={selectedStatus}
-                                    onChange={(e) => handleStatusChange(e.target.value)}
-                                    className="h-10 px-4 bg-white border-2 border-gray-400 rounded-lg font-bold text-sm text-black focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-900"
-                                >
-                                    <option value="">All Status</option>
-                                    <option value="PENDING">Pending</option>
-                                    <option value="PAID">Paid</option>
-                                    <option value="REJECTED">Rejected</option>
-                                    <option value="RECTIFICATION">Rectification</option>
-                                </select>
-                            </div>
-
-                            {/* Clear Filters Button */}
-                            {(selectedStatus || selectedDoctype) && (
-                                <FrappeButton
-                                    onClick={() => {
-                                        handleStatusChange('');
-                                        handleDoctypeChange('');
-                                    }}
-                                    className="text-red-600 hover:bg-red-50 border border-red-200"
-                                >
-                                    Clear Filters
-                                </FrappeButton>
-                            )}
+                {activeTab === 'commits' && (
+                    <FrappeCard className="overflow-hidden p-0">
+                        <div className="bg-blue-50 p-4 border-b border-blue-100">
+                            <p className="text-sm text-blue-800 font-bold">
+                                Pending Commits from Ledger
+                            </p>
+                            <p className="text-xs text-blue-600">
+                                These are committed funds waiting for payment or settlement.
+                            </p>
                         </div>
-
-                        <div className="text-sm text-gray-900 font-bold whitespace-nowrap">
-                            Total: {totalCount} payments
-                        </div>
-                    </div>
-                </FrappeCard>
-
-                {/* Table */}
-                <FrappeCard className="overflow-hidden p-0">
-                    <div className="overflow-x-auto">
-                        <table className="w-full divide-y divide-gray-300">
-                            <thead className="bg-gray-200">
-                                <tr className="divide-x divide-gray-300">
-                                    <th className="p-3 text-left font-bold text-black text-sm">Status</th>
-                                    <th className="p-3 text-left font-bold text-black text-sm">Module</th>
-                                    <th className="p-3 text-left font-bold text-black text-sm">Title</th>
-                                    <th className="p-3 text-left font-bold text-black text-sm">Project Number</th>
-                                    <th className="p-3 text-left font-bold text-black text-sm">Date</th>
-                                    <th className="p-3 text-left font-bold text-black text-sm">Owner</th>
-                                    <th className="p-3 text-left font-bold text-black text-sm">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {paginatedPayments.length > 0 ? (
-                                    paginatedPayments.map((payment) => (
-                                        <tr
-                                            key={payment.name}
-                                            className="hover:bg-gray-50 cursor-pointer transition-colors"
-                                        >
-                                            <td className="p-4">
-                                                <span className={getStatusBadge(payment.payment_status)}>
-                                                    {payment.payment_status}
-                                                </span>
-                                            </td>
-                                            <td className="p-4 font-bold text-black text-sm">
-                                                {payment.doctype || 'AccountHeadPayment'}
-                                            </td>
-                                            <td className="p-4 font-medium text-gray-900 text-sm">
-                                                {payment.payment_particular?.length > 30
-                                                    ? `${payment.payment_particular.substring(0, 30)}...`
-                                                    : payment.payment_particular || '-'}
-                                            </td>
-                                            <td className="p-4 text-sm font-mono text-gray-900">
-                                                {payment.project_ref_number?.length > 25
-                                                    ? `${payment.project_ref_number.substring(0, 25)}...`
-                                                    : payment.project_ref_number || '-'}
-                                            </td>
-                                            <td className="p-4 text-sm font-mono text-gray-900">
-                                                {payment.payment_date
-                                                    ? new Date(payment.payment_date).toLocaleDateString("en-IN")
-                                                    : "-"}
-                                            </td>
-                                            <td className="p-4 text-sm text-gray-900">
-                                                {payment.owner?.length > 20
-                                                    ? `${payment.owner.substring(0, 20)}...`
-                                                    : payment.owner || '-'}
-                                            </td>
-                                            <td className="p-4">
-                                                <FrappeButton
-                                                    variant="action"
-                                                    onClick={(e) => {
-                                                        e?.stopPropagation();
-                                                        openPaymentModal(payment);
-                                                    }}
-                                                    className="text-xs px-4 py-2"
-                                                >
-                                                    Payment
-                                                </FrappeButton>
+                        <div className="overflow-x-auto">
+                            <table className="w-full divide-y divide-gray-300">
+                                <thead className="bg-gray-200">
+                                    <tr>
+                                        <th className="p-3 text-left font-bold text-black text-sm">Project No.</th>
+                                        <th className="p-3 text-left font-bold text-black text-sm">Account Head</th>
+                                        <th className="p-3 text-left font-bold text-black text-sm">Date</th>
+                                        <th className="p-3 text-left font-bold text-black text-sm">Particulars</th>
+                                        <th className="p-3 text-left font-bold text-black text-sm">Ref Details</th>
+                                        <th className="p-3 text-right font-bold text-black text-sm">Amount</th>
+                                        <th className="p-3 text-left font-bold text-black text-sm">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {pendingCommits.length > 0 ? (
+                                        pendingCommits.map((commit, idx) => (
+                                            <tr key={idx} className="hover:bg-gray-50">
+                                                <td className="p-4 text-sm font-mono font-medium">{commit.projectNumber}</td>
+                                                <td className="p-4 text-sm text-gray-700 font-bold">
+                                                    {budgetHeadMap[String(commit.accountHeadId)] || commit.accountHeadId}
+                                                </td>
+                                                <td className="p-4 text-sm">{commit.commitDate}</td>
+                                                <td className="p-4 text-sm">{commit.commitParticular}</td>
+                                                <td className="p-4 text-sm text-gray-600">{commit.refDetails}</td>
+                                                <td className="p-4 text-right font-bold text-black text-sm">
+                                                    ₹{commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                </td>
+                                                <td className="p-4">
+                                                    <FrappeButton
+                                                        variant="primary"
+                                                        className="text-xs py-1 px-3"
+                                                        onClick={() => initiatePaymentForCommit(commit)}
+                                                    >
+                                                        Pay
+                                                    </FrappeButton>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={6} className="p-8 text-center text-gray-500">
+                                                No pending commits found.
                                             </td>
                                         </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={7} className="p-8 text-center text-gray-900 font-bold">
-                                            {isLoading ? "Loading payments..." : "No payments found matching your criteria."}
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </FrappeCard>
+                )}
 
-                    {/* Pagination Controls */}
-                    {payments.length > 0 && (
-                        <div className="p-4 border-t border-gray-300 bg-gray-50 flex justify-between items-center">
-                            <div>
-                                <div className="text-sm text-gray-900 font-medium">
-                                    Showing {indexOfFirstPayment + 1} to {indexOfFirstPayment + currentCount} of {totalCount} entries
+                {activeTab === 'history' && (
+                    <>
+                        {/* Filter & Search Section */}
+                        <FrappeCard className="mb-4 p-4">
+                            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                                <div className="flex flex-1 items-center gap-4 w-full flex-wrap">
+                                    {/* Search Input */}
+                                    <div className="relative w-full md:w-64">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <FaSearch className="text-gray-400" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Search payments..."
+                                            value={searchQuery}
+                                            onChange={handleSearchChange}
+                                            className="w-full pl-10 pr-4 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-gray-900 focus:ring-0 transition-colors"
+                                        />
+                                    </div>
+
+                                    {/* Doctype/Module Filter */}
+                                    <div className="flex items-center gap-2">
+                                        <label htmlFor="doctype-filter" className="font-bold text-black uppercase text-sm whitespace-nowrap hidden md:block">
+                                            Module:
+                                        </label>
+                                        <select
+                                            id="doctype-filter"
+                                            value={selectedDoctype}
+                                            onChange={(e) => handleDoctypeChange(e.target.value)}
+                                            className="h-10 px-4 bg-white border-2 border-gray-400 rounded-lg font-bold text-sm text-black focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-900"
+                                        >
+                                            <option value="">All Modules</option>
+                                            <option value="AccountHeadPayment">Account Head Payment</option>
+                                            <option value="Reimbursement">Reimbursement</option>
+                                            <option value="Advance">Advance</option>
+                                            <option value="Disbursal">Disbursal</option>
+                                            <option value="Purchase">Purchase</option>
+                                            <option value="Recruitment">Recruitment</option>
+                                            <option value="Travel">Travel</option>
+                                            <option value="Utilities">Utilities</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Status Filter */}
+                                    <div className="flex items-center gap-2">
+                                        <label htmlFor="status-filter" className="font-bold text-black uppercase text-sm whitespace-nowrap hidden md:block">
+                                            Status:
+                                        </label>
+                                        <select
+                                            id="status-filter"
+                                            value={selectedStatus}
+                                            onChange={(e) => handleStatusChange(e.target.value)}
+                                            className="h-10 px-4 bg-white border-2 border-gray-400 rounded-lg font-bold text-sm text-black focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-900"
+                                        >
+                                            <option value="">All Status</option>
+                                            <option value="SETTLED">SETTLED</option>
+                                            <option value="PARTIALLY_PAID">PARTIALLY_PAID</option>
+                                            <option value="OVERPAYMENT">OVERPAYMENT</option>
+                                            <option value="COMMITTED">COMMITTED</option>
+                                        </select>
+                                    </div>
+
+                                    {/* Clear Filters Button */}
+                                    {(selectedStatus || selectedDoctype) && (
+                                        <FrappeButton
+                                            onClick={() => {
+                                                handleStatusChange('');
+                                                handleDoctypeChange('');
+                                            }}
+                                            className="text-red-600 hover:bg-red-50 border border-red-200"
+                                        >
+                                            Clear Filters
+                                        </FrappeButton>
+                                    )}
+                                </div>
+
+                                <div className="text-sm text-gray-900 font-bold whitespace-nowrap">
+                                    Total: {totalCount} payments
                                 </div>
                             </div>
-                            <div className="flex gap-1">
-                                <FrappeButton
-                                    onClick={() => handlePageChange(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                    variant="outline"
-                                >
-                                    Previous
-                                </FrappeButton>
-                                {getPageNumbers().map((page, index) => (
-                                    <FrappeButton
-                                        key={index}
-                                        onClick={() => typeof page === 'number' && handlePageChange(page)}
-                                        disabled={typeof page !== 'number'}
-                                        variant={page === currentPage ? "primary" : "outline"}
-                                        className={cn(typeof page !== 'number' && "cursor-default")}
-                                    >
-                                        {page}
-                                    </FrappeButton>
-                                ))}
-                                <FrappeButton
-                                    onClick={() => handlePageChange(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                    variant="outline"
-                                >
-                                    Next
-                                </FrappeButton>
+                        </FrappeCard>
+
+                        {/* Table */}
+                        <FrappeCard className="overflow-hidden p-0">
+                            <div className="overflow-x-auto">
+                                <table className="w-full divide-y divide-gray-300">
+                                    <thead className="bg-gray-200">
+                                        <tr className="divide-x divide-gray-300">
+                                            <th className="p-3 text-left font-bold text-black text-sm">Status</th>
+                                            <th className="p-3 text-left font-bold text-black text-sm">Module</th>
+                                            <th className="p-3 text-left font-bold text-black text-sm">Particulars</th>
+                                            <th className="p-3 text-left font-bold text-black text-sm">Project No.</th>
+                                            <th className="p-3 text-left font-bold text-black text-sm">Date</th>
+                                            <th className="p-3 text-left font-bold text-black text-sm">Owner</th>
+                                            <th className="p-3 text-right font-bold text-black text-sm">Amount</th>
+                                            <th className="p-3 text-left font-bold text-black text-sm">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200">
+                                        {paginatedPayments.length > 0 ? (
+                                            paginatedPayments.map((payment) => (
+                                                <tr
+                                                    key={payment.name}
+                                                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                                >
+                                                    <td className="p-4">
+                                                        <span className={getStatusBadge(payment.payment_status)}>
+                                                            {payment.payment_status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="p-4 font-bold text-black text-sm">
+                                                        {payment.doctype || 'AccountHeadPayment'}
+                                                    </td>
+                                                    <td className="p-4 font-medium text-gray-900 text-sm">
+                                                        {payment.payment_particular?.length > 30
+                                                            ? `${payment.payment_particular.substring(0, 30)}...`
+                                                            : payment.payment_particular || '-'}
+                                                    </td>
+                                                    <td className="p-4 text-sm font-mono text-gray-900">
+                                                        {payment.project_ref_number?.length > 25
+                                                            ? `${payment.project_ref_number.substring(0, 25)}...`
+                                                            : payment.project_ref_number || '-'}
+                                                    </td>
+                                                    <td className="p-4 text-sm font-mono text-gray-900">
+                                                        {payment.payment_date
+                                                            ? new Date(payment.payment_date).toLocaleDateString("en-IN")
+                                                            : "-"}
+                                                    </td>
+                                                    <td className="p-4 text-sm text-gray-900">
+                                                        {payment.owner?.length > 20
+                                                            ? `${payment.owner.substring(0, 20)}...`
+                                                            : payment.owner || '-'}
+                                                    </td>
+                                                    <td className="p-4 text-right font-bold text-black text-sm">
+                                                        ₹{payment.payment_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <FrappeButton
+                                                            variant="action"
+                                                            onClick={(e) => {
+                                                                e?.stopPropagation();
+                                                                openPaymentModal(payment);
+                                                            }}
+                                                            className="text-xs px-4 py-2"
+                                                        >
+                                                            Payment
+                                                        </FrappeButton>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={7} className="p-8 text-center text-gray-900 font-bold">
+                                                    {isLoading ? "Loading payments..." : "No payments found matching your criteria."}
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
-                        </div>
-                    )}
-                </FrappeCard>
+
+                            {/* Pagination Controls */}
+                            {payments.length > 0 && (
+                                <div className="p-4 border-t border-gray-300 bg-gray-50 flex justify-between items-center">
+                                    <div>
+                                        <div className="text-sm text-gray-900 font-medium">
+                                            Showing {indexOfFirstPayment + 1} to {indexOfFirstPayment + currentCount} of {totalCount} entries
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-1">
+                                        <FrappeButton
+                                            onClick={() => handlePageChange(currentPage - 1)}
+                                            disabled={currentPage === 1}
+                                            variant="outline"
+                                        >
+                                            Previous
+                                        </FrappeButton>
+                                        {getPageNumbers().map((page, index) => (
+                                            <FrappeButton
+                                                key={index}
+                                                onClick={() => typeof page === 'number' && handlePageChange(page)}
+                                                disabled={typeof page !== 'number'}
+                                                variant={page === currentPage ? "primary" : "outline"}
+                                                className={cn(typeof page !== 'number' && "cursor-default")}
+                                            >
+                                                {page}
+                                            </FrappeButton>
+                                        ))}
+                                        <FrappeButton
+                                            onClick={() => handlePageChange(currentPage + 1)}
+                                            disabled={currentPage === totalPages}
+                                            variant="outline"
+                                        >
+                                            Next
+                                        </FrappeButton>
+                                    </div>
+                                </div>
+                            )}
+                        </FrappeCard>
+                    </>
+                )}
             </main>
 
-            {/* Payment Form Modal */}
             {paymentModalOpen && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPaymentModalOpen(false)}>
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-                        {/* Modal Header */}
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-900">Process Payment</h2>
-                                <p className="text-sm text-gray-600 mt-0.5">Update payment details</p>
-                            </div>
+                        <div className="flex bg-gray-50 px-6 py-4 border-b items-center justify-between">
+                            <h2 className="text-xl font-bold text-gray-900">
+                                {selectedPaymentName ? "Edit Payment" : "Process Payment"}
+                            </h2>
                             <button onClick={() => setPaymentModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
                                 <X className="w-5 h-5 text-gray-600" />
                             </button>
                         </div>
-
-                        {/* Modal Body */}
-                        <div className="flex-1 overflow-auto p-6 space-y-4">
-                            {paymentFieldDefs.filter((f: any) => !f.hidden).map((field: any) => {
-                                const value = paymentFormData[field.fieldname] || '';
-                                const options = paymentLinkOptions[field.fieldname] || [];
-
-                                if (field.fieldtype === 'Section Break') {
-                                    return (
-                                        <div key={field.fieldname} className="pt-4 border-t border-gray-200 first:border-0 first:pt-0">
-                                            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{field.label}</h3>
-                                        </div>
-                                    );
-                                }
-
-                                return (
-                                    <div key={field.fieldname}>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            {field.label} {field.mandatory ? <span className="text-red-500">*</span> : ''}
-                                        </label>
-
-                                        {(field.fieldtype === 'Select' || field.fieldtype === 'Link') ? (
-                                            <select
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
-                                                value={value}
-                                                onChange={(e) => handlePaymentFieldChange(field.fieldname, e.target.value)}
-                                                disabled={field.read_only}
-                                            >
-                                                <option value="">Select {field.label}...</option>
-                                                {options.map((opt: any) => (
-                                                    <option key={opt.value} value={opt.value}>
-                                                        {opt.label || opt.value}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        ) : field.fieldtype === 'Date' ? (
-                                            <input
-                                                type="date"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
-                                                value={value}
-                                                onChange={(e) => handlePaymentFieldChange(field.fieldname, e.target.value)}
-                                                disabled={field.read_only}
-                                            />
-                                        ) : field.fieldtype === 'Currency' ? (
-                                            <input
-                                                type="number"
-                                                step="0.01"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
-                                                value={value}
-                                                onChange={(e) => handlePaymentFieldChange(field.fieldname, parseFloat(e.target.value) || 0)}
-                                                disabled={field.read_only}
-                                                placeholder="0.00"
-                                            />
-                                        ) : (
-                                            <input
-                                                type="text"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
-                                                value={value}
-                                                onChange={(e) => handlePaymentFieldChange(field.fieldname, e.target.value)}
-                                                disabled={field.read_only}
-                                                placeholder={field.description || ''}
-                                            />
-                                        )}
-                                        {field.description && <p className="text-xs text-gray-500 mt-1">{field.description}</p>}
-                                    </div>
-                                );
-                            })}
-
-                            {/* Payment Info */}
-                            {selectedPayment && (
-                                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                                    <h4 className="text-sm font-semibold text-blue-800 mb-2">Payment Details</h4>
-                                    <div className="grid grid-cols-2 gap-2 text-sm">
-                                        <div><span className="text-blue-600">Document:</span> <span className="text-blue-900 font-mono">{selectedPayment.name}</span></div>
-                                        <div><span className="text-blue-600">Amount:</span> <span className="font-bold text-blue-900">₹{selectedPayment.payment_amount?.toLocaleString('en-IN')}</span></div>
-                                        <div><span className="text-blue-600">BMR:</span> <span className="text-blue-900">{selectedPayment.payment_bmr || '-'}</span></div>
-                                        <div><span className="text-blue-600">Status:</span> <span className="text-blue-900">{selectedPayment.payment_status || '-'}</span></div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Modal Footer */}
-                        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
-                            <button
-                                onClick={() => setPaymentModalOpen(false)}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSubmitPayment}
-                                disabled={isPaymentSubmitting}
-                                className="px-4 py-2 text-sm font-medium text-white bg-[#0EA5A4] rounded-lg hover:bg-[#0D9494] disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isPaymentSubmitting ? 'Submitting...' : 'Submit Payment'}
-                            </button>
+                        <div className="flex-1 overflow-auto p-0">
+                            <PaymentForm
+                                docName={selectedPaymentName || undefined}
+                                commitData={selectedCommit || undefined}
+                                resolvedBudgetHead={selectedCommit ? budgetHeadMap[String(selectedCommit.accountHeadId)] : undefined}
+                                onSuccess={() => {
+                                    setPaymentModalOpen(false);
+                                    fetchPayments();
+                                    fetchPendingCommits();
+                                }}
+                                onCancel={() => setPaymentModalOpen(false)}
+                            />
                         </div>
                     </div>
                 </div>

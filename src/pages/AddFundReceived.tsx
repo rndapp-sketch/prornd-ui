@@ -179,6 +179,13 @@ const AddFundReceived: React.FC = () => {
         { revalidateOnFocus: false }
     );
 
+    // Fetch previous Fund Received Data for validation
+    const { data: previousFundsData } = useFrappeGetCall(
+        "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
+        { prjreg_title: projectName, limit: 1000 },
+        { revalidateOnFocus: false, isPaused: () => !projectName }
+    );
+
     useEffect(() => {
         if (projectName) {
             fetchFormData({ doc_name: projectName });
@@ -319,6 +326,101 @@ const AddFundReceived: React.FC = () => {
         e.preventDefault();
         if (isSubmitting) return;
         setIsSubmitting(true);
+
+        // Get selected sanction for validation
+        const selectedSanction = formData.sanction_ref_no
+            ? sanctionData?.message?.find((s: any) => s.name === formData.sanction_ref_no)
+            : sanctionData?.message?.[0];
+
+        // --- VALIDATION LOGIC ---
+        try {
+            if (!selectedSanction) {
+                // If checking against sanction is mandatory:
+                // throw new Error("No Sanction details found. Cannot validate limits.");
+                // Or just warn/log if it's optional (unlikely for funds).
+                console.warn("No sanction found for validation.");
+            } else {
+                // 1. Calculate Previous Totals (Total & Per Head)
+                let prevTotal = 0;
+                const prevHeadTotals: Record<string, number> = {};
+
+                const rawFunds = previousFundsData?.message?.message || previousFundsData?.message || [];
+                // Filter for funds linked to THIS sanction
+                const relevantFunds = Array.isArray(rawFunds)
+                    ? rawFunds.filter((f: any) => f.sanction_ref_no === selectedSanction.name)
+                    : [];
+
+                relevantFunds.forEach((fund: any) => {
+                    if (fund.received_amt_breakup && Array.isArray(fund.received_amt_breakup)) {
+                        fund.received_amt_breakup.forEach((item: any) => {
+                            const amt = item.amount_received || 0;
+                            const head = item.account_head;
+                            prevTotal += amt;
+                            if (head) {
+                                prevHeadTotals[head] = (prevHeadTotals[head] || 0) + amt;
+                            }
+                        });
+                    }
+                });
+
+                // 2. Calculate Current Totals from Form Data
+                let currentTotal = 0;
+                const currentHeadTotals: Record<string, number> = {};
+
+                (formData.received_amt_breakup || []).forEach((row: any) => {
+                    const amt = row.amount_received ? parseFloat(row.amount_received) : 0;
+                    const head = row.account_head;
+                    currentTotal += amt;
+                    if (head) {
+                        currentHeadTotals[head] = (currentHeadTotals[head] || 0) + amt;
+                    }
+                });
+
+                // 3. Validate Total Amount
+                const totalSanctioned = selectedSanction.total_sanctioned_amount || 0;
+                const newTotalReceived = prevTotal + currentTotal;
+
+                if (newTotalReceived > totalSanctioned) {
+                    throw new Error(`Total funds received (₹${newTotalReceived.toLocaleString()}) exceeds the total sanctioned amount (₹${totalSanctioned.toLocaleString()}). Previous: ₹${prevTotal.toLocaleString()}, Current: ₹${currentTotal.toLocaleString()}`);
+                }
+
+                // 4. Validate Head-wise Amount
+                // Create a map of sanctioned amounts per head
+                const sanctionedHeadMap: Record<string, number> = {};
+                if (selectedSanction.sanctioned_budget_breakup && Array.isArray(selectedSanction.sanctioned_budget_breakup)) {
+
+                    // Helper to get active years keys
+                    const yearKeys = ['first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget'];
+
+                    selectedSanction.sanctioned_budget_breakup.forEach((row: any) => {
+                        // Sum up all years for this head
+                        const headTotalSanctioned = yearKeys.reduce((sum, key) => sum + (row[key] || 0), 0);
+                        sanctionedHeadMap[row.account_head] = headTotalSanctioned;
+                    });
+                }
+
+                // Check each head in current form
+                for (const head in currentHeadTotals) {
+                    const currentAmt = currentHeadTotals[head];
+                    // Only validate if we have a sanctioned limit for this head
+                    // (Optional: if head not in sanction, maybe allow or block? Assuming strict check if head exists in sanction list)
+
+                    if (sanctionedHeadMap[head] !== undefined) {
+                        const prevAmt = prevHeadTotals[head] || 0;
+                        const totalForHead = prevAmt + currentAmt;
+                        const limit = sanctionedHeadMap[head];
+
+                        if (totalForHead > limit) {
+                            throw new Error(`Amount for '${head}' (₹${totalForHead.toLocaleString()}) exceeds sanctioned limit (₹${limit.toLocaleString()}). Previous: ₹${prevAmt.toLocaleString()}, Current: ₹${currentAmt.toLocaleString()}`);
+                        }
+                    }
+                }
+            }
+        } catch (validationError: any) {
+            alert(validationError.message);
+            setIsSubmitting(false);
+            return;
+        }
 
         try {
             const dataToSubmit: { [key: string]: any } = {};
@@ -489,6 +591,8 @@ const AddFundReceived: React.FC = () => {
     const projectTitle = result?.message?.related_project_data?.project_title || projectName;
 
     // Get selected sanction details based on sanction_ref_no
+    // Note: This logic is also duplicated in handleSubmit for validation.
+    // Keeping it here for UI display.
     const selectedSanction = formData.sanction_ref_no
         ? sanctionData?.message?.find((s: any) => s.name === formData.sanction_ref_no)
         : sanctionData?.message?.[0];

@@ -335,7 +335,7 @@ const ReimbursementDetails: React.FC = () => {
             await submitCommit({
                 doctype: "Reimbursement",
                 name: id,
-                project_name: data.project_number,
+                project_name: data.project_name,
                 commit_amount: parseFloat(commitAmount),
                 budget_head: commitHead,
                 bmr: "" // Optional BMR
@@ -360,7 +360,7 @@ const ReimbursementDetails: React.FC = () => {
             await submitPayment({
                 doctype: "Reimbursement",
                 name: id,
-                project_name: data.project_number,
+                project_name: data.project_name,
                 payment_amount: parseFloat(paymentAmount),
                 budget_head: commitHead,
                 bmr: "" // Optional BMR

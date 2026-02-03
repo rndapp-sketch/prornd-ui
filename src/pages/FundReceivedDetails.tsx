@@ -480,6 +480,7 @@ const FundReceivedDetails = () => {
     const [depositFormLoading, setDepositFormLoading] = useState(false);
     const [showActivityLog, setShowActivityLog] = useState(false);
     const [childTableMeta, setChildTableMeta] = useState<Record<string, any>>({});
+    const [resolvedHeadNames, setResolvedHeadNames] = useState<Record<string, string>>({});
 
     // Fetch fund received data (conditional fetch: only when prjreg_title exists)
     const { data: apiData, isLoading: listLoading, error: listError, mutate } = useFrappeGetCall(
@@ -505,6 +506,51 @@ const FundReceivedDetails = () => {
 
     const isLoading = listLoading || (!listData && docLoading);
     const error = listError || (!listData && docError);
+
+    // Resolve budget head names
+    React.useEffect(() => {
+        const resolveBudgetHeadNames = async () => {
+            if (!fundData?.received_amt_breakup) return;
+
+            const breakup = fundData.received_amt_breakup;
+            const uniqueHeadIds = [...new Set(breakup.map((row: any) => row.account_head).filter(Boolean))];
+
+            const nameMap: Record<string, string> = {};
+
+            for (const headId of uniqueHeadIds) {
+                try {
+                    const response = await fetch('/api/method/frappe.client.get_list', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            doctype: 'Budget Head',
+                            filters: { name: headId },
+                            fields: ['name', 'budget_head', 'id'],
+                            limit_page_length: 1
+                        })
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        console.log(`[FundReceivedDetails] API result for ${headId}:`, result);
+                        const list = result.message;
+                        if (list && list.length > 0) {
+                            const d = list[0];
+                            console.log(`[FundReceivedDetails] Data for ${headId}:`, d, 'budget_head:', d.budget_head);
+                            // Use budget_head as the name
+                            nameMap[headId as string] = d.budget_head || d.name;
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Failed to resolve budget head: ${headId}`, err);
+                }
+            }
+            console.log('[FundReceivedDetails] resolvedHeadNames:', nameMap);
+            setResolvedHeadNames(nameMap);
+        };
+        resolveBudgetHeadNames();
+    }, [fundData]);
 
     const showDepositSlip = isRndMiscellaneous && (docData?.workflow_state === "Pending Misc. Staff Approval(Deposit Slip Pending)" || listData?.workflow_state === "Pending Misc. Staff Approval(Deposit Slip Pending)");
 
@@ -667,6 +713,39 @@ const FundReceivedDetails = () => {
                     }
                 }
                 setLinkOptions(prev => ({ ...prev, ...(link_options || {}) }));
+
+                // Fetch missing link options for known child table requirements
+                const missingDoctypes = ['Department_prornd', 'User', 'Budget Head'];
+                for (const dt of missingDoctypes) {
+                    // Check if we already have options for this Doctype (either from API response or previous fetch)
+                    // We check link_options (from API) and the key itself
+                    if (!link_options?.[dt]) {
+                        try {
+                            const listResp = await fetch('/api/method/frappe.client.get_list', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({
+                                    doctype: dt,
+                                    fields: dt === 'User' ? ['name', 'full_name'] :
+                                        dt === 'Department_prornd' ? ['name', 'dept_name'] :
+                                            dt === 'Budget Head' ? ['*'] : ['name'],
+                                    limit_page_length: 500
+                                })
+                            });
+                            const listJson = await listResp.json();
+                            if (listJson.message) {
+                                const opts = listJson.message.map((d: any) => ({
+                                    label: d.dept_name || d.full_name || d.budget_head || d.head_name || d.account_head || d.title || d.name,
+                                    value: d.name
+                                }));
+                                setLinkOptions(prev => ({ ...prev, [dt]: opts }));
+                            }
+                        } catch (e) {
+                            console.error(`Failed to fetch options for ${dt}`, e);
+                        }
+                    }
+                }
             }
         } catch (err) {
             console.error("Failed to load deposit slip fields:", err);
@@ -903,12 +982,33 @@ const FundReceivedDetails = () => {
 
                                                             if (meta && meta.fields) {
                                                                 // Build columns from child_table_meta.fields
-                                                                const columns = meta.fields.map((f: any) => ({
-                                                                    key: f.fieldname,
-                                                                    label: f.label || f.fieldname,
-                                                                    type: f.fieldtype,
-                                                                    options: f.options ? linkOptions[f.fieldname] || [] : undefined
-                                                                }));
+                                                                const columns = meta.fields
+                                                                    .filter((f: any) => !['Section Break', 'Column Break', 'SectionBreak', 'ColumnBreak'].includes(f.fieldtype))
+                                                                    .map((f: any) => {
+                                                                        let opts: any[] = [];
+                                                                        let type = f.fieldtype;
+
+                                                                        // Special handling for Budget Head / Account Head
+                                                                        if (['account_head', 'budget_head', 'head'].includes(f.fieldname)) {
+                                                                            opts = linkOptions['Budget Head'] || linkOptions['budget_head'] || [];
+                                                                            if (opts.length > 0) type = 'Link'; // Force Select rendering
+                                                                        }
+
+                                                                        if (opts.length === 0) {
+                                                                            if (f.fieldtype === 'Select' && typeof f.options === 'string') {
+                                                                                opts = f.options.split('\n').filter((o: string) => o.trim() !== '').map((o: string) => ({ label: o, value: o }));
+                                                                            } else if (f.options) {
+                                                                                opts = linkOptions[f.fieldname] || linkOptions[f.options] || [];
+                                                                            }
+                                                                        }
+
+                                                                        return {
+                                                                            key: f.fieldname,
+                                                                            label: f.label || f.fieldname,
+                                                                            type: type,
+                                                                            options: opts
+                                                                        };
+                                                                    });
 
                                                                 // Build newRowTemplate with default values
                                                                 const newRowTemplate: Record<string, any> = {
@@ -946,6 +1046,10 @@ const FundReceivedDetails = () => {
                                                                 tableConfig
                                                             });
                                                         }
+                                                    } else if (field.fieldtype === 'Column Break' || field.fieldtype === 'ColumnBreak') {
+                                                        // Explicitly ignore Column Break when adding to fields list
+                                                        // (In a grid layout we might use it, but here we just want to hide it from being a text input)
+                                                        // do nothing
                                                     } else {
                                                         // Only add field if current section is visible
                                                         if (currentSection) {
@@ -1039,7 +1143,7 @@ const FundReceivedDetails = () => {
                                     <tbody className="divide-y divide-gray-300 bg-white">
                                         {received_amt_breakup?.map((item: any, idx: number) => (
                                             <tr key={item.name || idx} className="divide-x divide-gray-300 hover:bg-gray-50">
-                                                <td className="px-3 py-2 text-sm font-medium text-black">{item.account_head}</td>
+                                                <td className="px-3 py-2 text-sm font-medium text-black">{resolvedHeadNames[item.account_head] || item.account_head}</td>
                                                 <td className="px-3 py-2 text-sm text-right font-bold text-[#0EA5A4]">
                                                     {item.amount_received?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
                                                 </td>

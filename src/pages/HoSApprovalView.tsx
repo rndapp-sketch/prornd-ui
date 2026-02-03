@@ -74,7 +74,8 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                 try {
                     // Use /api/v2/document/ endpoint for filtering
                     const response = await fetch(
-                        `/api/v2/document/${encodeURIComponent(doctype)}?filters=[["fund_received_ref","=","${fundReceivedName}"]]`
+                        `/api/v2/document/${encodeURIComponent(doctype)}?filters=[["fund_received_ref","=","${fundReceivedName}"]]`,
+                        { credentials: 'include' }
                     );
 
                     // Skip if not found or error (some doctypes may not have fund_received_ref field)
@@ -87,7 +88,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                     if (result.data && result.data.length > 0) {
                         // Found a matching deposit slip, fetch full document
                         const docName = result.data[0].name;
-                        const docResponse = await fetch(`/api/v2/document/${encodeURIComponent(doctype)}/${encodeURIComponent(docName)}`);
+                        const docResponse = await fetch(`/api/v2/document/${encodeURIComponent(doctype)}/${encodeURIComponent(docName)}`, { credentials: 'include' });
                         if (docResponse.ok) {
                             const docResult = await docResponse.json();
                             setDepositSlip(docResult.data);
@@ -122,12 +123,27 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
 
             for (const headId of uniqueHeadIds) {
                 try {
-                    const response = await fetch(`/api/resource/Budget Head/${headId}`);
+                    const response = await fetch('/api/method/frappe.client.get_list', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            doctype: 'Budget Head',
+                            filters: { name: headId },
+                            fields: ['name', 'budget_head', 'id'],
+                            limit_page_length: 1
+                        })
+                    });
+
                     if (response.ok) {
                         const result = await response.json();
-                        if (result?.data?.budget_head) {
-                            nameMap[headId as string] = result.data.budget_head;
+                        const list = result.message;
+                        if (list && list.length > 0) {
+                            const d = list[0];
+                            nameMap[headId as string] = d.budget_head || d.name;
                         }
+                    } else {
+                        console.warn(`Budget Head fetch failed for ${headId}: ${response.status}`);
                     }
                 } catch (err) {
                     console.error(`Failed to resolve budget head: ${headId}`, err);
@@ -309,7 +325,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                 </div>
             </div>
 
-            <FrappeCard className="bg-[#E0F7F6] border-[#0EA5A4]">
+            {/* <FrappeCard className="bg-[#E0F7F6] border-[#0EA5A4]">
                 <div className="flex justify-between items-center">
                     <div>
                         <p className="font-bold text-[#0EA5A4] uppercase text-xs">Total Reconciliation</p>
@@ -321,7 +337,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                         </p>
                     </div>
                 </div>
-            </FrappeCard>
+            </FrappeCard> */}
 
         </div>
     );
