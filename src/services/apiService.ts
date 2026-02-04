@@ -41,6 +41,15 @@ export const resignationAPI = {
     getList: `${API_BASE}.project_staff_resignation.project_staff_resignation.get_project_staff_resignation_list`,
 };
 
+// Temporary Advance API endpoints
+export const temporaryAdvanceAPI = {
+    getFields: `${API_BASE}.temporary_advance.temporary_advance.get_temporary_advance_fields`,
+    save: `${API_BASE}.temporary_advance.temporary_advance.save_temporary_advance`,
+    submit: `${API_BASE}.temporary_advance.temporary_advance.submit_temporary_advance`,
+    getWorkflowActions: `${API_BASE}.temporary_advance.temporary_advance.get_temporary_advance_workflow_actions`,
+    performAction: `${API_BASE}.temporary_advance.temporary_advance.perform_temporary_advance_action`,
+};
+
 // Common utility to get user details
 export const commonAPI = {
     getUserDetails: `${API_BASE}.project_registration.project_registration.get_user_details_for_pi`,

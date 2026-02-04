@@ -217,6 +217,11 @@ const TemporaryAdvanceDetails: React.FC = () => {
                             <p className="text-sm text-gray-500 mt-1 font-medium">Temporary Advance Request</p>
                         </div>
                     </div>
+
+                    {/* Workflow Action Buttons */}
+                    <div className="flex items-center gap-3">
+                        {id && <TemporaryAdvanceActionButtons docname={id} onActionComplete={() => window.location.reload()} />}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -240,34 +245,64 @@ const TemporaryAdvanceDetails: React.FC = () => {
                         <FrappeCard title="Advance Information">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Amount Applied</label>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Amount</label>
                                     <div className="text-2xl font-black text-[#0EA5A4]">
-                                        ₹ {data.amount_applied?.toLocaleString('en-IN') || "0"}
+                                        ₹ {(data.amount || data.amount_applied || 0).toLocaleString('en-IN')}
                                     </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Account Head</label>
+                                    <div className="font-semibold text-gray-900">{data.account_head || "-"}</div>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Requested By</label>
                                     <div className="font-semibold text-gray-900">{data.owner}</div>
                                 </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Applying For</label>
+                                    <div className="font-semibold text-gray-900">{data.appplying_for_select || "-"}</div>
+                                </div>
                             </div>
 
                             <div className="space-y-4">
-                                {data.reason && (
+                                {(data.justification || data.reason || data.purpose) && (
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Reason</label>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Justification</label>
                                         <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 text-sm whitespace-pre-wrap">
-                                            {data.reason}
+                                            {data.justification || data.reason || data.purpose || "-"}
                                         </div>
                                     </div>
                                 )}
-                                {data.purpose && (
+                                {data.comments && (
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Purpose</label>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Comments</label>
                                         <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 text-sm whitespace-pre-wrap">
-                                            {data.purpose}
+                                            {data.comments}
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        </FrappeCard>
+
+                        {/* Bank Details Card */}
+                        <FrappeCard title="Bank Details">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Bank Name</label>
+                                    <div className="font-semibold text-gray-900">{data.bank_name || "-"}</div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Account Holder Name</label>
+                                    <div className="font-semibold text-gray-900">{data.account || "-"}</div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Account Number</label>
+                                    <div className="font-semibold text-gray-900 font-mono">{data.bank_account_number || "-"}</div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">IFSC Code</label>
+                                    <div className="font-semibold text-gray-900 font-mono">{data.ifsc_code || "-"}</div>
+                                </div>
                             </div>
                         </FrappeCard>
 
@@ -309,6 +344,37 @@ const TemporaryAdvanceDetails: React.FC = () => {
                                 </div>
                             </div>
                         </FrappeCard>
+
+                        {/* Documents Section */}
+                        {data.documents && (
+                            <FrappeCard title="Attachments">
+                                <div className="space-y-3">
+                                    {Array.isArray(data.documents) ? (
+                                        data.documents.map((doc: any, idx: number) => (
+                                            <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                                <span className="text-sm font-medium text-gray-900">{doc.file_name || doc.name || `Document ${idx + 1}`}</span>
+                                                {doc.file_url && (
+                                                    <a
+                                                        href={doc.file_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-[#0EA5A4] hover:underline text-sm font-medium"
+                                                    >
+                                                        View
+                                                    </a>
+                                                )}
+                                            </div>
+                                        ))
+                                    ) : typeof data.documents === 'string' ? (
+                                        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 text-sm">
+                                            {data.documents}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-gray-500 italic">No documents attached</p>
+                                    )}
+                                </div>
+                            </FrappeCard>
+                        )}
                     </div>
 
                     {/* Sidebar - Right Column (1/3 width) - Restored and Enhanced */}

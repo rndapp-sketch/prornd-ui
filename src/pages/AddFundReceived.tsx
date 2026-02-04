@@ -101,6 +101,53 @@ const MemoizedTransactionsTable = memo(({ tableData, onRowChange, onFileChange, 
     );
 });
 
+// Progress Bar Component
+const ProgressBar = ({ current, total, label, showWarning }: { current: number; total: number; label: string; showWarning: boolean }) => {
+    const percentage = total > 0 ? Math.min((current / total) * 100, 100) : 0;
+    const isOverLimit = current > total;
+
+    return (
+        <div className="space-y-1">
+            <div className="flex justify-between text-xs font-medium">
+                <span className={isOverLimit ? 'text-red-600' : 'text-gray-700'}>{label}</span>
+                <span className={isOverLimit ? 'text-red-600 font-bold' : 'text-gray-600'}>
+                    ₹{current.toLocaleString()} / ₹{total.toLocaleString()}
+                </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                <div
+                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                        isOverLimit
+                            ? 'bg-red-600'
+                            : percentage > 90
+                                ? 'bg-yellow-500'
+                                : 'bg-green-500'
+                    }`}
+                    style={{ width: `${percentage}%` }}
+                />
+            </div>
+            {showWarning && isOverLimit && (
+                <p className="text-xs text-red-600 font-semibold">⚠️ Exceeds limit by ₹{(current - total).toLocaleString()}</p>
+            )}
+        </div>
+    );
+};
+
+// Validation Alert Component
+const ValidationAlert = ({ isValid, message, type = 'total' }: { isValid: boolean; message: string; type?: 'total' | 'head' }) => {
+    if (!message || message === 'No sanction selected') return null;
+
+    return (
+        <div className={`p-3 rounded-lg border ${
+            isValid
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : 'bg-red-50 border-red-300 text-red-800'
+        }`}>
+            <p className="text-sm font-medium">{message}</p>
+        </div>
+    );
+};
+
 const MemoizedBudgetBreakupTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRow, budgetHeadOptions }: any) => {
     const options = budgetHeadOptions.length > 0 ? budgetHeadOptions : ['Consumables', 'Equipment', 'Contingency', 'Travel', 'Manpower', 'Overhead', 'Other'];
     return (
@@ -153,6 +200,26 @@ const MemoizedBudgetBreakupTable = memo(({ tableData, onRowChange, onAddRow, onD
     );
 });
 
+// Validation state interface
+interface ValidationState {
+    totalValidation: {
+        isValid: boolean;
+        message: string;
+        currentTotal: number;
+        previousTotal: number;
+        sanctionedTotal: number;
+        remaining: number;
+    };
+    headValidations: Record<string, {
+        isValid: boolean;
+        message: string;
+        currentTotal: number;
+        previousTotal: number;
+        sanctionedLimit: number;
+        remaining: number;
+    }>;
+}
+
 const AddFundReceived: React.FC = () => {
     const navigate = useNavigate();
     const { projectName } = useParams<{ projectName: string }>();
@@ -167,6 +234,17 @@ const AddFundReceived: React.FC = () => {
     const [budgetHeadOptions, setBudgetHeadOptions] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [validationState, setValidationState] = useState<ValidationState>({
+        totalValidation: {
+            isValid: true,
+            message: '',
+            currentTotal: 0,
+            previousTotal: 0,
+            sanctionedTotal: 0,
+            remaining: 0
+        },
+        headValidations: {}
+    });
 
     const { call: fetchFormData, result, error } = useFrappePostCall<FormDataResponse>('rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_fields');
     const { call: submitForm, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_received.fund_received.save_fund_received');
@@ -250,6 +328,125 @@ const AddFundReceived: React.FC = () => {
         }
     }, [formData.gst_invoice_issued]);
 
+    // Real-time validation function
+    const performValidation = useCallback(() => {
+        const selectedSanction = formData.sanction_ref_no
+            ? sanctionData?.message?.find((s: any) => s.name === formData.sanction_ref_no)
+            : sanctionData?.message?.[0];
+
+        if (!selectedSanction) {
+            setValidationState({
+                totalValidation: {
+                    isValid: true,
+                    message: 'No sanction selected',
+                    currentTotal: 0,
+                    previousTotal: 0,
+                    sanctionedTotal: 0,
+                    remaining: 0
+                },
+                headValidations: {}
+            });
+            return;
+        }
+
+        // 1. Calculate Previous Totals (Total & Per Head)
+        let prevTotal = 0;
+        const prevHeadTotals: Record<string, number> = {};
+
+        const rawFunds = previousFundsData?.message?.message || previousFundsData?.message || [];
+        const relevantFunds = Array.isArray(rawFunds)
+            ? rawFunds.filter((f: any) => f.sanction_ref_no === selectedSanction.name)
+            : [];
+
+        relevantFunds.forEach((fund: any) => {
+            if (fund.received_amt_breakup && Array.isArray(fund.received_amt_breakup)) {
+                fund.received_amt_breakup.forEach((item: any) => {
+                    const amt = item.amount_received || 0;
+                    const head = item.account_head;
+                    prevTotal += amt;
+                    if (head) {
+                        prevHeadTotals[head] = (prevHeadTotals[head] || 0) + amt;
+                    }
+                });
+            }
+        });
+
+        // 2. Calculate Current Totals from Form Data
+        let currentTotal = 0;
+        const currentHeadTotals: Record<string, number> = {};
+
+        (formData.received_amt_breakup || []).forEach((row: any) => {
+            const amt = row.amount_received ? parseFloat(row.amount_received) : 0;
+            const head = row.account_head;
+            currentTotal += amt;
+            if (head) {
+                currentHeadTotals[head] = (currentHeadTotals[head] || 0) + amt;
+            }
+        });
+
+        // 3. Validate Total Amount
+        const totalSanctioned = selectedSanction.total_sanctioned_amount || 0;
+        const newTotalReceived = prevTotal + currentTotal;
+        const remainingTotal = totalSanctioned - newTotalReceived;
+
+        const totalValidation = {
+            isValid: newTotalReceived <= totalSanctioned,
+            message: newTotalReceived > totalSanctioned
+                ? `⚠️ EXCEEDS sanctioned amount by ₹${(newTotalReceived - totalSanctioned).toLocaleString()}`
+                : remainingTotal > 0
+                    ? `✓ ₹${remainingTotal.toLocaleString()} remaining`
+                    : '✓ Full amount utilized',
+            currentTotal,
+            previousTotal: prevTotal,
+            sanctionedTotal: totalSanctioned,
+            remaining: remainingTotal
+        };
+
+        // 4. Validate Head-wise Amount
+        const sanctionedHeadMap: Record<string, number> = {};
+        if (selectedSanction.sanctioned_budget_breakup && Array.isArray(selectedSanction.sanctioned_budget_breakup)) {
+            const yearKeys = ['first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget'];
+            selectedSanction.sanctioned_budget_breakup.forEach((row: any) => {
+                const headTotalSanctioned = yearKeys.reduce((sum, key) => sum + (row[key] || 0), 0);
+                sanctionedHeadMap[row.account_head] = headTotalSanctioned;
+            });
+        }
+
+        const headValidations: Record<string, any> = {};
+
+        // Check all heads that have sanctioned amounts
+        Object.keys(sanctionedHeadMap).forEach(head => {
+            const currentAmt = currentHeadTotals[head] || 0;
+            const prevAmt = prevHeadTotals[head] || 0;
+            const totalForHead = prevAmt + currentAmt;
+            const limit = sanctionedHeadMap[head];
+            const remaining = limit - totalForHead;
+
+            headValidations[head] = {
+                isValid: totalForHead <= limit,
+                message: totalForHead > limit
+                    ? `⚠️ EXCEEDS by ₹${(totalForHead - limit).toLocaleString()}`
+                    : remaining > 0
+                        ? `✓ ₹${remaining.toLocaleString()} remaining`
+                        : '✓ Fully utilized',
+                currentTotal: currentAmt,
+                previousTotal: prevAmt,
+                sanctionedLimit: limit,
+                remaining
+            };
+        });
+
+        setValidationState({
+            totalValidation,
+            headValidations
+        });
+    }, [formData, sanctionData, previousFundsData]);
+
+    // Trigger validation whenever form data changes
+    useEffect(() => {
+        performValidation();
+    }, [performValidation]);
+
     // --- FORM HANDLERS ---
     const handleChange = useCallback((fieldname: string, value: any) => {
         setFormData(prev => ({ ...prev, [fieldname]: value }));
@@ -327,95 +524,63 @@ const AddFundReceived: React.FC = () => {
         if (isSubmitting) return;
         setIsSubmitting(true);
 
-        // Get selected sanction for validation
-        const selectedSanction = formData.sanction_ref_no
-            ? sanctionData?.message?.find((s: any) => s.name === formData.sanction_ref_no)
-            : sanctionData?.message?.[0];
-
-        // --- VALIDATION LOGIC ---
+        // --- ENHANCED VALIDATION LOGIC WITH DETAILED MESSAGES ---
         try {
-            if (!selectedSanction) {
-                // If checking against sanction is mandatory:
-                // throw new Error("No Sanction details found. Cannot validate limits.");
-                // Or just warn/log if it's optional (unlikely for funds).
-                console.warn("No sanction found for validation.");
-            } else {
-                // 1. Calculate Previous Totals (Total & Per Head)
-                let prevTotal = 0;
-                const prevHeadTotals: Record<string, number> = {};
-
-                const rawFunds = previousFundsData?.message?.message || previousFundsData?.message || [];
-                // Filter for funds linked to THIS sanction
-                const relevantFunds = Array.isArray(rawFunds)
-                    ? rawFunds.filter((f: any) => f.sanction_ref_no === selectedSanction.name)
-                    : [];
-
-                relevantFunds.forEach((fund: any) => {
-                    if (fund.received_amt_breakup && Array.isArray(fund.received_amt_breakup)) {
-                        fund.received_amt_breakup.forEach((item: any) => {
-                            const amt = item.amount_received || 0;
-                            const head = item.account_head;
-                            prevTotal += amt;
-                            if (head) {
-                                prevHeadTotals[head] = (prevHeadTotals[head] || 0) + amt;
-                            }
-                        });
-                    }
-                });
-
-                // 2. Calculate Current Totals from Form Data
-                let currentTotal = 0;
-                const currentHeadTotals: Record<string, number> = {};
-
-                (formData.received_amt_breakup || []).forEach((row: any) => {
-                    const amt = row.amount_received ? parseFloat(row.amount_received) : 0;
-                    const head = row.account_head;
-                    currentTotal += amt;
-                    if (head) {
-                        currentHeadTotals[head] = (currentHeadTotals[head] || 0) + amt;
-                    }
-                });
-
-                // 3. Validate Total Amount
-                const totalSanctioned = selectedSanction.total_sanctioned_amount || 0;
-                const newTotalReceived = prevTotal + currentTotal;
-
-                if (newTotalReceived > totalSanctioned) {
-                    throw new Error(`Total funds received (₹${newTotalReceived.toLocaleString()}) exceeds the total sanctioned amount (₹${totalSanctioned.toLocaleString()}). Previous: ₹${prevTotal.toLocaleString()}, Current: ₹${currentTotal.toLocaleString()}`);
-                }
-
-                // 4. Validate Head-wise Amount
-                // Create a map of sanctioned amounts per head
-                const sanctionedHeadMap: Record<string, number> = {};
-                if (selectedSanction.sanctioned_budget_breakup && Array.isArray(selectedSanction.sanctioned_budget_breakup)) {
-
-                    // Helper to get active years keys
-                    const yearKeys = ['first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget'];
-
-                    selectedSanction.sanctioned_budget_breakup.forEach((row: any) => {
-                        // Sum up all years for this head
-                        const headTotalSanctioned = yearKeys.reduce((sum, key) => sum + (row[key] || 0), 0);
-                        sanctionedHeadMap[row.account_head] = headTotalSanctioned;
-                    });
-                }
-
-                // Check each head in current form
-                for (const head in currentHeadTotals) {
-                    const currentAmt = currentHeadTotals[head];
-                    // Only validate if we have a sanctioned limit for this head
-                    // (Optional: if head not in sanction, maybe allow or block? Assuming strict check if head exists in sanction list)
-
-                    if (sanctionedHeadMap[head] !== undefined) {
-                        const prevAmt = prevHeadTotals[head] || 0;
-                        const totalForHead = prevAmt + currentAmt;
-                        const limit = sanctionedHeadMap[head];
-
-                        if (totalForHead > limit) {
-                            throw new Error(`Amount for '${head}' (₹${totalForHead.toLocaleString()}) exceeds sanctioned limit (₹${limit.toLocaleString()}). Previous: ₹${prevAmt.toLocaleString()}, Current: ₹${currentAmt.toLocaleString()}`);
-                        }
-                    }
-                }
+            // Check if overall validation state is valid
+            if (!validationState.totalValidation.isValid) {
+                const { currentTotal, previousTotal, sanctionedTotal } = validationState.totalValidation;
+                const exceeded = (currentTotal + previousTotal) - sanctionedTotal;
+                throw new Error(
+                    `❌ TOTAL FUND VALIDATION FAILED\n\n` +
+                    `Total Fund Received: ₹${(currentTotal + previousTotal).toLocaleString()}\n` +
+                    `Sanctioned Amount: ₹${sanctionedTotal.toLocaleString()}\n` +
+                    `Exceeded By: ₹${exceeded.toLocaleString()}\n\n` +
+                    `Breakdown:\n` +
+                    `- Previously Received: ₹${previousTotal.toLocaleString()}\n` +
+                    `- Current Entry: ₹${currentTotal.toLocaleString()}\n\n` +
+                    `Please reduce the current fund amount to stay within sanctioned limits.`
+                );
             }
+
+            // Check head-wise validations
+            const invalidHeads = Object.entries(validationState.headValidations)
+                .filter(([_, validation]) => !validation.isValid);
+
+            if (invalidHeads.length > 0) {
+                const errorDetails = invalidHeads.map(([head, validation]) => {
+                    const exceeded = (validation.currentTotal + validation.previousTotal) - validation.sanctionedLimit;
+                    return (
+                        `\n📌 ${head}:\n` +
+                        `   Total: ₹${(validation.currentTotal + validation.previousTotal).toLocaleString()} ` +
+                        `(Limit: ₹${validation.sanctionedLimit.toLocaleString()})\n` +
+                        `   Exceeded by: ₹${exceeded.toLocaleString()}\n` +
+                        `   - Previous: ₹${validation.previousTotal.toLocaleString()}\n` +
+                        `   - Current: ₹${validation.currentTotal.toLocaleString()}`
+                    );
+                }).join('\n');
+
+                throw new Error(
+                    `❌ BUDGET HEAD VALIDATION FAILED\n\n` +
+                    `${invalidHeads.length} budget head(s) exceed sanctioned limits:` +
+                    errorDetails +
+                    `\n\nPlease adjust the amounts for these budget heads.`
+                );
+            }
+
+            // Get selected sanction for final validation
+            const selectedSanction = formData.sanction_ref_no
+                ? sanctionData?.message?.find((s: any) => s.name === formData.sanction_ref_no)
+                : sanctionData?.message?.[0];
+
+            if (!selectedSanction) {
+                throw new Error("❌ No Sanction details found. Please select a sanction reference before submitting.");
+            }
+
+            // Validation passed - log success
+            console.log('✅ All validations passed:', {
+                total: validationState.totalValidation,
+                heads: validationState.headValidations
+            });
         } catch (validationError: any) {
             alert(validationError.message);
             setIsSubmitting(false);
@@ -686,7 +851,8 @@ const AddFundReceived: React.FC = () => {
 
                     {/* Right: Sanction Details Panel */}
                     <div className="lg:col-span-1">
-                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 sticky top-4">
+                        <div className="sticky top-4 space-y-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
                             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                                 <span className="p-1.5 rounded-lg bg-[#E0F7F6]">📋</span>
                                 Sanction Details
@@ -784,6 +950,85 @@ const AddFundReceived: React.FC = () => {
                                     <p className="text-xs text-gray-400 mt-1">Please add a sanction first.</p>
                                 </div>
                             )}
+                        </div>
+
+                        {/* Validation Summary Panel */}
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mt-6">
+                            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                                <span className="p-1.5 rounded-lg bg-blue-100">✓</span>
+                                Real-time Validation
+                            </h3>
+
+                            {/* Total Budget Validation */}
+                            <div className="space-y-3 mb-4">
+                                <p className="text-xs font-semibold text-gray-500 uppercase">Total Budget Status</p>
+                                <ProgressBar
+                                    current={validationState.totalValidation.previousTotal + validationState.totalValidation.currentTotal}
+                                    total={validationState.totalValidation.sanctionedTotal}
+                                    label="Total Funds"
+                                    showWarning={true}
+                                />
+                                <ValidationAlert
+                                    isValid={validationState.totalValidation.isValid}
+                                    message={validationState.totalValidation.message}
+                                />
+                                <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                                    <div className="bg-gray-50 p-2 rounded">
+                                        <p className="text-gray-500">Previously Received</p>
+                                        <p className="font-bold text-gray-800">₹{validationState.totalValidation.previousTotal.toLocaleString()}</p>
+                                    </div>
+                                    <div className="bg-gray-50 p-2 rounded">
+                                        <p className="text-gray-500">Current Entry</p>
+                                        <p className="font-bold text-blue-600">₹{validationState.totalValidation.currentTotal.toLocaleString()}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Budget Head-wise Validation */}
+                            {Object.keys(validationState.headValidations).length > 0 && (
+                                <div className="pt-4 border-t border-gray-200">
+                                    <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Budget Head Status</p>
+                                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                                        {Object.entries(validationState.headValidations).map(([head, validation]) => (
+                                            <div key={head} className="space-y-2 p-3 bg-gray-50 rounded-lg">
+                                                <p className="font-semibold text-sm text-gray-800">{head}</p>
+                                                <ProgressBar
+                                                    current={validation.previousTotal + validation.currentTotal}
+                                                    total={validation.sanctionedLimit}
+                                                    label=""
+                                                    showWarning={false}
+                                                />
+                                                <div className="flex justify-between text-xs">
+                                                    <span className={validation.isValid ? 'text-green-600' : 'text-red-600'}>
+                                                        {validation.message}
+                                                    </span>
+                                                    <span className="text-gray-600">
+                                                        Prev: ₹{validation.previousTotal.toLocaleString()} |
+                                                        Curr: ₹{validation.currentTotal.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Overall Status Badge */}
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                                {validationState.totalValidation.isValid &&
+                                 Object.values(validationState.headValidations).every(v => v.isValid) ? (
+                                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                                        <p className="text-green-800 font-semibold">✓ Ready to Submit</p>
+                                        <p className="text-xs text-green-600 mt-1">All validations passed</p>
+                                    </div>
+                                ) : (
+                                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                                        <p className="text-red-800 font-semibold">⚠️ Cannot Submit</p>
+                                        <p className="text-xs text-red-600 mt-1">Please fix validation errors above</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                         </div>
                     </div>
                 </div>

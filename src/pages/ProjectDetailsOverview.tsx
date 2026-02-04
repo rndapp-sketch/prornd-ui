@@ -302,22 +302,31 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete }: { docname:
     { revalidateOnFocus: false }
   );
 
-  const { call: handleWorkflowAction, loading: isActionLoading } = useFrappePostCall(
-    "rndopsapp.rndopsapp.api.handle_workflow_action"
+  // Use the specific Temporary Advance action API
+  const { call: performAction, loading: isActionLoading } = useFrappePostCall(
+    "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.perform_temporary_advance_action"
   );
 
   const onAction = async (action: string) => {
     if (!confirm(`Are you sure you want to ${action}?`)) return;
 
     try {
-      await handleWorkflowAction({
-        doctype: "Temporary Advance",
+      const response = await performAction({
         docname: docname,
         action: action
       });
+
+      console.log('Action response:', response);
+
+      // Check for error in response
+      if (response?.message?.status === 'error') {
+        alert(`Failed: ${response.message.message || 'Unknown error'}`);
+        return;
+      }
+
       // Refresh actions
       mutate();
-      // Refresh parent list
+      // Refresh parent list to update workflow_state in table
       onActionComplete();
     } catch (e) {
       console.error("Workflow action failed", e);
@@ -397,6 +406,9 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
       return;
     }
 
+    // Temporary Advance is handled here with manual fetch
+    // if (selectedApplication === "Temporary Advance Apply") { ... }
+
     setIsLoading(true);
     try {
       let data: any[] = [];
@@ -458,6 +470,58 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           console.error('Direct fetch error:', fetchError);
           data = [];
         }
+      } else if (selectedApplication === "Temporary Advance Apply") {
+        try {
+          console.log('=== FETCHING TEMPORARY ADVANCE (V2) ===');
+          const timestamp = Date.now();
+          // Use v2 API as verified by user, fields=* to see everything
+          // Note: v2 API structure might differ slightly, but usually returns { data: [...] }
+          const apiUrl = `/api/v2/document/Temporary Advance?fields=["*"]&limit_page_length=0&_=${timestamp}`;
+
+          const fetchResponse = await fetch(apiUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            credentials: 'include'
+          });
+
+          if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+
+          const result = await fetchResponse.json();
+          const allItems = result?.data || [];
+          console.log('Temporary Advance V2 raw items:', allItems);
+
+          if (allItems.length > 0) {
+            console.log('First item keys:', Object.keys(allItems[0]));
+            console.log('First item project fields:', {
+              project: allItems[0].project,
+              project_code: allItems[0].project_code,
+              project_name: allItems[0].project_name,
+              name: allItems[0].name
+            });
+          }
+
+          // DEBUG: Show ALL items for now to verify data presence
+          // const projectNameLower = projectName?.toLowerCase() || '';
+          // data = allItems.filter((item: any) => {
+          //    const itemStr = JSON.stringify(item).toLowerCase();
+          //    return itemStr.includes(projectNameLower);
+          // });
+          data = allItems; // SHOW ALL
+          console.log(`Showing ALL ${data.length} items (Filter Disabled Debug Mode)`);
+
+          // Map for display consistency
+          data = data.map((item: any) => ({
+            ...item,
+            // Explicitly use workflow_state if present, otherwise fallback to DocStatus
+            workflow_state: item.workflow_state || (item.docstatus === 1 ? "Submitted" : item.docstatus === 2 ? "Cancelled" : "Draft"),
+            applicant_webmail: item.applicant_webmail || item.owner // Ensure this is set
+          }));
+
+          console.log(`Filtered ${data.length} Temporary Advance items`);
+        } catch (fetchError) {
+          console.error('Temporary Advance fetch error:', fetchError);
+          data = [];
+        }
       } else if (selectedApplication === "Project Staff Resignation") {
         const response = await fetchReimbursements({
           doctype: "Project Staff Resignation",
@@ -471,43 +535,6 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           workflow_state: item.docstatus === 1 ? "Submitted" : item.docstatus === 2 ? "Cancelled" : "Draft",
           applicant_webmail: item.applicant_email_id // Map for display consistency
         }));
-      } else if (selectedApplication === "Temporary Advance Apply") {
-        try {
-          console.log('=== FETCHING TEMPORARY ADVANCE REVISED ===');
-          // Fetch ALL fields to ensure we don't miss the project link field
-          const apiUrl = `/api/resource/Temporary Advance?limit_page_length=0`;
-          const fetchResponse = await fetch(apiUrl, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' },
-            credentials: 'include'
-          });
-          if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status} `);
-          const result = await fetchResponse.json();
-          const allItems = result?.data || [];
-          console.log('Temporary Advance raw items:', allItems);
-
-          // Filter by project
-          const projectNameLower = projectName?.toLowerCase() || '';
-          data = allItems.filter((item: any) => {
-            // Check ANY potential project field
-            const pCode = (item.project_code || '').toLowerCase();
-            const pName = (item.project_name || '').toLowerCase();
-            const pId = (item.project || '').toLowerCase(); // 'project' is often the field name
-
-            return pCode === projectNameLower ||
-              pCode.includes(projectNameLower) ||
-              projectNameLower.includes(pCode) ||
-              pName === projectNameLower ||
-              pName.includes(projectNameLower) ||
-              projectNameLower.includes(pName) ||
-              pId === projectNameLower ||
-              pId.includes(projectNameLower);
-          });
-          console.log('Filtered Temporary Advance items:', data);
-        } catch (fetchError) {
-          console.error('Temporary Advance fetch error:', fetchError);
-          data = [];
-        }
       } else if (selectedApplication === "Rate Contract") {
         try {
           const apiUrl = `/api/resource/Rate Contract?fields=["name","creation","workflow_state","owner","project_name","email_id"]&order_by=creation desc&limit_page_length=0`;
