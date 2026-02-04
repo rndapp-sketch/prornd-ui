@@ -579,14 +579,14 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
         }
       } else if (selectedApplication === "Travel") {
         try {
-          // Fetch both Travel Apply and TA DA Settlement
-          const travelPromise = fetch(`/api/resource/Travel?fields=["name","creation","workflow_state","owner","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation desc&limit_page_length=0`, {
+          // Use v2 API which works correctly
+          const travelPromise = fetch(`/api/v2/document/Travel?fields=["name","creation","workflow_state","owner","travel_project_title","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation desc&limit_page_length=0`, {
             method: 'GET',
             headers: { 'Accept': 'application/json' },
             credentials: 'include'
           }).then(res => res.ok ? res.json() : { data: [] });
 
-          const settlementPromise = fetch(`/api/resource/TA DA Settlement?fields=["name","creation","workflow_state","owner","ta_da_project_code","ta_da_name"]&order_by=creation desc&limit_page_length=0`, {
+          const settlementPromise = fetch(`/api/v2/document/TA DA Settlement?fields=["name","creation","workflow_state","owner","ta_da_project_code","ta_da_name"]&order_by=creation desc&limit_page_length=0`, {
             method: 'GET',
             headers: { 'Accept': 'application/json' },
             credentials: 'include'
@@ -594,13 +594,19 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
 
           const [travelRes, settlementRes] = await Promise.all([travelPromise, settlementPromise]);
 
+          console.log('[Travel Fetch] Raw travelRes.data:', travelRes.data);
+          console.log('[Travel Fetch] Filtering by travel_project_title:', projectName);
+
+          // Filter by travel_project_title which contains the project ID
           const travelItems = (travelRes.data || [])
-            .filter((item: any) => item.travel_project_number === projectName)
+            .filter((item: any) => item.travel_project_title === projectName)
             .map((item: any) => ({
               ...item,
               applicant_webmail: item.webmail_id_travel,
               type: 'Travel Apply'
             }));
+
+          console.log('[Travel Fetch] Filtered travelItems:', travelItems.length, 'items');
 
           const settlementItems = (settlementRes.data || [])
             .filter((item: any) => item.ta_da_project_code === projectName)
@@ -614,6 +620,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           data = [...travelItems, ...settlementItems].sort((a: any, b: any) =>
             new Date(b.creation).getTime() - new Date(a.creation).getTime()
           );
+          console.log('[Travel Fetch] Combined data:', data.length, 'items');
         } catch (fetchError) {
           console.error('Travel combined fetch error:', fetchError);
           data = [];
@@ -827,7 +834,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                                 break;
                               case "Travel": // Fallback
                               case "Travel Apply":
-                                onNavigate(`/travel?edit=${item.name}`);
+                                onNavigate(`/travel/${item.name}`);
                                 break;
                               case "TA DA Settlement":
                                 onNavigate(`/ta-da-settlement?edit=${item.name}`);
@@ -835,7 +842,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                               default:
                                 // Check item.type for Travel consolidated view
                                 if (item.type === 'Travel Apply') {
-                                  onNavigate(`/travel?edit=${item.name}`);
+                                  onNavigate(`/travel/${item.name}`);
                                 } else if (item.type === 'TA DA Settlement') {
                                   onNavigate(`/ta-da-settlement?edit=${item.name}`);
                                 } else {

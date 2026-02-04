@@ -168,6 +168,39 @@ const MemoizedFormField = memo(({
 
             case 'Attach':
             case 'Attach Image':
+                // If there's an existing file URL, show it as a link
+                if (value && typeof value === 'string') {
+                    const fileName = value.split('/').pop() || 'File';
+                    return (
+                        <div className="flex items-center gap-3">
+                            <a
+                                href={value}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-4 py-2 bg-[#E0F7F6] text-[#0EA5A4] rounded-xl hover:bg-[#0EA5A4] hover:text-white transition-colors font-medium"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                {fileName}
+                            </a>
+                            {!isReadOnly && (
+                                <input
+                                    type="file"
+                                    id={field.fieldname}
+                                    name={field.fieldname}
+                                    className={cn(inputClasses, "py-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-medium file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200 file:transition-colors")}
+                                    onChange={(e) => onFileChange(field.fieldname, e.target.files?.[0] || null)}
+                                    accept={field.fieldtype === 'Attach Image' ? 'image/*' : undefined}
+                                />
+                            )}
+                        </div>
+                    );
+                }
+                // No existing file, show file input (hidden in read-only mode)
+                if (isReadOnly) {
+                    return <div className="text-gray-400 italic">No file uploaded</div>;
+                }
                 return (
                     <input
                         type="file"
@@ -175,7 +208,6 @@ const MemoizedFormField = memo(({
                         name={field.fieldname}
                         className={cn(inputClasses, "py-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-medium file:bg-[#E0F7F6] file:text-[#0EA5A4] hover:file:bg-[#0EA5A4] hover:file:text-white file:transition-colors")}
                         onChange={(e) => onFileChange(field.fieldname, e.target.files?.[0] || null)}
-                        disabled={isReadOnly}
                         accept={field.fieldtype === 'Attach Image' ? 'image/*' : undefined}
                     />
                 );
@@ -230,7 +262,7 @@ MemoizedFormField.displayName = 'MemoizedFormField';
 // --- SECTION COMPONENT ---
 const FormSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <div className="space-y-4">
-        <h2 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-3">{title}</h2>
+        {title && <h2 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-3">{title}</h2>}
         {children}
     </div>
 );
@@ -253,16 +285,20 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const groupFieldsBySection = useCallback((): FormSection[] => {
         const sections: FormSection[] = [];
         let currentSection: FormSection | null = null;
+        let sectionIndex = 0;
 
         for (const field of fields) {
             if (field.fieldtype === 'Section Break') {
-                if (currentSection) {
+                if (currentSection && currentSection.fields.length > 0) {
                     sections.push(currentSection);
                 }
+                sectionIndex++;
+                // Use unique title or numbered fallback to avoid duplicates
+                const sectionTitle = field.label || '';
                 currentSection = {
-                    title: field.label || 'Details',
+                    title: sectionTitle,
                     fields: [],
-                    depends_on: field.depends_on, // Store the section's visibility condition
+                    depends_on: field.depends_on,
                 };
             } else if (field.fieldtype === 'Column Break') {
                 // Ignore column breaks for now
@@ -270,19 +306,19 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             } else if (currentSection) {
                 currentSection.fields.push(field);
             } else {
-                // Fields before first section break
-                currentSection = { title: 'Details', fields: [field] };
+                // Fields before first section break - create initial section
+                currentSection = { title: '', fields: [field] };
             }
         }
 
-        if (currentSection) {
+        if (currentSection && currentSection.fields.length > 0) {
             sections.push(currentSection);
         }
 
         // If no sections found, put all fields in one section
         if (sections.length === 0 && fields.length > 0) {
             sections.push({
-                title: 'Details',
+                title: '',
                 fields: fields.filter(f => f.fieldtype !== 'Section Break' && f.fieldtype !== 'Column Break'),
             });
         }

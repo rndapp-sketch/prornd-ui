@@ -24,6 +24,8 @@ export const travelAPI = {
     getFields: `${API_BASE}.travel.travel.get_travel_fields`,
     save: `${API_BASE}.travel.travel.save_travel`,
     submit: `${API_BASE}.travel.travel.submit_travel`,
+    getWorkflowActions: `${API_BASE}.travel.travel.get_travel_workflow_actions`,
+    performAction: `${API_BASE}.travel.travel.perform_travel_action`,
 };
 
 // TA DA Settlement API endpoints

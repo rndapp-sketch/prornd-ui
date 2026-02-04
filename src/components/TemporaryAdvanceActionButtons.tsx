@@ -130,7 +130,7 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete }: TemporaryA
                 let actionName = typeof action === 'string' ? action : '';
                 if (typeof action === 'object' && action !== null) {
                     // Only use specific action-related keys. Avoid 'name' as it might be a document ID.
-                    actionName = action.action || action.workflow_action || action.label || '';
+                    actionName = action.action || action.workflow_action || action.label || action.transition_name || action.name || '';
 
                     // If empty, we can't render a button usefuly.
                     if (!actionName) {

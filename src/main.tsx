@@ -45,6 +45,7 @@ import TemporaryAdvance from './pages/TemporaryAdvance.tsx';
 import ReimbursementDetails from './pages/application/ReimbursementDetails.tsx';
 import RateContractForm from './pages/application/RateContractForm.tsx';
 import TravelForm from './pages/application/TravelForm.tsx';
+import TravelDetails from './pages/application/TravelDetails.tsx';
 import TADASettlementForm from './pages/application/TADASettlementForm.tsx';
 import ProjectStaffResignationForm from './pages/application/ProjectStaffResignationForm.tsx';
 import TaskRegistry from './pages/TaskRegistry.tsx';
@@ -358,6 +359,14 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <TravelForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "travel/:docName",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <TravelDetails />
             </AuthRouteWrapper>
           )
         },
