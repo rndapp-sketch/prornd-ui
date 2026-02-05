@@ -52,6 +52,7 @@ import TaskRegistry from './pages/TaskRegistry.tsx';
 import TaskRegistryDetails from './pages/TaskRegistryDetails.tsx';
 import TemporaryAdvanceDetails from './pages/application/TemporaryAdvanceDetails.tsx';
 import Payments from './pages/Payments.tsx';
+import AdvanceSettlementForm from './pages/application/AdvanceSettlementForm.tsx';
 
 const router = createBrowserRouter(
   [
@@ -420,6 +421,14 @@ const router = createBrowserRouter(
               'Hos, RnD (Head of Section, RnD)',
             ]}>
               <Payments />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "advance-settlement",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <AdvanceSettlementForm />
             </AuthRouteWrapper>
           )
         },

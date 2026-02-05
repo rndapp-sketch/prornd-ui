@@ -294,87 +294,6 @@ interface QuickActionsProps {
   onNavigate: (path: string) => void;
 }
 
-// --- Temporary Advance Action Buttons ---
-const TemporaryAdvanceActionButtons = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
-  const { data, isLoading, mutate } = useFrappeGetCall<{ message: string[] }>(
-    "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.get_temporary_advance_workflow_actions",
-    { docname },
-    { revalidateOnFocus: false }
-  );
-
-  // Use the specific Temporary Advance action API
-  const { call: performAction, loading: isActionLoading } = useFrappePostCall(
-    "rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.perform_temporary_advance_action"
-  );
-
-  const onAction = async (action: string) => {
-    if (!confirm(`Are you sure you want to ${action}?`)) return;
-
-    try {
-      const response = await performAction({
-        docname: docname,
-        action: action
-      });
-
-      console.log('Action response:', response);
-
-      // Check for error in response
-      if (response?.message?.status === 'error') {
-        alert(`Failed: ${response.message.message || 'Unknown error'}`);
-        return;
-      }
-
-      // Refresh actions
-      mutate();
-      // Refresh parent list to update workflow_state in table
-      onActionComplete();
-    } catch (e) {
-      console.error("Workflow action failed", e);
-      alert("Failed to perform action");
-    }
-  };
-
-  if (isLoading || !data?.message || data.message.length === 0) return null;
-
-  // Debug: Log the full response to investigate why objects are returned
-  console.log('TemporaryAdvanceActionButtons Data:', JSON.stringify(data));
-
-  return (
-    <div className="flex items-center gap-2">
-      {data.message.map((action: any, idx: number) => {
-        let actionName = typeof action === 'string' ? action : '';
-        if (typeof action === 'object' && action !== null) {
-          // Only use specific action-related keys. Avoid 'name' as it might be a document ID.
-          actionName = action.action || action.workflow_action || action.label || '';
-
-          // If empty, we can't render a button usefuly.
-          if (!actionName) {
-            console.warn('Invalid action object:', action);
-            return <span key={idx} className="text-xs text-red-400" title={JSON.stringify(action)}>Invalid Action</span>;
-          }
-        }
-
-        if (!actionName) return null;
-
-        return (
-          <button
-            key={actionName}
-            onClick={() => onAction(actionName)}
-            disabled={isActionLoading}
-            className={cn(
-              "text-sm font-medium px-2 py-0.5 rounded border transition-colors",
-              "border-[#0EA5A4] text-[#0EA5A4] hover:bg-[#0EA5A4] hover:text-white",
-              isActionLoading && "opacity-50 cursor-not-allowed"
-            )}
-          >
-            {isActionLoading ? 'Processing...' : actionName}
-          </button>
-        );
-      })}
-    </div>
-  );
-};
-
 const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
   const [activeTab, setActiveTab] = useState("Reimbursement");
   const [selectedApplication, setSelectedApplication] = useState<string | null>("Reimbursement"); // Auto-select Reimbursement initially
@@ -703,7 +622,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
         onNavigate(`/travel?project=${projectName}`);
         break;
       case "TA DA Settlement":
-        onNavigate(`/ta-da-settlement?project=${projectName}`);
+        onNavigate(`/advance-settlement?project=${projectName}`);
         break;
       case "Project Staff Resignation":
         onNavigate(`/project-staff-resignation?project=${projectName}`);
@@ -837,14 +756,14 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                                 onNavigate(`/travel/${item.name}`);
                                 break;
                               case "TA DA Settlement":
-                                onNavigate(`/ta-da-settlement?edit=${item.name}`);
+                                onNavigate(`/advance-settlement?edit=${item.name}`);
                                 break;
                               default:
                                 // Check item.type for Travel consolidated view
                                 if (item.type === 'Travel Apply') {
                                   onNavigate(`/travel/${item.name}`);
                                 } else if (item.type === 'TA DA Settlement') {
-                                  onNavigate(`/ta-da-settlement?edit=${item.name}`);
+                                  onNavigate(`/advance-settlement?edit=${item.name}`);
                                 } else {
                                   onNavigate(`/reimbursement/${item.name}`);
                                 }
@@ -857,7 +776,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                         </button>
                         {(selectedApplication === "Travel" && item.type === 'Travel Apply') && (
                           <button
-                            onClick={() => onNavigate(`/ta-da-settlement?project=${projectName}&travel_id=${item.name}`)}
+                            onClick={() => onNavigate(`/advance-settlement?project=${projectName}&travel_id=${item.name}`)}
                             className="text-sm text-gray-600 hover:text-gray-900 hover:underline whitespace-nowrap"
                           >
                             Settle
@@ -865,22 +784,16 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                         )}
 
                         {selectedApplication === "Temporary Advance Apply" && (
-                          <>
-                            <TemporaryAdvanceActionButtons
-                              docname={item.name}
-                              onActionComplete={fetchApplicationData}
-                            />
-                            <button
-                              onClick={() => {
-                                // Navigate to settlement page for this temporary advance
-                                // Pass the advance ID to pre-fill the settlement form
-                                onNavigate(`/ta-da-settlement?advance_id=${item.name}&project=${projectName}`);
-                              }}
-                              className="text-sm text-amber-600 hover:underline whitespace-nowrap font-medium"
-                            >
-                              Settle
-                            </button>
-                          </>
+                          <button
+                            onClick={() => {
+                              // Navigate to settlement page for this temporary advance
+                              // Pass the advance ID to pre-fill the settlement form
+                              onNavigate(`/advance-settlement?advance=${item.name}&project=${projectName}`);
+                            }}
+                            className="text-sm text-amber-600 hover:underline whitespace-nowrap font-medium"
+                          >
+                            Settle
+                          </button>
                         )}
                       </div>
                     </td>

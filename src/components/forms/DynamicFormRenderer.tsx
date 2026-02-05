@@ -233,9 +233,16 @@ const MemoizedFormField = memo(({
         }
     };
 
-    // Checkbox has its own label rendering
+    // Checkbox has its own label rendering but still needs description
     if (field.fieldtype === 'Check') {
-        return <div className="space-y-2">{renderInput()}</div>;
+        return (
+            <div className="space-y-2">
+                {renderInput()}
+                {field.description && (
+                    <p className="text-sm text-gray-600 ml-8">{field.description}</p>
+                )}
+            </div>
+        );
     }
 
     // HTML fields don't need a label

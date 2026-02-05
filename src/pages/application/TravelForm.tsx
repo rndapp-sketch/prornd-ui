@@ -213,7 +213,7 @@ const TravelForm: React.FC = () => {
     const { call: saveForm, error: saveError } = useFrappePostCall(travelAPI.save);
     const { call: submitForm, error: submitError } = useFrappePostCall(travelAPI.submit);
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
-    const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetails);
+
     const { call: fetchUserDetailsByEmail } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
 
     // --- Computed: Total Estimate ---

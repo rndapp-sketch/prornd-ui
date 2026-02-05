@@ -52,6 +52,16 @@ export const temporaryAdvanceAPI = {
     performAction: `${API_BASE}.temporary_advance.temporary_advance.perform_temporary_advance_action`,
 };
 
+// Advance Settlement API endpoints
+export const advanceSettlementAPI = {
+    getFields: `${API_BASE}.advance_settlement.advance_settlement.get_advance_settlement_fields`,
+    save: `${API_BASE}.advance_settlement.advance_settlement.save_advance_settlement`,
+    submit: `${API_BASE}.advance_settlement.advance_settlement.submit_advance_settlement`,
+    getWorkflowActions: `${API_BASE}.advance_settlement.advance_settlement.get_advance_settlement_workflow_actions`,
+    performAction: `${API_BASE}.advance_settlement.advance_settlement.perform_advance_settlement_action`,
+    getUserDetails: `${API_BASE}.advance_settlement.advance_settlement.get_user_details_advance_settlement`,
+};
+
 // Common utility to get user details
 export const commonAPI = {
     getUserDetails: `${API_BASE}.project_registration.project_registration.get_user_details_for_pi`,
