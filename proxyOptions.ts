@@ -42,6 +42,9 @@ export default {
 		// CRITICAL ADDITION: This changes the Host header to match the target (172.16.135.27)
 		// This ensures Frappe recognizes the request context correctly.
 		changeOrigin: true,
+		secure: false,
+		timeout: 60000,
+		proxyTimeout: 60000,
 
 		router: function (req: string) {
 			// Always use the correct server IP
