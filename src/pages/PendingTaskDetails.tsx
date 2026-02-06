@@ -8,6 +8,8 @@ import ProjectDetailsView from "./ProjectDetails";
 import { cn } from '@/lib/utils';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI } from '@/services/apiService';
+import { ActivityStream } from '@/components/ActivityStream';
+import { BudgetActionsSidebar } from '@/components/BudgetActionsSidebar';
 
 // Fields to hide from the overview
 const HIDDEN_FIELDS = [
@@ -462,36 +464,56 @@ const PendingTaskDetails: React.FC = () => {
                     </div>
                 </header>
 
-                {/* Render Dynamic Form for Travel if fields are available, else fallback to generic */}
-                {doctype === 'Travel' ? (
-                    isTravelLoading ? (
-                        <div className="flex h-64 items-center justify-center bg-white border border-gray-200 rounded-xl shadow-sm">
-                            <div className="flex flex-col items-center gap-2">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4]"></div>
-                                <p className="text-gray-500 text-sm">Loading details...</p>
-                            </div>
+                {/* Content Grid with Sidebar */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Left Column: Main Detail View */}
+                    <div className="lg:col-span-2 space-y-6">
+                        {/* Render Dynamic Form for Travel if fields are available, else fallback to generic */}
+                        {doctype === 'Travel' ? (
+                            isTravelLoading ? (
+                                <div className="flex h-64 items-center justify-center bg-white border border-gray-200 rounded-xl shadow-sm">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4]"></div>
+                                        <p className="text-gray-500 text-sm">Loading details...</p>
+                                    </div>
+                                </div>
+                            ) : travelFields.length > 0 ? (
+                                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                                    <DynamicFormRenderer
+                                        fields={travelFields}
+                                        formData={data}
+                                        linkOptions={travelLinkOptions}
+                                        onChange={() => { }}
+                                        onFileChange={() => { }}
+                                        onTableRowChange={() => { }}
+                                        onTableFileChange={() => { }}
+                                        onAddTableRow={() => { }}
+                                        onDeleteTableRow={() => { }}
+                                        readOnly={true}
+                                    />
+                                </div>
+                            ) : (
+                                renderGenericDetails()
+                            )
+                        ) : (
+                            renderGenericDetails()
+                        )}
+                    </div>
+
+                    {/* Right Column: Activity Stream Sidebar */}
+                    <div className="lg:col-span-1 space-y-6">
+                        <div className="sticky top-6 space-y-6">
+                            {/* Budget Actions (Only for Travel if project info available) */}
+                            {doctype === 'Travel' && data?.travel_project_title && (
+                                <BudgetActionsSidebar
+                                    projectName={data.travel_project_title}
+                                    isStaff={true} // Assuming user is staff if viewing Pending Task
+                                />
+                            )}
+                            <ActivityStream doctype={doctype || ""} docname={name || ""} />
                         </div>
-                    ) : travelFields.length > 0 ? (
-                        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-                            <DynamicFormRenderer
-                                fields={travelFields}
-                                formData={data}
-                                linkOptions={travelLinkOptions}
-                                onChange={() => { }}
-                                onFileChange={() => { }}
-                                onTableRowChange={() => { }}
-                                onTableFileChange={() => { }}
-                                onAddTableRow={() => { }}
-                                onDeleteTableRow={() => { }}
-                                readOnly={true}
-                            />
-                        </div>
-                    ) : (
-                        renderGenericDetails()
-                    )
-                ) : (
-                    renderGenericDetails()
-                )}
+                    </div>
+                </div>
 
                 <div className="flex justify-end gap-3 pb-8 mt-6">
                     <FrappeButton
