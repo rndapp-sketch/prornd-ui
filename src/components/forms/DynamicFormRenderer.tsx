@@ -125,13 +125,45 @@ const MemoizedFormField = memo(({
                 return <input type="time" {...commonProps} />;
 
             case 'Int':
-                return <input type="number" step="1" {...commonProps} />;
+                return (
+                    <input
+                        type="number"
+                        step="1"
+                        {...commonProps}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            handleChange(field.fieldname, val === '' ? '' : parseInt(val, 10) || 0);
+                        }}
+                    />
+                );
 
             case 'Float':
-                return <input type="number" step="any" {...commonProps} />;
+                return (
+                    <input
+                        type="number"
+                        step="any"
+                        {...commonProps}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            handleChange(field.fieldname, val === '' ? '' : parseFloat(val) || 0);
+                        }}
+                    />
+                );
 
             case 'Currency':
-                return <input type="number" step="0.01" {...commonProps} />;
+                return (
+                    <input
+                        type="number"
+                        step="any"
+                        {...commonProps}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            // Round to 2 decimal places for currency
+                            const numVal = parseFloat(val);
+                            handleChange(field.fieldname, val === '' ? '' : (isNaN(numVal) ? 0 : Math.round(numVal * 100) / 100));
+                        }}
+                    />
+                );
 
             case 'Check':
                 return (

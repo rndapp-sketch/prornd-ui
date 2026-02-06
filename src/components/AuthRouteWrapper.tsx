@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFrappeAuth } from 'frappe-react-sdk';
 import { useUserRoles } from './UserRole';
@@ -21,6 +21,8 @@ interface AuthRouteWrapperProps {
   children: React.ReactNode;
 }
 
+const AUTH_STORAGE_KEY = 'prornd_last_user';
+
 const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, children }) => {
   const navigate = useNavigate();
   const { currentUser, isLoading: isAuthLoading } = useFrappeAuth();
@@ -28,6 +30,18 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
 
   // Track if we've ever loaded - don't block rendering after initial load
   const hasInitialized = useRef(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 3;
+
+  // Get last known user from localStorage
+  const lastKnownUser = localStorage.getItem(AUTH_STORAGE_KEY);
+
+  // Save current user to localStorage when available
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem(AUTH_STORAGE_KEY, currentUser);
+    }
+  }, [currentUser]);
 
   if (roles && roles.length > 0) {
     hasInitialized.current = true;
@@ -39,16 +53,39 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
       return;
     }
 
-    // If loading is done and there's no user, go to login.
+    // If loading is done and there's no user
     if (!currentUser) {
+      // If we had a previous user, this might be a transient failure
+      // Retry a few times before redirecting to login
+      if (lastKnownUser && retryCount < maxRetries) {
+        console.log(`AuthRouteWrapper: No user but had previous session, retry ${retryCount + 1}/${maxRetries}`);
+        const timer = setTimeout(() => {
+          setRetryCount(prev => prev + 1);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+
+      // Clear stored user and redirect to login
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      console.log('AuthRouteWrapper: Session expired or no user, redirecting to login');
       navigate('/login');
       return;
     }
 
-    // If there was an error fetching roles, redirect to a safe fallback.
-    if (rolesError || !roles) {
-      console.error("AuthRouteWrapper: Error or no roles found, redirecting.");
-      navigate('/home');
+    // Reset retry count on successful auth
+    if (retryCount > 0) {
+      setRetryCount(0);
+    }
+
+    // If there was an actual error fetching roles, log it but don't redirect
+    if (rolesError) {
+      console.error("AuthRouteWrapper: Error fetching roles:", rolesError);
+      return;
+    }
+
+    // If roles is null/undefined after loading completes, that's an issue
+    if (!roles) {
+      console.warn("AuthRouteWrapper: No roles data available after loading.");
       return;
     }
 
@@ -68,16 +105,25 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
       navigate('/dashboard');
     }
 
-  }, [isAuthLoading, isRolesLoading, currentUser, roles, rolesError, allowedRole, navigate]);
+  }, [isAuthLoading, isRolesLoading, currentUser, roles, rolesError, allowedRole, navigate, lastKnownUser, retryCount]);
 
-  // Don't block rendering - let the App.tsx handle navigation loading
-  // Only block on initial auth check when we have no user info at all
-  if (!hasInitialized.current && (isAuthLoading || isRolesLoading) && !currentUser) {
-    // Return null briefly during initial auth check - App.tsx handles the loader
+  // Show loading while authentication is being verified
+  // If we have a last known user, assume we're still logged in during initial load
+  if (isAuthLoading || (isRolesLoading && !hasInitialized.current)) {
+    // Show a minimal loading state instead of null
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+      </div>
+    );
+  }
+
+  // Don't render until we have confirmed auth
+  if (!currentUser && !lastKnownUser) {
     return null;
   }
 
-  // Render children - loading states are handled by App.tsx
+  // Render children
   return <>{children}</>;
 };
 

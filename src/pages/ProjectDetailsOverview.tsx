@@ -295,6 +295,7 @@ interface QuickActionsProps {
 }
 
 const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
+  const { currentUser } = useFrappeAuth();
   const [activeTab, setActiveTab] = useState("Reimbursement");
   const [selectedApplication, setSelectedApplication] = useState<string | null>("Reimbursement"); // Auto-select Reimbursement initially
   const [applicationData, setApplicationData] = useState<any[]>([]);
@@ -425,8 +426,14 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           //    const itemStr = JSON.stringify(item).toLowerCase();
           //    return itemStr.includes(projectNameLower);
           // });
-          data = allItems; // SHOW ALL
-          console.log(`Showing ALL ${data.length} items (Filter Disabled Debug Mode)`);
+
+          // Filter by current user (owner field)
+          data = allItems.filter((item: any) => {
+            const itemOwner = (item.owner || item.applicant_webmail || '').toLowerCase();
+            const user = (currentUser || '').toLowerCase();
+            return itemOwner === user;
+          });
+          console.log(`Filtered ${data.length} Temporary Advance items for user: ${currentUser}`);
 
           // Map for display consistency
           data = data.map((item: any) => ({
@@ -1001,7 +1008,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   const { currentUser } = useFrappeAuth();
   const { data, error, isLoading, mutate } = useFrappeGetDoc(
     "Project Registration",
-    projectName ?? ""
+    projectName ?? "",
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      refreshInterval: 0, // Don't auto-refresh
+      dedupingInterval: 60000, // Cache for 60 seconds
+    }
   );
   const { call: triggerWorkflowAction, loading: isActionLoading } = useFrappePostCall("rndopsapp.rndopsapp.api.handle_workflow_action");
   const { call: submitProjectRegistration } = useFrappePostCall("rndopsapp.rndopsapp.api.submit_project_registration");
@@ -1617,10 +1630,18 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
         </div>
       );
     }
-    if (error) {
+    // Show loading instead of error for transient failures
+    if (error && !data) {
       return (
-        <div className="p-8 text-center">
-          <p className="text-lg font-semibold text-red-600">Error loading project: {error.message}</p>
+        <div className="flex flex-col items-center justify-center h-screen gap-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+          <p className="text-lg font-semibold text-gray-600">Loading Project Details...</p>
+          <button
+            onClick={() => mutate()}
+            className="text-sm text-teal-600 hover:underline"
+          >
+            Click to retry
+          </button>
         </div>
       );
     }

@@ -286,12 +286,35 @@ const Login: React.FC = () => {
     // Construct full username: user + @ + domain
     const fullUsername = `${username}@${domain}`;
 
-    try {
-      await login({ username: fullUsername, password });
-      localStorage.setItem(DOMAIN_STORAGE_KEY, domain);
-    } catch (err: any) {
-      console.error('Login failed:', err);
-      setError(err.message || 'An unexpected error occurred.');
+    let attempt = 0;
+    const maxAttempts = 3;
+
+    while (attempt < maxAttempts) {
+      try {
+        attempt++;
+        await login({ username: fullUsername, password });
+        localStorage.setItem(DOMAIN_STORAGE_KEY, domain);
+        return; // Success, exit loop
+      } catch (err: any) {
+        console.error(`Login attempt ${attempt} failed:`, err);
+
+        // If it's the last attempt, show error
+        if (attempt === maxAttempts) {
+          let message = err.message || 'An unexpected error occurred.';
+          if (message === 'There was an error while logging in') {
+            message = 'Network error or server unavailable. Please try again.';
+          }
+          setError(message);
+        } else {
+          // If error is clearly "Invalid login credentials", do not retry
+          if (err.message === 'Invalid login credentials' || err.exc_type === 'AuthenticationError') {
+            setError('Invalid username or password.');
+            break;
+          }
+          // Wait before retrying (exponential backoff or fixed)
+          await new Promise(r => setTimeout(r, 1000));
+        }
+      }
     }
   };
 

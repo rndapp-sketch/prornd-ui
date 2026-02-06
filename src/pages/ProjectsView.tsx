@@ -658,9 +658,18 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 <TableRow>
                   <TableCell
                     colSpan={5}
-                    className="h-32 text-center font-bold text-red-600"
+                    className="h-32 text-center"
                   >
-                    ERROR LOADING PROJECTS
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+                      <span className="font-medium text-gray-600">Loading projects...</span>
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="text-sm text-teal-600 hover:underline"
+                      >
+                        Click to retry
+                      </button>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}

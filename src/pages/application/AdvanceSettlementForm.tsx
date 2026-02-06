@@ -188,7 +188,8 @@ const AdvanceSettlementForm: React.FC = () => {
                 setDataLoaded(true);
                 setLoading(false);
             }
-            if (formDataError) {
+            // Only show error if we haven't successfully loaded data yet
+            if (formDataError && !formDataResult?.message && !dataLoaded) {
                 console.error("Failed to load form data:", formDataError);
                 alert("Error: Could not load the Advance Settlement form.");
                 setLoading(false);

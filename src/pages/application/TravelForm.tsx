@@ -157,16 +157,20 @@ const FundDetailsSidebar = ({ projectCode }: { projectCode: string }) => {
 
 // --- ESTIMATE VALIDATION COMPONENT ---
 const EstimateValidation = ({ formData }: { formData: Record<string, any> }) => {
-    const totalFunds = (formData.travel_contribution || 0) +
-        (formData.contingency_contribution || 0) +
-        (formData.other_contribution || 0);
+    // Use parseFloat to ensure numeric addition, not string concatenation
+    const parseNum = (val: any) => parseFloat(val) || 0;
 
-    const totalEstimates = (formData.est_travel_amt || 0) +
-        (formData.est_reg_amt || 0) +
-        (formData.est_accom_amt || 0) +
-        (formData.est_other_amt || 0);
+    const totalFunds = parseNum(formData.travel_contribution) +
+        parseNum(formData.contingency_contribution) +
+        parseNum(formData.other_contribution);
 
-    const diff = totalEstimates - totalFunds;
+    const totalEstimates = parseNum(formData.est_travel_amt) +
+        parseNum(formData.est_reg_amt) +
+        parseNum(formData.est_accom_amt) +
+        parseNum(formData.est_other_amt);
+
+    // Round to avoid floating point issues
+    const diff = Math.round((totalEstimates - totalFunds) * 100) / 100;
     const isBalanced = diff === 0;
 
     if (totalEstimates === 0 && totalFunds === 0) return null;
@@ -207,6 +211,7 @@ const TravelForm: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
+    const [savedDocName, setSavedDocName] = useState<string | null>(editDocName || null); // Track if draft is saved
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(travelAPI.getFields);
@@ -217,17 +222,19 @@ const TravelForm: React.FC = () => {
     const { call: fetchUserDetailsByEmail } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
 
     // --- Computed: Total Estimate ---
-    // --- Computed: Total Estimate ---
     const totalEstimate = useMemo(() => {
         const travel = parseFloat(formData.est_travel_amt || 0);
         const reg = parseFloat(formData.est_reg_amt || 0);
         const accom = parseFloat(formData.est_accom_amt || 0);
         const other = parseFloat(formData.est_other_amt || 0);
 
-        return (isNaN(travel) ? 0 : travel) +
+        const total = (isNaN(travel) ? 0 : travel) +
             (isNaN(reg) ? 0 : reg) +
             (isNaN(accom) ? 0 : accom) +
             (isNaN(other) ? 0 : other);
+
+        // Round to 2 decimal places to avoid floating point display issues
+        return Math.round(total * 100) / 100;
     }, [formData.est_travel_amt, formData.est_reg_amt, formData.est_accom_amt, formData.est_other_amt]);
 
     // Update total estimate field when computed value changes
@@ -449,6 +456,8 @@ const TravelForm: React.FC = () => {
             const res = await saveForm({ doc_data: JSON.stringify(data) });
 
             if (res?.message?.status === 'success') {
+                const docname = res.message.docname || editDocName;
+                setSavedDocName(docname); // Track that the form has been saved
                 alert(editDocName ? "Travel updated successfully!" : "Draft saved successfully!");
                 if (editDocName) {
                     navigate(-1);
@@ -612,7 +621,7 @@ const TravelForm: React.FC = () => {
                                 </FrappeButton>
                                 <FrappeButton
                                     type="submit"
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || !savedDocName}
                                     className="bg-[#0EA5A4] text-white hover:bg-[#0D9494]"
                                 >
                                     {isSubmitting ? 'Submitting...' : 'Submit Application'}
