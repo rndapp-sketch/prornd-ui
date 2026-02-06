@@ -257,6 +257,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const { currentUser, login, logout } = useFrappeAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(!!currentUser);
@@ -283,6 +284,8 @@ const Login: React.FC = () => {
       return;
     }
 
+    setIsLoading(true);
+
     // Construct full username: user + @ + domain
     const fullUsername = `${username}@${domain}`;
 
@@ -294,7 +297,7 @@ const Login: React.FC = () => {
         attempt++;
         await login({ username: fullUsername, password });
         localStorage.setItem(DOMAIN_STORAGE_KEY, domain);
-        return; // Success, exit loop
+        return; // Success, exit loop (setIsLoading stays true during redirect)
       } catch (err: any) {
         console.error(`Login attempt ${attempt} failed:`, err);
 
@@ -305,10 +308,12 @@ const Login: React.FC = () => {
             message = 'Network error or server unavailable. Please try again.';
           }
           setError(message);
+          setIsLoading(false);
         } else {
           // If error is clearly "Invalid login credentials", do not retry
           if (err.message === 'Invalid login credentials' || err.exc_type === 'AuthenticationError') {
             setError('Invalid username or password.');
+            setIsLoading(false);
             break;
           }
           // Wait before retrying (exponential backoff or fixed)
@@ -492,10 +497,20 @@ const Login: React.FC = () => {
             <div className="pt-2">
               <button
                 type="submit"
-                className="w-full bg-[#0EA5A4] hover:bg-[#0c8e8d] text-white h-12 rounded-lg font-bold text-base tracking-wide transition-all shadow-lg shadow-[#0EA5A4]/20 flex items-center justify-center gap-2 group"
+                disabled={isLoading}
+                className={`w-full bg-[#0EA5A4] hover:bg-[#0c8e8d] text-white h-12 rounded-lg font-bold text-base tracking-wide transition-all shadow-lg shadow-[#0EA5A4]/20 flex items-center justify-center gap-2 group ${isLoading ? 'opacity-80 cursor-not-allowed' : ''}`}
               >
-                <span>Sign In</span>
-                <ArrowRight className="w-[18px] group-hover:translate-x-1 transition-transform" />
+                {isLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Signing In...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Sign In</span>
+                    <ArrowRight className="w-[18px] group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
               </button>
             </div>
           </form>
