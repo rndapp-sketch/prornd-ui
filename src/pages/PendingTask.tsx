@@ -94,19 +94,23 @@ const PendingTask: React.FC = () => {
 
         const tasks: FlattenedTask[] = [];
         data.message.results.forEach((group) => {
-            group.records.forEach((record) => {
-                tasks.push({
-                    id: record.name,
-                    title: record.title,
-                    "Project Number": record.name,
-                    status: record.status,
-                    priority: 'Medium',
-                    creation: record.creation,
-                    modified: record.modified,
-                    owner: record.owner,
-                    doctype: group.doctype
+            // Only process this group if mod_vis is 1 (or truthy)
+            // Use type assertion or optional chaining if not strictly typed in interface yet
+            if ((group as any).mod_vis) {
+                group.records.forEach((record) => {
+                    tasks.push({
+                        id: record.name,
+                        title: record.title,
+                        "Project Number": record.name,
+                        status: record.status,
+                        priority: 'Medium',
+                        creation: record.creation,
+                        modified: record.modified,
+                        owner: record.owner,
+                        doctype: group.doctype
+                    });
                 });
-            });
+            }
         });
         return tasks;
     }, [data]);
