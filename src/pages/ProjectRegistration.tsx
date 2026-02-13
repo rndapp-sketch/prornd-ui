@@ -893,6 +893,7 @@ const ProjectRegistration: React.FC = () => {
                                 <div className={activeTab === 0 ? "block" : "hidden"}>
                                     <FrappeCard className="space-y-8">
                                         <h2 className="text-3xl font-bold uppercase text-black">1. Project Description</h2>
+                                        {renderField("project_no")}
                                         {renderField("project_title")}
                                         {renderField("project_type")}
                                         {formData.project_type === "Research" && (

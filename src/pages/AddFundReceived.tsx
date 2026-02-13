@@ -1,7 +1,7 @@
 
 // -=-=-=-=-=-=
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { AppSidebar } from "../components/RndSidebar";
 import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
@@ -116,13 +116,12 @@ const ProgressBar = ({ current, total, label, showWarning }: { current: number; 
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                 <div
-                    className={`h-2.5 rounded-full transition-all duration-300 ${
-                        isOverLimit
-                            ? 'bg-red-600'
-                            : percentage > 90
-                                ? 'bg-yellow-500'
-                                : 'bg-green-500'
-                    }`}
+                    className={`h-2.5 rounded-full transition-all duration-300 ${isOverLimit
+                        ? 'bg-red-600'
+                        : percentage > 90
+                            ? 'bg-yellow-500'
+                            : 'bg-green-500'
+                        }`}
                     style={{ width: `${percentage}%` }}
                 />
             </div>
@@ -138,11 +137,10 @@ const ValidationAlert = ({ isValid, message, type = 'total' }: { isValid: boolea
     if (!message || message === 'No sanction selected') return null;
 
     return (
-        <div className={`p-3 rounded-lg border ${
-            isValid
-                ? 'bg-green-50 border-green-200 text-green-800'
-                : 'bg-red-50 border-red-300 text-red-800'
-        }`}>
+        <div className={`p-3 rounded-lg border ${isValid
+            ? 'bg-green-50 border-green-200 text-green-800'
+            : 'bg-red-50 border-red-300 text-red-800'
+            }`}>
             <p className="text-sm font-medium">{message}</p>
         </div>
     );
@@ -248,9 +246,9 @@ const AddFundReceived: React.FC = () => {
 
     const { call: fetchFormData, result, error } = useFrappePostCall<FormDataResponse>('rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_fields');
     const { call: submitForm, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_received.fund_received.save_fund_received');
+    const { call: saveDoc, error: saveError } = useFrappePostCall('frappe.client.save'); // For updates
     const { call: fetchBudgetHeads, result: budgetHeadsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head');
 
-    // Fetch sanction details for the project
     const { data: sanctionData, isLoading: sanctionLoading } = useFrappeGetCall(
         'rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project',
         { project_name: projectName },
@@ -278,6 +276,57 @@ const AddFundReceived: React.FC = () => {
         }
     }, [budgetHeadsResult]);
 
+    // Handle Edit Mode
+    const location = useLocation();
+    const searchParams = new URLSearchParams(location.search);
+    const editDocName = searchParams.get('id');
+
+    // Fetch existing document for editing
+    useEffect(() => {
+        const loadExistingDoc = async () => {
+            if (!editDocName || !result?.message) return;
+
+            try {
+                const response = await fetch(`/api/v2/document/Fund%20Received/${encodeURIComponent(editDocName)}`, {
+                    credentials: 'include'
+                });
+                if (response.ok) {
+                    const json = await response.json();
+                    const doc = json.data;
+                    console.log("Loaded existing doc for edit:", doc);
+
+                    if (doc) {
+                        setFormData(prev => ({
+                            ...prev,
+                            // Map simple fields
+                            ...doc,
+                            // Map child tables specifically
+                            fund_transactions: (doc.fund_transactions || []).map((row: any) => ({
+                                ...row,
+                                id: row.name, // Use name as ID for existing rows
+                                // Ensure attachment field is set if it exists
+                                attachment: row.attachment || row.file || null
+                            })),
+                            received_amt_breakup: (doc.received_amt_breakup || []).map((row: any) => ({
+                                ...row,
+                                id: row.name
+                            })),
+                            // Ensure project ref is set correctly
+                            prjreg_title: doc.prjreg_title || prev.prjreg_title,
+                            sanction_ref_no: doc.sanction_ref_no || prev.sanction_ref_no
+                        }));
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load existing document", err);
+                alert("Failed to load document for editing");
+            }
+        };
+
+        // Load doc only after form fields are initialized
+        loadExistingDoc();
+    }, [editDocName, result]); // depend on result (form fields loaded)
+
     useEffect(() => {
         if (result?.message) {
             const { fields: apiFields, link_options, prefill_data, related_project_data } = result.message;
@@ -301,13 +350,17 @@ const AddFundReceived: React.FC = () => {
                 });
 
                 setFields(processedFields);
-                // Initialize formData with prefill values
-                setFormData(prev => ({
-                    ...prev,
-                    ...prefillData,
-                    fund_transactions: [],
-                    received_amt_breakup: []
-                }));
+
+                // Initialize formData with prefill values ONLY if not editing
+                // If editing, the edit loading effect will override/merge.
+                if (!editDocName) {
+                    setFormData(prev => ({
+                        ...prev,
+                        ...prefillData,
+                        fund_transactions: [],
+                        received_amt_breakup: []
+                    }));
+                }
             }
             setLinkOptions(prev => ({ ...prev, ...(link_options || {}) }));
             setLoading(false);
@@ -355,7 +408,7 @@ const AddFundReceived: React.FC = () => {
 
         const rawFunds = previousFundsData?.message?.message || previousFundsData?.message || [];
         const relevantFunds = Array.isArray(rawFunds)
-            ? rawFunds.filter((f: any) => f.sanction_ref_no === selectedSanction.name)
+            ? rawFunds.filter((f: any) => f.sanction_ref_no === selectedSanction.name && f.name !== editDocName) // Exclude current doc if editing
             : [];
 
         relevantFunds.forEach((fund: any) => {
@@ -511,13 +564,32 @@ const AddFundReceived: React.FC = () => {
         }));
     }, []);
 
-    // --- FILE HANDLING & SUBMISSION ---
-    const toBase64 = (file: File) => new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = error => reject(error);
-    });
+
+
+    // Helper to upload file to Frappe
+    const uploadFileToFrappe = async (file: File) => {
+        const formData = new FormData();
+        formData.append('file', file, file.name);
+        formData.append('is_private', '0'); // Public file
+        // formData.append('doctype', 'Fund Transaction'); // Optional: Link to doctype if known, but generic upload is fine
+        // formData.append('docname', ...); // We don't have the docname yet for new docs
+
+        const response = await fetch('/api/method/upload_file', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Frappe-CSRF-Token': (window as any).csrf_token || '',
+            },
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`File upload failed: ${response.status} ${errorText}`);
+        }
+
+        const result = await response.json();
+        return result.message; // Returns file object including file_url
+    };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -590,6 +662,12 @@ const AddFundReceived: React.FC = () => {
         try {
             const dataToSubmit: { [key: string]: any } = {};
 
+            // If editing, include the doc name so backend knows to update
+            if (editDocName) {
+                dataToSubmit.name = editDocName;
+                dataToSubmit.doctype = "Fund Received"; // Required for frappe.client.save
+            }
+
             // Collect regular form fields from formData state
             fields.forEach(field => {
                 if (field.fieldtype !== 'Table' && field.fieldtype !== 'Section Break' && !field.hidden) {
@@ -605,25 +683,34 @@ const AddFundReceived: React.FC = () => {
                     if (!row.transaction_number && !row.transaction_date && (!row.amount || parseFloat(row.amount) === 0)) {
                         return null;
                     }
-                    let fileData = {};
+
+                    let attachmentUrl = row.attachment instanceof File ? null : row.attachment;
+
+                    // If it's a new File object, upload it
                     if (row.attachment instanceof File) {
                         try {
-                            const base64 = await toBase64(row.attachment);
-                            fileData = {
-                                file_name: row.attachment.name,
-                                file_data: base64.split(',')[1]
-                            };
+                            const uploadedFile = await uploadFileToFrappe(row.attachment);
+                            attachmentUrl = uploadedFile.file_url;
                         } catch (fileError) {
-                            console.error('Error processing file:', fileError);
+                            console.error('Error uploading file:', fileError);
+                            alert(`Failed to upload attachment for transaction ${row.transaction_number || 'partial'}. Proceeding without file.`);
                         }
                     }
-                    return {
+
+                    const rowData: any = {
                         transaction_number: row.transaction_number || "",
                         transaction_date: row.transaction_date || "",
                         amount: row.amount ? parseFloat(row.amount) : 0,
                         sanction_ref_no: formData.sanction_ref_no || null,
-                        ...fileData,
+                        attachment: attachmentUrl, // Standard field
                     };
+
+                    // Use name if editing existing row
+                    if (editDocName && row.name && !String(row.name).startsWith('new-')) {
+                        rowData.name = row.name;
+                    }
+
+                    return rowData;
                 })
             );
             dataToSubmit.fund_transactions = dataToSubmit.fund_transactions.filter((r: any) => r !== null);
@@ -633,21 +720,41 @@ const AddFundReceived: React.FC = () => {
                 if (!row.account_head && (!row.amount_received || parseFloat(row.amount_received) === 0)) {
                     return null;
                 }
-                return {
+                const rowData: any = {
                     account_head: row.account_head || "",
                     amount_received: row.amount_received ? parseFloat(row.amount_received) : 0,
                     sanction_ref_no: formData.sanction_ref_no || null,
                     remarks: row.remarks || "",
                 };
+
+                // Use name if editing existing row
+                if (editDocName && row.name && !String(row.name).startsWith('new-')) {
+                    rowData.name = row.name;
+                }
+
+                return rowData;
             }).filter((r: any) => r !== null);
 
             console.log('Submitting data:', dataToSubmit);
-            await submitForm({ doc_data: JSON.stringify(dataToSubmit) });
-            alert("Fund Received entry saved successfully!");
+
+            if (editDocName) {
+                // UPDATE: Use standard save
+                await saveDoc({ doc: dataToSubmit });
+                alert("Fund Received updated successfully!");
+            } else {
+                // CREATE: Use custom method
+                await submitForm({ doc_data: JSON.stringify(dataToSubmit) });
+                alert("Fund Received entry saved successfully!");
+            }
+
             navigate(-1);
         } catch (err: any) {
-            console.error('Submission error:', submitError || err);
-            alert(`Submission Failed: ${err.message || 'Unknown Error'}`);
+            console.error('Submission error:', submitError || saveError || err);
+            const serverMsg = (saveError as any)?._server_messages
+                ? JSON.parse((saveError as any)._server_messages).join('\n')
+                : null;
+
+            alert(`Submission Failed: ${serverMsg || (saveError as any)?.message || (submitError as any)?.message || err.message || 'Unknown Error'}`);
         } finally {
             setIsSubmitting(false);
         }
@@ -775,7 +882,7 @@ const AddFundReceived: React.FC = () => {
                             <ArrowLeftIcon className="h-6 w-6" />
                         </button>
                         <div>
-                            <h1 className="text-3xl font-bold text-black">Record Received Fund</h1>
+                            <h1 className="text-3xl font-bold text-black">{editDocName ? 'Edit Received Fund' : 'Record Received Fund'}</h1>
                             <p className="text-gray-700 mt-1">
                                 For Project: <strong>{projectName}</strong> - {projectTitle}
                             </p>
@@ -852,183 +959,183 @@ const AddFundReceived: React.FC = () => {
                     {/* Right: Sanction Details Panel */}
                     <div className="lg:col-span-1">
                         <div className="sticky top-4 space-y-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
-                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                                <span className="p-1.5 rounded-lg bg-[#E0F7F6]">📋</span>
-                                Sanction Details
-                            </h3>
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                                    <span className="p-1.5 rounded-lg bg-[#E0F7F6]">📋</span>
+                                    Sanction Details
+                                </h3>
 
-                            {sanctionLoading ? (
-                                <div className="text-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4] mx-auto"></div>
-                                    <p className="text-sm text-gray-500 mt-2">Loading...</p>
-                                </div>
-                            ) : selectedSanction ? (
-                                <div className="space-y-4">
-                                    <div>
-                                        <p className="text-xs font-semibold text-gray-500 uppercase">Sanction Reference</p>
-                                        <p className="text-sm font-medium text-gray-900">{selectedSanction.name}</p>
+                                {sanctionLoading ? (
+                                    <div className="text-center py-8">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4] mx-auto"></div>
+                                        <p className="text-sm text-gray-500 mt-2">Loading...</p>
                                     </div>
-                                    <div>
-                                        <p className="text-xs font-semibold text-gray-500 uppercase">Sanction Letter No</p>
-                                        <p className="text-sm font-medium text-gray-900">{selectedSanction.sanction_letter_no || '-'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-semibold text-gray-500 uppercase">Sanction Date</p>
-                                        <p className="text-sm font-medium text-gray-900">{selectedSanction.sanction_date || '-'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-semibold text-gray-500 uppercase">Total Amount</p>
-                                        <p className="text-lg font-bold text-[#0EA5A4]">₹ {(selectedSanction.total_sanctioned_amount || 0).toLocaleString('en-IN')}</p>
-                                    </div>
+                                ) : selectedSanction ? (
+                                    <div className="space-y-4">
+                                        <div>
+                                            <p className="text-xs font-semibold text-gray-500 uppercase">Sanction Reference</p>
+                                            <p className="text-sm font-medium text-gray-900">{selectedSanction.name}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold text-gray-500 uppercase">Sanction Letter No</p>
+                                            <p className="text-sm font-medium text-gray-900">{selectedSanction.sanction_letter_no || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold text-gray-500 uppercase">Sanction Date</p>
+                                            <p className="text-sm font-medium text-gray-900">{selectedSanction.sanction_date || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-semibold text-gray-500 uppercase">Total Amount</p>
+                                            <p className="text-lg font-bold text-[#0EA5A4]">₹ {(selectedSanction.total_sanctioned_amount || 0).toLocaleString('en-IN')}</p>
+                                        </div>
 
-                                    {selectedSanction.sanctioned_budget_breakup?.length > 0 && (() => {
-                                        // Determine which years have data
-                                        const yearKeys = [
-                                            { key: 'first_year_budget', label: 'Y1' },
-                                            { key: 'second_year_budget', label: 'Y2' },
-                                            { key: 'third_year_budget', label: 'Y3' },
-                                            { key: 'fourth_year_budget', label: 'Y4' },
-                                            { key: 'fifth_year_budget', label: 'Y5' },
-                                        ];
-                                        const activeYears = yearKeys.filter(year =>
-                                            selectedSanction.sanctioned_budget_breakup.some((row: any) => (row[year.key] || 0) > 0)
-                                        );
+                                        {selectedSanction.sanctioned_budget_breakup?.length > 0 && (() => {
+                                            // Determine which years have data
+                                            const yearKeys = [
+                                                { key: 'first_year_budget', label: 'Y1' },
+                                                { key: 'second_year_budget', label: 'Y2' },
+                                                { key: 'third_year_budget', label: 'Y3' },
+                                                { key: 'fourth_year_budget', label: 'Y4' },
+                                                { key: 'fifth_year_budget', label: 'Y5' },
+                                            ];
+                                            const activeYears = yearKeys.filter(year =>
+                                                selectedSanction.sanctioned_budget_breakup.some((row: any) => (row[year.key] || 0) > 0)
+                                            );
 
-                                        return (
-                                            <div className="pt-3 border-t border-gray-200">
-                                                <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Budget Breakup (Year-wise)</p>
-                                                <div className="overflow-x-auto">
-                                                    <table className="w-full text-xs">
-                                                        <thead>
-                                                            <tr className="border-b border-gray-200">
-                                                                <th className="text-left py-2 font-semibold text-gray-600">Head</th>
-                                                                {activeYears.map(year => (
-                                                                    <th key={year.key} className="text-right py-2 font-semibold text-gray-600">{year.label}</th>
-                                                                ))}
-                                                                <th className="text-right py-2 font-bold text-gray-700">Total</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {selectedSanction.sanctioned_budget_breakup.map((row: any, i: number) => {
-                                                                const total = activeYears.reduce((sum, year) => sum + (row[year.key] || 0), 0);
-                                                                return (
-                                                                    <tr key={i} className="border-b border-gray-100">
-                                                                        <td className="py-1.5 text-gray-700 truncate max-w-[80px]" title={row.account_head}>{row.account_head}</td>
-                                                                        {activeYears.map(year => {
-                                                                            const val = row[year.key] || 0;
-                                                                            return <td key={year.key} className="py-1.5 text-right text-gray-600">{val > 0 ? (val / 1000).toFixed(0) + 'k' : '-'}</td>;
-                                                                        })}
-                                                                        <td className="py-1.5 text-right font-semibold text-gray-900">{(total / 1000).toFixed(0)}k</td>
-                                                                    </tr>
-                                                                );
-                                                            })}
-                                                        </tbody>
-                                                        <tfoot className="bg-gray-50">
-                                                            <tr>
-                                                                <td className="py-1.5 font-bold text-gray-800">Total</td>
-                                                                {activeYears.map(year => {
-                                                                    const yearTotal = selectedSanction.sanctioned_budget_breakup.reduce((sum: number, row: any) => sum + (row[year.key] || 0), 0);
-                                                                    return <td key={year.key} className="py-1.5 text-right font-semibold text-gray-700">{yearTotal > 0 ? (yearTotal / 1000).toFixed(0) + 'k' : '-'}</td>;
+                                            return (
+                                                <div className="pt-3 border-t border-gray-200">
+                                                    <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Budget Breakup (Year-wise)</p>
+                                                    <div className="overflow-x-auto">
+                                                        <table className="w-full text-xs">
+                                                            <thead>
+                                                                <tr className="border-b border-gray-200">
+                                                                    <th className="text-left py-2 font-semibold text-gray-600">Head</th>
+                                                                    {activeYears.map(year => (
+                                                                        <th key={year.key} className="text-right py-2 font-semibold text-gray-600">{year.label}</th>
+                                                                    ))}
+                                                                    <th className="text-right py-2 font-bold text-gray-700">Total</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {selectedSanction.sanctioned_budget_breakup.map((row: any, i: number) => {
+                                                                    const total = activeYears.reduce((sum, year) => sum + (row[year.key] || 0), 0);
+                                                                    return (
+                                                                        <tr key={i} className="border-b border-gray-100">
+                                                                            <td className="py-1.5 text-gray-700 truncate max-w-[80px]" title={row.account_head}>{row.account_head}</td>
+                                                                            {activeYears.map(year => {
+                                                                                const val = row[year.key] || 0;
+                                                                                return <td key={year.key} className="py-1.5 text-right text-gray-600">{val > 0 ? (val / 1000).toFixed(0) + 'k' : '-'}</td>;
+                                                                            })}
+                                                                            <td className="py-1.5 text-right font-semibold text-gray-900">{(total / 1000).toFixed(0)}k</td>
+                                                                        </tr>
+                                                                    );
                                                                 })}
-                                                                <td className="py-1.5 text-right font-bold text-[#0EA5A4]">
-                                                                    {(selectedSanction.sanctioned_budget_breakup.reduce((sum: number, row: any) =>
-                                                                        activeYears.reduce((s, y) => s + (row[y.key] || 0), sum), 0
-                                                                    ) / 1000).toFixed(0)}k
-                                                                </td>
-                                                            </tr>
-                                                        </tfoot>
-                                                    </table>
+                                                            </tbody>
+                                                            <tfoot className="bg-gray-50">
+                                                                <tr>
+                                                                    <td className="py-1.5 font-bold text-gray-800">Total</td>
+                                                                    {activeYears.map(year => {
+                                                                        const yearTotal = selectedSanction.sanctioned_budget_breakup.reduce((sum: number, row: any) => sum + (row[year.key] || 0), 0);
+                                                                        return <td key={year.key} className="py-1.5 text-right font-semibold text-gray-700">{yearTotal > 0 ? (yearTotal / 1000).toFixed(0) + 'k' : '-'}</td>;
+                                                                    })}
+                                                                    <td className="py-1.5 text-right font-bold text-[#0EA5A4]">
+                                                                        {(selectedSanction.sanctioned_budget_breakup.reduce((sum: number, row: any) =>
+                                                                            activeYears.reduce((s, y) => s + (row[y.key] || 0), sum), 0
+                                                                        ) / 1000).toFixed(0)}k
+                                                                    </td>
+                                                                </tr>
+                                                            </tfoot>
+                                                        </table>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })()}
-                                </div>
-                            ) : (
-                                <div className="text-center py-8">
-                                    <p className="text-sm text-gray-500">No sanction details found.</p>
-                                    <p className="text-xs text-gray-400 mt-1">Please add a sanction first.</p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Validation Summary Panel */}
-                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mt-6">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                                <span className="p-1.5 rounded-lg bg-blue-100">✓</span>
-                                Real-time Validation
-                            </h3>
-
-                            {/* Total Budget Validation */}
-                            <div className="space-y-3 mb-4">
-                                <p className="text-xs font-semibold text-gray-500 uppercase">Total Budget Status</p>
-                                <ProgressBar
-                                    current={validationState.totalValidation.previousTotal + validationState.totalValidation.currentTotal}
-                                    total={validationState.totalValidation.sanctionedTotal}
-                                    label="Total Funds"
-                                    showWarning={true}
-                                />
-                                <ValidationAlert
-                                    isValid={validationState.totalValidation.isValid}
-                                    message={validationState.totalValidation.message}
-                                />
-                                <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                                    <div className="bg-gray-50 p-2 rounded">
-                                        <p className="text-gray-500">Previously Received</p>
-                                        <p className="font-bold text-gray-800">₹{validationState.totalValidation.previousTotal.toLocaleString()}</p>
-                                    </div>
-                                    <div className="bg-gray-50 p-2 rounded">
-                                        <p className="text-gray-500">Current Entry</p>
-                                        <p className="font-bold text-blue-600">₹{validationState.totalValidation.currentTotal.toLocaleString()}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Budget Head-wise Validation */}
-                            {Object.keys(validationState.headValidations).length > 0 && (
-                                <div className="pt-4 border-t border-gray-200">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Budget Head Status</p>
-                                    <div className="space-y-3 max-h-80 overflow-y-auto">
-                                        {Object.entries(validationState.headValidations).map(([head, validation]) => (
-                                            <div key={head} className="space-y-2 p-3 bg-gray-50 rounded-lg">
-                                                <p className="font-semibold text-sm text-gray-800">{head}</p>
-                                                <ProgressBar
-                                                    current={validation.previousTotal + validation.currentTotal}
-                                                    total={validation.sanctionedLimit}
-                                                    label=""
-                                                    showWarning={false}
-                                                />
-                                                <div className="flex justify-between text-xs">
-                                                    <span className={validation.isValid ? 'text-green-600' : 'text-red-600'}>
-                                                        {validation.message}
-                                                    </span>
-                                                    <span className="text-gray-600">
-                                                        Prev: ₹{validation.previousTotal.toLocaleString()} |
-                                                        Curr: ₹{validation.currentTotal.toLocaleString()}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Overall Status Badge */}
-                            <div className="mt-4 pt-4 border-t border-gray-200">
-                                {validationState.totalValidation.isValid &&
-                                 Object.values(validationState.headValidations).every(v => v.isValid) ? (
-                                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-                                        <p className="text-green-800 font-semibold">✓ Ready to Submit</p>
-                                        <p className="text-xs text-green-600 mt-1">All validations passed</p>
+                                            );
+                                        })()}
                                     </div>
                                 ) : (
-                                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                                        <p className="text-red-800 font-semibold">⚠️ Cannot Submit</p>
-                                        <p className="text-xs text-red-600 mt-1">Please fix validation errors above</p>
+                                    <div className="text-center py-8">
+                                        <p className="text-sm text-gray-500">No sanction details found.</p>
+                                        <p className="text-xs text-gray-400 mt-1">Please add a sanction first.</p>
                                     </div>
                                 )}
                             </div>
-                        </div>
+
+                            {/* Validation Summary Panel */}
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mt-6">
+                                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                                    <span className="p-1.5 rounded-lg bg-blue-100">✓</span>
+                                    Real-time Validation
+                                </h3>
+
+                                {/* Total Budget Validation */}
+                                <div className="space-y-3 mb-4">
+                                    <p className="text-xs font-semibold text-gray-500 uppercase">Total Budget Status</p>
+                                    <ProgressBar
+                                        current={validationState.totalValidation.previousTotal + validationState.totalValidation.currentTotal}
+                                        total={validationState.totalValidation.sanctionedTotal}
+                                        label="Total Funds"
+                                        showWarning={true}
+                                    />
+                                    <ValidationAlert
+                                        isValid={validationState.totalValidation.isValid}
+                                        message={validationState.totalValidation.message}
+                                    />
+                                    <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                                        <div className="bg-gray-50 p-2 rounded">
+                                            <p className="text-gray-500">Previously Received</p>
+                                            <p className="font-bold text-gray-800">₹{validationState.totalValidation.previousTotal.toLocaleString()}</p>
+                                        </div>
+                                        <div className="bg-gray-50 p-2 rounded">
+                                            <p className="text-gray-500">Current Entry</p>
+                                            <p className="font-bold text-blue-600">₹{validationState.totalValidation.currentTotal.toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Budget Head-wise Validation */}
+                                {Object.keys(validationState.headValidations).length > 0 && (
+                                    <div className="pt-4 border-t border-gray-200">
+                                        <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Budget Head Status</p>
+                                        <div className="space-y-3 max-h-80 overflow-y-auto">
+                                            {Object.entries(validationState.headValidations).map(([head, validation]) => (
+                                                <div key={head} className="space-y-2 p-3 bg-gray-50 rounded-lg">
+                                                    <p className="font-semibold text-sm text-gray-800">{head}</p>
+                                                    <ProgressBar
+                                                        current={validation.previousTotal + validation.currentTotal}
+                                                        total={validation.sanctionedLimit}
+                                                        label=""
+                                                        showWarning={false}
+                                                    />
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className={validation.isValid ? 'text-green-600' : 'text-red-600'}>
+                                                            {validation.message}
+                                                        </span>
+                                                        <span className="text-gray-600">
+                                                            Prev: ₹{validation.previousTotal.toLocaleString()} |
+                                                            Curr: ₹{validation.currentTotal.toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Overall Status Badge */}
+                                <div className="mt-4 pt-4 border-t border-gray-200">
+                                    {validationState.totalValidation.isValid &&
+                                        Object.values(validationState.headValidations).every(v => v.isValid) ? (
+                                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                                            <p className="text-green-800 font-semibold">✓ Ready to Submit</p>
+                                            <p className="text-xs text-green-600 mt-1">All validations passed</p>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                                            <p className="text-red-800 font-semibold">⚠️ Cannot Submit</p>
+                                            <p className="text-xs text-red-600 mt-1">Please fix validation errors above</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -10,6 +10,8 @@ import { GlobalLoader } from '@/components/ui/global-loader';
 import { ledgerService } from '@/services/ledgerService';
 import type { CommitRecord } from '@/types/ledgerTypes';
 import { PaymentForm } from '@/components/PaymentForm';
+import { useUserRoles } from '@/components/UserRole';
+import { useFrappeAuth } from 'frappe-react-sdk';
 
 // Define interfaces for payments
 interface PaymentRecord {
@@ -61,18 +63,29 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
 
 const Payments: React.FC = () => {
     const navigate = useNavigate();
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+
+    // Comprehensive check for RnD Staff roles
+    const isRnDStaff = roles?.some((r: string) =>
+        r === "RnD Staff" || r === "R&D Staff" || r === "Research and Development Staff" ||
+        r === "System Manager" || r === "staff, RnD" || r === "Hos, RnD (Head of Section, RnD)"
+    );
+
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedStatus, setSelectedStatus] = useState<string>('');
     const [selectedDoctype, setSelectedDoctype] = useState<string>('');
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [payments, setPayments] = useState<PaymentRecord[]>([]);
 
     // New State for Commits and Tabs
     const [pendingCommits, setPendingCommits] = useState<CommitRecord[]>([]);
     const [activeTab, setActiveTab] = useState<'history' | 'commits'>('commits'); // Default to commits context
+    const [commitPage, setCommitPage] = useState(1);
+    const commitsPerPage = 50;
     const itemsPerPage = 10;
 
     // Payment Modal State
@@ -89,32 +102,6 @@ const Payments: React.FC = () => {
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
-    // Fetch payments data
-    const fetchPayments = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const response = await fetch('/api/method/rndopsapp.rndopsapp.doctype.accountheadpayment.accountheadpayment.get_all_payments', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                credentials: 'include'
-            });
-            const result = await response.json();
-            if (result?.message) {
-                setPayments(result.message || []);
-            } else {
-                setPayments([]);
-            }
-        } catch (err: any) {
-            console.error('Failed to fetch payments:', err);
-            setError(err.message || 'Failed to load payments');
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
 
     // Fetch Pending Commits
     const fetchPendingCommits = useCallback(async () => {
@@ -124,8 +111,14 @@ const Payments: React.FC = () => {
             const promises = statuses.map(status => ledgerService.getCommitsByStatus(status));
 
             const results = await Promise.all(promises);
-            // Flatten results
+            // Flatten results and sort by date descending (latest first)
             const allCommits = results.flat();
+            allCommits.sort((a, b) => {
+                const dateA = a.commitDate ? new Date(a.commitDate).getTime() : 0;
+                const dateB = b.commitDate ? new Date(b.commitDate).getTime() : 0;
+                return dateB - dateA;
+            });
+            console.log("allCommits:", allCommits);
             setPendingCommits(allCommits);
         } catch (err) {
             console.error('Failed to fetch pending commits', err);
@@ -134,6 +127,9 @@ const Payments: React.FC = () => {
 
     // State for Budget Head Mapping
     const [budgetHeadMap, setBudgetHeadMap] = useState<Record<string, string>>({});
+
+    // State for Module Name Mapping (moduleId -> module name)
+    const [moduleNameMap, setModuleNameMap] = useState<Record<string, string>>({});
 
     // Fetch Budget Heads for mapping
     const fetchBudgetHeads = useCallback(async () => {
@@ -152,11 +148,45 @@ const Payments: React.FC = () => {
         }
     }, []);
 
+    // Fetch Module Registry to map moduleId (idx) -> doctype_name
+    const fetchModuleRegistry = useCallback(async () => {
+        // Fallback map in case API fails
+        const fallbackMap: Record<string, string> = {
+            '1': 'Project Registration',
+            '2': 'Project Proposal',
+            '3': 'Fund Received',
+            '4': 'Fund Sanction',
+            '5': 'Reimbursement',
+            '6': 'Travel',
+            '7': 'Temporary Advance',
+            '8': 'Advance Settlement',
+        };
+        try {
+            const response = await fetch('/api/v2/document/Module%20Registry/pending-task', { credentials: 'include' });
+            const data = await response.json();
+            console.log('Module Registry response:', data);
+            if (data?.data?.doctype_name && Array.isArray(data.data.doctype_name)) {
+                const map: Record<string, string> = {};
+                data.data.doctype_name.forEach((item: any) => {
+                    map[String(item.idx)] = item.doctype_name;
+                });
+                console.log('Module name map:', map);
+                setModuleNameMap(map);
+            } else {
+                console.warn('Module Registry: unexpected response, using fallback map');
+                setModuleNameMap(fallbackMap);
+            }
+        } catch (err) {
+            console.error('Failed to fetch module registry, using fallback:', err);
+            setModuleNameMap(fallbackMap);
+        }
+    }, []);
+
     useEffect(() => {
-        fetchPayments();
         fetchPendingCommits();
         fetchBudgetHeads();
-    }, [fetchPayments, fetchPendingCommits, fetchBudgetHeads]);
+        fetchModuleRegistry();
+    }, [fetchPendingCommits, fetchBudgetHeads, fetchModuleRegistry]);
 
     // Client-side filtering
     const filteredPayments = React.useMemo(() => {
@@ -265,7 +295,7 @@ const Payments: React.FC = () => {
                     <FaExclamationCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
                     <h2 className="text-xl font-bold text-black mb-2">Error Loading Payments</h2>
                     <p className="text-gray-900">{error}</p>
-                    <FrappeButton variant="primary" onClick={fetchPayments} className="mt-4">
+                    <FrappeButton variant="primary" onClick={() => window.location.reload()} className="mt-4">
                         Retry
                     </FrappeButton>
                 </FrappeCard>
@@ -343,6 +373,8 @@ const Payments: React.FC = () => {
                                     <tr>
                                         <th className="p-3 text-left font-bold text-black text-sm">Project No.</th>
                                         <th className="p-3 text-left font-bold text-black text-sm">Account Head</th>
+                                        <th className="p-3 text-left font-bold text-black text-sm">Module</th>
+                                        <th className="p-3 text-left font-bold text-black text-sm">App ID</th>
                                         <th className="p-3 text-left font-bold text-black text-sm">Date</th>
                                         <th className="p-3 text-left font-bold text-black text-sm">Particulars</th>
                                         <th className="p-3 text-left font-bold text-black text-sm">Ref Details</th>
@@ -352,32 +384,72 @@ const Payments: React.FC = () => {
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
                                     {pendingCommits.length > 0 ? (
-                                        pendingCommits.map((commit, idx) => (
-                                            <tr key={idx} className="hover:bg-gray-50">
-                                                <td className="p-4 text-sm font-mono font-medium">{commit.projectNumber}</td>
-                                                <td className="p-4 text-sm text-gray-700 font-bold">
-                                                    {budgetHeadMap[String(commit.accountHeadId)] || commit.accountHeadId}
-                                                </td>
-                                                <td className="p-4 text-sm">{commit.commitDate}</td>
-                                                <td className="p-4 text-sm">{commit.commitParticular}</td>
-                                                <td className="p-4 text-sm text-gray-600">{commit.refDetails}</td>
-                                                <td className="p-4 text-right font-bold text-black text-sm">
-                                                    ₹{commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                                </td>
-                                                <td className="p-4">
-                                                    <FrappeButton
-                                                        variant="primary"
-                                                        className="text-xs py-1 px-3"
-                                                        onClick={() => initiatePaymentForCommit(commit)}
-                                                    >
-                                                        Pay
-                                                    </FrappeButton>
-                                                </td>
-                                            </tr>
-                                        ))
+                                        pendingCommits
+                                            .slice((commitPage - 1) * commitsPerPage, commitPage * commitsPerPage)
+                                            .map((commit, idx) => (
+                                                <tr key={idx} className="hover:bg-gray-50">
+                                                    <td className="p-4 text-sm font-mono font-medium">{commit.projectNumber}</td>
+                                                    <td className="p-4 text-sm text-gray-700 font-bold">
+                                                        {budgetHeadMap[String(commit.accountHeadId)] || commit.accountHeadId}
+                                                    </td>
+                                                    <td className="p-4 text-sm text-gray-700">
+                                                        {commit.moduleId ? (moduleNameMap[String(commit.moduleId)] || commit.moduleId) : '-'}
+                                                    </td>
+                                                    <td className="p-4 text-sm font-mono text-gray-600">
+                                                        {commit.frapAppId || '-'}
+                                                    </td>
+                                                    <td className="p-4 text-sm">{commit.commitDate}</td>
+                                                    <td className="p-4 text-sm">{commit.commitParticular}</td>
+                                                    <td className="p-4 text-sm text-gray-600">{commit.refDetails}</td>
+                                                    <td className="p-4 text-right font-bold text-black text-sm">
+                                                        ₹{commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                    <td className="p-4">
+                                                        <div className="flex gap-2">
+                                                            {isRnDStaff && (
+                                                                <FrappeButton
+                                                                    variant="primary"
+                                                                    className="text-xs py-1 px-3"
+                                                                    onClick={() => initiatePaymentForCommit(commit)}
+                                                                >
+                                                                    Pay
+                                                                </FrappeButton>
+                                                            )}
+                                                            <FrappeButton
+                                                                variant="outline"
+                                                                className="text-xs py-1 px-3"
+                                                                onClick={() => {
+                                                                    const moduleName = commit.moduleId
+                                                                        ? (moduleNameMap[String(commit.moduleId)] || '').toLowerCase()
+                                                                        : '';
+                                                                    const appId = commit.frapAppId;
+
+                                                                    const routeMap: Record<string, string> = {
+                                                                        'reimbursement': '/reimbursement',
+                                                                        'travel': '/travel',
+                                                                        'temporary advance': '/temporary-advance',
+                                                                        'advance settlement': '/advance-settlement',
+                                                                        'fund received': '/fund-received',
+                                                                        'fund sanction': '/add-fund-sanction',
+                                                                        'project registration': '/project-details',
+                                                                        'project proposal': '/project-proposal-details',
+                                                                    };
+
+                                                                    const basePath = routeMap[moduleName];
+                                                                    if (basePath && appId) {
+                                                                        navigate(`${basePath}/${appId}`);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                View
+                                                            </FrappeButton>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={6} className="p-8 text-center text-gray-500">
+                                            <td colSpan={9} className="p-8 text-center text-gray-500">
                                                 No pending commits found.
                                             </td>
                                         </tr>
@@ -385,6 +457,31 @@ const Payments: React.FC = () => {
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Commits Pagination */}
+                        {pendingCommits.length > commitsPerPage && (
+                            <div className="p-4 border-t border-gray-300 bg-gray-50 flex justify-between items-center">
+                                <div className="text-sm text-gray-900 font-medium">
+                                    Showing {(commitPage - 1) * commitsPerPage + 1} to {Math.min(commitPage * commitsPerPage, pendingCommits.length)} of {pendingCommits.length} commits
+                                </div>
+                                <div className="flex gap-1">
+                                    <FrappeButton
+                                        onClick={() => setCommitPage(p => Math.max(1, p - 1))}
+                                        disabled={commitPage === 1}
+                                        variant="outline"
+                                    >
+                                        Previous
+                                    </FrappeButton>
+                                    <FrappeButton
+                                        onClick={() => setCommitPage(p => p + 1)}
+                                        disabled={commitPage * commitsPerPage >= pendingCommits.length}
+                                        variant="outline"
+                                    >
+                                        Next
+                                    </FrappeButton>
+                                </div>
+                            </div>
+                        )}
                     </FrappeCard>
                 )}
 
@@ -525,16 +622,18 @@ const Payments: React.FC = () => {
                                                         ₹{payment.payment_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
                                                     </td>
                                                     <td className="p-4">
-                                                        <FrappeButton
-                                                            variant="action"
-                                                            onClick={(e) => {
-                                                                e?.stopPropagation();
-                                                                openPaymentModal(payment);
-                                                            }}
-                                                            className="text-xs px-4 py-2"
-                                                        >
-                                                            Payment
-                                                        </FrappeButton>
+                                                        {isRnDStaff && (
+                                                            <FrappeButton
+                                                                variant="action"
+                                                                onClick={(e) => {
+                                                                    e?.stopPropagation();
+                                                                    openPaymentModal(payment);
+                                                                }}
+                                                                className="text-xs px-4 py-2"
+                                                            >
+                                                                Payment
+                                                            </FrappeButton>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             ))
@@ -593,7 +692,7 @@ const Payments: React.FC = () => {
 
             {paymentModalOpen && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPaymentModalOpen(false)}>
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                         <div className="flex bg-gray-50 px-6 py-4 border-b items-center justify-between">
                             <h2 className="text-xl font-bold text-gray-900">
                                 {selectedPaymentName ? "Edit Payment" : "Process Payment"}
@@ -609,7 +708,6 @@ const Payments: React.FC = () => {
                                 resolvedBudgetHead={selectedCommit ? budgetHeadMap[String(selectedCommit.accountHeadId)] : undefined}
                                 onSuccess={() => {
                                     setPaymentModalOpen(false);
-                                    fetchPayments();
                                     fetchPendingCommits();
                                 }}
                                 onCancel={() => setPaymentModalOpen(false)}

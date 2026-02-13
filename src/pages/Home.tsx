@@ -1,7 +1,9 @@
 import * as React from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
 import { AppSidebar } from "../components/RndSidebar";
+import { useUserRoles } from "../components/UserRole";
 
 // --- Icon Components (unchanged logic, purely visual helpers) ---
 const PlusCircle: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
@@ -147,11 +149,51 @@ export function Home() {
   const [showAccountNumber, setShowAccountNumber] = React.useState(false);
   const [showSalary, setShowSalary] = React.useState(false);
 
-  const isPermanentEmployee = userData?.user_roles?.some((role: any) => role.role === "Permanent Employee") || false;
+  const { roles, isLoading: isRolesLoading } = useUserRoles(currentUser ?? null);
 
-  if (isPermanentEmployee) {
-    navigate("/pihomepage");
-    return null;
+  useEffect(() => {
+    if (isRolesLoading || !roles) return;
+
+    // Replicate full role-based redirect logic from Dashboard.tsx
+    const isDirector = roles.includes('Director');
+    const isDean = roles.includes('Dean, RnD');
+    const isHosRnd = roles.includes('Hos, RnD (Head of Section, RnD)');
+    const isHead = roles.includes('head_approver_1');
+    const isInspiredFaculty = roles.includes('Inspired Faculty');
+    const isIndependentResearcher = roles.includes('Independent Researcher');
+    const isPermanentEmployee = roles.includes('Permanent Employee');
+    const isProjectStaff = roles.includes('project staff');
+    const isRndStaff = roles.includes('staff, RnD');
+
+    if (isDirector) {
+      navigate('/director-dashboard');
+    } else if (isDean) {
+      navigate('/dean-dashboard');
+    } else if (isHosRnd) {
+      navigate('/hos-rnd-dashboard');
+    } else if (isHead) {
+      navigate('/head-dashboard');
+    } else if (isInspiredFaculty || isIndependentResearcher) {
+      // These roles stay on /home — do nothing
+    } else if (isPermanentEmployee) {
+      navigate('/pihomepage');
+    } else if (isProjectStaff) {
+      navigate('/project-staff-dashboard');
+    } else if (isRndStaff) {
+      navigate('/rnd-staff-dashboard');
+    }
+  }, [roles, isRolesLoading, navigate]);
+
+  // Show loading spinner while roles are being fetched to prevent generic Home flash
+  if (isRolesLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-800 border-t-transparent mx-auto"></div>
+          <p className="mt-4 text-lg font-medium text-gray-700">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

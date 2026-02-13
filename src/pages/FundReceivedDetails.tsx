@@ -12,6 +12,37 @@ import { useDepositSlipCalculations } from "../hooks/useDepositSlipCalculations"
 import { useFrappeFetchFrom } from "../hooks/useFrappeFetchFrom";
 import { HoSApprovalView } from "./HoSApprovalView";
 
+// Component to fetch and display attachment for a transaction
+const TransactionAttachment = ({ transactionName, fallbackFile }: { transactionName: string, fallbackFile?: string }) => {
+    // Attempt to find a File document attached to this transaction row
+    const { data } = useFrappeGetCall<{ message: any[] }>('frappe.client.get_list', {
+        doctype: 'File',
+        filters: {
+            attached_to_name: transactionName
+        },
+        fields: ['file_url', 'file_name'],
+        limit_page_length: 1
+    });
+
+    const file = data?.message?.[0];
+    const fileUrl = file?.file_url || fallbackFile;
+    const fileName = file?.file_name || 'Attachment';
+
+    if (!fileUrl) return <span className="text-gray-400">-</span>;
+
+    return (
+        <a
+            href={fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
+            title={fileName}
+        >
+            <FileText className="h-4 w-4" />
+        </a>
+    );
+};
+
 // --- DEPOSIT SLIP TYPE CONFIGURATION ---
 const DEPOSIT_SLIP_TYPES: Record<string, {
     label: string;
@@ -868,6 +899,14 @@ const FundReceivedDetails = () => {
                                 <h1 className="text-2xl font-bold text-black uppercase tracking-tight">Fund Details & Deposit Slip</h1>
                                 <p className="text-sm text-gray-700 font-medium mt-0.5">{name}</p>
                             </div>
+                            {fundData?.workflow_state === 'Draft' && (
+                                <FrappeButton
+                                    onClick={() => navigate(`/add-fund-received/${fundData.prjreg_title}?id=${name}`)}
+                                    className="bg-blue-100 text-blue-800 hover:bg-blue-200 border border-blue-200 shadow-sm ml-2 h-8 px-3 text-xs"
+                                >
+                                    ✏️ Edit
+                                </FrappeButton>
+                            )}
                         </div>
                         <div className="flex items-center gap-4">
                             <FundReceivedWorkflowActions
@@ -1115,19 +1154,21 @@ const FundReceivedDetails = () => {
                             </FrappeCard>
                         </div>
 
-                        {/* Sanction Reference */}
-                        <FrappeCard title="Sanction Reference" icon={<Calculator className="h-4 w-4 text-[#0EA5A4]" />}>
-                            <DetailRow label="Sanction Reference" value={sanction_ref_no} />
-                        </FrappeCard>
+                        <div className="grid grid-cols-2 gap-4">
+                            {/* Sanction Reference */}
+                            <FrappeCard title="Sanction Reference" icon={<Calculator className="h-4 w-4 text-[#0EA5A4]" />}>
+                                <DetailRow label="Sanction Reference" value={sanction_ref_no} />
+                            </FrappeCard>
 
-                        {/* Fund Info */}
-                        <FrappeCard title="Fund Information" icon={<Calculator className="h-4 w-4 text-[#0EA5A4]" />}>
-                            <div className="space-y-1">
-                                <DetailRow label="Total Amount Received" value={fund_received_amt} isCurrency />
-                                <DetailRow label="Bank Account" value={bank_account} />
-                                <DetailRow label="Workflow State" value={workflow_state} />
-                            </div>
-                        </FrappeCard>
+                            {/* Fund Info */}
+                            <FrappeCard title="Fund Information" icon={<Calculator className="h-4 w-4 text-[#0EA5A4]" />}>
+                                <div className="space-y-1">
+                                    <DetailRow label="Total Amount Received" value={fund_received_amt} isCurrency />
+                                    <DetailRow label="Bank Account" value={bank_account} />
+                                    <DetailRow label="Workflow State" value={workflow_state} />
+                                </div>
+                            </FrappeCard>
+                        </div>
 
                         {/* Budget Breakup */}
                         <FrappeCard title="Budget Breakup" icon={<FileText className="h-4 w-4 text-[#0EA5A4]" />}>
@@ -1137,7 +1178,7 @@ const FundReceivedDetails = () => {
                                         <tr className="divide-x divide-gray-300">
                                             <th className="px-3 py-2 text-left text-xs font-bold text-black uppercase">Account Head</th>
                                             <th className="px-3 py-2 text-right text-xs font-bold text-black uppercase">Amount</th>
-                                            <th className="px-3 py-2 text-center text-xs font-bold text-black uppercase">Year</th>
+                                            <th className="px-3 py-2 text-left text-xs font-bold text-black uppercase">Remarks</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-300 bg-white">
@@ -1147,7 +1188,7 @@ const FundReceivedDetails = () => {
                                                 <td className="px-3 py-2 text-sm text-right font-bold text-[#0EA5A4]">
                                                     {item.amount_received?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
                                                 </td>
-                                                <td className="px-3 py-2 text-sm text-center text-gray-900">{item.budget_year_funds_receive}</td>
+                                                <td className="px-3 py-2 text-sm text-left text-gray-500">{item.remarks}</td>
                                             </tr>
                                         ))}
                                         {(!received_amt_breakup || received_amt_breakup.length === 0) && (
@@ -1169,6 +1210,7 @@ const FundReceivedDetails = () => {
                                             <th className="px-3 py-2 text-left text-xs font-bold text-black uppercase">Date</th>
                                             <th className="px-3 py-2 text-left text-xs font-bold text-black uppercase">Transaction No</th>
                                             <th className="px-3 py-2 text-right text-xs font-bold text-black uppercase">Amount</th>
+                                            <th className="px-3 py-2 text-center text-xs font-bold text-black uppercase">Attachments</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-300 bg-white">
@@ -1179,11 +1221,17 @@ const FundReceivedDetails = () => {
                                                 <td className="px-3 py-2 text-sm text-right font-bold text-[#0EA5A4]">
                                                     {item.amount?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
                                                 </td>
+                                                <td className="px-3 py-2 text-sm text-center">
+                                                    <TransactionAttachment
+                                                        transactionName={item.name}
+                                                        fallbackFile={item.attachment || item.file}
+                                                    />
+                                                </td>
                                             </tr>
                                         ))}
                                         {(!fund_transactions || fund_transactions.length === 0) && (
                                             <tr>
-                                                <td colSpan={3} className="px-3 py-6 text-center text-gray-500">No transactions</td>
+                                                <td colSpan={4} className="px-3 py-6 text-center text-gray-500">No transactions</td>
                                             </tr>
                                         )}
                                     </tbody>

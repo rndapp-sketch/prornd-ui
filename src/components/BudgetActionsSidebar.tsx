@@ -1,22 +1,43 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useFrappeGetCall } from 'frappe-react-sdk';
+import { useFrappeGetCall, useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import { PaymentModal } from './PaymentModal';
 import { ProjectLedgerModal, type BudgetEntry } from './ProjectLedgerModal';
 import { FrappeButton } from '@/components/ui/neo-brutalism';
 import { CreditCardIcon, FileSpreadsheet } from 'lucide-react';
+import { useUserRoles } from './UserRole';
 
 interface BudgetActionsSidebarProps {
     projectName: string;
+    docName?: string;
+    doctype?: string;
     isStaff?: boolean;
 }
 
-export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({ projectName, isStaff = true }) => {
+export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
+    projectName,
+    isStaff = true,
+    docName,
+    doctype = "Travel"
+}) => {
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+
+    // Comprehensive check for RnD Staff roles
+    const isRndStaff = roles?.some((r: string) =>
+        r === "RnD Staff" || r === "R&D Staff" || r === "Research and Development Staff" ||
+        r === "System Manager" || r === "staff, RnD" || r === "Hos, RnD (Head of Section, RnD)"
+    );
+
     const [commitHead, setCommitHead] = useState("");
     const [commitAmount, setCommitAmount] = useState("");
-    const [manualCommitments, setManualCommitments] = useState<any[]>([]);
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
     const [initialPaymentData, setInitialPaymentData] = useState<any>(null);
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // API Hooks for Commit
+    const { call: submitCommit, loading: isCommitting } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_commit_data");
 
     // Fetch Balances
     const balanceParams = useMemo(() => ({ project_number: projectName || '' }), [projectName]);
@@ -67,31 +88,45 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({ proj
     }, [budgetHeadList]);
 
 
-    const handleCommit = () => {
+    const handleCommit = async () => {
+        if (isCommitting || isSubmitting) return;
+
         const amount = parseFloat(commitAmount);
         if (isNaN(amount) || amount <= 0) {
             alert("Please enter a valid amount.");
             return;
         }
 
-        const newEntry = {
-            date: new Date().toLocaleDateString('en-GB').replace(/\//g, '.'),
-            particulars: `Commitment for ${commitHead}`,
-            committed: amount,
-            head: commitHead,
-            _id: Date.now()
-        };
+        if (!projectName || !docName) {
+            alert("Missing project or document information.");
+            return;
+        }
 
-        setManualCommitments(prev => [...prev, newEntry]);
-        setCommitAmount("");
+        setIsSubmitting(true);
+        try {
+            await submitCommit({
+                doctype: doctype,
+                frapAppId: docName,
+                name: docName,
+                project_name: projectName,
+                commit_amount: amount,
+                budget_head: commitHead,
+                bmr: "" // Optional
+            });
+
+            alert("Commitment submitted successfully!");
+            setCommitAmount("");
+            // Ideally trigger a refresh of budget data or ledger
+            window.location.reload();
+        } catch (error: any) {
+            console.error("Commit failed:", error);
+            alert(`Commitment failed: ${error.message || "Unknown error"}`);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
-    const handleRemoveLastCommit = () => {
-        if (manualCommitments.length === 0) return;
-        setManualCommitments(prev => prev.slice(0, -1));
-    };
-
-    if (!isStaff) return null;
+    if (!isStaff || !isRndStaff) return null;
 
     return (
         <div className="space-y-6">
@@ -129,15 +164,10 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({ proj
                     <div className="flex gap-2 pt-1">
                         <button
                             onClick={handleCommit}
-                            className="flex-1 bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                            disabled={isCommitting || isSubmitting}
+                            className="flex-1 bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                         >
-                            Commit
-                        </button>
-                        <button
-                            onClick={handleRemoveLastCommit}
-                            className="px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors"
-                        >
-                            Remove
+                            {isCommitting || isSubmitting ? "Committing..." : "Commit"}
                         </button>
                     </div>
 
@@ -150,19 +180,6 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({ proj
                             View Project Budget Ledger
                         </div>
                     </button>
-
-                    {/* Display Manual Commitments List (Simulation) */}
-                    {manualCommitments.length > 0 && (
-                        <div className="pt-3 border-t border-gray-100 mt-2 space-y-2">
-                            <p className="text-xs font-semibold text-gray-500">Draft Commitments (Unsaved)</p>
-                            {manualCommitments.map((c, idx) => (
-                                <div key={idx} className="flex justify-between items-center text-xs bg-gray-50 p-2 rounded border border-gray-100">
-                                    <span>{c.head}</span>
-                                    <span className="font-bold text-red-600">₹{c.committed.toLocaleString('en-IN')}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -195,7 +212,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({ proj
                 onClose={() => setIsLedgerOpen(false)}
                 projectName={projectName}
                 budgetHeadList={budgetHeadList}
-                manualCommitments={manualCommitments}
+                manualCommitments={[]}
                 onPaymentClick={(row: BudgetEntry) => {
                     // Logic to open payment modal from ledger
                     // Map row data to payment form prefill

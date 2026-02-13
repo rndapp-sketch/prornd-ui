@@ -43,6 +43,7 @@ const Dashboard = () => {
 
     // If roles are loaded, perform the redirection
     if (roles.length > 0) {
+      console.log("Dashboard: Roles loaded:", roles);
       const isHosRnd = roles.includes('Hos, RnD (Head of Section, RnD)');
       const isPermanentEmployee = roles.includes('Permanent Employee');
       const isDirector = roles.includes('Director');
@@ -50,6 +51,11 @@ const Dashboard = () => {
       const isHead = roles.includes('head_approver_1');
       const isProjectStaff = roles.includes('project staff');
       const isRndStaff = roles.includes('staff, RnD');
+
+      const isInspiredFaculty = roles.includes('Inspired Faculty');
+      const isIndependentResearcher = roles.includes('Independent Researcher');
+
+      console.log("Dashboard Checks:", { isHosRnd, isPermanentEmployee, isDirector, isDean, isHead, isProjectStaff, isRndStaff, isInspiredFaculty, isIndependentResearcher });
 
       if (isDirector) {
         navigate('/director-dashboard');
@@ -59,6 +65,8 @@ const Dashboard = () => {
         navigate('/hos-rnd-dashboard');
       } else if (isHead) {
         navigate('/head-dashboard');
+      } else if (isInspiredFaculty || isIndependentResearcher) {
+        navigate('/home');
       } else if (isPermanentEmployee) {
         navigate('/pihomepage');
       } else if (isProjectStaff) {

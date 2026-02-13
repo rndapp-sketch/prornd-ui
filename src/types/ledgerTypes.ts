@@ -8,6 +8,9 @@ export interface CommitRecord {
     refDetails: string;
     commitAmount: number;
     status: 'COMMITTED' | 'SETTLED' | 'PARTIALLY_PAID' | 'OVERPAYMENT' | 'PENDING';
+    billAmount: number | null;
+    moduleId: string | null;
+    frapAppId: string | null;
 }
 
 export interface LedgerPaymentRecord {

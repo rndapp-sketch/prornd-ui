@@ -31,7 +31,8 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                 if (result?.message) {
                     const { fields, prefill_data, link_options } = result.message;
                     setFieldDefs(fields || []);
-                    setLinkOptions(link_options || {});
+                    // Merge link options from API
+                    const mergedLinkOptions = { ...(link_options || {}) };
 
                     if (docName) {
                         // Editing: use prefill data from API
@@ -40,17 +41,33 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                             name: docName // ensure name is set
                         });
                     } else if (commitData) {
-                        // New from Commit: Prefill manually
+                        // New from Commit: Prefill from commit data
+                        const budgetHeadValue = resolvedBudgetHead || String(commitData.accountHeadId);
+
+                        // Inject the budget head value into link_options so the <select> can display it
+                        if (budgetHeadValue) {
+                            const existingOptions = mergedLinkOptions['budget_head'] || [];
+                            const alreadyExists = existingOptions.some((opt: any) => opt.value === budgetHeadValue);
+                            if (!alreadyExists) {
+                                mergedLinkOptions['budget_head'] = [
+                                    ...existingOptions,
+                                    { value: budgetHeadValue, label: budgetHeadValue }
+                                ];
+                            }
+                        }
+
                         setFormData({
                             project_ref_number: commitData.projectNumber,
                             payment_amount: commitData.commitAmount,
                             payment_particular: commitData.commitParticular || commitData.refDetails,
                             payment_date: new Date().toISOString().split('T')[0],
                             payment_status: 'PENDING',
-                            budget_head: resolvedBudgetHead || String(commitData.accountHeadId),
+                            budget_head: budgetHeadValue,
                             commit_id: commitData.transactionCommitNumber
                         });
                     }
+
+                    setLinkOptions(mergedLinkOptions);
                 } else {
                     console.error("API Error Result:", result);
                     throw new Error(result.exc || result.exception || "Invalid response from server");
@@ -69,17 +86,19 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
     const handleSubmit = async (data: any) => {
         setSubmitting(true);
         try {
+            // Match backend API signature: doctype, name, project_name, payment_amount, budget_head, bmr
             const body = {
+                ...data, // Include all form data
                 doctype: 'AccountHeadPayment',
-                ...data
+                name: docName || data.name || undefined,
+                project_name: data.project_ref_number || undefined,
+                payment_amount: data.payment_amount || undefined,
+                budget_head: data.budget_head || undefined,
+                bmr: data.payment_bmr || data.bmr || undefined,
             };
+            console.log("Submitting Payment Data:", body);
 
-            // If editing, we need the name. If new, name might not be needed or handled by backend.
-            if (docName) {
-                body.name = docName;
-            }
-
-            const response = await fetch('/api/method/rndopsapp.rndopsapp.doctype.accountheadpayment.accountheadpayment.submit_payment_data', {
+            const response = await fetch('/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -125,7 +144,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
             onSubmit={handleSubmit}
             onCancel={onCancel}
             submitButtonText={docName ? "Update Payment" : "Create Payment"}
-            title={docName ? "Edit Payment" : "New Payment"}
+            title={docName ? `Edit Payment · ${docName}` : commitData ? `Payment · ${commitData.projectNumber}` : "New Payment"}
             isSubmitting={submitting}
             onFormChange={(newData) => setFormData(newData)}
         />

@@ -48,8 +48,9 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import AddFundSanction from "./AddFundSanction";
+
 import { DepartmentName } from "@/components/DepartmentName";
+import { ProjectNumberGenerationForm } from "@/components/ProjectNumberGenerationForm";
 
 // --- Interfaces (Unchanged) ---
 interface ActivityItem {
@@ -156,13 +157,56 @@ const TableDisplay = ({
   data,
   columns,
   icon: Icon,
+  budgetHeadList = [],
 }: {
   label: string;
   data: any[] | undefined;
   columns: { fieldname: string; label: string }[];
   icon?: any;
+  budgetHeadList?: { name: string; id: number }[];
 }) => {
   if (!data || data.length === 0) return null;
+
+  // Check if this is a budget table (has numeric year fields)
+  const isBudgetTable = columns.some(col =>
+    col.fieldname.includes('year_budget') || col.fieldname.includes('budget')
+  );
+
+  // Helper function to get budget head name from ID or name
+  const getBudgetHeadName = (accountHeadValue: string | number): string => {
+    // If it's already a string name (not a number), return it
+    if (typeof accountHeadValue === 'string' && isNaN(Number(accountHeadValue))) {
+      return accountHeadValue;
+    }
+    // Otherwise, try to find the name from budgetHeadList
+    const budgetHead = budgetHeadList.find(
+      (bh) => bh.id === Number(accountHeadValue) || bh.name === accountHeadValue
+    );
+    return budgetHead?.name || String(accountHeadValue);
+  };
+
+  // Calculate row totals for budget tables
+  const getRowTotal = (row: any) => {
+    if (!isBudgetTable) return null;
+    return columns
+      .filter(col => col.fieldname !== 'account_head')
+      .reduce((sum, col) => sum + (parseFloat(row[col.fieldname]) || 0), 0);
+  };
+
+  // Calculate column totals for budget tables
+  const getColumnTotal = (fieldname: string) => {
+    if (!isBudgetTable || fieldname === 'account_head') return null;
+    return data.reduce((sum, row) => sum + (parseFloat(row[fieldname]) || 0), 0);
+  };
+
+  // Calculate grand total
+  const grandTotal = isBudgetTable
+    ? data.reduce((sum, row) => {
+      const rowTotal = getRowTotal(row);
+      return sum + (rowTotal || 0);
+    }, 0)
+    : null;
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
       <div className="flex items-center gap-2 p-4 border-b border-gray-200 bg-gray-50">
@@ -176,30 +220,78 @@ const TableDisplay = ({
               {columns.map((col) => (
                 <th
                   key={col.fieldname}
-                  className="px-4 py-3 text-left text-xs font-semibold text-gray-600"
+                  className={cn(
+                    "px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider",
+                    col.fieldname === 'account_head' ? 'text-left' : 'text-right'
+                  )}
                 >
                   {col.label}
                 </th>
               ))}
+              {isBudgetTable && (
+                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Total
+                </th>
+              )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {data.map((row, index) => (
-              <tr
-                key={index}
-                className="hover:bg-gray-50/50 transition-colors"
-              >
-                {columns.map((col) => (
-                  <td
-                    key={col.fieldname}
-                    className="px-4 py-3 text-sm text-gray-700"
-                  >
-                    {row[col.fieldname]}
-                  </td>
-                ))}
-              </tr>
-            ))}
+          <tbody className="bg-white divide-y divide-gray-100">
+            {data.map((row, index) => {
+              const rowTotal = getRowTotal(row);
+              return (
+                <tr
+                  key={index}
+                  className="hover:bg-gray-50/50 transition-colors"
+                >
+                  {columns.map((col) => (
+                    <td
+                      key={col.fieldname}
+                      className={cn(
+                        "px-4 py-3 text-sm",
+                        col.fieldname === 'account_head'
+                          ? 'text-gray-900 font-medium text-left'
+                          : 'text-gray-700 text-right'
+                      )}
+                    >
+                      {col.fieldname === 'account_head'
+                        ? getBudgetHeadName(row[col.fieldname])
+                        : (parseFloat(row[col.fieldname]) || 0).toLocaleString('en-IN')}
+                    </td>
+                  ))}
+                  {isBudgetTable && rowTotal !== null && (
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">
+                      {rowTotal.toLocaleString('en-IN')}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
+          {isBudgetTable && (
+            <tfoot className="bg-gray-100 border-t-2 border-gray-300">
+              <tr>
+                <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap">
+                  TOTAL
+                </td>
+                {columns
+                  .filter(col => col.fieldname !== 'account_head')
+                  .map(col => {
+                    const colTotal = getColumnTotal(col.fieldname);
+                    return (
+                      <td
+                        key={col.fieldname}
+                        className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap"
+                      >
+                        {colTotal !== null ? colTotal.toLocaleString('en-IN') : '-'}
+                      </td>
+                    );
+                  })}
+                <td className="px-4 py-3 text-sm font-bold text-[#0EA5A4] text-right whitespace-nowrap">
+                  ₹ {grandTotal !== null ? grandTotal.toLocaleString('en-IN') : '-'}
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>
@@ -549,6 +641,26 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     { enabled: !!projectName, cacheTime: 0 }
   );
 
+  // Fetch Budget Heads for mapping
+  const [budgetHeadList, setBudgetHeadList] = React.useState<{ name: string; id: number }[]>([]);
+  React.useEffect(() => {
+    const fetchBudgetHeads = async () => {
+      try {
+        const response = await fetch('/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc');
+        const result = await response.json();
+        if (result?.data) {
+          setBudgetHeadList(result.data.map((item: any) => ({
+            name: item.budget_head,
+            id: item.id
+          })));
+        }
+      } catch (err) {
+        console.error("Failed to fetch Budget Heads:", err);
+      }
+    };
+    fetchBudgetHeads();
+  }, []);
+
   const { call: triggerWorkflowAction, loading: isActionLoading } =
     useFrappePostCall("rndopsapp.rndopsapp.doctype.project_registration.project_registration.handle_dynamic_workflow_action");
   const { call: submitProjectRegistration } = useFrappePostCall(
@@ -604,6 +716,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     { id: "files", label: "Files", icon: FolderOpenIcon },
     { id: "activity", label: "Activity Log", icon: MessageSquareIcon },
   ];
+
+  const needsProjectNumberGeneration = data?.workflow_state === "Pending Staff Approval";
 
   const renderContent = () => {
     if (!projectName) {
@@ -715,468 +829,490 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
             </nav>
           </div>
           <div className="bg-gray-50/50 p-6">
-            {activeTab === "overview" && (
-              <div className="space-y-6">
-                <div className="p-5 bg-white border border-gray-200 rounded-xl">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
-                    <FieldDisplay
-                      label="Project Type"
-                      value={data?.project_type}
-                      icon={FileTextIcon}
-                    />
-                    <FieldDisplay
-                      label="Implementation Dept"
-                      value={data?.implementation_department ? <DepartmentName name={data?.implementation_department} /> : null}
-                      icon={BuildingIcon}
-                    />
-                    <FieldDisplay
-                      label="Status"
-                      value={data?.workflow_state}
-                      icon={TargetIcon}
-                    />
-                    <FieldDisplay
-                      label="Project Duration"
-                      value={`${data?.project_duration_months}m ${data?.project_duration_days || 0
-                        }d`}
-                      icon={CalendarIcon}
-                    />
-                    <FieldDisplay
-                      label="Start Date"
-                      value={data?.prj_start_date}
-                      icon={CalendarIcon}
-                    />
-                    <FieldDisplay
-                      label="End Date"
-                      value={data?.prj_end_date}
-                      icon={CalendarIcon}
-                    />
-                    <FieldDisplay
-                      label="International Travel"
-                      value={data?.involves_international_travel}
-                      icon={PlaneIcon}
-                    />
-                    {data?.upload_proj_prop && (
-                      <div className="py-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <FileTextIcon className="h-4 w-4 text-gray-500" />
-                          <p className="text-xs font-semibold text-gray-700">Project Proposal</p>
+            <div className={`grid grid-cols-1 ${needsProjectNumberGeneration ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-6`}>
+              <div className={needsProjectNumberGeneration ? 'lg:col-span-2' : ''}>
+                {activeTab === "overview" && (
+                  <div className="space-y-6">
+                    <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                        <FieldDisplay
+                          label="Project Type"
+                          value={data?.project_type}
+                          icon={FileTextIcon}
+                        />
+                        <FieldDisplay
+                          label="Project No"
+                          value={data?.project_no}
+                          icon={FileTextIcon}
+                        />
+                        <FieldDisplay
+                          label="Implementation Dept"
+                          value={data?.implementation_department ? <DepartmentName name={data?.implementation_department} /> : null}
+                          icon={BuildingIcon}
+                        />
+                        <FieldDisplay
+                          label="Status"
+                          value={data?.workflow_state}
+                          icon={TargetIcon}
+                        />
+                        <FieldDisplay
+                          label="Project Duration"
+                          value={`${data?.project_duration_months}m ${data?.project_duration_days || 0
+                            }d`}
+                          icon={CalendarIcon}
+                        />
+                        <FieldDisplay
+                          label="Start Date"
+                          value={data?.prj_start_date}
+                          icon={CalendarIcon}
+                        />
+                        <FieldDisplay
+                          label="End Date"
+                          value={data?.prj_end_date}
+                          icon={CalendarIcon}
+                        />
+                        <FieldDisplay
+                          label="International Travel"
+                          value={data?.involves_international_travel}
+                          icon={PlaneIcon}
+                        />
+                        {data?.upload_proj_prop && (
+                          <div className="py-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <FileTextIcon className="h-4 w-4 text-gray-500" />
+                              <p className="text-xs font-semibold text-gray-700">Project Proposal</p>
+                            </div>
+                            <a
+                              href={data.upload_proj_prop.startsWith('http') ? data.upload_proj_prop : `/files/${data.upload_proj_prop}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm font-medium text-[#0EA5A4] hover:underline flex items-center gap-1"
+                            >
+                              <ExternalLinkIcon className="h-3 w-3" /> View File
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {/* Consultancy Details */}
+                    {data?.project_type === "Consultancy" && (
+                      <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                        <h3 className="text-base font-semibold text-gray-900 mb-3">
+                          Consultancy Details
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                          <FieldDisplay label="Consultancy Category" value={data?.consultancy_category} icon={FileTextIcon} />
+                          <FieldDisplay label="GSTIN" value={data?.consultancy_gstin} icon={FileTextIcon} />
+                          <FieldDisplay label="GST Rate" value={data?.consultancy_gst_rate} icon={IndianRupeeIcon} />
+
+                          {data?.consultancy_category?.startsWith("Category D") && (
+                            <>
+                              <FieldDisplay label="Category D Note" value={data?.category_d_note} icon={FileTextIcon} />
+                              <FieldDisplay label="Total Cost (Excl. GST)" value={data?.cat_d_project_cost_excl_gst} icon={IndianRupeeIcon} />
+                              <FieldDisplay label="Consultancy Fee" value={data?.cat_d_consultancy_fee_input} icon={IndianRupeeIcon} />
+                              <FieldDisplay label="Operational Expense (+OH)" value={data?.operational_expense_input_inc_10_oh} icon={IndianRupeeIcon} />
+                              <FieldDisplay label="Institute Share" value={data?.cat_d_institute_share} icon={IndianRupeeIcon} />
+                              <FieldDisplay label="Total Overhead" value={data?.cat_d_total_overhead} icon={IndianRupeeIcon} />
+                              <FieldDisplay label="GST Amount" value={data?.cat_d_gst_amt} icon={IndianRupeeIcon} />
+                              <FieldDisplay label="Grand Total" value={data?.cat_d_grand_total_calc} icon={IndianRupeeIcon} />
+                            </>
+                          )}
+
+                          {(!data?.consultancy_category?.startsWith("Category D") && data?.consultancy_category) && (
+                            <>
+                              <FieldDisplay label="Category Note" value={data?.category_e_note || data?.category_t_note} icon={FileTextIcon} />
+                              <FieldDisplay label="Total Amount" value={data?.cat_ef_total_amount} icon={IndianRupeeIcon} />
+                              <FieldDisplay label="Honorarium" value={data?.cat_ef_honorarium} icon={IndianRupeeIcon} />
+                              <FieldDisplay label="Institute Share" value={data?.cat_ef_institute_share} icon={IndianRupeeIcon} />
+                              <FieldDisplay label="GST" value={data?.cat_ef_gst} icon={IndianRupeeIcon} />
+                              <FieldDisplay label="Grand Total" value={data?.cat_ef_grand_total} icon={IndianRupeeIcon} />
+                            </>
+                          )}
                         </div>
-                        <a
-                          href={data.upload_proj_prop.startsWith('http') ? data.upload_proj_prop : `/files/${data.upload_proj_prop}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-medium text-[#0EA5A4] hover:underline flex items-center gap-1"
-                        >
-                          <ExternalLinkIcon className="h-3 w-3" /> View File
-                        </a>
                       </div>
                     )}
-                  </div>
-                </div>
-                {/* Consultancy Details */}
-                {data?.project_type === "Consultancy" && (
-                  <div className="p-5 bg-white border border-gray-200 rounded-xl">
-                    <h3 className="text-base font-semibold text-gray-900 mb-3">
-                      Consultancy Details
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
-                      <FieldDisplay label="Consultancy Category" value={data?.consultancy_category} icon={FileTextIcon} />
-                      <FieldDisplay label="GSTIN" value={data?.consultancy_gstin} icon={FileTextIcon} />
-                      <FieldDisplay label="GST Rate" value={data?.consultancy_gst_rate} icon={IndianRupeeIcon} />
-
-                      {data?.consultancy_category?.startsWith("Category D") && (
-                        <>
-                          <FieldDisplay label="Category D Note" value={data?.category_d_note} icon={FileTextIcon} />
-                          <FieldDisplay label="Total Cost (Excl. GST)" value={data?.cat_d_project_cost_excl_gst} icon={IndianRupeeIcon} />
-                          <FieldDisplay label="Consultancy Fee" value={data?.cat_d_consultancy_fee_input} icon={IndianRupeeIcon} />
-                          <FieldDisplay label="Operational Expense (+OH)" value={data?.operational_expense_input_inc_10_oh} icon={IndianRupeeIcon} />
-                          <FieldDisplay label="Institute Share" value={data?.cat_d_institute_share} icon={IndianRupeeIcon} />
-                          <FieldDisplay label="Total Overhead" value={data?.cat_d_total_overhead} icon={IndianRupeeIcon} />
-                          <FieldDisplay label="GST Amount" value={data?.cat_d_gst_amt} icon={IndianRupeeIcon} />
-                          <FieldDisplay label="Grand Total" value={data?.cat_d_grand_total_calc} icon={IndianRupeeIcon} />
-                        </>
-                      )}
-
-                      {(!data?.consultancy_category?.startsWith("Category D") && data?.consultancy_category) && (
-                        <>
-                          <FieldDisplay label="Category Note" value={data?.category_e_note || data?.category_t_note} icon={FileTextIcon} />
-                          <FieldDisplay label="Total Amount" value={data?.cat_ef_total_amount} icon={IndianRupeeIcon} />
-                          <FieldDisplay label="Honorarium" value={data?.cat_ef_honorarium} icon={IndianRupeeIcon} />
-                          <FieldDisplay label="Institute Share" value={data?.cat_ef_institute_share} icon={IndianRupeeIcon} />
-                          <FieldDisplay label="GST" value={data?.cat_ef_gst} icon={IndianRupeeIcon} />
-                          <FieldDisplay label="Grand Total" value={data?.cat_ef_grand_total} icon={IndianRupeeIcon} />
-                        </>
-                      )}
+                    {/* Other Project Type */}
+                    {data?.project_type === "Other" && (
+                      <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                          <FieldDisplay label="Other Project Type" value={data?.other_project_type_name} icon={FileTextIcon} />
+                        </div>
+                      </div>
+                    )}
+                    <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                      <h3 className="text-base font-semibold text-gray-900 mb-3">
+                        Funding Agency
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                        <FieldDisplay
+                          label="Agency Name"
+                          value={data?.funding_agen}
+                          icon={BuildingIcon}
+                        />
+                        <FieldDisplay
+                          label="Agency Type"
+                          value={data?.funding_agency_type}
+                          icon={UsersIcon}
+                        />
+                        <FieldDisplay
+                          label="Origin"
+                          value={data?.origin_of_funding_agency}
+                          icon={GlobeIcon}
+                        />
+                        <FieldDisplay
+                          label="Ministry"
+                          value={data?.funding_agency_ministry}
+                          icon={BuildingIcon}
+                        />
+                        <FieldDisplay
+                          label="Scheme"
+                          value={data?.funding_agency_schemes}
+                          icon={FileTextIcon}
+                        />
+                        <FieldDisplay
+                          label="Address"
+                          value={`${data?.address_street_village_locality}, ${data?.address_state}, ${data?.address_country} - ${data?.address_postal_code}`}
+                          icon={MapPinIcon}
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
-                {/* Other Project Type */}
-                {data?.project_type === "Other" && (
-                  <div className="p-5 bg-white border border-gray-200 rounded-xl">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
-                      <FieldDisplay label="Other Project Type" value={data?.other_project_type_name} icon={FileTextIcon} />
-                    </div>
-                  </div>
-                )}
-                <div className="p-5 bg-white border border-gray-200 rounded-xl">
-                  <h3 className="text-base font-semibold text-gray-900 mb-3">
-                    Funding Agency
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
-                    <FieldDisplay
-                      label="Agency Name"
-                      value={data?.funding_agen}
-                      icon={BuildingIcon}
-                    />
-                    <FieldDisplay
-                      label="Agency Type"
-                      value={data?.funding_agency_type}
-                      icon={UsersIcon}
-                    />
-                    <FieldDisplay
-                      label="Origin"
-                      value={data?.origin_of_funding_agency}
-                      icon={GlobeIcon}
-                    />
-                    <FieldDisplay
-                      label="Ministry"
-                      value={data?.funding_agency_ministry}
-                      icon={BuildingIcon}
-                    />
-                    <FieldDisplay
-                      label="Scheme"
-                      value={data?.funding_agency_schemes}
+                    <HtmlContent
+                      title="Executive Summary"
+                      htmlString={data?.executive_summary}
                       icon={FileTextIcon}
                     />
-                    <FieldDisplay
-                      label="Address"
-                      value={`${data?.address_street_village_locality}, ${data?.address_state}, ${data?.address_country} - ${data?.address_postal_code}`}
-                      icon={MapPinIcon}
+                    <HtmlContent
+                      title="Project Objective"
+                      htmlString={data?.project_objective}
+                      icon={TargetIcon}
                     />
-                  </div>
-                </div>
-                <HtmlContent
-                  title="Executive Summary"
-                  htmlString={data?.executive_summary}
-                  icon={FileTextIcon}
-                />
-                <HtmlContent
-                  title="Project Objective"
-                  htmlString={data?.project_objective}
-                  icon={TargetIcon}
-                />
-                <HtmlContent
-                  title="Project Deliverables"
-                  htmlString={data?.project_deliverables}
-                  icon={CheckCircleIcon}
-                />
-              </div>
-            )}
-            {activeTab === "investigators" && (
-              <div className="space-y-6">
-                <div className="p-5 bg-white border border-gray-200 rounded-xl">
-                  <h3 className="text-base font-semibold text-gray-900 mb-3">
-                    Principal Investigator (PI)
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
-                    <FieldDisplay
-                      label="Name"
-                      value={data?.principal_investigator_name}
-                      icon={UserIcon}
-                    />
-                    <FieldDisplay
-                      label="Email"
-                      value={data?.pi_webmail}
-                      icon={MailIcon}
-                    />
-                    <FieldDisplay
-                      label="Employee ID"
-                      value={data?.pi_employee_id}
-                      icon={UserIcon}
-                    />
-                    <FieldDisplay
-                      label="Designation"
-                      value={data?.designation}
-                      icon={UsersIcon}
-                    />
-                    <FieldDisplay
-                      label="Department"
-                      value={data?.applicant_department ? <DepartmentName name={data?.applicant_department} /> : null}
-                      icon={BuildingIcon}
-                    />
-                  </div>
-                </div>
-                {data?.is_additional_pi === "Yes" && (
-                  <TableDisplay
-                    label="Additional PIs"
-                    data={data?.additional_pi_table}
-                    columns={[
-                      { fieldname: "pi_name", label: "Name" },
-                      { fieldname: "pi_designation", label: "Designation" },
-                      { fieldname: "pi_email", label: "Email" },
-                      { fieldname: "pi_address", label: "Address" },
-                      { fieldname: "pi_contact", label: "Contact" },
-                    ]}
-                    icon={UsersIcon}
-                  />
-                )}
-                {data?.has_co_pi === "Yes" && (
-                  <TableDisplay
-                    label="Co-Investigators"
-                    data={data?.co_investigator_table}
-                    columns={[
-                      { fieldname: "copi_name", label: "Name" },
-                      { fieldname: "copi_designation", label: "Designation" },
-                      { fieldname: "copi_email", label: "Email" },
-                      { fieldname: "copi_address", label: "Address" },
-                      { fieldname: "copi_contact", label: "Contact" },
-                    ]}
-                    icon={UsersIcon}
-                  />
-                )}
-              </div>
-            )}
-            {activeTab === "funding" && (
-              <div className="space-y-6">
-                <TableDisplay
-                  label="Proposed Budget Breakup"
-                  data={data?.proposed_budget_breakup}
-                  columns={[
-                    { fieldname: "account_head", label: "Budget Head" },
-                    { fieldname: "first_year_budget", label: "Year 1" },
-                    { fieldname: "second_year_budget", label: "Year 2" },
-                  ]}
-                  icon={IndianRupeeIcon}
-                />
-                {data?.equipment_checkbox === 1 && (
-                  <TableDisplay
-                    label="Proposed Equipment"
-                    data={data?.proposed_equipment_details}
-                    columns={[
-                      { fieldname: "item_name", label: "Equipment Name" },
-                      { fieldname: "equip_total_unit_cost", label: "Cost" },
-                    ]}
-                    icon={ShoppingCartIcon}
-                  />
-                )}
-                {data?.manpower_checkbox === 1 && (
-                  <TableDisplay
-                    label="Proposed Manpower"
-                    data={data?.proposed_manpower_details}
-                    columns={[
-                      { fieldname: "designation_name", label: "Position" },
-                      { fieldname: "manpower_salary", label: "Salary" },
-                    ]}
-                    icon={UsersGroupIcon}
-                  />
-                )}
-              </div>
-            )}
-            {activeTab === "clearance" && (
-              <div className="space-y-6">
-                <div className="p-5 bg-white border border-gray-200 rounded-xl">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
-                    <FieldDisplay
-                      label="Needs Committee Clearance"
-                      value={data?.needs_committee_clearance}
-                      icon={ShieldIcon}
-                    />
-                    <FieldDisplay
-                      label="Committee"
-                      value={data?.committees}
-                      icon={UsersIcon}
-                    />
-                    <FieldDisplay
-                      label="Ethics Committee Details"
-                      value={data?.ethics_committee_details}
-                      icon={FileTextIcon}
-                    />
-                    <FieldDisplay
-                      label="Biosafety Category"
-                      value={data?.biosafety_category}
-                      icon={ShieldIcon}
-                    />
-                    <FieldDisplay
-                      label="Needs Endorsement"
-                      value={data?.need_endorsement_copy}
+                    <HtmlContent
+                      title="Project Deliverables"
+                      htmlString={data?.project_deliverables}
                       icon={CheckCircleIcon}
                     />
                   </div>
-                </div>
-                {data?.declaration_html === 1 && (
-                  <HtmlContent
-                    title="Declaration"
-                    htmlString={
-                      "<p>Declaration content would be displayed here.</p>"
-                    }
-                    icon={FileTextIcon}
+                )}
+                {activeTab === "investigators" && (
+                  <div className="space-y-6">
+                    <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                      <h3 className="text-base font-semibold text-gray-900 mb-3">
+                        Principal Investigator (PI)
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                        <FieldDisplay
+                          label="Name"
+                          value={data?.principal_investigator_name}
+                          icon={UserIcon}
+                        />
+                        <FieldDisplay
+                          label="Email"
+                          value={data?.pi_webmail}
+                          icon={MailIcon}
+                        />
+                        <FieldDisplay
+                          label="Employee ID"
+                          value={data?.pi_employee_id}
+                          icon={UserIcon}
+                        />
+                        <FieldDisplay
+                          label="Designation"
+                          value={data?.designation}
+                          icon={UsersIcon}
+                        />
+                        <FieldDisplay
+                          label="Department"
+                          value={data?.applicant_department ? <DepartmentName name={data?.applicant_department} /> : null}
+                          icon={BuildingIcon}
+                        />
+                      </div>
+                    </div>
+                    {data?.is_additional_pi === "Yes" && (
+                      <TableDisplay
+                        label="Additional PIs"
+                        data={data?.additional_pi_table}
+                        columns={[
+                          { fieldname: "pi_name", label: "Name" },
+                          { fieldname: "pi_designation", label: "Designation" },
+                          { fieldname: "pi_email", label: "Email" },
+                          { fieldname: "pi_address", label: "Address" },
+                          { fieldname: "pi_contact", label: "Contact" },
+                        ]}
+                        icon={UsersIcon}
+                      />
+                    )}
+                    {data?.has_co_pi === "Yes" && (
+                      <TableDisplay
+                        label="Co-Investigators"
+                        data={data?.co_investigator_table}
+                        columns={[
+                          { fieldname: "copi_name", label: "Name" },
+                          { fieldname: "copi_designation", label: "Designation" },
+                          { fieldname: "copi_email", label: "Email" },
+                          { fieldname: "copi_address", label: "Address" },
+                          { fieldname: "copi_contact", label: "Contact" },
+                        ]}
+                        icon={UsersIcon}
+                      />
+                    )}
+                  </div>
+                )}
+                {activeTab === "funding" && (
+                  <div className="space-y-6">
+                    <TableDisplay
+                      label="Proposed Budget Breakup"
+                      data={data?.proposed_budget_breakup}
+                      columns={[
+                        { fieldname: "account_head", label: "Budget Head" },
+                        { fieldname: "first_year_budget", label: "Year 1" },
+                        { fieldname: "second_year_budget", label: "Year 2" },
+                      ]}
+                      icon={IndianRupeeIcon}
+                      budgetHeadList={budgetHeadList}
+                    />
+                    {data?.equipment_checkbox === 1 && (
+                      <TableDisplay
+                        label="Proposed Equipment"
+                        data={data?.proposed_equipment_details}
+                        columns={[
+                          { fieldname: "item_name", label: "Equipment Name" },
+                          { fieldname: "equip_total_unit_cost", label: "Cost" },
+                        ]}
+                        icon={ShoppingCartIcon}
+                      />
+                    )}
+                    {data?.manpower_checkbox === 1 && (
+                      <TableDisplay
+                        label="Proposed Manpower"
+                        data={data?.proposed_manpower_details}
+                        columns={[
+                          { fieldname: "designation_name", label: "Position" },
+                          { fieldname: "manpower_salary", label: "Salary" },
+                        ]}
+                        icon={UsersGroupIcon}
+                      />
+                    )}
+                  </div>
+                )}
+                {activeTab === "clearance" && (
+                  <div className="space-y-6">
+                    <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                        <FieldDisplay
+                          label="Needs Committee Clearance"
+                          value={data?.needs_committee_clearance}
+                          icon={ShieldIcon}
+                        />
+                        <FieldDisplay
+                          label="Committee"
+                          value={data?.committees}
+                          icon={UsersIcon}
+                        />
+                        <FieldDisplay
+                          label="Ethics Committee Details"
+                          value={data?.ethics_committee_details}
+                          icon={FileTextIcon}
+                        />
+                        <FieldDisplay
+                          label="Biosafety Category"
+                          value={data?.biosafety_category}
+                          icon={ShieldIcon}
+                        />
+                        <FieldDisplay
+                          label="Needs Endorsement"
+                          value={data?.need_endorsement_copy}
+                          icon={CheckCircleIcon}
+                        />
+                      </div>
+                    </div>
+                    {data?.declaration_html === 1 && (
+                      <HtmlContent
+                        title="Declaration"
+                        htmlString={
+                          "<p>Declaration content would be displayed here.</p>"
+                        }
+                        icon={FileTextIcon}
+                      />
+                    )}
+                  </div>
+                )}
+                {activeTab === "activity" && (
+                  <ActivityStream
+                    ref={activityStreamRef}
+                    doctype="Project Registration"
+                    docname={projectName}
                   />
                 )}
-              </div>
-            )}
-            {activeTab === "activity" && (
-              <ActivityStream
-                ref={activityStreamRef}
-                doctype="Project Registration"
-                docname={projectName}
-              />
-            )}
-            {activeTab === "endorsement" && (
-              <div className="space-y-6">
-                <div className="p-5 bg-white border border-gray-200 rounded-xl">
-                  <div className="flex items-center gap-2 mb-4">
-                    <FileBadge className="h-5 w-5 text-[#0EA5A4]" />
-                    <h3 className="text-base font-semibold text-gray-900">Endorsement Details</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
-                    <FieldDisplay
-                      label="Needs Endorsement"
-                      value={data?.need_endorsement_copy}
-                      icon={CheckCircleIcon}
-                    />
-                    <FieldDisplay
-                      label="Endorsement Status"
-                      value={data?.endorsement_status || "Pending"}
-                      icon={FileTextIcon}
-                    />
-                    <FieldDisplay
-                      label="Principal Investigator"
-                      value={data?.principal_investigator_name}
-                      icon={UserIcon}
-                    />
-                    <FieldDisplay
-                      label="Department"
-                      value={data?.applicant_department ? <DepartmentName name={data?.applicant_department} /> : null}
-                      icon={BuildingIcon}
-                    />
-                    <FieldDisplay
-                      label="Project Title"
-                      value={data?.project_title}
-                      icon={FileTextIcon}
-                    />
-                    <FieldDisplay
-                      label="Funding Agency"
-                      value={data?.funding_agen}
-                      icon={BuildingIcon}
-                    />
-                  </div>
-                  <div className="mt-6 pt-4 border-t border-gray-200">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <button
-                        onClick={async () => {
-                          try {
-                            const res = await viewEndorsementFile({ docname: projectName });
-                            if (res.message) {
-                              const { pdf_file_url, html_file_url } = res.message;
+                {activeTab === "endorsement" && (
+                  <div className="space-y-6">
+                    <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                      <div className="flex items-center gap-2 mb-4">
+                        <FileBadge className="h-5 w-5 text-[#0EA5A4]" />
+                        <h3 className="text-base font-semibold text-gray-900">Endorsement Details</h3>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                        <FieldDisplay
+                          label="Needs Endorsement"
+                          value={data?.need_endorsement_copy}
+                          icon={CheckCircleIcon}
+                        />
+                        <FieldDisplay
+                          label="Endorsement Status"
+                          value={data?.endorsement_status || "Pending"}
+                          icon={FileTextIcon}
+                        />
+                        <FieldDisplay
+                          label="Principal Investigator"
+                          value={data?.principal_investigator_name}
+                          icon={UserIcon}
+                        />
+                        <FieldDisplay
+                          label="Department"
+                          value={data?.applicant_department ? <DepartmentName name={data?.applicant_department} /> : null}
+                          icon={BuildingIcon}
+                        />
+                        <FieldDisplay
+                          label="Project Title"
+                          value={data?.project_title}
+                          icon={FileTextIcon}
+                        />
+                        <FieldDisplay
+                          label="Funding Agency"
+                          value={data?.funding_agen}
+                          icon={BuildingIcon}
+                        />
+                      </div>
+                      <div className="mt-6 pt-4 border-t border-gray-200">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await viewEndorsementFile({ docname: projectName });
+                                if (res.message) {
+                                  const { pdf_file_url, html_file_url } = res.message;
 
-                              const getFullUrl = (url: string) => {
-                                if (!url) return "";
-                                if (url.startsWith("http")) return url;
+                                  const getFullUrl = (url: string) => {
+                                    if (!url) return "";
+                                    if (url.startsWith("http")) return url;
 
-                                // Get base URL from env or current window origin
-                                let baseUrl = import.meta.env.VITE_FRAPPE_URL;
-                                if (!baseUrl) {
-                                  // If VITE_FRAPPE_URL is not set, use current origin
-                                  baseUrl = window.location.origin;
-                                } else if (baseUrl.startsWith('/')) {
-                                  // If VITE_FRAPPE_URL is relative, append to origin
-                                  baseUrl = `${window.location.origin}${baseUrl}`;
+                                    // Get base URL from env or current window origin
+                                    let baseUrl = import.meta.env.VITE_FRAPPE_URL;
+                                    if (!baseUrl) {
+                                      // If VITE_FRAPPE_URL is not set, use current origin
+                                      baseUrl = window.location.origin;
+                                    } else if (baseUrl.startsWith('/')) {
+                                      // If VITE_FRAPPE_URL is relative, append to origin
+                                      baseUrl = `${window.location.origin}${baseUrl}`;
+                                    }
+
+                                    return `${baseUrl.replace(/\/$/, "")}/${url.replace(/^\//, "")}`;
+                                  };
+
+                                  if (pdf_file_url) {
+                                    window.open(getFullUrl(pdf_file_url), '_blank');
+                                  } else if (html_file_url) {
+                                    window.open(getFullUrl(html_file_url), '_blank');
+                                  } else {
+                                    alert("No endorsement file found.");
+                                  }
                                 }
-
-                                return `${baseUrl.replace(/\/$/, "")}/${url.replace(/^\//, "")}`;
-                              };
-
-                              if (pdf_file_url) {
-                                window.open(getFullUrl(pdf_file_url), '_blank');
-                              } else if (html_file_url) {
-                                window.open(getFullUrl(html_file_url), '_blank');
-                              } else {
-                                alert("No endorsement file found.");
+                              } catch (e: any) {
+                                console.error("View endorsement error:", e);
+                                alert("Error viewing endorsement: " + (e.messages?.[0] || e.message));
                               }
-                            }
-                          } catch (e: any) {
-                            console.error("View endorsement error:", e);
-                            alert("Error viewing endorsement: " + (e.messages?.[0] || e.message));
-                          }
-                        }}
-                        disabled={isViewingEndorsement}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white rounded-lg font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
-                      >
-                        <ExternalLinkIcon className="h-4 w-4" />
-                        {isViewingEndorsement ? "Opening..." : "View Endorsement"}
-                      </button>
-                      <button
-                        onClick={() => {
-                          let baseUrl = import.meta.env.VITE_FRAPPE_URL;
-                          if (!baseUrl) {
-                            baseUrl = window.location.origin;
-                          } else if (baseUrl.startsWith('/')) {
-                            baseUrl = `${window.location.origin}${baseUrl}`;
-                          }
+                            }}
+                            disabled={isViewingEndorsement}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white rounded-lg font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                          >
+                            <ExternalLinkIcon className="h-4 w-4" />
+                            {isViewingEndorsement ? "Opening..." : "View Endorsement"}
+                          </button>
+                          <button
+                            onClick={() => {
+                              let baseUrl = import.meta.env.VITE_FRAPPE_URL;
+                              if (!baseUrl) {
+                                baseUrl = window.location.origin;
+                              } else if (baseUrl.startsWith('/')) {
+                                baseUrl = `${window.location.origin}${baseUrl}`;
+                              }
 
-                          const downloadUrl = `${baseUrl.replace(/\/$/, "")}/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.download_endorsement_file?docname=${projectName}&file_type=pdf`;
-                          window.open(downloadUrl, '_blank');
-                        }}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-[#E0F7F6] hover:bg-[#B2EBF2] text-[#0EA5A4] rounded-lg font-medium transition-colors"
-                      >
-                        <DownloadIcon className="h-4 w-4" />
-                        Download Certificate
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-            {activeTab === "files" && (
-              <div className="space-y-6">
-                <div className="p-5 bg-white border border-gray-200 rounded-xl">
-                  <div className="flex items-center gap-2 mb-4">
-                    <FolderOpenIcon className="h-5 w-5 text-[#0EA5A4]" />
-                    <h3 className="text-base font-semibold text-gray-900">Project Files</h3>
-                  </div>
-                  {data?.attachments && data.attachments.length > 0 ? (
-                    <div className="space-y-3">
-                      {data.attachments.map((file: any, index: number) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <FileTextIcon className="h-5 w-5 text-gray-500 flex-shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">
-                                {file.file_name || file.name || 'Document'}
-                              </p>
-                              {file.file_size && (
-                                <p className="text-xs text-gray-500">
-                                  {(file.file_size / 1024).toFixed(1)} KB
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <a
-                            href={file.file_url || file.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#0EA5A4] bg-[#E0F7F6] rounded-lg hover:bg-[#B2EBF2] transition-colors"
+                              const downloadUrl = `${baseUrl.replace(/\/$/, "")}/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.download_endorsement_file?docname=${projectName}&file_type=pdf`;
+                              window.open(downloadUrl, '_blank');
+                            }}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-[#E0F7F6] hover:bg-[#B2EBF2] text-[#0EA5A4] rounded-lg font-medium transition-colors"
                           >
                             <DownloadIcon className="h-4 w-4" />
-                            Download
-                          </a>
+                            Download Certificate
+                          </button>
                         </div>
-                      ))}
+                      </div>
                     </div>
-                  ) : (
-                    <div className="text-center py-12 text-gray-500 border border-dashed border-gray-300 rounded-xl">
-                      <FolderOpenIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                      <p className="font-medium text-gray-600">No files attached yet.</p>
-                      <p className="text-sm mt-1">Files related to this project will appear here.</p>
+                  </div>
+                )}
+                {activeTab === "files" && (
+                  <div className="space-y-6">
+                    <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                      <div className="flex items-center gap-2 mb-4">
+                        <FolderOpenIcon className="h-5 w-5 text-[#0EA5A4]" />
+                        <h3 className="text-base font-semibold text-gray-900">Project Files</h3>
+                      </div>
+                      {data?.attachments && data.attachments.length > 0 ? (
+                        <div className="space-y-3">
+                          {data.attachments.map((file: any, index: number) => (
+                            <div
+                              key={index}
+                              className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <FileTextIcon className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">
+                                    {file.file_name || file.name || 'Document'}
+                                  </p>
+                                  {file.file_size && (
+                                    <p className="text-xs text-gray-500">
+                                      {(file.file_size / 1024).toFixed(1)} KB
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <a
+                                href={file.file_url || file.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#0EA5A4] bg-[#E0F7F6] rounded-lg hover:bg-[#B2EBF2] transition-colors"
+                              >
+                                <DownloadIcon className="h-4 w-4" />
+                                Download
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12 text-gray-500 border border-dashed border-gray-300 rounded-xl">
+                          <FolderOpenIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                          <p className="font-medium text-gray-600">No files attached yet.</p>
+                          <p className="text-sm mt-1">Files related to this project will appear here.</p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
+                {activeTab === "quick-actions" && <QuickActions />}
               </div>
-            )}
-            {activeTab === "quick-actions" && <QuickActions />}
+
+              {/* Right Column for Form */}
+              {needsProjectNumberGeneration && (
+                <div className="lg:col-span-1">
+                  <div className="sticky top-6">
+                    <ProjectNumberGenerationForm
+                      projectData={data}
+                      onSuccess={() => mutate()}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div >
       </>

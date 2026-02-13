@@ -1,4 +1,3 @@
-import { useFrappeGetDoc } from "frappe-react-sdk";
 import { ArrowLeft, FileText, Building2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -46,21 +45,59 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     const [slipLoading, setSlipLoading] = useState(true);
     const [slipError, setSlipError] = useState<any>(null);
 
-    // Fetch Fund Received document
-    const { data: fundReceived, isLoading: fundLoading, error: fundError } = useFrappeGetDoc<any>(
-        "Fund Received",
-        fundReceivedName
-    );
-
-    // Deposit slip doctypes to search (only Research Deposit Slip for now)
+    // Deposit slip doctypes to search
     const depositSlipDoctypes = [
-        // "Research Consultancy Deposit Slip",
-        // "D Consultancy Deposit Slip",
-        // "E Non Routine Deposit Slip",
-        // "T Testing Deposit Slip",
-        // "Other Event Deposit Slip",
+        "Research Consultancy Deposit Slip",
+        "D Consultancy Deposit Slip",
+        "E Non Routine Deposit Slip",
+        "T Testing Deposit Slip",
+        "Other Event Deposit Slip",
         "Research Deposit Slip"
     ];
+
+    const [fundReceived, setFundReceived] = useState<any>(null);
+    const [fundLoading, setFundLoading] = useState(true);
+    const [fundError, setFundError] = useState<any>(null);
+
+    // Replace useFrappeGetDoc with manual fetch for better control and debugging
+    useEffect(() => {
+        const fetchFundReceived = async () => {
+            if (!fundReceivedName) return;
+            setFundLoading(true);
+            try {
+                // Fetch using v2 API to ensure we get exactly what the server returns
+                const response = await fetch(`/api/v2/document/Fund%20Received/${encodeURIComponent(fundReceivedName)}`, {
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch Fund Received: ${response.status}`);
+                }
+
+                const result = await response.json();
+                console.log("[HoSApprovalView] Fetched fund data:", result.data);
+
+                if (result.data) {
+                    setFundReceived(result.data);
+
+                    // Log breakup specifically
+                    if (result.data.received_amt_breakup) {
+                        console.log("[HoSApprovalView] Breakup rows:", result.data.received_amt_breakup);
+                        result.data.received_amt_breakup.forEach((row: any, i: number) => {
+                            console.log(`[HoSApprovalView] Row ${i} remarks:`, row.remarks);
+                        });
+                    }
+                }
+            } catch (err: any) {
+                console.error("Error fetching fund received:", err);
+                setFundError(err);
+            } finally {
+                setFundLoading(false);
+            }
+        };
+
+        fetchFundReceived();
+    }, [fundReceivedName]);
 
     // Fetch deposit slip by searching across all doctypes for fund_received_ref
     useEffect(() => {
@@ -119,41 +156,60 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
             const breakup = fundReceived.received_amt_breakup;
             const uniqueHeadIds = [...new Set(breakup.map((row: any) => row.account_head).filter(Boolean))];
 
-            const nameMap: Record<string, string> = {};
+            const nameMap: Record<string, string> = {}; // { id: name }
 
             for (const headId of uniqueHeadIds) {
                 try {
-                    const response = await fetch('/api/method/frappe.client.get_list', {
+                    // Optimized: Check if we can get it from v2 API first (simpler)
+                    const response = await fetch(`/api/v2/document/Budget%20Head/${headId}`, {
+                        credentials: 'include'
+                    });
+
+                    if (response.ok) {
+                        const json = await response.json();
+                        if (json.data) {
+                            nameMap[headId as string] = json.data.budget_head || json.data.name;
+                            continue;
+                        }
+                    }
+
+                    // Fallback to get_list for robust search
+                    const listResp = await fetch('/api/method/frappe.client.get_list', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
                         body: JSON.stringify({
                             doctype: 'Budget Head',
                             filters: { name: headId },
-                            fields: ['name', 'budget_head', 'id'],
+                            fields: ['name', 'budget_head'],
                             limit_page_length: 1
                         })
                     });
 
-                    if (response.ok) {
-                        const result = await response.json();
+                    if (listResp.ok) {
+                        const result = await listResp.json();
                         const list = result.message;
                         if (list && list.length > 0) {
                             const d = list[0];
                             nameMap[headId as string] = d.budget_head || d.name;
                         }
-                    } else {
-                        console.warn(`Budget Head fetch failed for ${headId}: ${response.status}`);
                     }
                 } catch (err) {
                     console.error(`Failed to resolve budget head: ${headId}`, err);
                 }
             }
-
             setResolvedHeadNames(nameMap);
         };
-
         resolveBudgetHeadNames();
+    }, [fundReceived]);
+
+    // Debug: Log the received data to check if remarks field exists
+    useEffect(() => {
+        if (fundReceived?.received_amt_breakup) {
+            console.log('[HoSApprovalView] fundReceived data:', fundReceived);
+            console.log('[HoSApprovalView] received_amt_breakup:', fundReceived.received_amt_breakup);
+            console.log('[HoSApprovalView] First row remarks:', fundReceived.received_amt_breakup[0]?.remarks);
+        }
     }, [fundReceived]);
 
     if (fundLoading || slipLoading) return <GlobalLoader isLoading={true} />;

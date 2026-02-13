@@ -75,7 +75,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
             try {
                 const promises = budgetHeadList.map(async (head) => {
                     try {
-                        const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(head.id)}`);
+                        const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(String(projectName))}&accountHeadId=${encodeURIComponent(String(head.id))}`);
                         if (response.ok) {
                             const data = await response.json();
                             if (Array.isArray(data) && data.length > 0) {
@@ -124,12 +124,32 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
         setIsLedgerLoading(true);
         setLedgerError(null);
         try {
-            const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(headId)}`);
+            console.log(`[ProjectLedgerModal] Fetching ledger for Project: ${projectName} Head: ${headId}`);
+            const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(String(projectName))}&accountHeadId=${encodeURIComponent(String(headId))}`);
             if (!response.ok) {
                 throw new Error(`API Error: ${response.statusText}`);
             }
             const result = await response.json();
-            setLedgerTransactions(Array.isArray(result) ? result : []);
+
+            const rawData = Array.isArray(result) ? result : [];
+            let runningPaymentBalance = 0;
+
+            // Sort by date ascending to ensure accurate running balance
+            const sortedData = [...rawData].sort((a: any, b: any) =>
+                new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
+            );
+
+            const calculatedData = sortedData.map((txn: any) => {
+                const received = txn.fundReceivedAmount || 0;
+                const paid = txn.paymentAmount || 0;
+                runningPaymentBalance = runningPaymentBalance + received - paid;
+                return {
+                    ...txn,
+                    paymentBalance: runningPaymentBalance
+                };
+            });
+
+            setLedgerTransactions(calculatedData);
         } catch (err: any) {
             console.error("Ledger API Error:", err);
             setLedgerError(err.message || "Failed to load ledger data");
@@ -149,7 +169,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
 
     return (
         <div className="frappe-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
-            <div className="frappe-modal w-[95%] max-w-[1200px]" onClick={(e) => e.stopPropagation()}>
+            <div className="frappe-modal w-[95%] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
                 <header className="frappe-modal-header">
                     <h2 className="text-xl font-bold flex items-center gap-2">
                         <LedgerIcon className="w-5 h-5 text-[#0EA5A4]" />
@@ -234,19 +254,19 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-[#F8FAFC] border-b border-gray-200 text-gray-600 uppercase text-xs font-semibold">
+                                    <thead className="bg-[#F8FAFC] border-b border-gray-200 text-gray-600 uppercase text-xs font-semibold sticky top-0 z-10 shadow-sm">
                                         <tr>
-                                            <th className="px-6 py-3">TID</th>
-                                            <th className="px-6 py-3">Date</th>
-                                            <th className="px-6 py-3">Particulars</th>
-                                            <th className="px-6 py-3">BMR</th>
-                                            <th className="px-6 py-3 text-right">Received</th>
-                                            <th className="px-6 py-3 text-right">Commit</th>
-                                            <th className="px-6 py-3 text-right">Commit Bal</th>
-                                            <th className="px-6 py-3 text-right">Payment</th>
-                                            <th className="px-6 py-3 text-right">Pay Bal</th>
-                                            <th className="px-6 py-3 text-center">Status</th>
-                                            <th className="px-6 py-3">Actions</th>
+                                            <th className="px-6 py-3 whitespace-nowrap bg-[#F8FAFC]">TID</th>
+                                            <th className="px-6 py-3 whitespace-nowrap bg-[#F8FAFC]">Date</th>
+                                            <th className="px-6 py-3 whitespace-nowrap bg-[#F8FAFC]">Particulars</th>
+                                            <th className="px-6 py-3 whitespace-nowrap bg-[#F8FAFC]">BMR</th>
+                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-[#F8FAFC]">Fund Received</th>
+                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-[#F8FAFC]">Commit Amt</th>
+                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-[#F8FAFC]">Commitable Bal</th>
+                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-[#F8FAFC]">Payment Amt</th>
+                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-[#F8FAFC]">Payment Bal</th>
+                                            <th className="px-6 py-3 text-center whitespace-nowrap bg-[#F8FAFC]">Status</th>
+                                            <th className="px-6 py-3 whitespace-nowrap bg-[#F8FAFC]">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
@@ -274,7 +294,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                                     {txn.paymentAmount ? `₹${txn.paymentAmount.toLocaleString('en-IN')}` : '-'}
                                                 </td>
                                                 <td className="px-6 py-3 text-right font-bold text-[#0EA5A4]">
-                                                    {txn.balance ? `₹${txn.balance.toLocaleString('en-IN')}` : '0'}
+                                                    {txn.paymentBalance ? `₹${txn.paymentBalance.toLocaleString('en-IN')}` : '0'}
                                                 </td>
                                                 <td className="px-6 py-3 text-center">
                                                     <span className={cn(

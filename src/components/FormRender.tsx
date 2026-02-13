@@ -95,6 +95,24 @@ const NeoSection = ({ title, children }: any) => (
 const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
   if (!field || field.hidden) return null;
 
+  // Handle Section Break - render as a section header spanning full width
+  if (field.fieldtype === 'Section Break') {
+    if (!field.label) return null; // Skip unnamed section breaks
+    return (
+      <div className="col-span-full pt-4 pb-2 border-b-2 border-gray-300 mt-4 first:mt-0">
+        <h3 className="text-lg font-bold text-black uppercase tracking-tight">{field.label}</h3>
+        {!!field.description && (
+          <p className="text-sm text-gray-600 mt-1">{field.description}</p>
+        )}
+      </div>
+    );
+  }
+
+  // Handle Column Break - skip rendering
+  if (field.fieldtype === 'Column Break') {
+    return null;
+  }
+
   const commonProps = {
     id: field.fieldname,
     name: field.fieldname,

@@ -86,7 +86,7 @@ const router = createBrowserRouter(
           // Protected route for non-permanent employees
           path: "home",
           element: (
-            <AuthRouteWrapper allowedRole="non-permanent">
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <Home />
             </AuthRouteWrapper>
           ),

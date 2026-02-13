@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
-import { useFrappePostCall } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { ArrowLeftIcon } from 'lucide-react';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { tadaAPI, prepareFormDataForApi } from '@/services/apiService';
+import { tadaAPI, prepareFormDataForApi, commonAPI } from '@/services/apiService';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -47,6 +47,7 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 
 // --- MAIN COMPONENT ---
 const TADASettlementForm: React.FC = () => {
+    const { currentUser } = useFrappeAuth();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const projectName = searchParams.get('project') || '';
@@ -66,6 +67,8 @@ const TADASettlementForm: React.FC = () => {
     const { call: submitForm, error: submitError } = useFrappePostCall(tadaAPI.submit);
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: fetchTravelDetails } = useFrappePostCall<{ message: any }>('frappe.client.get');
+    const { call: fetchUserDetailsByEmail } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
+    const { call: fetchDepartmentDoc } = useFrappePostCall<{ message: { dept_name: string } }>('frappe.client.get');
 
     // --- DATA FETCHING ---
     useEffect(() => {
@@ -78,6 +81,51 @@ const TADASettlementForm: React.FC = () => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // Helper: resolve department ID to department name
+    const resolveDepartmentName = async (deptId: string): Promise<string> => {
+        if (!deptId) return '';
+        try {
+            const deptResult = await fetchDepartmentDoc({
+                doctype: "Department_prornd",
+                name: deptId
+            });
+            if (deptResult?.message?.dept_name) {
+                return deptResult.message.dept_name;
+            }
+        } catch (e) {
+            console.error("Failed to fetch department name for ID:", deptId, e);
+        }
+        return deptId; // fallback to the ID if resolution fails
+    };
+
+    // Helper: fetch user details by email and map to form fields
+    const fetchAndMapUserDetails = async (email: string, currentData: Record<string, any>) => {
+        try {
+            const result = await fetchUserDetailsByEmail({ user_email: email });
+            if (result?.message) {
+                const user = result.message;
+
+                // Resolve department name
+                let deptName = user?.department_name || '';
+                if (!deptName && user?.department) {
+                    deptName = await resolveDepartmentName(user.department);
+                }
+
+                return {
+                    ...currentData,
+                    ta_da_name: user?.full_name || currentData.ta_da_name || '',
+                    webmail_id: email,
+                    ta_da_designation: user?.designation_name || user?.designation || currentData.ta_da_designation || '',
+                    ta_da_department_section: deptName || currentData.ta_da_department_section || '',
+                    ta_da_employee_number: user?.employee_id || currentData.ta_da_employee_number || '',
+                };
+            }
+        } catch (err) {
+            console.error('Failed to fetch user details:', err);
+        }
+        return currentData;
+    };
 
     useEffect(() => {
         const loadFormAndDocument = async () => {
@@ -105,12 +153,21 @@ const TADASettlementForm: React.FC = () => {
                     }
                 }
 
-                // Set project and travel reference if passed via URL
+                // If project is passed via URL
                 if (projectName && !initialData.project_name) {
                     initialData.project_name = projectName;
                 }
-                if (travelRef && !initialData.travel_ref) {
-                    initialData.travel_ref = travelRef;
+
+                // The backend already prefills data when travel_ref is passed.
+                // We just need to resolve the department ID to a name.
+                if (initialData.ta_da_department_section) {
+                    const resolvedDept = await resolveDepartmentName(initialData.ta_da_department_section);
+                    initialData.ta_da_department_section = resolvedDept;
+                }
+
+                // If NO travel ref and NOT editing, prefill for current user
+                if (!travelRef && !editDocName && currentUser) {
+                    initialData = await fetchAndMapUserDetails(currentUser, initialData);
                 }
 
                 // Set defaults for any missing fields
@@ -132,7 +189,7 @@ const TADASettlementForm: React.FC = () => {
         };
 
         loadFormAndDocument();
-    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, projectName, travelRef, dataLoaded]);
+    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, projectName, travelRef, dataLoaded, currentUser, fetchUserDetailsByEmail, fetchDepartmentDoc]);
 
     // --- CALCULATE TOTALS ---
     useEffect(() => {
@@ -170,20 +227,38 @@ const TADASettlementForm: React.FC = () => {
 
                 if (result?.message) {
                     const travelDoc = result.message;
-                    setFormData(prev => ({
-                        ...prev,
-                        [fieldname]: value,
-                        ta_da_name: travelDoc.applicant_name_travel || '',
-                        ta_da_designation: travelDoc.designation_travel || '',
-                        ta_da_department_section: travelDoc.department_travel || '',
-                        ta_da_project_code: travelDoc.travel_project_number || ''
-                    }));
+
+                    if (travelDoc.webmail_id_travel) {
+                        // Use the robust fetcher to get user details + resolved department
+                        const userMapped = await fetchAndMapUserDetails(travelDoc.webmail_id_travel, {
+                            ta_da_project_code: travelDoc.travel_project_number || '',
+                        });
+                        setFormData(prev => ({
+                            ...prev,
+                            [fieldname]: value,
+                            ...userMapped,
+                        }));
+                    } else {
+                        // Fallback: resolve department from Travel doc's department ID
+                        let deptName = travelDoc.department_travel || '';
+                        if (deptName) {
+                            deptName = await resolveDepartmentName(deptName);
+                        }
+                        setFormData(prev => ({
+                            ...prev,
+                            [fieldname]: value,
+                            ta_da_name: travelDoc.applicant_name_travel || '',
+                            ta_da_designation: travelDoc.designation_travel || '',
+                            ta_da_department_section: deptName,
+                            ta_da_project_code: travelDoc.travel_project_number || '',
+                        }));
+                    }
                 }
             } catch (err) {
                 console.error('Failed to fetch travel details:', err);
             }
         }
-    }, [handleChange, fetchTravelDetails]);
+    }, [handleChange, fetchTravelDetails, fetchAndMapUserDetails, resolveDepartmentName]);
 
     const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
         setFormData(prev => {
@@ -335,7 +410,7 @@ const TADASettlementForm: React.FC = () => {
                 </header>
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                     <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                         <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Total Claimed</p>
                         <p className="text-2xl font-bold text-gray-900 mt-1">
@@ -357,7 +432,7 @@ const TADASettlementForm: React.FC = () => {
                             ₹ {(parseFloat(formData.net_claimed || 0)).toLocaleString('en-IN')}
                         </p>
                     </div>
-                </div>
+                </div> */}
 
                 <form onSubmit={handleSubmit}>
                     <FrappeCard className="space-y-12">

@@ -7,7 +7,7 @@ import { FrappeButton } from '@/components/ui/neo-brutalism';
 import ProjectDetailsView from "./ProjectDetails";
 import { cn } from '@/lib/utils';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { travelAPI } from '@/services/apiService';
+import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI } from '@/services/apiService';
 import { ActivityStream } from '@/components/ActivityStream';
 import { BudgetActionsSidebar } from '@/components/BudgetActionsSidebar';
 
@@ -254,9 +254,110 @@ const PendingTaskDetails: React.FC = () => {
     const [travelLinkOptions, setTravelLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [isTravelLoading, setIsTravelLoading] = useState(false);
 
-    const { call: fetchTravelFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any } }>(travelAPI.getFields);
+    // State for Advance Settlement Fields
+    const [advanceSettlementFields, setAdvanceSettlementFields] = useState<FormField[]>([]);
+    const [advanceSettlementLinkOptions, setAdvanceSettlementLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [isAdvanceSettlementLoading, setIsAdvanceSettlementLoading] = useState(false);
 
-    // Fetch Travel Fields if doctype is Travel
+    // State for Temporary Advance Fields
+    const [temporaryAdvanceFields, setTemporaryAdvanceFields] = useState<FormField[]>([]);
+    const [temporaryAdvanceLinkOptions, setTemporaryAdvanceLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [isTemporaryAdvanceLoading, setIsTemporaryAdvanceLoading] = useState(false);
+
+    const { call: fetchTravelFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any } }>(travelAPI.getFields);
+    const { call: fetchAdvanceSettlementFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any, child_table_meta?: any } }>(advanceSettlementAPI.getFields);
+    const { call: fetchTemporaryAdvanceFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any } }>(temporaryAdvanceAPI.getFields);
+    // State for display data (to handle ID resolution)
+    const [displayData, setDisplayData] = useState<Record<string, any>>({});
+
+    // Update displayData when data changes
+    useEffect(() => {
+        if (data) {
+            setDisplayData(data);
+        }
+    }, [data]);
+
+    // Helper to resolve Linked fields to readable names
+    const resolveLinkFields = async (fields: FormField[], currentData: Record<string, any>) => {
+        const fieldsToResolve = fields.filter(f =>
+            (f.fieldname === 'applicant_department' || f.fieldname === 'applicant_category' || f.fieldname.includes('department') || f.fieldname.includes('category')) &&
+            f.fieldtype === 'Link' &&
+            f.options &&
+            currentData[f.fieldname]
+        );
+
+        if (fieldsToResolve.length === 0) return;
+
+        const updates: Record<string, any> = {};
+
+        await Promise.all(fieldsToResolve.map(async (field) => {
+            const value = currentData[field.fieldname];
+            if (!value) return;
+
+            try {
+                // Fetch the linked document
+                // We use a specific call or generic get_value if possible, but get_doc is safer without specific API
+                const response = await (window as any).frappe?.call({
+                    method: 'frappe.client.get',
+                    args: {
+                        doctype: field.options,
+                        name: value
+                    }
+                });
+
+                if (response?.message) {
+                    const doc = response.message;
+                    // Try to find a readable field
+                    // Common readable fields: title, department_name, employee_category_name, name (if not hash-like)
+                    // We can also check if the doc has a 'meta' title_field, but we don't have that here.
+
+                    let readable = value;
+                    if (doc.title) readable = doc.title;
+                    else if (doc.department_name) readable = doc.department_name;
+                    else if (doc.employee_category_name) readable = doc.employee_category_name;
+                    else if (doc.designation_name) readable = doc.designation_name;
+                    else if (doc.name && doc.name !== value) readable = doc.name; // If name is different from ID (unlikely in Frappe unless custom)
+
+                    // Special case for our known hashes
+                    if (field.options === 'Department' && doc.department_name) readable = doc.department_name;
+                    if (field.options === 'Employee Category' && doc.name) readable = doc.name; // Often Category name IS the ID if readable, but here it's a hash
+                    // If Employee Category uses 'name' as human readable but we see a hash, then maybe the field is different.
+                    // Let's look for any likely field.
+                    if (readable === value) {
+                        // Fallback: look for any string field that isn't the ID
+                        const potential = Object.values(doc).find(v => typeof v === 'string' && v !== value && (v as string).length > 2 && (v as string).length < 50);
+                        if (potential) readable = potential as string;
+                    }
+
+                    updates[field.fieldname] = readable;
+                }
+            } catch (e) {
+                console.warn(`Failed to resolve link for ${field.fieldname}`, e);
+            }
+        }));
+
+        if (Object.keys(updates).length > 0) {
+            setDisplayData(prev => ({ ...prev, ...updates }));
+        }
+    };
+
+    // Resolve IDs for Advance Settlement
+    useEffect(() => {
+        if (doctype === 'Advance Settlement' && advanceSettlementFields.length > 0 && data) {
+            resolveLinkFields(advanceSettlementFields, data);
+        }
+    }, [advanceSettlementFields, data, doctype]);
+
+    // Resolve IDs for Temporary Advance
+    useEffect(() => {
+        if (doctype === 'Temporary Advance' && temporaryAdvanceFields.length > 0 && data) {
+            resolveLinkFields(temporaryAdvanceFields, data);
+        }
+    }, [temporaryAdvanceFields, data, doctype]);
+
+    // Use displayData for rendering forms
+    // const formDataToUse = displayData;
+
     useEffect(() => {
         if (doctype === 'Travel' && name) {
             setIsTravelLoading(true);
@@ -271,6 +372,58 @@ const PendingTaskDetails: React.FC = () => {
                 .finally(() => setIsTravelLoading(false));
         }
     }, [doctype, name, fetchTravelFields]);
+
+    // Fetch Advance Settlement Fields
+    useEffect(() => {
+        if (doctype === 'Advance Settlement' && name) {
+            setIsAdvanceSettlementLoading(true);
+            fetchAdvanceSettlementFields({ doc_name: name })
+                .then((res) => {
+                    if (res?.message) {
+                        // Handle child table meta if present
+                        let fields = res.message.fields || [];
+                        const childMeta = res.message.child_table_meta;
+
+                        if (childMeta) {
+                            fields = fields.map((field) => {
+                                if (field.fieldtype === 'Table' && field.fieldname && childMeta[field.fieldname]) {
+                                    const childFields = childMeta[field.fieldname].fields.map((cf: any) => ({
+                                        ...cf,
+                                        label: cf.label || cf.fieldname || ''
+                                    }));
+                                    return {
+                                        ...field,
+                                        child_fields: childFields
+                                    };
+                                }
+                                return field;
+                            });
+                        }
+
+                        setAdvanceSettlementFields(fields);
+                        setAdvanceSettlementLinkOptions(res.message.link_options || {});
+                    }
+                })
+                .catch(err => console.error("Error fetching advance settlement fields", err))
+                .finally(() => setIsAdvanceSettlementLoading(false));
+        }
+    }, [doctype, name, fetchAdvanceSettlementFields]);
+
+    // Fetch Temporary Advance Fields
+    useEffect(() => {
+        if (doctype === 'Temporary Advance' && name) {
+            setIsTemporaryAdvanceLoading(true);
+            fetchTemporaryAdvanceFields({ doc_name: name })
+                .then((res) => {
+                    if (res?.message) {
+                        setTemporaryAdvanceFields(res.message.fields || []);
+                        setTemporaryAdvanceLinkOptions(res.message.link_options || {});
+                    }
+                })
+                .catch(err => console.error("Error fetching temporary advance fields", err))
+                .finally(() => setIsTemporaryAdvanceLoading(false));
+        }
+    }, [doctype, name, fetchTemporaryAdvanceFields]);
 
 
     if (isLoading) {
@@ -468,7 +621,6 @@ const PendingTaskDetails: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Left Column: Main Detail View */}
                     <div className="lg:col-span-2 space-y-6">
-                        {/* Render Dynamic Form for Travel if fields are available, else fallback to generic */}
                         {doctype === 'Travel' ? (
                             isTravelLoading ? (
                                 <div className="flex h-64 items-center justify-center bg-white border border-gray-200 rounded-xl shadow-sm">
@@ -495,6 +647,58 @@ const PendingTaskDetails: React.FC = () => {
                             ) : (
                                 renderGenericDetails()
                             )
+                        ) : doctype === 'Advance Settlement' ? (
+                            isAdvanceSettlementLoading ? (
+                                <div className="flex h-64 items-center justify-center bg-white border border-gray-200 rounded-xl shadow-sm">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4]"></div>
+                                        <p className="text-gray-500 text-sm">Loading details...</p>
+                                    </div>
+                                </div>
+                            ) : advanceSettlementFields.length > 0 ? (
+                                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                                    <DynamicFormRenderer
+                                        fields={advanceSettlementFields}
+                                        formData={displayData}
+                                        linkOptions={advanceSettlementLinkOptions}
+                                        onChange={() => { }}
+                                        onFileChange={() => { }}
+                                        onTableRowChange={() => { }}
+                                        onTableFileChange={() => { }}
+                                        onAddTableRow={() => { }}
+                                        onDeleteTableRow={() => { }}
+                                        readOnly={true}
+                                    />
+                                </div>
+                            ) : (
+                                renderGenericDetails()
+                            )
+                        ) : doctype === 'Temporary Advance' ? (
+                            isTemporaryAdvanceLoading ? (
+                                <div className="flex h-64 items-center justify-center bg-white border border-gray-200 rounded-xl shadow-sm">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4]"></div>
+                                        <p className="text-gray-500 text-sm">Loading details...</p>
+                                    </div>
+                                </div>
+                            ) : temporaryAdvanceFields.length > 0 ? (
+                                <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+                                    <DynamicFormRenderer
+                                        fields={temporaryAdvanceFields}
+                                        formData={displayData}
+                                        linkOptions={temporaryAdvanceLinkOptions}
+                                        onChange={() => { }}
+                                        onFileChange={() => { }}
+                                        onTableRowChange={() => { }}
+                                        onTableFileChange={() => { }}
+                                        onAddTableRow={() => { }}
+                                        onDeleteTableRow={() => { }}
+                                        readOnly={true}
+                                    />
+                                </div>
+                            ) : (
+                                renderGenericDetails()
+                            )
                         ) : (
                             renderGenericDetails()
                         )}
@@ -503,13 +707,35 @@ const PendingTaskDetails: React.FC = () => {
                     {/* Right Column: Activity Stream Sidebar */}
                     <div className="lg:col-span-1 space-y-6">
                         <div className="sticky top-6 space-y-6">
-                            {/* Budget Actions (Only for Travel if project info available) */}
+                            {/* Budget Actions */}
+                            {/* Setup for Travel */}
                             {doctype === 'Travel' && data?.travel_project_title && (
                                 <BudgetActionsSidebar
                                     projectName={data.travel_project_title}
-                                    isStaff={true} // Assuming user is staff if viewing Pending Task
+                                    isStaff={true}
+                                    docName={name}
+                                    doctype={doctype}
                                 />
                             )}
+                            {/* Setup for Advance Settlement */}
+                            {doctype === 'Advance Settlement' && data?.project_name && (
+                                <BudgetActionsSidebar
+                                    projectName={data.project_name}
+                                    isStaff={true}
+                                    docName={name}
+                                    doctype={doctype}
+                                />
+                            )}
+                            {/* Setup for Temporary Advance */}
+                            {doctype === 'Temporary Advance' && (data?.project_name || data?.project_code) && (
+                                <BudgetActionsSidebar
+                                    projectName={data.project_name || data.project_code}
+                                    isStaff={true}
+                                    docName={name}
+                                    doctype={doctype}
+                                />
+                            )}
+
                             <ActivityStream doctype={doctype || ""} docname={name || ""} />
                         </div>
                     </div>

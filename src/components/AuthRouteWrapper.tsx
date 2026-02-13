@@ -12,6 +12,7 @@ type AllowedRole =
   | 'staff, RnD'
   | 'project staff'
   | 'Independent Researcher'
+  | 'IF - Inspired Faculty'
   | 'Permanent Employee'
   | 'All_ProRnd_User'
   | 'non-permanent';

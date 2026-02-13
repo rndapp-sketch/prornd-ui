@@ -7,6 +7,7 @@ import { ArrowLeftIcon, FileTextIcon, CalendarIcon, UserIcon, DownloadIcon, File
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { useUserRoles } from '../../components/UserRole';
+import { ProjectLedgerModal } from '../../components/ProjectLedgerModal';
 import { Textarea } from '@/components/ui/textarea'; // Assuming this exists, if not use standard textarea
 
 // --- TYPE DEFINITIONS ---
@@ -277,7 +278,28 @@ const ReimbursementDetails: React.FC = () => {
     const { call: submitPayment, loading: isPaying } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_payment_data");
 
     // Fetch Project Budget Data
-    const projectTitle = data?.project_number || ""; // Use project_number as title/ID for budget fetch
+    const projectTitle = data?.project_name || ""; // Use project_name as title/ID for budget fetch
+    const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
+
+    // Fetch Budget Head List for Ledger Modal (needs IDs) matching ProjectDetailsOverview
+    useEffect(() => {
+        const fetchBudgetHeads = async () => {
+            try {
+                const response = await fetch('/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc');
+                const result = await response.json();
+                if (result?.data) {
+                    setBudgetHeadList(result.data.map((item: any) => ({
+                        name: item.budget_head,
+                        id: item.id
+                    })));
+                }
+            } catch (err) {
+                console.error("Failed to fetch Budget Heads:", err);
+            }
+        };
+        fetchBudgetHeads();
+    }, []);
+
     const { budgetData, heads: budgetHeads, headBalances, actualBalance, commitableBalance } = useProjectBudget(projectTitle);
 
     // Find existing commitment for this document
@@ -334,6 +356,7 @@ const ReimbursementDetails: React.FC = () => {
         try {
             await submitCommit({
                 doctype: "Reimbursement",
+                frapAppId: id,
                 name: id,
                 project_name: data.project_name,
                 commit_amount: parseFloat(commitAmount),
@@ -1072,147 +1095,17 @@ const ReimbursementDetails: React.FC = () => {
 
             {/* Budget Ledger Modal */}
             {isLedgerOpen && (
-                <BudgetLedgerModal
+                <ProjectLedgerModal
                     isOpen={isLedgerOpen}
                     onClose={() => setIsLedgerOpen(false)}
-                    budgetData={budgetData}
-                    actualBalance={actualBalance}
-                    commitableBalance={commitableBalance}
-                    heads={budgetHeads}
+                    projectName={data?.project_name || ''}
+                    budgetHeadList={budgetHeadList}
                 />
             )}
         </div>
     );
 };
 
-// --- BUDGET LEDGER MODAL ---
-interface BudgetLedgerModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    budgetData: any[];
-    heads: string[];
-    actualBalance: number;
-    commitableBalance: number;
-}
 
-const BudgetLedgerModal = ({ isOpen, onClose, budgetData, heads, actualBalance, commitableBalance }: BudgetLedgerModalProps) => {
-    const [activeLedgerTab, setActiveLedgerTab] = useState("All");
-    const ledgerHeadTabs = ["All", ...heads];
-
-    if (!isOpen) return null;
-
-    // Filter data based on active tab
-    const filteredLedgerData = activeLedgerTab === "All"
-        ? budgetData
-        : budgetData.filter((e: any) => (e.head || e.accountHead || "").trim().toLowerCase() === activeLedgerTab.trim().toLowerCase());
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-            <div className="bg-white w-full max-w-6xl max-h-[90vh] rounded-xl shadow-2xl flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900">Project Budget Ledger</h2>
-                        <div className="flex gap-4 mt-1 text-sm">
-                            <span className="text-gray-600">Actual: <span className="font-bold text-[#0EA5A4]">₹ {actualBalance.toLocaleString('en-IN')}</span></span>
-                            <span className="text-gray-600">Commitable: <span className="font-bold text-gray-900">₹ {commitableBalance.toLocaleString('en-IN')}</span></span>
-                        </div>
-                    </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                        <span className="sr-only">Close</span>
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-hidden flex flex-col">
-                    {/* Tabs */}
-                    <div className="flex overflow-x-auto border-b border-gray-200 px-6 pt-4 gap-2 bg-white">
-                        {ledgerHeadTabs.map((tab) => {
-                            const tabEntries = tab === "All"
-                                ? budgetData
-                                : budgetData.filter((e: any) => (e.head || e.accountHead || "").trim().toLowerCase() === tab.trim().toLowerCase());
-                            const lastEntryForHead = tabEntries.length > 0 ? tabEntries[tabEntries.length - 1] : null;
-                            const tabBalance = tab === "All"
-                                ? tabEntries.reduce((acc: number, e: any) => acc + (e.received || 0) - (e.committed || 0) - (e.payment || 0), 0)
-                                : (lastEntryForHead?.commitableBalance || 0);
-
-                            return (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveLedgerTab(tab)}
-                                    className={cn(
-                                        "px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors pb-3",
-                                        activeLedgerTab === tab
-                                            ? "border-[#0EA5A4] text-[#0EA5A4]"
-                                            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                                    )}
-                                >
-                                    {tab} <span className="ml-1 text-xs opacity-70">({tabEntries.length})</span>
-                                    {tab !== "All" && <span className="ml-2 font-mono text-xs opacity-90">₹{tabBalance.toLocaleString('en-IN')}</span>}
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    {/* Table */}
-                    <div className="flex-1 overflow-auto p-6 bg-gray-50">
-                        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
-                            <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                <thead className="bg-[#F9FAFB]">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">TID</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">Date</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">Particulars</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">BMR</th>
-                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Fund Received</th>
-                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Commit Amt</th>
-                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Commitable Bal</th>
-                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Payment Amt</th>
-                                        <th className="px-4 py-3 text-right font-semibold text-gray-500 uppercase tracking-wider text-xs">Payment Bal</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase tracking-wider text-xs">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200">
-                                    {filteredLedgerData.length > 0 ? (
-                                        filteredLedgerData.map((row: any, index: number) => (
-                                            <tr key={index} className="hover:bg-gray-50">
-                                                <td className="px-4 py-3 text-gray-500">{row.sl}</td>
-                                                <td className="px-4 py-3 text-gray-900 whitespace-nowrap">{row.date}</td>
-                                                <td className="px-4 py-3 text-gray-900 font-medium">
-                                                    <div className="max-w-xs truncate" title={row.particulars}>{row.particulars}</div>
-                                                </td>
-                                                <td className="px-4 py-3 text-gray-500">{row.bmr || '-'}</td>
-                                                <td className="px-4 py-3 text-right font-medium text-green-600">{row.received ? row.received.toLocaleString('en-IN') : '-'}</td>
-                                                <td className="px-4 py-3 text-right font-medium text-red-600">{row.committed ? row.committed.toLocaleString('en-IN') : '-'}</td>
-                                                <td className="px-4 py-3 text-right font-bold text-gray-800">{row.commitableBalance?.toLocaleString('en-IN') || '-'}</td>
-                                                <td className="px-4 py-3 text-right font-medium text-red-600">{row.payment ? row.payment.toLocaleString('en-IN') : '-'}</td>
-                                                <td className="px-4 py-3 text-right font-bold text-gray-800">
-                                                    {activeLedgerTab === "All"
-                                                        ? row.actualBalance?.toLocaleString('en-IN')
-                                                        : (row as any).headActualBalance?.toLocaleString('en-IN')
-                                                    }
-                                                </td>
-                                                <td className="px-4 py-3">
-                                                    <span className={row.status === 'Paid' ? 'text-green-600 font-medium' : row.status === 'Pending' ? 'text-amber-600 font-medium' : ''}>
-                                                        {row.status || '-'}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan={10} className="px-4 py-12 text-center text-gray-500 italic">No ledger entries found for this selection.</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 export default ReimbursementDetails;

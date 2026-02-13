@@ -97,7 +97,8 @@ interface BudgetEntry {
   commitableBalance: number;
   bmr: string;
   payment: number;
-  actualBalance: number;
+  paymentBalance: number;
+  actualBalance?: number;
   type: 'commitment' | 'transaction';
 }
 
@@ -629,7 +630,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
         onNavigate(`/travel?project=${projectName}`);
         break;
       case "TA DA Settlement":
-        onNavigate(`/advance-settlement?project=${projectName}`);
+        onNavigate(`/ta-da-settlement?project=${projectName}`);
         break;
       case "Project Staff Resignation":
         onNavigate(`/project-staff-resignation?project=${projectName}`);
@@ -763,14 +764,14 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                                 onNavigate(`/travel/${item.name}`);
                                 break;
                               case "TA DA Settlement":
-                                onNavigate(`/advance-settlement?edit=${item.name}`);
+                                onNavigate(`/ta-da-settlement?edit=${item.name}`);
                                 break;
                               default:
                                 // Check item.type for Travel consolidated view
                                 if (item.type === 'Travel Apply') {
                                   onNavigate(`/travel/${item.name}`);
                                 } else if (item.type === 'TA DA Settlement') {
-                                  onNavigate(`/advance-settlement?edit=${item.name}`);
+                                  onNavigate(`/ta-da-settlement?edit=${item.name}`);
                                 } else {
                                   onNavigate(`/reimbursement/${item.name}`);
                                 }
@@ -783,7 +784,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                         </button>
                         {(selectedApplication === "Travel" && item.type === 'Travel Apply') && (
                           <button
-                            onClick={() => onNavigate(`/advance-settlement?project=${projectName}&travel_id=${item.name}`)}
+                            onClick={() => onNavigate(`/ta-da-settlement?project=${projectName}&travel_ref=${item.name}`)}
                             className="text-sm text-gray-600 hover:text-gray-900 hover:underline whitespace-nowrap"
                           >
                             Settle
@@ -1213,12 +1214,26 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
       const result = await response.json();
       console.log("Ledger API response data:", result, "for projectNumber:", projectName, "headId:", headId);
-      setLedgerTransactions(Array.isArray(result) ? result : []);
-    } catch (err: any) {
-      console.error("Ledger API Error:", err);
-      // Fallback/Mock data if needed, or just show error
-      setLedgerError(err.message || "Failed to load ledger data");
-      setLedgerTransactions([]);
+
+      const rawData = Array.isArray(result) ? result : [];
+      let runningPaymentBalance = 0;
+
+      // Sort by date ascending to ensure accurate running balance
+      const sortedData = [...rawData].sort((a: any, b: any) =>
+        new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime()
+      );
+
+      const calculatedData = sortedData.map((txn: any) => {
+        const received = txn.fundReceivedAmount || 0;
+        const paid = txn.paymentAmount || 0;
+        runningPaymentBalance = runningPaymentBalance + received - paid;
+        return {
+          ...txn,
+          paymentBalance: runningPaymentBalance
+        };
+      });
+
+      setLedgerTransactions(calculatedData);
     } finally {
       setIsLedgerLoading(false);
     }
@@ -1260,18 +1275,19 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     const allRawEntries = [...rawEntries, ...manualCommitments];
 
     // 3. Calculate Running Totals
-    let runningFundTotal = 0; // Global for Actual Balance
+
     const headFundTotals: Record<string, number> = {};
     const headCommitTotals: Record<string, number> = {};
     const headPaymentTotals: Record<string, number> = {};
-    const headActualTotals: Record<string, number> = {}; // Per-head running actual balance
+
+    // 3. Calculate Running Totals
+    let runningPaymentBalance = 0; // Global Payment Balance (Received - Paid)
 
     const calculatedEntries = allRawEntries.map((entry, idx) => {
       // Determine Head
-      // Funds have accountHead. Commitments have head.
       let head = (entry as any).head || (entry as any).accountHead;
 
-      // Fallback parsing if head is missing (e.g. from older state or particulars)
+      // Fallback parsing
       if (!head) {
         if (entry.particulars.startsWith("Commitment for ")) {
           head = entry.particulars.replace("Commitment for ", "").trim();
@@ -1282,27 +1298,28 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
       head = head || "Unspecified";
 
       if (entry.type === 'transaction') {
-        runningFundTotal += (entry.received || 0);
+        runningPaymentBalance += (entry.received || 0);
         headFundTotals[head] = (headFundTotals[head] || 0) + (entry.received || 0);
-        headActualTotals[head] = (headActualTotals[head] || 0) + (entry.received || 0) - (entry.payment || 0);
       } else if (entry.type === 'commitment') {
-        // Commitments don't affect Actual Bal (only received - payment)
         headCommitTotals[head] = (headCommitTotals[head] || 0) + (entry.committed || 0);
       }
 
       // Track payments
-      headPaymentTotals[head] = (headPaymentTotals[head] || 0) + (entry.payment || 0);
+      if (entry.payment) {
+        runningPaymentBalance -= entry.payment;
+        headPaymentTotals[head] = (headPaymentTotals[head] || 0) + (entry.payment);
+      }
+
+      const headActualBalance = (headFundTotals[head] || 0) - (headPaymentTotals[head] || 0);
 
       // Per-Head Commitable Balance = Received - Committed - Payment
       const currentHeadBalance = (headFundTotals[head] || 0) - (headCommitTotals[head] || 0) - (headPaymentTotals[head] || 0);
 
-      // Per-Head Actual Balance = Received - Payment (no commitments)
-      const headActualBalance = (headFundTotals[head] || 0) - (headPaymentTotals[head] || 0);
-
       return {
         ...entry,
         sl: idx + 1,
-        actualBalance: runningFundTotal, // Global Running Total
+        paymentBalance: runningPaymentBalance, // Global Running Total (Received - Paid)
+        actualBalance: runningPaymentBalance, // Global Running Total
         headActualBalance: headActualBalance, // Per-Head Actual Balance
         commitableBalance: currentHeadBalance, // Specific Head Balance
         head: head // Persist resolved head
@@ -1315,20 +1332,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
   // Calculate balances based on selected Commit Head
   // Filter budget data for the selected head to calculate specific balance
-  const filteredBudgetData = budgetData.filter((entry: any) => {
-    const entryHead = (entry.head || entry.accountHead || "").trim().toLowerCase();
-    const selectedHead = commitHead.trim().toLowerCase();
-    const match = (entryHead === selectedHead) ||
-      (entry.particulars.toLowerCase().includes(selectedHead));
-    return match;
-  });
 
-  // Sidebar Balances (re-derived from filtered ledger data) - for commit section
-  const filteredActualBalance = filteredBudgetData.reduce((acc, entry) => acc + (entry.received || 0) - (entry.payment || 0), 0);
 
-  const filteredCommitableBalance = filteredBudgetData.reduce((acc, entry) => {
-    return acc + (entry.received || 0) - (entry.committed || 0) - (entry.payment || 0);
-  }, 0);
+
 
   // Total project balances from Frappe API - for header display
   // Memoize params and options to prevent infinite re-renders
@@ -1385,6 +1391,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
       commitableBalance: 0, // Recalculated in effect
       bmr: '',
       payment: 0,
+      paymentBalance: 0, // Recalculated in effect
       actualBalance: 0, // Recalculated in effect
       type: 'commitment',
       head: commitHead,
@@ -1404,23 +1411,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     setManualCommitments(prev => prev.slice(0, -1));
   };
 
-  const handleRemoveItem = (index: number) => {
-    const itemToRemove = budgetData[index];
-    if (itemToRemove.type === 'transaction') {
-      alert("Cannot remove fund received entries.");
-      return;
-    }
-    // Remove from manualCommitments by matching _id or reference
-    // Since manualCommitments is a subset of budgetData, find match
-    const manualEntry = itemToRemove as any;
-    if (manualEntry._id) {
-      setManualCommitments(prev => prev.filter(c => (c as any)._id !== manualEntry._id));
-    } else {
-      // Fallback if no ID (shouldn't happen for new ones)
-      // Try to match specific props
-      setManualCommitments(prev => prev.filter(c => c !== itemToRemove && c.sl !== itemToRemove.sl));
-    }
-  };
+
 
   const handleSidebarCommentSubmit = async () => {
     if (!sidebarComment.trim()) return;
@@ -1583,6 +1574,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     [triggerWorkflowAction, submitProjectRegistration, mutate, projectName]
   );
 
+
+
   const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
   const handleAddFunds = () => navigate(`/add-fund-received/${projectName}/`);
   const handleAddSanctionDetails = () => {
@@ -1620,6 +1613,19 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
       default:
         return "bg-gray-100 text-gray-800 border border-gray-300";
     }
+  };
+
+  // Helper function to get budget head name from ID or name
+  const getBudgetHeadName = (accountHeadValue: string | number): string => {
+    // If it's already a string name (not a number), return it
+    if (typeof accountHeadValue === 'string' && isNaN(Number(accountHeadValue))) {
+      return accountHeadValue;
+    }
+    // Otherwise, try to find the name from budgetHeadList
+    const budgetHead = budgetHeadList.find(
+      (bh) => bh.id === Number(accountHeadValue) || bh.name === accountHeadValue
+    );
+    return budgetHead?.name || String(accountHeadValue);
   };
 
   const renderContent = () => {
@@ -1759,6 +1765,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                   <SectionWrapper title="General Information" icon={FileTextIcon}>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
                       <FieldDisplay label="Project Type" value={data?.project_type} icon={FileTextIcon} />
+                      <FieldDisplay label="Project No" value={data?.project_no} icon={FileTextIcon} />
                       <FieldDisplay label="Implementation Dept" value={data?.implementation_department ? <DepartmentName name={data?.implementation_department} /> : null} icon={BuildingIcon} />
                       <FieldDisplay label="Status" value={data?.sanction_workflow_status} icon={TargetIcon} />
                       <FieldDisplay label="Project Duration" value={`${data?.project_duration_months}m ${data?.project_duration_days || 0}d`} icon={CalendarIcon} />
@@ -1871,7 +1878,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                           <tbody className="bg-white divide-y divide-gray-200">
                             {data.proposed_budget_breakup.map((row: any, index: number) => (
                               <tr key={index} className="hover:bg-gray-50">
-                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">{row.account_head}</td>
+                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">{getBudgetHeadName(row.account_head)}</td>
                                 <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">{(row.first_year_budget || 0).toLocaleString('en-IN')}</td>
                                 <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">{(row.second_year_budget || 0).toLocaleString('en-IN')}</td>
                                 <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">{(row.third_year_budget || 0).toLocaleString('en-IN')}</td>
@@ -2175,20 +2182,20 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         <p className="text-gray-500">No transactions found</p>
                       </div>
                     ) : (
-                      <div className="overflow-x-auto">
+                      <div className="overflow-auto max-h-[70vh]">
                         <table className="w-full text-sm text-left">
-                          <thead className="bg-gray-50 border-b border-gray-200">
+                          <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
                             <tr>
-                              <th className="px-6 py-3 font-semibold text-gray-600">TID</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600">Date</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600">Particulars</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600">BMR</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Fund Received</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Commit Amt</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Commitable Bal</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Payment Amt</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 text-right">Payment Bal</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 text-center">Status</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs">TID</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs">Date</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs">Particulars</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs">BMR</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs text-right">Fund Received</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs text-right">Commit Amt</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs text-right">Commitable Bal</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs text-right">Payment Amt</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs text-right">Payment Bal</th>
+                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs text-center">Status</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
@@ -2216,7 +2223,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                   {txn.paymentAmount ? `₹${txn.paymentAmount.toLocaleString('en-IN')}` : '-'}
                                 </td>
                                 <td className="px-6 py-3 text-right font-bold text-[#0EA5A4]">
-                                  {txn.balance ? `₹${txn.balance.toLocaleString('en-IN')}` : '0'}
+                                  {txn.paymentBalance ? `₹${txn.paymentBalance.toLocaleString('en-IN')}` : '0'}
                                 </td>
                                 <td className="px-6 py-3 text-center">
                                   <span className={cn(
@@ -2310,8 +2317,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
               </button>
             </div>
 
-            {/* Section 3: Commits (Moved Down) */}
-            {isRnDStaff && (
+            {/* Section 3: Commits - Only visible on Application tab */}
+            {isRnDStaff && activeTab === 'quick-actions' && (
               <div className="frappe-widget">
                 <h3 className="frappe-widget-title">Make a Commitment</h3>
                 <div className="space-y-3">
@@ -2495,12 +2502,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                               </td>
                               <td>
                                 {row.committed > 0 && !row.payment && (
-                                  <button
-                                    onClick={() => openPaymentModal(row)}
-                                    className="px-3 py-1.5 text-xs font-semibold text-white bg-[#0EA5A4] hover:bg-[#0D9494] rounded-md shadow-sm transition-colors"
-                                  >
-                                    Pay
-                                  </button>
+                                  // Restrict "Pay" button to RnD Staff roles
+                                  (isRnDStaff) && (
+                                    <button
+                                      onClick={() => openPaymentModal(row)}
+                                      className="px-3 py-1.5 text-xs font-semibold text-white bg-[#0EA5A4] hover:bg-[#0D9494] rounded-md shadow-sm transition-colors"
+                                    >
+                                      Pay
+                                    </button>
+                                  )
                                 )}
                               </td>
                             </tr>
