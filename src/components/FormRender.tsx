@@ -60,10 +60,10 @@ interface TableConfig {
 }
 
 // --- STYLES & REUSABLE UI COMPONENTS (REFINED NEO-BRUTALISM) ---
-const inputClasses = "w-full h-12 px-4 bg-white border border-gray-400 rounded-lg font-mono shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-100 text-black font-bold";
+const inputClasses = "w-full h-12 px-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-zinc-400 dark:border-zinc-600 rounded-lg font-mono shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 disabled:opacity-70 disabled:bg-zinc-100 dark:disabled:bg-zinc-700 read-only:bg-zinc-100 dark:read-only:bg-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold";
 
 const FrappeCard = ({ children, className }: any) => (
-  <div className={cn("bg-white p-6 md:p-8 border border-gray-300 rounded-lg shadow-sm", className)}>
+  <div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-sm", className)}>
     {children}
   </div>
 );
@@ -73,10 +73,10 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
     type={type}
     onClick={onClick}
     disabled={disabled}
-    className={cn("px-5 py-2.5 border border-gray-300 rounded-lg font-bold text-black shadow-sm transition-all duration-150",
-      "hover:bg-gray-100 hover:-translate-y-0.5",
+    className={cn("px-5 py-2.5 border border-zinc-300 dark:border-zinc-600 rounded-lg font-bold text-zinc-900 dark:text-zinc-100 shadow-sm transition-all duration-150",
+      "hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:-translate-y-0.5",
       "active:shadow-none active:translate-y-0",
-      "disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 disabled:bg-gray-200", className)}
+      "disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 disabled:bg-zinc-200 dark:disabled:bg-zinc-700", className)}
   >
     {children}
   </button>
@@ -84,7 +84,7 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 
 const NeoSection = ({ title, children }: any) => (
   <div className="space-y-6">
-    <h2 className="text-2xl font-bold text-black tracking-tight border-b-2 border-black pb-3 uppercase">
+    <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight border-b-2 border-zinc-900 dark:border-zinc-600 pb-3 uppercase">
       {title}
     </h2>
     {children}
@@ -99,10 +99,10 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
   if (field.fieldtype === 'Section Break') {
     if (!field.label) return null; // Skip unnamed section breaks
     return (
-      <div className="col-span-full pt-4 pb-2 border-b-2 border-gray-300 mt-4 first:mt-0">
-        <h3 className="text-lg font-bold text-black uppercase tracking-tight">{field.label}</h3>
+      <div className="col-span-full pt-4 pb-2 border-b-2 border-zinc-300 dark:border-zinc-700 mt-4 first:mt-0">
+        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">{field.label}</h3>
         {!!field.description && (
-          <p className="text-sm text-gray-600 mt-1">{field.description}</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">{field.description}</p>
         )}
       </div>
     );
@@ -126,8 +126,8 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
     switch (field.fieldtype) {
       case "HTML":
         return (
-          <div className="p-4 bg-gray-50 border border-gray-300 rounded-lg min-h-[8rem]">
-            <div className="prose prose-sm max-w-none text-black font-bold" dangerouslySetInnerHTML={{ __html: field.options || value || "" }} />
+          <div className="p-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg min-h-[8rem]">
+            <div className="prose prose-sm dark:prose-invert max-w-none text-zinc-900 dark:text-zinc-100 font-bold" dangerouslySetInnerHTML={{ __html: field.options || value || "" }} />
           </div>
         );
       case "Link":
@@ -156,7 +156,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
         );
       case "Attach":
         return (
-          <input type="file" className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-gray-200 file:text-black hover:file:bg-gray-300`} onChange={e => onChange(field.fieldname, e.target.files?.[0] || null)} />
+          <input type="file" className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-zinc-200 dark:file:bg-zinc-700 file:text-zinc-900 dark:file:text-zinc-100 hover:file:bg-zinc-300 dark:hover:file:bg-zinc-600`} onChange={e => onChange(field.fieldname, e.target.files?.[0] || null)} />
         );
       default:
         return (
@@ -167,20 +167,20 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
 
   return (
     <div className='space-y-2'>
-      <label htmlFor={field.fieldname} className="block font-bold text-black text-lg uppercase">
+      <label htmlFor={field.fieldname} className="block font-bold text-zinc-900 dark:text-zinc-100 text-lg uppercase">
         {field.label}
         {!!field.mandatory && <span className="text-red-500 ml-1">*</span>}
       </label>
       {renderInput()}
       {!!field.description && (
-        <p className="text-sm text-gray-900 font-bold font-mono mt-1">{field.description}</p>
+        <p className="text-sm text-zinc-700 dark:text-zinc-300 font-bold font-mono mt-1">{field.description}</p>
       )}
     </div>
   );
 });
 
 // --- GENERIC TABLE COMPONENT (REFINED STYLING) ---
-const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => {
+const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableData, onRowChange, onAddRow, onDeleteRow }: any) => {
   const renderCell = (col: any, row: any, i: number) => {
     if (col.type === 'Link' || col.type === 'Dynamic Link' || col.type === 'Select') {
       return (
@@ -226,20 +226,20 @@ const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableDat
 
   return (
     <NeoSection title={title}>
-      <div className="overflow-x-auto border border-gray-300 rounded-lg">
-        <table className="min-w-full divide-y-2 divide-black">
-          <thead className="bg-gray-100">
-            <tr className="divide-x-2 divide-black">
+      <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
+        <table className="min-w-full divide-y-2 divide-zinc-900 dark:divide-zinc-600">
+          <thead className="bg-zinc-100 dark:bg-zinc-800">
+            <tr className="divide-x-2 divide-zinc-900 dark:divide-zinc-600">
               {[...columns, { key: 'actions', label: '' }].map((c: any) => (
-                <th key={c.key} className="p-3 font-bold text-black text-sm text-left uppercase">
+                <th key={c.key} className="p-3 font-bold text-zinc-900 dark:text-zinc-100 text-sm text-left uppercase">
                   {c.label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y-2 divide-black bg-white">
+          <tbody className="divide-y-2 divide-zinc-900 dark:divide-zinc-600 bg-white dark:bg-zinc-900">
             {(tableData || []).map((row: any, i: number) => (
-              <tr key={row.id || i} className="divide-x-2 divide-black hover:bg-gray-50 transition-colors duration-150">
+              <tr key={row.id || i} className="divide-x-2 divide-zinc-900 dark:divide-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors duration-150">
                 {columns.map((col: any) => (
                   <td key={col.key} className="p-2 min-w-[150px]">
                     {renderCell(col, row, i)}

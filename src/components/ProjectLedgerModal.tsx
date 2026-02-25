@@ -36,6 +36,7 @@ interface LedgerTransaction {
     bmr: string | null;
     bankTransactionNumber: string | null;
     bankTransactionDate: string | null;
+    frapAppId: string | null;
 }
 
 interface ProjectLedgerModalProps {
@@ -179,9 +180,9 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                 </header>
                 <div className="frappe-modal-body p-6">
                     {/* Tabs */}
-                    <div className="mb-6 border-b border-gray-200">
+                    <div className="mb-6 border-b border-zinc-200 dark:border-zinc-700">
                         {isCheckingHeads ? (
-                            <div className="flex items-center space-x-2 text-sm text-gray-500 py-2">
+                            <div className="flex items-center space-x-2 text-sm text-zinc-500 dark:text-zinc-400 py-2">
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#0EA5A4]"></div>
                                 <span>Checking available heads...</span>
                             </div>
@@ -195,8 +196,8 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                             className={cn(
                                                 "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors",
                                                 activeLedgerHeadId === head.id
-                                                    ? "border-[#0EA5A4] text-[#0EA5A4] bg-[#F0FDFD]"
-                                                    : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                                                    ? "border-[#0EA5A4] text-[#0EA5A4] bg-[#F0FDFD] dark:bg-[#0EA5A4]/10"
+                                                    : "border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                             )}
                                         >
                                             {head.name}
@@ -214,7 +215,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                 {showAllHeads && (
                                     <button
                                         onClick={() => setShowAllHeads(false)}
-                                        className="text-xs text-gray-500 hover:text-gray-700 hover:underline whitespace-nowrap"
+                                        className="text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 hover:underline whitespace-nowrap"
                                     >
                                         Hide Empty Heads
                                     </button>
@@ -222,7 +223,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                             </div>
                         ) : (
                             <div className="py-2 flex items-center gap-4">
-                                <span className="text-sm text-gray-500">No budget heads with transactions found.</span>
+                                <span className="text-sm text-zinc-500 dark:text-zinc-400">No budget heads with transactions found.</span>
                                 <button
                                     onClick={() => setShowAllHeads(true)}
                                     className="text-sm text-[#0EA5A4] font-medium hover:underline"
@@ -234,63 +235,67 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                     </div>
 
                     {/* Table */}
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[300px]">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden min-h-[300px]">
                         {isLedgerLoading ? (
                             <div className="flex flex-col items-center justify-center py-20">
                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4] mb-4"></div>
-                                <p className="text-gray-500">Loading ledger...</p>
+                                <p className="text-zinc-500 dark:text-zinc-400">Loading ledger...</p>
                             </div>
                         ) : ledgerError ? (
                             <div className="flex flex-col items-center justify-center py-20">
                                 <p className="text-red-500 font-medium mb-2">Failed to load data</p>
-                                <p className="text-sm text-gray-500">{ledgerError}</p>
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400">{ledgerError}</p>
                                 <button onClick={() => fetchLedgerData(activeLedgerHeadId)} className="mt-4 text-[#0EA5A4] hover:underline text-sm font-medium">Try Again</button>
                             </div>
                         ) : ledgerTransactions.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20">
-                                <FileText className="h-10 w-10 text-gray-300 mb-3" />
-                                <p className="text-gray-500">No transactions found for this head</p>
+                                <FileText className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mb-3" />
+                                <p className="text-zinc-500 dark:text-zinc-400">No transactions found for this head</p>
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-[#F8FAFC] border-b border-gray-200 text-gray-600 uppercase text-xs font-semibold sticky top-0 z-10 shadow-sm">
+                                    <thead className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 uppercase text-xs font-semibold sticky top-0 z-10 shadow-sm">
                                         <tr>
-                                            <th className="px-6 py-3 whitespace-nowrap bg-[#F8FAFC]">TID</th>
-                                            <th className="px-6 py-3 whitespace-nowrap bg-[#F8FAFC]">Date</th>
-                                            <th className="px-6 py-3 whitespace-nowrap bg-[#F8FAFC]">Particulars</th>
-                                            <th className="px-6 py-3 whitespace-nowrap bg-[#F8FAFC]">BMR</th>
-                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-[#F8FAFC]">Fund Received</th>
-                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-[#F8FAFC]">Commit Amt</th>
-                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-[#F8FAFC]">Commitable Bal</th>
-                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-[#F8FAFC]">Payment Amt</th>
-                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-[#F8FAFC]">Payment Bal</th>
-                                            <th className="px-6 py-3 text-center whitespace-nowrap bg-[#F8FAFC]">Status</th>
-                                            <th className="px-6 py-3 whitespace-nowrap bg-[#F8FAFC]">Actions</th>
+                                            <th className="px-6 py-3 whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">TID</th>
+                                            <th className="px-6 py-3 whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">App ID</th>
+                                            <th className="px-6 py-3 whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Date</th>
+                                            <th className="px-6 py-3 whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Particulars</th>
+                                            <th className="px-6 py-3 whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">BMR</th>
+                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Fund Received</th>
+                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Commit Amt</th>
+                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Commitable Bal</th>
+                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Payment Amt</th>
+                                            <th className="px-6 py-3 text-right whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Payment Bal</th>
+                                            <th className="px-6 py-3 text-center whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Status</th>
+                                            <th className="px-6 py-3 whitespace-nowrap bg-zinc-50 dark:bg-zinc-800/50">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-100">
+                                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                                         {ledgerTransactions.map((txn) => (
-                                            <tr key={txn.transactionId} className="hover:bg-gray-50/50">
-                                                <td className="px-6 py-3 text-gray-500 font-mono">{txn.transactionId || '-'}</td>
-                                                <td className="px-6 py-3 text-gray-900 whitespace-nowrap">
+                                            <tr key={txn.transactionId} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30">
+                                                <td className="px-6 py-3 text-zinc-500 dark:text-zinc-400 font-mono">{txn.transactionId || '-'}</td>
+                                                <td className="px-6 py-3 text-zinc-900 dark:text-zinc-100 whitespace-nowrap font-mono text-xs">
+                                                    {txn.frapAppId || '-'}
+                                                </td>
+                                                <td className="px-6 py-3 text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                                                     {txn.transactionDate ? new Date(txn.transactionDate).toLocaleDateString('en-IN') : '-'}
                                                 </td>
-                                                <td className="px-6 py-3 text-gray-900 max-w-xs truncate" title={txn.particulars}>
+                                                <td className="px-6 py-3 text-zinc-900 dark:text-zinc-100 max-w-xs truncate" title={txn.particulars}>
                                                     {txn.particulars}
-                                                    {txn.refDetails && <div className="text-xs text-gray-500 mt-0.5">{txn.refDetails}</div>}
+                                                    {txn.refDetails && <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{txn.refDetails}</div>}
                                                 </td>
-                                                <td className="px-6 py-3 text-gray-600">{txn.bmr || '-'}</td>
-                                                <td className="px-6 py-3 text-right font-medium text-green-600">
+                                                <td className="px-6 py-3 text-zinc-600 dark:text-zinc-400">{txn.bmr || '-'}</td>
+                                                <td className="px-6 py-3 text-right font-medium text-green-600 dark:text-green-400">
                                                     {txn.fundReceivedAmount ? `₹${txn.fundReceivedAmount.toLocaleString('en-IN')}` : '-'}
                                                 </td>
-                                                <td className="px-6 py-3 text-right font-medium text-red-600">
+                                                <td className="px-6 py-3 text-right font-medium text-red-600 dark:text-red-400">
                                                     {txn.commitAmount ? `₹${txn.commitAmount.toLocaleString('en-IN')}` : '-'}
                                                 </td>
-                                                <td className="px-6 py-3 text-right font-bold text-gray-900">
+                                                <td className="px-6 py-3 text-right font-bold text-zinc-900 dark:text-zinc-100">
                                                     {txn.commitableBalance ? `₹${txn.commitableBalance.toLocaleString('en-IN')}` : '-'}
                                                 </td>
-                                                <td className="px-6 py-3 text-right font-medium text-red-600">
+                                                <td className="px-6 py-3 text-right font-medium text-red-600 dark:text-red-400">
                                                     {txn.paymentAmount ? `₹${txn.paymentAmount.toLocaleString('en-IN')}` : '-'}
                                                 </td>
                                                 <td className="px-6 py-3 text-right font-bold text-[#0EA5A4]">
@@ -302,7 +307,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                                         txn.status === 'PAID' ? 'bg-green-100 text-green-700' :
                                                             txn.status === 'PARTIALLY_PAID' ? 'bg-yellow-100 text-yellow-700' :
                                                                 txn.status === 'PENDING' ? 'bg-orange-100 text-orange-700' :
-                                                                    'bg-gray-100 text-gray-700'
+                                                                    'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 dark:bg-zinc-800 dark:text-zinc-300'
                                                     )}>
                                                         {txn.status}
                                                     </span>

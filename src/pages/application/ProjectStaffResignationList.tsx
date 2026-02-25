@@ -27,7 +27,7 @@ interface ResignationListResponse {
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-xl shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>
         {children}
     </div>
 );
@@ -65,7 +65,7 @@ const ProjectStaffResignationList: React.FC = () => {
             case 0: return <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">Draft</span>;
             case 1: return <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Submitted</span>;
             case 2: return <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">Cancelled</span>;
-            default: return <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">Unknown</span>;
+            default: return <span className="px-2 py-1 text-xs font-medium rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200">Unknown</span>;
         }
     };
 
@@ -74,7 +74,7 @@ const ProjectStaffResignationList: React.FC = () => {
             <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#0EA5A4] border-t-transparent mx-auto"></div>
-                    <p className="mt-4 text-lg font-medium text-gray-700">Loading resignations...</p>
+                    <p className="mt-4 text-lg font-medium text-zinc-700 dark:text-zinc-300">Loading resignations...</p>
                 </div>
             </div>
         );
@@ -84,18 +84,18 @@ const ProjectStaffResignationList: React.FC = () => {
         <div className="bg-[#F0F4F8] min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <header className="mb-8 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
+                <header className="mb-8 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => navigate(-1)}
-                                className="p-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors"
+                                className="p-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-100 dark:bg-zinc-800 transition-colors"
                             >
-                                <ArrowLeftIcon className="h-5 w-5 text-gray-900" />
+                                <ArrowLeftIcon className="h-5 w-5 text-zinc-900 dark:text-zinc-100" />
                             </button>
                             <div>
-                                <h1 className="text-2xl font-bold text-gray-900">Project Staff Resignations</h1>
-                                <p className="text-gray-600 mt-1">View and manage resignation requests.</p>
+                                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Project Staff Resignations</h1>
+                                <p className="text-zinc-600 dark:text-zinc-400 mt-1">View and manage resignation requests.</p>
                             </div>
                         </div>
                         <button
@@ -111,16 +111,16 @@ const ProjectStaffResignationList: React.FC = () => {
                 <FrappeCard>
                     <div className="mb-6 flex items-center gap-4">
                         <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-zinc-500" />
                             <input
                                 type="text"
                                 placeholder="Search by name, email, or ID..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/20 focus:border-[#0EA5A4]"
+                                className="w-full pl-10 pr-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/20 focus:border-[#0EA5A4]"
                             />
                         </div>
-                        <button className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
+                        <button className="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg">
                             <Filter className="h-5 w-5" />
                         </button>
                     </div>
@@ -128,26 +128,26 @@ const ProjectStaffResignationList: React.FC = () => {
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="border-b border-gray-200">
-                                    <th className="py-3 px-4 text-sm font-semibold text-gray-600">ID</th>
-                                    <th className="py-3 px-4 text-sm font-semibold text-gray-600">Applicant</th>
-                                    <th className="py-3 px-4 text-sm font-semibold text-gray-600">Designation</th>
-                                    <th className="py-3 px-4 text-sm font-semibold text-gray-600">Date</th>
-                                    <th className="py-3 px-4 text-sm font-semibold text-gray-600">Status</th>
-                                    <th className="py-3 px-4 text-sm font-semibold text-gray-600">Action</th>
+                                <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                                    <th className="py-3 px-4 text-sm font-semibold text-zinc-600 dark:text-zinc-400">ID</th>
+                                    <th className="py-3 px-4 text-sm font-semibold text-zinc-600 dark:text-zinc-400">Applicant</th>
+                                    <th className="py-3 px-4 text-sm font-semibold text-zinc-600 dark:text-zinc-400">Designation</th>
+                                    <th className="py-3 px-4 text-sm font-semibold text-zinc-600 dark:text-zinc-400">Date</th>
+                                    <th className="py-3 px-4 text-sm font-semibold text-zinc-600 dark:text-zinc-400">Status</th>
+                                    <th className="py-3 px-4 text-sm font-semibold text-zinc-600 dark:text-zinc-400">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredResignations.length > 0 ? (
                                     filteredResignations.map((resignation) => (
-                                        <tr key={resignation.name} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                                            <td className="py-3 px-4 text-sm text-gray-900 font-medium">{resignation.name}</td>
+                                        <tr key={resignation.name} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:bg-zinc-800/50 transition-colors">
+                                            <td className="py-3 px-4 text-sm text-zinc-900 dark:text-zinc-100 font-medium">{resignation.name}</td>
                                             <td className="py-3 px-4">
-                                                <div className="text-sm font-medium text-gray-900">{resignation.applicant_name}</div>
-                                                <div className="text-xs text-gray-500">{resignation.applicant_email_id}</div>
+                                                <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{resignation.applicant_name}</div>
+                                                <div className="text-xs text-zinc-500 dark:text-zinc-400">{resignation.applicant_email_id}</div>
                                             </td>
-                                            <td className="py-3 px-4 text-sm text-gray-600">{resignation.applicant_designation}</td>
-                                            <td className="py-3 px-4 text-sm text-gray-600">{resignation.resignation_date}</td>
+                                            <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400">{resignation.applicant_designation}</td>
+                                            <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400">{resignation.resignation_date}</td>
                                             <td className="py-3 px-4">{getStatusBadge(resignation.docstatus)}</td>
                                             <td className="py-3 px-4">
                                                 <button
@@ -161,7 +161,7 @@ const ProjectStaffResignationList: React.FC = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={6} className="py-8 text-center text-gray-500">
+                                        <td colSpan={6} className="py-8 text-center text-zinc-500 dark:text-zinc-400">
                                             No resignations found.
                                         </td>
                                     </tr>

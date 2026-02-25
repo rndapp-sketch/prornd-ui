@@ -58,7 +58,7 @@
 //             <svg
 //                 width={size}
 //                 height={size}
-//                 className="inline-block border border-gray-300"
+//                 className="inline-block border border-zinc-300 dark:border-zinc-700"
 //                 viewBox={`0 0 ${size} ${size}`}
 //             >
 //                 {grid.map((row, y) =>
@@ -140,55 +140,55 @@
 //     };
 
 //     return (
-//         <div className="sticky top-8 self-start flex flex-col gap-3 p-3 bg-white border-2 border-gray-300 rounded-xl shadow-lg no-print z-10 h-fit">
+//         <div className="sticky top-8 self-start flex flex-col gap-3 p-3 bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-zinc-700 rounded-xl shadow-lg no-print z-10 h-fit">
 //             {/* Text Formatting */}
-//             <div className="flex flex-col gap-1 pb-3 border-b border-gray-300">
-//                 <button onClick={() => handleFormat('bold')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Bold">
+//             <div className="flex flex-col gap-1 pb-3 border-b border-zinc-300 dark:border-zinc-700">
+//                 <button onClick={() => handleFormat('bold')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Bold">
 //                     <Bold className="w-5 h-5" />
 //                 </button>
-//                 <button onClick={() => handleFormat('italic')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Italic">
+//                 <button onClick={() => handleFormat('italic')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Italic">
 //                     <Italic className="w-5 h-5" />
 //                 </button>
-//                 <button onClick={() => handleFormat('underline')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Underline">
+//                 <button onClick={() => handleFormat('underline')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Underline">
 //                     <Underline className="w-5 h-5" />
 //                 </button>
-//                 <button onClick={() => handleFormat('strikeThrough')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Strikethrough">
+//                 <button onClick={() => handleFormat('strikeThrough')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Strikethrough">
 //                     <Strikethrough className="w-5 h-5" />
 //                 </button>
 //             </div>
 
 //             {/* Alignment */}
-//             <div className="flex flex-col gap-1 pb-3 border-b border-gray-300">
-//                 <button onClick={() => handleFormat('justifyLeft')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Align Left">
+//             <div className="flex flex-col gap-1 pb-3 border-b border-zinc-300 dark:border-zinc-700">
+//                 <button onClick={() => handleFormat('justifyLeft')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Align Left">
 //                     <AlignLeft className="w-5 h-5" />
 //                 </button>
-//                 <button onClick={() => handleFormat('justifyCenter')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Align Center">
+//                 <button onClick={() => handleFormat('justifyCenter')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Align Center">
 //                     <AlignCenter className="w-5 h-5" />
 //                 </button>
-//                 <button onClick={() => handleFormat('justifyRight')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Align Right">
+//                 <button onClick={() => handleFormat('justifyRight')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Align Right">
 //                     <AlignRight className="w-5 h-5" />
 //                 </button>
-//                 <button onClick={() => handleFormat('justifyFull')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Justify">
+//                 <button onClick={() => handleFormat('justifyFull')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Justify">
 //                     <AlignJustify className="w-5 h-5" />
 //                 </button>
 //             </div>
 
 //             {/* Lists */}
-//             <div className="flex flex-col gap-1 pb-3 border-b border-gray-300">
-//                 <button onClick={() => handleFormat('insertUnorderedList')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Bullet List">
+//             <div className="flex flex-col gap-1 pb-3 border-b border-zinc-300 dark:border-zinc-700">
+//                 <button onClick={() => handleFormat('insertUnorderedList')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Bullet List">
 //                     <List className="w-5 h-5" />
 //                 </button>
-//                 <button onClick={() => handleFormat('insertOrderedList')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Numbered List">
+//                 <button onClick={() => handleFormat('insertOrderedList')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Numbered List">
 //                     <ListOrdered className="w-5 h-5" />
 //                 </button>
 //             </div>
 
 //             {/* History */}
 //             <div className="flex flex-col gap-1">
-//                 <button onClick={() => handleFormat('undo')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Undo">
+//                 <button onClick={() => handleFormat('undo')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Undo">
 //                     <Undo className="w-5 h-5" />
 //                 </button>
-//                 <button onClick={() => handleFormat('redo')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Redo">
+//                 <button onClick={() => handleFormat('redo')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Redo">
 //                     <Redo className="w-5 h-5" />
 //                 </button>
 //             </div>
@@ -213,7 +213,7 @@
 //                         <Toolbar />
 //                     </div>
 
-//                     <div className="print-container w-[210mm] min-h-[297mm] bg-white p-[20mm] shadow-lg text-black font-serif text-sm leading-relaxed relative">
+//                     <div className="print-container w-[210mm] min-h-[297mm] bg-white dark:bg-zinc-900 p-[20mm] shadow-lg text-zinc-900 dark:text-zinc-100 font-serif text-sm leading-relaxed relative">
 
 //                         {/* Header Section */}
 //                         <table className="w-full border-collapse mb-8 avoid-break">
@@ -236,7 +236,7 @@
 //                                         <div><span className="font-semibold">Mob.no:</span> +91-99548 25080</div>
 //                                         <div>
 //                                             <span className="font-semibold">E-mail:</span>{" "}
-//                                             <a href="mailto:dornd@iitg.ernet.in" className="text-black hover:underline">
+//                                             <a href="mailto:dornd@iitg.ernet.in" className="text-zinc-900 dark:text-zinc-100 hover:underline">
 //                                                 dornd@iitg.ernet.in
 //                                             </a>
 //                                         </div>
@@ -263,10 +263,10 @@
 //                             <div>Professor of Electronics and Electrical Engineering</div>
 //                             {/* Reference Number */}
 //                             <div className="mt-3 font-semibold">
-//                                 <span className="text-gray-600">Ref. No.:</span>{" "}
+//                                 <span className="text-zinc-600 dark:text-zinc-400">Ref. No.:</span>{" "}
 //                                 <span className="font-bold">{props.proposalId || "IITG/RND/____"}</span>
 //                             </div>
-//                             <div className="text-sm text-gray-600">
+//                             <div className="text-sm text-zinc-600 dark:text-zinc-400">
 //                                 Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
 //                             </div>
 //                         </div>
@@ -280,7 +280,7 @@
 //                         <div
 //                             ref={bodyRef}
 //                             contentEditable
-//                             className="outline-none focus:bg-gray-50 p-2 -ml-2 rounded transition-colors [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+//                             className="outline-none focus:bg-zinc-50 dark:bg-zinc-800/50 p-2 -ml-2 rounded transition-colors [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
 //                             suppressContentEditableWarning
 //                             onKeyDown={(e) => {
 //                                 if (e.key === 'Tab') {
@@ -346,7 +346,7 @@
 
 // -=-=-=-=-=
 
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import {
     Bold, Italic, Underline, Strikethrough,
     AlignLeft, AlignCenter, AlignRight, AlignJustify,
@@ -406,7 +406,7 @@ const QRCode = ({ value, size = 60 }: { value: string; size?: number }) => {
             <svg
                 width={size}
                 height={size}
-                className="inline-block border border-gray-300"
+                className="inline-block border border-zinc-300 dark:border-zinc-700"
                 viewBox={`0 0 ${size} ${size}`}
             >
                 {grid.map((row, y) =>
@@ -428,7 +428,6 @@ const QRCode = ({ value, size = 60 }: { value: string; size?: number }) => {
     );
 };
 
-// ... interface definition ...
 interface EndorsementCertificateProps {
     proposalId?: string;
     piName?: string;
@@ -441,6 +440,7 @@ interface EndorsementCertificateProps {
     fundingAgency?: string;
     duration?: string;
     totalCost?: string;
+    onHtmlChange?: (html: string) => void;
 }
 
 // Print styles for A4 pagination with footer margin
@@ -489,9 +489,9 @@ const Toolbar = ({ onDownload }: { onDownload: () => void }) => {
     };
 
     return (
-        <div className="sticky top-8 self-start flex flex-col gap-3 p-3 bg-white border-2 border-gray-300 rounded-xl shadow-lg no-print z-10 h-fit">
+        <div className="sticky top-8 self-start flex flex-col gap-3 p-3 bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-zinc-700 rounded-xl shadow-lg no-print z-10 h-fit">
             {/* Download HTML Button */}
-            <div className="flex flex-col gap-1 pb-3 border-b border-gray-300">
+            <div className="flex flex-col gap-1 pb-3 border-b border-zinc-300 dark:border-zinc-700">
                 <button
                     onClick={onDownload}
                     className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-colors flex items-center justify-center"
@@ -502,53 +502,53 @@ const Toolbar = ({ onDownload }: { onDownload: () => void }) => {
             </div>
 
             {/* Text Formatting */}
-            <div className="flex flex-col gap-1 pb-3 border-b border-gray-300">
-                <button onClick={() => handleFormat('bold')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Bold">
+            <div className="flex flex-col gap-1 pb-3 border-b border-zinc-300 dark:border-zinc-700">
+                <button onClick={() => handleFormat('bold')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Bold">
                     <Bold className="w-5 h-5" />
                 </button>
-                <button onClick={() => handleFormat('italic')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Italic">
+                <button onClick={() => handleFormat('italic')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Italic">
                     <Italic className="w-5 h-5" />
                 </button>
-                <button onClick={() => handleFormat('underline')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Underline">
+                <button onClick={() => handleFormat('underline')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Underline">
                     <Underline className="w-5 h-5" />
                 </button>
-                <button onClick={() => handleFormat('strikeThrough')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Strikethrough">
+                <button onClick={() => handleFormat('strikeThrough')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Strikethrough">
                     <Strikethrough className="w-5 h-5" />
                 </button>
             </div>
 
             {/* Alignment */}
-            <div className="flex flex-col gap-1 pb-3 border-b border-gray-300">
-                <button onClick={() => handleFormat('justifyLeft')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Align Left">
+            <div className="flex flex-col gap-1 pb-3 border-b border-zinc-300 dark:border-zinc-700">
+                <button onClick={() => handleFormat('justifyLeft')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Align Left">
                     <AlignLeft className="w-5 h-5" />
                 </button>
-                <button onClick={() => handleFormat('justifyCenter')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Align Center">
+                <button onClick={() => handleFormat('justifyCenter')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Align Center">
                     <AlignCenter className="w-5 h-5" />
                 </button>
-                <button onClick={() => handleFormat('justifyRight')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Align Right">
+                <button onClick={() => handleFormat('justifyRight')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Align Right">
                     <AlignRight className="w-5 h-5" />
                 </button>
-                <button onClick={() => handleFormat('justifyFull')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Justify">
+                <button onClick={() => handleFormat('justifyFull')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Justify">
                     <AlignJustify className="w-5 h-5" />
                 </button>
             </div>
 
             {/* Lists */}
-            <div className="flex flex-col gap-1 pb-3 border-b border-gray-300">
-                <button onClick={() => handleFormat('insertUnorderedList')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Bullet List">
+            <div className="flex flex-col gap-1 pb-3 border-b border-zinc-300 dark:border-zinc-700">
+                <button onClick={() => handleFormat('insertUnorderedList')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Bullet List">
                     <List className="w-5 h-5" />
                 </button>
-                <button onClick={() => handleFormat('insertOrderedList')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Numbered List">
+                <button onClick={() => handleFormat('insertOrderedList')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Numbered List">
                     <ListOrdered className="w-5 h-5" />
                 </button>
             </div>
 
             {/* History */}
             <div className="flex flex-col gap-1">
-                <button onClick={() => handleFormat('undo')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Undo">
+                <button onClick={() => handleFormat('undo')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Undo">
                     <Undo className="w-5 h-5" />
                 </button>
-                <button onClick={() => handleFormat('redo')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors" title="Redo">
+                <button onClick={() => handleFormat('redo')} className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors" title="Redo">
                     <Redo className="w-5 h-5" />
                 </button>
             </div>
@@ -559,8 +559,9 @@ const Toolbar = ({ onDownload }: { onDownload: () => void }) => {
 /**
  * Generates a complete HTML string for the Endorsement Certificate with raw inline CSS.
  * This is used to send to the backend for PDF generation.
+ * If bodyHtml is provided, it replaces the default cert-body content (for edited endorsements).
  */
-export const getEndorsementHtml = (props: EndorsementCertificateProps): string => {
+export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHtml?: string }): string => {
     const currentDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
 
     // Generate QR code SVG as string
@@ -721,7 +722,7 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps): string =
         <h3 class="title">Endorsement Certificate from the Host Institute</h3>
 
         <div class="cert-body">
-            <p>This is to certify that:</p>
+            ${props.bodyHtml ? props.bodyHtml : `<p>This is to certify that:</p>
             <ol>
                 <li>The applicants, <strong>${props.piName || "..."}</strong>, working as ${props.piDesignation || "..."} in the Department of ${props.piDepartment || "..."}${coPiText}, are regular faculty members of the Indian Institute of Technology Guwahati.</li>
                 <li><strong>${props.piName || "..."}</strong> is endorsed to submit the project titled "<strong>${props.projectTitle || "..."}</strong>" under the ${props.fundingAgency || "..."} program as the <strong>Principal Investigator (PI)</strong>${coPiEndorsementText}.</li>
@@ -732,7 +733,7 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps): string =
                 <li>The Institute will assume to undertake the financial and other management responsibilities of the project.</li>
                 <li>The Institute shall settle the financial accounts to IIT Kharagpur as per the prescribed guidelines within one month from the date of termination of the Research Award.</li>
                 <li>PFMS Code of the Institute: IITG</li>
-            </ol>
+            </ol>`}
         </div>
 
         <div class="signature">
@@ -748,20 +749,54 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
     const bodyRef = useRef<HTMLDivElement>(null);
     const documentRef = useRef<HTMLDivElement>(null);
 
-    const handleDownloadHtml = () => {
-        if (!documentRef.current) return;
+    // Initialize the content only once on mount
+    useEffect(() => {
+        if (bodyRef.current && !bodyRef.current.innerHTML) {
+            bodyRef.current.innerHTML = `
+                <p class="mb-4">This is to certify that:</p>
+                <ol class="list-decimal pl-8 space-y-4 text-justify">
+                    <li>
+                        The applicants, <strong>${props.piName || "..."}</strong>, working as ${props.piDesignation || "..."} in the Department of ${props.piDepartment || "..."}${props.coPiName ? `, and <strong>${props.coPiName}</strong>, working as ${props.coPiDesignation || "..."} in the Department of ${props.coPiDepartment || "..."}` : ""}, are regular faculty members of the Indian Institute of Technology Guwahati.
+                    </li>
+                    <li>
+                        <strong>${props.piName || "..."}</strong> is endorsed to submit the project titled "<strong>${props.projectTitle || "..."}</strong>" under the ${props.fundingAgency || "..."} program as the <strong>Principal Investigator (PI)</strong>${props.coPiName ? `, and <strong>${props.coPiName}</strong> is endorsed as the <strong>Co-Principal Investigator (Co-PI)</strong>` : ""}.
+                    </li>
+                    <li>
+                        The applicants will assume full responsibility for implementing the project as PI and Co-PI, respectively.
+                    </li>
+                    <li>
+                        The grant-in-aid for the project from ${props.fundingAgency || "..."}, through IIT Kharagpur will be used to meet the expenditure on the project and for the period for which the project has been sanctioned as indicated in the sanction letter/ order.
+                    </li>
+                    <li>
+                        No administrative or other liability will be attached to Ministry of Education or IIT Kharagpur at the end of the Research Award.
+                    </li>
+                    <li>
+                        The Institute will provide basic infrastructure and other required facilities to the investigator for undertaking the research objectives.
+                    </li>
+                    <li>
+                        The Institute will assume to undertake the financial and other management responsibilities of the project.
+                    </li>
+                    <li>
+                        The Institute shall settle the financial accounts to IIT Kharagpur as per the prescribed guidelines within one month from the date of termination of the Research Award.
+                    </li>
+                    <li>
+                        PFMS Code of the Institute: IITG
+                    </li>
+                </ol>
+            `;
+            // Trigger an initial save of the HTML
+            handleContentChange();
+        }
+    }, [props]);
 
-        // Get the inner HTML of the certificate
+    const getFullHtml = () => {
+        if (!documentRef.current) return '';
         let content = documentRef.current.innerHTML;
-
-        // Clean up: remove contenteditable attributes so the downloaded file isn't editable by default
         content = content.replace(/contenteditable="true"/gi, '');
-        // Remove the outline class used for focus indication
-        content = content.replace(/outline-none focus:bg-gray-50/gi, '');
+        content = content.replace(/outline-none focus:bg-zinc-50 dark:bg-zinc-800\/50/gi, '');
 
-        // Construct a full HTML file
-        // We inject the Tailwind CDN so the styles work when opening the file locally
-        const fullHtml = `
+        // Just build the wrapper around the actual content
+        return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -780,7 +815,6 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
             display: flex;
             justify-content: center;
         }
-        /* Specific overrides for the standalone HTML */
         .print-container {
             background-color: white;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -788,15 +822,20 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
     </style>
 </head>
 <body>
-    <div class="print-container w-[210mm] min-h-[297mm] bg-white p-[20mm] text-black font-serif text-sm leading-relaxed relative">
+    <div class="print-container w-[210mm] min-h-[297mm] bg-white dark:bg-zinc-900 p-[20mm] text-zinc-900 dark:text-zinc-100 font-serif text-sm leading-relaxed relative">
         ${content}
     </div>
     <script>
-        // Auto-print on open (optional, you can remove this line)
+        // Auto-print on open (optional)
         // window.onload = function() { window.print(); }
     </script>
 </body>
 </html>`;
+    };
+
+    const handleDownloadHtml = () => {
+        const fullHtml = getFullHtml();
+        if (!fullHtml) return;
 
         // Create a blob and trigger download
         const blob = new Blob([fullHtml], { type: 'text/html' });
@@ -808,6 +847,15 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+    };
+
+    const handleContentChange = () => {
+        if (props.onHtmlChange && bodyRef.current) {
+            // Only pass the editable body content, NOT the full DOM-processed HTML.
+            // The full HTML will be reconstructed at submission time using getEndorsementHtml()
+            // to avoid DOM innerHTML stripping <!DOCTYPE>, <html>, <head>, <body> tags.
+            props.onHtmlChange(bodyRef.current.innerHTML);
+        }
     };
 
     return (
@@ -827,7 +875,7 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                     {/* Certificate Container */}
                     <div
                         ref={documentRef}
-                        className="print-container w-[210mm] min-h-[297mm] bg-white p-[20mm] shadow-lg text-black font-serif text-sm leading-relaxed relative"
+                        className="print-container w-[210mm] min-h-[297mm] bg-white dark:bg-zinc-900 p-[20mm] shadow-lg text-zinc-900 dark:text-zinc-100 font-serif text-sm leading-relaxed relative"
                     >
 
                         {/* Header Section - IMAGES RESTORED */}
@@ -850,7 +898,7 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                                         <div><span className="font-semibold">Mob.no:</span> +91-99548 25080</div>
                                         <div>
                                             <span className="font-semibold">E-mail:</span>{" "}
-                                            <a href="mailto:dornd@iitg.ernet.in" className="text-black hover:underline">
+                                            <a href="mailto:dornd@iitg.ernet.in" className="text-zinc-900 dark:text-zinc-100 hover:underline">
                                                 dornd@iitg.ernet.in
                                             </a>
                                         </div>
@@ -877,10 +925,10 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                             <div>Professor of Electronics and Electrical Engineering</div>
                             {/* Reference Number */}
                             <div className="mt-3 font-semibold">
-                                <span className="text-gray-600">Ref. No.:</span>{" "}
+                                <span className="text-zinc-600 dark:text-zinc-400">Ref. No.:</span>{" "}
                                 <span className="font-bold">{props.proposalId || "IITG/RND/____"}</span>
                             </div>
-                            <div className="text-sm text-gray-600">
+                            <div className="text-sm text-zinc-600 dark:text-zinc-400">
                                 Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
                             </div>
                         </div>
@@ -894,47 +942,15 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                         <div
                             ref={bodyRef}
                             contentEditable
-                            className="outline-none focus:bg-gray-50 p-2 -ml-2 rounded transition-colors [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+                            className="outline-none focus:bg-zinc-50 dark:bg-zinc-800/50 p-2 -ml-2 rounded transition-colors [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
                             suppressContentEditableWarning
+                            onInput={handleContentChange}
+                            onBlur={handleContentChange}
                             onKeyDown={(e) => {
                                 if (e.key === 'Tab') {
                                     e.preventDefault();
                                     document.execCommand('insertText', false, '\u00a0\u00a0\u00a0\u00a0');
                                 }
-                            }}
-                            dangerouslySetInnerHTML={{
-                                __html: `
-                                    <p class="mb-4">This is to certify that:</p>
-                                    <ol class="list-decimal pl-8 space-y-4 text-justify">
-                                        <li>
-                                            The applicants, <strong>${props.piName || "..."}</strong>, working as ${props.piDesignation || "..."} in the Department of ${props.piDepartment || "..."}${props.coPiName ? `, and <strong>${props.coPiName}</strong>, working as ${props.coPiDesignation || "..."} in the Department of ${props.coPiDepartment || "..."}` : ""}, are regular faculty members of the Indian Institute of Technology Guwahati.
-                                        </li>
-                                        <li>
-                                            <strong>${props.piName || "..."}</strong> is endorsed to submit the project titled "<strong>${props.projectTitle || "..."}</strong>" under the ${props.fundingAgency || "..."} program as the <strong>Principal Investigator (PI)</strong>${props.coPiName ? `, and <strong>${props.coPiName}</strong> is endorsed as the <strong>Co-Principal Investigator (Co-PI)</strong>` : ""}.
-                                        </li>
-                                        <li>
-                                            The applicants will assume full responsibility for implementing the project as PI and Co-PI, respectively.
-                                        </li>
-                                        <li>
-                                            The grant-in-aid for the project from ${props.fundingAgency || "..."}, through IIT Kharagpur will be used to meet the expenditure on the project and for the period for which the project has been sanctioned as indicated in the sanction letter/ order.
-                                        </li>
-                                        <li>
-                                            No administrative or other liability will be attached to Ministry of Education or IIT Kharagpur at the end of the Research Award.
-                                        </li>
-                                        <li>
-                                            The Institute will provide basic infrastructure and other required facilities to the investigator for undertaking the research objectives.
-                                        </li>
-                                        <li>
-                                            The Institute will assume to undertake the financial and other management responsibilities of the project.
-                                        </li>
-                                        <li>
-                                            The Institute shall settle the financial accounts to IIT Kharagpur as per the prescribed guidelines within one month from the date of termination of the Research Award.
-                                        </li>
-                                        <li>
-                                            PFMS Code of the Institute: IITG
-                                        </li>
-                                    </ol>
-                                `
                             }}
                         />
 

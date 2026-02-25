@@ -1,10 +1,216 @@
-// new neo design
+// import * as React from "react";
+// import { useNavigate } from "react-router-dom";
+// import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
+// import { Button } from "@/components/ui/button";
+// import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+// import { Badge } from "@/components/ui/badge";
+// import { Skeleton } from "@/components/ui/skeleton";
+// import {
+//   Table,
+//   TableBody,
+//   TableCell,
+//   TableHead,
+//   TableHeader,
+//   TableRow,
+// } from "@/components/ui/table";
+// import { format } from "date-fns";
+// import {
+//   PlusIcon,
+//   Briefcase,
+//   TrendingUp,
+//   CheckCircle2,
+//   FileText,
+//   ArrowRight
+// } from "lucide-react";
+
+// export const PiHomePage = () => {
+//   const { currentUser } = useFrappeAuth();
+//   const navigate = useNavigate();
+
+//   const { data: userDoc, isLoading: userLoading } = useFrappeGetDoc(
+//     "User",
+//     currentUser ?? "",
+//     {
+//       fields: ["full_name"],
+//       enabled: !!currentUser
+//     }
+//   );
+
+//   const { data: projects, isLoading: projectsLoading } = useFrappeGetCall<{ message: any[] }>(
+//     "rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_projects_by_pi",
+//     { pi_id: currentUser }
+//   );
+
+//   const projectList = projects?.message || [];
+
+//   // Calculate stats
+//   const totalProjects = projectList.length;
+//   const activeProjects = projectList.filter(p => p.status === "Open").length;
+//   // const pendingProjects = projectList.filter(p => p.status === "Pending").length;
+//   const closedProjects = projectList.filter(p => p.status === "Closed").length;
+
+//   const getStatusBadge = (status: string) => {
+//     switch (status) {
+//       case "Open":
+//         return <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700">Active</Badge>;
+//       case "Closed":
+//         return <Badge variant="secondary">Closed</Badge>;
+//       default:
+//         return <Badge variant="outline">{status}</Badge>;
+//     }
+//   };
+
+//   if (userLoading || projectsLoading) {
+//     return (
+//       <div className="space-y-8 p-6">
+//         <div className="flex items-center justify-between">
+//           <Skeleton className="h-10 w-64" />
+//           <Skeleton className="h-10 w-32" />
+//         </div>
+//         <div className="grid gap-6 md:grid-cols-3">
+//           {[1, 2, 3].map((i) => (
+//             <Skeleton key={i} className="h-32 w-full" />
+//           ))}
+//         </div>
+//         <Skeleton className="h-96 w-full" />
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className="space-y-8 animate-in fade-in duration-500">
+//       {/* Header Section */}
+//       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+//         <div>
+//           <h1 className="text-3xl font-serif text-zinc-900 dark:text-zinc-50">
+//             Welcome back, {userDoc?.full_name?.split(" ")[0]}
+//           </h1>
+//           <p className="text-zinc-500 dark:text-zinc-400 mt-1">
+//             Manage your research projects and track progress.
+//           </p>
+//         </div>
+//         <Button onClick={() => navigate("/project-registration")} className="shadow-lg shadow-terracotta/20">
+//           <PlusIcon className="mr-2 h-4 w-4" />
+//           New Project
+//         </Button>
+//       </div>
+
+//       {/* KPI Cards */}
+//       <div className="grid gap-6 md:grid-cols-3">
+//         <Card className="hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
+//           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+//             <CardTitle className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+//               Total Projects
+//             </CardTitle>
+//             <Briefcase className="h-4 w-4 text-zinc-400" />
+//           </CardHeader>
+//           <CardContent>
+//             <div className="text-2xl font-bold font-serif text-zinc-900 dark:text-zinc-50">{totalProjects}</div>
+//             <p className="text-xs text-zinc-500 mt-1">
+//               Across all categories
+//             </p>
+//           </CardContent>
+//         </Card>
+
+//         <Card className="hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
+//           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+//             <CardTitle className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+//               Active Projects
+//             </CardTitle>
+//             <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-500" />
+//           </CardHeader>
+//           <CardContent>
+//             <div className="text-2xl font-bold font-serif text-zinc-900 dark:text-zinc-50">{activeProjects}</div>
+//             <p className="text-xs text-zinc-500 mt-1">
+//               Ongoing research
+//             </p>
+//           </CardContent>
+//         </Card>
+
+//         <Card className="hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
+//           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+//             <CardTitle className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+//               Closed Projects
+//             </CardTitle>
+//             <CheckCircle2 className="h-4 w-4 text-zinc-400" />
+//           </CardHeader>
+//           <CardContent>
+//             <div className="text-2xl font-bold font-serif text-zinc-900 dark:text-zinc-50">{closedProjects}</div>
+//             <p className="text-xs text-zinc-500 mt-1">
+//               Completed
+//             </p>
+//           </CardContent>
+//         </Card>
+//       </div>
+
+//       {/* Recent Projects Table */}
+//       <Card>
+//         <CardHeader>
+//           <CardTitle>Recent Projects</CardTitle>
+//           <CardDescription>
+//             A list of your recently active research projects.
+//           </CardDescription>
+//         </CardHeader>
+//         <CardContent>
+//           {projectList.length === 0 ? (
+//             <div className="flex flex-col items-center justify-center py-10 text-center">
+//               <FileText className="h-12 w-12 text-zinc-300 mb-4" />
+//               <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">No projects found</h3>
+//               <p className="text-zinc-500 mb-4 max-w-sm">
+//                 You haven't created any projects yet. Start by creating a new research project.
+//               </p>
+//               <Button onClick={() => navigate("/project-registration")} variant="outline">
+//                 Create Project
+//               </Button>
+//             </div>
+//           ) : (
+//             <Table>
+//               <TableHeader>
+//                 <TableRow>
+//                   <TableHead>Project Title</TableHead>
+//                   <TableHead>Project No.</TableHead>
+//                   <TableHead>Date</TableHead>
+//                   <TableHead>Status</TableHead>
+//                   <TableHead className="text-right">Action</TableHead>
+//                 </TableRow>
+//               </TableHeader>
+//               <TableBody>
+//                 {projectList.slice(0, 5).map((project) => (
+//                   <TableRow key={project.name} className="cursor-pointer" onClick={() => navigate(`/projects/${project.name}`)}>
+//                     <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">
+//                       {project.project_title || "Untitled Project"}
+//                     </TableCell>
+//                     <TableCell>{project.name}</TableCell>
+//                     <TableCell>{project.creation ? format(new Date(project.creation), "MMM dd, yyyy") : "-"}</TableCell>
+//                     <TableCell>{getStatusBadge(project.status)}</TableCell>
+//                     <TableCell className="text-right">
+//                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+//                         <ArrowRight className="h-4 w-4" />
+//                         <span className="sr-only">View</span>
+//                       </Button>
+//                     </TableCell>
+//                   </TableRow>
+//                 ))}
+//               </TableBody>
+//             </Table>
+//           )}
+//         </CardContent>
+//       </Card>
+//     </div>
+//   );
+// };
+
+// export default PiHomePage;
+
+
+
+
+// -=-=-==-=-=-
 
 
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
-import { AppSidebar } from "../components/RndSidebar";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
 import {
   PlusCircle, LayoutGrid, FileText, BarChart, PieChart, TrendingUp,
@@ -13,17 +219,36 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// --- Child Components with Neo-Brutalism Style ---
+
+
+/**
+ * --- Reusable UI Components (Atomic Design) ---
+ */
+
+const Card = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+  <div className={cn(
+    "bg-white dark:bg-zinc-900 dark:bg-[#27272A] border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-sm transition-all overflow-hidden",
+    className
+  )}>
+    {children}
+  </div>
+);
+
 const CurrentTime = () => {
   const [time, setTime] = React.useState(new Date());
   React.useEffect(() => {
     const timerId = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timerId);
   }, []);
+
   return (
-    <div className="text-sm text-black text-right bg-white px-4 py-2 rounded-xl border border-gray-300 shadow-sm">
-      <div className="font-bold">{time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-      <div className="text-gray-900 font-medium">{time.toLocaleTimeString()}</div>
+    <div className="text-right hidden sm:block">
+      <div className="font-sans text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold">
+        {time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+      </div>
+      <div className="text-zinc-800 dark:text-zinc-200 font-serif text-lg leading-tight">
+        {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      </div>
     </div>
   );
 };
@@ -36,37 +261,50 @@ interface ActionCardProps {
 }
 
 const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onClick }) => (
-  <div
-    onClick={onClick}
-    className="bg-white p-6 rounded-xl border border-gray-300 shadow-sm transition-all duration-150 hover:shadow-md hover:border-gray-400 cursor-pointer group flex flex-col"
-  >
-    <div className="flex-shrink-0 flex items-center justify-center size-11 bg-[#E0F7F6] text-[#0EA5A4] rounded-xl mb-4 group-hover:bg-[#0EA5A4] group-hover:text-white transition-colors border border-[#0EA5A4]/20">
-      {icon}
-    </div>
-    <h3 className="text-lg font-bold mb-2 text-black">{title}</h3>
-    <p className="text-gray-900 flex-grow text-sm font-medium">{description}</p>
-  </div>
+  <Card className="hover:border-zinc-300 dark:hover:border-zinc-500 cursor-pointer group">
+    <button onClick={onClick} className="w-full text-left p-6 flex flex-col h-full">
+      <div className="size-10 flex items-center justify-center rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 mb-5 group-hover:bg-[#D97757] group-hover:text-white transition-all duration-300">
+        {React.cloneElement(icon as React.ReactElement<any>, { size: 20 })}
+      </div>
+      <h3 className="font-serif text-xl text-zinc-800 dark:text-zinc-100 font-medium mb-2">{title}</h3>
+      <p className="font-sans text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{description}</p>
+    </button>
+  </Card>
 );
 
 const AnalyticsCard: React.FC<{ title: string; value: string; subtitle: string; icon: React.ReactNode; trend?: string; onClick?: () => void; }> =
   ({ title, value, subtitle, icon, trend, onClick }) => (
     <div
       onClick={onClick}
-      className={cn("p-4 rounded-xl border border-gray-300 bg-gray-50/50", onClick ? 'cursor-pointer hover:bg-[#E0F7F6]/30 hover:border-[#0EA5A4]/40 transition-colors' : '')}
+      className={cn(
+        "p-4 rounded-lg border border-zinc-100 dark:border-zinc-700/50 bg-zinc-50/30 dark:bg-zinc-900/20 transition-all",
+        onClick ? 'cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800' : ''
+      )}
     >
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-bold text-gray-900">{title}</h3>
-        <div className="text-[#0EA5A4]">{icon}</div>
+        <span className="text-[10px] font-sans uppercase tracking-widest text-zinc-500 dark:text-zinc-400 font-bold">{title}</span>
+        <div className="text-zinc-400 dark:text-zinc-500">{icon}</div>
       </div>
-      <div className="text-2xl font-bold text-black">{value}</div>
-      <div className="flex items-center justify-between mt-1">
-        <div className="text-xs text-gray-900 font-bold">{subtitle}</div>
-        {trend && (<div className={`text-xs font-bold ${trend.startsWith('+') ? 'text-emerald-700' : 'text-red-600'}`}>{trend}</div>)}
+      <div className="text-xl font-serif text-zinc-800 dark:text-zinc-100 mb-1">{value}</div>
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-sans text-zinc-400 dark:text-zinc-500">{subtitle}</span>
+        {trend && (
+          <span className={cn(
+            "text-[11px] font-medium px-1.5 py-0.5 rounded-full",
+            trend.startsWith('+')
+              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
+              : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+          )}>
+            {trend}
+          </span>
+        )}
       </div>
     </div>
   );
 
-// --- Main PI Home Page Component ---
+/**
+ * --- Main PI Home Page Component ---
+ */
 export function PiHomePage() {
   const navigate = useNavigate();
   const { currentUser } = useFrappeAuth();
@@ -76,116 +314,169 @@ export function PiHomePage() {
   });
 
   const fullName = userData?.full_name || currentUser || "Guest";
-  const isPermanentEmployee = userData?.user_roles?.some((role: any) => role.role === "Permanent Employee") || false;
   const { isOpen: isCommandPaletteOpen, openPalette, closePalette } = useCommandPalette();
 
   return (
-    <div className=" bg-gray-100 min-h-screen font-sans text-black">
-      <AppSidebar />
-      <div className="flex-1 p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <header className="mb-8">
-            <div className="flex justify-between items-start">
-              <div>
-                <h1 className="text-3xl font-bold text-black">Dashboard</h1>
-                <p className="text-gray-900 mt-1 font-bold">Welcome back, {fullName}</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <CurrentTime />
-                {/* Search Button */}
+    <div className="min-h-screen dark:bg-[#18181B]  transition-colors duration-300">
+
+      <main className="p-4 md:p-8 overflow-y-auto w-full">
+        <div className="w-full mx-auto">
+
+          {/* Header Section */}
+          <header className="mb-12 flex justify-between items-end">
+            <div className="space-y-1">
+              <h1 className="font-serif text-3xl text-zinc-800 dark:text-zinc-100 font-medium tracking-tight">
+                Dashboard
+              </h1>
+              <p className="font-sans text-sm text-zinc-500 dark:text-zinc-400">
+                Welcome back, <span className="text-[#9A7D5A] font-medium">{fullName}</span>
+              </p>
+            </div>
+
+            <div className="flex items-center gap-6">
+              <div className="relative group">
                 <button
                   onClick={openPalette}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-black font-bold bg-white hover:bg-gray-50 border border-gray-300 rounded-xl shadow-sm transition-colors"
+                  className="flex items-center gap-2.5 px-3.5 py-2 text-xs text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-sm hover:border-zinc-300 dark:hover:border-zinc-600 transition-all"
                 >
-                  <SearchIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">Search...</span>
-                  <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-mono bg-gray-100 border border-gray-400 rounded">
+                  <SearchIcon className="size-4" />
+                  <span className="pr-8">Search projects...</span>
+                  <kbd className="absolute right-3 hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded text-zinc-400">
                     ⌘K
                   </kbd>
                 </button>
               </div>
+              <CurrentTime />
             </div>
           </header>
-          {/* Command Palette */}
+
           <CommandPalette isOpen={isCommandPaletteOpen} onClose={closePalette} />
 
-          {/* Main Action Cards */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Quick Actions */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
             <ActionCard
-              icon={<PlusCircle className="size-6" />}
+              icon={<PlusCircle />}
               title="New Project"
-              description="Start a new research or development initiative."
+              description="Initiate a new research or development proposal with guided steps."
               onClick={() => navigate("/project-registration")}
             />
             <ActionCard
-              icon={<LayoutGrid className="size-6" />}
+              icon={<LayoutGrid />}
               title="View Projects"
-              description="Browse, track, and manage all ongoing and completed projects."
+              description="Comprehensive repository of all your active and archived research initiatives."
               onClick={() => navigate("/projects-view")}
             />
             <ActionCard
-              icon={<Clock className="size-6" />}
+              icon={<Clock />}
               title="Pending Tasks"
-              description="Review and take action on your assigned tasks and approvals."
+              description="Review items requiring your immediate attention or approval."
               onClick={() => navigate("/projects-view", { state: { filter: "Application Under Process" } })}
             />
           </section>
 
           {/* Analytics Section */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
             {/* Project Analytics */}
-            <div className="bg-white p-6 rounded-xl border border-gray-300 shadow-sm">
-              <div className="flex items-center mb-4 gap-3"><BarChart className="size-6 text-[#0EA5A4]" /><h3 className="text-lg font-bold text-black">Project Overview</h3></div>
-              <div className="grid grid-cols-2 gap-4">
-                <AnalyticsCard title="Total Projects" value="24" subtitle="Active: 18 | Draft: 6" icon={<FileText className="size-5" />} trend="+12%" onClick={() => navigate("/project-analytics")} />
-                <AnalyticsCard title="Completion Rate" value="87%" subtitle="On track projects" icon={<TrendingUp className="size-5" />} trend="+5%" />
-                <AnalyticsCard title="Pending Review" value="8" subtitle="Awaiting approval" icon={<AlertCircle className="size-5" />} />
-                <AnalyticsCard title="Project Staffs" value="42" subtitle="Active project Staffs" icon={<UsersIcon className="size-5" />} trend="+8%" />
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2.5">
+                  <BarChart className="size-4 text-zinc-400" />
+                  <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium">Project Overview</h3>
+                </div>
+                <button
+                  onClick={() => navigate("/project-analytics")}
+                  className="text-xs font-sans font-semibold uppercase tracking-wider text-zinc-400 hover:text-[#9A7D5A] transition-colors"
+                >
+                  View Detail
+                </button>
               </div>
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <AnalyticsCard title="Total Projects" value="24" subtitle="6 in draft stage" icon={<FileText size={14} />} trend="+12%" />
+                <AnalyticsCard title="Completion" value="87%" subtitle="On track" icon={<TrendingUp size={14} />} trend="+5%" />
+                <AnalyticsCard title="Pending Review" value="8" subtitle="Awaiting action" icon={<AlertCircle size={14} />} />
+                <AnalyticsCard title="Staffing" value="42" subtitle="Active members" icon={<UsersIcon size={14} />} trend="+8%" />
+              </div>
+            </Card>
 
             {/* Fund Analytics */}
-            <div className="bg-white p-6 rounded-xl border border-gray-300 shadow-sm">
-              <div className="flex items-center mb-4 gap-3"><PieChart className="size-6 text-[#0EA5A4]" /><h3 className="text-lg font-bold text-black">Fund Analytics</h3></div>
-              <div className="grid grid-cols-2 gap-4">
-                <AnalyticsCard title="Total Allocation" value="₹4.2Cr" subtitle="Current fiscal year" icon={<PieChart className="size-5" />} trend="+18%" onClick={() => navigate("/fund-analytics")} />
-                <AnalyticsCard title="Utilization" value="76%" subtitle="₹3.2Cr utilized" icon={<TrendingUp className="size-5" />} trend="+8%" />
-                <AnalyticsCard title="Available Funds" value="₹1.0Cr" subtitle="Remaining balance" icon={<PieChart className="size-5" />} />
-                <AnalyticsCard title="Pending Requests" value="₹45L" subtitle="Approval pending" icon={<AlertCircle className="size-5" />} />
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2.5">
+                  <PieChart className="size-4 text-zinc-400" />
+                  <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium">Financial Summary</h3>
+                </div>
+                <button
+                  onClick={() => navigate("/fund-analytics")}
+                  className="text-xs font-sans font-semibold uppercase tracking-wider text-zinc-400 hover:text-[#9A7D5A] transition-colors"
+                >
+                  View Detail
+                </button>
               </div>
-            </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <AnalyticsCard title="Total Allocation" value="₹4.2Cr" subtitle="FY 2023-24" icon={<PieChart size={14} />} trend="+18%" />
+                <AnalyticsCard title="Utilization" value="76%" subtitle="₹3.2Cr spent" icon={<TrendingUp size={14} />} trend="+8%" />
+                <AnalyticsCard title="Available" value="₹1.0Cr" subtitle="Net balance" icon={<PieChart size={14} />} />
+                <AnalyticsCard title="Requests" value="₹45L" subtitle="Pending review" icon={<AlertCircle size={14} />} />
+              </div>
+            </Card>
           </section>
 
-          {/* Information Section */}
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-300 shadow-sm">
-              <div className="flex items-center mb-4 gap-3"><Megaphone className="size-5 text-[#0EA5A4]" /><h3 className="text-lg font-bold text-black">Recent Updates</h3></div>
-              <div className="text-gray-900 space-y-4 border-t border-gray-300 pt-4">
-                <div className="flex items-start gap-3"><div className="size-2 bg-[#0EA5A4] rounded-full mt-1.5 flex-shrink-0"></div><div><p className="font-bold text-black">New funding opportunity for AI research</p><p className="text-sm text-gray-900 font-medium">Deadline: March 15, 2024</p></div></div>
-                <div className="flex items-start gap-3"><div className="size-2 bg-emerald-600 rounded-full mt-1.5 flex-shrink-0"></div><div><p className="font-bold text-black">Quarterly review meeting scheduled</p><p className="text-sm text-gray-900 font-medium">March 10, 2024 | 10:00 AM</p></div></div>
-                <div className="flex items-start gap-3"><div className="size-2 bg-amber-600 rounded-full mt-1.5 flex-shrink-0"></div><div><p className="font-bold text-black">System maintenance this weekend</p><p className="text-sm text-gray-900 font-medium">March 9-10, 2024 | 10 PM - 6 AM</p></div></div>
+          {/* Secondary Information */}
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-10">
+            <Card className="lg:col-span-2 p-6">
+              <div className="flex items-center gap-2.5 mb-5">
+                <Megaphone className="size-4 text-zinc-400" />
+                <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium">Recent Updates</h3>
               </div>
-            </div>
-            <div className="bg-white p-6 rounded-xl border border-gray-300 shadow-sm">
-              <h3 className="text-lg font-bold mb-4 text-black">Quick Resources</h3>
-              <ul className="space-y-3 border-t border-gray-300 pt-4">
-                <li><a href="#" className="flex items-center text-black hover:text-[#0EA5A4] p-2 rounded-lg hover:bg-gray-100 transition-colors group font-bold"><FileText className="size-5 mr-3 text-gray-500 group-hover:text-[#0EA5A4]" /><span>Project Guidelines</span></a></li>
-                <li><a href="#" className="flex items-center text-black hover:text-[#0EA5A4] p-2 rounded-lg hover:bg-gray-100 transition-colors group font-bold"><LifeBuoy className="size-5 mr-3 text-gray-500 group-hover:text-[#0EA5A4]" /><span>Support Portal</span></a></li>
-                <li><a href="#" className="flex items-center text-black hover:text-[#0EA5A4] p-2 rounded-lg hover:bg-gray-100 transition-colors group font-bold"><BarChart className="size-5 mr-3 text-gray-500 group-hover:text-[#0EA5A4]" /><span>Analytics Reports</span></a></li>
-                <li><a href="#" className="flex items-center text-black hover:text-[#0EA5A4] p-2 rounded-lg hover:bg-gray-100 transition-colors group font-bold"><PieChart className="size-5 mr-3 text-gray-500 group-hover:text-[#0EA5A4]" /><span>Financial Templates</span></a></li>
+              <div className="space-y-4">
+                {[
+                  { title: "New funding opportunity for AI research", meta: "Deadline: March 15, 2024", color: "bg-[#9A7D5A]" },
+                  { title: "Quarterly review meeting scheduled", meta: "March 10, 2024 | 10:00 AM", color: "bg-zinc-400" },
+                  { title: "System maintenance this weekend", meta: "March 9-10, 2024 | 10 PM - 6 AM", color: "bg-zinc-400" }
+                ].map((update, i) => (
+                  <div key={i} className="flex items-start gap-4 group">
+                    <div className={cn("size-1.5 rounded-full mt-2.5 transition-transform group-hover:scale-150", update.color)}></div>
+                    <div className="border-b border-zinc-100 dark:border-zinc-700/50 pb-4 w-full last:border-0">
+                      <p className="font-sans text-xs font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-[#9A7D5A] transition-colors">{update.title}</p>
+                      <p className="font-sans text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">{update.meta}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium mb-5">Quick Resources</h3>
+              <ul className="space-y-1.5">
+                {[
+                  { icon: <FileText />, label: "Project Guidelines" },
+                  { icon: <LifeBuoy />, label: "Support Portal" },
+                  { icon: <BarChart />, label: "Analytics Reports" },
+                  { icon: <PieChart />, label: "Financial Templates" }
+                ].map((item, i) => (
+                  <li key={i}>
+                    <a href="#" className="flex items-center gap-2.5 p-2 rounded-lg text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all">
+                      <span className="text-zinc-400">{React.cloneElement(item.icon as React.ReactElement<any>, { size: 15 })}</span>
+                      {item.label}
+                    </a>
+                  </li>
+                ))}
               </ul>
-            </div>
+            </Card>
           </section>
 
-          <footer className="text-center text-gray-900 mt-10 pb-4 font-bold">
-            <div className="flex items-center justify-center space-x-2 text-sm">
-              <Mail className="size-4" />
-              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#0EA5A4] hover:underline font-bold">ernd@iitg.ac.in</a></p>
+          {/* Footer */}
+          <footer className="pt-10 border-t border-zinc-200 dark:border-zinc-800 text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-100 dark:bg-zinc-800/50 text-xs font-sans text-zinc-500 dark:text-zinc-400">
+              <Mail className="size-3.5" />
+              <span>For assistance, reach out to</span>
+              <a href="mailto:ernd@iitg.ac.in" className="text-[#9A7D5A] hover:text-[#D97757] font-medium transition-colors">
+                ernd@iitg.ac.in
+              </a>
             </div>
           </footer>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

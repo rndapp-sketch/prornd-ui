@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useFrappeGetCall, useFrappePostCall } from "frappe-react-sdk";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
@@ -28,10 +28,10 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-lg w-full max-w-md">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm {action}</h3>
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md">
+                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Confirm {action}</h3>
                 <textarea
-                    className="w-full border border-gray-300 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                    className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4] placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                     rows={4}
                     placeholder="Add a comment (optional)..."
                     value={comment}
@@ -41,7 +41,7 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
                     <button
                         onClick={onClose}
                         disabled={isLoading}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                        className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 disabled:opacity-50"
                     >
                         Cancel
                     </button>
@@ -60,7 +60,6 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
 
 const normalizeResponse = (raw: any): FundDoc[] => {
     if (!raw) return [];
-    // shape: { message: { message: [ ... ] } }
     if (raw.message && raw.message.message && Array.isArray(raw.message.message)) return raw.message.message;
     if (raw.message && Array.isArray(raw.message)) return raw.message;
     if (Array.isArray(raw)) return raw;
@@ -78,7 +77,6 @@ const fetchViaDirect = async (
     start = 0,
     signal?: AbortSignal
 ) => {
-    // allow relative endpoint (browser) or absolute
     const url = endpoint.startsWith("http") ? new URL(endpoint) : new URL(endpoint, window.location.origin);
     url.searchParams.set("prjreg_title", prjreg_title);
     url.searchParams.set("limit", String(limit));
@@ -124,6 +122,7 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
     );
 
     const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+    const { call: deleteDoc, loading: deleteLoading } = useFrappePostCall("frappe.client.delete");
 
     const handleSubmitClick = (docname: string) => {
         setSelectedFundName(docname);
@@ -134,7 +133,6 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
         try {
             await performAction({ docname: selectedFundName, action: "Submit" });
 
-            // Add comment as activity if provided
             if (comment && comment.trim()) {
                 try {
                     await addComment({
@@ -144,16 +142,27 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
                     });
                 } catch (commentError) {
                     console.error("Error adding comment:", commentError);
-                    // Don't fail the whole operation if comment fails
                 }
             }
 
             setModalOpen(false);
-            // Refresh data
             window.location.reload();
         } catch (error) {
             console.error("Error submitting fund:", error);
             alert("Failed to submit fund received entry.");
+        }
+    };
+
+    const handleDelete = async (docname: string) => {
+        if (!confirm("Are you sure you want to delete this Draft Fund Received entry? This action cannot be undone.")) return;
+
+        try {
+            await deleteDoc({ doctype: 'Fund Received', name: docname });
+            // Refresh data
+            window.location.reload();
+        } catch (error) {
+            console.error("Error deleting fund:", error);
+            alert("Failed to delete fund received entry.");
         }
     };
     console.log("sdkResponse", sdkResponse);
@@ -171,7 +180,6 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
                     const normalized = normalizeResponse(json);
                     if (!embedFiles) {
                         normalized.forEach((d: any) => {
-                            // remove large blobs if present
                             if (d.document_upload_file_data) delete d.document_upload_file_data;
                             if (Array.isArray(d.received_amt_breakup)) {
                                 d.received_amt_breakup.forEach((r: any) => {
@@ -199,32 +207,30 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
     const allFunds = normalizeResponse(rawMessage);
 
 
-    const fundsForProject = sanction_ref_no
-        ? allFunds.filter((f: any) => f.sanction_ref_no === sanction_ref_no || !f.sanction_ref_no)
-        : allFunds;
+    const fundsForProject = allFunds;
 
     if (isLoading) {
         return (
-            <div className="mt-6 p-4 border-2 border-gray-300 rounded-md bg-gray-50 text-center">
-                <p className="text-sm text-gray-600 font-mono">Loading fund received data...</p>
+            <div className="mt-6 p-4 border-2 border-zinc-300 dark:border-zinc-700 rounded-md bg-zinc-50 dark:bg-zinc-800/50 text-center">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 font-mono">Loading fund received data...</p>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="mt-6 p-4 border-2 border-red-300 rounded-md bg-red-50 text-center">
-                <p className="text-sm text-red-600 font-mono">Error loading fund received data: {error.message}</p>
+            <div className="mt-6 p-4 border-2 border-red-300 dark:border-red-800 rounded-md bg-red-50 dark:bg-red-900/20 text-center">
+                <p className="text-sm text-red-600 dark:text-red-400 font-mono">Error loading fund received data: {error.message}</p>
             </div>
         );
     }
 
     if (!Array.isArray(fundsForProject) || fundsForProject.length === 0) {
         return (
-            <div className="mt-6 p-4 border-2 border-dashed border-gray-300 rounded-md bg-gray-50 text-center">
-                <p className="text-sm text-gray-600 font-mono">
+            <div className="mt-6 p-4 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-md bg-zinc-50 dark:bg-zinc-800/50 text-center">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 font-mono">
                     {sanction_ref_no
-                        ? "No fund received records linked to this sanction."
+                        ? "No fund received records found for this project."
                         : "No fund received records found for this project."}
                 </p>
             </div>
@@ -233,32 +239,32 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
 
     return (
         <div className="mt-6 space-y-4">
-            <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <h4 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                 Fund Received History
             </h4>
 
-            <div className="overflow-x-auto border border-gray-200 rounded-xl bg-white shadow-sm">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900 shadow-sm">
+                <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
                         <tr>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Fund ID</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Amount</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
-                            <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700">Action</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-300">Fund ID</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-300">Status</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-zinc-700 dark:text-zinc-300">Amount</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-300">Date</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-zinc-700 dark:text-zinc-300">Action</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200">
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                         {fundsForProject.map((fund: FundDoc) => (
-                            <tr key={fund.name} className="hover:bg-gray-50/50 transition-colors">
-                                <td className="px-4 py-3 text-sm font-medium text-gray-900">{fund.name}</td>
+                            <tr key={fund.name} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                                <td className="px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">{fund.name}</td>
                                 <td className="px-4 py-3">
                                     <span className={cn("px-2.5 py-1 rounded-full text-xs font-medium", {
-                                        "bg-yellow-100 text-yellow-800": fund.workflow_state === "Draft",
-                                        "bg-blue-100 text-blue-800": fund.workflow_state === "Submitted" || fund.workflow_state?.includes("Pending"),
-                                        "bg-green-100 text-green-800": fund.workflow_state === "Approved",
-                                        "bg-purple-100 text-purple-800": fund.workflow_state?.includes("Generate"),
-                                        "bg-gray-100 text-gray-800": !fund.workflow_state,
+                                        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400": fund.workflow_state === "Draft",
+                                        "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400": fund.workflow_state === "Submitted" || fund.workflow_state?.includes("Pending"),
+                                        "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400": fund.workflow_state === "Approved",
+                                        "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400": fund.workflow_state?.includes("Generate"),
+                                        "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300": !fund.workflow_state,
                                     })}>
                                         {fund.workflow_state || "Draft"}
                                     </span>
@@ -266,7 +272,7 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
                                 <td className="px-4 py-3 text-sm font-semibold text-[#0EA5A4] text-right">
                                     {(fund.fund_received_amt || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}
                                 </td>
-                                <td className="px-4 py-3 text-sm text-gray-600">{fund.modified?.split(" ")[0] || "-"}</td>
+                                <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{fund.modified?.split(" ")[0] || "-"}</td>
                                 <td className="px-4 py-3 text-center">
                                     <button
                                         onClick={() => navigate(`/fund-received/${fund.name}`, { state: { prjreg_title: prjregTitle } })}
@@ -281,6 +287,16 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
                                             className="ml-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm transition-all disabled:opacity-50"
                                         >
                                             Submit
+                                        </button>
+                                    )}
+                                    {(!fund.workflow_state || fund.workflow_state === "Draft") && (
+                                        <button
+                                            onClick={() => handleDelete(fund.name)}
+                                            disabled={deleteLoading}
+                                            title="Delete Draft"
+                                            className="ml-2 inline-flex items-center justify-center p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
                                         </button>
                                     )}
                                 </td>

@@ -49,11 +49,11 @@ const TaskRegistryDetails: React.FC = () => {
     if (error || !data) {
         return (
             <div className="flex flex-col h-screen items-center justify-center bg-[#F0F4F8] p-4">
-                <div className="bg-white p-8 rounded-xl shadow-md max-w-lg w-full text-center">
+                <div className="bg-white dark:bg-zinc-900 p-8 rounded-xl shadow-md max-w-lg w-full text-center">
                     <div className="text-red-500 font-bold text-xl mb-2">Unexpected Application Error!</div>
-                    <div className="text-gray-800 font-medium text-lg mb-4">404 Not Found</div>
+                    <div className="text-zinc-800 dark:text-zinc-200 font-medium text-lg mb-4">404 Not Found</div>
 
-                    <div className="bg-gray-100 p-4 rounded-lg text-left text-xs font-mono text-gray-700 overflow-auto max-h-40">
+                    <div className="bg-zinc-100 dark:bg-zinc-800 p-4 rounded-lg text-left text-xs font-mono text-zinc-700 dark:text-zinc-300 overflow-auto max-h-40">
                         <div><strong>Doctype:</strong> {doctype}</div>
                         <div><strong>Name:</strong> {name}</div>
                         <div><strong>Error:</strong> {error ? JSON.stringify(error.message || error) : "No data returned"}</div>
@@ -61,7 +61,7 @@ const TaskRegistryDetails: React.FC = () => {
 
                     <FrappeButton
                         onClick={() => navigate(-1)}
-                        className="mt-6 bg-gray-200 hover:bg-gray-300"
+                        className="mt-6 bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:bg-zinc-600"
                     >
                         Go Back
                     </FrappeButton>
@@ -88,15 +88,15 @@ const TaskRegistryDetails: React.FC = () => {
             <AppSidebar />
 
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <header className="mb-6 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
+                <header className="mb-6 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
-                            <button onClick={() => navigate(-1)} className="p-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                                <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
+                            <button onClick={() => navigate(-1)} className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:bg-zinc-800 transition-colors">
+                                <ArrowLeftIcon className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
                             </button>
                             <div>
-                                <h1 className="text-xl font-semibold text-gray-900">Document Details</h1>
-                                <p className="text-sm text-gray-500 mt-0.5">{doctype} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E0F7F6] text-[#0EA5A4]">{name}</span></p>
+                                <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Document Details</h1>
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{doctype} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E0F7F6] text-[#0EA5A4]">{name}</span></p>
                             </div>
                         </div>
                         {/* No action buttons for registry view as it's typically read-only / historic */}
@@ -105,17 +105,17 @@ const TaskRegistryDetails: React.FC = () => {
 
                 <div className="space-y-6">
                     {/* Primary Details Section */}
-                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-5 border-b border-gray-200 pb-3">
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+                        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-5 border-b border-zinc-200 dark:border-zinc-800 pb-3">
                             Overview
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {simpleFields.map(([key, value]) => (
                                 <div key={key} className="p-4 rounded-lg">
-                                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
                                         {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                     </label>
-                                    <div className="text-sm font-medium text-gray-900 break-words bg-gray-50 px-3 py-2 rounded-lg">
+                                    <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 break-words bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2 rounded-lg">
                                         {String(value) || '-'}
                                     </div>
                                 </div>
@@ -171,18 +171,18 @@ const TaskRegistryDetails: React.FC = () => {
                         const grandTotal = Object.values(columnTotals).reduce((sum, val) => sum + val, 0);
 
                         return (
-                            <div key={key} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                                <div className="p-4 border-b border-gray-200 bg-gray-50">
-                                    <h3 className="text-base font-semibold text-gray-900">
+                            <div key={key} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+                                <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+                                    <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
                                         {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                     </h3>
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left">
                                         <thead>
-                                            <tr className="bg-gray-50 border-b border-gray-200">
+                                            <tr className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
                                                 {headers.map(header => (
-                                                    <th key={header} className="px-4 py-3 text-xs font-semibold text-gray-600 whitespace-nowrap">
+                                                    <th key={header} className="px-4 py-3 text-xs font-semibold text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
                                                         {header.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                     </th>
                                                 ))}
@@ -193,11 +193,11 @@ const TaskRegistryDetails: React.FC = () => {
                                                 )}
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-100">
+                                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                                             {rows.map((row, idx) => (
-                                                <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                                                <tr key={idx} className="hover:bg-zinc-50 dark:bg-zinc-800/50/50 transition-colors">
                                                     {headers.map(header => (
-                                                        <td key={header} className="px-4 py-3 text-sm text-gray-700">
+                                                        <td key={header} className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300">
                                                             {budgetYearColumns.includes(header)
                                                                 ? (parseFloat(row[header]) || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
                                                                 : String(row[header] || '-')
@@ -213,9 +213,9 @@ const TaskRegistryDetails: React.FC = () => {
                                             ))}
                                             {/* Total Row */}
                                             {isBudgetTable && (
-                                                <tr className="bg-gray-100 border-t-2 border-gray-300 font-semibold">
+                                                <tr className="bg-zinc-100 dark:bg-zinc-800 border-t-2 border-zinc-300 dark:border-zinc-700 font-semibold">
                                                     {headers.map(header => (
-                                                        <td key={header} className="px-4 py-3 text-sm text-gray-900">
+                                                        <td key={header} className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">
                                                             {header === 'account_head'
                                                                 ? 'Total'
                                                                 : budgetYearColumns.includes(header)
@@ -238,7 +238,7 @@ const TaskRegistryDetails: React.FC = () => {
 
                     <div className="flex justify-end gap-3 pb-8">
                         <FrappeButton
-                            className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-200"
+                            className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800"
                             onClick={() => navigate(-1)}
                         >
                             Back to Registry

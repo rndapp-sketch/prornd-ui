@@ -7,10 +7,10 @@ import proxyOptions from './proxyOptions';
 export default defineConfig({
 	plugins: [react()],
 	server: {
-		port: 8080,
+		port: 8081,
 		host: '0.0.0.0',
 		hmr: {
-			clientPort: 8080,
+			clientPort: 8081,
 		},
 		proxy: proxyOptions
 	},

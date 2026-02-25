@@ -1,0 +1,591 @@
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useFrappePostCall } from "frappe-react-sdk";
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
+import {
+    Loader2,
+    UploadCloud,
+    FileText,
+    X,
+    Plus,
+    Save,
+    ChevronRight,
+    Download,
+    ArrowLeft
+} from "lucide-react";
+
+// --- Interfaces ---
+
+interface DisbursalField {
+    fieldname: string;
+    label: string;
+    fieldtype: string;
+    options?: string | string[]; // Can be a string (link doc) or array of strings (select)
+    reqd?: number;
+    read_only?: number;
+    default?: any;
+    hidden?: number;
+}
+
+interface HonorariumTableEntry {
+    name?: string;
+    payee_name: string;
+    payee_code?: string; // If linked to something
+    bank_account_no: string;
+    ifsc_code: string;
+    amount: number;
+    pan_no?: string;
+    email_id?: string;
+    mobile_no?: string;
+}
+
+interface DisbursalData {
+    name?: string;
+    project_number: string;
+    project_title?: string; // specific field name might vary
+    date_of_request?: string;
+    workflow_state?: string;
+    honorarium_table: HonorariumTableEntry[];
+    attached_approvals?: string; // URL or File path
+    additional_documents?: string; // URL or File path
+    docstatus?: number;
+    owner?: string;
+    total_amount?: number;
+    creation?: string;
+    [key: string]: any; // Allow dynamic fields
+}
+
+interface DisbursalOfHonorariumProps {
+    projectName: string;
+}
+
+// --- Components ---
+
+const FileUpload = ({
+    label,
+    value,
+    onChange,
+    readOnly
+}: {
+    label: string;
+    value: string | null;
+    onChange: (file: { file_name: string; file_data: string } | null) => void;
+    readOnly?: boolean;
+}) => {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [fileName, setFileName] = useState<string | null>(
+        typeof value === 'string' && value ? value.split('/').pop() || "File attached" : null
+    );
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const base64 = event.target?.result as string;
+                // Strip data:content/type;base64, prefix if needed by backend, 
+                // usually Frappe accepts full data URI or base64 part. 
+                // Keeping full data URI is safer for standard methods.
+                onChange({
+                    file_name: file.name,
+                    file_data: base64
+                });
+                setFileName(file.name);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    return (
+        <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">
+                {label}
+            </Label>
+            <div className="flex items-center gap-3">
+                {fileName || value ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md">
+                        <FileText className="w-4 h-4 text-[#D97757]" />
+                        <span className="text-sm text-zinc-700 dark:text-zinc-300 max-w-[200px] truncate">
+                            {fileName}
+                        </span>
+                        {!readOnly && (
+                            <button
+                                onClick={() => {
+                                    onChange(null);
+                                    setFileName(null);
+                                    if (fileInputRef.current) fileInputRef.current.value = "";
+                                }}
+                                className="ml-2 text-zinc-400 hover:text-red-500"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        )}
+                        {(value && typeof value === 'string') && (
+                            <a href={value} target="_blank" rel="noopener noreferrer" className="ml-1 text-zinc-400 hover:text-[#D97757]">
+                                <Download className="w-4 h-4" />
+                            </a>
+                        )}
+                    </div>
+                ) : (
+                    !readOnly && (
+                        <div className="relative">
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                className="hidden"
+                                id={`file-upload-${label.replace(/\s+/g, '-')}`}
+                            />
+                            <label
+                                htmlFor={`file-upload-${label.replace(/\s+/g, '-')}`}
+                                className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 text-sm font-medium text-zinc-700 dark:text-zinc-300 transition-colors"
+                            >
+                                <UploadCloud className="w-4 h-4" />
+                                <span>Upload File</span>
+                            </label>
+                        </div>
+                    )
+                )}
+                {readOnly && !value && <span className="text-sm text-zinc-400 italic">No file attached</span>}
+            </div>
+        </div>
+    );
+};
+
+
+export const DisbursalOfHonorarium = ({ projectName }: DisbursalOfHonorariumProps) => {
+    const [isLoading, setIsLoading] = useState(true);
+    const [formData, setFormData] = useState<DisbursalData>({
+        project_number: projectName,
+        honorarium_table: []
+    });
+    const [metaFields, setMetaFields] = useState<DisbursalField[]>([]);
+    const [workflowActions, setWorkflowActions] = useState<string[]>([]);
+    const [uploadFiles, setUploadFiles] = useState<Record<string, { file_name: string; file_data: string }>>({});
+
+    // Track existing document name if we found one
+    const [docName, setDocName] = useState<string | null>(null);
+
+    // --- API Hooks ---
+    const { call: getFields } = useFrappePostCall<{ message: { meta: DisbursalField[], data?: DisbursalData } }>(
+        "rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_fields"
+    );
+
+    const { call: saveData, loading: isSaving } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.save_disbursal_of_honorarium_data"
+    );
+
+    const { call: getActions } = useFrappePostCall<{ message: string[] }>(
+        "rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_workflow_actions"
+    );
+
+    const { call: performAction, loading: isPerformingAction } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.perform_disbursal_of_honorarium_action"
+    );
+
+    // Custom fetch to check if an existing document exists for this project
+    // We'll trust getFields to return existing data if passed parameters, 
+    // but initially we might just query list if 1:1 relation or handle multiple.
+    // Assuming 1 active request per project for now, or list view.
+    // For this implementation, let's assume we list them or show a "Create New" 
+    // if user clicks from a list. 
+    // If embedded in project overview, maybe we show a list of existing?
+    // Let's implement a List View -> Detail View pattern within the tab.
+
+    const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
+    const [disbursalList, setDisbursalList] = useState<DisbursalData[]>([]);
+
+    const fetchList = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            // Generic fetch for now
+            const res = await fetch(`/api/resource/Disbursal of Honorarium?filters=[["project_number","=","${projectName}"]]&fields=["name","creation","workflow_state","total_amount"]&order_by=creation desc`);
+            const data = await res.json();
+            if (data.data) {
+                setDisbursalList(data.data);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [projectName]);
+
+
+    useEffect(() => {
+        fetchList();
+    }, [fetchList]);
+
+    const loadDetail = useCallback(async (name?: string) => {
+        setIsLoading(true);
+        try {
+            const resp = await getFields({ doc_name: name });
+            if (resp.message) {
+                setMetaFields(resp.message.meta || []);
+                if (resp.message.data) {
+                    setFormData(resp.message.data);
+                    setDocName(resp.message.data.name || null);
+                    // Refresh workflow actions if doc exists
+                    if (resp.message.data.name) {
+                        const actionsResp = await getActions({ docname: resp.message.data.name });
+                        if (actionsResp.message) setWorkflowActions(actionsResp.message);
+                    } else {
+                        setWorkflowActions([]);
+                    }
+                } else {
+                    // New Form
+                    setFormData({
+                        project_number: projectName,
+                        honorarium_table: []
+                    });
+                    setDocName(null);
+                    setWorkflowActions([]);
+                }
+            }
+            setViewMode('detail');
+        } catch (e) {
+            console.error(e);
+            // toast.error("Failed to load details");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [getFields, getActions, projectName]);
+
+
+    const handleSave = async () => {
+        try {
+            // Prepare payload
+            const payload = {
+                ...formData,
+                ...uploadFiles, // Merge file data: { attached_approvals: { file_name:..., file_data:... } }
+                project_number: projectName // Ensure project number is set
+            };
+
+            const resp = await saveData({ data: payload });
+            if (resp.message) {
+                // toast.success("Saved successfully");
+                // Update local state with saved data (name, etc)
+                setFormData(prev => ({ ...prev, ...resp.message }));
+                setDocName(resp.message.name);
+
+                // Refresh workflow actions
+                const actionsResp = await getActions({ docname: resp.message.name });
+                if (actionsResp.message) setWorkflowActions(actionsResp.message);
+
+                // Clear upload buffer as they are saved
+                setUploadFiles({});
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Failed to save");
+        }
+    };
+
+    const handleAction = async (action: string) => {
+        if (!docName) return;
+        try {
+            await performAction({ docname: docName, action });
+            // toast.success(`Action ${ action } completed`);
+            // Reload
+            loadDetail(docName);
+        } catch (e) {
+            console.error(e);
+            alert(`Action ${action} failed`);
+        }
+    };
+
+    // --- Render ---
+
+    if (viewMode === 'list') {
+        return (
+            <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-serif font-bold text-zinc-800 dark:text-zinc-100">Disbursal Applications</h2>
+                    <Button
+                        onClick={() => loadDetail()}
+                        className="bg-[#D97757] hover:bg-[#C66A4E] text-white"
+                    >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create New
+                    </Button>
+                </div>
+
+                {isLoading ? (
+                    <div className="flex justify-center p-8"><Loader2 className="animate-spin text-zinc-400" /></div>
+                ) : disbursalList.length === 0 ? (
+                    <div className="text-center p-8 border border-dashed border-zinc-200 rounded-lg text-zinc-500">
+                        No applications found.
+                    </div>
+                ) : (
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                        <Table>
+                            <TableHeader className="bg-zinc-50 dark:bg-zinc-800/50">
+                                <TableRow>
+                                    <TableHead>ID</TableHead>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Total Amount</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Action</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {disbursalList.map((item) => (
+                                    <TableRow key={item.name} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer" onClick={() => loadDetail(item.name)}>
+                                        <TableCell className="font-medium">{item.name}</TableCell>
+                                        <TableCell>{item.creation?.split(' ')[0]}</TableCell>
+                                        <TableCell>₹ {item.total_amount || 0}</TableCell>
+                                        <TableCell>
+                                            <span className={cn(
+                                                "inline-flex px-2 py-1 text-xs font-medium rounded-full",
+                                                item.workflow_state === "Approved" ? "bg-green-100 text-green-700" :
+                                                    item.workflow_state === "Rejected" ? "bg-red-100 text-red-700" :
+                                                        "bg-zinc-100 text-zinc-700"
+                                            )}>
+                                                {item.workflow_state || "Draft"}
+                                            </span>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); loadDetail(item.name); }}>
+                                                <ChevronRight className="w-4 h-4" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // Detail View
+    const isReadOnly = formData.docstatus === 1 || formData.docstatus === 2;
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center gap-4 mb-6">
+                <Button variant="outline" onClick={() => { setViewMode('list'); fetchList(); }} className="gap-2">
+                    <ArrowLeft className="w-4 h-4" /> Back
+                </Button>
+                <h2 className="text-lg font-serif font-bold text-zinc-800 dark:text-zinc-100">
+                    {docName || "New Application"}
+                </h2>
+                <div className="ml-auto flex gap-2">
+                    {!isReadOnly && (
+                        <Button onClick={handleSave} disabled={isSaving} className="bg-zinc-900 text-white hover:bg-zinc-800">
+                            {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            <Save className="w-4 h-4 mr-2" />
+                            Save
+                        </Button>
+                    )}
+                    {workflowActions.map(action => (
+                        <Button
+                            key={action}
+                            onClick={() => handleAction(action)}
+                            disabled={isPerformingAction}
+                            variant="outline"
+                            className="bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-50"
+                        >
+                            {action}
+                        </Button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column: Metadata */}
+                <Card className="border-0 shadow-none bg-transparent">
+                    <CardContent className="p-0 space-y-4">
+                        {/* Render Fields from Meta */}
+                        {/* Hardcoded important fields or loop meta */}
+                        <div className="grid gap-4">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-medium text-zinc-500 uppercase">Project Number</Label>
+                                <Input value={formData.project_number} disabled className="bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700" />
+                            </div>
+                            {/* Dynamically render basic inputs if needed, filtering out table/files */}
+                            {metaFields
+                                .filter(f => !['Section Break', 'Column Break', 'Table', 'Attach', 'Attach Image'].includes(f.fieldtype) && !f.hidden)
+                                .map(field => (
+                                    <div key={field.fieldname} className="space-y-1.5">
+                                        <Label className="text-xs font-medium text-zinc-500 uppercase">{field.label}</Label>
+                                        <Input
+                                            value={formData[field.fieldname] || ''}
+                                            onChange={(e) => !isReadOnly && setFormData(prev => ({ ...prev, [field.fieldname]: e.target.value }))}
+                                            disabled={isReadOnly || !!field.read_only}
+                                            className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+                                        />
+                                    </div>
+                                ))
+                            }
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Right Column: Files */}
+                <Card className="border-zinc-200 dark:border-zinc-800 shadow-sm bg-white dark:bg-zinc-900">
+                    <CardHeader className="pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                        <CardTitle className="text-sm font-medium">Attachments</CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4 space-y-4">
+                        <FileUpload
+                            label="Approval Document"
+                            value={formData.attached_approvals || null}
+                            onChange={(file) => {
+                                if (file) setUploadFiles(prev => ({ ...prev, attached_approvals: file }));
+                                else setUploadFiles(prev => { const n = { ...prev }; delete n.attached_approvals; return n; });
+                            }}
+                            readOnly={isReadOnly}
+                        />
+                        <FileUpload
+                            label="Additional Documents"
+                            value={formData.additional_documents || null}
+                            onChange={(file) => {
+                                if (file) setUploadFiles(prev => ({ ...prev, additional_documents: file }));
+                                else setUploadFiles(prev => { const n = { ...prev }; delete n.additional_documents; return n; });
+                            }}
+                            readOnly={isReadOnly}
+                        />
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Honorarium Table */}
+            <Card className="border-zinc-200 dark:border-zinc-800 shadow-sm bg-white dark:bg-zinc-900">
+                <CardHeader className="py-3 px-4 border-b border-zinc-100 dark:border-zinc-800 flex flex-row justify-between items-center">
+                    <CardTitle className="text-sm font-medium">Honorarium Details</CardTitle>
+                    {!isReadOnly && (
+                        <Button size="sm" variant="outline" onClick={() => {
+                            setFormData(prev => ({
+                                ...prev,
+                                honorarium_table: [...prev.honorarium_table, {
+                                    payee_name: '', bank_account_no: '', ifsc_code: '', amount: 0
+                                }]
+                            }));
+                        }}>
+                            <Plus className="w-3.5 h-3.5 mr-1" /> Add Row
+                        </Button>
+                    )}
+                </CardHeader>
+                <CardContent className="p-0 overflow-x-auto">
+                    <Table>
+                        <TableHeader className="bg-zinc-50 dark:bg-zinc-800/50">
+                            <TableRow>
+                                <TableHead className="min-w-[150px]">Payee Name</TableHead>
+                                <TableHead>Bank Account</TableHead>
+                                <TableHead>IFSC</TableHead>
+                                <TableHead>Amount</TableHead>
+                                <TableHead>PAN</TableHead>
+                                {!isReadOnly && <TableHead className="w-[50px]"></TableHead>}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {formData.honorarium_table.map((row, idx) => (
+                                <TableRow key={idx}>
+                                    <TableCell className="p-2">
+                                        <Input
+                                            className="h-8 text-xs"
+                                            value={row.payee_name}
+                                            onChange={(e) => {
+                                                const newTable = [...formData.honorarium_table];
+                                                newTable[idx].payee_name = e.target.value;
+                                                setFormData({ ...formData, honorarium_table: newTable });
+                                            }}
+                                            readOnly={isReadOnly}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                        <Input
+                                            className="h-8 text-xs font-mono"
+                                            value={row.bank_account_no}
+                                            onChange={(e) => {
+                                                const newTable = [...formData.honorarium_table];
+                                                newTable[idx].bank_account_no = e.target.value;
+                                                setFormData({ ...formData, honorarium_table: newTable });
+                                            }}
+                                            readOnly={isReadOnly}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                        <Input
+                                            className="h-8 text-xs font-mono uppercase"
+                                            value={row.ifsc_code}
+                                            onChange={(e) => {
+                                                const newTable = [...formData.honorarium_table];
+                                                newTable[idx].ifsc_code = e.target.value;
+                                                setFormData({ ...formData, honorarium_table: newTable });
+                                            }}
+                                            readOnly={isReadOnly}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                        <Input
+                                            type="number"
+                                            className="h-8 text-xs text-right"
+                                            value={row.amount}
+                                            onChange={(e) => {
+                                                const newTable = [...formData.honorarium_table];
+                                                newTable[idx].amount = parseFloat(e.target.value) || 0;
+                                                setFormData({ ...formData, honorarium_table: newTable });
+                                            }}
+                                            readOnly={isReadOnly}
+                                        />
+                                    </TableCell>
+                                    <TableCell className="p-2">
+                                        <Input
+                                            className="h-8 text-xs uppercase"
+                                            value={row.pan_no || ''}
+                                            onChange={(e) => {
+                                                const newTable = [...formData.honorarium_table];
+                                                newTable[idx].pan_no = e.target.value;
+                                                setFormData({ ...formData, honorarium_table: newTable });
+                                            }}
+                                            readOnly={isReadOnly}
+                                        />
+                                    </TableCell>
+                                    {!isReadOnly && (
+                                        <TableCell className="p-2 text-center">
+                                            <button
+                                                className="text-zinc-400 hover:text-red-500"
+                                                onClick={() => {
+                                                    const newTable = formData.honorarium_table.filter((_, i) => i !== idx);
+                                                    setFormData({ ...formData, honorarium_table: newTable });
+                                                }}
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </TableCell>
+                                    )}
+                                </TableRow>
+                            ))}
+                            {formData.honorarium_table.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center py-8 text-zinc-500 text-xs italic">
+                                        No entries. Click "Add Row" to start.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
+    );
+};

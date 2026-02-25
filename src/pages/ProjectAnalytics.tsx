@@ -21,12 +21,12 @@ import { GlobalLoader } from '@/components/ui/global-loader';
 // --- Components ---
 
 const StatCard = ({ title, value, icon, colorClass }: { title: string; value: string | number; icon: React.ReactNode; colorClass?: string }) => (
-    <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm flex items-center justify-between">
+    <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
         <div>
             <h3 className="text-sm font-bold text-neutral-600 uppercase mb-1">{title}</h3>
             <div className={cn("text-3xl font-black", colorClass)}>{value}</div>
         </div>
-        <div className="p-3 bg-neutral-100 rounded-full border border-gray-200">
+        <div className="p-3 bg-neutral-100 rounded-full border border-zinc-200 dark:border-zinc-800">
             {icon}
         </div>
     </div>
@@ -70,12 +70,12 @@ const ProjectAnalytics = () => {
                     <header className="mb-8 flex items-center gap-4">
                         <button
                             onClick={() => navigate(-1)}
-                            className="p-2 bg-white border border-gray-200 rounded-lg shadow-[2px_2px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all"
+                            className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-[2px_2px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all"
                         >
                             <ArrowLeft className="size-6" />
                         </button>
                         <div>
-                            <h1 className="text-4xl font-extrabold text-black uppercase">Project Analytics</h1>
+                            <h1 className="text-4xl font-extrabold text-zinc-900 dark:text-zinc-100 uppercase">Project Analytics</h1>
                             <p className="text-lg text-neutral-700 font-mono">Insights and performance metrics</p>
                         </div>
                     </header>
@@ -92,8 +92,8 @@ const ProjectAnalytics = () => {
                     <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
 
                         {/* Projects by Status (Pie Chart) */}
-                        <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                            <h3 className="text-xl font-bold text-black uppercase mb-6">Project Status Distribution</h3>
+                        <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 uppercase mb-6">Project Status Distribution</h3>
                             <div className="h-[300px] w-full">
                                 {charts.status.length > 0 ? (
                                     <ResponsiveContainer width="100%" height="100%">
@@ -118,14 +118,14 @@ const ProjectAnalytics = () => {
                                         </PieChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-full text-gray-500 font-mono">No data available</div>
+                                    <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 font-mono">No data available</div>
                                 )}
                             </div>
                         </div>
 
                         {/* Projects Trend (Bar Chart) */}
-                        <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-                            <h3 className="text-xl font-bold text-black uppercase mb-6">Projects Initiated by Year</h3>
+                        <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 uppercase mb-6">Projects Initiated by Year</h3>
                             <div className="h-[300px] w-full">
                                 {charts.year.length > 0 ? (
                                     <ResponsiveContainer width="100%" height="100%">
@@ -144,14 +144,14 @@ const ProjectAnalytics = () => {
                                         </BarChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-full text-gray-500 font-mono">No data available</div>
+                                    <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 font-mono">No data available</div>
                                 )}
                             </div>
                         </div>
 
                         {/* Funding Source (Pie Chart) */}
-                        <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm lg:col-span-2">
-                            <h3 className="text-xl font-bold text-black uppercase mb-6">Funding Sources</h3>
+                        <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm lg:col-span-2">
+                            <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 uppercase mb-6">Funding Sources</h3>
                             <div className="h-[300px] w-full">
                                 {charts.funding.length > 0 ? (
                                     <ResponsiveContainer width="100%" height="100%">
@@ -175,7 +175,7 @@ const ProjectAnalytics = () => {
                                         </BarChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-full text-gray-500 font-mono">No data available</div>
+                                    <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400 font-mono">No data available</div>
                                 )}
                             </div>
                         </div>

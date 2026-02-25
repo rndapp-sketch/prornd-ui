@@ -73,7 +73,7 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({ docName, onAc
     };
 
     if (actionsLoading) {
-        return <div className="flex items-center text-sm text-gray-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading actions...</div>;
+        return <div className="flex items-center text-sm text-zinc-500 dark:text-zinc-400"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading actions...</div>;
     }
 
     if (!actions.length) {

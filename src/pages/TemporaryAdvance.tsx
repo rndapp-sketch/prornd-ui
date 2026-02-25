@@ -4,7 +4,16 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from "../components/RndSidebar";
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { ArrowLeftIcon } from "lucide-react";
+import { PageHeader } from '@/components/common/PageHeader';
+import { ToWords } from 'to-words';
+
+// Initialize ToWords converter
+const toWords = new ToWords({
+    localeCode: 'en-IN',
+    converterOptions: {
+        ignoreDecimal: false
+    }
+});
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -37,7 +46,7 @@ interface FormDataResponse {
 }
 
 // --- STYLES ---
-const inputClasses = "w-full h-12 px-4 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-100";
+const inputClasses = "w-full h-12 px-4 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800 read-only:bg-zinc-100 dark:bg-zinc-800";
 
 // --- HELPER FUNCTION: evaluateDependsOn ---
 const evaluateDependsOn = (expression: string | null | undefined, doc: any): boolean => {
@@ -166,9 +175,9 @@ const MemoizedFormField = memo(({
                             checked={!!value}
                             onChange={(e) => onChange(field.fieldname, e.target.checked ? 1 : 0)}
                             disabled={field.read_only === 1}
-                            className="mt-1 w-5 h-5 rounded border-gray-300 text-[#0EA5A4] focus:ring-[#0EA5A4]"
+                            className="mt-1 w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 text-[#D97757] focus:ring-[#D97757]"
                         />
-                        <span className="text-gray-700 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: field.description || field.label || '' }} />
+                        <span className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: field.description || field.label || '' }} />
                     </label>
                 );
             case "Attach":
@@ -193,12 +202,12 @@ const MemoizedFormField = memo(({
 
     return (
         <div className='space-y-2'>
-            <label htmlFor={field.fieldname} className="block font-bold text-black text-lg uppercase">
+            <label htmlFor={field.fieldname} className="block font-bold text-zinc-900 dark:text-zinc-100 text-lg uppercase">
                 {field.label}{field.mandatory === 1 && <span className="text-red-500">*</span>}
             </label>
             {renderInput()}
             {field.description && field.fieldtype !== 'Check' && (
-                <p className="text-sm text-gray-600 mt-1">{field.description}</p>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">{field.description}</p>
             )}
         </div>
     );
@@ -206,7 +215,7 @@ const MemoizedFormField = memo(({
 
 // --- REUSABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-xl shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>
         {children}
     </div>
 );
@@ -223,7 +232,7 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "px-5 py-2.5 border border-gray-200 rounded-lg font-semibold text-gray-700 bg-white shadow-sm transition-all hover:bg-gray-50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed",
+            "px-5 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-lg font-semibold text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed",
             className
         )}
     >
@@ -233,7 +242,7 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 
 const NeoSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <div className="space-y-6">
-        <h2 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-3">{title}</h2>
+        <h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-3">{title}</h2>
         {children}
     </div>
 );
@@ -242,6 +251,8 @@ const TemporaryAdvance: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const projectName = searchParams.get('project') || '';
+    const projectTitle = searchParams.get('projectTitle') || '';
+    const editDocName = searchParams.get('edit') || '';
 
     const [fields, setFields] = useState<Field[]>([]);
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
@@ -259,14 +270,17 @@ const TemporaryAdvance: React.FC = () => {
     const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(
         'rndopsapp.rndopsapp.doctype.temporary_advance.temporary_advance.get_user_details'
     );
+    const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>(
+        'frappe.client.get'
+    );
 
     // Initial data fetch - only run once
     useEffect(() => {
         if (!dataLoaded) {
-            fetchFormData({ project_name: projectName });
+            fetchFormData({ doc_name: editDocName || null, project_name: projectName });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [projectName]);
+    }, [projectName, editDocName]);
 
     useEffect(() => {
         // Only process result once when data is first loaded
@@ -279,7 +293,24 @@ const TemporaryAdvance: React.FC = () => {
 
                 if (Array.isArray(apiFields)) {
                     // Initialize form data with defaults
-                    const initialData: Record<string, any> = { ...prefill_data };
+                    let initialData: Record<string, any> = { ...prefill_data };
+
+                    // If editing, fetch existing document data
+                    if (editDocName) {
+                        try {
+                            const existingDoc = await fetchExistingDoc({
+                                doctype: 'Temporary Advance',
+                                name: editDocName
+                            });
+                            if (existingDoc?.message) {
+                                // Merge existing document data with initial data (existing data takes precedence)
+                                initialData = { ...initialData, ...existingDoc.message };
+                            }
+                        } catch (err) {
+                            console.error('Error fetching existing document:', err);
+                            alert('Failed to load document for editing');
+                        }
+                    }
 
                     // Default 'applying_for_select' to 'No' if not set
                     if (!initialData.applying_for_select) {
@@ -295,9 +326,32 @@ const TemporaryAdvance: React.FC = () => {
                         }
                     });
 
-                    // Set project if passed via URL
+                    // Set project code if passed via URL
                     if (projectName && !initialData.project_code) {
                         initialData.project_code = projectName;
+                        delete link_options.project_code;
+                        console.log('Auto-fill project_code:', initialData.project_code);
+                    }
+
+                    // Set project name if passed via URL
+                    if (!initialData.project_name) {
+                        const projectId = searchParams.get('projectId') || '';
+                        let resolvedTitle = projectTitle;
+
+                        // If no projectTitle but we have projectId, look up the label from link_options
+                        if (!resolvedTitle && projectId) {
+                            const projectNameOpts = link_options?.project_name || link_options?.project_code || [];
+                            const match = projectNameOpts.find((opt: LinkOption) => opt.value === projectId);
+                            if (match) {
+                                resolvedTitle = match.label;
+                            }
+                        }
+
+                        if (resolvedTitle) {
+                            initialData.project_name = resolvedTitle;
+                            delete link_options.project_name;
+                            console.log('Auto-fill project_name:', initialData.project_name);
+                        }
                     }
 
                     // CRITICAL: If applicant_webmail is present (e.g. from prefill), fetch and populate details
@@ -335,7 +389,7 @@ const TemporaryAdvance: React.FC = () => {
             alert("Failed to load form data.");
             setLoading(false);
         }
-    }, [result, error, projectName, dataLoaded, fetchUserDetails]);
+    }, [result, error, projectName, editDocName, dataLoaded, fetchUserDetails, fetchExistingDoc]);
 
     const handleChange = useCallback((fieldname: string, value: any) => {
         setFormData(prev => {
@@ -357,6 +411,17 @@ const TemporaryAdvance: React.FC = () => {
                     updated.applicant_webmail = '';
                 }
             }
+
+            // Auto-calculate amount in words when amount field changes
+            if (fieldname === 'amount' || fieldname === 'amount_applied') {
+                const amountValue = parseFloat(value);
+                if (!isNaN(amountValue) && amountValue > 0) {
+                    updated.amount_in_words = toWords.convert(amountValue);
+                } else {
+                    updated.amount_in_words = '';
+                }
+            }
+
             return updated;
         });
 
@@ -366,7 +431,7 @@ const TemporaryAdvance: React.FC = () => {
                 // Re-populate self details if we had them or fetch them
                 // For now, we can rely on the user re-selecting or just existing data if not cleared
                 // Better: Fetch current user details again
-                fetchUserDetails({ user_email: 'self' }).then(r => { // 'self' or empty to imply current user? API needs to support it or we use session user
+                fetchUserDetails({ user_email: 'self' }).then(() => { // 'self' or empty to imply current user? API needs to support it or we use session user
                     // The API `get_user_details` expects `user_email`. 
                     // We can use the initial prefill data for current user email if available.
                     // check result.message.prefill_data.applicant_webmail from state? 
@@ -436,6 +501,20 @@ const TemporaryAdvance: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.applying_for_select, dataLoaded]);
 
+    // Effect to calculate amount in words when amount is prefilled
+    useEffect(() => {
+        if (dataLoaded && (formData.amount || formData.amount_applied) && !formData.amount_in_words) {
+            const amountValue = parseFloat(formData.amount || formData.amount_applied);
+            if (!isNaN(amountValue) && amountValue > 0) {
+                setFormData(prev => ({
+                    ...prev,
+                    amount_in_words: toWords.convert(amountValue)
+                }));
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dataLoaded]);
+
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -455,10 +534,20 @@ const TemporaryAdvance: React.FC = () => {
 
         try {
             const dataToSubmit = { ...formData };
-            console.log('Submitting data:', dataToSubmit);
+            console.log('=== TEMPORARY ADVANCE - PRE-SAVE DATA ===');
+            console.log('Full form data:', JSON.stringify(dataToSubmit, null, 2));
+            console.log('Key fields:', {
+                applicant_webmail: dataToSubmit.applicant_webmail,
+                project_code: dataToSubmit.project_code,
+                amount: dataToSubmit.amount,
+                applying_for_select: dataToSubmit.applying_for_select,
+                applicant_category: dataToSubmit.applicant_category,
+                declaration_settlement: dataToSubmit.declaration_settlement,
+                declaration_rate_contract: dataToSubmit.declaration_rate_contract,
+            });
 
             const result = await submitForm({ doc_data: JSON.stringify(dataToSubmit) });
-            console.log('Submission result:', result);
+            console.log('Save result:', result);
 
             alert("Temporary Advance entry saved successfully!");
             navigate(-1);
@@ -476,7 +565,7 @@ const TemporaryAdvance: React.FC = () => {
         return (
             <div key={field.fieldname} className="col-span-full">
                 <div
-                    className="text-sm text-gray-700 prose prose-sm max-w-none"
+                    className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none"
                     dangerouslySetInnerHTML={{ __html: field.options }}
                 />
             </div>
@@ -564,9 +653,9 @@ const TemporaryAdvance: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
+            <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b border-gray-200 mx-auto"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b border-zinc-200 dark:border-zinc-800 mx-auto"></div>
                     <p className="mt-4 text-lg font-semibold">Loading form data...</p>
                 </div>
             </div>
@@ -576,27 +665,14 @@ const TemporaryAdvance: React.FC = () => {
     const sections = groupFieldsBySection();
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8">
-                <header className="mb-8 p-6 bg-white border border-gray-200 rounded-md shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-3 bg-white border border-gray-200 rounded-md hover:bg-gray-50 active:translate-y-1 transition-transform"
-                        >
-                            <ArrowLeftIcon className="h-6 w-6" />
-                        </button>
-                        <div>
-                            <h1 className="text-3xl font-bold text-black">Temporary Advance Application</h1>
-                            {projectName && (
-                                <p className="text-gray-700 mt-1">
-                                    For Project: <strong>{projectName}</strong>
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                </header>
+                <PageHeader
+                    title="Temporary Advance Application"
+                    projectName={formData.project_name || projectTitle || ''}
+                    projectNumber={projectName}
+                />
 
                 <form onSubmit={handleSubmit}>
                     <FrappeCard className="space-y-12">
@@ -664,14 +740,14 @@ const TemporaryAdvance: React.FC = () => {
                         <FrappeButton
                             type="button"
                             onClick={() => navigate(-1)}
-                            className="bg-gray-200 hover:bg-gray-300"
+                            className="bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:bg-zinc-600"
                         >
                             Cancel
                         </FrappeButton>
                         <FrappeButton
                             type="submit"
                             disabled={isSubmitting}
-                            className="bg-green-300 hover:bg-green-400 disabled:bg-gray-300"
+                            className="bg-green-300 hover:bg-green-400 disabled:bg-zinc-300 dark:bg-zinc-600"
                         >
                             {isSubmitting ? 'Saving...' : 'Submit Temporary Advance'}
                         </FrappeButton>

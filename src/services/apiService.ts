@@ -60,6 +60,17 @@ export const advanceSettlementAPI = {
     getWorkflowActions: `${API_BASE}.advance_settlement.advance_settlement.get_advance_settlement_workflow_actions`,
     performAction: `${API_BASE}.advance_settlement.advance_settlement.perform_advance_settlement_action`,
     getUserDetails: `${API_BASE}.advance_settlement.advance_settlement.get_user_details_advance_settlement`,
+    submitCommit: `${API_BASE}.advance_settlement.advance_settlement.submit_advance_settlement_commit`,
+    submitPayment: `${API_BASE}.advance_settlement.advance_settlement.submit_advance_settlement_payment`
+};
+
+// Direct Purchase API endpoints
+export const directPurchaseAPI = {
+    getFields: `${API_BASE}.direct_purchase.direct_purchase.get_direct_purchase_fields`,
+    save: `${API_BASE}.direct_purchase.direct_purchase.save_direct_purchase_data`,
+    getWorkflowActions: `${API_BASE}.direct_purchase.direct_purchase.get_direct_purchase_workflow_actions`,
+    performAction: `${API_BASE}.direct_purchase.direct_purchase.perform_direct_purchase_action`,
+    submit: `${API_BASE}.direct_purchase.direct_purchase.submit_direct_purchase`,
 };
 
 // Common utility to get user details

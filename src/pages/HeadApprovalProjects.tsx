@@ -52,10 +52,10 @@ const FrappeButton = React.forwardRef<
   <button
     ref={ref}
     className={cn(
-      "px-4 py-2 bg-white border border-gray-200 rounded-md font-bold text-black shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all",
+      "px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md font-bold text-zinc-900 dark:text-zinc-100 shadow-[2px_2px_0px_rgba(0,0,0,0.25)] transition-all",
       "hover:shadow-[1px_1px_0px_rgba(0,0,0,0.25)] hover:translate-x-[1px] hover:translate-y-[1px]",
       "active:shadow-none active:translate-x-[2px] active:translate-y-[2px]",
-      "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:bg-gray-200 disabled:translate-x-0 disabled:translate-y-0",
+      "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:bg-zinc-200 dark:bg-zinc-700 disabled:translate-x-0 disabled:translate-y-0",
       className
     )}
     {...props}
@@ -74,7 +74,7 @@ const FrappeCard = ({
 }) => (
   <div
     className={cn(
-      "bg-white border border-gray-200 rounded-md shadow-sm",
+      "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-sm",
       className
     )}
   >
@@ -89,7 +89,7 @@ const getStatusBadge = (status: string) => {
   else if (s?.includes("approved")) style = "bg-green-300";
   else if (s?.includes("draft")) style = "bg-slate-300";
   else if (s?.includes("rejected")) style = "bg-red-500 text-white";
-  return cn("inline-block px-2.5 py-1 rounded-md text-xs font-bold border border-gray-200", style);
+  return cn("inline-block px-2.5 py-1 rounded-md text-xs font-bold border border-zinc-200 dark:border-zinc-800", style);
 };
 
 
@@ -191,21 +191,21 @@ export function HeadApprovalProjects() {
       <FrappeCard className="p-4">
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
           <div className="relative w-full sm:w-72">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500 dark:text-zinc-400" />
             <Input
               type="text"
               placeholder="Search projects..."
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              className="pl-10 h-12 bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-400 font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
+              className="pl-10 h-12 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-400 font-mono shadow-[2px_2px_0px_rgba(0,0,0,0.25)]"
             />
           </div>
           <div className="flex gap-3">
             <Select value={sortField} onValueChange={(v: any) => handleSortChange(v)}>
-              <SelectTrigger className="h-12 w-full sm:w-48 bg-white border border-gray-200 rounded-md font-bold shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+              <SelectTrigger className="h-12 w-full sm:w-48 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md font-bold shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
-              <SelectContent className="bg-white border border-gray-200 rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+              <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
                 <SelectItem value="creation">Latest</SelectItem>
                 <SelectItem value="name">Project Number</SelectItem>
                 <SelectItem value="project_title">Project Title</SelectItem>
@@ -213,10 +213,10 @@ export function HeadApprovalProjects() {
               </SelectContent>
             </Select>
             <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
-              <SelectTrigger className="h-12 w-full sm:w-32 bg-white border border-gray-200 rounded-md font-bold shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+              <SelectTrigger className="h-12 w-full sm:w-32 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md font-bold shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
                 <SelectValue placeholder="Show" />
               </SelectTrigger>
-              <SelectContent className="bg-white border border-gray-200 rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
+              <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-[2px_2px_0px_rgba(0,0,0,0.25)]">
                 {[5, 10, 20, 50].map((n) => (<SelectItem key={n} value={String(n)}>Show {n}</SelectItem>))}
               </SelectContent>
             </Select>
@@ -225,27 +225,27 @@ export function HeadApprovalProjects() {
       </FrappeCard>
       <FrappeCard className="overflow-hidden p-0">
         <div className="overflow-x-auto">
-          <Table className="divide-y-2 divide-gray-100">
+          <Table className="divide-y-2 divide-zinc-100 dark:divide-zinc-800">
             <TableHeader>
-              <TableRow className="divide-x-2 divide-gray-100 bg-gray-50">
+              <TableRow className="divide-x-2 divide-zinc-100 dark:divide-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
                 {(["Project Number", "Project Title", "Status"] as const).map(
                   (field) => {
                     const fieldKey = field === "Project Number" ? "name" : field === "Project Title" ? "project_title" : "workflow_state";
                     return (
-                      <TableHead key={field} className="p-3 font-bold text-black uppercase tracking-wider cursor-pointer hover:bg-[#A5B4FC]" onClick={() => handleSortChange(fieldKey)}>
+                      <TableHead key={field} className="p-3 font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider cursor-pointer hover:bg-[#A5B4FC]" onClick={() => handleSortChange(fieldKey)}>
                         {field} {getSortIcon(fieldKey)}
                       </TableHead>
                     );
                   }
                 )}
-                <TableHead className="p-3 font-bold text-black uppercase tracking-wider text-right">Action</TableHead>
+                <TableHead className="p-3 font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y-2 divide-gray-100 bg-white">
+            <TableBody className="divide-y-2 divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
               {isLoading && (<TableRow><TableCell colSpan={4} className="h-32 text-center font-bold">LOADING PROJECTS...</TableCell></TableRow>)}
               {projectsError && (<TableRow><TableCell colSpan={4} className="h-32 text-center font-bold text-red-600">ERROR LOADING PROJECTS</TableCell></TableRow>)}
               {!isLoading && !projectsError && paginatedProjects.length > 0 ? paginatedProjects.map((p) => (
-                <TableRow key={p.name} className="divide-x-2 divide-gray-100 hover:bg-slate-100">
+                <TableRow key={p.name} className="divide-x-2 divide-zinc-100 dark:divide-zinc-800 hover:bg-slate-100">
                   <TableCell className="p-4 font-mono font-bold">{p.name}</TableCell>
                   <TableCell className="p-4">{p.project_title}</TableCell>
                   <TableCell className="p-4"><span className={getStatusBadge(p.workflow_state)}>{p.workflow_state}</span></TableCell>
@@ -258,9 +258,9 @@ export function HeadApprovalProjects() {
               )) : !projectsError && !isLoading && (
                 <TableRow>
                   <TableCell colSpan={4} className="h-48 text-center">
-                    <FileSearchIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-2xl font-bold text-black">NO PROJECTS FOUND</h3>
-                    <p className="text-gray-700 font-mono mt-2">There are no projects matching your criteria at this time.</p>
+                    <FileSearchIcon className="h-16 w-16 text-zinc-400 dark:text-zinc-500 mx-auto mb-4" />
+                    <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">NO PROJECTS FOUND</h3>
+                    <p className="text-zinc-700 dark:text-zinc-300 font-mono mt-2">There are no projects matching your criteria at this time.</p>
                   </TableCell>
                 </TableRow>
               )}
@@ -270,7 +270,7 @@ export function HeadApprovalProjects() {
       </FrappeCard>
       {totalPages > 1 && (
         <div className="flex items-center justify-between gap-4 py-4">
-          <div className="text-sm font-bold text-black">PAGE {currentPage} OF {totalPages}</div>
+          <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">PAGE {currentPage} OF {totalPages}</div>
           <div className="flex items-center gap-2">
             <FrappeButton onClick={() => setCurrentPage((p) => p - 1)} disabled={currentPage === 1}><ChevronLeftIcon className="h-4 w-4" /></FrappeButton>
             <FrappeButton onClick={() => setCurrentPage((p) => p + 1)} disabled={currentPage === totalPages}><ChevronRight className="h-4 w-4" /></FrappeButton>
@@ -284,7 +284,7 @@ export function HeadApprovalProjects() {
     <div className="bg-[#F0F4F8]">
       <AppSidebar />
       <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-        <h1 className="text-3xl md:text-4xl font-extrabold text-black tracking-tight uppercase mb-8">
+        <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight uppercase mb-8">
           Projects for Head Approval
         </h1>
         {renderProjectsTable()}

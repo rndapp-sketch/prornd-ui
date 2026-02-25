@@ -46,7 +46,7 @@ interface DynamicFormPageProps {
 
 // --- EYE-COMFORTABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={cn("bg-white p-6 md:p-8 border-2 border-slate-800 rounded-lg shadow-[2px_2px_0px_rgba(20,20,30,0.1)]", className)}>
+  <div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border-2 border-slate-800 rounded-lg shadow-[2px_2px_0px_rgba(20,20,30,0.1)]", className)}>
     {children}
   </div>
 );
@@ -177,11 +177,11 @@ const DynamicFormPage: React.FC<DynamicFormPageProps> = ({
       <AppSidebar />
       <main className="flex-1 p-4 md:p-8 w-full overflow-hidden max-w-7xl mx-auto">
         {showBackButton && (
-          <header className="mb-8 p-4 bg-white border-2 border-slate-800 rounded-lg shadow-[2px_2px_0px_rgba(20,20,30,0.1)]">
+          <header className="mb-8 p-4 bg-white dark:bg-zinc-900 border-2 border-slate-800 rounded-lg shadow-[2px_2px_0px_rgba(20,20,30,0.1)]">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate(-1)}
-                className="p-3 bg-white border-2 border-slate-800 rounded-lg transition-all duration-150 hover:bg-slate-100 active:translate-y-0.5"
+                className="p-3 bg-white dark:bg-zinc-900 border-2 border-slate-800 rounded-lg transition-all duration-150 hover:bg-slate-100 active:translate-y-0.5"
               >
                 <ArrowLeftIcon className="h-6 w-6 text-slate-800" />
               </button>

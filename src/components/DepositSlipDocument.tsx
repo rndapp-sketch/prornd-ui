@@ -162,7 +162,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
     };
 
     return (
-        <div className="p-6 bg-white" style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '14px' }}>
+        <div className="p-6 bg-white dark:bg-zinc-900" style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '14px' }}>
             {/* Header */}
             <div className="text-center mb-3">
                 <div className="text-xl font-bold uppercase">Indian Institute of Technology Guwahati</div>
@@ -379,8 +379,8 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
 
                     {/* Account / Amount Header */}
                     <tr>
-                        <th colSpan={2} className="border border-black p-1 text-center bg-gray-100 font-bold">Account</th>
-                        <th colSpan={2} className="border border-black p-1 text-center bg-gray-100 font-bold">Amount</th>
+                        <th colSpan={2} className="border border-black p-1 text-center bg-zinc-100 dark:bg-zinc-800 font-bold">Account</th>
+                        <th colSpan={2} className="border border-black p-1 text-center bg-zinc-100 dark:bg-zinc-800 font-bold">Amount</th>
                     </tr>
 
                     {/* Credit Distribution Items */}
@@ -388,8 +388,8 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
 
                     {/* Total Row */}
                     <tr>
-                        <th colSpan={2} className="border border-black p-1 text-center bg-gray-100 font-bold">Total</th>
-                        <th colSpan={2} className="border border-black p-1 text-right bg-gray-100 font-bold">
+                        <th colSpan={2} className="border border-black p-1 text-center bg-zinc-100 dark:bg-zinc-800 font-bold">Total</th>
+                        <th colSpan={2} className="border border-black p-1 text-right bg-zinc-100 dark:bg-zinc-800 font-bold">
                             {formatCurrency(depositSlip.grand_total || depositSlip.total_amount)}
                         </th>
                     </tr>

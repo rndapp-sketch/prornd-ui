@@ -34,7 +34,7 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({ command, title, children,
     <button
       onMouseDown={handleMouseDown}
       title={title}
-      className={`p-2 rounded-md transition-colors duration-150 ${isActive ? 'bg-blue-200 hover:bg-blue-300' : 'hover:bg-gray-200 active:bg-gray-300'}`}
+      className={`p-2 rounded-md transition-colors duration-150 ${isActive ? 'bg-blue-200 dark:bg-blue-900 hover:bg-blue-300 dark:hover:bg-blue-800' : 'hover:bg-zinc-200 dark:hover:bg-zinc-700 active:bg-zinc-300 dark:active:bg-zinc-600'}`}
     >
       {children}
     </button>
@@ -82,10 +82,10 @@ export default function Editor() {
     commands.forEach((command: BooleanTool) => {
       newActiveTools[command] = document.queryCommandState(command);
     });
-    
+
     newActiveTools.formatBlock = document.queryCommandValue('formatBlock') || 'p';
     newActiveTools.foreColor = rgbToHex(document.queryCommandValue('foreColor'));
-    
+
     setActiveTools(newActiveTools);
   }, []);
 
@@ -108,51 +108,51 @@ export default function Editor() {
       editor.removeEventListener('keyup', updateToolbarState);
     };
   }, [updateToolbarState]);
-  
+
   const handleFormatBlock = (e: React.ChangeEvent<HTMLSelectElement>) => {
     document.execCommand('formatBlock', false, e.target.value);
   };
-    
+
   const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     document.execCommand('foreColor', false, e.target.value);
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans">
-      <div className="w-full max-w-4xl bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-200">
-        
+    <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950 flex items-center justify-center p-4 sm:p-6 lg:p-8 font-sans">
+      <div className="w-full max-w-4xl bg-white dark:bg-zinc-900 rounded-lg shadow-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800">
+
         {/* Toolbar */}
-        <header className="p-3 border-b border-gray-200 bg-gray-50 flex flex-wrap items-center gap-x-1 sm:gap-x-2">
+        <header className="p-3 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 flex flex-wrap items-center gap-x-1 sm:gap-x-2">
           <ToolbarButton command="undo" title="Undo">{icons.undo}</ToolbarButton>
           <ToolbarButton command="redo" title="Redo">{icons.redo}</ToolbarButton>
-          <span className="w-px h-6 bg-gray-300 mx-2"></span>
-          <select value={activeTools.formatBlock || 'p'} onChange={handleFormatBlock} className="p-1.5 border-none rounded-md text-sm focus:ring-2 focus:ring-blue-500 bg-gray-50 hover:bg-gray-200 cursor-pointer">
+          <span className="w-px h-6 bg-zinc-300 dark:bg-zinc-600 mx-2"></span>
+          <select value={activeTools.formatBlock || 'p'} onChange={handleFormatBlock} className="p-1.5 border-none rounded-md text-sm focus:ring-2 focus:ring-blue-500 bg-zinc-50 dark:bg-zinc-700 dark:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-600 cursor-pointer">
             <option value="p">Paragraph</option>
             <option value="h1">Heading 1</option>
             <option value="h2">Heading 2</option>
             <option value="h3">Heading 3</option>
           </select>
-          <span className="w-px h-6 bg-gray-300 mx-2"></span>
+          <span className="w-px h-6 bg-zinc-300 dark:bg-zinc-600 mx-2"></span>
           <ToolbarButton command="bold" title="Bold" isActive={activeTools.bold}>{icons.bold}</ToolbarButton>
           <ToolbarButton command="italic" title="Italic" isActive={activeTools.italic}>{icons.italic}</ToolbarButton>
           <ToolbarButton command="underline" title="Underline" isActive={activeTools.underline}>{icons.underline}</ToolbarButton>
           <ToolbarButton command="strikethrough" title="Strikethrough" isActive={activeTools.strikethrough}>{icons.strikethrough}</ToolbarButton>
-          <span className="w-px h-6 bg-gray-300 mx-2"></span>
+          <span className="w-px h-6 bg-zinc-300 dark:bg-zinc-600 mx-2"></span>
           <ToolbarButton command="justifyLeft" title="Align Left" isActive={activeTools.justifyLeft}>{icons.justifyLeft}</ToolbarButton>
           <ToolbarButton command="justifyCenter" title="Align Center" isActive={activeTools.justifyCenter}>{icons.justifyCenter}</ToolbarButton>
           <ToolbarButton command="justifyRight" title="Align Right" isActive={activeTools.justifyRight}>{icons.justifyRight}</ToolbarButton>
-          <span className="w-px h-6 bg-gray-300 mx-2"></span>
+          <span className="w-px h-6 bg-zinc-300 dark:bg-zinc-600 mx-2"></span>
           <ToolbarButton command="insertOrderedList" title="Ordered List" isActive={activeTools.insertOrderedList}>{icons.orderedList}</ToolbarButton>
           <ToolbarButton command="insertUnorderedList" title="Unordered List" isActive={activeTools.insertUnorderedList}>{icons.unorderedList}</ToolbarButton>
-          <span className="w-px h-6 bg-gray-300 mx-2"></span>
+          <span className="w-px h-6 bg-zinc-300 dark:bg-zinc-600 mx-2"></span>
           <div className="relative inline-flex items-center" title="Text Color">
-             <input 
-                type="color" 
-                value={activeTools.foreColor || '#000000'}
-                onChange={handleColorChange}
-                className="w-8 h-8 p-0 border-none cursor-pointer appearance-none bg-transparent"
-                style={{'backgroundColor': 'transparent'}}
-              />
+            <input
+              type="color"
+              value={activeTools.foreColor || '#000000'}
+              onChange={handleColorChange}
+              className="w-8 h-8 p-0 border-none cursor-pointer appearance-none bg-transparent"
+              style={{ 'backgroundColor': 'transparent' }}
+            />
           </div>
           <ToolbarButton command="removeFormat" title="Clear Formatting">{icons.clear}</ToolbarButton>
         </header>
@@ -164,14 +164,14 @@ export default function Editor() {
             ref={editorRef}
             contentEditable="true"
             suppressContentEditableWarning={true}
-            className="h-[65vh] focus:outline-none overflow-y-auto prose max-w-none"
+            className="h-[65vh] focus:outline-none overflow-y-auto prose dark:prose-invert max-w-none"
             spellCheck="false"
           >
             <h1>Welcome to Your React Word Editor!</h1>
             <p>
               This is a simple, modern word editor built with React and Tailwind CSS. You can use the toolbar above to format your text.
             </p>
-            <p style={{textAlign: 'center'}}>
+            <p style={{ textAlign: 'center' }}>
               <b>Click around and type</b> to see the toolbar update based on the current selection's styling.
             </p>
             <ul>

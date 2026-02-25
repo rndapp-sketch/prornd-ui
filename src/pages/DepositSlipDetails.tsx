@@ -74,7 +74,7 @@ const DepositSlipDetails = () => {
     if (error || !data) {
         return (
             <div className="flex h-screen items-center justify-center bg-[#F0F4F8] gap-4">
-                <div className="text-gray-900 font-semibold text-xl">Details not found</div>
+                <div className="text-zinc-900 dark:text-zinc-100 font-semibold text-xl">Details not found</div>
                 <button onClick={() => navigate(-1)} className="px-5 py-2.5 bg-[#0EA5A4] text-white rounded-lg font-semibold hover:bg-[#0C8F8E] transition-colors shadow-md">Go Back</button>
             </div>
         );
@@ -94,16 +94,16 @@ const DepositSlipDetails = () => {
             <AppSidebar />
             <div className="p-4 md:p-8">
                 {/* Header */}
-                <header className="mb-8 flex items-center justify-between bg-white p-4 border border-gray-200 rounded-xl shadow-sm">
+                <header className="mb-8 flex items-center justify-between bg-white dark:bg-zinc-900 p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-50 rounded-full transition-colors">
+                        <button onClick={() => navigate(-1)} className="p-2 hover:bg-zinc-50 dark:bg-zinc-800/50 rounded-full transition-colors">
                             <ArrowLeft className="h-6 w-6" />
                         </button>
                         <div>
                             <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
                                 Deposit Slip Details
                             </h1>
-                            <p className="text-sm text-gray-600">{name}</p>
+                            <p className="text-sm text-zinc-600 dark:text-zinc-400">{name}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -121,7 +121,7 @@ const DepositSlipDetails = () => {
                         <WorkflowActions docname={name || ""} onActionComplete={() => window.location.reload()} />
                     */}
 
-                        <div className={cn("px-3 py-1 rounded-full border border-gray-200 font-bold text-sm ", {
+                        <div className={cn("px-3 py-1 rounded-full border border-zinc-200 dark:border-zinc-800 font-bold text-sm ", {
                             "bg-yellow-200": docstatus === 0,
                             "bg-green-200": docstatus === 1,
                             "bg-red-200": docstatus === 2,
@@ -133,32 +133,32 @@ const DepositSlipDetails = () => {
 
                 {/* Key Details Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white p-6 border border-gray-200 rounded-xl shadow-sm">
+                    <div className="bg-white dark:bg-zinc-900 p-6 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
                             <div className="p-2 bg-[#E0F7F6] rounded-lg">
                                 <IndianRupee className="h-4 w-4 text-[#0EA5A4]" />
                             </div>
-                            <span className="font-medium text-gray-500 text-sm">Total Amount</span>
+                            <span className="font-medium text-zinc-500 dark:text-zinc-400 text-sm">Total Amount</span>
                         </div>
                         <p className="text-xl font-semibold text-[#0EA5A4]">
                             {total_amount?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
                         </p>
                     </div>
-                    <div className="bg-white p-6 border border-gray-200 rounded-xl shadow-sm">
-                        <span className="font-medium text-gray-500 text-sm block mb-1">Project</span>
+                    <div className="bg-white dark:bg-zinc-900 p-6 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
+                        <span className="font-medium text-zinc-500 dark:text-zinc-400 text-sm block mb-1">Project</span>
                         <p className="font-semibold">{project_title}</p>
                     </div>
-                    <div className="bg-white p-6 border border-gray-200 rounded-xl shadow-sm">
-                        <span className="font-medium text-gray-500 text-sm block mb-1">Funding Agency</span>
+                    <div className="bg-white dark:bg-zinc-900 p-6 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
+                        <span className="font-medium text-zinc-500 dark:text-zinc-400 text-sm block mb-1">Funding Agency</span>
                         <p className="font-semibold">{funding_agency}</p>
                     </div>
                 </div>
 
                 {/* Other Fields Section - Dynamic or Static */}
-                <div className="bg-white p-6 border border-gray-200 rounded-xl shadow-sm mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white dark:bg-zinc-900 p-6 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="text-sm text-gray-500 font-medium">Principal Investigator</label>
-                        <p className="text-gray-900 mt-1">{principal_investigator}</p>
+                        <label className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">Principal Investigator</label>
+                        <p className="text-zinc-900 dark:text-zinc-100 mt-1">{principal_investigator}</p>
                     </div>
                     {/* Add more fields here as needed */}
                 </div>
@@ -166,34 +166,34 @@ const DepositSlipDetails = () => {
 
                 {/* ECS Dates Table */}
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-3">
                         <div className="p-2 bg-[#E0F7F6] rounded-lg">
                             <FileText className="h-4 w-4 text-[#0EA5A4]" />
                         </div>
                         ECS / Dates
                     </h3>
-                    <div className="overflow-x-auto border border-gray-200 rounded-xl bg-white shadow-sm">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr className="divide-x divide-gray-200">
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
-                                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Amount</th>
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Remarks</th>
+                    <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900 shadow-sm">
+                        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                            <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                <tr className="divide-x divide-zinc-200 dark:divide-zinc-800">
+                                    <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-300">Date</th>
+                                    <th className="px-4 py-3 text-right text-sm font-semibold text-zinc-700 dark:text-zinc-300">Amount</th>
+                                    <th className="px-4 py-3 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-300">Remarks</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200">
+                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                                 {ecs_dates?.map((item: any, idx: number) => (
-                                    <tr key={item.name || idx} className="divide-x divide-gray-200 hover:bg-gray-50">
+                                    <tr key={item.name || idx} className="divide-x divide-zinc-200 dark:divide-zinc-800 hover:bg-zinc-50 dark:bg-zinc-800/50">
                                         <td className="px-4 py-3 text-sm">{item.ecs_date}</td>
                                         <td className="px-4 py-3 text-sm text-right">
                                             {item.amount?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-gray-600">{item.remarks}</td>
+                                        <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{item.remarks}</td>
                                     </tr>
                                 ))}
                                 {(!ecs_dates || ecs_dates.length === 0) && (
                                     <tr>
-                                        <td colSpan={3} className="px-4 py-8 text-center text-gray-500 italic">No details available</td>
+                                        <td colSpan={3} className="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400 italic">No details available</td>
                                     </tr>
                                 )}
                             </tbody>

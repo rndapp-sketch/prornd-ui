@@ -7,6 +7,8 @@ import { useUserRoles } from './UserRole';
 type AllowedRole =
   | 'Director'
   | 'Dean, RnD'
+  | 'DoRnD'
+  | 'Ado_RnD'
   | 'head_approver_1'
   | 'Hos, RnD (Head of Section, RnD)'
   | 'staff, RnD'

@@ -96,7 +96,7 @@
 //       <div className="w-full h-screen bg-[#F0F4F8] flex flex-col justify-between items-center overflow-hidden">
 //         {isLoggedIn ? (
 //           <>
-//             <div className="w-full flex justify-between items-center p-4 bg-white border-b border-gray-200 shadow-sm">
+//             <div className="w-full flex justify-between items-center p-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 shadow-sm">
 //               <img
 //                 src="/frontend/rndops_Logo.svg"
 //                 alt="R&D Operations Logo"
@@ -120,14 +120,14 @@
 //             </div>
 //           </>
 //         ) : (
-//           <div className="w-[480px] flex flex-col justify-start items-center gap-10 my-auto p-10 bg-white border border-gray-200 rounded-2xl shadow-sm">
+//           <div className="w-[480px] flex flex-col justify-start items-center gap-10 my-auto p-10 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-sm">
 //             <div className="w-full flex flex-col items-center gap-4">
 //               <img
 //                 src="/rndops_Logo.svg"
 //                 alt="R&D Operations Logo"
 //                 className="w-[180px] h-auto"
 //               />
-//               <div className="text-lg font-medium text-gray-700">
+//               <div className="text-lg font-medium text-zinc-700 dark:text-zinc-300">
 //                 Research and Development Cell
 //               </div>
 //             </div>
@@ -154,7 +154,7 @@
 //                     <select
 //                       value={domain}
 //                       onChange={(e) => setDomain(e.target.value)}
-//                       className="h-9 px-3 rounded-md border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]"
+//                       className="h-9 px-3 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]"
 //                     >
 //                       {DOMAINS.map((d) => (
 //                         <option key={d} value={d}>
@@ -191,7 +191,7 @@
 //                 >
 //                   Forgot password?
 //                 </a>
-//                 <span className="text-gray-300">|</span>
+//                 <span className="text-zinc-300 dark:text-zinc-600">|</span>
 //                 <span className="text-[#6B7280]">
 //                   Reset here.
 //                 </span>
@@ -224,7 +224,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useFrappeAuth } from 'frappe-react-sdk';
-import { useNavigate } from 'react-router';
+
 import {
   Eye,
   EyeOff,
@@ -261,15 +261,15 @@ const Login: React.FC = () => {
 
   const { currentUser, login, logout } = useFrappeAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(!!currentUser);
-  const navigate = useNavigate();
+
 
   // --- LOGIC: Effects ---
   useEffect(() => {
     if (currentUser) {
       console.log('Login successful');
-      navigate('/dashboard'); // Redirect to your dashboard route
+      window.location.href = '/dashboard'; // Redirect with full reload to reset all SWR caches
     }
-  }, [currentUser, navigate]);
+  }, [currentUser]);
 
   useEffect(() => {
     localStorage.setItem(DOMAIN_STORAGE_KEY, domain);
@@ -297,6 +297,7 @@ const Login: React.FC = () => {
         attempt++;
         await login({ username: fullUsername, password });
         localStorage.setItem(DOMAIN_STORAGE_KEY, domain);
+        window.location.href = '/dashboard'; // Force full reload to reset SWR caches 
         return; // Success, exit loop (setIsLoading stays true during redirect)
       } catch (err: any) {
         console.error(`Login attempt ${attempt} failed:`, err);
@@ -327,8 +328,8 @@ const Login: React.FC = () => {
   // (Keeping your original logic of showing a logged-in state if needed, though usually we just redirect)
   if (isLoggedIn) {
     return (
-      <div className="w-full h-screen flex flex-col justify-center items-center bg-gray-50">
-        <p className="text-lg text-gray-700 mb-4">Welcome, {currentUser}</p>
+      <div className="w-full h-screen flex flex-col justify-center items-center bg-zinc-50 dark:bg-zinc-800/50">
+        <p className="text-lg text-zinc-700 dark:text-zinc-300 mb-4">Welcome, {currentUser}</p>
         <button
           onClick={() => {
             logout().then(() => setIsLoggedIn(false));
@@ -343,56 +344,57 @@ const Login: React.FC = () => {
 
   return (
     // --- DESIGN: New Layout ---
-    <div className="flex w-full min-h-screen bg-white dark:bg-[#1c1f22] overflow-hidden font-sans text-slate-900">
+    <div className="flex w-full min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] overflow-hidden font-sans text-zinc-800">
       {/* Load Fonts Helper */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Noto+Sans:wght@400;500;700&display=swap');
-        .font-display { font-family: 'Space Grotesk', sans-serif; }
-        .font-sans { font-family: 'Noto Sans', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600&display=swap');
+        .font-serif { font-family: 'Instrument Serif', serif; }
+        .font-sans { font-family: 'Inter', sans-serif; }
       `}</style>
 
       {/* LEFT SIDE: Branding & Visuals */}
       <div className="hidden lg:flex lg:w-3/5 xl:w-2/3 relative">
         <div
-          className="absolute inset-0 bg-cover bg-center grayscale-[30%]"
-          style={{ backgroundImage: 'url(https://lh3.googleusercontent.com/aida-public/AB6AXuAsmXNBCwoFt2ZVE2rERhzUEx6jMNgHxL9ZavGs-inWU0rf_T8SGmxQ8MnuflvyuSJp1gBUZ2trI25uMQykmuUYnQTz7Jj7l-ZpsV7jvBUm2g-tJxqQSmODel_BqQHIWJhXhr0QG_20kZi1om7lRq-KgtRPjKhLvQPqmQ7e7DVEmxjdIUYJSiTiIC-71DmFyKtce3f3sN2_pQ2m7KZkryMYl52ctEIdcemlgOomobTnHiou7dsVQWA_i1x0CL_L5lLh1nvZy1cOYJay)' }}
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: 'url(/rnd_login_bg.png)' }}
         ></div>
-        <div className="absolute inset-0 bg-[#0EA5A4]/70 mix-blend-multiply"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20"></div>
+        {/* Neutral/Warm Overlay - Adjusted for local image */}
+        <div className="absolute inset-0 bg-zinc-900/30 mix-blend-multiply"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-zinc-900/80 via-zinc-900/20 to-zinc-900/10"></div>
 
-        <div className="relative z-10 flex flex-col justify-between p-16 w-full text-white">
+        <div className="relative z-10 flex flex-col justify-between p-16 w-full text-[#FAFAF9]">
           <div className="flex items-center gap-6">
-            <div className="flex items-center justify-center p-2 bg-white/10 backdrop-blur-md rounded-xl border border-white/20">
+            <div className="flex items-center justify-center p-2 rounded-xl">
               <img
                 alt="IITG Logo"
-                className="h-16 w-auto brightness-0 invert"
-                src="/IITG_Logo.svg"
+                className="h-16 w-auto mix-blend-multiply"
+                src="/IITG_Large_Logo.gif"
               />
             </div>
             <div>
-              <p className="text-2xl font-display font-bold tracking-tight">Indian Institute of Technology Guwahati</p>
-              <p className="text-sm uppercase tracking-[0.3em] font-medium opacity-90">Research & Development Cell</p>
+              <p className="text-2xl font-serif tracking-tight">Indian Institute of Technology Guwahati</p>
+              <p className="text-sm uppercase tracking-[0.2em] font-medium opacity-80">Research & Development Cell</p>
             </div>
           </div>
 
           <div className="max-w-2xl">
-            <h2 className="text-6xl font-display font-bold leading-tight mb-6">Advancing the Frontiers of Global Research</h2>
-            <p className="text-xl text-white/90 leading-relaxed font-light">
+            <h2 className="text-6xl font-serif leading-tight mb-6 text-[#FAFAF9]">Advancing the Frontiers of Global Research</h2>
+            <p className="text-xl text-[#E4E4E7] leading-relaxed font-light">
               The heartbeat of innovation. Empowering our scholarly community with seamless management, robust resources, and world-class administrative support.
             </p>
           </div>
 
-          <div className="flex items-center gap-12 text-sm font-semibold tracking-wide">
+          <div className="flex items-center gap-12 text-sm font-medium tracking-wide text-[#E4E4E7]/90">
             <div className="flex items-center gap-3">
-              <ShieldCheck className="w-6 h-6" />
+              <ShieldCheck className="w-5 h-5 text-[#D4D4D8]" />
               <span>SECURE PORTAL</span>
             </div>
             <div className="flex items-center gap-3">
-              <Share2 className="w-6 h-6" />
+              <Share2 className="w-5 h-5 text-[#D4D4D8]" />
               <span>CENTRALIZED OPERATIONS</span>
             </div>
             <div className="flex items-center gap-3">
-              <Globe className="w-6 h-6" />
+              <Globe className="w-5 h-5 text-[#D4D4D8]" />
               <span>GLOBAL IMPACT</span>
             </div>
           </div>
@@ -400,10 +402,10 @@ const Login: React.FC = () => {
       </div>
 
       {/* RIGHT SIDE: Login Form */}
-      <div className="w-full lg:w-2/5 xl:w-1/3 bg-white dark:bg-[#1c1f22] flex flex-col p-8 md:p-16 xl:p-20 overflow-y-auto">
+      <div className="w-full lg:w-2/5 xl:w-1/3 bg-[#F0EDE4] dark:bg-[#27272A] flex flex-col p-8 md:p-16 xl:p-20 overflow-y-auto border-l border-zinc-200 dark:border-zinc-800 shadow-2xl">
         <div className="my-auto">
           <div className="mb-10 text-center lg:text-left">
-            <div className="inline-flex mb-6 p-4 bg-[#0EA5A4]/5 rounded-2xl border border-[#0EA5A4]/10">
+            <div className="inline-flex mb-6 p-4 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
               {/* Using your local logo from original code if available, else falling back to online one */}
               <img
                 src="/rndops_Logo.svg"
@@ -414,10 +416,10 @@ const Login: React.FC = () => {
                 className="h-16 w-auto"
               />
             </div>
-            <h1 className="text-[#111818] dark:text-white text-3xl font-display font-bold leading-tight">
+            <h1 className="text-zinc-900 dark:text-[#FAFAF9] text-4xl font-serif font-medium leading-tight tracking-tight">
               R&D Portal Login
             </h1>
-            <p className="text-slate-500 dark:text-gray-400 mt-2 text-sm">
+            <p className="text-zinc-500 dark:text-zinc-400 mt-2 text-sm leading-relaxed">
               Research & Development Cell, IIT Guwahati
             </p>
           </div>
@@ -431,20 +433,20 @@ const Login: React.FC = () => {
           >
             {/* Username Field */}
             <div className="space-y-2">
-              <label className="text-[#111818] dark:text-gray-200 text-sm font-semibold block">Institute Email ID</label>
-              <div className="flex items-stretch group">
+              <label className="text-zinc-700 dark:text-zinc-300 text-sm font-medium block">Institute Email ID</label>
+              <div className="flex items-stretch group shadow-sm rounded-lg">
                 <input
-                  className="flex-[1.5] min-w-0 rounded-l-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-[#2c3136] h-12 px-4 text-base focus:outline-none focus:ring-1 focus:ring-[#0EA5A4] focus:border-[#0EA5A4] transition-all"
+                  className="flex-[1.5] min-w-0 rounded-l-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 h-11 px-4 text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200 dark:focus:ring-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-600 transition-all"
                   placeholder="Username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
-                <div className="flex items-center justify-center bg-slate-50 dark:bg-[#343a40] border-y border-slate-200 dark:border-gray-700 px-3 text-slate-400">
+                <div className="flex items-center justify-center bg-zinc-50 dark:bg-zinc-800 border-y border-zinc-300 dark:border-zinc-700 px-3 text-zinc-500 dark:text-zinc-400">
                   <span className="text-sm font-medium">@</span>
                 </div>
                 <select
-                  className="flex-1 min-w-0 rounded-r-lg border border-l-0 border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-[#343a40] h-12 px-2 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-[#0EA5A4] cursor-pointer text-slate-600 dark:text-gray-300"
+                  className="flex-1 min-w-0 rounded-r-lg border border-l-0 border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 h-11 px-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-zinc-200 dark:focus:ring-zinc-700 cursor-pointer text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
                   value={domain}
                   onChange={(e) => setDomain(e.target.value)}
                 >
@@ -460,11 +462,11 @@ const Login: React.FC = () => {
             {/* Password Field */}
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <label className="text-[#111818] dark:text-gray-200 text-sm font-semibold">Password</label>
+                <label className="text-zinc-700 dark:text-zinc-300 text-sm font-medium">Password</label>
               </div>
-              <div className="relative">
+              <div className="relative shadow-sm rounded-lg">
                 <input
-                  className="w-full rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-[#2c3136] h-12 pl-4 pr-12 text-base focus:outline-none focus:ring-1 focus:ring-[#0EA5A4] focus:border-[#0EA5A4] transition-all"
+                  className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 h-11 pl-4 pr-12 text-base text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200 dark:focus:ring-zinc-700 focus:border-zinc-400 dark:focus:border-zinc-600 transition-all"
                   placeholder="Enter your password"
                   type={showPassword ? "text" : "password"}
                   value={password}
@@ -473,19 +475,19 @@ const Login: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#0EA5A4] transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
                 >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
               <div className="flex justify-end">
-                <a className="text-xs font-semibold text-[#0EA5A4] hover:underline transition-all" href="#">Forgot password?</a>
+                <a className="text-xs font-medium text-zinc-500 hover:text-[#D97757] dark:hover:text-[#E4E4E7] transition-all" href="#">Forgot password?</a>
               </div>
             </div>
 
             {/* Error Message */}
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm flex items-center gap-2">
+              <div className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800/30 rounded-lg text-red-600 dark:text-red-400 text-sm flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -498,7 +500,7 @@ const Login: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full bg-[#0EA5A4] hover:bg-[#0c8e8d] text-white h-12 rounded-lg font-bold text-base tracking-wide transition-all shadow-lg shadow-[#0EA5A4]/20 flex items-center justify-center gap-2 group ${isLoading ? 'opacity-80 cursor-not-allowed' : ''}`}
+                className={`w-full bg-[#D97757] hover:bg-[#c56a4c] dark:bg-[#18181B] dark:hover:bg-zinc-900 dark:border dark:border-zinc-700 text-white h-11 rounded-lg font-medium text-base tracking-wide transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 group ${isLoading ? 'opacity-80 cursor-not-allowed' : ''}`}
               >
                 {isLoading ? (
                   <>
@@ -508,7 +510,7 @@ const Login: React.FC = () => {
                 ) : (
                   <>
                     <span>Sign In</span>
-                    <ArrowRight className="w-[18px] group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
               </button>
@@ -516,18 +518,18 @@ const Login: React.FC = () => {
           </form>
 
           {/* Footer / Links */}
-          <div className="mt-10 pt-8 border-t border-slate-100 dark:border-gray-800">
+          <div className="mt-10 pt-8 border-t border-zinc-100 dark:border-zinc-800">
             <div className="flex flex-col gap-5">
-              <p className="text-slate-400 text-xs leading-relaxed">
+              <p className="text-zinc-400 text-xs leading-relaxed">
                 Authorized access only. By logging in, you agree to the Institute's digital security policies. For technical assistance, reach out to R&D IT Services.
               </p>
               <div className="flex items-center gap-6">
-                <a className="text-xs font-semibold text-slate-600 dark:text-gray-400 hover:text-[#0EA5A4] transition-colors flex items-center gap-1.5" href="#">
-                  <LifeBuoy className="w-[18px]" />
+                <a className="text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-[#D97757] transition-colors flex items-center gap-1.5" href="#">
+                  <LifeBuoy className="w-4 h-4" />
                   Support Desk
                 </a>
-                <a className="text-xs font-semibold text-slate-600 dark:text-gray-400 hover:text-[#0EA5A4] transition-colors flex items-center gap-1.5" href="#">
-                  <BookOpen className="w-[18px]" />
+                <a className="text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-[#D97757] transition-colors flex items-center gap-1.5" href="#">
+                  <BookOpen className="w-4 h-4" />
                   User Manual
                 </a>
               </div>
@@ -536,7 +538,7 @@ const Login: React.FC = () => {
         </div>
 
         <div className="mt-auto pt-10 text-center lg:text-left">
-          <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-medium">
+          <p className="text-[10px] text-zinc-600 dark:text-zinc-400 uppercase tracking-[0.2em] font-medium">
             © 2026 Research & Development Cell, IIT Guwahati. All Rights Reserved.
           </p>
         </div>

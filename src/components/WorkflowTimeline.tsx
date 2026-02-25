@@ -25,11 +25,11 @@ const getStatusColor = (status: StageStatus) => {
     case 'in-progress':
       return 'bg-blue-700';
     case 'pending':
-      return 'bg-gray-500';
+      return 'bg-zinc-400 dark:bg-zinc-600';
     case 'failed':
       return 'bg-red-700';
     default:
-      return 'bg-gray-500';
+      return 'bg-zinc-400 dark:bg-zinc-600';
   }
 };
 
@@ -43,12 +43,12 @@ export const WorkflowTimeline: React.FC<IWorkflowTimelineProps> = ({ stages, ori
               {index + 1}
             </div>
             <div className={`text-center ${orientation === 'horizontal' ? 'mt-2' : 'ml-2'}`}>
-              <h4 className="font-bold text-sm text-black uppercase">{stage.title}</h4>
-              {stage.description && <p className="text-xs text-gray-900 font-bold">{stage.description}</p>}
+              <h4 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 uppercase">{stage.title}</h4>
+              {stage.description && <p className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">{stage.description}</p>}
             </div>
           </div>
           {index < stages.length - 1 && (
-            <div className={`flex-grow ${orientation === 'horizontal' ? 'h-1 bg-gray-400 mx-4' : 'w-1 bg-gray-400 my-4'}`}></div>
+            <div className={`flex-grow ${orientation === 'horizontal' ? 'h-1 bg-zinc-300 dark:bg-zinc-700 mx-4' : 'w-1 bg-zinc-300 dark:bg-zinc-700 my-4'}`}></div>
           )}
         </React.Fragment>
       ))}

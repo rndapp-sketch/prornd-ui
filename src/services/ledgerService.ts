@@ -8,6 +8,18 @@ const LEDGER_API_BASE = '/ledger-api';
  */
 export const ledgerService = {
     /**
+     * Get all payments
+     * Endpoint: /api/account-head-payments
+     */
+    getAllPayments: async () => {
+        const response = await fetch(`${LEDGER_API_BASE}/account-head-payments`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch all payments');
+        }
+        return await response.json();
+    },
+
+    /**
      * Get payments by account head ID
      * Endpoint: /api/account-head-payments/account-head/{accountHeadId}
      */

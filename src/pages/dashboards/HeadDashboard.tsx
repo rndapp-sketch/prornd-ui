@@ -22,34 +22,34 @@ export function HeadDashboard() {
     <div className="bg-[#F0F4F8] min-h-screen font-sans">
       <AppSidebar /> {/* Pass appropriate props */}
       <div className="flex-1 p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full mx-auto">
           {/* Header */}
           <header className="mb-8">
             <div className="flex justify-between items-start">
               <div>
-                <h1 className="text-4xl font-bold text-black ">Head's Dashboard</h1>
-                <p className="text-lg text-gray-700 ">Welcome, {fullName}</p>
+                <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 ">Head's Dashboard</h1>
+                <p className="text-sm text-zinc-700 dark:text-zinc-300 ">Welcome, {fullName}</p>
               </div>
               <CurrentTime />
             </div>
           </header>
 
           {/* Main Action Cards */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
             <ActionCard
-              icon={<ClipboardCheck className="size-6" />}
+              icon={<ClipboardCheck className="size-5" />}
               title="Pending Approvals"
               description="Review and approve/reject requests from your department."
               onClick={() => navigate("/approvals/pending")}
             />
             <ActionCard
-              icon={<Briefcase className="size-6" />}
+              icon={<Briefcase className="size-5" />}
               title="Department Projects"
               description="Monitor all ongoing and completed projects within your department."
               onClick={() => navigate("/department/projects")}
             />
             <ActionCard
-              icon={<BarChart className="size-6" />}
+              icon={<BarChart className="size-5" />}
               title="Department Reports"
               description="Generate financial and performance reports for your unit."
               onClick={() => navigate("/department/reports")}
@@ -57,10 +57,10 @@ export function HeadDashboard() {
           </section>
 
           {/* Analytics Section */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Department Project Analytics */}
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-              <div className="flex items-center mb-4 gap-3"><Briefcase className="size-7" /><h3 className="text-xl font-bold text-black ">Department Overview</h3></div>
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              <div className="flex items-center mb-3 gap-2.5"><Briefcase className="size-5" /><h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 ">Department Overview</h3></div>
               <div className="grid grid-cols-2 gap-4">
                 <AnalyticsCard title="Total Projects" value="45" subtitle="In your department" icon={<FileText className="size-5" />} trend="+8%" />
                 <AnalyticsCard title="Active PIs" value="12" subtitle="Leading projects" icon={<Users className="size-5" />} />
@@ -70,8 +70,8 @@ export function HeadDashboard() {
             </div>
 
             {/* Department Fund Analytics */}
-            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-              <div className="flex items-center mb-4 gap-3"><DollarSign className="size-7 text-green-600" /><h3 className="text-xl font-bold text-black ">Department Funds</h3></div>
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              <div className="flex items-center mb-3 gap-2.5"><DollarSign className="size-5 text-green-600" /><h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 ">Department Funds</h3></div>
               <div className="grid grid-cols-2 gap-4">
                 <AnalyticsCard title="Total Allocation" value="₹8.5Cr" subtitle="Current fiscal year" icon={<DollarSign className="size-5" />} />
                 <AnalyticsCard title="Utilization Rate" value="68%" subtitle="₹5.78Cr utilized" icon={<TrendingUp className="size-5" />} trend="+11%" />
@@ -82,9 +82,9 @@ export function HeadDashboard() {
           </section>
 
           {/* Information Section */}
-          <section className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center mb-4 gap-3"><Megaphone className="size-6" /><h3 className="text-xl font-bold text-black ">Recent Submissions for Approval</h3></div>
-            <div className="text-gray-700 space-y-4 border-t border-gray-200 pt-4  text-sm">
+          <section className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+            <div className="flex items-center mb-3 gap-2.5"><Megaphone className="size-5" /><h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 ">Recent Submissions for Approval</h3></div>
+            <div className="text-zinc-700 dark:text-zinc-300 space-y-4 border-t border-zinc-200 dark:border-zinc-800 pt-4  text-sm">
               <p>Travel Request - Dr. A. Kumar - Project GTY-567</p>
               <p>Direct Purchase - Dr. S. Verma - Project CXD-102</p>
               <p>Honorarium Claim - Dr. R. Singh - Project MNB-901</p>
@@ -92,9 +92,9 @@ export function HeadDashboard() {
             </div>
           </section>
 
-          <footer className="text-center text-gray-600 mt-10 pb-4">
-            <div className="flex items-center justify-center space-x-2  text-sm">
-              <Mail className="size-4" />
+          <footer className="text-center text-zinc-600 dark:text-zinc-400 mt-6 pb-2">
+            <div className="flex items-center justify-center space-x-2  text-xs">
+              <Mail className="size-3.5" />
               <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#0EA5A4] hover:underline font-semibold">ernd@iitg.ac.in</a></p>
             </div>
           </footer>

@@ -131,6 +131,7 @@ export function AppSidebar() {
       const allowedRoles = [
         'Director',
         'Dean, RnD',
+        'Ado_RnD',
         'head_approver_1',
         'Hos, RnD (Head of Section, RnD)',
         'staff, RnD'
@@ -233,28 +234,37 @@ export function AppSidebar() {
   return (
     <>
       <GlobalLoader isLoading={isLoggingOut} />
-      <Sidebar collapsible="icon" variant="sidebar" className="bg-gray-100 border-r-2 border-gray-300">
+      <Sidebar
+        collapsible="icon"
+        variant="sidebar"
+        className="bg-[#F0EDE4] border-r border-zinc-200 dark:bg-[#18181B] dark:border-zinc-800 z-40"
+        style={{
+          "--sidebar-width": "10rem",
+          "--sidebar-width-icon": "3.5rem"
+        } as React.CSSProperties}
+      >
 
-        {/* --- Header with Frappe styling --- */}
-        <SidebarHeader className="px-4 py-4 border-b border-gray-300 bg-white">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-[#E0F7F6] border border-[#0EA5A4]/20">
-              <img
-                src="/file.svg"
-                alt="R&D Operations Logo"
-                className="w-6 h-6"
-              />
+        {/* --- Header with Claude styling --- */}
+        <SidebarHeader className={cn(
+          "h-16 border-b border-zinc-200 bg-[#F0EDE4] dark:bg-[#18181B] dark:border-zinc-800 flex items-center transition-all duration-200",
+          state === 'expanded' ? "px-4" : "justify-center px-0"
+        )}>
+          <div className={cn("flex items-center", state === 'expanded' ? "gap-2 w-full" : "justify-center")}>
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
+              <img src="/IITG_Logo.svg" alt="IITG Logo" className="w-full h-full object-contain" />
             </div>
             {state === 'expanded' && (
-              <div>
-                <span className="text-base font-bold text-black">R&D Portal</span>
+              <div className="flex flex-col overflow-hidden">
+                <span className="text-sm font-serif font-bold text-zinc-800 dark:text-zinc-100 tracking-tight whitespace-nowrap leading-none">
+                  R&D Portal
+                </span>
               </div>
             )}
           </div>
         </SidebarHeader>
 
-        {/* --- Menu with Frappe styling --- */}
-        <SidebarContent className="px-3 py-4">
+        {/* --- Menu with Claude styling --- */}
+        <SidebarContent className="px-2 py-3 bg-[#F0EDE4] dark:bg-[#18181B]">
           <SidebarGroup>
             <SidebarMenu className="space-y-1">
               {menuItems.map((item) => {
@@ -267,40 +277,36 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       onClick={() => handleMenuItemClick(item)}
                       className={cn(
-                        "w-full h-11 px-3 rounded-xl font-bold text-base transition-all duration-150",
+                        "w-full h-8 rounded-md font-bold text-xs transition-all duration-200",
+                        state === 'expanded' ? "px-2.5 justify-start" : "px-0 justify-center",
                         isActive
-                          ? "bg-[#0EA5A4] text-white shadow-md"
-                          : "bg-transparent text-gray-900 hover:bg-gray-200 hover:text-black"
+                          ? "bg-[#E4E4E7] text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" // Active: Subtle gray
+                          : "bg-transparent text-zinc-600 hover:bg-[#EBEBEA] hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                       )}
                       tooltip={item.label}
                     >
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className={cn(
-                          "flex items-center justify-center w-8 h-8 rounded-lg transition-colors",
-                          isActive ? "bg-white/20 text-white" : "bg-gray-200 text-gray-900"
-                        )}>
-                          <item.icon className="w-5 h-5" strokeWidth={2.5} />
-                        </div>
+                      <div className={cn("flex items-center", state === 'expanded' ? "gap-3 w-full" : "justify-center")}>
+                        <item.icon className={cn(state === 'expanded' ? "w-4 h-4" : "w-5 h-5", isActive ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400")} strokeWidth={1.5} />
                         {state === 'expanded' && <span>{item.label}</span>}
                       </div>
 
                       {/* Notification badge for Pending Task */}
-                      {item.label === "Pending Task" && pendingTaskCount > 0 && (
+                      {item.label === "Pending Task" && pendingTaskCount > 0 && state === 'expanded' && (
                         <div className={cn(
-                          "flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold",
-                          isActive ? "bg-white/20 text-white" : "bg-[#0EA5A4] text-white"
+                          "flex items-center justify-center min-w-[18px] h-4.5 px-1.5 rounded-full text-[10px] font-bold ml-auto",
+                          isActive ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900" : "bg-[#D97757] text-white"
                         )}>
                           {pendingTaskCount > 99 ? '99+' : pendingTaskCount}
                         </div>
                       )}
 
-                      {state === 'expanded' && item.subMenu && (
-                        <ChevronDownIcon className={cn("w-4 h-4 transition-transform flex-shrink-0 text-current opacity-80", isSubMenuOpen && "rotate-180")} strokeWidth={2.5} />
+                      {item.subMenu && state === 'expanded' && (
+                        <ChevronDownIcon className={cn("w-4 h-4 transition-transform flex-shrink-0 text-zinc-400 opacity-80 ml-auto", isSubMenuOpen && "rotate-180")} strokeWidth={1.5} />
                       )}
                     </SidebarMenuButton>
 
                     {item.subMenu && isSubMenuOpen && state === 'expanded' && (
-                      <SidebarMenuSub className="ml-4 mt-1 space-y-0.5 pl-3 border-l-2 border-gray-300">
+                      <SidebarMenuSub className="ml-4 mt-1 space-y-0.5 pl-3 border-l border-zinc-200 dark:border-zinc-800">
                         {item.subMenu.map((subItem) => {
                           const isSubActive = isActivePath(subItem.path);
                           return (
@@ -308,10 +314,10 @@ export function AppSidebar() {
                               <SidebarMenuSubButton
                                 onClick={() => handleSubMenuItemClick(subItem)}
                                 className={cn(
-                                  "w-full px-3 py-2.5 text-sm rounded-lg font-bold transition-all duration-150",
+                                  "w-full px-2.5 py-1.5 text-xs rounded-md font-bold transition-all duration-200",
                                   isSubActive
-                                    ? "bg-[#E0F7F6] text-[#0EA5A4] border border-[#0EA5A4]/20"
-                                    : "bg-transparent text-gray-900 hover:bg-gray-200 hover:text-black"
+                                    ? "bg-[#E4E4E7] text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
+                                    : "bg-transparent text-zinc-600 hover:bg-[#EBEBEA] hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                                 )}
                               >
                                 {subItem.label}
@@ -328,46 +334,46 @@ export function AppSidebar() {
           </SidebarGroup>
         </SidebarContent>
 
-        {/* --- Footer with Frappe styling --- */}
-        <SidebarFooter className="px-3 py-4 border-t border-gray-300 bg-white">
+        {/* --- Footer with Claude styling --- */}
+        <SidebarFooter className="px-2 py-3 border-t border-zinc-200 bg-[#F0EDE4] dark:bg-[#18181B] dark:border-zinc-800">
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={handleLogout}
-              className="w-full h-10 px-3 rounded-xl font-bold text-sm transition-all duration-150 bg-transparent text-gray-900 hover:bg-red-50 hover:text-red-700 border border-transparent hover:border-red-200"
+              className={cn(
+                "w-full h-8 rounded-md font-medium text-xs transition-all duration-200 bg-transparent text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
+                state === 'expanded' ? "px-2.5 justify-start" : "px-0 justify-center"
+              )}
               tooltip="Log out"
             >
-              <div className="flex items-center justify-center w-7 h-7 bg-gray-200 rounded-lg">
-                <LogOutIcon className="w-4 h-4 text-gray-900" strokeWidth={2.5} />
-              </div>
-              {state === 'expanded' && <span className="ml-2 text-sm">Log out</span>}
+              <LogOutIcon className={cn(state === 'expanded' ? "w-4 h-4" : "w-5 h-5", "text-zinc-500 dark:text-zinc-400")} strokeWidth={1.5} />
+              {state === 'expanded' && <span className="ml-2">Log out</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
 
-          {state === 'expanded' && (
-            <div className="mt-3 pt-3 border-t border-gray-300">
-              {(isLoading || isLoadingUserDoc) ? (
-                <div className="p-2 text-xs text-gray-900 font-bold">Loading user...</div>
-              ) : (
-                <div className="flex items-center gap-2 p-2.5 bg-gray-100 rounded-xl border border-gray-300">
-                  <div className="flex items-center justify-center flex-shrink-0 w-9 h-9 rounded-lg bg-[#0EA5A4] font-bold text-white text-sm border border-[#0EA5A4]/20 shadow-sm">
-                    {userDoc?.user_image ? (
-                      <img src={userDoc.user_image} alt="Profile" className="w-full h-full rounded-lg object-cover" />
-                    ) : (
-                      userDoc?.full_name?.charAt(0).toUpperCase() || 'U'
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-black truncate">
-                      {userDoc?.full_name || "User Name"}
-                    </p>
-                    <p className="text-xs text-gray-900 font-medium truncate">
-                      {userDoc?.email || ""}
-                    </p>
-                  </div>
+          <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+            {(isLoading || isLoadingUserDoc) ? (
+              <div className={cn("p-2 text-xs text-zinc-500 font-medium", state !== 'expanded' && "hidden")}>Loading...</div>
+            ) : (
+              <div className={cn(
+                "flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer",
+                state === 'expanded' ? "justify-start" : "justify-center"
+              )}>
+                <div className="flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-full bg-[#E4E4E7] text-zinc-600 font-medium text-xs border border-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
+                  {userDoc?.user_image ? (
+                    <img src={userDoc.user_image} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    userDoc?.full_name?.charAt(0).toUpperCase() || 'U'
+                  )}
                 </div>
-              )}
-            </div>
-          )}
+                {state === 'expanded' && (
+                  <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                    <span className="truncate font-bold text-zinc-900 dark:text-zinc-100">{userDoc?.full_name || "User Name"}</span>
+                    <span className="truncate text-xs font-bold text-zinc-500 dark:text-zinc-400">{userDoc?.email || ""}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </SidebarFooter>
       </Sidebar>
     </>

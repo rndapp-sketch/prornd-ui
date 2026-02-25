@@ -53,7 +53,7 @@ interface FlattenedTask {
 
 // Frappe-styled components
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white rounded-xl border border-gray-300 shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-zinc-900 rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-sm", className)}>
         {children}
     </div>
 );
@@ -70,10 +70,10 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
         disabled={disabled}
         className={cn(
             "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-150",
-            "focus:outline-none focus:ring-2 focus:ring-gray-400",
+            "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
             variant === 'primary' && "bg-[#0EA5A4] text-white hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border border-[#0D9494]",
-            variant === 'ghost' && "bg-transparent text-gray-900 hover:bg-gray-200 hover:text-black",
-            variant === 'outline' && "bg-white border-2 border-gray-400 text-black hover:border-[#0EA5A4] hover:text-[#0EA5A4] hover:bg-gray-50",
+            variant === 'ghost' && "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
+            variant === 'outline' && "bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 hover:border-[#0EA5A4] hover:text-[#0EA5A4] hover:bg-zinc-50 dark:bg-zinc-800/50",
             variant === 'action' && "bg-[#0EA5A4] text-white font-bold hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border-2 border-[#0D9494]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
             className
@@ -223,11 +223,11 @@ const TaskRegistry: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex h-screen items-center justify-center bg-gray-100">
+            <div className="flex h-screen items-center justify-center bg-zinc-100 dark:bg-zinc-800">
                 <FrappeCard className="p-8 text-center">
                     <FaExclamationCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
-                    <h2 className="text-xl font-bold text-black mb-2">Error Loading Task Registry</h2>
-                    <p className="text-gray-900">{error.message}</p>
+                    <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Error Loading Task Registry</h2>
+                    <p className="text-zinc-900 dark:text-zinc-100">{error.message}</p>
                 </FrappeCard>
             </div>
         );
@@ -239,7 +239,7 @@ const TaskRegistry: React.FC = () => {
     const indexOfFirstTask = (currentPage - 1) * itemsPerPage;
 
     return (
-        <div className="bg-gray-100 min-h-screen">
+        <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
             <GlobalLoader isLoading={isLoading} />
             <AppSidebar />
 
@@ -249,14 +249,14 @@ const TaskRegistry: React.FC = () => {
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => navigate(-1)}
-                            className="p-2.5 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300"
+                            className="p-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg hover:bg-zinc-200 dark:bg-zinc-700 transition-colors border border-zinc-300 dark:border-zinc-700"
                             aria-label="Go back"
                         >
-                            <FaArrowLeft className="h-5 w-5 text-gray-900" />
+                            <FaArrowLeft className="h-5 w-5 text-zinc-900 dark:text-zinc-100" />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-bold text-black uppercase tracking-tight">Task Registry</h1>
-                            <p className="text-sm text-gray-900 mt-0.5">View all processed and forwarded documents.</p>
+                            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">Task Registry</h1>
+                            <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-0.5">View all processed and forwarded documents.</p>
                         </div>
                     </div>
                 </FrappeCard>
@@ -268,27 +268,27 @@ const TaskRegistry: React.FC = () => {
                             {/* Search Input */}
                             <div className="relative w-full md:w-64">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <FaSearch className="text-gray-400" />
+                                    <FaSearch className="text-zinc-400 dark:text-zinc-500" />
                                 </div>
                                 <input
                                     type="text"
                                     placeholder="Search documents..."
                                     value={searchQuery}
                                     onChange={handleSearchChange}
-                                    className="w-full pl-10 pr-4 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-gray-900 focus:ring-0 transition-colors"
+                                    className="w-full pl-10 pr-4 py-2 border-2 border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-0 transition-colors"
                                 />
                             </div>
 
                             {/* Module Filter */}
                             <div className="flex items-center gap-2">
-                                <label htmlFor="module-filter" className="font-bold text-black uppercase text-sm whitespace-nowrap hidden md:block">
+                                <label htmlFor="module-filter" className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">
                                     Filter:
                                 </label>
                                 <select
                                     id="module-filter"
                                     value={selectedModule}
                                     onChange={(e) => handleModuleChange(e.target.value)}
-                                    className="h-10 px-4 bg-white border-2 border-gray-400 rounded-lg font-bold text-sm text-black focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-900"
+                                    className="h-10 px-4 bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 rounded-lg font-bold text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 focus:border-zinc-900 dark:focus:border-zinc-100"
                                 >
                                     <option value="">All Modules</option>
                                     {DOCTYPE_OPTIONS.map((module) => (
@@ -308,7 +308,7 @@ const TaskRegistry: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="text-sm text-gray-900 font-bold whitespace-nowrap">
+                        <div className="text-sm text-zinc-900 dark:text-zinc-100 font-bold whitespace-nowrap">
                             Total: {totalCount} documents
                         </div>
                     </div>
@@ -318,19 +318,19 @@ const TaskRegistry: React.FC = () => {
                 <FrappeCard className="overflow-hidden p-0">
                     <div className="overflow-x-auto">
                         <table className="w-full divide-y divide-gray-300">
-                            <thead className="bg-gray-200">
+                            <thead className="bg-zinc-200 dark:bg-zinc-700">
                                 <tr className="divide-x divide-gray-300">
-                                    <th className="p-3 text-left font-bold text-black text-sm">Status</th>
-                                    <th className="p-3 text-left font-bold text-black text-sm">Module</th>
-                                    <th className="p-3 text-left font-bold text-black text-sm">Title</th>
-                                    <th className="p-3 text-left font-bold text-black text-sm">Document ID</th>
-                                    <th className="p-3 text-left font-bold text-black text-sm">Created</th>
-                                    <th className="p-3 text-left font-bold text-black text-sm">Modified</th>
-                                    <th className="p-3 text-left font-bold text-black text-sm">Owner</th>
-                                    <th className="p-3 text-left font-bold text-black text-sm">Action</th>
+                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Status</th>
+                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Module</th>
+                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Title</th>
+                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Document ID</th>
+                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Created</th>
+                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Modified</th>
+                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Owner</th>
+                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Action</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200">
+                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                                 {paginatedTasks.length > 0 ? (
                                     paginatedTasks.map((task) => (
                                         <tr
@@ -346,29 +346,29 @@ const TaskRegistry: React.FC = () => {
                                                     navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                 }
                                             }}
-                                            className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                            className="hover:bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer transition-colors"
                                         >
                                             <td className="p-4">
                                                 <span className={getStatusBadge(task.status)}>
                                                     {task.status}
                                                 </span>
                                             </td>
-                                            <td className="p-4 font-bold text-black text-sm">
+                                            <td className="p-4 font-bold text-zinc-900 dark:text-zinc-100 text-sm">
                                                 {task.doctype}
                                             </td>
-                                            <td className="p-4 font-medium text-gray-900 text-sm">
+                                            <td className="p-4 font-medium text-zinc-900 dark:text-zinc-100 text-sm">
                                                 {task.title.length > 30 ? `${task.title.substring(0, 30)}...` : task.title}
                                             </td>
-                                            <td className="p-4 text-sm font-mono text-gray-900">
+                                            <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
                                                 {task.id.length > 25 ? `${task.id.substring(0, 25)}...` : task.id}
                                             </td>
-                                            <td className="p-4 text-sm font-mono text-gray-900">
+                                            <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
                                                 {task.creation ? new Date(task.creation).toLocaleDateString("en-IN") : "-"}
                                             </td>
-                                            <td className="p-4 text-sm font-mono text-gray-900">
+                                            <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
                                                 {task.modified ? new Date(task.modified).toLocaleDateString("en-IN") : "-"}
                                             </td>
-                                            <td className="p-4 text-sm text-gray-900">
+                                            <td className="p-4 text-sm text-zinc-900 dark:text-zinc-100">
                                                 {task.owner.length > 20 ? `${task.owner.substring(0, 20)}...` : task.owner}
                                             </td>
                                             <td className="p-4">
@@ -395,7 +395,7 @@ const TaskRegistry: React.FC = () => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={8} className="p-8 text-center text-gray-900 font-bold">
+                                        <td colSpan={8} className="p-8 text-center text-zinc-900 dark:text-zinc-100 font-bold">
                                             {isLoading ? "Loading documents..." : "No documents found matching your criteria."}
                                         </td>
                                     </tr>
@@ -406,9 +406,9 @@ const TaskRegistry: React.FC = () => {
 
                     {/* Pagination Controls */}
                     {allTasks.length > 0 && (
-                        <div className="p-4 border-t border-gray-300 bg-gray-50 flex justify-between items-center">
+                        <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
                             <div>
-                                <div className="text-sm text-gray-900 font-medium">
+                                <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
                                     Showing {indexOfFirstTask + 1} to {indexOfFirstTask + currentCount} of {totalCount} entries
                                 </div>
                             </div>

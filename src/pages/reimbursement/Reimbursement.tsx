@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AppSidebar } from '@/components/RndSidebar';
+// import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { ArrowLeftIcon } from 'lucide-react';
+// import { ArrowLeftIcon } from 'lucide-react';
+import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { prepareFormDataForApi } from '@/services/apiService';
 
@@ -19,7 +20,7 @@ interface FormDataResponse {
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-xl shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>
         {children}
     </div>
 );
@@ -37,7 +38,7 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
         disabled={disabled}
         className={cn(
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-150",
-            "focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)]",
+            "focus:outline-none focus:ring-2 focus:ring-[#D97757]/20",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             className
         )}
@@ -59,6 +60,7 @@ const Reimbursement: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
+    const [savedDocName, setSavedDocName] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
 
     // --- API HOOKS ---
@@ -93,7 +95,8 @@ const Reimbursement: React.FC = () => {
 
                 setFields(enhancedFields);
                 setLinkOptions(link_options || {});
-
+                console.log("link_options keys:", Object.keys(link_options || {}));
+                console.log("link_options:", link_options);
                 let initialData = { ...prefill_data };
 
                 // If editing, fetch existing document data
@@ -115,18 +118,24 @@ const Reimbursement: React.FC = () => {
 
                 // Auto-fill project from URL if provided
                 if (projectFromUrl && !editDocName) {
-                    initialData.project_name = projectFromUrl;
-
                     try {
                         const projectDoc = await fetchProjectDetails({
                             doctype: 'Project Registration',
                             name: projectFromUrl
                         });
                         if (projectDoc?.message) {
-                            initialData.project_number = projectDoc.message.name || projectFromUrl;
+                            const pData = projectDoc.message;
+                            initialData.project_number = pData.project_no || pData.name || projectFromUrl;
+                            initialData.project_name = pData.project_title || pData.name || projectFromUrl;
+                        } else {
+                            // Fallback if fetch fails or no message
+                            initialData.project_name = projectFromUrl;
+                            initialData.project_number = projectFromUrl;
                         }
                     } catch (err) {
                         console.warn('Could not fetch project details for auto-fill:', err);
+                        initialData.project_name = projectFromUrl;
+                        initialData.project_number = projectFromUrl;
                     }
                 }
 
@@ -175,6 +184,10 @@ const Reimbursement: React.FC = () => {
     }, []);
 
     // Handle cascading field changes with side effects (PI details, etc.)
+    // Use a ref so the callback always sees the latest linkOptions without re-creating
+    const linkOptionsRef = React.useRef(linkOptions);
+    linkOptionsRef.current = linkOptions;
+
     const handleFieldChangeWithSideEffects = useCallback(async (fieldname: string, value: any) => {
         handleChange(fieldname, value);
 
@@ -208,10 +221,45 @@ const Reimbursement: React.FC = () => {
             } else if (fieldname === 'applicant_webmail' && !value) {
                 setFormData(prev => ({ ...prev, applicant_webmail: "", applicant_designation: "", applicant_department: "" }));
             }
+
+
+            // When project_name is selected from dropdown → auto-fill project_number
+            // project_name is a Link field (dropdown, value = Project ID)
+            // project_number is a Data field (needs text value)
+            if (fieldname === 'project_name') {
+                // Immediately set project_number to the selected ID (value)
+                setFormData(prev => ({
+                    ...prev,
+                    project_name: value,
+                    project_number: value
+                }));
+
+                if (value) {
+                    try {
+                        const projectDoc = await fetchProjectDetails({
+                            doctype: 'Project Registration',
+                            name: value
+                        });
+                        if (projectDoc?.message) {
+                            const pData = projectDoc.message;
+                            // If project_no is different from name/ID, update project_number
+                            if (pData.project_no && pData.project_no !== value) {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    project_number: pData.project_no
+                                }));
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('Could not fetch project details for auto-fill:', err);
+                    }
+                }
+            }
+
         } catch (error) {
             console.error(`Error handling field change for ${fieldname}:`, error);
         }
-    }, [handleChange, fetchPiDetails]);
+    }, [handleChange, fetchPiDetails, fetchProjectDetails]);
 
     const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
         setFormData(prev => {
@@ -243,6 +291,9 @@ const Reimbursement: React.FC = () => {
         }));
     }, []);
 
+    // The effective doc name: either from URL (?edit=) or from a previous save
+    const effectiveDocName = editDocName || savedDocName;
+
     const handleSave = async () => {
         if (isSubmitting) return;
         setIsSubmitting(true);
@@ -250,8 +301,8 @@ const Reimbursement: React.FC = () => {
             const data = await prepareFormDataForApi(formData);
             let res;
 
-            if (editDocName) {
-                data.name = editDocName;
+            if (effectiveDocName) {
+                data.name = effectiveDocName;
                 res = await editForm({ data: JSON.stringify(data) });
             } else {
                 res = await saveForm({ data: JSON.stringify(data) });
@@ -259,7 +310,10 @@ const Reimbursement: React.FC = () => {
 
             if (res?.message?.status === 'success') {
                 setIsSaved(true);
-                alert(editDocName ? "Reimbursement updated successfully!" : "Draft saved successfully!");
+                // Remember the docname so future saves/submits update the same document
+                const newDocName = res.message.docname || effectiveDocName;
+                if (newDocName) setSavedDocName(newDocName);
+                alert(effectiveDocName ? "Reimbursement updated successfully!" : "Draft saved successfully!");
                 if (editDocName) {
                     navigate(`/reimbursement/${editDocName}`);
                 }
@@ -267,7 +321,7 @@ const Reimbursement: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(editDocName ? editError : saveError || err);
+            console.error(effectiveDocName ? editError : saveError || err);
             alert(`Save failed: ${err.message || "Unknown error"}`);
         } finally {
             setIsSubmitting(false);
@@ -280,13 +334,22 @@ const Reimbursement: React.FC = () => {
         setIsSubmitting(true);
         try {
             const data = await prepareFormDataForApi(formData);
-            const saveRes = await saveForm({ data: JSON.stringify(data) });
+            let saveRes;
+
+            if (effectiveDocName) {
+                data.name = effectiveDocName;
+                saveRes = await editForm({ data: JSON.stringify(data) });
+            } else {
+                saveRes = await saveForm({ data: JSON.stringify(data) });
+            }
 
             if (saveRes?.message?.status !== 'success') {
                 throw new Error(saveRes?.message?.message || "Save failed during submission");
             }
 
-            const docname = saveRes.message.docname;
+            const docname = saveRes.message.docname || effectiveDocName;
+            // Remember it in case submit fails and user retries
+            if (docname) setSavedDocName(docname);
 
             const submitRes = await submitForm({ docname });
             if (submitRes?.message?.status === 'success') {
@@ -308,35 +371,24 @@ const Reimbursement: React.FC = () => {
         return (
             <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#0EA5A4] border-t-transparent mx-auto"></div>
-                    <p className="mt-4 text-lg font-medium text-gray-700">Loading form...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent mx-auto"></div>
+                    <p className="mt-4 text-lg font-medium text-zinc-700 dark:text-zinc-300">Loading form...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
-            <AppSidebar />
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+            {/* <AppSidebar /> */}
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <header className="mb-8 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors"
-                        >
-                            <ArrowLeftIcon className="h-5 w-5 text-gray-900" />
-                        </button>
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">
-                                {editDocName ? `Edit Reimbursement: ${editDocName}` : 'Reimbursement Application'}
-                            </h1>
-                            <p className="text-gray-600 mt-1">
-                                {editDocName ? 'Update the details below and save.' : 'Fill out the details below to apply for reimbursement.'}
-                            </p>
-                        </div>
-                    </div>
-                </header>
+                <PageHeader
+                    title={editDocName ? `Edit Reimbursement` : 'Reimbursement Application'}
+                    projectName={formData.project_name}
+                    projectNumber={formData.project_number}
+                    status={editDocName ? 'Editing' : 'New'}
+                    showBack={true}
+                />
 
                 <form onSubmit={handleSubmit}>
                     <FrappeCard className="space-y-12">
@@ -358,14 +410,14 @@ const Reimbursement: React.FC = () => {
                         <FrappeButton
                             onClick={handleSave}
                             disabled={isSubmitting}
-                            className="bg-white border border-gray-200 text-gray-900 hover:bg-gray-50"
+                            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800/50"
                         >
                             {isSubmitting ? 'Saving...' : 'Save Draft'}
                         </FrappeButton>
                         <FrappeButton
                             type="submit"
                             disabled={isSubmitting || !isSaved}
-                            className="bg-[#0EA5A4] text-white hover:bg-[#0D9494]"
+                            className="bg-[#D97757] text-white hover:bg-[#C66A4E]"
                         >
                             {isSubmitting ? 'Submitting...' : 'Submit Application'}
                         </FrappeButton>

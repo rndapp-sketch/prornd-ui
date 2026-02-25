@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AppSidebar } from "../../components/RndSidebar";
 import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { ArrowLeftIcon, FileTextIcon, CalendarIcon, UserIcon, DownloadIcon, FileSpreadsheetIcon as LedgerIcon } from "lucide-react";
+import { FileTextIcon, CalendarIcon, UserIcon, DownloadIcon, FileSpreadsheetIcon as LedgerIcon } from "lucide-react";
+import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { useUserRoles } from '../../components/UserRole';
@@ -42,10 +43,10 @@ interface ReimbursementData {
 
 // Frappe-styled components
 const FrappeCard = ({ title, children, className = '' }: { title?: string; children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white border border-gray-300 rounded-xl shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm", className)}>
         {title && (
-            <div className="px-6 py-4 border-b border-gray-300">
-                <h3 className="text-lg font-bold text-black uppercase tracking-tight">{title}</h3>
+            <div className="px-6 py-4 border-b border-zinc-300 dark:border-zinc-700">
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">{title}</h3>
             </div>
         )}
         <div className="p-6">
@@ -66,11 +67,11 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
         disabled={disabled}
         className={cn(
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
-            "focus:outline-none focus:ring-2 focus:ring-gray-400",
-            variant === 'primary' && "bg-[#0EA5A4] text-white hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border border-[#0D9494]",
-            variant === 'ghost' && "bg-transparent text-gray-900 hover:bg-gray-200 hover:text-black",
-            variant === 'outline' && "bg-white border-2 border-gray-400 text-black hover:border-[#0EA5A4] hover:text-[#0EA5A4] hover:bg-gray-50",
-            variant === 'action' && "bg-[#0EA5A4] text-white font-bold hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border-2 border-[#0D9494]",
+            "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
+            variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#C66A4E] shadow-md hover:shadow-lg border border-[#C66A4E]",
+            variant === 'ghost' && "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
+            variant === 'outline' && "bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 hover:border-[#D97757] hover:text-[#D97757] hover:bg-zinc-50 dark:bg-zinc-800/50",
+            variant === 'action' && "bg-[#D97757] text-white font-bold hover:bg-[#C66A4E] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
             className
         )}
@@ -93,10 +94,10 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-lg w-full max-w-md">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm {action}</h3>
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md">
+                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Confirm {action}</h3>
                 <textarea
-                    className="w-full border border-gray-300 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4]"
+                    className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
                     rows={4}
                     placeholder="Add a comment (optional)..."
                     value={comment}
@@ -147,12 +148,17 @@ const ReimbursementWorkflowActions = ({ docname, onActionComplete }: { docname: 
         }
     };
 
-    if (actionsLoading || !data?.message?.length) return null;
+    // Filter out "Submit" since the header already has a dedicated Submit button for Draft state
+    const filteredActions = (data?.message || []).filter(
+        (action) => action.toLowerCase() !== 'submit'
+    );
+
+    if (actionsLoading || !filteredActions.length) return null;
 
     return (
         <>
             <div className="flex gap-2">
-                {data.message.map((action) => (
+                {filteredActions.map((action) => (
                     <FrappeButton
                         key={action}
                         onClick={() => handleActionClick(action)}
@@ -198,22 +204,22 @@ const ActivityStream = ({ doctype, docname }: { doctype: string; docname: string
             {activityData?.message && activityData.message.length > 0 ? (
                 activityData.message.map((activity, idx) => (
                     <div key={idx} className="flex items-start gap-3">
-                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#E0F7F6] flex items-center justify-center font-bold text-[#0EA5A4] text-xs">
+                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#FDF3F0] flex items-center justify-center font-bold text-[#D97757] text-xs">
                             {activity.owner?.charAt(0).toUpperCase() || "U"}
                         </div>
                         <div className="min-w-0">
                             <div
-                                className="text-sm text-gray-800 line-clamp-2 prose prose-sm max-w-none"
+                                className="text-sm text-zinc-800 dark:text-zinc-200 line-clamp-2 prose prose-sm max-w-none"
                                 dangerouslySetInnerHTML={{ __html: activity.content }}
                             />
-                            <p className="text-xs text-gray-500 mt-0.5">
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                                 {activity.owner} · {activity.creation ? new Date(activity.creation).toLocaleString() : ''}
                             </p>
                         </div>
                     </div>
                 ))
             ) : (
-                <p className="text-sm text-gray-500 italic">No recent activity found.</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">No recent activity found.</p>
             )}
         </div>
     );
@@ -226,6 +232,7 @@ const ReimbursementDetails: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [resolvedNames, setResolvedNames] = useState<Record<string, string>>({});
+    const [projectNo, setProjectNo] = useState<string>("");
 
     const { call: fetchDoc } = useFrappePostCall<{ message: ReimbursementData }>(
         'frappe.client.get'
@@ -278,7 +285,6 @@ const ReimbursementDetails: React.FC = () => {
     const { call: submitPayment, loading: isPaying } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_payment_data");
 
     // Fetch Project Budget Data
-    const projectTitle = data?.project_name || ""; // Use project_name as title/ID for budget fetch
     const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
 
     // Fetch Budget Head List for Ledger Modal (needs IDs) matching ProjectDetailsOverview
@@ -300,7 +306,33 @@ const ReimbursementDetails: React.FC = () => {
         fetchBudgetHeads();
     }, []);
 
-    const { budgetData, heads: budgetHeads, headBalances, actualBalance, commitableBalance } = useProjectBudget(projectTitle);
+    const { budgetData, heads: budgetHeads } = useProjectBudget(projectNo || data?.project_number || data?.project_name || '');
+
+    // Fetch Total project balances from API directly (server-side calculated)
+    const targetProjectNumber = projectNo || data?.project_number || data?.project_name;
+    const balanceParams = React.useMemo(() => ({ project_number: targetProjectNumber || '' }), [targetProjectNumber]);
+    const balanceOptions = React.useMemo(() => ({
+        revalidateOnFocus: false,
+        isPaused: () => !targetProjectNumber
+    }), [targetProjectNumber]);
+
+    const { data: projectAmounts } = useFrappeGetCall<{
+        message: {
+            status: string;
+            data: {
+                availableCommitAmount: number;
+                availablePaymentAmount: number;
+            }
+        };
+    }>(
+        'rndopsapp.rndopsapp.commitPayment.get_project_available_amounts',
+        balanceParams,
+        balanceOptions
+    );
+
+    const projectData = (projectAmounts as any)?.message?.data ?? (projectAmounts as any)?.data ?? {};
+    const commitableBalance = projectData?.availablePaymentAmount ?? 0;
+    const actualBalance = projectData?.availableCommitAmount ?? 0;
 
     // Find existing commitment for this document
     const linkedCommitment = budgetData.find(e => e.ref === (id || "") && e.type === 'commitment');
@@ -386,7 +418,9 @@ const ReimbursementDetails: React.FC = () => {
                 project_name: data.project_name,
                 payment_amount: parseFloat(paymentAmount),
                 budget_head: commitHead,
-                bmr: "" // Optional BMR
+                bmr: "", // Optional BMR
+                frapAppId: id,
+                moduleName: "Reimbursement"
             });
             alert("Payment recorded successfully!");
             setPaymentAmount("");
@@ -478,6 +512,35 @@ const ReimbursementDetails: React.FC = () => {
         loadData();
     }, [id, fetchDoc, fetchLinkValue]);
 
+    // Fetch Project No
+    useEffect(() => {
+        const fetchProjectNo = async () => {
+            if (!data?.project_name) return;
+            try {
+                // Try fetching from Project Proposal first (most likely)
+                const response = await fetch(`/api/v2/document/Project%20Proposal/${data.project_name}?fields=["project_no","project_title"]`);
+                if (response.ok) {
+                    const json = await response.json();
+                    if (json.data?.project_no) {
+                        setProjectNo(json.data.project_no);
+                        return;
+                    }
+                }
+
+                // Fallback: Try 'Project' doctype if needed, or check link value
+                // For now, assuming Project Proposal is the source for project_no
+                if (data.project_number) {
+                    setProjectNo(data.project_number);
+                }
+            } catch (error) {
+                console.error("Error fetching project no:", error);
+                if (data.project_number) setProjectNo(data.project_number);
+            }
+        };
+
+        fetchProjectNo();
+    }, [data?.project_name, data?.project_number]);
+
     // Format date for display
     const formatDate = (dateStr: string) => {
         if (!dateStr) return '-';
@@ -491,21 +554,6 @@ const ReimbursementDetails: React.FC = () => {
         });
     };
 
-    // Get status color
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'Approved':
-                return 'bg-emerald-100 text-emerald-800 border-emerald-300';
-            case 'Pending':
-                return 'bg-amber-100 text-amber-800 border-amber-300';
-            case 'Rejected':
-                return 'bg-red-100 text-red-800 border-red-300';
-            case 'Draft':
-                return 'bg-slate-100 text-slate-800 border-slate-300';
-            default:
-                return 'bg-blue-100 text-blue-800 border-blue-300';
-        }
-    };
 
     // Generate HTML for download/print
     const generateDownloadHTML = () => {
@@ -707,9 +755,9 @@ const ReimbursementDetails: React.FC = () => {
 
     // Detail row component
     const DetailRow = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
-        <div className="flex justify-between py-2 border-b border-gray-200 last:border-0">
-            <span className="text-sm font-medium text-gray-900">{label}</span>
-            <span className="text-sm font-bold text-black">{value || '-'}</span>
+        <div className="flex justify-between py-2 border-b border-zinc-200 dark:border-zinc-800 last:border-0">
+            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{label}</span>
+            <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{value || '-'}</span>
         </div>
     );
 
@@ -719,13 +767,13 @@ const ReimbursementDetails: React.FC = () => {
 
     if (error || !data) {
         return (
-            <div className="bg-gray-100 min-h-screen">
+            <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
                 <AppSidebar />
                 <main className="flex-1 p-4 md:p-8">
                     <FrappeCard className="text-center py-16">
-                        <FileTextIcon className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                        <h2 className="text-xl font-bold text-black mb-2 uppercase">Error Loading Reimbursement</h2>
-                        <p className="text-gray-900 mb-6">{error || 'Reimbursement not found'}</p>
+                        <FileTextIcon className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
+                        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2 uppercase">Error Loading Reimbursement</h2>
+                        <p className="text-zinc-900 dark:text-zinc-100 mb-6">{error || 'Reimbursement not found'}</p>
                         <FrappeButton variant="primary" onClick={() => navigate(-1)}>
                             Go Back
                         </FrappeButton>
@@ -736,81 +784,62 @@ const ReimbursementDetails: React.FC = () => {
     }
 
     return (
-        <div className="bg-gray-100 min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
             <GlobalLoader isLoading={isSubmitting} />
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8">
                 {/* Header */}
-                <FrappeCard className="mb-8 p-6">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => navigate(-1)}
-                                className="p-3 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors"
-                            >
-                                <ArrowLeftIcon className="h-5 w-5 text-gray-900" />
-                            </button>
-                            <div>
-                                <div className="flex items-center gap-3">
-                                    <h1 className="text-2xl font-bold text-black uppercase tracking-tight">{data.name}</h1>
-                                    <span className={cn(
-                                        "px-3 py-1 text-sm font-bold rounded-md border",
-                                        getStatusColor(data.workflow_state)
-                                    )}>
-                                        {data.workflow_state || 'Draft'}
-                                    </span>
-                                </div>
-                                <p className="text-gray-900 mt-1 font-medium">Reimbursement Application</p>
+                <PageHeader
+                    title={data.name}
+                    status={data.workflow_state || 'Draft'}
+                    projectName={data.project_name}
+                    projectNumber={projectNo || data.project_number}
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="text-right text-sm text-zinc-900 dark:text-zinc-100 hidden md:block">
+                            <div className="flex items-center gap-1 font-medium justify-end">
+                                <CalendarIcon className="w-4 h-4" />
+                                Created: {formatDate(data.creation)}
+                            </div>
+                            <div className="flex items-center gap-1 mt-1 font-medium justify-end">
+                                <UserIcon className="w-4 h-4" />
+                                By: {data.owner}
                             </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <div className="text-right text-sm text-gray-900">
-                                <div className="flex items-center gap-1 font-medium">
-                                    <CalendarIcon className="w-4 h-4" />
-                                    Created: {formatDate(data.creation)}
-                                </div>
-                                <div className="flex items-center gap-1 mt-1 font-medium">
-                                    <UserIcon className="w-4 h-4" />
-                                    By: {data.owner}
-                                </div>
-                            </div>
-                            {/* Edit and Submit buttons - only show for Draft */}
-                            {(data.workflow_state === 'Draft' || !data.workflow_state) && (
-                                <>
-                                    <FrappeButton
-                                        variant="outline"
-                                        onClick={() => navigate(`/reimbursement?edit=${data.name}`)}
-                                    >
-                                        Edit
-                                    </FrappeButton>
-                                    <FrappeButton
-                                        variant="primary"
-                                        onClick={handleSubmit}
-                                        disabled={isSubmitting}
-                                    >
-                                        {isSubmitting ? 'Submitting...' : 'Submit'}
-                                    </FrappeButton>
-                                </>
-                            )}
-                            {/* Download button - always visible */}
-                            <FrappeButton
-                                variant="outline"
-                                onClick={handleDownload}
-                            >
-                                <DownloadIcon className="w-4 h-4" />
-                                Download
-                            </FrappeButton>
-                            {/* Workflow Actions */}
-                            {id && (
-                                <ReimbursementWorkflowActions
-                                    docname={id}
-                                    onActionComplete={() => window.location.reload()}
-                                />
-                            )}
-                        </div>
+                        {/* Edit and Submit buttons - only show for Draft */}
+                        {(data.workflow_state === 'Draft' || !data.workflow_state) && (
+                            <>
+                                <FrappeButton
+                                    variant="outline"
+                                    onClick={() => navigate(`/reimbursement?edit=${data.name}`)}
+                                >
+                                    Edit
+                                </FrappeButton>
+                                <FrappeButton
+                                    variant="primary"
+                                    onClick={handleSubmit}
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? 'Submitting...' : 'Submit'}
+                                </FrappeButton>
+                            </>
+                        )}
+                        {/* Download button - always visible */}
+                        <FrappeButton
+                            variant="outline"
+                            onClick={handleDownload}
+                        >
+                            <DownloadIcon className="w-4 h-4" />
+                        </FrappeButton>
                     </div>
-                </FrappeCard>
-
+                </PageHeader>
+                {/* Workflow Actions */}
+                {id && (
+                    <ReimbursementWorkflowActions
+                        docname={id}
+                        onActionComplete={() => window.location.reload()}
+                    />
+                )}
                 {/* Content Grid with Sidebar */}
                 <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
                     {/* Main Content (3 cols) */}
@@ -857,26 +886,26 @@ const ReimbursementDetails: React.FC = () => {
                             {/* Particulars of Items Table */}
                             {data.table_bosk && data.table_bosk.length > 0 && (
                                 <FrappeCard title="Particulars of Items" className="lg:col-span-2">
-                                    <div className="overflow-x-auto border border-gray-300 rounded-lg">
+                                    <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
                                         <table className="min-w-full divide-y divide-gray-300">
-                                            <thead className="bg-gray-200">
+                                            <thead className="bg-zinc-200 dark:bg-zinc-700">
                                                 <tr className="divide-x divide-gray-300">
-                                                    <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Date</th>
-                                                    <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Vendor's Name</th>
-                                                    <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Particulars</th>
-                                                    <th className="px-4 py-3 text-right text-sm font-bold text-black uppercase">Amount</th>
-                                                    <th className="px-4 py-3 text-left text-sm font-bold text-black uppercase">Attachment</th>
+                                                    <th className="px-4 py-3 text-left text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase">Date</th>
+                                                    <th className="px-4 py-3 text-left text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase">Vendor's Name</th>
+                                                    <th className="px-4 py-3 text-left text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase">Particulars</th>
+                                                    <th className="px-4 py-3 text-right text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase">Amount</th>
+                                                    <th className="px-4 py-3 text-left text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase">Attachment</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-gray-300 bg-white">
+                                            <tbody className="divide-y divide-gray-300 bg-white dark:bg-zinc-900">
                                                 {data.table_bosk.map((item: any, index: number) => (
-                                                    <tr key={item.name || index} className="hover:bg-gray-50 divide-x divide-gray-300">
-                                                        <td className="px-4 py-3 text-sm text-gray-900 font-mono">
+                                                    <tr key={item.name || index} className="hover:bg-zinc-50 dark:bg-zinc-800/50 divide-x divide-gray-300">
+                                                        <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-mono">
                                                             {item.r_date ? new Date(item.r_date).toLocaleDateString('en-IN') : '-'}
                                                         </td>
-                                                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">{item.vendors_name || '-'}</td>
-                                                        <td className="px-4 py-3 text-sm text-gray-900">{item.particulars || '-'}</td>
-                                                        <td className="px-4 py-3 text-sm text-black font-bold text-right">
+                                                        <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">{item.vendors_name || '-'}</td>
+                                                        <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">{item.particulars || '-'}</td>
+                                                        <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-bold text-right">
                                                             ₹{(parseFloat(item.amount) || 0).toLocaleString('en-IN')}
                                                         </td>
                                                         <td className="px-4 py-3 text-sm">
@@ -885,21 +914,21 @@ const ReimbursementDetails: React.FC = () => {
                                                                     href={item.uploads}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
-                                                                    className="text-[#0EA5A4] font-bold hover:underline"
+                                                                    className="text-[#D97757] font-bold hover:underline"
                                                                 >
                                                                     View File
                                                                 </a>
                                                             ) : (
-                                                                <span className="text-gray-500">No file</span>
+                                                                <span className="text-zinc-500 dark:text-zinc-400">No file</span>
                                                             )}
                                                         </td>
                                                     </tr>
                                                 ))}
                                             </tbody>
-                                            <tfoot className="bg-gray-100 border-t-2 border-gray-300">
+                                            <tfoot className="bg-[#FAFAF9] dark:bg-[#18181B] border-t-2 border-zinc-300 dark:border-zinc-700">
                                                 <tr>
-                                                    <td colSpan={3} className="px-4 py-3 text-sm font-bold text-black text-right uppercase">Total Amount:</td>
-                                                    <td className="px-4 py-3 text-sm font-bold text-black text-right">
+                                                    <td colSpan={3} className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right uppercase">Total Amount:</td>
+                                                    <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right">
                                                         ₹{data.table_bosk.reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0).toLocaleString('en-IN')}
                                                     </td>
                                                     <td></td>
@@ -913,7 +942,7 @@ const ReimbursementDetails: React.FC = () => {
                             {/* Comments */}
                             {data.comment && (
                                 <FrappeCard title="Comments" className="lg:col-span-2">
-                                    <p className="text-gray-900 whitespace-pre-wrap font-medium">{data.comment}</p>
+                                    <p className="text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap font-medium">{data.comment}</p>
                                 </FrappeCard>
                             )}
 
@@ -921,14 +950,14 @@ const ReimbursementDetails: React.FC = () => {
                             <FrappeCard title="Declarations" className="lg:col-span-2">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {[1, 2, 3, 4].map(num => (
-                                        <div key={num} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                        <div key={num} className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800">
                                             <div className={cn(
                                                 "w-6 h-6 rounded flex items-center justify-center text-white text-sm font-bold",
                                                 data[`dec${num}`] ? "bg-emerald-600" : "bg-gray-400"
                                             )}>
                                                 {data[`dec${num}`] ? "✓" : ""}
                                             </div>
-                                            <span className="text-sm font-medium text-gray-900">Declaration {num} {data[`dec${num}`] ? 'Accepted' : 'Not Accepted'}</span>
+                                            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Declaration {num} {data[`dec${num}`] ? 'Accepted' : 'Not Accepted'}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -948,16 +977,16 @@ const ReimbursementDetails: React.FC = () => {
                     {/* Right Sidebar (1 col) */}
                     <aside className="xl:col-span-1 space-y-6">
                         {/* Section 0: Project Budget Overview */}
-                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                            <h3 className="text-lg font-bold text-gray-900 mb-4">Project Budget</h3>
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">Project Budget</h3>
                             <div className="flex flex-col gap-4">
-                                <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                    <p className="text-sm font-semibold text-gray-700">Total Available</p>
-                                    <p className="text-xl font-bold text-[#0EA5A4]">₹ {commitableBalance.toLocaleString('en-IN')}</p>
+                                <div className="flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800">
+                                    <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Total Available</p>
+                                    <p className="text-xl font-bold text-[#D97757]">₹ {commitableBalance.toLocaleString('en-IN')}</p>
                                 </div>
                                 <button
                                     onClick={() => setIsLedgerOpen(true)}
-                                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#E0F7F6] text-[#0EA5A4] font-bold text-sm hover:bg-[#B2DFDB] transition-colors"
+                                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#FDF3F0] text-[#D97757] font-bold text-sm hover:bg-[#B2DFDB] transition-colors"
                                 >
                                     <LedgerIcon className="w-4 h-4" />
                                     View Project Ledger
@@ -966,18 +995,18 @@ const ReimbursementDetails: React.FC = () => {
                         </div>
 
                         {/* Section 1: Latest Activity */}
-                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center justify-between">
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center justify-between">
                                 Latest Activity
                             </h3>
                             {id && <ActivityStream doctype="Reimbursement" docname={id} />}
                         </div>
 
                         {/* Section 2: Add Comment */}
-                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                            <h3 className="text-lg font-bold text-gray-900 mb-3">Add Comment</h3>
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3">Add Comment</h3>
                             <Textarea
-                                className="w-full border border-gray-300 p-3 rounded-lg text-sm mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                                className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                                 rows={3}
                                 placeholder="Type your comment here..."
                                 value={sidebarComment}
@@ -994,114 +1023,120 @@ const ReimbursementDetails: React.FC = () => {
                         </div>
 
                         {/* Section 3: Make a Commitment (Conditional) */}
-                        {(data.workflow_state === "Approved" || data.workflow_state === "Pending Staff Approval") && isRnDStaff && !isCommitted && (
-                            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                                <h3 className="text-lg font-bold text-gray-900 mb-4">Make a Commitment</h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Budget Head</label>
-                                        <select
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
-                                            value={commitHead}
-                                            onChange={(e) => setCommitHead(e.target.value)}
-                                        >
-                                            {budgetHeads.length > 0 ? (
-                                                budgetHeads.map((head) => (
-                                                    <option key={head} value={head}>{head}</option>
-                                                ))
-                                            ) : (
-                                                <option value="">No Budget Heads</option>
-                                            )}
-                                        </select>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Available: <span className="font-medium text-[#0EA5A4]">₹ {actualBalance.toLocaleString('en-IN')}</span>
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
-                                        <input
-                                            type="number"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
-                                            placeholder="e.g., 5000"
-                                            value={commitAmount}
-                                            onChange={(e) => setCommitAmount(e.target.value)}
-                                        />
-                                    </div>
-                                    <FrappeButton
-                                        className="w-full"
-                                        variant="primary"
-                                        onClick={handleCommit}
-                                        disabled={isCommitting}
-                                    >
-                                        {isCommitting ? "Submitting..." : "Submit Commitment"}
-                                    </FrappeButton>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Section 4: Record Payment (Conditional) */}
-                        {(data.workflow_state === "Approved" || data.workflow_state === "Pending Staff Approval") && isRnDStaff && (
-                            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                                <h3 className="text-lg font-bold text-gray-900 mb-4">Record Payment</h3>
-                                {isCommitted ? (
+                        {
+                            (data.workflow_state === "Approved" || data.workflow_state === "Pending Staff Approval") && isRnDStaff && !isCommitted && (
+                                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                    <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">Make a Commitment</h3>
                                     <div className="space-y-4">
-                                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
-                                            <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Linked Commitment</p>
-                                            <div className="flex justify-between items-end">
-                                                <p className="text-sm font-medium text-blue-900">{linkedCommitment?.head}</p>
-                                                <p className="text-lg font-bold text-blue-700">₹ {linkedCommitment?.committed.toLocaleString('en-IN')}</p>
-                                            </div>
-                                        </div>
-
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Amount (₹)</label>
+                                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Budget Head</label>
+                                            <select
+                                                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                                value={commitHead}
+                                                onChange={(e) => setCommitHead(e.target.value)}
+                                            >
+                                                {budgetHeads.length > 0 ? (
+                                                    budgetHeads.map((head) => (
+                                                        <option key={head} value={head}>{head}</option>
+                                                    ))
+                                                ) : (
+                                                    <option value="">No Budget Heads</option>
+                                                )}
+                                            </select>
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                                Available: <span className="font-medium text-[#D97757]">₹ {actualBalance.toLocaleString('en-IN')}</span>
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Amount (₹)</label>
                                             <input
                                                 type="number"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                                                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                                                 placeholder="e.g., 5000"
-                                                value={paymentAmount}
-                                                onChange={(e) => setPaymentAmount(e.target.value)}
-                                                max={linkedCommitment?.committed}
+                                                value={commitAmount}
+                                                onChange={(e) => setCommitAmount(e.target.value)}
                                             />
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                Paying against commitment. Max: ₹{linkedCommitment?.committed.toLocaleString('en-IN')}
-                                            </p>
                                         </div>
                                         <FrappeButton
                                             className="w-full"
-                                            variant="outline"
-                                            onClick={handlePayment}
-                                            disabled={isPaying || !paymentAmount || parseFloat(paymentAmount) > (linkedCommitment?.committed || 0)}
+                                            variant="primary"
+                                            onClick={handleCommit}
+                                            disabled={isCommitting}
                                         >
-                                            {isPaying ? "Processing..." : "Submit Payment"}
+                                            {isCommitting ? "Submitting..." : "Submit Commitment"}
                                         </FrappeButton>
                                     </div>
-                                ) : (
-                                    <div className="text-center py-6 px-4 bg-gray-50 rounded-lg border border-gray-200 border-dashed">
-                                        <div className="mx-auto w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mb-3 text-gray-400">
-                                            <LedgerIcon className="w-5 h-5" />
+                                </div>
+                            )
+                        }
+
+                        {/* Section 4: Record Payment (Conditional) */}
+                        {
+                            (data.workflow_state === "Approved" || data.workflow_state === "Pending Staff Approval") && isRnDStaff && (
+                                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                    <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">Record Payment</h3>
+                                    {isCommitted ? (
+                                        <div className="space-y-4">
+                                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
+                                                <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">Linked Commitment</p>
+                                                <div className="flex justify-between items-end">
+                                                    <p className="text-sm font-medium text-blue-900">{linkedCommitment?.head}</p>
+                                                    <p className="text-lg font-bold text-blue-700">₹ {linkedCommitment?.committed.toLocaleString('en-IN')}</p>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Payment Amount (₹)</label>
+                                                <input
+                                                    type="number"
+                                                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                                    placeholder="e.g., 5000"
+                                                    value={paymentAmount}
+                                                    onChange={(e) => setPaymentAmount(e.target.value)}
+                                                    max={linkedCommitment?.committed}
+                                                />
+                                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                                    Paying against commitment. Max: ₹{linkedCommitment?.committed.toLocaleString('en-IN')}
+                                                </p>
+                                            </div>
+                                            <FrappeButton
+                                                className="w-full"
+                                                variant="outline"
+                                                onClick={handlePayment}
+                                                disabled={isPaying || !paymentAmount || parseFloat(paymentAmount) > (linkedCommitment?.committed || 0)}
+                                            >
+                                                {isPaying ? "Processing..." : "Submit Payment"}
+                                            </FrappeButton>
                                         </div>
-                                        <p className="text-sm font-medium text-gray-900">Commitment Required</p>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Please make a commitment above before recording payment for this reimbursement.
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                                    ) : (
+                                        <div className="text-center py-6 px-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800 border-dashed">
+                                            <div className="mx-auto w-10 h-10 bg-zinc-200 dark:bg-zinc-700 rounded-full flex items-center justify-center mb-3 text-zinc-400 dark:text-zinc-500">
+                                                <LedgerIcon className="w-5 h-5" />
+                                            </div>
+                                            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Commitment Required</p>
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                                Please make a commitment above before recording payment for this reimbursement.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        }
                     </aside>
                 </div>
             </main>
 
             {/* Budget Ledger Modal */}
-            {isLedgerOpen && (
-                <ProjectLedgerModal
-                    isOpen={isLedgerOpen}
-                    onClose={() => setIsLedgerOpen(false)}
-                    projectName={data?.project_name || ''}
-                    budgetHeadList={budgetHeadList}
-                />
-            )}
+            {
+                isLedgerOpen && (
+                    <ProjectLedgerModal
+                        isOpen={isLedgerOpen}
+                        onClose={() => setIsLedgerOpen(false)}
+                        projectName={data?.project_name || ''}
+                        budgetHeadList={budgetHeadList}
+                    />
+                )
+            }
         </div>
     );
 };

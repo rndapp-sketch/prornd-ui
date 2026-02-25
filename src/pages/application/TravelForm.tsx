@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { ArrowLeftIcon, Wallet, TrendingUp, AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { Wallet, TrendingUp, AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI, prepareFormDataForApi, commonAPI } from '@/services/apiService';
 
@@ -18,7 +19,7 @@ interface FormDataResponse {
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-xl shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>
         {children}
     </div>
 );
@@ -36,7 +37,7 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
         disabled={disabled}
         className={cn(
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-150",
-            "focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)]",
+            "focus:outline-none focus:ring-2 focus:ring-[#D97757]/20",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             className
         )}
@@ -64,7 +65,10 @@ const FundDetailsSidebar = ({ projectCode }: { projectCode: string }) => {
     }>(
         'rndopsapp.rndopsapp.commitPayment.get_project_available_amounts',
         { project_number: projectCode },
-        projectCode ? undefined : null // Skip if no project code
+        {
+            revalidateOnFocus: false,
+            isPaused: () => !projectCode
+        }
     );
 
     // Debug: Log API response
@@ -83,70 +87,70 @@ const FundDetailsSidebar = ({ projectCode }: { projectCode: string }) => {
 
     if (!projectCode) {
         return (
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-xl border border-gray-200">
+            <div className="bg-gradient-to-br from-[#FDF3F0] to-gray-100 dark:from-zinc-900 dark:to-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800">
                 <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-gray-200 rounded-lg">
-                        <Info className="h-5 w-5 text-gray-500" />
+                    <div className="p-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg">
+                        <Info className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
                     </div>
-                    <h3 className="font-semibold text-gray-700">Fund Details</h3>
+                    <h3 className="font-semibold text-zinc-700 dark:text-zinc-300">Fund Details</h3>
                 </div>
-                <p className="text-sm text-gray-500">Select a project to view fund details</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">Select a project to view fund details</p>
             </div>
         );
     }
 
     if (isLoading) {
         return (
-            <div className="bg-gradient-to-br from-teal-50 to-cyan-50 p-6 rounded-xl border border-teal-100 animate-pulse">
-                <div className="h-6 bg-teal-100 rounded w-32 mb-4"></div>
+            <div className="bg-gradient-to-br from-[#FDF3F0] to-zinc-50 dark:from-zinc-900 dark:to-zinc-900 border border-[#D97757]/20 rounded-xl p-6">
+                <div className="h-6 bg-[#D97757]/20 rounded w-32 mb-4 animate-pulse"></div>
                 <div className="space-y-3">
-                    <div className="h-16 bg-teal-100/50 rounded"></div>
-                    <div className="h-16 bg-teal-100/50 rounded"></div>
+                    <div className="h-16 bg-[#D97757]/10 rounded animate-pulse"></div>
+                    <div className="h-16 bg-[#D97757]/10 rounded animate-pulse"></div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-gradient-to-br from-teal-50 to-cyan-50 p-6 rounded-xl border border-teal-100 sticky top-6">
+        <div className="bg-gradient-to-br from-[#FDF3F0] to-zinc-50 dark:from-zinc-900 dark:to-zinc-900 p-6 rounded-xl border border-[#D97757]/20 sticky top-6">
             <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-teal-500 rounded-lg">
+                <div className="p-2 bg-[#D97757] rounded-lg">
                     <Wallet className="h-5 w-5 text-white" />
                 </div>
-                <h3 className="font-bold text-gray-900">Project Fund Details</h3>
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100">Project Fund Details</h3>
             </div>
 
             <div className="space-y-4">
                 {/* Total Fund Received */}
-                <div className="bg-white/80 backdrop-blur p-4 rounded-lg border border-teal-100">
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Total Fund Received</p>
-                    <p className="text-xl font-bold text-gray-900">{formatCurrency(projectData.totalFundReceived)}</p>
+                <div className="bg-white/80 dark:bg-zinc-800/80 backdrop-blur p-4 rounded-lg border border-[#D97757]/20">
+                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Total Fund Received</p>
+                    <p className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(projectData.totalFundReceived)}</p>
                 </div>
 
                 {/* Available Balance */}
-                <div className="bg-white/80 backdrop-blur p-4 rounded-lg border border-teal-100">
+                <div className="bg-white/80 dark:bg-zinc-800/80 backdrop-blur p-4 rounded-lg border border-[#D97757]/20">
                     <div className="flex items-center gap-2 mb-1">
-                        <TrendingUp className="h-4 w-4 text-teal-600" />
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Available Balance</p>
+                        <TrendingUp className="h-4 w-4 text-[#D97757]" />
+                        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-0">Available Balance</p>
                     </div>
-                    <p className="text-2xl font-bold text-teal-600">{formatCurrency(projectData.availableCommitAmount)}</p>
+                    <p className="text-2xl font-bold text-[#D97757]">{formatCurrency(projectData.availableCommitAmount)}</p>
                 </div>
 
                 {/* Fund Breakdown */}
-                <div className="pt-4 border-t border-teal-100">
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Fund Breakdown</p>
+                <div className="pt-4 border-t border-[#D97757]/20">
+                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Fund Breakdown</p>
                     <div className="space-y-2">
                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-600">Total Committed</span>
-                            <span className="font-semibold text-amber-600">{formatCurrency(projectData.totalCommitted)}</span>
+                            <span className="text-zinc-600 dark:text-zinc-400">Total Committed</span>
+                            <span className="font-semibold text-amber-600 dark:text-amber-500">{formatCurrency(projectData.totalCommitted)}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-600">Total Paid</span>
-                            <span className="font-semibold text-red-600">{formatCurrency(projectData.totalPaid)}</span>
+                            <span className="text-zinc-600 dark:text-zinc-400">Total Paid</span>
+                            <span className="font-semibold text-red-600 dark:text-red-500">{formatCurrency(projectData.totalPaid)}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-600">Payable Balance</span>
-                            <span className="font-semibold text-blue-600">{formatCurrency(projectData.availablePaymentAmount)}</span>
+                            <span className="text-zinc-600 dark:text-zinc-400">Payable Balance</span>
+                            <span className="font-semibold text-blue-600 dark:text-blue-500">{formatCurrency(projectData.availablePaymentAmount)}</span>
                         </div>
                     </div>
                 </div>
@@ -160,6 +164,8 @@ const EstimateValidation = ({ formData }: { formData: Record<string, any> }) => 
     // Use parseFloat to ensure numeric addition, not string concatenation
     const parseNum = (val: any) => parseFloat(val) || 0;
 
+    // Use contribution amounts for calculations but use heads for display/logic
+    // Note: If heads are mutually exclusive, usually only one contribution is active
     const totalFunds = parseNum(formData.travel_contribution) +
         parseNum(formData.contingency_contribution) +
         parseNum(formData.other_contribution);
@@ -178,17 +184,17 @@ const EstimateValidation = ({ formData }: { formData: Record<string, any> }) => 
     return (
         <div className={cn(
             "p-4 rounded-lg border-2 flex items-center gap-3",
-            isBalanced ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"
+            isBalanced ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
         )}>
             {isBalanced ? (
                 <>
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <span className="font-semibold text-green-700">Budget Balanced</span>
+                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                    <span className="font-semibold text-green-700 dark:text-green-400">Budget Balanced</span>
                 </>
             ) : (
                 <>
-                    <AlertCircle className="h-5 w-5 text-red-600" />
-                    <span className="font-semibold text-red-700">
+                    <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                    <span className="font-semibold text-red-700 dark:text-red-400">
                         ₹{Math.abs(diff).toLocaleString('en-IN')} {diff > 0 ? 'needs to be allocated' : 'excess allocated'}
                     </span>
                 </>
@@ -369,6 +375,14 @@ const TravelForm: React.FC = () => {
     const handleFieldChangeWithSideEffects = useCallback(async (fieldname: string, value: any) => {
         handleChange(fieldname, value);
 
+        // Account Head Mutual Exclusivity - FIX: Target the HEAD fields, not contribution amounts
+        // If one is checked, uncheck the others
+        if (['travel_head', 'contingency_head', 'other_acc_head'].includes(fieldname) && (value === 1 || value === true || value === '1')) {
+            if (fieldname !== 'travel_head') handleChange('travel_head', 0);
+            if (fieldname !== 'contingency_head') handleChange('contingency_head', 0);
+            if (fieldname !== 'other_acc_head') handleChange('other_acc_head', 0);
+        }
+
         // International travel confirmation
         if (fieldname === 'nature_of_travel' && value === 'International') {
             const confirmed = window.confirm("Please select International only if the travel involves visiting a destination outside India.");
@@ -531,6 +545,11 @@ const TravelForm: React.FC = () => {
                 }
             }
 
+            // Override specific fields to be Radio buttons for better UX
+            if (['nature_of_travel', 'travel_financial_assistance', 'travel_mode_of_travel'].includes(f.fieldname)) {
+                f.fieldtype = 'Radio';
+            }
+
             return f;
         });
     }, [fields, formData]);
@@ -538,41 +557,23 @@ const TravelForm: React.FC = () => {
     // --- RENDER LOGIC ---
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
+            <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#0EA5A4] border-t-transparent mx-auto"></div>
-                    <p className="mt-4 text-lg font-medium text-gray-700">Loading form...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent mx-auto"></div>
+                    <p className="mt-4 text-lg font-medium text-zinc-700 dark:text-zinc-300">Loading form...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <header className="mb-8 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors"
-                        >
-                            <ArrowLeftIcon className="h-5 w-5 text-gray-900" />
-                        </button>
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">
-                                {editDocName ? `Edit Travel: ${editDocName}` : 'Travel Application'}
-                            </h1>
-                            <p className="text-gray-600 mt-1">
-                                {projectName ? (
-                                    <span>For Project: <strong>{projectName}</strong></span>
-                                ) : (
-                                    'Fill out the details below to apply for travel.'
-                                )}
-                            </p>
-                        </div>
-                    </div>
-                </header>
+                <PageHeader
+                    title={editDocName ? `Edit Travel: ${editDocName}` : 'Travel Application'}
+                    projectName={projectName}
+                />
 
                 {/* Validation Errors */}
                 {validationErrors.length > 0 && (
@@ -615,14 +616,14 @@ const TravelForm: React.FC = () => {
                                 <FrappeButton
                                     onClick={handleSave}
                                     disabled={isSubmitting}
-                                    className="bg-white border border-gray-200 text-gray-900 hover:bg-gray-50"
+                                    className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800/50"
                                 >
                                     {isSubmitting ? 'Saving...' : 'Save Draft'}
                                 </FrappeButton>
                                 <FrappeButton
                                     type="submit"
                                     disabled={isSubmitting || !savedDocName}
-                                    className="bg-[#0EA5A4] text-white hover:bg-[#0D9494]"
+                                    className="bg-[#D97757] text-white hover:bg-[#C66A4E]"
                                 >
                                     {isSubmitting ? 'Submitting...' : 'Submit Application'}
                                 </FrappeButton>
@@ -641,3 +642,630 @@ const TravelForm: React.FC = () => {
 };
 
 export default TravelForm;
+
+
+
+
+
+// import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// import { useNavigate, useSearchParams } from 'react-router-dom';
+// import { AppSidebar } from '@/components/RndSidebar';
+// import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
+// import { cn } from '@/lib/utils';
+// import { ArrowLeft, Wallet, TrendingUp, AlertCircle, CheckCircle2, Info, Sun, Moon } from 'lucide-react';
+// import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
+// import { travelAPI, prepareFormDataForApi, commonAPI } from '@/services/apiService';
+
+// // --- TYPE DEFINITIONS ---
+// interface FormDataResponse {
+//     message: {
+//         fields: FormField[];
+//         link_options: Record<string, LinkOption[]>;
+//         prefill_data: Record<string, any>;
+//     };
+// }
+
+// // --- CUSTOM HOOK ---
+// const useTheme = () => {
+//     const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+//         const saved = localStorage.getItem('theme') as 'light' | 'dark';
+//         if (saved) return saved;
+//         return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+//     });
+
+//     useEffect(() => {
+//         const root = document.documentElement;
+//         if (theme === 'dark') {
+//             root.classList.add('dark');
+//         } else {
+//             root.classList.remove('dark');
+//         }
+//         localStorage.setItem('theme', theme);
+//     }, [theme]);
+
+//     const toggle = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+//     return { theme, toggle };
+// };
+
+// // --- FUND DETAILS SIDEBAR ---
+// const FundDetailsSidebar = ({ projectCode }: { projectCode: string }) => {
+//     const { data: projectAmounts, isLoading } = useFrappeGetCall<{
+//         message: { status: string; data: any };
+//     }>(
+//         'rndopsapp.rndopsapp.commitPayment.get_project_available_amounts',
+//         { project_number: projectCode },
+//         projectCode ? undefined : null
+//     );
+
+//     const projectData = (projectAmounts as any)?.message?.data ?? (projectAmounts as any)?.data ?? {};
+
+//     const formatCurrency = (amount: number) => {
+//         return new Intl.NumberFormat('en-IN', {
+//             style: 'currency',
+//             currency: 'INR',
+//             maximumFractionDigits: 0
+//         }).format(amount || 0);
+//     };
+
+//     if (!projectCode) {
+//         return (
+//             <div className="bg-white dark:bg-[#27272A] p-6 rounded-lg border border-zinc-200 dark:border-zinc-700">
+//                 <div className="flex items-center gap-3 mb-4">
+//                     <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+//                         <Info className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
+//                     </div>
+//                     <h3 className="font-serif font-medium text-zinc-800 dark:text-zinc-200">Fund Details</h3>
+//                 </div>
+//                 <p className="font-sans text-sm text-zinc-500 dark:text-zinc-400">Select a project to view fund details</p>
+//             </div>
+//         );
+//     }
+
+//     if (isLoading) {
+//         return (
+//             <div className="bg-white dark:bg-[#27272A] p-6 rounded-lg border border-zinc-200 dark:border-zinc-700 animate-pulse">
+//                 <div className="h-6 bg-zinc-200 dark:bg-zinc-700 rounded w-32 mb-4"></div>
+//                 <div className="space-y-3">
+//                     <div className="h-16 bg-zinc-100 dark:bg-zinc-800 rounded"></div>
+//                     <div className="h-16 bg-zinc-100 dark:bg-zinc-800 rounded"></div>
+//                 </div>
+//             </div>
+//         );
+//     }
+
+//     return (
+//         <div className="bg-white dark:bg-[#27272A] p-6 rounded-lg border border-zinc-200 dark:border-zinc-700 sticky top-6">
+//             <div className="flex items-center gap-3 mb-6">
+//                 <div className="p-2 bg-[#D97757]/10 rounded-lg">
+//                     <Wallet className="h-5 w-5 text-[#D97757]" />
+//                 </div>
+//                 <h3 className="font-serif font-medium text-zinc-800 dark:text-zinc-200">Project Fund Details</h3>
+//             </div>
+
+//             <div className="space-y-4">
+//                 <div className="border-b border-zinc-100 dark:border-zinc-800 pb-4">
+//                     <p className="font-sans text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold mb-1">
+//                         Total Fund Received
+//                     </p>
+//                     <p className="font-serif text-xl font-medium text-zinc-800 dark:text-zinc-200">
+//                         {formatCurrency(projectData.totalFundReceived)}
+//                     </p>
+//                 </div>
+
+//                 <div className="border-b border-zinc-100 dark:border-zinc-800 pb-4">
+//                     <div className="flex items-center gap-2 mb-1">
+//                         <TrendingUp className="h-4 w-4 text-[#9A7D5A]" />
+//                         <p className="font-sans text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold">
+//                             Available Balance
+//                         </p>
+//                     </div>
+//                     <p className="font-serif text-2xl font-medium text-[#9A7D5A]">
+//                         {formatCurrency(projectData.availableCommitAmount)}
+//                     </p>
+//                 </div>
+
+//                 <div className="pt-2 space-y-3">
+//                     <p className="font-sans text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold">
+//                         Fund Breakdown
+//                     </p>
+//                     <div className="space-y-2">
+//                         <div className="flex justify-between items-center font-sans text-sm">
+//                             <span className="text-zinc-600 dark:text-zinc-400">Total Committed</span>
+//                             <span className="font-medium text-amber-600 dark:text-amber-500">{formatCurrency(projectData.totalCommitted)}</span>
+//                         </div>
+//                         <div className="flex justify-between items-center font-sans text-sm">
+//                             <span className="text-zinc-600 dark:text-zinc-400">Total Paid</span>
+//                             <span className="font-medium text-red-600 dark:text-red-500">{formatCurrency(projectData.totalPaid)}</span>
+//                         </div>
+//                         <div className="flex justify-between items-center font-sans text-sm">
+//                             <span className="text-zinc-600 dark:text-zinc-400">Payable Balance</span>
+//                             <span className="font-medium text-blue-600 dark:text-blue-500">{formatCurrency(projectData.availablePaymentAmount)}</span>
+//                         </div>
+//                     </div>
+//                 </div>
+//             </div>
+//         </div>
+//     );
+// };
+
+// // --- ESTIMATE VALIDATION ---
+// const EstimateValidation = ({ formData }: { formData: Record<string, any> }) => {
+//     const parseNum = (val: any) => parseFloat(val) || 0;
+
+//     const totalFunds = parseNum(formData.travel_contribution) +
+//         parseNum(formData.contingency_contribution) +
+//         parseNum(formData.other_contribution);
+
+//     const totalEstimates = parseNum(formData.est_travel_amt) +
+//         parseNum(formData.est_reg_amt) +
+//         parseNum(formData.est_accom_amt) +
+//         parseNum(formData.est_other_amt);
+
+//     const diff = Math.round((totalEstimates - totalFunds) * 100) / 100;
+//     const isBalanced = diff === 0;
+
+//     if (totalEstimates === 0 && totalFunds === 0) return null;
+
+//     return (
+//         <div className={cn(
+//             "p-4 rounded-lg border flex items-center gap-3 font-sans",
+//             isBalanced
+//                 ? "bg-green-50/50 border-green-200 dark:bg-green-950/20 dark:border-green-900"
+//                 : "bg-red-50/50 border-red-200 dark:bg-red-950/20 dark:border-red-900"
+//         )}>
+//             {isBalanced ? (
+//                 <>
+//                     <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-500" />
+//                     <span className="font-medium text-green-700 dark:text-green-400">Budget Balanced</span>
+//                 </>
+//             ) : (
+//                 <>
+//                     <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-500" />
+//                     <span className="font-medium text-red-700 dark:text-red-400">
+//                         ₹{Math.abs(diff).toLocaleString('en-IN')} {diff > 0 ? 'needs to be allocated' : 'excess allocated'}
+//                     </span>
+//                 </>
+//             )}
+//         </div>
+//     );
+// };
+
+// // --- MAIN COMPONENT ---
+// const TravelForm: React.FC = () => {
+//     const navigate = useNavigate();
+//     const [searchParams] = useSearchParams();
+//     const { theme, toggle: toggleTheme } = useTheme();
+
+//     const projectName = searchParams.get('project') || '';
+//     const editDocName = searchParams.get('edit') || '';
+
+//     const [fields, setFields] = useState<FormField[]>([]);
+//     const [formData, setFormData] = useState<Record<string, any>>({});
+//     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+//     const [loading, setLoading] = useState(true);
+//     const [isSubmitting, setIsSubmitting] = useState(false);
+//     const [dataLoaded, setDataLoaded] = useState(false);
+//     const [validationErrors, setValidationErrors] = useState<string[]>([]);
+//     const [savedDocName, setSavedDocName] = useState<string | null>(editDocName || null);
+
+//     // --- API HOOKS ---
+//     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(travelAPI.getFields);
+//     const { call: saveForm, error: saveError } = useFrappePostCall(travelAPI.save);
+//     const { call: submitForm, error: submitError } = useFrappePostCall(travelAPI.submit);
+//     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
+//     const { call: fetchUserDetailsByEmail } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
+
+//     // --- Computed: Total Estimate ---
+//     const totalEstimate = useMemo(() => {
+//         const travel = parseFloat(formData.est_travel_amt || 0);
+//         const reg = parseFloat(formData.est_reg_amt || 0);
+//         const accom = parseFloat(formData.est_accom_amt || 0);
+//         const other = parseFloat(formData.est_other_amt || 0);
+
+//         const total = (isNaN(travel) ? 0 : travel) +
+//             (isNaN(reg) ? 0 : reg) +
+//             (isNaN(accom) ? 0 : accom) +
+//             (isNaN(other) ? 0 : other);
+
+//         return Math.round(total * 100) / 100;
+//     }, [formData.est_travel_amt, formData.est_reg_amt, formData.est_accom_amt, formData.est_other_amt]);
+
+//     useEffect(() => {
+//         if (formData.total_estimate !== totalEstimate) {
+//             setFormData(prev => ({ ...prev, total_estimate: totalEstimate }));
+//         }
+//     }, [totalEstimate, formData.total_estimate]);
+
+//     // --- DATA FETCHING ---
+//     useEffect(() => {
+//         if (!dataLoaded) {
+//             fetchFormData({ doc_name: editDocName || null, project_name: projectName || null });
+//         }
+//     }, []);
+
+//     useEffect(() => {
+//         const loadFormAndDocument = async () => {
+//             if (formDataResult?.message && !dataLoaded) {
+//                 const { fields: apiFields, prefill_data, link_options } = formDataResult.message;
+//                 setFields(apiFields || []);
+//                 setLinkOptions(link_options || {});
+
+//                 let initialData = { ...prefill_data };
+
+//                 if (editDocName) {
+//                     try {
+//                         const existingDoc = await fetchExistingDoc({
+//                             doctype: 'Travel',
+//                             name: editDocName
+//                         });
+
+//                         if (existingDoc?.message) {
+//                             initialData = { ...initialData, ...existingDoc.message };
+//                         }
+//                     } catch (err) {
+//                         console.error('Error fetching existing document:', err);
+//                     }
+//                 }
+
+//                 if (projectName) {
+//                     if (!initialData.travel_project_number) {
+//                         initialData.travel_project_number = projectName;
+//                     }
+//                     if (!initialData.travel_project_title) {
+//                         initialData.travel_project_title = projectName;
+//                     }
+//                 }
+
+//                 (apiFields || []).forEach((field: FormField) => {
+//                     if (initialData[field.fieldname] === undefined && field.default !== undefined) {
+//                         initialData[field.fieldname] = field.default;
+//                     }
+//                 });
+
+//                 setFormData(initialData);
+//                 setDataLoaded(true);
+//                 setLoading(false);
+//             }
+//             if (formDataError) {
+//                 console.error("Failed to load form data:", formDataError);
+//                 setLoading(false);
+//             }
+//         };
+
+//         loadFormAndDocument();
+//     }, [formDataResult, formDataError, editDocName, fetchExistingDoc, projectName, dataLoaded]);
+
+//     // --- VALIDATION ---
+//     const validateForm = useCallback((): boolean => {
+//         const errors: string[] = [];
+
+//         if (formData.from_date && formData.to_date && formData.to_date < formData.from_date) {
+//             errors.push("To Date cannot be earlier than From Date.");
+//         }
+
+//         if (formData.travel_financial_assistance === "Yes" && !formData.travel_mode_of_travel) {
+//             errors.push("Please select the Mode of Travel.");
+//         }
+
+//         if (formData.travel_special_casual_leave === "Required") {
+//             if (!formData.travel_leave_from_date || !formData.travel_leave_to_date) {
+//                 errors.push("Please select Leave Period From Date and To Date.");
+//             }
+//             if (formData.travel_leave_to_date < formData.travel_leave_from_date) {
+//                 errors.push("Leave To Date cannot be earlier than Leave From Date.");
+//             }
+//         }
+
+//         if (formData.travel_station_leave_from_date && !formData.travel_station_leave_from_session) {
+//             errors.push("Please select Station Leave session for From Date.");
+//         }
+//         if (formData.travel_station_leave_to_date && !formData.travel_station_leave_to_session) {
+//             errors.push("Please select Station Leave session for To Date.");
+//         }
+//         if (formData.travel_station_leave_from_date && formData.travel_station_leave_to_date &&
+//             formData.travel_station_leave_to_date < formData.travel_station_leave_from_date) {
+//             errors.push("Station Leave To Date cannot be earlier than From Date.");
+//         }
+
+//         if (!formData.travel_declaration_accepted) {
+//             errors.push("You must accept the declaration before submitting the form.");
+//         }
+
+//         setValidationErrors(errors);
+//         return errors.length === 0;
+//     }, [formData]);
+
+//     // --- EVENT HANDLERS ---
+//     const handleChange = useCallback((fieldname: string, value: any) => {
+//         setFormData(prev => ({ ...prev, [fieldname]: value }));
+//     }, []);
+
+//     const handleFileChange = useCallback((fieldname: string, file: File | null) => {
+//         setFormData(prev => ({ ...prev, [fieldname]: file }));
+//     }, []);
+
+//     const handleFieldChangeWithSideEffects = useCallback(async (fieldname: string, value: any) => {
+//         handleChange(fieldname, value);
+
+//         if (fieldname === 'nature_of_travel' && value === 'International') {
+//             const confirmed = window.confirm("Please select International only if the travel involves visiting a destination outside India.");
+//             if (!confirmed) {
+//                 handleChange(fieldname, '');
+//                 return;
+//             }
+//         }
+
+//         if (fieldname === 'webmail_id_travel' && value) {
+//             try {
+//                 const result = await fetchUserDetailsByEmail({ user_email: value });
+//                 if (result?.message) {
+//                     const user = result.message;
+//                     setFormData(prev => ({
+//                         ...prev,
+//                         [fieldname]: value,
+//                         applicant_name_travel: user.full_name || '',
+//                         designation_travel: user.designation_name || user.designation || '',
+//                         department_travel: user.department_name || user.department || ''
+//                     }));
+//                 }
+//             } catch (err) {
+//                 console.error('Failed to fetch user details:', err);
+//             }
+//         }
+
+//         if (fieldname === 'other_traveler' && value) {
+//             try {
+//                 const result = await fetchUserDetailsByEmail({ user_email: value });
+//                 if (result?.message) {
+//                     const user = result.message;
+//                     setFormData(prev => ({
+//                         ...prev,
+//                         [fieldname]: value,
+//                         other_traveler_address: `${user.designation_name || ''}, ${user.department_name || ''}`
+//                     }));
+//                 }
+//             } catch (err) {
+//                 console.error('Failed to fetch traveler details:', err);
+//             }
+//         }
+//     }, [handleChange, fetchUserDetailsByEmail]);
+
+//     const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
+//         setFormData(prev => {
+//             const table = [...(prev[tableName] || [])];
+//             table[rowIndex] = { ...table[rowIndex], [fieldname]: value };
+//             return { ...prev, [tableName]: table };
+//         });
+//     }, []);
+
+//     const handleTableFileChange = useCallback((tableName: string, rowIndex: number, fieldname: string, file: File | null) => {
+//         setFormData(prev => {
+//             const table = [...(prev[tableName] || [])];
+//             table[rowIndex] = { ...table[rowIndex], [fieldname]: file };
+//             return { ...prev, [tableName]: table };
+//         });
+//     }, []);
+
+//     const addTableRow = useCallback((tableName: string, newRow: Record<string, any>) => {
+//         setFormData(prev => ({
+//             ...prev,
+//             [tableName]: [...(prev[tableName] || []), newRow]
+//         }));
+//     }, []);
+
+//     const deleteTableRow = useCallback((tableName: string, rowIndex: number) => {
+//         setFormData(prev => ({
+//             ...prev,
+//             [tableName]: (prev[tableName] || []).filter((_: any, i: number) => i !== rowIndex)
+//         }));
+//     }, []);
+
+//     const handleSave = async () => {
+//         if (isSubmitting) return;
+//         setIsSubmitting(true);
+//         try {
+//             const data = await prepareFormDataForApi(formData);
+//             if (editDocName) {
+//                 data.name = editDocName;
+//             }
+//             const res = await saveForm({ doc_data: JSON.stringify(data) });
+
+//             if (res?.message?.status === 'success') {
+//                 const docname = res.message.docname || editDocName;
+//                 setSavedDocName(docname);
+//                 if (editDocName) {
+//                     navigate(-1);
+//                 }
+//             } else {
+//                 throw new Error(res?.message?.message || "Save failed");
+//             }
+//         } catch (err: any) {
+//             console.error(saveError || err);
+//         } finally {
+//             setIsSubmitting(false);
+//         }
+//     };
+
+//     const handleSubmit = async (e: React.FormEvent) => {
+//         e.preventDefault();
+//         if (isSubmitting) return;
+
+//         if (!validateForm()) {
+//             return;
+//         }
+
+//         setIsSubmitting(true);
+//         try {
+//             const data = await prepareFormDataForApi(formData);
+//             const saveRes = await saveForm({ doc_data: JSON.stringify(data) });
+
+//             if (saveRes?.message?.status !== 'success') {
+//                 throw new Error(saveRes?.message?.message || "Save failed during submission");
+//             }
+
+//             const docname = saveRes.message.docname;
+//             const submitRes = await submitForm({ docname });
+//             if (submitRes?.message?.status === 'success') {
+//                 navigate(-1);
+//             } else {
+//                 throw new Error(submitRes?.message?.message || "Submission failed");
+//             }
+//         } catch (err: any) {
+//             console.error(submitError || err);
+//         } finally {
+//             setIsSubmitting(false);
+//         }
+//     };
+
+//     const visibleFields = useMemo(() => {
+//         return fields.map(field => {
+//             const f = { ...field };
+
+//             if (f.depends_on) {
+//                 const evalStr = String(f.depends_on).replace(/;$/, '');
+//                 try {
+//                     const match = evalStr.match(/doc\.(\w+)\s*==\s*['"]([^'"]+)['"]/);
+//                     if (match) {
+//                         const [, fieldName, expectedValue] = match;
+//                         f.hidden = formData[fieldName] !== expectedValue ? 1 : 0;
+//                     }
+//                 } catch {
+//                     f.hidden = 0;
+//                 }
+//             }
+
+//             // Override specific fields to be Radio buttons for better UX
+//             if (['nature_of_travel', 'travel_financial_assistance', 'travel_mode_of_travel'].includes(f.fieldname)) {
+//                 f.fieldtype = 'Radio';
+//             }
+
+//             return f;
+//         });
+//     }, [fields, formData]);
+
+//     if (loading) {
+//         return (
+//             <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+//                 <div className="text-center">
+//                     <div className="animate-spin rounded-full h-10 w-10 border-2 border-zinc-200 border-t-[#D97757] dark:border-zinc-700 dark:border-t-[#D97757] mx-auto"></div>
+//                     <p className="mt-4 font-sans text-sm text-zinc-500 dark:text-zinc-400">Loading form...</p>
+//                 </div>
+//             </div>
+//         );
+//     }
+
+//     return (
+//         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
+//             <AppSidebar />
+
+//             <button
+//                 onClick={toggleTheme}
+//                 className="fixed top-4 right-4 p-2 rounded-lg bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-[#27272A] dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50 transition-colors z-50"
+//                 aria-label="Toggle theme"
+//             >
+//                 {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+//             </button>
+
+//             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+//                 <header className="mb-8">
+//                     <div className="flex items-center gap-3">
+//                         <button
+//                             onClick={() => navigate(-1)}
+//                             className="p-2 rounded-lg text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800 transition-colors"
+//                         >
+//                             <ArrowLeft className="h-5 w-5" />
+//                         </button>
+//                         <div>
+//                             <h1 className="font-serif text-2xl font-medium tracking-tight text-zinc-800 dark:text-zinc-200">
+//                                 {editDocName ? `Edit Travel: ${editDocName}` : 'Travel Application'}
+//                             </h1>
+//                             {projectName && (
+//                                 <p className="font-sans text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+//                                     For Project: {projectName}
+//                                 </p>
+//                             )}
+//                         </div>
+//                     </div>
+//                 </header>
+
+//                 {validationErrors.length > 0 && (
+//                     <div className="mb-6 p-4 bg-red-50/50 border border-red-200 rounded-lg dark:bg-red-950/20 dark:border-red-900">
+//                         <h4 className="font-sans text-xs uppercase tracking-wider text-red-700 dark:text-red-400 font-semibold mb-2 flex items-center gap-2">
+//                             <AlertCircle className="h-4 w-4" />
+//                             Please fix the following errors
+//                         </h4>
+//                         <ul className="font-sans text-sm text-red-600 dark:text-red-300 space-y-1">
+//                             {validationErrors.map((err, idx) => (
+//                                 <li key={idx} className="flex items-start gap-2">
+//                                     <span className="text-red-400 dark:text-red-600">•</span>
+//                                     {err}
+//                                 </li>
+//                             ))}
+//                         </ul>
+//                     </div>
+//                 )}
+
+//                 <form onSubmit={handleSubmit}>
+//                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+//                         <div className="lg:col-span-3 space-y-6">
+//                             <div className="bg-white dark:bg-[#27272A] rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-sm p-6 md:p-8">
+//                                 <DynamicFormRenderer
+//                                     fields={visibleFields}
+//                                     formData={formData}
+//                                     linkOptions={linkOptions}
+//                                     onChange={handleChange}
+//                                     onFileChange={handleFileChange}
+//                                     onTableRowChange={handleTableRowChange}
+//                                     onTableFileChange={handleTableFileChange}
+//                                     onAddTableRow={addTableRow}
+//                                     onDeleteTableRow={deleteTableRow}
+//                                     onFieldChangeWithSideEffects={handleFieldChangeWithSideEffects}
+//                                 />
+
+//                                 <div className="mt-6">
+//                                     <EstimateValidation formData={formData} />
+//                                 </div>
+//                             </div>
+
+//                             <div className="flex justify-end gap-3">
+//                                 <button
+//                                     onClick={handleSave}
+//                                     disabled={isSubmitting}
+//                                     type="button"
+//                                     className={cn(
+//                                         "rounded-lg px-4 py-2 font-medium transition-all duration-200",
+//                                         "disabled:opacity-50 disabled:cursor-not-allowed",
+//                                         "focus:outline-none focus:ring-2 focus:ring-zinc-100 dark:focus:ring-zinc-700",
+//                                         "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50",
+//                                         "dark:bg-[#27272A] dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50"
+//                                     )}
+//                                 >
+//                                     {isSubmitting ? 'Saving...' : 'Save Draft'}
+//                                 </button>
+//                                 <button
+//                                     type="submit"
+//                                     disabled={isSubmitting || !savedDocName}
+//                                     className={cn(
+//                                         "rounded-lg px-4 py-2 font-medium transition-all duration-200",
+//                                         "disabled:opacity-50 disabled:cursor-not-allowed",
+//                                         "focus:outline-none focus:ring-2 focus:ring-zinc-100 dark:focus:ring-zinc-700",
+//                                         "bg-[#D97757] text-white hover:opacity-90",
+//                                         "dark:bg-[#D97757] dark:text-white"
+//                                     )}
+//                                 >
+//                                     {isSubmitting ? 'Submitting...' : 'Submit Application'}
+//                                 </button>
+//                             </div>
+//                         </div>
+
+//                         <div className="lg:col-span-1">
+//                             <FundDetailsSidebar projectCode={formData.travel_project_title || projectName} />
+//                         </div>
+//                     </div>
+//                 </form>
+//             </main>
+//         </div>
+//     );
+// };
+
+// export default TravelForm;

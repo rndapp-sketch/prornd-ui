@@ -32,6 +32,11 @@ export const evaluateExpression = (
             .replace(/\band\b/g, '&&')
             .replace(/\bnot\b/g, '!');
 
+        // Remove trailing semicolon if present
+        if (cleanExpr.endsWith(';')) {
+            cleanExpr = cleanExpr.slice(0, -1);
+        }
+
         // Create and execute the function
         const evalFn = new Function('doc', `
       try {

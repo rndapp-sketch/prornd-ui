@@ -58,8 +58,8 @@ export const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamPro
 
         return (
             <div className="space-y-5">
-                <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                    <label htmlFor="comment-textarea" className="block text-sm font-medium text-gray-700 mb-3">
+                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                    <label htmlFor="comment-textarea" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">
                         Add a comment
                     </label>
                     <Textarea
@@ -73,7 +73,7 @@ export const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamPro
                         rows={4}
                     />
                     <div className="flex items-center justify-between mt-4">
-                        <span className="text-xs text-[#6B7280]">{newComment.length}/1000</span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400">{newComment.length}/1000</span>
                         <FrappeButton onClick={handleCommentSubmit} disabled={isSubmitting || !newComment.trim()} className="bg-[#0EA5A4] text-white hover:bg-[#0C8F8E]">
                             {isSubmitting ? "Submitting..." : "Submit"}
                         </FrappeButton>
@@ -83,20 +83,20 @@ export const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamPro
                     {activityData?.message?.map((item, index) => (
                         <div
                             key={`${item.creation}-${index}`}
-                            className="flex items-start gap-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+                            className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow"
                         >
-                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#E0F7F6] flex items-center justify-center font-semibold text-[#0EA5A4] text-lg">
+                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#E0F7F6] dark:bg-[#0EA5A4]/20 flex items-center justify-center font-semibold text-[#0EA5A4] text-lg">
                                 {item.owner?.charAt(0).toUpperCase() || "U"}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-center mb-1">
-                                    <p className="text-sm font-semibold text-gray-900">{item.owner || "Unknown User"}</p>
-                                    <p className="text-xs text-[#6B7280] flex items-center gap-1">
+                                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{item.owner || "Unknown User"}</p>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                                         <ClockIcon className="h-3.5 w-3.5" />
                                         {item.creation ? new Date(item.creation).toLocaleString() : "N/A"}
                                     </p>
                                 </div>
-                                <div className="text-sm text-gray-700 prose prose-sm max-w-none leading-relaxed"
+                                <div className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm dark:prose-invert max-w-none leading-relaxed"
                                     dangerouslySetInnerHTML={{ __html: item.content || "No content" }}
                                 />
                             </div>

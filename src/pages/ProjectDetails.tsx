@@ -17,7 +17,6 @@ import {
 } from "frappe-react-sdk";
 import { Textarea } from "@/components/ui/textarea"; // Assuming this can be styled via className
 import { AppSidebar } from "../components/RndSidebar";
-import useUserRoleCheck from "../components/UserRoleCheck";
 import {
   ArrowLeftIcon,
   FileTextIcon,
@@ -48,6 +47,21 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 import { DepartmentName } from "@/components/DepartmentName";
 import { ProjectNumberGenerationForm } from "@/components/ProjectNumberGenerationForm";
@@ -79,24 +93,26 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: { isOpen
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-lg w-full max-w-md">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm {action}</h3>
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md">
+        <h3 className="text-sm font-bold mb-4 capitalize text-zinc-900 dark:text-zinc-100">
+          Confirm {action}
+        </h3>
+        <p className="mb-4 text-zinc-600 dark:text-zinc-400">
+          Please provide a comment for this action.
+        </p>
         <Textarea
-          className="w-full border border-gray-300 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4]"
-          rows={4}
-          placeholder="Add a comment (optional)..."
           value={comment}
-          onChange={e => setComment(e.target.value)}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Enter your comment here..."
+          className="mb-4 min-h-[100px] border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-[#D97757]/20"
         />
-        <div className="flex justify-end gap-2">
-          <FrappeButton onClick={onClose} className="bg-gray-100 hover:bg-gray-200" disabled={isLoading}>Cancel</FrappeButton>
-          <FrappeButton
-            onClick={() => onSubmit(comment)}
-            disabled={isLoading}
-            className="bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white"
-          >
-            {isLoading ? "Processing..." : "Confirm"}
-          </FrappeButton>
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button onClick={() => onSubmit(comment)} disabled={isLoading || !comment.trim()}>
+            {isLoading ? "Submit..." : "Submit"}
+          </Button>
         </div>
       </div>
     </div>
@@ -115,14 +131,14 @@ const FieldDisplay = ({
 }) => {
   if (!value && value !== 0 && value !== "No") return null;
   return (
-    <div className="py-3">
-      <div className="flex items-center gap-2 mb-1">
-        {Icon && <Icon className="h-4 w-4 text-gray-500" />}
-        <p className="text-xs font-semibold text-gray-700">
+    <div className="py-3 px-1">
+      <div className="flex items-center gap-2 mb-1.5">
+        {Icon && <Icon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />}
+        <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide font-sans">
           {label}
         </p>
       </div>
-      <p className="text-sm font-medium text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{value}</p>
+      <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100 pl-0.5">{value}</p>
     </div>
   );
 };
@@ -139,16 +155,20 @@ const HtmlContent = ({
 }) => {
   if (!htmlString) return null;
   return (
-    <div className="p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
-      <div className="flex items-center gap-2 mb-3">
-        {Icon && <Icon className="h-4 w-4 text-[#0EA5A4]" />}
-        <h4 className="text-base font-semibold text-gray-900">{title}</h4>
-      </div>
-      <div
-        className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
-        dangerouslySetInnerHTML={{ __html: htmlString }}
-      />
-    </div>
+    <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+      <CardHeader className="pb-3 border-b border-zinc-100 dark:border-zinc-800/50">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="h-3.5 w-3.5 text-[#D97757]" />}
+          <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">{title}</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-4">
+        <div
+          className="prose prose-sm max-w-none text-zinc-600 dark:text-zinc-300 leading-relaxed dark:prose-invert"
+          dangerouslySetInnerHTML={{ __html: htmlString }}
+        />
+      </CardContent>
+    </Card>
   );
 };
 
@@ -208,69 +228,75 @@ const TableDisplay = ({
     : null;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-      <div className="flex items-center gap-2 p-4 border-b border-gray-200 bg-gray-50">
-        {Icon && <Icon className="h-4 w-4 text-[#0EA5A4]" />}
-        <h3 className="text-base font-semibold text-gray-900">{label}</h3>
-      </div>
+    <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
+      <CardHeader className="py-3 px-5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/50">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="h-3.5 w-3.5 text-[#D97757]" />}
+          <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">{label}</CardTitle>
+        </div>
+      </CardHeader>
       <div className="overflow-x-auto">
-        <table className="min-w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
+        <Table>
+          <TableHeader className="bg-zinc-50 dark:bg-zinc-900">
+            <TableRow className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-transparent">
               {columns.map((col) => (
-                <th
+                <TableHead
                   key={col.fieldname}
                   className={cn(
-                    "px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider",
-                    col.fieldname === 'account_head' ? 'text-left' : 'text-right'
+                    "px-3 py-1.5 text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider h-8",
+                    col.fieldname === 'account_head' || !isBudgetTable ? 'text-left' : 'text-right'
                   )}
                 >
                   {col.label}
-                </th>
+                </TableHead>
               ))}
               {isBudgetTable && (
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <TableHead className="px-3 py-1.5 text-right text-[10px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider h-8">
                   Total
-                </th>
+                </TableHead>
               )}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-100">
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {data.map((row, index) => {
               const rowTotal = getRowTotal(row);
               return (
-                <tr
+                <TableRow
                   key={index}
-                  className="hover:bg-gray-50/50 transition-colors"
+                  className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors border-b border-zinc-100 dark:border-zinc-800"
                 >
                   {columns.map((col) => (
-                    <td
+                    <TableCell
                       key={col.fieldname}
                       className={cn(
-                        "px-4 py-3 text-sm",
+                        "px-3 py-1.5 text-xs",
                         col.fieldname === 'account_head'
-                          ? 'text-gray-900 font-medium text-left'
-                          : 'text-gray-700 text-right'
+                          ? 'text-zinc-900 dark:text-zinc-100 font-medium text-left font-mono'
+                          : isBudgetTable
+                            ? 'text-zinc-600 dark:text-zinc-300 text-right tabular-nums'
+                            : 'text-zinc-700 dark:text-zinc-300 text-left'
                       )}
                     >
                       {col.fieldname === 'account_head'
                         ? getBudgetHeadName(row[col.fieldname])
-                        : (parseFloat(row[col.fieldname]) || 0).toLocaleString('en-IN')}
-                    </td>
+                        : isBudgetTable
+                          ? (parseFloat(row[col.fieldname]) || 0).toLocaleString('en-IN')
+                          : row[col.fieldname]}
+                    </TableCell>
                   ))}
                   {isBudgetTable && rowTotal !== null && (
-                    <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">
+                    <TableCell className="px-3 py-1.5 text-xs font-bold text-zinc-900 dark:text-zinc-100 text-right tabular-nums font-mono">
                       {rowTotal.toLocaleString('en-IN')}
-                    </td>
+                    </TableCell>
                   )}
-                </tr>
+                </TableRow>
               );
             })}
-          </tbody>
+          </TableBody>
           {isBudgetTable && (
-            <tfoot className="bg-gray-100 border-t-2 border-gray-300">
+            <tfoot className="bg-zinc-50/50 dark:bg-zinc-800/30 border-t border-zinc-200 dark:border-zinc-800">
               <tr>
-                <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap">
+                <td className="px-3 py-1.5 text-xs font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                   TOTAL
                 </td>
                 {columns
@@ -280,21 +306,21 @@ const TableDisplay = ({
                     return (
                       <td
                         key={col.fieldname}
-                        className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap"
+                        className="px-3 py-1.5 text-xs font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap tabular-nums"
                       >
                         {colTotal !== null ? colTotal.toLocaleString('en-IN') : '-'}
                       </td>
                     );
                   })}
-                <td className="px-4 py-3 text-sm font-bold text-[#0EA5A4] text-right whitespace-nowrap">
+                <td className="px-3 py-1.5 text-xs font-bold text-[#D97757] text-right whitespace-nowrap tabular-nums font-mono">
                   ₹ {grandTotal !== null ? grandTotal.toLocaleString('en-IN') : '-'}
                 </td>
               </tr>
             </tfoot>
           )}
-        </table>
+        </Table>
       </div>
-    </div>
+    </Card>
   );
 };
 
@@ -305,17 +331,16 @@ const FrappeButton = ({
   className,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-  <button
+  <Button
+    variant="outline"
     className={cn(
-      "px-5 py-2.5 bg-white border border-gray-200 rounded-lg font-semibold text-gray-700 shadow-sm transition-all",
-      "hover:bg-gray-50 hover:shadow",
-      "disabled:opacity-50 disabled:cursor-not-allowed",
+      "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-200",
       className
     )}
     {...props}
   >
     {children}
-  </button>
+  </Button>
 );
 
 
@@ -329,7 +354,7 @@ const QuickActions = () => {
     className?: string;
   }) => (
     <FrappeButton
-      className={cn("w-full justify-start text-sm h-auto py-3", className)}
+      className={cn("w-full justify-start text-xs h-auto py-2", className)}
     >
       {children}
     </FrappeButton>
@@ -343,9 +368,9 @@ const QuickActions = () => {
     icon: any;
     children: React.ReactNode;
   }) => (
-    <div className="p-4 pb-6 border border-gray-200 rounded-xl bg-white shadow-sm">
-      <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2 text-base">
-        <Icon className="h-5 w-5 text-[#0EA5A4]" />
+    <div className="p-3 pb-4 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900 shadow-sm">
+      <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2 text-xs uppercase tracking-wide">
+        <Icon className="h-3.5 w-3.5 text-[#D97757]" />
         {title}
       </h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -354,7 +379,7 @@ const QuickActions = () => {
     </div>
   );
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Section title="Advance" icon={CreditCardIcon}>
         <ActionButton className="bg-sky-50 hover:bg-sky-100 text-sky-700">
           Reimbursement
@@ -367,9 +392,9 @@ const QuickActions = () => {
         </ActionButton>
       </Section>
       <Section title="Disbursal" icon={UploadIcon}>
-        <ActionButton className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700">
+        {/* <ActionButton className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700">
           One Time Assistantship
-        </ActionButton>
+        </ActionButton> */}
         <ActionButton className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700">
           Top Up Fellowship
         </ActionButton>
@@ -479,10 +504,10 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
     }));
     return (
       <div className="space-y-6">
-        <div className="p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+        <div className="p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
           <label
             htmlFor="comment-textarea"
-            className="block text-sm font-medium text-gray-700 mb-3"
+            className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3"
           >
             Add a comment
           </label>
@@ -493,17 +518,17 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
             onChange={(e) => setNewComment(e.target.value)}
             onKeyDown={handleKeyPress}
             disabled={isSubmitting}
-            className="resize-none bg-white p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4]"
+            className="resize-none bg-white dark:bg-zinc-900 p-3 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#D97757]"
             rows={4}
           />
           <div className="flex items-center justify-between mt-4">
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">
               {newComment.length}/1000
             </span>
             <FrappeButton
               onClick={handleCommentSubmit}
               disabled={isSubmitting || !newComment.trim()}
-              className="bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white"
+              className="bg-[#D97757] hover:bg-[#C66A4E] text-white"
             >
               {isSubmitting ? "Submitting..." : "Submit"}
             </FrappeButton>
@@ -512,7 +537,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
         <div className="space-y-4">
           {isActivityLoading && (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#0EA5A4] border-t-transparent"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent"></div>
             </div>
           )}
           {activityError && (
@@ -524,17 +549,17 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
             ? activityData.message.map((item, index) => (
               <div
                 key={`${item.creation}-${index}`}
-                className="flex items-start gap-4 p-4 bg-white border border-gray-200 rounded-xl shadow-sm"
+                className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm"
               >
-                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#E0F7F6] border border-gray-200 flex items-center justify-center font-semibold text-[#0EA5A4] text-sm">
+                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#FDF3F0] dark:bg-[#D97757]/20 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-sm">
                   {item.owner?.charAt(0).toUpperCase() || "U"}
                 </div>
                 <div className="flex-1">
                   <div className="flex justify-between items-center mb-1">
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                       {item.owner || "Unknown User"}
                     </p>
-                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                       <ClockIcon className="h-3 w-3" />
                       {item.creation
                         ? new Date(item.creation).toLocaleString()
@@ -542,7 +567,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                     </p>
                   </div>
                   <div
-                    className="text-sm text-gray-700 prose prose-sm max-w-none leading-relaxed"
+                    className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed"
                     dangerouslySetInnerHTML={{
                       __html: item.content || "No content",
                     }}
@@ -551,9 +576,9 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
               </div>
             ))
             : !isActivityLoading && (
-              <div className="text-center py-12 text-gray-500 border border-dashed border-gray-300 rounded-xl bg-white">
-                <MessageSquareIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <p className="font-medium text-gray-600">No activity yet.</p>
+              <div className="text-center py-12 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900">
+                <MessageSquareIcon className="h-12 w-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
+                <p className="font-medium text-zinc-600 dark:text-zinc-400">No activity yet.</p>
                 <p className="text-sm mt-1">Be the first to add a comment.</p>
               </div>
             )}
@@ -583,7 +608,7 @@ const WorkflowActions = ({
     { docname }
   );
   if (isActionsLoading) {
-    return <div className="text-sm text-gray-500">Loading actions...</div>;
+    return <div className="text-sm text-zinc-500 dark:text-zinc-400">Loading actions...</div>;
   }
   if (error || !data?.message || data.message.length === 0) {
     return null;
@@ -591,30 +616,37 @@ const WorkflowActions = ({
   return (
     <div className="flex items-center gap-2">
       {data.message.map((actionString: string) => (
-        <FrappeButton
+        <Button
           key={actionString}
           onClick={() => onAction(actionString)}
-          className={cn("flex items-center gap-2", {
-            "bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white":
+          variant={
+            actionString.toLowerCase().includes("approve") || actionString.toLowerCase().includes("submit")
+              ? "default"
+              : actionString.toLowerCase().includes("reject")
+                ? "destructive"
+                : "secondary"
+          }
+          className={cn("flex items-center gap-2 h-9 px-4 text-xs font-medium rounded-lg shadow-sm transition-all", {
+            "bg-[#D97757] hover:bg-[#C66A4E] text-white":
               actionString.toLowerCase().includes("approve") ||
               actionString.toLowerCase().includes("submit"),
             "bg-red-500 hover:bg-red-600 text-white": actionString
               .toLowerCase()
               .includes("reject"),
-            "bg-gray-100 hover:bg-gray-200": !["approve", "reject", "submit"].some((term) =>
+            "bg-white dark:bg-zinc-900 hover:bg-zinc-50 text-zinc-700 border border-zinc-200": !["approve", "reject", "submit"].some((term) =>
               actionString.toLowerCase().includes(term)
             ),
           })}
           disabled={isLoading}
         >
           {actionString.toLowerCase().includes("approve") && (
-            <CheckCircleIcon className="h-4 w-4" />
+            <CheckCircleIcon className="h-3.5 w-3.5 mr-1.5" />
           )}
           {actionString.toLowerCase().includes("reject") && (
-            <XCircleIcon className="h-4 w-4" />
+            <XCircleIcon className="h-3.5 w-3.5 mr-1.5" />
           )}
           {isLoading ? "Processing..." : actionString}
-        </FrappeButton>
+        </Button>
       ))}
     </div>
   );
@@ -634,7 +666,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
   const [activeTab, setActiveTab] = useState("overview"); // Default to overview
   const activityStreamRef = useRef<ActivityStreamHandle>(null);
   const { } = useFrappeAuth();
-  const isPermanentEmployee = useUserRoleCheck();
+
   const { data, error, isLoading, mutate } = useFrappeGetDoc(
     "Project Registration",
     projectName ?? "",
@@ -723,12 +755,12 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     if (!projectName) {
       return (
         <div className="flex items-center justify-center p-4 min-h-screen">
-          <div className="text-center p-8 max-w-md w-full bg-white border border-gray-200 rounded-md shadow-sm">
-            <FileTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-black mb-2">
+          <div className="text-center p-8 max-w-md w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-sm">
+            <FileTextIcon className="h-16 w-16 text-zinc-400 dark:text-zinc-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
               No Project Selected
             </h2>
-            <p className="text-gray-700 mb-6 font-mono">
+            <p className="text-zinc-700 dark:text-zinc-300 mb-6 font-mono">
               Select a project to see details.
             </p>
             <FrappeButton
@@ -745,8 +777,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
       return (
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#0EA5A4] border-t-transparent mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading Project...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent mx-auto mb-4"></div>
+            <p className="text-zinc-600 dark:text-zinc-400">Loading Project...</p>
           </div>
         </div>
       );
@@ -758,10 +790,10 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
             <h2 className="text-xl font-semibold text-red-800 mb-2">
               Error Loading Project
             </h2>
-            <p className="text-red-600 mb-6 text-sm">{error.message}</p>
+            <p className="text-[#D97757] mb-6 text-sm">{error.message}</p>
             <FrappeButton
               onClick={() => navigate(backUrl)}
-              className="bg-white hover:bg-gray-100"
+              className="bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:bg-zinc-800"
             >
               {backLabel}
             </FrappeButton>
@@ -771,21 +803,21 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     }
     return (
       <>
-        <header className="mb-6 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
+        <header className="mb-4 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
           <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate(backUrl)}
-                className="p-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
               >
-                <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
+                <ArrowLeftIcon className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
               </button>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">
+                <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   {data?.project_title || "Project Details"}
                 </h1>
-                <p className="text-sm text-gray-500 mt-0.5">
-                  ID: {projectName} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E0F7F6] text-[#0EA5A4]">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  ID: {projectName} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#FDF3F0] dark:bg-[#D97757]/20 text-[#D97757]">
                     {data?.workflow_state || "Draft"}
                   </span>
                 </p>
@@ -808,32 +840,32 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
           action={selectedAction}
           isLoading={isActionLoading}
         />
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="border-b border-gray-200">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+          <div className="border-b border-zinc-200 dark:border-zinc-800">
             <nav className="flex space-x-1 p-1 overflow-x-auto">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   className={cn(
-                    "flex-shrink-0 flex items-center gap-2 py-2.5 px-4 font-medium text-sm rounded-lg transition-all",
+                    "flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 font-medium text-xs rounded-lg transition-all",
                     activeTab === tab.id
-                      ? "bg-[#E0F7F6] text-[#0EA5A4]"
-                      : "text-gray-600 hover:bg-gray-100"
+                      ? "bg-[#FDF3F0] dark:bg-[#D97757]/20 text-[#D97757]"
+                      : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   )}
                 >
-                  <tab.icon className="h-4 w-4" />
+                  <tab.icon className="h-3.5 w-3.5" />
                   {tab.label}
                 </button>
               ))}
             </nav>
           </div>
-          <div className="bg-gray-50/50 p-6">
+          <div className="bg-zinc-50/50 dark:bg-zinc-900/50 p-4">
             <div className={`grid grid-cols-1 ${needsProjectNumberGeneration ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-6`}>
               <div className={needsProjectNumberGeneration ? 'lg:col-span-2' : ''}>
                 {activeTab === "overview" && (
-                  <div className="space-y-6">
-                    <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                  <div className="space-y-4">
+                    <div className="p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
                         <FieldDisplay
                           label="Project Type"
@@ -879,14 +911,14 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                         {data?.upload_proj_prop && (
                           <div className="py-3">
                             <div className="flex items-center gap-2 mb-1">
-                              <FileTextIcon className="h-4 w-4 text-gray-500" />
-                              <p className="text-xs font-semibold text-gray-700">Project Proposal</p>
+                              <FileTextIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                              <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">Project Proposal</p>
                             </div>
                             <a
                               href={data.upload_proj_prop.startsWith('http') ? data.upload_proj_prop : `/files/${data.upload_proj_prop}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-sm font-medium text-[#0EA5A4] hover:underline flex items-center gap-1"
+                              className="text-sm font-medium text-[#D97757] hover:underline flex items-center gap-1"
                             >
                               <ExternalLinkIcon className="h-3 w-3" /> View File
                             </a>
@@ -896,8 +928,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     </div>
                     {/* Consultancy Details */}
                     {data?.project_type === "Consultancy" && (
-                      <div className="p-5 bg-white border border-gray-200 rounded-xl">
-                        <h3 className="text-base font-semibold text-gray-900 mb-3">
+                      <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
+                        <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
                           Consultancy Details
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
@@ -933,14 +965,14 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     )}
                     {/* Other Project Type */}
                     {data?.project_type === "Other" && (
-                      <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                      <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
                           <FieldDisplay label="Other Project Type" value={data?.other_project_type_name} icon={FileTextIcon} />
                         </div>
                       </div>
                     )}
-                    <div className="p-5 bg-white border border-gray-200 rounded-xl">
-                      <h3 className="text-base font-semibold text-gray-900 mb-3">
+                    <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
+                      <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
                         Funding Agency
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
@@ -991,12 +1023,36 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                       htmlString={data?.project_deliverables}
                       icon={CheckCircleIcon}
                     />
+                    <TableDisplay
+                      label="Additional PIs"
+                      data={data?.additional_pi_table}
+                      columns={[
+                        { fieldname: "pi_name", label: "Name" },
+                        { fieldname: "pi_designation", label: "Designation" },
+                        { fieldname: "pi_email", label: "Email" },
+                        { fieldname: "pi_address", label: "Address" },
+                        { fieldname: "pi_contact", label: "Contact" },
+                      ]}
+                      icon={UsersIcon}
+                    />
+                    <TableDisplay
+                      label="Co-Investigators"
+                      data={data?.co_investigator_table}
+                      columns={[
+                        { fieldname: "copi_name", label: "Name" },
+                        { fieldname: "copi_designation", label: "Designation" },
+                        { fieldname: "copi_email", label: "Email" },
+                        { fieldname: "copi_address", label: "Address" },
+                        { fieldname: "copi_contact", label: "Contact" },
+                      ]}
+                      icon={UsersIcon}
+                    />
                   </div>
                 )}
                 {activeTab === "investigators" && (
                   <div className="space-y-6">
-                    <div className="p-5 bg-white border border-gray-200 rounded-xl">
-                      <h3 className="text-base font-semibold text-gray-900 mb-3">
+                    <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
+                      <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
                         Principal Investigator (PI)
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
@@ -1027,34 +1083,30 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                         />
                       </div>
                     </div>
-                    {data?.is_additional_pi === "Yes" && (
-                      <TableDisplay
-                        label="Additional PIs"
-                        data={data?.additional_pi_table}
-                        columns={[
-                          { fieldname: "pi_name", label: "Name" },
-                          { fieldname: "pi_designation", label: "Designation" },
-                          { fieldname: "pi_email", label: "Email" },
-                          { fieldname: "pi_address", label: "Address" },
-                          { fieldname: "pi_contact", label: "Contact" },
-                        ]}
-                        icon={UsersIcon}
-                      />
-                    )}
-                    {data?.has_co_pi === "Yes" && (
-                      <TableDisplay
-                        label="Co-Investigators"
-                        data={data?.co_investigator_table}
-                        columns={[
-                          { fieldname: "copi_name", label: "Name" },
-                          { fieldname: "copi_designation", label: "Designation" },
-                          { fieldname: "copi_email", label: "Email" },
-                          { fieldname: "copi_address", label: "Address" },
-                          { fieldname: "copi_contact", label: "Contact" },
-                        ]}
-                        icon={UsersIcon}
-                      />
-                    )}
+                    <TableDisplay
+                      label="Additional PIs"
+                      data={data?.additional_pi_table}
+                      columns={[
+                        { fieldname: "pi_name", label: "Name" },
+                        { fieldname: "pi_designation", label: "Designation" },
+                        { fieldname: "pi_email", label: "Email" },
+                        { fieldname: "pi_address", label: "Address" },
+                        { fieldname: "pi_contact", label: "Contact" },
+                      ]}
+                      icon={UsersIcon}
+                    />
+                    <TableDisplay
+                      label="Co-Investigators"
+                      data={data?.co_investigator_table}
+                      columns={[
+                        { fieldname: "copi_name", label: "Name" },
+                        { fieldname: "copi_designation", label: "Designation" },
+                        { fieldname: "copi_email", label: "Email" },
+                        { fieldname: "copi_address", label: "Address" },
+                        { fieldname: "copi_contact", label: "Contact" },
+                      ]}
+                      icon={UsersIcon}
+                    />
                   </div>
                 )}
                 {activeTab === "funding" && (
@@ -1096,7 +1148,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                 )}
                 {activeTab === "clearance" && (
                   <div className="space-y-6">
-                    <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                    <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
                         <FieldDisplay
                           label="Needs Committee Clearance"
@@ -1145,10 +1197,10 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                 )}
                 {activeTab === "endorsement" && (
                   <div className="space-y-6">
-                    <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                    <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
                       <div className="flex items-center gap-2 mb-4">
-                        <FileBadge className="h-5 w-5 text-[#0EA5A4]" />
-                        <h3 className="text-base font-semibold text-gray-900">Endorsement Details</h3>
+                        <FileBadge className="h-5 w-5 text-[#D97757]" />
+                        <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Endorsement Details</h3>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
                         <FieldDisplay
@@ -1182,7 +1234,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                           icon={BuildingIcon}
                         />
                       </div>
-                      <div className="mt-6 pt-4 border-t border-gray-200">
+                      <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-800">
                         <div className="flex items-center gap-3 flex-wrap">
                           <button
                             onClick={async () => {
@@ -1222,7 +1274,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                               }
                             }}
                             disabled={isViewingEndorsement}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white rounded-lg font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-[#D97757] hover:bg-[#C66A4E] text-white rounded-lg font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                           >
                             <ExternalLinkIcon className="h-4 w-4" />
                             {isViewingEndorsement ? "Opening..." : "View Endorsement"}
@@ -1239,7 +1291,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                               const downloadUrl = `${baseUrl.replace(/\/$/, "")}/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.download_endorsement_file?docname=${projectName}&file_type=pdf`;
                               window.open(downloadUrl, '_blank');
                             }}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-[#E0F7F6] hover:bg-[#B2EBF2] text-[#0EA5A4] rounded-lg font-medium transition-colors"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-[#FDF3F0] dark:bg-[#D97757]/20 hover:bg-[#B2EBF2] text-[#D97757] rounded-lg font-medium transition-colors"
                           >
                             <DownloadIcon className="h-4 w-4" />
                             Download Certificate
@@ -1251,26 +1303,26 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                 )}
                 {activeTab === "files" && (
                   <div className="space-y-6">
-                    <div className="p-5 bg-white border border-gray-200 rounded-xl">
+                    <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
                       <div className="flex items-center gap-2 mb-4">
-                        <FolderOpenIcon className="h-5 w-5 text-[#0EA5A4]" />
-                        <h3 className="text-base font-semibold text-gray-900">Project Files</h3>
+                        <FolderOpenIcon className="h-5 w-5 text-[#D97757]" />
+                        <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Project Files</h3>
                       </div>
                       {data?.attachments && data.attachments.length > 0 ? (
                         <div className="space-y-3">
                           {data.attachments.map((file: any, index: number) => (
                             <div
                               key={index}
-                              className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+                              className="flex items-center justify-between p-3 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:bg-zinc-800 transition-colors"
                             >
                               <div className="flex items-center gap-3 min-w-0">
-                                <FileTextIcon className="h-5 w-5 text-gray-500 flex-shrink-0" />
+                                <FileTextIcon className="h-5 w-5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
                                 <div className="min-w-0">
-                                  <p className="text-sm font-medium text-gray-900 truncate">
+                                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
                                     {file.file_name || file.name || 'Document'}
                                   </p>
                                   {file.file_size && (
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
                                       {(file.file_size / 1024).toFixed(1)} KB
                                     </p>
                                   )}
@@ -1280,7 +1332,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                 href={file.file_url || file.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#0EA5A4] bg-[#E0F7F6] rounded-lg hover:bg-[#B2EBF2] transition-colors"
+                                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#D97757] bg-[#FDF3F0] dark:bg-[#D97757]/20 rounded-lg hover:bg-[#B2EBF2] transition-colors"
                               >
                                 <DownloadIcon className="h-4 w-4" />
                                 Download
@@ -1289,9 +1341,9 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                           ))}
                         </div>
                       ) : (
-                        <div className="text-center py-12 text-gray-500 border border-dashed border-gray-300 rounded-xl">
-                          <FolderOpenIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                          <p className="font-medium text-gray-600">No files attached yet.</p>
+                        <div className="text-center py-12 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl">
+                          <FolderOpenIcon className="h-12 w-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
+                          <p className="font-medium text-zinc-600 dark:text-zinc-400">No files attached yet.</p>
                           <p className="text-sm mt-1">Files related to this project will appear here.</p>
                         </div>
                       )}
@@ -1320,9 +1372,9 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
   };
 
   return (
-    <div className="bg-[#F0F4F8]">
+    <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
       <AppSidebar />
-      <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+      <main className="flex-1 p-3 md:p-6 w-full overflow-hidden">
         {renderContent()}
       </main>
     </div>

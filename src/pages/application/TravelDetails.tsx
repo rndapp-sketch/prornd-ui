@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { ArrowLeftIcon, FileText, Calendar, MapPin, User, Building, Download, ExternalLink } from 'lucide-react';
+import { FileText, Calendar, MapPin, Building, Download, ExternalLink } from 'lucide-react';
+import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI } from '@/services/apiService';
 import TravelActionButtons from '@/components/TravelActionButtons';
@@ -34,7 +35,7 @@ interface FormDataResponse {
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-xl shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>
         {children}
     </div>
 );
@@ -54,7 +55,6 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 // --- MAIN COMPONENT ---
 const TravelDetails: React.FC = () => {
-    const navigate = useNavigate();
     const { docName } = useParams<{ docName: string }>();
 
     const [fields, setFields] = useState<FormField[]>([]);
@@ -120,53 +120,31 @@ const TravelDetails: React.FC = () => {
     // --- RENDER LOGIC ---
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
+            <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#0EA5A4] border-t-transparent mx-auto"></div>
-                    <p className="mt-4 text-lg font-medium text-gray-700">Loading document...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent mx-auto"></div>
+                    <p className="mt-4 text-lg font-medium text-zinc-700 dark:text-zinc-300">Loading document...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 {/* Header */}
-                <header className="mb-8 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <div className="flex items-center justify-between flex-wrap gap-4">
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => navigate(-1)}
-                                className="p-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors"
-                            >
-                                <ArrowLeftIcon className="h-5 w-5 text-gray-900" />
-                            </button>
-                            <div>
-                                <div className="flex items-center gap-3">
-                                    <h1 className="text-2xl font-bold text-gray-900">Travel: {docName}</h1>
-                                    <StatusBadge status={formData.workflow_state} />
-                                </div>
-                                <p className="text-gray-600 mt-1">
-                                    {formData.applicant_name_travel && (
-                                        <span className="flex items-center gap-2">
-                                            <User className="h-4 w-4" />
-                                            {formData.applicant_name_travel}
-                                            {formData.travel_project_title && ` • ${formData.travel_project_title}`}
-                                        </span>
-                                    )}
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Actions */}
-                        <TravelActionButtons
-                            docName={docName || ''}
-                            onActionComplete={handleRefresh}
-                        />
-                    </div>
-                </header>
+                <PageHeader
+                    title={`Travel: ${docName}`}
+                    status={formData.workflow_state}
+                    projectName={formData.travel_project_title}
+                >
+                    {/* Actions */}
+                    <TravelActionButtons
+                        docName={docName || ''}
+                        onActionComplete={handleRefresh}
+                    />
+                </PageHeader>
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     {/* Main Content - 3 columns */}
@@ -190,30 +168,30 @@ const TravelDetails: React.FC = () => {
                     {/* Sidebar - 1 column */}
                     <div className="lg:col-span-1 space-y-6">
                         {/* Quick Info Card */}
-                        <div className="bg-gradient-to-br from-teal-50 to-cyan-50 p-6 rounded-xl border border-teal-100">
-                            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                <FileText className="h-5 w-5 text-teal-600" />
+                        <div className="bg-gradient-to-br from-[#FDF3F0] to-zinc-50 p-6 rounded-xl border border-[#D97757]/20">
+                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-[#D97757]" />
                                 Travel Summary
                             </h3>
                             <div className="space-y-3 text-sm">
                                 {formData.nature_of_travel && (
                                     <div className="flex items-center gap-2">
-                                        <MapPin className="h-4 w-4 text-gray-500" />
-                                        <span className="text-gray-600">{formData.nature_of_travel}</span>
+                                        <MapPin className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                                        <span className="text-zinc-600 dark:text-zinc-400">{formData.nature_of_travel}</span>
                                     </div>
                                 )}
                                 {formData.from_date && (
                                     <div className="flex items-center gap-2">
-                                        <Calendar className="h-4 w-4 text-gray-500" />
-                                        <span className="text-gray-600">
+                                        <Calendar className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                                        <span className="text-zinc-600 dark:text-zinc-400">
                                             {formData.from_date} to {formData.to_date}
                                         </span>
                                     </div>
                                 )}
                                 {formData.destination && (
                                     <div className="flex items-center gap-2">
-                                        <Building className="h-4 w-4 text-gray-500" />
-                                        <span className="text-gray-600">{formData.destination}</span>
+                                        <Building className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                                        <span className="text-zinc-600 dark:text-zinc-400">{formData.destination}</span>
                                     </div>
                                 )}
                             </div>
@@ -221,15 +199,15 @@ const TravelDetails: React.FC = () => {
 
                         {/* Attachments Card */}
                         {(formData.travel_supporting_docs || formData.travel_attachment) && (
-                            <div className="bg-white p-6 rounded-xl border border-gray-200">
-                                <h3 className="font-bold text-gray-900 mb-4">Attachments</h3>
+                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Attachments</h3>
                                 <div className="space-y-2">
                                     {formData.travel_supporting_docs && (
                                         <a
                                             href={formData.travel_supporting_docs}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center gap-2 text-sm text-teal-600 hover:text-teal-700"
+                                            className="flex items-center gap-2 text-sm text-[#D97757] hover:text-[#C66A4E]"
                                         >
                                             <Download className="h-4 w-4" />
                                             Supporting Documents
@@ -241,7 +219,7 @@ const TravelDetails: React.FC = () => {
                                             href={formData.travel_attachment}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center gap-2 text-sm text-teal-600 hover:text-teal-700"
+                                            className="flex items-center gap-2 text-sm text-[#D97757] hover:text-[#C66A4E]"
                                         >
                                             <Download className="h-4 w-4" />
                                             Attachment
@@ -253,15 +231,15 @@ const TravelDetails: React.FC = () => {
                         )}
 
                         {/* Status History */}
-                        <div className="bg-white p-6 rounded-xl border border-gray-200">
-                            <h3 className="font-bold text-gray-900 mb-4">Status</h3>
+                        <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Status</h3>
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
-                                    <span className="text-gray-600">Current State</span>
+                                    <span className="text-zinc-600 dark:text-zinc-400">Current State</span>
                                     <StatusBadge status={formData.workflow_state} />
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-gray-600">Doc Status</span>
+                                    <span className="text-zinc-600 dark:text-zinc-400">Doc Status</span>
                                     <span className="font-medium">
                                         {formData.docstatus === 0 ? 'Draft' :
                                             formData.docstatus === 1 ? 'Submitted' : 'Cancelled'}
@@ -269,7 +247,7 @@ const TravelDetails: React.FC = () => {
                                 </div>
                                 {formData.modified && (
                                     <div className="flex justify-between">
-                                        <span className="text-gray-600">Last Modified</span>
+                                        <span className="text-zinc-600 dark:text-zinc-400">Last Modified</span>
                                         <span className="font-medium">{new Date(formData.modified).toLocaleDateString()}</span>
                                     </div>
                                 )}

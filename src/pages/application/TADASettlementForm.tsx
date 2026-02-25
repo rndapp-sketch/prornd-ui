@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { ArrowLeftIcon } from 'lucide-react';
+import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { tadaAPI, prepareFormDataForApi, commonAPI } from '@/services/apiService';
 
@@ -18,7 +18,7 @@ interface FormDataResponse {
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-xl shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>
         {children}
     </div>
 );
@@ -36,7 +36,7 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
         disabled={disabled}
         className={cn(
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-150",
-            "focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)]",
+            "focus:outline-none focus:ring-2 focus:ring-[#D97757]/20",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             className
         )}
@@ -375,59 +375,43 @@ const TADASettlementForm: React.FC = () => {
     // --- RENDER LOGIC ---
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
+            <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#0EA5A4] border-t-transparent mx-auto"></div>
-                    <p className="mt-4 text-lg font-medium text-gray-700">Loading form...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent mx-auto"></div>
+                    <p className="mt-4 text-lg font-medium text-zinc-700 dark:text-zinc-300">Loading form...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <header className="mb-8 p-5 bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="p-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors"
-                        >
-                            <ArrowLeftIcon className="h-5 w-5 text-gray-900" />
-                        </button>
-                        <div>
-                            <h1 className="text-2xl font-bold text-gray-900">
-                                {editDocName ? `Edit TA DA Settlement: ${editDocName}` : 'TA DA Settlement'}
-                            </h1>
-                            <p className="text-gray-600 mt-1">
-                                {projectName && <span>For Project: <strong>{projectName}</strong></span>}
-                                {travelRef && <span> | Travel Ref: <strong>{travelRef}</strong></span>}
-                                {!projectName && !travelRef && 'Fill out the details below for TA DA settlement.'}
-                            </p>
-                        </div>
-                    </div>
-                </header>
+                <PageHeader
+                    title={editDocName ? `Edit TA DA Settlement: ${editDocName}` : 'TA DA Settlement'}
+                    projectName={projectName + (travelRef ? ` | Travel Ref: ${travelRef}` : '')}
+                />
 
                 {/* Summary Cards */}
                 {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Total Claimed</p>
-                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Total Claimed</p>
+                        <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">
                             ₹ {(parseFloat(formData.total_claimed || 0)).toLocaleString('en-IN')}
                         </p>
                     </div>
-                    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Advance Taken</p>
-                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Advance Taken</p>
+                        <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">
                             ₹ {(parseFloat(formData.advance_taken || 0)).toLocaleString('en-IN')}
                         </p>
                     </div>
-                    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                        <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">Net Claimed</p>
+                    <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Net Claimed</p>
                         <p className={cn(
                             "text-2xl font-bold mt-1",
-                            (formData.net_claimed || 0) >= 0 ? "text-[#0EA5A4]" : "text-red-600"
+                            (formData.net_claimed || 0) >= 0 ? "text-[#D97757]" : "text-[#D97757]"
                         )}>
                             ₹ {(parseFloat(formData.net_claimed || 0)).toLocaleString('en-IN')}
                         </p>
@@ -454,14 +438,14 @@ const TADASettlementForm: React.FC = () => {
                         <FrappeButton
                             onClick={handleSave}
                             disabled={isSubmitting}
-                            className="bg-white border border-gray-200 text-gray-900 hover:bg-gray-50"
+                            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800/50"
                         >
                             {isSubmitting ? 'Saving...' : 'Save Draft'}
                         </FrappeButton>
                         <FrappeButton
                             type="submit"
                             disabled={isSubmitting}
-                            className="bg-[#0EA5A4] text-white hover:bg-[#0D9494]"
+                            className="bg-[#D97757] text-white hover:bg-[#C66A4E]"
                         >
                             {isSubmitting ? 'Submitting...' : 'Submit Settlement'}
                         </FrappeButton>

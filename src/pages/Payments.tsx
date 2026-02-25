@@ -31,7 +31,7 @@ interface PaymentRecord {
 
 // Frappe-styled components
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white rounded-xl border border-gray-300 shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-zinc-900 rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-sm", className)}>
         {children}
     </div>
 );
@@ -48,10 +48,10 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
         disabled={disabled}
         className={cn(
             "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all duration-150",
-            "focus:outline-none focus:ring-2 focus:ring-gray-400",
+            "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
             variant === 'primary' && "bg-[#0EA5A4] text-white hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border border-[#0D9494]",
-            variant === 'ghost' && "bg-transparent text-gray-900 hover:bg-gray-200 hover:text-black",
-            variant === 'outline' && "bg-white border-2 border-gray-400 text-black hover:border-[#0EA5A4] hover:text-[#0EA5A4] hover:bg-gray-50",
+            variant === 'ghost' && "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
+            variant === 'outline' && "bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 hover:border-[#0EA5A4] hover:text-[#0EA5A4] hover:bg-zinc-50 dark:bg-zinc-800/50",
             variant === 'action' && "bg-[#0EA5A4] text-white font-bold hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border-2 border-[#0D9494]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
             className
@@ -107,7 +107,8 @@ const Payments: React.FC = () => {
     const fetchPendingCommits = useCallback(async () => {
         try {
             // Fetch commits for each status
-            const statuses = ['COMMITTED', 'SETTLED', 'PARTIALLY_PAID', 'OVERPAYMENT'];
+            // const statuses = ['COMMITTED', 'SETTLED', 'PARTIALLY_PAID', 'OVERPAYMENT'];
+            const statuses = ['COMMITTED', 'PARTIALLY_PAID', 'OVERPAYMENT'];
             const promises = statuses.map(status => ledgerService.getCommitsByStatus(status));
 
             const results = await Promise.all(promises);
@@ -182,15 +183,64 @@ const Payments: React.FC = () => {
         }
     }, []);
 
+    // Fetch Payments
+    // NOTE: We do NOT depend on moduleNameMap here to avoid an infinite loop.
+    // moduleNameMap changes when fetchModuleRegistry completes, which would
+    // re-create fetchPayments, re-trigger the useEffect, and loop forever.
+    // Instead, we resolve module names in a useMemo on the payments data.
+    const fetchPayments = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const data = await ledgerService.getAllPayments();
+            if (data && Array.isArray(data)) {
+                const loadedPayments: PaymentRecord[] = data.map((p: any) => ({
+                    name: String(p.transactionPaymentNumber),
+                    project_ref_number: p.projectNumber,
+                    budget_head: String(p.accountHeadId),
+                    payment_amount: p.paymentAmount,
+                    payment_date: p.paymentDate,
+                    payment_status: p.paymentStatus,
+                    payment_bmr: p.bmr,
+                    payment_particular: p.paymentParticular,
+                    owner: '-',
+                    creation: p.paymentDate,
+                    modified: p.paymentDate,
+                    doctype: String(p.moduleId || ''), // store raw moduleId; resolved later via useMemo
+                }));
+                // Sort descending by date
+                loadedPayments.sort((a, b) => {
+                    const dateA = a.payment_date ? new Date(a.payment_date).getTime() : 0;
+                    const dateB = b.payment_date ? new Date(b.payment_date).getTime() : 0;
+                    return dateB - dateA;
+                });
+                setPayments(loadedPayments);
+            }
+        } catch (err) {
+            console.error('Failed to fetch payments:', err);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    // Resolve module names on payments using the moduleNameMap (runs reactively when either changes)
+    const resolvedPayments = React.useMemo(() => {
+        if (Object.keys(moduleNameMap).length === 0) return payments;
+        return payments.map(p => ({
+            ...p,
+            doctype: p.doctype && moduleNameMap[p.doctype] ? moduleNameMap[p.doctype] : (p.doctype || 'AccountHeadPayment'),
+        }));
+    }, [payments, moduleNameMap]);
+
     useEffect(() => {
         fetchPendingCommits();
         fetchBudgetHeads();
         fetchModuleRegistry();
-    }, [fetchPendingCommits, fetchBudgetHeads, fetchModuleRegistry]);
+        fetchPayments();
+    }, [fetchPendingCommits, fetchBudgetHeads, fetchModuleRegistry, fetchPayments]);
 
     // Client-side filtering
     const filteredPayments = React.useMemo(() => {
-        let result = payments;
+        let result = resolvedPayments;
 
         if (debouncedSearch) {
             const lowerSearch = debouncedSearch.toLowerCase();
@@ -211,7 +261,7 @@ const Payments: React.FC = () => {
         }
 
         return result;
-    }, [payments, debouncedSearch, selectedStatus, selectedDoctype]);
+    }, [resolvedPayments, debouncedSearch, selectedStatus, selectedDoctype]);
 
     // Client-side pagination
     const paginatedPayments = React.useMemo(() => {
@@ -239,7 +289,7 @@ const Payments: React.FC = () => {
 
     const getStatusBadge = (status: string) => {
         const s = status?.toUpperCase();
-        let style = "bg-gray-100 text-gray-800 border-gray-300";
+        let style = "bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700";
         if (s === "COMMITTED") {
             style = "bg-blue-100 text-blue-800 border-blue-300";
         } else if (s === "SETTLED") {
@@ -249,7 +299,7 @@ const Payments: React.FC = () => {
         } else if (s === "OVERPAYMENT") {
             style = "bg-purple-100 text-purple-800 border-purple-300";
         } else if (s === "PENDING" || s === "DRAFT") {
-            style = "bg-gray-100 text-gray-800 border-gray-400";
+            style = "bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border-zinc-400 dark:border-zinc-600";
         }
         return cn("px-2.5 py-1 rounded-md text-xs font-bold border uppercase", style);
     };
@@ -290,11 +340,11 @@ const Payments: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex h-screen items-center justify-center bg-gray-100">
+            <div className="flex h-screen items-center justify-center bg-zinc-100 dark:bg-zinc-800">
                 <FrappeCard className="p-8 text-center">
                     <FaExclamationCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
-                    <h2 className="text-xl font-bold text-black mb-2">Error Loading Payments</h2>
-                    <p className="text-gray-900">{error}</p>
+                    <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Error Loading Payments</h2>
+                    <p className="text-zinc-900 dark:text-zinc-100">{error}</p>
                     <FrappeButton variant="primary" onClick={() => window.location.reload()} className="mt-4">
                         Retry
                     </FrappeButton>
@@ -309,7 +359,7 @@ const Payments: React.FC = () => {
     const indexOfFirstPayment = (currentPage - 1) * itemsPerPage;
 
     return (
-        <div className="bg-gray-100 min-h-screen">
+        <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
             <GlobalLoader isLoading={isLoading} />
             <AppSidebar />
 
@@ -319,27 +369,27 @@ const Payments: React.FC = () => {
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => navigate(-1)}
-                            className="p-2.5 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300"
+                            className="p-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg hover:bg-zinc-200 dark:bg-zinc-700 transition-colors border border-zinc-300 dark:border-zinc-700"
                             aria-label="Go back"
                         >
-                            <FaArrowLeft className="h-5 w-5 text-gray-900" />
+                            <FaArrowLeft className="h-5 w-5 text-zinc-900 dark:text-zinc-100" />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-bold text-black uppercase tracking-tight">Payments</h1>
-                            <p className="text-sm text-gray-900 mt-0.5">View and manage all payment records.</p>
+                            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">Payments</h1>
+                            <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-0.5">View and manage all payment records.</p>
                         </div>
                     </div>
                 </FrappeCard>
 
                 {/* Tabs */}
-                <div className="flex gap-4 mb-4 border-b border-gray-300 pb-2">
+                <div className="flex gap-4 mb-4 border-b border-zinc-300 dark:border-zinc-700 pb-2">
                     <button
                         onClick={() => setActiveTab('commits')}
                         className={cn(
                             "px-4 py-2 font-bold text-sm uppercase border-b-2 transition-colors",
                             activeTab === 'commits'
                                 ? "text-[#0EA5A4] border-[#0EA5A4]"
-                                : "text-gray-500 border-transparent hover:text-gray-700"
+                                : "text-zinc-500 dark:text-zinc-400 border-transparent hover:text-zinc-700 dark:text-zinc-300"
                         )}
                     >
                         Pending Commits
@@ -350,7 +400,7 @@ const Payments: React.FC = () => {
                             "px-4 py-2 font-bold text-sm uppercase border-b-2 transition-colors",
                             activeTab === 'history'
                                 ? "text-[#0EA5A4] border-[#0EA5A4]"
-                                : "text-gray-500 border-transparent hover:text-gray-700"
+                                : "text-zinc-500 dark:text-zinc-400 border-transparent hover:text-zinc-700 dark:text-zinc-300"
                         )}
                     >
                         Payment History
@@ -369,39 +419,39 @@ const Payments: React.FC = () => {
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full divide-y divide-gray-300">
-                                <thead className="bg-gray-200">
+                                <thead className="bg-zinc-200 dark:bg-zinc-700">
                                     <tr>
-                                        <th className="p-3 text-left font-bold text-black text-sm">Project No.</th>
-                                        <th className="p-3 text-left font-bold text-black text-sm">Account Head</th>
-                                        <th className="p-3 text-left font-bold text-black text-sm">Module</th>
-                                        <th className="p-3 text-left font-bold text-black text-sm">App ID</th>
-                                        <th className="p-3 text-left font-bold text-black text-sm">Date</th>
-                                        <th className="p-3 text-left font-bold text-black text-sm">Particulars</th>
-                                        <th className="p-3 text-left font-bold text-black text-sm">Ref Details</th>
-                                        <th className="p-3 text-right font-bold text-black text-sm">Amount</th>
-                                        <th className="p-3 text-left font-bold text-black text-sm">Action</th>
+                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Project No.</th>
+                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Account Head</th>
+                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Module</th>
+                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">App ID</th>
+                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Date</th>
+                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Particulars</th>
+                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Ref Details</th>
+                                        <th className="p-3 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">Amount</th>
+                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Action</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200">
+                                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                                     {pendingCommits.length > 0 ? (
                                         pendingCommits
                                             .slice((commitPage - 1) * commitsPerPage, commitPage * commitsPerPage)
                                             .map((commit, idx) => (
-                                                <tr key={idx} className="hover:bg-gray-50">
+                                                <tr key={idx} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
                                                     <td className="p-4 text-sm font-mono font-medium">{commit.projectNumber}</td>
-                                                    <td className="p-4 text-sm text-gray-700 font-bold">
+                                                    <td className="p-4 text-sm text-zinc-700 dark:text-zinc-300 font-bold">
                                                         {budgetHeadMap[String(commit.accountHeadId)] || commit.accountHeadId}
                                                     </td>
-                                                    <td className="p-4 text-sm text-gray-700">
+                                                    <td className="p-4 text-sm text-zinc-700 dark:text-zinc-300">
                                                         {commit.moduleId ? (moduleNameMap[String(commit.moduleId)] || commit.moduleId) : '-'}
                                                     </td>
-                                                    <td className="p-4 text-sm font-mono text-gray-600">
+                                                    <td className="p-4 text-sm font-mono text-zinc-600 dark:text-zinc-400">
                                                         {commit.frapAppId || '-'}
                                                     </td>
                                                     <td className="p-4 text-sm">{commit.commitDate}</td>
                                                     <td className="p-4 text-sm">{commit.commitParticular}</td>
-                                                    <td className="p-4 text-sm text-gray-600">{commit.refDetails}</td>
-                                                    <td className="p-4 text-right font-bold text-black text-sm">
+                                                    <td className="p-4 text-sm text-zinc-600 dark:text-zinc-400">{commit.refDetails}</td>
+                                                    <td className="p-4 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">
                                                         ₹{commit.commitAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                                     </td>
                                                     <td className="p-4">
@@ -449,7 +499,7 @@ const Payments: React.FC = () => {
                                             ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={9} className="p-8 text-center text-gray-500">
+                                            <td colSpan={9} className="p-8 text-center text-zinc-500 dark:text-zinc-400">
                                                 No pending commits found.
                                             </td>
                                         </tr>
@@ -460,8 +510,8 @@ const Payments: React.FC = () => {
 
                         {/* Commits Pagination */}
                         {pendingCommits.length > commitsPerPage && (
-                            <div className="p-4 border-t border-gray-300 bg-gray-50 flex justify-between items-center">
-                                <div className="text-sm text-gray-900 font-medium">
+                            <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
+                                <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
                                     Showing {(commitPage - 1) * commitsPerPage + 1} to {Math.min(commitPage * commitsPerPage, pendingCommits.length)} of {pendingCommits.length} commits
                                 </div>
                                 <div className="flex gap-1">
@@ -494,27 +544,27 @@ const Payments: React.FC = () => {
                                     {/* Search Input */}
                                     <div className="relative w-full md:w-64">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <FaSearch className="text-gray-400" />
+                                            <FaSearch className="text-zinc-400 dark:text-zinc-500" />
                                         </div>
                                         <input
                                             type="text"
                                             placeholder="Search payments..."
                                             value={searchQuery}
                                             onChange={handleSearchChange}
-                                            className="w-full pl-10 pr-4 py-2 border-2 border-gray-300 rounded-lg text-sm focus:outline-none focus:border-gray-900 focus:ring-0 transition-colors"
+                                            className="w-full pl-10 pr-4 py-2 border-2 border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-0 transition-colors"
                                         />
                                     </div>
 
                                     {/* Doctype/Module Filter */}
                                     <div className="flex items-center gap-2">
-                                        <label htmlFor="doctype-filter" className="font-bold text-black uppercase text-sm whitespace-nowrap hidden md:block">
+                                        <label htmlFor="doctype-filter" className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">
                                             Module:
                                         </label>
                                         <select
                                             id="doctype-filter"
                                             value={selectedDoctype}
                                             onChange={(e) => handleDoctypeChange(e.target.value)}
-                                            className="h-10 px-4 bg-white border-2 border-gray-400 rounded-lg font-bold text-sm text-black focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-900"
+                                            className="h-10 px-4 bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 rounded-lg font-bold text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 focus:border-zinc-900 dark:focus:border-zinc-100"
                                         >
                                             <option value="">All Modules</option>
                                             <option value="AccountHeadPayment">Account Head Payment</option>
@@ -530,14 +580,14 @@ const Payments: React.FC = () => {
 
                                     {/* Status Filter */}
                                     <div className="flex items-center gap-2">
-                                        <label htmlFor="status-filter" className="font-bold text-black uppercase text-sm whitespace-nowrap hidden md:block">
+                                        <label htmlFor="status-filter" className="font-bold text-zinc-900 dark:text-zinc-100 uppercase text-sm whitespace-nowrap hidden md:block">
                                             Status:
                                         </label>
                                         <select
                                             id="status-filter"
                                             value={selectedStatus}
                                             onChange={(e) => handleStatusChange(e.target.value)}
-                                            className="h-10 px-4 bg-white border-2 border-gray-400 rounded-lg font-bold text-sm text-black focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-900"
+                                            className="h-10 px-4 bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 rounded-lg font-bold text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 focus:border-zinc-900 dark:focus:border-zinc-100"
                                         >
                                             <option value="">All Status</option>
                                             <option value="SETTLED">SETTLED</option>
@@ -561,7 +611,7 @@ const Payments: React.FC = () => {
                                     )}
                                 </div>
 
-                                <div className="text-sm text-gray-900 font-bold whitespace-nowrap">
+                                <div className="text-sm text-zinc-900 dark:text-zinc-100 font-bold whitespace-nowrap">
                                     Total: {totalCount} payments
                                 </div>
                             </div>
@@ -571,54 +621,54 @@ const Payments: React.FC = () => {
                         <FrappeCard className="overflow-hidden p-0">
                             <div className="overflow-x-auto">
                                 <table className="w-full divide-y divide-gray-300">
-                                    <thead className="bg-gray-200">
+                                    <thead className="bg-zinc-200 dark:bg-zinc-700">
                                         <tr className="divide-x divide-gray-300">
-                                            <th className="p-3 text-left font-bold text-black text-sm">Status</th>
-                                            <th className="p-3 text-left font-bold text-black text-sm">Module</th>
-                                            <th className="p-3 text-left font-bold text-black text-sm">Particulars</th>
-                                            <th className="p-3 text-left font-bold text-black text-sm">Project No.</th>
-                                            <th className="p-3 text-left font-bold text-black text-sm">Date</th>
-                                            <th className="p-3 text-left font-bold text-black text-sm">Owner</th>
-                                            <th className="p-3 text-right font-bold text-black text-sm">Amount</th>
-                                            <th className="p-3 text-left font-bold text-black text-sm">Action</th>
+                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Status</th>
+                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Module</th>
+                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Particulars</th>
+                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Project No.</th>
+                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Date</th>
+                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Owner</th>
+                                            <th className="p-3 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">Amount</th>
+                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-200">
+                                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                                         {paginatedPayments.length > 0 ? (
                                             paginatedPayments.map((payment) => (
                                                 <tr
                                                     key={payment.name}
-                                                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                                    className="hover:bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer transition-colors"
                                                 >
                                                     <td className="p-4">
                                                         <span className={getStatusBadge(payment.payment_status)}>
                                                             {payment.payment_status}
                                                         </span>
                                                     </td>
-                                                    <td className="p-4 font-bold text-black text-sm">
+                                                    <td className="p-4 font-bold text-zinc-900 dark:text-zinc-100 text-sm">
                                                         {payment.doctype || 'AccountHeadPayment'}
                                                     </td>
-                                                    <td className="p-4 font-medium text-gray-900 text-sm">
+                                                    <td className="p-4 font-medium text-zinc-900 dark:text-zinc-100 text-sm">
                                                         {payment.payment_particular?.length > 30
                                                             ? `${payment.payment_particular.substring(0, 30)}...`
                                                             : payment.payment_particular || '-'}
                                                     </td>
-                                                    <td className="p-4 text-sm font-mono text-gray-900">
+                                                    <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
                                                         {payment.project_ref_number?.length > 25
                                                             ? `${payment.project_ref_number.substring(0, 25)}...`
                                                             : payment.project_ref_number || '-'}
                                                     </td>
-                                                    <td className="p-4 text-sm font-mono text-gray-900">
+                                                    <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
                                                         {payment.payment_date
                                                             ? new Date(payment.payment_date).toLocaleDateString("en-IN")
                                                             : "-"}
                                                     </td>
-                                                    <td className="p-4 text-sm text-gray-900">
+                                                    <td className="p-4 text-sm text-zinc-900 dark:text-zinc-100">
                                                         {payment.owner?.length > 20
                                                             ? `${payment.owner.substring(0, 20)}...`
                                                             : payment.owner || '-'}
                                                     </td>
-                                                    <td className="p-4 text-right font-bold text-black text-sm">
+                                                    <td className="p-4 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">
                                                         ₹{payment.payment_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
                                                     </td>
                                                     <td className="p-4">
@@ -639,7 +689,7 @@ const Payments: React.FC = () => {
                                             ))
                                         ) : (
                                             <tr>
-                                                <td colSpan={7} className="p-8 text-center text-gray-900 font-bold">
+                                                <td colSpan={7} className="p-8 text-center text-zinc-900 dark:text-zinc-100 font-bold">
                                                     {isLoading ? "Loading payments..." : "No payments found matching your criteria."}
                                                 </td>
                                             </tr>
@@ -650,9 +700,9 @@ const Payments: React.FC = () => {
 
                             {/* Pagination Controls */}
                             {payments.length > 0 && (
-                                <div className="p-4 border-t border-gray-300 bg-gray-50 flex justify-between items-center">
+                                <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
                                     <div>
-                                        <div className="text-sm text-gray-900 font-medium">
+                                        <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
                                             Showing {indexOfFirstPayment + 1} to {indexOfFirstPayment + currentCount} of {totalCount} entries
                                         </div>
                                     </div>
@@ -692,13 +742,13 @@ const Payments: React.FC = () => {
 
             {paymentModalOpen && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPaymentModalOpen(false)}>
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-                        <div className="flex bg-gray-50 px-6 py-4 border-b items-center justify-between">
-                            <h2 className="text-xl font-bold text-gray-900">
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="flex bg-zinc-50 dark:bg-zinc-800/50 px-6 py-4 border-b items-center justify-between">
+                            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
                                 {selectedPaymentName ? "Edit Payment" : "Process Payment"}
                             </h2>
-                            <button onClick={() => setPaymentModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                                <X className="w-5 h-5 text-gray-600" />
+                            <button onClick={() => setPaymentModalOpen(false)} className="p-2 hover:bg-zinc-200 dark:bg-zinc-700 rounded-full transition-colors">
+                                <X className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
                             </button>
                         </div>
                         <div className="flex-1 overflow-auto p-0">

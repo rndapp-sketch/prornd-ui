@@ -19,6 +19,8 @@ export interface BudgetEntry {
     type: 'commitment' | 'transaction';
     head?: string;
     headActualBalance?: number;
+    transactionId?: number;
+    frapAppId?: string;
 }
 
 export interface HeadBalance {
@@ -30,7 +32,7 @@ export interface HeadBalance {
     id: number;
 }
 
-export const useProjectBudget = (projectTitle: string) => { // projectTitle is effectively projectNumber here
+export const useProjectBudget = (projectCode: string) => {
     const [budgetData, setBudgetData] = useState<BudgetEntry[]>([]);
     const [heads, setHeads] = useState<string[]>([]);
     const [headBalances, setHeadBalances] = useState<Record<string, HeadBalance>>({});
@@ -40,7 +42,7 @@ export const useProjectBudget = (projectTitle: string) => { // projectTitle is e
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!projectTitle) {
+        if (!projectCode) {
             setIsLoading(false);
             return;
         }
@@ -57,19 +59,22 @@ export const useProjectBudget = (projectTitle: string) => { // projectTitle is e
                 const headNames = availableHeads.map((h: any) => h.budget_head);
                 setHeads(headNames);
 
-                console.log('[useProjectBudget] Fetching for project:', projectTitle);
+                console.log('[useProjectBudget] Fetching for project:', projectCode);
                 console.log('[useProjectBudget] Available heads:', availableHeads);
 
                 // 2. Fetch Ledger Data for EACH head
                 // Using Promise.all to fetch concurrently
                 const promises = availableHeads.map((head: any) => {
-                    const apiUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectTitle)}&accountHeadId=${head.id}`;
+                    const apiUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectCode)}&accountHeadId=${head.id}`;
                     console.log(`[useProjectBudget] Fetching: ${apiUrl}`);
 
                     return fetch(apiUrl)
                         .then(res => res.json())
                         .then(data => {
                             console.log(`[useProjectBudget] Response for ${head.budget_head}:`, data);
+                            if (Array.isArray(data) && data.length > 0) {
+                                console.log(`[useProjectBudget] First item sample for ${head.budget_head}:`, data[0]);
+                            }
                             return { head: head.budget_head, headId: head.id, data: Array.isArray(data) ? data : [] };
                         })
                         .catch(err => {
@@ -93,12 +98,12 @@ export const useProjectBudget = (projectTitle: string) => { // projectTitle is e
                     const headPayment = data.reduce((sum: number, item: any) => sum + (item.paymentAmount || 0), 0);
 
                     // Logic from ProjectDetailsOverview:
-                    // commitableBalance per row is typically running balance. 
+                    // commitableBalance per row is typically running balance.
                     // The API returns 'commitableBalance' and 'paymentBalance' in the object.
                     // We take the last entry's balance as the current head balance
-                    const lastEntry = data.length > 0 ? data[data.length - 1] : null;
-                    const currentHeadActual = lastEntry ? lastEntry.paymentBalance : 0;
-                    const currentHeadCommitable = lastEntry ? lastEntry.commitableBalance : 0;
+                    // const lastEntry = data.length > 0 ? data[data.length - 1] : null;
+                    // const currentHeadActual = lastEntry ? lastEntry.paymentBalance : 0;
+                    // const currentHeadCommitable = lastEntry ? lastEntry.commitableBalance : 0;
 
                     // HOWEVER, if we want to trust our own sum (safer if API pagination issues exist, but API seems to return all):
                     // Let's rely on reducing the sums for robustness if API guarantees full history
@@ -137,7 +142,9 @@ export const useProjectBudget = (projectTitle: string) => { // projectTitle is e
                         bmr: item.bmr,
                         type: item.transactionType === 'Commitment' ? 'commitment' : 'transaction',
                         head: head,
-                        headActualBalance: item.paymentBalance
+                        headActualBalance: item.paymentBalance,
+                        transactionId: item.transactionId,
+                        frapAppId: item.frapAppId
                     }));
 
                     allEntries = [...allEntries, ...mappedEntries];
@@ -153,7 +160,7 @@ export const useProjectBudget = (projectTitle: string) => { // projectTitle is e
                 setCommitableBalance(totalCommitable);
 
                 // Debug logging
-                console.log('[useProjectBudget] Project:', projectTitle);
+                console.log('[useProjectBudget] Project:', projectCode);
                 console.log('[useProjectBudget] Total Actual Balance:', totalActual);
                 console.log('[useProjectBudget] Total Commitable Balance:', totalCommitable);
                 console.log('[useProjectBudget] All Entries Count:', allEntries.length);
@@ -168,7 +175,7 @@ export const useProjectBudget = (projectTitle: string) => { // projectTitle is e
         };
 
         fetchAllData();
-    }, [projectTitle]);
+    }, [projectCode]);
 
     return {
         budgetData,

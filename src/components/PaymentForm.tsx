@@ -56,8 +56,35 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                             }
                         }
 
+                        // Try to fetch Project Registration to get the correct document name and title
+                        let docNameValue = commitData.projectNumber;
+                        let titleValue = '';
+                        try {
+                            const prRes = await fetch(`/api/resource/Project%20Registration?filters=[["project_no","=","${commitData.projectNumber}"]]&fields=["name","project_title"]`);
+                            if (prRes.ok) {
+                                const prData = await prRes.json();
+                                if (prData?.data && prData.data.length > 0) {
+                                    docNameValue = prData.data[0].name;
+                                    titleValue = prData.data[0].project_title || '';
+
+                                    // Inject into link_options so it displays correctly
+                                    const existingPrOptions = mergedLinkOptions['project_ref_number'] || [];
+                                    const prAlreadyExists = existingPrOptions.some((opt: any) => opt.value === docNameValue);
+                                    if (!prAlreadyExists) {
+                                        mergedLinkOptions['project_ref_number'] = [
+                                            ...existingPrOptions,
+                                            { value: docNameValue, label: titleValue || docNameValue }
+                                        ];
+                                    }
+                                }
+                            }
+                        } catch (err) {
+                            console.error("Failed to fetch Project Registration for PaymentForm:", err);
+                        }
+
                         setFormData({
-                            project_ref_number: commitData.projectNumber,
+                            project_ref_number: docNameValue,
+                            _project_title: titleValue, // keep track of title for the header
                             payment_amount: commitData.commitAmount,
                             payment_particular: commitData.commitParticular || commitData.refDetails,
                             payment_date: new Date().toISOString().split('T')[0],
@@ -84,21 +111,58 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
     }, [docName, commitData]);
 
     const handleSubmit = async (data: any) => {
+        console.log('=== PAYMENT FORM DATA ===', {
+            submittedData: data,
+            commitData,
+            docName,
+            resolvedBudgetHead,
+            formDataState: formData
+        });
         setSubmitting(true);
         try {
-            // Match backend API signature: doctype, name, project_name, payment_amount, budget_head, bmr
-            const body = {
-                ...data, // Include all form data
-                doctype: 'AccountHeadPayment',
-                name: docName || data.name || undefined,
-                project_name: data.project_ref_number || undefined,
-                payment_amount: data.payment_amount || undefined,
-                budget_head: data.budget_head || undefined,
-                bmr: data.payment_bmr || data.bmr || undefined,
-            };
-            console.log("Submitting Payment Data:", body);
+            // Route to the correct payment endpoint based on module
+            // Advance Settlement (moduleId=8) has a dedicated Kafka-publishing endpoint
+            const isAdvanceSettlement = commitData?.moduleId && String(commitData.moduleId) === '8';
+            const paymentEndpoint = isAdvanceSettlement
+                ? '/api/method/rndopsapp.rndopsapp.doctype.advance_settlement.advance_settlement.submit_advance_settlement_payment'
+                : '/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data';
+            // const paymentEndpoint = isAdvanceSettlement
+            //     ? '/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data'
+            //     : '/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data';
 
-            const response = await fetch('/api/method/rndopsapp.rndopsapp.commitPayment.submit_payment_data', {
+            // Build body matching the target endpoint's function signature
+            const body = isAdvanceSettlement
+                ? {
+                    // Explicit params of submit_advance_settlement_payment()
+                    name: docName || data.name || commitData?.frapAppId || undefined,
+                    project_name: data.project_ref_number || undefined,
+                    payment_amount: data.payment_amount || undefined,
+                    budget_head: data.budget_head || undefined,
+                    bmr: data.payment_bmr || data.bmr || undefined,
+                    // Additional fields read from frappe.form_dict by the backend
+                    payment_date: data.payment_date || undefined,
+                    payment_particular: data.payment_particular || undefined,
+                    payment_status: data.payment_status || undefined,
+                    payment_reference_details: data.payment_reference_details || undefined,
+                    bank_transaction_number: data.bank_transaction_number || undefined,
+                    bank_transaction_date: data.bank_transaction_date || undefined,
+                    commit_id: data.commit_id || commitData?.transactionCommitNumber || undefined,
+                }
+                : {
+                    ...data,
+                    doctype: 'AccountHeadPayment',
+                    name: docName || data.name || undefined,
+                    project_name: data.project_ref_number || undefined,
+                    payment_amount: data.payment_amount || undefined,
+                    budget_head: data.budget_head || undefined,
+                    bmr: data.payment_bmr || data.bmr || undefined,
+                    frapAppId: commitData?.frapAppId || undefined,
+                    moduleName: commitData?.moduleId || undefined,
+                };
+
+            console.log(`Submitting Payment (${isAdvanceSettlement ? 'Advance Settlement' : 'Generic'}):`, body);
+
+            const response = await fetch(paymentEndpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -124,14 +188,14 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
     };
 
     if (loading) {
-        return <div className="p-8 text-center text-gray-500">Loading form details...</div>;
+        return <div className="p-8 text-center text-zinc-500 dark:text-zinc-400">Loading form details...</div>;
     }
 
     if (error) {
         return (
             <div className="p-8 text-center">
                 <p className="text-red-500 font-bold mb-4">{error}</p>
-                <button onClick={onCancel} className="px-4 py-2 bg-gray-200 rounded-lg">Close</button>
+                <button onClick={onCancel} className="px-4 py-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg">Close</button>
             </div>
         );
     }
@@ -144,7 +208,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
             onSubmit={handleSubmit}
             onCancel={onCancel}
             submitButtonText={docName ? "Update Payment" : "Create Payment"}
-            title={docName ? `Edit Payment · ${docName}` : commitData ? `Payment · ${commitData.projectNumber}` : "New Payment"}
+            title={docName ? `Edit Payment · ${docName}` : commitData ? `Payment · ${commitData.projectNumber}${formData._project_title ? ' · ' + formData._project_title : ''}` : "New Payment"}
             isSubmitting={submitting}
             onFormChange={(newData) => setFormData(newData)}
         />

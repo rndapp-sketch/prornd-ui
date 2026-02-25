@@ -7,7 +7,9 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+
+import { createPortal } from "react-dom";
 import {
   useFrappeGetDoc,
   useFrappePostCall,
@@ -15,13 +17,13 @@ import {
   useFrappeAuth,
 } from "frappe-react-sdk";
 import { Textarea } from "@/components/ui/textarea";
-import { AppSidebar } from "../components/RndSidebar";
+
 import FundDetails from "../components/FundDetails";
+// Disbursal of Honorarium moved to separate page
 import {
   ArrowLeftIcon,
   FileTextIcon,
   UsersIcon,
-  DollarSignIcon,
   IndianRupeeIcon,
   ShieldIcon,
   MessageSquareIcon,
@@ -30,7 +32,6 @@ import {
   UserIcon,
   BuildingIcon,
   CreditCardIcon,
-  UploadIcon,
   ShoppingCartIcon,
   UsersIcon as UsersGroupIcon,
   PlaneIcon,
@@ -43,12 +44,28 @@ import {
   ClockIcon,
   CheckCircleIcon,
   AlertCircleIcon,
-  CogIcon as SettingsIcon,
-  ChevronDown, CheckCircle2, ChevronRight, LayoutDashboard, MoreVertical, PieChart, Plus, Search, X, Trash2,
   CreditCard, Upload, ShoppingCart, Plane, ZapIcon, Users, Settings, FileSpreadsheet as LedgerIcon,
-  ExternalLinkIcon
+  ExternalLinkIcon,
+  ChevronRight,
+  Plus,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "../components/UserRole";
 
@@ -114,20 +131,17 @@ const SectionWrapper = ({
   icon: any;
   className?: string;
 }) => (
-  <div
-    className={cn(
-      "p-5 bg-white rounded-xl border border-gray-200 shadow-sm",
-      className
-    )}
-  >
-    <div className="flex items-center gap-2.5 mb-4">
-      <div className="p-2 rounded-lg bg-[#E0F7F6]">
-        <Icon className="h-4 w-4 text-[#0EA5A4]" />
+  <Card className={cn("border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm", className)}>
+    <CardHeader className="py-3 px-3 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/50">
+      <div className="flex items-center gap-2">
+        {Icon && <Icon className="h-3.5 w-3.5 text-[#D97757]" />}
+        <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">{title}</CardTitle>
       </div>
-      <h3 className="text-base font-semibold text-gray-800">{title}</h3>
-    </div>
-    <div className="space-y-3">{children}</div>
-  </div>
+    </CardHeader>
+    <CardContent className="pt-4 px-3">
+      {children}
+    </CardContent>
+  </Card>
 );
 
 const FieldDisplay = ({
@@ -141,23 +155,25 @@ const FieldDisplay = ({
 }) => {
   if (!value && value !== 0 && value !== "No") return null;
   return (
-    <div className="py-2">
-      <div className="flex items-center gap-1.5 mb-1">
-        {Icon && <Icon className="h-3.5 w-3.5 text-gray-500" />}
-        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+    <div className="py-3 px-1">
+      <div className="flex items-center gap-2 mb-1.5">
+        {Icon && <Icon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />}
+        <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide font-sans">
           {label}
         </p>
       </div>
-      <p className="text-sm text-gray-900 bg-gray-50 px-3 py-2 rounded-lg">{value}</p>
+      <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100 pl-0.5">{value}</p>
     </div>
   );
 };
 
 // --- FrappeCard Component ---
 const FrappeCard = ({ children, className }: any) => (
-  <div className={cn("bg-white p-5 md:p-6 rounded-xl border border-gray-200 shadow-sm", className)}>
-    {children}
-  </div>
+  <Card className={cn("border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm", className)}>
+    <CardContent className="p-6">
+      {children}
+    </CardContent>
+  </Card>
 );
 
 
@@ -174,7 +190,7 @@ const HtmlContent = ({
   return (
     <SectionWrapper title={title} icon={Icon}>
       <div
-        className="prose prose-sm max-w-none text-gray-700 leading-relaxed"
+        className="prose prose-sm max-w-none text-zinc-600 dark:text-zinc-300 leading-relaxed dark:prose-invert"
         dangerouslySetInnerHTML={{ __html: htmlString }}
       />
     </SectionWrapper>
@@ -195,29 +211,29 @@ const TableDisplay = ({
   if (!data || data.length === 0) return null;
   return (
     <SectionWrapper title={label} icon={Icon}>
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="frappe-table">
-          <thead>
-            <tr>
+      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <Table>
+          <TableHeader className="bg-zinc-50 dark:bg-zinc-900">
+            <TableRow className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-transparent">
               {columns.map((col) => (
-                <th key={col.fieldname}>
+                <TableHead key={col.fieldname} className="px-6 py-3 h-10 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                   {col.label}
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {data.map((row, index) => (
-              <tr key={index}>
+              <TableRow key={index} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800">
                 {columns.map((col) => (
-                  <td key={col.fieldname}>
+                  <TableCell key={col.fieldname} className="px-4 py-2 text-xs text-zinc-700 dark:text-zinc-300">
                     {row[col.fieldname]}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </SectionWrapper>
   );
@@ -230,18 +246,18 @@ const FrappeButton = ({
   variant = "primary",
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "ghost" | "outline" }) => (
-  <button
+  // Use Button from ui/button with variants mapped
+  <Button
+    variant={variant === "primary" ? "default" : variant === "ghost" ? "ghost" : "outline"}
     className={cn(
-      "frappe-btn",
-      variant === "primary" && "frappe-btn-primary",
-      variant === "ghost" && "frappe-btn-ghost",
-      variant === "outline" && "frappe-btn-outline",
-      className
+      className,
+      variant === "primary" && "bg-[#D97757] hover:bg-[#C66A4E] text-white",
+      variant === "outline" && "border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
     )}
     {...props}
   >
     {children}
-  </button>
+  </Button>
 );
 
 // --- COMMENT MODAL for Sanction/Workflow Actions ---
@@ -258,33 +274,92 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-lg w-full max-w-md">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm {action}</h3>
-        <textarea
-          className="w-full border border-gray-300 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
-          rows={4}
-          placeholder="Add a comment (optional)..."
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md">
+        <h3 className="text-sm font-bold mb-4 capitalize text-zinc-900 dark:text-zinc-100">
+          Confirm {action}
+        </h3>
+        <Textarea
           value={comment}
-          onChange={e => setComment(e.target.value)}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder="Enter your comment here..."
+          className="mb-4 min-h-[100px] border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-500"
         />
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-          >
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>
             Cancel
-          </button>
-          <button
-            onClick={() => { onSubmit(comment); setComment(""); }}
-            disabled={isLoading}
-            className="px-4 py-2 text-sm font-medium text-white bg-[#0EA5A4] rounded-lg hover:bg-[#0C8F8E] disabled:opacity-50"
-          >
-            {isLoading ? "Processing..." : "Confirm"}
-          </button>
+          </Button>
+          <Button onClick={() => { onSubmit(comment); setComment(""); }} disabled={isLoading}>
+            {isLoading ? "Submit..." : "Submit"}
+          </Button>
         </div>
       </div>
     </div>
+  );
+};
+
+const AdvanceSettlementModal = ({ isOpen, onClose, settlements, onConvertNew, onNavigate }: {
+  isOpen: boolean;
+  onClose: () => void;
+  settlements: any[];
+  onConvertNew: () => void;
+  onNavigate: (path: string) => void;
+}) => {
+  useEffect(() => {
+    if (isOpen) {
+      console.log('>>> AdvanceSettlementModal MOUNTED/OPENED with settlements:', settlements);
+    }
+  }, [isOpen, settlements]);
+
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999]">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-lg relative z-[100000]">
+        <h3 className="text-lg font-bold mb-4 text-zinc-900 dark:text-zinc-100">Existing Settlements Found</h3>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+          There are already settlement(s) created for this advance. You can view/edit an existing one or create a new partial settlement.
+        </p>
+
+        <div className="space-y-3 mb-6 max-h-[200px] overflow-y-auto">
+          {settlements.map((settlement) => (
+            <div key={settlement.name} className="flex items-center justify-between p-3 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
+              <div>
+                <p className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{settlement.name}</p>
+                <p className="text-xs text-zinc-500">{settlement.workflow_state} · ₹ {settlement.total_amount}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === 'Approved' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                  settlement.workflow_state === 'Submitted' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                    'bg-zinc-100 text-zinc-800 border-zinc-200'
+                  }`}>
+                  {settlement.workflow_state || 'Draft'}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onClose();
+                    onNavigate(`/advance-settlement/${settlement.name}`);
+                  }}
+                >
+                  View
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={onConvertNew} className="bg-[#D97757] hover:bg-[#C66A4E] text-white">
+            Create New Settlement
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 
@@ -292,24 +367,113 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
 
 interface QuickActionsProps {
   projectName: string;
+  projectNo?: string;
+  projectTitle?: string;
   onNavigate: (path: string) => void;
+  onSwitchTab?: (tab: string) => void;
 }
 
-const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
+const QuickActions = ({ projectName, projectNo, projectTitle, onNavigate, onSwitchTab }: QuickActionsProps) => {
   const { currentUser } = useFrappeAuth();
-  const [activeTab, setActiveTab] = useState("Reimbursement");
-  const [selectedApplication, setSelectedApplication] = useState<string | null>("Reimbursement"); // Auto-select Reimbursement initially
+  const location = useLocation();
+
+  // Use location state if available (from navigation back), fallback to sessionStorage, then default
+  const [activeTab, setActiveTabState] = useState(() =>
+    location.state?.category || sessionStorage.getItem(`activeTab_${projectName}`) || "Reimbursement"
+  );
+  const [selectedApplication, setSelectedApplication] = useState<string | null>(() =>
+    location.state?.app || sessionStorage.getItem(`selectedApp_${projectName}`) || null
+  );
+
+  const handleTabChange = (tab: string) => {
+    setActiveTabState(tab);
+
+    // Auto-select if the tab only has one item
+    const group = groups.find(g => g.title === tab);
+    if (group && group.items.length === 1) {
+      setSelectedApplication(group.items[0]);
+      sessionStorage.setItem(`selectedApp_${projectName}`, group.items[0]);
+    } else {
+      setSelectedApplication(null);
+      sessionStorage.removeItem(`selectedApp_${projectName}`);
+    }
+
+    sessionStorage.setItem(`activeTab_${projectName}`, tab);
+  };
+
+  const clearAppSelection = () => {
+    setSelectedApplication(null);
+    sessionStorage.removeItem(`selectedApp_${projectName}`);
+  };
+
+  useEffect(() => {
+    if (selectedApplication) {
+      sessionStorage.setItem(`selectedApp_${projectName}`, selectedApplication);
+    }
+  }, [selectedApplication, projectName]);
+
   const [applicationData, setApplicationData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Settle Modal State
+  const [isSettleModalOpen, setIsSettleModalOpen] = useState(false);
+  const [existingSettlements, setExistingSettlements] = useState<any[]>([]);
+  const [selectedAdvanceForSettle, setSelectedAdvanceForSettle] = useState<any>(null);
+
+  const handleSettleClick = async (item: any) => {
+    setIsLoading(true);
+    console.log('>>> handleSettleClick triggered for:', item.name);
+    try {
+      // Check for existing settlements
+      console.log('Fetching ALL Advance Settlements to debug filter (client-side filtering enabled)');
+      const response = await fetchReimbursements({
+        doctype: "Advance Settlement",
+        fields: ["name", "total_amount", "creation", "temporary_advance_application", "owner", "docstatus"],
+        order_by: "creation desc",
+        limit_page_length: 50
+      });
+
+      console.log('>>> ALL Advance Settlements (last 50):', response);
+      const allSettlements = (response?.message || []).map((s: any) => ({
+        ...s,
+        workflow_state: s.workflow_state || (s.docstatus === 1 ? "Submitted" : s.docstatus === 2 ? "Cancelled" : "Draft")
+      }));
+
+      // Client-side filter
+      const settlements = allSettlements.filter((s: any) =>
+        s.temporary_advance_application === item.name
+      );
+
+      console.log('>>> Match candidate ID:', item.name);
+      console.log('>>> Filtered Settlements (Client-Side):', settlements);
+
+      if (settlements.length > 0) {
+        setExistingSettlements(settlements);
+        setSelectedAdvanceForSettle(item);
+        setIsSettleModalOpen(true);
+        console.log('>>> Opening Modal (Client-Side Match)');
+      } else {
+        console.log('>>> No settlements found, navigating to new form');
+        // No existing settlements, go straight to new form
+        onNavigate(`/advance-settlement?advance=${item.name}&project=${projectName}`);
+      }
+    } catch (error) {
+      console.error("Error checking for settlements:", error);
+      // Fallback: just go to new form
+      onNavigate(`/advance-settlement?advance=${item.name}&project=${projectName}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const groups = [
     { title: "Reimbursement", icon: IndianRupeeIcon, items: ["Reimbursement"] },
     { title: "Advance", icon: CreditCard, items: ["Temporary Advance Apply"] },
-    { title: "Disbursal", icon: Upload, items: ["One Time Assistantship", "Top Up Fellowship"] },
-    { title: "Purchase", icon: ShoppingCart, items: ["Direct Purchase", "General Indent", "Generate NIQ", "Indent cum Sanction", "Rate Contract"] },
-    { title: "Recruitment", icon: Users, items: ["Adhoc", "Committee Member Change", "Contractual", "Selection Committee Report", "Project Staff Resignation"] },
+    { title: "Disbursal", icon: Upload, items: ["Top Up Fellowship", "Disbursal of Consultancy", "Disbursement of Honorarium"] },
+    { title: "Purchase", icon: ShoppingCart, items: ["Direct purchase", "General Indent", "Generate NIQ", "Indent cum Sanction Sheet", "Rate Contract"] },
+    { title: "Recruitment", icon: Users, items: ["Adhoc", "Committee Member Change Request", "Contractual", "Selection Committee Report", "Project Staff Resignation"] },
     { title: "Travel", icon: Plane, items: ["Travel"] },
-    { title: "Utilities", icon: Settings, items: ["Add New User", "Application History", "Form Tracking", "Incharge Assignment"] },
+    { title: "Utilities", icon: Settings, items: ["Add New User", "Application History", "Form Tracking", "IPR", "Incharge Assignment", "Legal"] },
   ];
 
   // Frappe SDK hooks for fetching data
@@ -395,9 +559,12 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
         try {
           console.log('=== FETCHING TEMPORARY ADVANCE (V2) ===');
           const timestamp = Date.now();
-          // Use v2 API as verified by user, fields=* to see everything
-          // Note: v2 API structure might differ slightly, but usually returns { data: [...] }
-          const apiUrl = `/api/v2/document/Temporary Advance?fields=["*"]&limit_page_length=0&_=${timestamp}`;
+          const projectCode = projectNo || projectName;
+          // Filter at API level by project_code
+          const filters = projectCode ? `&filters=[["project_code","=","${projectCode}"]]` : '';
+          const apiUrl = `/api/v2/document/Temporary Advance?fields=["*"]&limit_page_length=0${filters}&_=${timestamp}`;
+
+          console.log('Fetching with project_code filter:', projectCode);
 
           const fetchResponse = await fetch(apiUrl, {
             method: 'GET',
@@ -408,47 +575,22 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
 
           const result = await fetchResponse.json();
-          const allItems = result?.data || [];
-          console.log('Temporary Advance V2 raw items:', allItems);
-
-          if (allItems.length > 0) {
-            console.log('First item keys:', Object.keys(allItems[0]));
-            console.log('First item project fields:', {
-              project: allItems[0].project,
-              project_code: allItems[0].project_code,
-              project_name: allItems[0].project_name,
-              name: allItems[0].name
-            });
-          }
-
-          // DEBUG: Show ALL items for now to verify data presence
-          // const projectNameLower = projectName?.toLowerCase() || '';
-          // data = allItems.filter((item: any) => {
-          //    const itemStr = JSON.stringify(item).toLowerCase();
-          //    return itemStr.includes(projectNameLower);
-          // });
-
-          // Filter by current user (owner field)
-          data = allItems.filter((item: any) => {
-            const itemOwner = (item.owner || item.applicant_webmail || '').toLowerCase();
-            const user = (currentUser || '').toLowerCase();
-            return itemOwner === user;
-          });
-          console.log(`Filtered ${data.length} Temporary Advance items for user: ${currentUser}`);
+          data = result?.data || [];
+          console.log(`Fetched ${data.length} Temporary Advance items for project_code: ${projectCode}`);
 
           // Map for display consistency
           data = data.map((item: any) => ({
             ...item,
-            // Explicitly use workflow_state if present, otherwise fallback to DocStatus
-            workflow_state: item.workflow_state || (item.docstatus === 1 ? "Submitted" : item.docstatus === 2 ? "Cancelled" : "Draft"),
-            applicant_webmail: item.applicant_webmail || item.owner // Ensure this is set
+            workflow_state: item.workflow_state || item.status || (item.docstatus === 1 ? "Submitted" : item.docstatus === 2 ? "Cancelled" : "Draft"),
+            applicant_webmail: item.applicant_webmail || item.owner
           }));
 
-          console.log(`Filtered ${data.length} Temporary Advance items`);
+          console.log(`Mapped ${data.length} Temporary Advance items`);
         } catch (fetchError) {
           console.error('Temporary Advance fetch error:', fetchError);
           data = [];
         }
+
       } else if (selectedApplication === "Project Staff Resignation") {
         const response = await fetchReimbursements({
           doctype: "Project Staff Resignation",
@@ -552,6 +694,82 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           console.error('Travel combined fetch error:', fetchError);
           data = [];
         }
+      } else if (selectedApplication === "Disbursal of Honorarium") {
+        try {
+          const timestamp = Date.now();
+          const apiUrl = `/api/resource/Disbursal of Honorarium?fields=["name","creation","workflow_state","owner","total_amount","webmail_id","name_of_applicant","department"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          const fetchResponse = await fetch(apiUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            credentials: 'include'
+          });
+          if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+          const result = await fetchResponse.json();
+          data = (result?.data || []).map((item: any) => ({
+            ...item,
+            applicant_webmail: item.webmail_id || item.owner
+          }));
+        } catch (fetchError) {
+          console.error('Disbursal of Honorarium fetch error:', fetchError);
+          data = [];
+        }
+      } else if (selectedApplication === "Direct Purchase") {
+        try {
+          const timestamp = Date.now();
+          const apiUrl = `/api/v2/document/Direct%20Purchase?fields=["*"]&limit_page_length=0&_=${timestamp}`;
+          const fetchResponse = await fetch(apiUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' },
+            credentials: 'include'
+          });
+          if (!fetchResponse.ok) throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+          const result = await fetchResponse.json();
+          const allItems = result?.data || [];
+          const userStr = (currentUser || '').toLowerCase();
+
+          console.log('[Direct Purchase Fetch] Total items fetched:', allItems.length);
+          console.log('[Direct Purchase Fetch] Current User:', userStr);
+          console.log('[Direct Purchase Fetch] Project ID:', projectName, 'Project No:', projectNo);
+
+          data = allItems
+            .filter((item: any) => {
+              const itemOwner = (item.owner || '').toLowerCase();
+              const itemApplicant = (item.applicant_webmail || '').toLowerCase();
+
+              // More robust project matching
+              const matchesProject =
+                (item.project_name === projectName) ||
+                (item.project_name === projectNo) ||
+                (item.project_number === projectName) ||
+                (item.project_number === projectNo);
+
+              // For Direct Purchase, show if user is owner OR applicant OR if no owner/applicant specified
+              const matchesUser = !userStr || itemOwner === userStr || itemApplicant === userStr;
+
+              const isMatch = matchesProject && matchesUser;
+
+              if (!isMatch && allItems.length < 20) {
+                console.log('[Direct Purchase Filter] Item excluded:', item.name, {
+                  matchesProject,
+                  matchesUser,
+                  itemProject: item.project_name,
+                  itemOwner
+                });
+              }
+
+              return isMatch;
+            })
+            .map((item: any) => ({
+              ...item,
+              workflow_state: item.workflow_state || (item.docstatus === 1 ? "Submitted" : item.docstatus === 2 ? "Cancelled" : "Draft"),
+              applicant_webmail: item.applicant_name || item.owner
+            }));
+
+          console.log('[Direct Purchase Fetch] Filtered data items count:', data.length);
+        } catch (fetchError) {
+          console.error('Direct Purchase fetch error:', fetchError);
+          data = [];
+        }
       }
       setApplicationData(data);
     } catch (error) {
@@ -571,69 +789,59 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
     <button
       onClick={onClick}
       className={cn(
-        "w-full justify-start text-left text-sm font-medium text-gray-700",
-        "px-4 py-3 rounded-lg bg-white border border-gray-200",
+        "w-full justify-start text-left text-sm font-medium text-zinc-700 dark:text-zinc-300",
+        "px-4 py-3 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800",
         "shadow-sm transition-all duration-150",
-        "hover:shadow-md hover:border-[#0EA5A4]/20 hover:text-[#0EA5A4]",
-        "focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)]"
+        "hover:shadow-md hover:border-[#D97757]/20 hover:text-[#D97757]",
+        "focus:outline-none focus:ring-2 focus:ring-[#D97757]/20"
       )}>
       {children}
     </button>
   );
 
-  const activeGroup = groups.find(g => g.title === activeTab);
 
-  // Handle tab change - auto-select for single-item tabs
-  const handleTabChange = (tabTitle: string) => {
-    setActiveTab(tabTitle);
-    const group = groups.find(g => g.title === tabTitle);
-    if (group && group.items.length === 1) {
-      // Auto-select the only item in this tab
-      setSelectedApplication(group.items[0]);
-    } else {
-      // Reset selection for multi-item tabs
-      setSelectedApplication(null);
-      setApplicationData([]);
-    }
-  };
-
-  const handleApplicationClick = (item: string) => {
-    setSelectedApplication(item);
-  };
-
-  const handleBack = () => {
-    const group = groups.find(g => g.title === activeTab);
-    if (group && group.items.length === 1) {
-      // For single-item tabs, don't clear - stay on the view
-      return;
-    }
-    setSelectedApplication(null);
-    setApplicationData([]);
-  };
 
   const handleApplyNew = () => {
+    // Use projectNo if available, otherwise fallback to projectName (compatibility)
+    const projectParam = projectNo || projectName;
+
     // Navigate based on application type
     switch (selectedApplication) {
+      case "Top Up Fellowship":
+      case "Disbursal of Consultancy":
+        alert(`Apply New: ${selectedApplication} - Route not configured yet`);
+        break;
+      case "Disbursal of Honorarium":
+      case "Disbursement of Honorarium":
+        onNavigate(`/disbursal-of-honorarium-form?project=${projectParam}`);
+        break;
       case "Reimbursement":
-        onNavigate(`/reimbursement?project=${projectName}`);
+        onNavigate(`/reimbursement?project=${projectParam}`);
         break;
       case "Temporary Advance Apply":
-        onNavigate(`/temporary-advance?project=${projectName}`);
+        onNavigate(`/temporary-advance?project=${projectParam}&projectTitle=${encodeURIComponent(projectTitle || '')}`);
+        break;
+      case "Advance Settlement":
+        onNavigate(`/advance-settlement?project=${projectParam}`);
         break;
       case "Rate Contract":
-        onNavigate(`/rate-contract?project=${projectName}`);
+        onNavigate(`/rate-contract?project=${projectParam}`);
         break;
       case "Travel Apply":
-        onNavigate(`/travel?project=${projectName}`);
+        onNavigate(`/travel?project=${projectParam}`);
         break;
       case "Travel":
-        onNavigate(`/travel?project=${projectName}`);
+        onNavigate(`/travel?project=${projectParam}`);
         break;
       case "TA DA Settlement":
-        onNavigate(`/ta-da-settlement?project=${projectName}`);
+        onNavigate(`/ta-da-settlement?project=${projectParam}`);
         break;
       case "Project Staff Resignation":
-        onNavigate(`/project-staff-resignation?project=${projectName}`);
+        onNavigate(`/project-staff-resignation?project=${projectParam}`);
+        break;
+      case "Direct Purchase":
+      case "Direct purchase":
+        onNavigate(`/direct-purchase?project=${projectParam}`);
         break;
       default:
         alert(`Apply New: ${selectedApplication} - Route not configured yet`);
@@ -654,7 +862,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
     const isSingleItemTab = currentGroup && currentGroup.items.length === 1;
 
     return (
-      <div className="p-5 bg-gray-50/50 rounded-xl">
+      <div className="p-5 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
         {/* Tab Header - Always visible */}
         <div className="mb-5">
           <nav className="frappe-tabs" aria-label="Quick actions tabs">
@@ -667,7 +875,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                   onClick={() => handleTabChange(group.title)}
                   aria-selected={isActive}
                   className={cn(
-                    "frappe-tab flex items-center gap-2",
+                    "frappe-tab flex items-center gap-2 font-bold",
                     isActive && "active"
                   )}
                 >
@@ -684,19 +892,20 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
           <div className="flex items-center gap-3">
             {!isSingleItemTab && (
               <button
-                onClick={handleBack}
-                className="p-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+                onClick={clearAppSelection}
+                className="p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
               >
-                <ChevronRight className="w-5 h-5 text-gray-600 rotate-180" />
+                <ChevronRight className="w-5 h-5 text-zinc-600 dark:text-zinc-400 rotate-180" />
               </button>
             )}
-            <h3 className="text-lg font-semibold text-gray-900">{selectedApplication}</h3>
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{selectedApplication}</h3>
           </div>
+
           <button
             onClick={handleApplyNew}
             className={cn(
               "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
-              "bg-[#0EA5A4] text-white hover:bg-[#0D9494]",
+              "bg-[#D97757] text-white hover:bg-[#C66A4E]",
               "shadow-sm transition-all duration-150"
             )}
           >
@@ -706,36 +915,36 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
         </div>
 
         {/* Applications Table */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
           {isLoading ? (
             <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4] mx-auto"></div>
-              <p className="mt-4 text-sm text-gray-500">Loading applications...</p>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757] mx-auto"></div>
+              <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">Loading applications...</p>
             </div>
           ) : applicationData.length > 0 ? (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+              <thead className="bg-zinc-50 dark:bg-zinc-800/50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Application ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Applicant</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Application ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Applicant</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                 {applicationData.map((item: any, index: number) => (
-                  <tr key={item.name || index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900 font-medium">{item.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{formatDate(item.creation)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{item.applicant_webmail || item.owner}</td>
+                  <tr key={item.name || index} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
+                    <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">{item.name}</td>
+                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{formatDate(item.creation)}</td>
+                    <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">{item.applicant_webmail || item.owner}</td>
                     <td className="px-4 py-3">
                       <span className={cn(
                         "inline-flex px-2 py-1 text-xs font-medium rounded-full",
                         item.workflow_state === "Approved" && "bg-green-100 text-green-700",
                         item.workflow_state === "Pending" && "bg-yellow-100 text-yellow-700",
                         item.workflow_state === "Rejected" && "bg-red-100 text-red-700",
-                        item.workflow_state === "Draft" && "bg-gray-100 text-gray-700",
+                        item.workflow_state === "Draft" && "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
                         !["Approved", "Pending", "Rejected", "Draft"].includes(item.workflow_state) && "bg-blue-100 text-blue-700"
                       )}>
                         {item.workflow_state || 'Draft'}
@@ -766,43 +975,50 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                               case "TA DA Settlement":
                                 onNavigate(`/ta-da-settlement?edit=${item.name}`);
                                 break;
+                              case "Disbursal of Honorarium":
+                              case "Disbursement of Honorarium":
+                                onNavigate(`/disbursal-of-honorarium-form/${item.name}`);
+                                break;
+                              case "Direct Purchase":
+                              case "Direct purchase":
+                                onNavigate(`/direct-purchase/${item.name}`);
+                                break;
                               default:
                                 // Check item.type for Travel consolidated view
                                 if (item.type === 'Travel Apply') {
                                   onNavigate(`/travel/${item.name}`);
                                 } else if (item.type === 'TA DA Settlement') {
                                   onNavigate(`/ta-da-settlement?edit=${item.name}`);
+                                } else if (item.type === 'Advance Settlement') {
+                                  onNavigate(`/advance-settlement/${item.name}`);
                                 } else {
                                   onNavigate(`/reimbursement/${item.name}`);
                                 }
                                 break;
                             }
                           }}
-                          className="text-sm text-[#0EA5A4] hover:underline whitespace-nowrap"
+                          className="text-sm text-[#D97757] hover:underline whitespace-nowrap"
                         >
                           View
                         </button>
+                        {(selectedApplication === "Temporary Advance Apply") && (
+                          <button
+                            onClick={() => handleSettleClick(item)}
+                            className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 hover:underline whitespace-nowrap"
+                          >
+                            Settle
+                          </button>
+                        )}
                         {(selectedApplication === "Travel" && item.type === 'Travel Apply') && (
                           <button
                             onClick={() => onNavigate(`/ta-da-settlement?project=${projectName}&travel_ref=${item.name}`)}
-                            className="text-sm text-gray-600 hover:text-gray-900 hover:underline whitespace-nowrap"
+                            className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:text-zinc-100 hover:underline whitespace-nowrap"
                           >
                             Settle
                           </button>
                         )}
 
-                        {selectedApplication === "Temporary Advance Apply" && (
-                          <button
-                            onClick={() => {
-                              // Navigate to settlement page for this temporary advance
-                              // Pass the advance ID to pre-fill the settlement form
-                              onNavigate(`/advance-settlement?advance=${item.name}&project=${projectName}`);
-                            }}
-                            className="text-sm text-amber-600 hover:underline whitespace-nowrap font-medium"
-                          >
-                            Settle
-                          </button>
-                        )}
+
                       </div>
                     </td>
                   </tr>
@@ -811,18 +1027,18 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
             </table>
           ) : (
             <div className="p-12 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                <FileTextIcon className="w-8 h-8 text-gray-400" />
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                <FileTextIcon className="w-8 h-8 text-zinc-400 dark:text-zinc-500" />
               </div>
-              <h4 className="text-lg font-medium text-gray-900 mb-1">No applications yet</h4>
-              <p className="text-sm text-gray-500 mb-4">
+              <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-1">No applications yet</h4>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
                 You haven't submitted any {selectedApplication?.toLowerCase()} applications for this project.
               </p>
               <button
                 onClick={handleApplyNew}
                 className={cn(
                   "inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
-                  "bg-[#0EA5A4] text-white hover:bg-[#0D9494]",
+                  "bg-[#D97757] text-white hover:bg-[#C66A4E]",
                   "shadow-sm transition-all duration-150"
                 )}
               >
@@ -832,14 +1048,28 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
             </div>
           )}
         </div>
+
+        <AdvanceSettlementModal
+          isOpen={isSettleModalOpen}
+          onClose={() => setIsSettleModalOpen(false)}
+          settlements={existingSettlements}
+          onConvertNew={() => {
+            setIsSettleModalOpen(false);
+            if (selectedAdvanceForSettle) {
+              onNavigate(`/advance-settlement?advance=${selectedAdvanceForSettle.name}&project=${projectName}`);
+            }
+          }}
+          onNavigate={onNavigate}
+        />
       </div >
     );
   }
 
-  // Category selection view
+  // Otherwise, render grid of cards
+  const activeGroupData = groups.find(g => g.title === activeTab);
+
   return (
-    <div className="p-5 bg-gray-50/50 rounded-xl">
-      {/* Tab Header */}
+    <div className="p-5 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
       <div className="mb-5">
         <nav className="frappe-tabs" aria-label="Quick actions tabs">
           {groups.map((group) => {
@@ -851,7 +1081,7 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
                 onClick={() => handleTabChange(group.title)}
                 aria-selected={isActive}
                 className={cn(
-                  "frappe-tab flex items-center gap-2",
+                  "frappe-tab flex items-center gap-2 font-bold",
                   isActive && "active"
                 )}
               >
@@ -863,15 +1093,15 @@ const QuickActions = ({ projectName, onNavigate }: QuickActionsProps) => {
         </nav>
       </div>
 
-      {/* Tab Content */}
-      <div className="p-5 bg-white rounded-xl border border-gray-200">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {activeGroup?.items.map((item) => (
-            <ActionButton key={item} onClick={() => handleApplicationClick(item)}>
-              {item}
-            </ActionButton>
-          ))}
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {activeGroupData?.items.map((item) => (
+          <ActionButton key={item} onClick={() => {
+            setSelectedApplication(item);
+            sessionStorage.setItem(`selectedApp_${projectName}`, item);
+          }}>
+            {item}
+          </ActionButton>
+        ))}
       </div>
     </div>
   );
@@ -919,45 +1149,47 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
 
     return (
       <div className="space-y-5">
-        <div className="frappe-card">
-          <label htmlFor="comment-textarea" className="frappe-label mb-3">
-            Add a comment
-          </label>
-          <Textarea
-            id="comment-textarea"
-            placeholder="Type here... (Ctrl+Enter to submit)"
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            onKeyDown={handleKeyPress}
-            disabled={isSubmitting}
-            className="frappe-textarea"
-            rows={4}
-          />
-          <div className="flex items-center justify-between mt-4">
-            <span className="text-xs text-[#6B7280]">{newComment.length}/1000</span>
-            <FrappeButton onClick={handleCommentSubmit} disabled={isSubmitting || !newComment.trim()}>
-              {isSubmitting ? "Submitting..." : "Submit"}
-            </FrappeButton>
-          </div>
-        </div>
+        <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+          <CardContent className="p-4">
+            <label htmlFor="comment-textarea" className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3 block">
+              Add a comment
+            </label>
+            <Textarea
+              id="comment-textarea"
+              placeholder="Type here... (Ctrl+Enter to submit)"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              onKeyDown={handleKeyPress}
+              disabled={isSubmitting}
+              className="min-h-[100px] border-zinc-200 dark:border-zinc-800"
+              rows={4}
+            />
+            <div className="flex items-center justify-between mt-4">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">{newComment.length}/1000</span>
+              <FrappeButton onClick={handleCommentSubmit} disabled={isSubmitting || !newComment.trim()}>
+                {isSubmitting ? "Submitting..." : "Submit"}
+              </FrappeButton>
+            </div>
+          </CardContent>
+        </Card>
         <div className="space-y-3">
           {activityData?.message?.map((item, index) => (
             <div
               key={`${item.creation} -${index} `}
-              className="flex items-start gap-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
+              className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-100 dark:border-zinc-800 shadow-sm"
             >
-              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#E0F7F6] flex items-center justify-center font-semibold text-[#0EA5A4] text-lg">
+              <div className="flex-shrink-0 h-10 w-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-semibold text-zinc-600 dark:text-zinc-300 text-lg">
                 {item.owner?.charAt(0).toUpperCase() || "U"}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-center mb-1">
-                  <p className="text-sm font-semibold text-gray-900">{item.owner || "Unknown User"}</p>
-                  <p className="text-xs text-[#6B7280] flex items-center gap-1">
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{item.owner || "Unknown User"}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
                     <ClockIcon className="h-3.5 w-3.5" />
                     {item.creation ? new Date(item.creation).toLocaleString() : "N/A"}
                   </p>
                 </div>
-                <div className="text-sm text-gray-700 prose prose-sm max-w-none leading-relaxed"
+                <div className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed dark:prose-invert"
                   dangerouslySetInnerHTML={{ __html: item.content || "No content" }}
                 />
               </div>
@@ -1004,7 +1236,10 @@ const normalizeResponse = (raw: any): any[] => {
 const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   const { projectName } = useParams<{ projectName: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("overview");
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(() =>
+    location.state?.tab || sessionStorage.getItem(`mainTab_${projectName}`) || "overview"
+  );
   const activityStreamRef = useRef<ActivityStreamHandle>(null);
   const { currentUser } = useFrappeAuth();
   const { data, error, isLoading, mutate } = useFrappeGetDoc(
@@ -1115,7 +1350,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
   // Fetch Budget Heads from Frappe v2 API
   const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: number }[]>([]);
-  const [isBudgetHeadLoading, setIsBudgetHeadLoading] = useState(true);
+
   // Track which heads have data (non-empty transactions)
   const [headsWithData, setHeadsWithData] = useState<Set<number>>(new Set());
   const [isCheckingHeads, setIsCheckingHeads] = useState(false);
@@ -1135,7 +1370,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
       } catch (err) {
         console.error("Failed to fetch Budget Heads:", err);
       } finally {
-        setIsBudgetHeadLoading(false);
       }
     };
     fetchBudgetHeads();
@@ -1153,7 +1387,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
         // Check each head for data
         const promises = budgetHeadList.map(async (head) => {
           try {
-            const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${projectName}&accountHeadId=${head.id}`);
+            const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${data?.project_no || projectName}&accountHeadId=${head.id}`);
             if (response.ok) {
               const data = await response.json();
               if (Array.isArray(data) && data.length > 0) {
@@ -1178,7 +1412,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     if (activeTab === 'ledger') {
       checkHeadsWithData();
     }
-  }, [activeTab, projectName, budgetHeadList]);
+  }, [activeTab, projectName, budgetHeadList, data?.project_no]);
 
   // Use budgetHeadList filtered to only heads with data for ledger tabs
   const ledgerHeads = budgetHeadList.filter(head => headsWithData.has(head.id));
@@ -1206,7 +1440,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     setLedgerError(null);
     try {
       // Use proxy to avoid CORS - /ledger-api proxies to http://172.16.135.27:18083/api
-      const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${projectName}&accountHeadId=${headId}`);
+      const response = await fetch(`/ledger-api/commit-payment-transactions?projectNumber=${data?.project_no || projectName}&accountHeadId=${headId}`);
       console.log("Ledger API response status:", response, "for projectNumber:", projectName, "headId:", headId);
       if (!response.ok) {
         throw new Error(`API Error: ${response.statusText} `);
@@ -1338,11 +1572,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
   // Total project balances from Frappe API - for header display
   // Memoize params and options to prevent infinite re-renders
-  const balanceParams = useMemo(() => ({ project_number: projectName || '' }), [projectName]);
+  const targetProjectNumber = data?.project_no || projectName;
+
+  const balanceParams = useMemo(() => ({ project_number: targetProjectNumber || '' }), [targetProjectNumber]);
   const balanceOptions = useMemo(() => ({
     revalidateOnFocus: false,
-    isPaused: () => !projectName
-  }), [projectName]);
+    // Wait until we have a project number. If Project document is still loading,
+    // wait for data.project_no so we don't accidentally fetch with just the doc name (which might be wrong).
+    isPaused: () => !targetProjectNumber || (isLoading && !data?.project_no)
+  }), [targetProjectNumber, isLoading, data?.project_no]);
 
   const { data: projectAmounts, isLoading: isBalanceLoading, error: balanceError } = useFrappeGetCall<{
     message: {
@@ -1577,6 +1815,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
 
   const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
+
+  // React Router state has already initialized tabs from location.state above.
+  // We can remove the searchParams effect.
+
   const handleAddFunds = () => navigate(`/add-fund-received/${projectName}/`);
   const handleAddSanctionDetails = () => {
     navigate(`/project-details-overview/${projectName}/add-fund-sanction`);
@@ -1585,7 +1827,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   const tabs = [
     { id: "overview", label: "Overview", icon: FileTextIcon },
     { id: "sanction-details", label: "Sanction Details", icon: CreditCardIcon },
-    { id: "ledger", label: "Ledger", icon: LedgerIcon }, // Added Ledger Tab
+    // { id: "sanction-details", label: "Sanction Details", icon: CreditCardIcon },
+    // { id: "disbursal", label: "Disbursal", icon: Upload }, // Removed as per request
+    { id: "ledger", label: "Ledger", icon: LedgerIcon },
     { id: "quick-actions", label: "Applications", icon: ZapIcon },
     { id: "activity", label: "Activity Log", icon: MessageSquareIcon },
   ];
@@ -1611,7 +1855,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
       case "draft":
         return "bg-blue-100 text-blue-800 border border-blue-300";
       default:
-        return "bg-gray-100 text-gray-800 border border-gray-300";
+        return "bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700";
     }
   };
 
@@ -1632,7 +1876,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     if (isLoading) {
       return (
         <div className="flex items-center justify-center h-screen">
-          <p className="text-lg font-semibold">Loading Project Details...</p>
+          <p className="text-sm font-semibold">Loading Project Details...</p>
         </div>
       );
     }
@@ -1641,7 +1885,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
       return (
         <div className="flex flex-col items-center justify-center h-screen gap-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-          <p className="text-lg font-semibold text-gray-600">Loading Project Details...</p>
+          <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">Loading Project Details...</p>
           <button
             onClick={() => mutate()}
             className="text-sm text-teal-600 hover:underline"
@@ -1656,43 +1900,43 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
     return (
       <>
-        <header className="sticky top-0 z-50 mb-6 p-5 bg-white/95 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm transition-all duration-200">
+        <header className="sticky top-0 z-50 mb-4 p-4 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm transition-all duration-200">
           <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate("/projects-view")}
                 aria-label="Back to projects"
-                className="p-2.5 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:bg-zinc-800 transition-colors"
               >
-                <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
+                <ArrowLeftIcon className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
               </button>
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">{data?.project_title || "Project Details"}</h1>
-                <p className="text-sm text-[#6B7280] mt-0.5">ID: {projectName} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E0F7F6] text-[#0EA5A4]">{data?.workflow_state || "Draft"}</span></p>
+                <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{data?.project_title || "Project Details"}</h1>
+                <p className="text-xs text-[#6B7280] dark:text-zinc-400 mt-0.5">ID: {data?.project_no || projectName} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#FDF3F0] dark:bg-[#D97757]/20 text-[#D97757]">{data?.workflow_state || "Draft"}</span></p>
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               {/* Budget Summary in Header */}
-              <div className="hidden lg:flex items-center gap-6 mr-6 border-r border-gray-200 pr-6">
+              <div className="hidden lg:flex items-center gap-6 mr-6 border-r border-zinc-200 dark:border-zinc-800 pr-6">
                 <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-0.5">Actual Balance</p>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 dark:text-zinc-400 mb-0.5">Actual Balance</p>
                   {isBalanceLoading ? (
-                    <div className="h-6 w-20 bg-gray-200 animate-pulse rounded" />
+                    <div className="h-6 w-20 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" />
                   ) : (
-                    <p className="text-lg font-bold text-[#0EA5A4] leading-none">₹ {actualBalance.toLocaleString('en-IN')}</p>
+                    <p className="text-sm font-bold text-[#D97757] leading-none">₹ {actualBalance.toLocaleString('en-IN')}</p>
                   )}
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-0.5">Commitable</p>
+                  <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 dark:text-zinc-400 mb-0.5">Commitable</p>
                   {isBalanceLoading ? (
-                    <div className="h-6 w-20 bg-gray-200 animate-pulse rounded" />
+                    <div className="h-6 w-20 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" />
                   ) : (
-                    <p className="text-lg font-bold text-gray-700 leading-none">₹ {commitableBalance.toLocaleString('en-IN')}</p>
+                    <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300 leading-none">₹ {commitableBalance.toLocaleString('en-IN')}</p>
                   )}
                 </div>
                 {/* <button
                   onClick={() => setActiveTab('ledger')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#0EA5A4] bg-[#E0F7F6] hover:bg-[#B2DFDB] rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#D97757] bg-[#FDF3F0] dark:bg-[#D97757]/20 hover:bg-[#B2DFDB] rounded-lg transition-colors"
                 >
                   <LedgerIcon className="w-3.5 h-3.5" />
                   View Ledger
@@ -1705,7 +1949,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     onClick={handleAddFunds}
                     aria-label="Add funds to project"
                   >
-                    <PlusIcon className="h-4 w-4" /> Add Funds
+                    <PlusIcon className="h-3.5 w-3.5" /> Add Funds
                   </FrappeButton>
                   {/* Only show Add Sanction button if no sanction exists */}
                   {(!sanctionData?.message || sanctionData.message.length === 0) && (
@@ -1714,7 +1958,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       variant="outline"
                       aria-label="Add sanction details"
                     >
-                      <FilePlusIcon className="h-4 w-4" /> Add Sanction
+                      <FilePlusIcon className="h-3.5 w-3.5" /> Add Sanction
                     </FrappeButton>
                   )}
                 </div>
@@ -1724,22 +1968,26 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           {/* Main Content Column */}
-          <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="border-b border-gray-200 p-3">
+          <div className="lg:col-span-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+            <div className="border-b border-zinc-200 dark:border-zinc-800 p-2">
               <nav className="frappe-tabs" aria-label="Page tabs">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      sessionStorage.setItem(`mainTab_${projectName}`, tab.id);
+                    }}
                     aria-selected={activeTab === tab.id}
                     className={cn(
-                      "frappe-tab flex items-center gap-2",
-                      activeTab === tab.id && "active"
+                      "frappe-tab flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-bold",
+                      activeTab === tab.id && "active bg-[#FDF3F0] dark:bg-[#D97757]/20 text-[#D97757] dark:bg-[#D97757]/20"
+
                     )}
                   >
-                    <tab.icon className="h-4 w-4" /> {tab.label}
+                    <tab.icon className="h-3.5 w-3.5" /> {tab.label}
                     {tab.id === "sanction-details" && (
                       (() => {
                         const draftSanctions = (sanctionData?.message || []).filter((s: any) => (s.sanction_workflow_status || '').toLowerCase() === 'draft').length;
@@ -1758,9 +2006,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                 ))}
               </nav>
             </div>
-            <div className="bg-[#F0F4F8] p-6">
+            <div className="bg-zinc-50/50 dark:bg-zinc-900/50 p-4">
               {activeTab === "overview" && (
-                <div className="space-y-8">
+                <div className="space-y-5">
                   {/* ... existing overview content ... */}
                   <SectionWrapper title="General Information" icon={FileTextIcon}>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
@@ -1775,14 +2023,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       {data?.upload_proj_prop && (
                         <div className="py-2">
                           <div className="flex items-center gap-1.5 mb-1">
-                            <FileTextIcon className="h-3.5 w-3.5 text-gray-500" />
-                            <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Project Proposal</p>
+                            <FileTextIcon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
+                            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">Project Proposal</p>
                           </div>
                           <a
                             href={data.upload_proj_prop.startsWith('http') ? data.upload_proj_prop : `/files/${data.upload_proj_prop}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm font-medium text-[#0EA5A4] hover:underline flex items-center gap-1"
+                            className="text-sm font-medium text-[#D97757] hover:underline flex items-center gap-1"
                           >
                             <ExternalLinkIcon className="h-3 w-3" /> View File
                           </a>
@@ -1847,7 +2095,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                   </SectionWrapper>
 
                   <SectionWrapper title="Investigators" icon={UsersIcon}>
-                    <h4 className="font-bold text-lg text-black uppercase">Principal Investigator (PI)</h4>
+                    <h4 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 uppercase">Principal Investigator (PI)</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
                       <FieldDisplay label="Name" value={data?.principal_investigator_name} icon={UserIcon} />
                       <FieldDisplay label="Email" value={data?.pi_webmail} icon={MailIcon} />
@@ -1862,43 +2110,43 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                   {/* Enhanced Proposed Budget Breakup with Grand Total */}
                   {data?.proposed_budget_breakup && data.proposed_budget_breakup.length > 0 && (
                     <SectionWrapper title="Proposed Budget Breakup" icon={IndianRupeeIcon}>
-                      <div className="overflow-x-auto rounded-lg border border-gray-200">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
+                      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                          <thead className="bg-zinc-50 dark:bg-zinc-800/50">
                             <tr>
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Budget Head</th>
-                              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Year 1</th>
-                              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Year 2</th>
-                              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Year 3</th>
-                              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Year 4</th>
-                              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Year 5</th>
-                              <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Total</th>
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Budget Head</th>
+                              <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Year 1</th>
+                              <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Year 2</th>
+                              <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Year 3</th>
+                              <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Year 4</th>
+                              <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Year 5</th>
+                              <th className="px-4 py-3 text-right text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Total</th>
                             </tr>
                           </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
+                          <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
                             {data.proposed_budget_breakup.map((row: any, index: number) => (
-                              <tr key={index} className="hover:bg-gray-50">
-                                <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">{getBudgetHeadName(row.account_head)}</td>
-                                <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">{(row.first_year_budget || 0).toLocaleString('en-IN')}</td>
-                                <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">{(row.second_year_budget || 0).toLocaleString('en-IN')}</td>
-                                <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">{(row.third_year_budget || 0).toLocaleString('en-IN')}</td>
-                                <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">{(row.fourth_year_budget || 0).toLocaleString('en-IN')}</td>
-                                <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">{(row.fifth_year_budget || 0).toLocaleString('en-IN')}</td>
-                                <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">
+                              <tr key={index} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
+                                <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 whitespace-nowrap">{getBudgetHeadName(row.account_head)}</td>
+                                <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">{(row.first_year_budget || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">{(row.second_year_budget || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">{(row.third_year_budget || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">{(row.fourth_year_budget || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">{(row.fifth_year_budget || 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
                                   {((row.first_year_budget || 0) + (row.second_year_budget || 0) + (row.third_year_budget || 0) + (row.fourth_year_budget || 0) + (row.fifth_year_budget || 0)).toLocaleString('en-IN')}
                                 </td>
                               </tr>
                             ))}
                           </tbody>
-                          <tfoot className="bg-gray-100">
+                          <tfoot className="bg-zinc-100 dark:bg-zinc-800">
                             <tr>
-                              <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap">GRAND TOTAL</td>
-                              <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.first_year_budget || 0), 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.second_year_budget || 0), 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.third_year_budget || 0), 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.fourth_year_budget || 0), 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.fifth_year_budget || 0), 0).toLocaleString('en-IN')}</td>
-                              <td className="px-4 py-3 text-sm font-bold text-[#0EA5A4] text-right whitespace-nowrap">
+                              <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">GRAND TOTAL</td>
+                              <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.first_year_budget || 0), 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.second_year_budget || 0), 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.third_year_budget || 0), 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.fourth_year_budget || 0), 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">{data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.fifth_year_budget || 0), 0).toLocaleString('en-IN')}</td>
+                              <td className="px-4 py-3 text-sm font-bold text-[#D97757] text-right whitespace-nowrap">
                                 ₹ {(data.total_budget_amount || data.proposed_budget_breakup.reduce((sum: number, row: any) =>
                                   sum + (row.first_year_budget || 0) + (row.second_year_budget || 0) + (row.third_year_budget || 0) + (row.fourth_year_budget || 0) + (row.fifth_year_budget || 0), 0
                                 )).toLocaleString('en-IN')}
@@ -1908,9 +2156,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         </table>
                       </div>
                       {/* Display total_budget_amount from project data */}
-                      <div className="mt-4 p-4 bg-[#E0F7F6] rounded-lg flex justify-between items-center">
-                        <span className="text-sm font-semibold text-gray-700 uppercase">Total Budget Amount (from proposal)</span>
-                        <span className="text-xl font-bold text-[#0EA5A4]">₹ {(data.total_budget_amount || 0).toLocaleString('en-IN')}</span>
+                      <div className="mt-4 p-4 bg-[#FDF3F0] dark:bg-[#D97757]/20 rounded-lg flex justify-between items-center">
+                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase">Total Budget Amount (from proposal)</span>
+                        <span className="text-xl font-bold text-[#D97757]">₹ {(data.total_budget_amount || 0).toLocaleString('en-IN')}</span>
                       </div>
                     </SectionWrapper>
                   )}
@@ -1934,7 +2182,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
               )}
 
               {activeTab === "sanction-details" && (
-                <div className="space-y-8">
+                <div className="space-y-5">
                   {/* ... existing sanction details content ... */}
                   {sanctionIsLoading && <p>Loading Sanction Details...</p>}
                   {sanctionError && <p className="text-red-600">Error: {sanctionError.message}</p>}
@@ -1943,12 +2191,12 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     <>
                       {/* Sanction Selector - only show if more than 1 sanction */}
                       {sanctionData.message.length > 1 && (
-                        <div className="flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
-                          <label className="text-sm font-medium text-gray-700">Select Sanction:</label>
+                        <div className="flex items-center gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Select Sanction:</label>
                           <select
                             value={selectedSanctionIndex}
                             onChange={(e) => setSelectedSanctionIndex(Number(e.target.value))}
-                            className="flex-1 max-w-md px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4]"
+                            className="flex-1 max-w-md px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                           >
                             {sanctionData.message.map((sanction: any, index: number) => (
                               <option key={sanction.name} value={index}>
@@ -1989,24 +2237,24 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
                         return (
                           <FrappeCard className="space-y-5">
-                            <div className="pb-4 border-b border-gray-200">
+                            <div className="pb-4 border-b border-zinc-200 dark:border-zinc-800">
                               <div className="flex items-start justify-between gap-4 mb-3">
                                 <div className="flex-1">
-                                  <h3 className="text-base font-semibold text-gray-900">
+                                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                                     Sanction: {sanction.name}
                                   </h3>
-                                  <div className="text-sm text-[#6B7280] mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                                  <div className="text-sm text-[#6B7280] dark:text-zinc-400 mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
                                     <span className="inline-flex items-center gap-1.5">
                                       Status: <span className={cn("font-medium px-2.5 py-0.5 rounded-full text-xs", getStatusBadgeClass(sanction.sanction_workflow_status))}>{sanction.sanction_workflow_status || 'DRAFT'}</span>
                                     </span>
                                     <span>
-                                      Letter No: <span className="font-medium text-gray-700">{sanction.sanctioned_letter_no}</span>
+                                      Letter No: <span className="font-medium text-zinc-700 dark:text-zinc-300">{sanction.sanctioned_letter_no}</span>
                                     </span>
                                     <span>
-                                      Date: <span className="font-medium text-gray-700">{sanction.sanctioned_letter_date}</span>
+                                      Date: <span className="font-medium text-zinc-700 dark:text-zinc-300">{sanction.sanctioned_letter_date}</span>
                                     </span>
                                     <span>
-                                      Amount: <span className="font-semibold text-[#0EA5A4]">{(sanction.total_sanctioned_amount || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                                      Amount: <span className="font-semibold text-[#D97757]">{(sanction.total_sanctioned_amount || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
                                     </span>
                                   </div>
                                 </div>
@@ -2025,7 +2273,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                 )}
                               </div>
                               {isDraft && (
-                                <div className="flex items-start gap-3 p-4 border border-yellow-400 rounded-lg bg-[#FFFDF5] shadow-sm">
+                                <div className="flex items-start gap-3 p-4 border border-yellow-400 rounded-lg bg-[#FFFDF5] dark:bg-yellow-900/20 shadow-sm">
                                   <AlertCircleIcon className="h-6 w-6 text-yellow-600 flex-shrink-0 mt-0.5 drop-shadow-sm" />
                                   <div className="space-y-1">
                                     <p className="font-semibold text-yellow-800 tracking-wide text-base">
@@ -2041,44 +2289,44 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             </div>
                             {(sanction.sanctioned_budget_breakup?.length > 0) && (
                               <div>
-                                <h4 className="text-sm font-semibold text-gray-800 mb-3">Budget Breakup</h4>
-                                <div className="overflow-x-auto rounded-lg border border-gray-200">
-                                  <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-gray-50">
+                                <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">Budget Breakup</h4>
+                                <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                  <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
                                       <tr>
                                         {budgetColumns.map(c => (
-                                          <th key={c.fieldname} className={`px-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider ${c.fieldname === 'account_head' ? 'text-left' : 'text-right'}`}>{c.label}</th>
+                                          <th key={c.fieldname} className={`px-4 py-3 text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider ${c.fieldname === 'account_head' ? 'text-left' : 'text-right'}`}>{c.label}</th>
                                         ))}
-                                        <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Total</th>
+                                        <th className="px-4 py-3 text-right text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Total</th>
                                       </tr>
                                     </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
+                                    <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
                                       {(sanction.sanctioned_budget_breakup || []).map((row: any, i: number) => {
                                         const rowTotal = budgetYearFieldnames.reduce((sum, fieldname) => {
                                           return sum + (parseFloat(row[fieldname]) || 0);
                                         }, 0);
 
                                         return (
-                                          <tr key={i} className="hover:bg-gray-50">
+                                          <tr key={i} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
                                             {budgetColumns.map(c => (
-                                              <td key={c.fieldname} className={`px-4 py-3 text-sm whitespace-nowrap ${c.fieldname === 'account_head' ? 'text-gray-900 text-left' : 'text-gray-700 text-right'}`}>
+                                              <td key={c.fieldname} className={`px-4 py-3 text-sm whitespace-nowrap ${c.fieldname === 'account_head' ? 'text-zinc-900 dark:text-zinc-100 text-left' : 'text-zinc-700 dark:text-zinc-300 text-right'}`}>
                                                 {c.fieldname === 'account_head' ? row[c.fieldname] : (parseFloat(row[c.fieldname]) || 0).toLocaleString('en-IN')}
                                               </td>
                                             ))}
-                                            <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">{rowTotal.toLocaleString('en-IN')}</td>
+                                            <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">{rowTotal.toLocaleString('en-IN')}</td>
                                           </tr>
                                         );
                                       })}
                                     </tbody>
-                                    <tfoot className="bg-gray-100">
+                                    <tfoot className="bg-zinc-100 dark:bg-zinc-800">
                                       <tr>
-                                        <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap">Total</td>
+                                        <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">Total</td>
                                         {budgetYearFieldnames.map(fieldname => (
-                                          <td key={fieldname} className="px-4 py-3 text-sm font-bold text-gray-900 text-right whitespace-nowrap">
+                                          <td key={fieldname} className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
                                             {columnTotals[fieldname].toLocaleString('en-IN')}
                                           </td>
                                         ))}
-                                        <td className="px-4 py-3 text-sm font-bold text-[#0EA5A4] text-right whitespace-nowrap">
+                                        <td className="px-4 py-3 text-sm font-bold text-[#D97757] text-right whitespace-nowrap">
                                           {grandTotal.toLocaleString('en-IN')}
                                         </td>
                                       </tr>
@@ -2089,13 +2337,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             )}
                             {(sanction.sanction_related_files?.length > 0) && (
                               <div>
-                                <h4 className="text-sm font-semibold text-gray-800 mb-3">Attached Files</h4>
+                                <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">Attached Files</h4>
                                 <div className="space-y-2">
                                   {sanction.sanction_related_files.map((file: any, i: number) => (
-                                    <div key={i} className="flex items-center justify-between gap-4 p-3 rounded-lg border border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition-colors">
+                                    <div key={i} className="flex items-center justify-between gap-4 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
                                       <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-gray-800 text-sm truncate">{file.file_name || 'File'}</p>
-                                        <p className="text-xs text-[#6B7280]">{file.description}</p>
+                                        <p className="font-medium text-zinc-800 dark:text-zinc-200 text-sm truncate">{file.file_name || 'File'}</p>
+                                        <p className="text-xs text-[#6B7280] dark:text-zinc-400">{file.description}</p>
                                       </div>
                                       {file.file_data ? (
                                         <a
@@ -2122,24 +2370,27 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       </div>
                     </>
                   ) : (
-                    <div className="text-center py-16 text-[#6B7280] rounded-xl border border-dashed border-gray-300 bg-white">
-                      <CreditCardIcon className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                      <p className="font-medium text-gray-700">No Sanction Details Found</p>
+                    <div className="text-center py-16 text-[#6B7280] dark:text-zinc-400 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+                      <CreditCardIcon className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
+                      <p className="font-medium text-zinc-700 dark:text-zinc-300">No Sanction Details Found</p>
                       <p className="text-sm mt-1">Click "Add Sanction" to create the first entry.</p>
                     </div>
                   )}
                 </div>
               )}
 
+              {/* Disbursal Tab Removed */}
+
               {/* --- LEDGER TAB CONTENT --- */}
               {activeTab === "ledger" && (
                 <div className="space-y-6">
                   {/* Ledger Head Tabs */}
-                  <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
-                    <div className="flex space-x-2">
+                  {/* Ledger Head Tabs and Actions */}
+                  <div className="bg-white dark:bg-zinc-900 p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between gap-4">
+                    <div className="flex space-x-2 overflow-x-auto hide-scrollbar">
                       {isCheckingHeads ? (
-                        <div className="px-4 py-2 text-sm text-gray-500 flex items-center gap-2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#0EA5A4]"></div>
+                        <div className="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#D97757]"></div>
                           Checking account heads...
                         </div>
                       ) : ledgerHeads.length > 0 ? (
@@ -2150,88 +2401,98 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             className={cn(
                               "px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
                               activeLedgerHeadId === head.id
-                                ? "bg-[#E0F7F6] text-[#0EA5A4]"
-                                : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                                ? "bg-[#FDF3F0] dark:bg-[#D97757]/20 text-[#D97757]"
+                                : "bg-zinc-50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:bg-zinc-800"
                             )}
                           >
                             {head.name}
                           </button>
                         ))
                       ) : (
-                        <div className="px-4 py-2 text-sm text-gray-500">No account heads with transactions found</div>
+                        <div className="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400">No account heads with transactions found</div>
                       )}
                     </div>
+
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0 h-9 w-9 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                      onClick={() => navigate(`/project-ledger-full/${targetProjectNumber || projectName}`)}
+                      title="Open Full Ledger"
+                    >
+                      <ExternalLinkIcon className="h-4 w-4" />
+                    </Button>
                   </div>
 
                   {/* Ledger Table */}
-                  <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[300px]">
+                  <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden min-h-[300px]">
                     {isLedgerLoading ? (
                       <div className="flex flex-col items-center justify-center py-20">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4] mb-4"></div>
-                        <p className="text-gray-500">Loading ledger...</p>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757] mb-4"></div>
+                        <p className="text-zinc-500 dark:text-zinc-400">Loading ledger...</p>
                       </div>
                     ) : ledgerError ? (
                       <div className="flex flex-col items-center justify-center py-20">
                         <p className="text-red-500 font-medium mb-2">Failed to load data</p>
-                        <p className="text-sm text-gray-500">{ledgerError}</p>
-                        <button onClick={() => fetchLedgerData(activeLedgerHeadId)} className="mt-4 text-[#0EA5A4] hover:underline text-sm font-medium">Try Again</button>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">{ledgerError}</p>
+                        <button onClick={() => fetchLedgerData(activeLedgerHeadId)} className="mt-4 text-[#D97757] hover:underline text-sm font-medium">Try Again</button>
                       </div>
                     ) : ledgerTransactions.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-20">
-                        <FileTextIcon className="h-10 w-10 text-gray-300 mb-3" />
-                        <p className="text-gray-500">No transactions found</p>
+                        <FileTextIcon className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mb-3" />
+                        <p className="text-zinc-500 dark:text-zinc-400">No transactions found</p>
                       </div>
                     ) : (
                       <div className="overflow-auto max-h-[70vh]">
                         <table className="w-full text-sm text-left">
-                          <thead className="sticky top-0 z-10 bg-gray-50 shadow-sm">
+                          <thead className="sticky top-0 z-10 bg-zinc-50 dark:bg-zinc-800/50 shadow-sm">
                             <tr>
-                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs">TID</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs">Date</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs">Particulars</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs">BMR</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs text-right">Fund Received</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs text-right">Commit Amt</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs text-right">Commitable Bal</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs text-right">Payment Amt</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs text-right">Payment Bal</th>
-                              <th className="px-6 py-3 font-semibold text-gray-600 bg-gray-50 uppercase text-xs text-center">Status</th>
+                              <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px]">TID</th>
+                              <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px]">Date</th>
+                              <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px]">Particulars</th>
+                              <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px]">BMR</th>
+                              <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px] text-right">Fund Received</th>
+                              <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px] text-right">Commit Amt</th>
+                              <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px] text-right">Commitable Bal</th>
+                              <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px] text-right">Payment Amt</th>
+                              <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px] text-right">Payment Bal</th>
+                              <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px] text-center">Status</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-gray-100">
+                          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {ledgerTransactions.map((txn) => (
-                              <tr key={txn.transactionId} className="hover:bg-gray-50/50">
-                                <td className="px-6 py-3 text-gray-500 font-mono">{txn.transactionId || '-'}</td>
-                                <td className="px-6 py-3 text-gray-900 whitespace-nowrap">
+                              <tr key={txn.transactionId} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                                <td className="px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-mono whitespace-nowrap">{txn.transactionId || '-'}</td>
+                                <td className="px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                                   {txn.transactionDate ? new Date(txn.transactionDate).toLocaleDateString('en-IN') : '-'}
                                 </td>
-                                <td className="px-6 py-3 text-gray-900">
-                                  <div className="max-w-xs truncate" title={txn.particulars}>{txn.particulars}</div>
-                                  {txn.refDetails && <div className="text-xs text-gray-500 mt-0.5">{txn.refDetails}</div>}
+                                <td className="px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100">
+                                  <div className="max-w-[180px] truncate" title={txn.particulars}>{txn.particulars}</div>
+                                  {txn.refDetails && <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate max-w-[180px]">{txn.refDetails}</div>}
                                 </td>
-                                <td className="px-6 py-3 text-gray-600">{txn.bmr || '-'}</td>
-                                <td className="px-6 py-3 text-right font-medium text-green-600">
+                                <td className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 whitespace-nowrap">{txn.bmr || '-'}</td>
+                                <td className="px-3 py-1.5 text-xs text-right font-medium text-green-600 whitespace-nowrap">
                                   {txn.fundReceivedAmount ? `₹${txn.fundReceivedAmount.toLocaleString('en-IN')}` : '-'}
                                 </td>
-                                <td className="px-6 py-3 text-right font-medium text-red-600">
+                                <td className="px-3 py-1.5 text-xs text-right font-medium text-red-600 whitespace-nowrap">
                                   {txn.commitAmount ? `₹${txn.commitAmount.toLocaleString('en-IN')}` : '-'}
                                 </td>
-                                <td className="px-6 py-3 text-right font-bold text-gray-900">
+                                <td className="px-3 py-1.5 text-xs text-right font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                                   {txn.commitableBalance ? `₹${txn.commitableBalance.toLocaleString('en-IN')}` : '-'}
                                 </td>
-                                <td className="px-6 py-3 text-right font-medium text-red-600">
+                                <td className="px-3 py-1.5 text-xs text-right font-medium text-red-600 whitespace-nowrap">
                                   {txn.paymentAmount ? `₹${txn.paymentAmount.toLocaleString('en-IN')}` : '-'}
                                 </td>
-                                <td className="px-6 py-3 text-right font-bold text-[#0EA5A4]">
+                                <td className="px-3 py-1.5 text-xs text-right font-bold text-[#D97757] whitespace-nowrap">
                                   {txn.paymentBalance ? `₹${txn.paymentBalance.toLocaleString('en-IN')}` : '0'}
                                 </td>
-                                <td className="px-6 py-3 text-center">
+                                <td className="px-3 py-1.5 text-center">
                                   <span className={cn(
-                                    "inline-flex px-2.5 py-1 rounded-full text-xs font-semibold",
+                                    "inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap",
                                     txn.status === 'PAID' ? 'bg-green-100 text-green-700' :
                                       txn.status === 'PARTIALLY_PAID' ? 'bg-yellow-100 text-yellow-700' :
                                         txn.status === 'PENDING' ? 'bg-orange-100 text-orange-700' :
-                                          'bg-gray-100 text-gray-700'
+                                          'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
                                   )}>
                                     {txn.status}
                                   </span>
@@ -2246,7 +2507,16 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                 </div>
               )}
               {activeTab === "quick-actions" && (
-                <QuickActions projectName={projectName || ''} onNavigate={navigate} />
+                <QuickActions
+                  projectName={projectName || ''}
+                  projectNo={data?.project_no || data?.project_number}
+                  projectTitle={data?.project_title || ''}
+                  onNavigate={navigate}
+                  onSwitchTab={(tab) => {
+                    setActiveTab(tab);
+                    sessionStorage.setItem(`mainTab_${projectName}`, tab);
+                  }}
+                />
               )}
 
               {activeTab === "activity" && (
@@ -2266,7 +2536,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
               <h3 className="frappe-widget-title mb-3 flex items-center justify-between">
                 Latest Activity
                 <span
-                  className="text-xs font-normal text-gray-500 cursor-pointer hover:text-[#0EA5A4]"
+                  className="text-xs font-normal text-zinc-500 dark:text-zinc-400 cursor-pointer hover:text-[#D97757]"
                   onClick={() => setActiveTab('activity')}
                 >
                   View All
@@ -2276,15 +2546,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                 <div className="space-y-3 max-h-[100px] overflow-y-auto pr-1 custom-scrollbar">
                   {activityData.message.map((activity, idx) => (
                     <div key={idx} className="flex items-start gap-3">
-                      <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#E0F7F6] flex items-center justify-center font-bold text-[#0EA5A4] text-xs">
+                      <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#FDF3F0] dark:bg-[#D97757]/20 flex items-center justify-center font-bold text-[#D97757] text-xs">
                         {activity.owner?.charAt(0).toUpperCase() || "U"}
                       </div>
                       <div className="min-w-0">
                         <div
-                          className="text-sm text-gray-800 line-clamp-2 prose prose-sm max-w-none"
+                          className="text-sm text-zinc-800 dark:text-zinc-200 line-clamp-2 prose prose-sm max-w-none"
                           dangerouslySetInnerHTML={{ __html: activity.content }}
                         />
-                        <p className="text-xs text-gray-500 mt-0.5">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                           {activity.owner} · {activity.creation ? new Date(activity.creation).toLocaleString() : ''}
                         </p>
                       </div>
@@ -2292,7 +2562,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500 italic">No recent activity found.</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">No recent activity found.</p>
               )}
             </div>
 
@@ -2334,8 +2604,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         <option key={head} value={head}>{head}</option>
                       ))}
                     </select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Available: <span className="font-medium text-[#0EA5A4]">{actualBalance.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                      Available: <span className="font-medium text-[#D97757]">{actualBalance.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}</span>
                     </p>
                   </div>
                   <div>
@@ -2353,10 +2623,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     <button onClick={handleCommit} className="frappe-btn frappe-btn-primary flex-1">Commit</button>
                     <button onClick={handleRemoveLastCommit} className="frappe-btn frappe-btn-ghost">Remove</button>
                   </div>
-                  {/* <div className="pt-2 border-t border-gray-100 mt-2">
+                  {/* <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 mt-2">
                     <button
                       onClick={() => setIsLedgerOpen(true)}
-                      className="w-full text-center text-sm font-medium text-[#0EA5A4] hover:text-[#0C8F8E] hover:underline"
+                      className="w-full text-center text-sm font-medium text-[#D97757] hover:text-[#D97757] hover:underline"
                     >
                       View Project Ledger
                     </button>
@@ -2384,7 +2654,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                 </header>
                 <div className="frappe-modal-body">
                   {/* Head-wise Tabs */}
-                  <div className="mb-4 border-b border-gray-200">
+                  <div className="mb-4 border-b border-zinc-200 dark:border-zinc-800">
                     <nav className="flex flex-wrap gap-2" aria-label="Ledger tabs">
                       {ledgerHeadTabs.map((tab) => {
                         const tabEntries = tab === "All"
@@ -2402,15 +2672,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             className={cn(
                               "px-4 py-2.5 text-sm font-bold rounded-t-lg transition-colors border-b-2 flex flex-col items-start",
                               activeLedgerTab === tab
-                                ? "border-[#0EA5A4] text-[#0EA5A4] bg-[#E0F7F6]"
-                                : "border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                                ? "border-[#D97757] text-[#D97757] bg-[#FDF3F0] dark:bg-[#D97757]/20"
+                                : "border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:bg-zinc-800/50"
                             )}
                           >
                             <span className="flex items-center gap-2">
                               {tab}
                               <span className={cn(
                                 "px-1.5 py-0.5 text-xs rounded-full",
-                                activeLedgerTab === tab ? "bg-[#0EA5A4] text-white" : "bg-gray-200 text-gray-600"
+                                activeLedgerTab === tab ? "bg-[#D97757] text-white" : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-400"
                               )}>
                                 {tabEntries.length}
                               </span>
@@ -2431,22 +2701,22 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                   {activeLedgerTab !== "All" && (() => {
                     const lastEntry = filteredLedgerData.length > 0 ? filteredLedgerData[filteredLedgerData.length - 1] : null;
                     return (
-                      <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200 flex flex-wrap gap-6">
+                      <div className="mb-4 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800 flex flex-wrap gap-6">
                         <div>
-                          <span className="text-xs text-gray-500 uppercase font-semibold">Total Received</span>
-                          <p className="text-lg font-bold text-green-600">
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400 uppercase font-semibold">Total Received</span>
+                          <p className="text-sm font-bold text-green-600">
                             ₹ {filteredLedgerData.reduce((acc, e) => acc + (e.received || 0), 0).toLocaleString('en-IN')}
                           </p>
                         </div>
                         <div>
-                          <span className="text-xs text-gray-500 uppercase font-semibold">Total Committed</span>
-                          <p className="text-lg font-bold text-red-600">
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400 uppercase font-semibold">Total Committed</span>
+                          <p className="text-sm font-bold text-red-600">
                             ₹ {filteredLedgerData.reduce((acc, e) => acc + (e.committed || 0), 0).toLocaleString('en-IN')}
                           </p>
                         </div>
                         <div>
-                          <span className="text-xs text-gray-500 uppercase font-semibold">Available Balance</span>
-                          <p className="text-lg font-bold text-[#0EA5A4]">
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400 uppercase font-semibold">Available Balance</span>
+                          <p className="text-sm font-bold text-[#D97757]">
                             ₹ {(lastEntry?.commitableBalance || 0).toLocaleString('en-IN')}
                           </p>
                         </div>
@@ -2474,7 +2744,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       <tbody>
                         {filteredLedgerData.length === 0 ? (
                           <tr>
-                            <td colSpan={11} className="text-center py-8 text-gray-500">
+                            <td colSpan={11} className="text-center py-8 text-zinc-500 dark:text-zinc-400">
                               No entries found for {activeLedgerTab}
                             </td>
                           </tr>
@@ -2487,9 +2757,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                               <td>{row.bmr}</td>
                               <td style={{ textAlign: 'right' }} className={row.received ? "text-green-600 font-medium" : ""}>{row.received ? row.received.toLocaleString('en-IN') : '-'}</td>
                               <td style={{ textAlign: 'right' }} className={row.committed ? "text-red-600 font-medium" : ""}>{row.committed ? row.committed.toLocaleString('en-IN') : '-'}</td>
-                              <td style={{ textAlign: 'right' }} className="font-semibold text-gray-900">{row.commitableBalance?.toLocaleString('en-IN')}</td>
+                              <td style={{ textAlign: 'right' }} className="font-semibold text-zinc-900 dark:text-zinc-100">{row.commitableBalance?.toLocaleString('en-IN')}</td>
                               <td style={{ textAlign: 'right' }} className={row.payment ? "text-red-600 font-medium" : ""}>{row.payment ? row.payment.toLocaleString('en-IN') : '-'}</td>
-                              <td style={{ textAlign: 'right' }} className="font-semibold text-gray-900">
+                              <td style={{ textAlign: 'right' }} className="font-semibold text-zinc-900 dark:text-zinc-100">
                                 {activeLedgerTab === "All"
                                   ? row.actualBalance?.toLocaleString('en-IN')
                                   : (row as any).headActualBalance?.toLocaleString('en-IN')
@@ -2506,7 +2776,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                   (isRnDStaff) && (
                                     <button
                                       onClick={() => openPaymentModal(row)}
-                                      className="px-3 py-1.5 text-xs font-semibold text-white bg-[#0EA5A4] hover:bg-[#0D9494] rounded-md shadow-sm transition-colors"
+                                      className="px-3 py-1.5 text-xs font-semibold text-white bg-[#D97757] hover:bg-[#C66A4E] rounded-md shadow-sm transition-colors"
                                     >
                                       Pay
                                     </button>
@@ -2529,9 +2799,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   };
 
   return (
-    <div className="bg-[#F0F4F8] min-h-screen">
-      <AppSidebar />
-      <main className="flex-1 p-4 md:p-8 w-full">
+    <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+
+      <main className="flex-1 p-3 md:p-6 w-full">
         {renderContent()}
       </main>
 
@@ -2547,15 +2817,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
       {/* Payment Form Modal */}
       {paymentModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPaymentModalOpen(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Record Payment</h2>
-                <p className="text-sm text-gray-600 mt-0.5">Submit payment for committed amount</p>
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Record Payment</h2>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-0.5">Submit payment for committed amount</p>
               </div>
-              <button onClick={() => setPaymentModalOpen(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-                <X className="w-5 h-5 text-gray-600" />
+              <button onClick={() => setPaymentModalOpen(false)} className="p-2 hover:bg-zinc-200 dark:bg-zinc-700 rounded-full transition-colors">
+                <X className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
               </button>
             </div>
 
@@ -2567,22 +2837,22 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
                 if (field.fieldtype === 'Section Break') {
                   return (
-                    <div key={field.fieldname} className="pt-4 border-t border-gray-200 first:border-0 first:pt-0">
-                      <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{field.label}</h3>
+                    <div key={field.fieldname} className="pt-4 border-t border-zinc-200 dark:border-zinc-800 first:border-0 first:pt-0">
+                      <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">{field.label}</h3>
                     </div>
                   );
                 }
 
                 return (
                   <div key={field.fieldname}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
                       {field.label} {field.mandatory ? <span className="text-red-500">*</span> : ''}
                     </label>
 
                     {/* Select for Select/Link fieldtypes */}
                     {(field.fieldtype === 'Select' || field.fieldtype === 'Link') ? (
                       <select
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                         value={value}
                         onChange={(e) => handlePaymentFieldChange(field.fieldname, e.target.value)}
                         disabled={field.read_only}
@@ -2597,7 +2867,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     ) : field.fieldtype === 'Date' ? (
                       <input
                         type="date"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                         value={value}
                         onChange={(e) => handlePaymentFieldChange(field.fieldname, e.target.value)}
                         disabled={field.read_only}
@@ -2606,7 +2876,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       <input
                         type="number"
                         step="0.01"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                         value={value}
                         onChange={(e) => handlePaymentFieldChange(field.fieldname, parseFloat(e.target.value) || 0)}
                         disabled={field.read_only}
@@ -2615,14 +2885,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     ) : (
                       <input
                         type="text"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                         value={value}
                         onChange={(e) => handlePaymentFieldChange(field.fieldname, e.target.value)}
                         disabled={field.read_only}
                         placeholder={field.description || ''}
                       />
                     )}
-                    {field.description && <p className="text-xs text-gray-500 mt-1">{field.description}</p>}
+                    {field.description && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{field.description}</p>}
                   </div>
                 );
               })}
@@ -2642,17 +2912,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
               <button
                 onClick={() => setPaymentModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg hover:bg-zinc-50 dark:bg-zinc-800/50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSubmitPayment}
                 disabled={isPaymentSubmitting}
-                className="px-4 py-2 text-sm font-medium text-white bg-[#0EA5A4] rounded-lg hover:bg-[#0D9494] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm font-medium text-white bg-[#D97757] rounded-lg hover:bg-[#C66A4E] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isPaymentSubmitting ? 'Submitting...' : 'Submit Payment'}
               </button>

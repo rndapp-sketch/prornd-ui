@@ -73,13 +73,13 @@ export function DirectorDashboard() {
     <div className="bg-[#F0F4F8] min-h-screen font-sans">
       <AppSidebar />
       <div className="flex-1 p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full mx-auto">
           {/* Header */}
           <header className="mb-8">
             <div className="flex justify-between items-start">
               <div>
-                <h1 className="text-4xl font-bold text-black ">Director's Dashboard</h1>
-                <p className="text-lg text-gray-700 ">Strategic Overview for {fullName}</p>
+                <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 ">Director's Dashboard</h1>
+                <p className="text-sm text-zinc-700 dark:text-zinc-300 ">Strategic Overview for {fullName}</p>
               </div>
               <CurrentTime />
             </div>
@@ -87,10 +87,10 @@ export function DirectorDashboard() {
 
           {/* Top Level Sections */}
           {/* --- CHANGE START: Modified the grid layout --- */}
-          <section className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+          <section className="grid grid-cols-1 lg:grid-cols-4 gap-5 mb-6">
             {/* Column 1: "View All Projects" takes 1 column space */}
             <ActionCard
-              icon={<Briefcase className="size-6" />}
+              icon={<Briefcase className="size-5" />}
               title="View All Projects"
               description="Access a detailed data table of all institute projects."
               onClick={() => navigate("/director/all-projects")}
@@ -98,8 +98,8 @@ export function DirectorDashboard() {
             />
 
             {/* Column 2-4: "Project Overview" takes the remaining 3 column spaces */}
-            <div className="lg:col-span-3 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-              <div className="flex items-center mb-4 gap-3"><Building2 className="size-7" /><h3 className="text-xl font-bold text-black ">Project Overview</h3></div>
+            <div className="lg:col-span-3 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              <div className="flex items-center mb-3 gap-2.5"><Building2 className="size-5" /><h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 ">Project Overview</h3></div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <TooltipProvider>
                   <ShadTooltip>
@@ -121,9 +121,9 @@ export function DirectorDashboard() {
             </div>
 
             {/* Row 2: Fund & Collaborators Analytics takes the full 4 column spaces */}
-            <div className="lg:col-span-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            <div className="lg:col-span-4 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
               <div>
-                <div className="flex items-center mb-4 gap-3"><Landmark className="size-7 text-green-600" /><h3 className="text-xl font-bold text-black ">Fund Analytics</h3></div>
+                <div className="flex items-center mb-3 gap-2.5"><Landmark className="size-5 text-green-600" /><h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 ">Fund Analytics</h3></div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {/* Changed currency symbol and icon */}
                   <AnalyticsCard title="Total Allocation" value="₹250Cr" subtitle="Current fiscal year" icon={<IndianRupee className="size-5" />} />
@@ -132,7 +132,7 @@ export function DirectorDashboard() {
                 </div>
               </div>
               <div>
-                <div className="flex items-center mb-4 gap-3"><Globe className="size-7 text-[#0EA5A4]" /><h3 className="text-xl font-bold text-black ">International Collaborations</h3></div>
+                <div className="flex items-center mb-3 gap-2.5"><Globe className="size-5 text-[#0EA5A4]" /><h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 ">International Collaborations</h3></div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <AnalyticsCard title="Funding Agencies" value="18" subtitle="Active MOUs" icon={<Landmark className="size-5" />} />
                   <AnalyticsCard title="Additional PIs" value="32" subtitle="From partner institutes" icon={<Users className="size-5" />} />
@@ -147,8 +147,8 @@ export function DirectorDashboard() {
           {/* Charts Section (No changes here) */}
           <section className="grid grid-cols-1 lg:grid-cols-5 gap-8">
             {/* Bar Chart */}
-            <div className="lg:col-span-3 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-              <h3 className="text-xl font-bold text-black  mb-4">Project Status by Year</h3>
+            <div className="lg:col-span-3 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100  mb-3">Project Status by Year</h3>
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={projectStatusByYearData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
@@ -166,8 +166,8 @@ export function DirectorDashboard() {
             </div>
 
             {/* Pie Chart */}
-            <div className="lg:col-span-2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-              <h3 className="text-xl font-bold text-black  mb-4">Projects by Funding Source</h3>
+            <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100  mb-3">Projects by Funding Source</h3>
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -185,9 +185,9 @@ export function DirectorDashboard() {
           </section>
 
           {/* Footer (No changes here) */}
-          <footer className="text-center text-gray-600 mt-10 pb-4">
-            <div className="flex items-center justify-center space-x-2  text-sm">
-              <Mail className="size-4" />
+          <footer className="text-center text-zinc-600 dark:text-zinc-400 mt-6 pb-2">
+            <div className="flex items-center justify-center space-x-2  text-xs">
+              <Mail className="size-3.5" />
               <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#0EA5A4] hover:underline font-semibold">ernd@iitg.ac.in</a></p>
             </div>
           </footer>

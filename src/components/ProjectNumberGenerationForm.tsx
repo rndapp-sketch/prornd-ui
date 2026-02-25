@@ -10,12 +10,12 @@ interface ProjectNumberGenerationFormProps {
 
 const InputField = ({ label, field, type = "text", options = [], formData, onChange }: any) => (
     <div className="space-y-1">
-        <label className="text-xs font-medium text-gray-500">{label}</label>
+        <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</label>
         {type === 'select' ? (
             <select
                 value={formData[field]}
                 onChange={(e) => onChange(field, e.target.value)}
-                className="w-full text-sm p-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/20 focus:border-[#0EA5A4]"
+                className="w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/20 focus:border-[#0EA5A4]"
             >
                 {options.map((opt: any) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -26,7 +26,7 @@ const InputField = ({ label, field, type = "text", options = [], formData, onCha
                 type={type}
                 value={formData[field]}
                 onChange={(e) => onChange(field, e.target.value)}
-                className="w-full text-sm p-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/20 focus:border-[#0EA5A4]"
+                className="w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/20 focus:border-[#0EA5A4]"
             />
         )}
     </div>
@@ -129,9 +129,9 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
     };
 
     return (
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900 text-sm">Project Number Generation</h3>
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-between">
+                <h3 className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">Project Number Generation</h3>
             </div>
             <div className="p-4 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
@@ -146,11 +146,11 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
                 </div>
 
                 <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-500">Department</label>
+                    <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Department</label>
                     <select
                         value={formData.select_department}
                         onChange={(e) => handleChange('select_department', e.target.value)}
-                        className="w-full text-sm p-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/20 focus:border-[#0EA5A4]"
+                        className="w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/20 focus:border-[#0EA5A4]"
                     >
                         <option value="">Select Department</option>
                         {departmentData?.message?.map((dept: any) => (
@@ -158,7 +158,7 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
                         ))}
                     </select>
                     {formData.select_department && (
-                        <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                        <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1">
                             Current: <DepartmentName name={formData.select_department} />
                         </div>
                     )}
@@ -186,7 +186,7 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
                     <InputField label="Emp Initial" field="emp_initial" formData={formData} onChange={handleChange} />
                 </div>
 
-                <div className="pt-2 border-t border-gray-100">
+                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
                     <InputField label="Project No (Auto/Manual)" field="project_no" formData={formData} onChange={handleChange} />
                 </div>
 

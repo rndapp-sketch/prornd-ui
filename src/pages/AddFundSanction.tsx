@@ -31,11 +31,11 @@ interface FormData {
 }
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
-const inputClasses = "w-full h-12 px-4 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-100";
-const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-xl shadow-sm", className)}>{children}</div>);
-const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-2.5 border border-gray-200 rounded-lg font-semibold text-gray-700 bg-white shadow-sm transition-all hover:bg-gray-50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
+const inputClasses = "w-full h-12 px-4 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800 read-only:bg-zinc-100 dark:bg-zinc-800";
+const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>{children}</div>);
+const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-lg font-semibold text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
 
-const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-3">{title}</h2>{children}</div>);
+const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-3">{title}</h2>{children}</div>);
 
 // --- MEMOIZED CHILD COMPONENTS ---
 const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
@@ -50,7 +50,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
             default: return <input type="text" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
         }
     };
-    return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-bold text-black text-lg uppercase">{field.label}{field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}</div>);
+    return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-bold text-zinc-900 dark:text-zinc-100 text-lg uppercase">{field.label}{field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}</div>);
 });
 
 const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRow, budgetHeadOptions }: any) => {
@@ -87,21 +87,21 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
 
     return (
         <div>
-            <div className="overflow-x-auto border border-gray-200 rounded-md">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr className="divide-x divide-gray-100">
+            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
+                <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                        <tr className="divide-x divide-zinc-100 dark:divide-zinc-800">
                             {[...columns, { key: 'actions', label: '' }].map((c: any) => (
-                                <th key={c.key} className="p-3 font-semibold text-gray-700 text-sm text-left text-sm">{c.label}</th>
+                                <th key={c.key} className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm text-left text-sm">{c.label}</th>
                             ))}
                         </tr>
                     </thead>
 
-                    <tbody className="divide-y divide-gray-200 bg-white">
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                         {(tableData || []).map((row: any, i: number) => {
                             const rowTotal = calculateRowTotal(row);
                             return (
-                                <tr key={row.id || i} className="divide-x divide-gray-100">
+                                <tr key={row.id || i} className="divide-x divide-zinc-100 dark:divide-zinc-800">
                                     {columns.map((col: any) => (
                                         <td key={col.key} className="p-2">
                                             {col.type === 'Select' ? (
@@ -118,7 +118,7 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                                                     value={row[col.key] || ''}
                                                     onChange={e => onRowChange(i, col.key, e.target.value)} />
                                             ) : col.type === 'ReadOnly' ? (
-                                                <input readOnly className={`${inputClasses} !h-11 bg-gray-200 font-bold`}
+                                                <input readOnly className={`${inputClasses} !h-11 bg-zinc-200 dark:bg-zinc-700 font-bold`}
                                                     value={rowTotal.toFixed(2)} />
                                             ) : null}
                                         </td>
@@ -133,8 +133,8 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                     </tbody>
 
                     {/* Footer with Year-wise Totals and Grand Total */}
-                    <tfoot className="bg-gray-100 border-t-2 border-gray-300 font-bold">
-                        <tr className="divide-x divide-gray-100">
+                    <tfoot className="bg-zinc-100 dark:bg-zinc-800 border-t-2 border-zinc-300 dark:border-zinc-700 font-bold">
+                        <tr className="divide-x divide-zinc-100 dark:divide-zinc-800">
                             <td className="p-3 text-right">Yearly Totals (₹):</td>
                             {yearKeys.map(key => (
                                 <td key={key} className="p-3">{yearTotals[key]?.toFixed(2) || '0.00'}</td>
@@ -155,7 +155,7 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                     fourth_year_budget: 0,
                     fifth_year_budget: 0,
                 })}
-                className="bg-[#A5D6A7] mt-4">
+                className="bg-[#D97757] mt-4">
                 Add Budget Row
             </FrappeButton>
         </div>
@@ -164,12 +164,12 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
 
 const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => (
     <NeoSection title={title}>
-        <div className="overflow-x-auto border border-gray-200 rounded-md">
-            <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50"><tr className="divide-x divide-gray-100">{[...columns, { key: 'actions', label: '' }].map((c: any) => (<th key={c.key} className="p-3 font-semibold text-gray-700 text-sm text-left text-sm">{c.label}</th>))}</tr></thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+        <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
+            <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                <thead className="bg-zinc-50 dark:bg-zinc-800/50"><tr className="divide-x divide-zinc-100 dark:divide-zinc-800">{[...columns, { key: 'actions', label: '' }].map((c: any) => (<th key={c.key} className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm text-left text-sm">{c.label}</th>))}</tr></thead>
+                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                     {(tableData || []).map((row: any, i: number) => (
-                        <tr key={row.id} className="divide-x divide-gray-100">
+                        <tr key={row.id} className="divide-x divide-zinc-100 dark:divide-zinc-800">
                             {columns.map((col: any) => (<td key={col.key} className="p-2">
                                 {col.type === 'Attach' ? (
                                     <input type="file" className={`${inputClasses} !h-11 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:font-bold file:bg-stone-200 hover:file:bg-stone-300`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />
@@ -183,7 +183,7 @@ const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableDat
                 </tbody>
             </table>
         </div>
-        <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#A5D6A7] mt-4">Add Row</FrappeButton>
+        <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#D97757] mt-4">Add Row</FrappeButton>
     </NeoSection>
 ));
 
@@ -335,17 +335,17 @@ const AddFundSanction: React.FC = () => {
     }
 
     return (
-        <div className="bg-[#F0F4F8]">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B]">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <header className="mb-8 p-4 bg-white border border-gray-200 rounded-md shadow-sm">
+                <header className="mb-8 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-sm">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => navigate(-1)} className="p-3 bg-white border border-gray-200 rounded-md hover:bg-gray-50 active:translate-y-1 transition-transform">
+                        <button onClick={() => navigate(-1)} className="p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-50 dark:bg-zinc-800/50 active:translate-y-1 transition-transform">
                             <ArrowLeftIcon className="h-6 w-6" />
                         </button>
                         <div>
-                            <h1 className="text-3xl font-bold text-black">Add Fund Sanction</h1>
-                            <p className="text-gray-700  mt-1">For Project: {formData.refnum_prj_num || projectName}</p>
+                            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Add Fund Sanction</h1>
+                            <p className="text-zinc-700 dark:text-zinc-300  mt-1">For Project: {formData.refnum_prj_num || projectName}</p>
                         </div>
                     </div>
                 </header>

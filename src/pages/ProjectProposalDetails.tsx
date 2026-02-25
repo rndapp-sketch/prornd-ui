@@ -40,15 +40,15 @@ const SectionWrapper = ({
 }) => (
     <div
         className={cn(
-            "p-5 md:p-6 bg-white border border-gray-200 rounded-xl shadow-sm",
+            "p-5 md:p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm",
             className
         )}
     >
-        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-gray-100">
+        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-zinc-100 dark:border-zinc-800">
             <div className="p-2 bg-[#E0F7F6] rounded-lg">
                 <Icon className="h-5 w-5 text-[#0EA5A4]" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{title}</h3>
         </div>
         <div className="space-y-4">{children}</div>
     </div>
@@ -69,11 +69,11 @@ const FieldDisplay = ({
         <div className="py-2">
             <div className="flex items-center gap-2 mb-1">
                 {Icon && <Icon className="h-4 w-4 text-[#0EA5A4]" />}
-                <p className="text-xs font-semibold text-gray-700">
+                <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                     {label}
                 </p>
             </div>
-            <p className="text-sm text-gray-900 font-medium bg-gray-50 px-3 py-2 rounded-lg">
+            <p className="text-sm text-zinc-900 dark:text-zinc-100 font-medium bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2 rounded-lg">
                 {String(value)}
             </p>
         </div>
@@ -94,7 +94,7 @@ const HtmlContent = ({
     return (
         <SectionWrapper title={title} icon={Icon}>
             <div
-                className="prose prose-sm max-w-none text-gray-800 leading-relaxed "
+                className="prose prose-sm max-w-none text-zinc-800 dark:text-zinc-200 leading-relaxed "
                 dangerouslySetInnerHTML={{ __html: htmlString }}
             />
         </SectionWrapper>
@@ -116,30 +116,30 @@ const TableDisplay = ({
     if (!data || data.length === 0) return null;
     return (
         <SectionWrapper title={label} icon={Icon}>
-            <div className="overflow-x-auto border border-gray-200 rounded-xl">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr className="divide-x divide-gray-200">
+            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-xl">
+                <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                        <tr className="divide-x divide-zinc-200 dark:divide-zinc-800">
                             {columns.map((col) => (
                                 <th
                                     key={col.fieldname}
-                                    className="px-4 py-3 text-left text-sm font-semibold text-gray-700"
+                                    className="px-4 py-3 text-left text-sm font-semibold text-zinc-700 dark:text-zinc-300"
                                 >
                                     {col.label}
                                 </th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                         {data.map((row, index) => (
                             <tr
                                 key={index}
-                                className="divide-x divide-gray-200 hover:bg-gray-50/50"
+                                className="divide-x divide-zinc-200 dark:divide-zinc-800 hover:bg-zinc-50 dark:bg-zinc-800/50/50"
                             >
                                 {columns.map((col) => (
                                     <td
                                         key={col.fieldname}
-                                        className="px-4 py-3 text-sm text-gray-900"
+                                        className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100"
                                     >
                                         {col.type === "file" ? (
                                             row[col.fieldname] ? (
@@ -177,7 +177,7 @@ const FrappeButton = ({
     <button
         className={cn(
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-150",
-            "bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)]",
+            "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800/50 focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)]",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             className
         )}
@@ -234,8 +234,8 @@ const ProjectProposalDetails: React.FC = () => {
         return (
             <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-[#90A4AE] mx-auto"></div>
-                    <p className="mt-4 text-2xl font-bold text-gray-900">
+                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-zinc-200 dark:border-zinc-800 border-t-[#90A4AE] mx-auto"></div>
+                    <p className="mt-4 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                         LOADING PROPOSAL...
                     </p>
                 </div>
@@ -250,7 +250,7 @@ const ProjectProposalDetails: React.FC = () => {
                     <p className="mt-4 text-2xl font-bold text-red-600">
                         Error loading proposal or not found.
                     </p>
-                    <FrappeButton onClick={() => navigate(-1)} className="mt-4 bg-white">
+                    <FrappeButton onClick={() => navigate(-1)} className="mt-4 bg-white dark:bg-zinc-900">
                         Go Back
                     </FrappeButton>
                 </div>
@@ -265,22 +265,22 @@ const ProjectProposalDetails: React.FC = () => {
         <div className="bg-[#F0F4F8] min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <header className="mb-8 p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
+                <header className="mb-8 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                     <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => navigate(-1)}
-                                className="p-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50  transition-transform"
+                                className="p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl hover:bg-zinc-50 dark:bg-zinc-800/50  transition-transform"
                             >
                                 <ArrowLeftIcon className="h-6 w-6" />
                             </button>
                             <div>
-                                <h1 className="text-3xl font-bold text-gray-900">
+                                <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
                                     Endorsement Details
                                 </h1>
-                                <p className="text-gray-700  mt-1">
+                                <p className="text-zinc-700 dark:text-zinc-300  mt-1">
                                     ID: {name} | Status:{" "}
-                                    <span className="font-bold text-gray-900">
+                                    <span className="font-bold text-zinc-900 dark:text-zinc-100">
                                         {data.workflow_state || "Draft"}
                                     </span>
                                 </p>
@@ -308,8 +308,8 @@ const ProjectProposalDetails: React.FC = () => {
                     </div>
                 </header>
 
-                <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <div className="border-b border-gray-200 p-4">
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
+                    <div className="border-b border-zinc-200 dark:border-zinc-800 p-4">
                         <nav className="flex gap-1" aria-label="Tabs">
                             {tabs.map((tab) => (
                                 <button
@@ -318,8 +318,8 @@ const ProjectProposalDetails: React.FC = () => {
                                     className={cn(
                                         "flex items-center gap-2 py-3 px-5 font-semibold text-sm rounded-t-xl border border-b-0 transition-all",
                                         activeTab === tab.id
-                                            ? "bg-white text-[#0EA5A4] border-gray-200 shadow-sm"
-                                            : "bg-gray-50 text-gray-600 border-transparent hover:text-gray-900 hover:bg-gray-100"
+                                            ? "bg-white dark:bg-zinc-900 text-[#0EA5A4] border-zinc-200 dark:border-zinc-800 shadow-sm"
+                                            : "bg-zinc-50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-400 border-transparent hover:text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:bg-zinc-800"
                                     )}
                                 >
                                     <tab.icon className="h-4 w-4" /> {tab.label}
@@ -530,11 +530,11 @@ const ProjectProposalDetails: React.FC = () => {
                             <div className="space-y-8">
                                 {/* Budget Breakup Table - Custom rendering for dynamic years */}
                                 <SectionWrapper title="Proposed Budget Breakup" icon={IndianRupeeIcon}>
-                                    <div className="overflow-x-auto border border-gray-200 rounded-xl">
-                                        <table className="min-w-full divide-y divide-gray-200">
-                                            <thead className="bg-gray-50">
-                                                <tr className="divide-x divide-gray-200">
-                                                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-900  tracking-wider">
+                                    <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-xl">
+                                        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                                            <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                                <tr className="divide-x divide-zinc-200 dark:divide-zinc-800">
+                                                    <th className="px-4 py-3 text-left text-sm font-bold text-zinc-900 dark:text-zinc-100  tracking-wider">
                                                         Account Head
                                                     </th>
                                                     {/* Assuming we can determine max years from the first row or data */}
@@ -544,18 +544,18 @@ const ProjectProposalDetails: React.FC = () => {
                                                             (_: any, i: number) => (
                                                                 <th
                                                                     key={i}
-                                                                    className="px-4 py-3 text-left text-sm font-bold text-gray-900  tracking-wider"
+                                                                    className="px-4 py-3 text-left text-sm font-bold text-zinc-900 dark:text-zinc-100  tracking-wider"
                                                                 >
                                                                     Year {i + 1}
                                                                 </th>
                                                             )
                                                         )}
-                                                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-900  tracking-wider">
+                                                    <th className="px-4 py-3 text-left text-sm font-bold text-zinc-900 dark:text-zinc-100  tracking-wider">
                                                         Total
                                                     </th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-gray-200 bg-white">
+                                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                                                 {(data.proposed_budget_breakup || []).map(
                                                     (row: any, index: number) => {
                                                         const years = row.years || [];
@@ -566,20 +566,20 @@ const ProjectProposalDetails: React.FC = () => {
                                                         return (
                                                             <tr
                                                                 key={index}
-                                                                className="divide-x divide-gray-200 hover:bg-gray-50"
+                                                                className="divide-x divide-zinc-200 dark:divide-zinc-800 hover:bg-zinc-50 dark:bg-zinc-800/50"
                                                             >
-                                                                <td className="px-4 py-3 text-sm text-gray-800 ">
+                                                                <td className="px-4 py-3 text-sm text-zinc-800 dark:text-zinc-200 ">
                                                                     {row.account_head}
                                                                 </td>
                                                                 {years.map((val: any, i: number) => (
                                                                     <td
                                                                         key={i}
-                                                                        className="px-4 py-3 text-sm text-gray-800 "
+                                                                        className="px-4 py-3 text-sm text-zinc-800 dark:text-zinc-200 "
                                                                     >
                                                                         {Number(val).toFixed(2)}
                                                                     </td>
                                                                 ))}
-                                                                <td className="px-4 py-3 text-sm text-gray-800  font-bold">
+                                                                <td className="px-4 py-3 text-sm text-zinc-800 dark:text-zinc-200  font-bold">
                                                                     {rowTotal.toFixed(2)}
                                                                 </td>
                                                             </tr>

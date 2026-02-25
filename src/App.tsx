@@ -2,13 +2,32 @@ import { FrappeProvider, useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk
 import { Outlet, useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/RndSidebar";
 import { SidebarProvider, SidebarTrigger, SidebarInset, Sidebar } from "@/components/ui/sidebar";
-import { MenuIcon, UserIcon, SearchIcon } from "lucide-react";
+import { MenuIcon, UserIcon, SearchIcon, MoonIcon, SunIcon } from "lucide-react";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { SWRConfig } from "swr";
 import { useRef, useEffect, useState } from "react";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
+import { ThemeProvider, useTheme } from "@/components/theme-provider";
+import { Button } from "@/components/ui/button";
 
-function App() {
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      className="text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+    >
+      <SunIcon className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+      <MoonIcon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+      <span className="sr-only">Toggle theme</span>
+    </Button>
+  );
+}
+
+function AppContent() {
   const { currentUser } = useFrappeAuth();
   const location = useLocation();
   const isPublicPage = location.pathname === "/" || location.pathname === "/login";
@@ -67,96 +86,105 @@ function App() {
   const userImageUrl = getUserImageUrl();
 
   return (
-    <div className="App">
+    <div className="App bg-[#F9F7F2] dark:bg-[#18181B] min-h-screen">
       <GlobalLoader isLoading={showGlobalLoader} />
+
+      <SWRConfig value={{
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
+        refreshInterval: 0,
+        shouldRetryOnError: false
+      }}>
+        {isPublicPage ? (
+          <Outlet />
+        ) : (
+          <SidebarProvider className="flex h-screen bg-[#F9F7F2] dark:bg-[#18181B]">
+            {currentUser && (
+              <Sidebar collapsible="offcanvas" className="border-r border-zinc-200 dark:border-zinc-800">
+                <AppSidebar />
+              </Sidebar>
+            )}
+            <SidebarInset className="bg-[#F9F7F2] dark:bg-[#18181B]">
+              <header className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 py-2 border-b border-zinc-200 bg-[#F9F7F2]/80 backdrop-blur-md dark:bg-zinc-900/80 dark:border-zinc-800">
+                <div className="flex items-center gap-2">
+                  <SidebarTrigger className="size-10 p-2 hover:bg-[#D97757]/10 active:bg-[#D97757]/20 rounded-md text-[#D97757] transition-colors dark:text-[#D97757] dark:hover:bg-[#D97757]/10 dark:active:bg-[#D97757]/20">
+                    <MenuIcon className="size-9" />
+                  </SidebarTrigger>
+                </div>
+
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center gap-3">
+                  <div className="assamese-text font-bold text-sm text-zinc-950 dark:text-white whitespace-nowrap">ভাৰতীয় প্ৰযুক্তিবিদ্যা প্ৰতিষ্ঠান গুৱাহাটী</div>
+                  <div className="w-px h-4 bg-zinc-400 dark:bg-zinc-600"></div>
+                  <div className="hindi-text font-bold text-sm text-zinc-950 dark:text-white whitespace-nowrap">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                  <div className="w-px h-4 bg-zinc-400 dark:bg-zinc-600"></div>
+                  <div className="english-text font-serif font-bold text-sm text-zinc-950 dark:text-white whitespace-nowrap tracking-tight">Indian Institute of Technology Guwahati</div>
+                </div>
+                {currentUser && (
+                  <div className="flex items-center gap-3">
+                    <ThemeToggle />
+                    {/* Search Button */}
+                    <button
+                      onClick={openPalette}
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm text-zinc-600 bg-white dark:bg-zinc-900 hover:bg-zinc-50 border border-zinc-200 rounded-md transition-colors shadow-sm dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800 dark:hover:bg-zinc-800"
+                    >
+                      <SearchIcon className="h-4 w-4" />
+                      <span className="hidden sm:inline font-medium">Search</span>
+                      <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-mono bg-zinc-100 border border-zinc-200 rounded text-zinc-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400">
+                        ⌘K
+                      </kbd>
+                    </button>
+                    {isUserLoading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-zinc-200 animate-pulse dark:bg-zinc-800"></div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 pl-3">
+                        {userImageUrl ? (
+                          <img
+                            src={userImageUrl}
+                            alt="User Profile"
+                            className="h-8 w-8 rounded-full object-cover border border-zinc-200 shadow-sm dark:border-zinc-700"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.onerror = null;
+                              target.src = 'https://placehold.co/36x36/E4E4E7/3F3F46?text=U';
+                            }}
+                          />
+                        ) : (
+                          <div className="h-8 w-8 rounded-full bg-zinc-100 flex items-center justify-center border border-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400">
+                            <UserIcon className="h-4 w-4" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </header>
+              <main className="flex-1 overflow-y-auto p-4 lg:p-4 bg-[#F9F7F2] dark:bg-[#18181B]">
+                <div className="mx-auto w-full animate-in fade-in duration-500">
+                  <Outlet />
+                </div>
+              </main>
+              {/* Command Palette */}
+              <CommandPalette isOpen={isCommandPaletteOpen} onClose={closePalette} />
+            </SidebarInset>
+          </SidebarProvider>
+        )}
+      </SWRConfig>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
       <FrappeProvider
         socketPort="9001"
         siteName="prornd.local"
       >
-        <SWRConfig value={{
-          revalidateOnFocus: false,
-          revalidateOnReconnect: false,
-          refreshInterval: 0,
-          shouldRetryOnError: false
-        }}>
-          {isPublicPage ? (
-            <Outlet />
-          ) : (
-            <SidebarProvider className="flex h-screen bg-gray-100">
-              {currentUser && (
-                <Sidebar collapsible="offcanvas">
-                  <AppSidebar />
-                </Sidebar>
-              )}
-              <SidebarInset>
-                <header className="relative flex items-center justify-between gap-4 px-6 py-4 border-b border-gray-300 bg-white shadow-sm">
-                  <div className="flex items-center gap-4">
-                    <SidebarTrigger className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                      <MenuIcon className="size-5 text-gray-900" />
-                    </SidebarTrigger>
-                  </div>
-
-                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-8">
-                    {/* <img src="/IITG_Logo.svg" alt="IITG Logo" className="w-16 h-16" /> */}
-                    <div className="flex items-center gap-6">
-                      <div className="assamese-text font-medium text-sm text-gray-900 whitespace-nowrap">ভাৰতীয় প্ৰযুক্তিবিদ্যা প্ৰতিষ্ঠান গুৱাহাটী</div>
-                      <div className="w-px h-6 bg-gray-300"></div>
-                      <div className="hindi-text font-medium text-sm text-gray-900 whitespace-nowrap">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
-                      <div className="w-px h-6 bg-gray-300"></div>
-                      <div className="english-text font-bold text-sm text-gray-900 whitespace-nowrap">Indian Institute of Technology Guwahati</div>
-                    </div>
-                  </div>
-                  {currentUser && (
-                    <div className="flex items-center gap-3">
-                      {/* Search Button */}
-                      <button
-                        onClick={openPalette}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-900 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-xl transition-colors"
-                      >
-                        <SearchIcon className="h-4 w-4" />
-                        <span className="hidden sm:inline">Search...</span>
-                        <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-mono bg-white border border-gray-400 rounded">
-                          ⌘K
-                        </kbd>
-                      </button>
-                      {isUserLoading ? (
-                        <div className="flex items-center gap-2">
-                          <div className="h-9 w-9 rounded-xl bg-gray-200 animate-pulse"></div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-xl border border-gray-300">
-                          {userImageUrl ? (
-                            <img
-                              src={userImageUrl}
-                              alt="User Profile"
-                              className="h-9 w-9 rounded-xl object-cover border border-gray-300"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.onerror = null;
-                                target.src = 'https://placehold.co/36x36/E0F7F6/0EA5A4?text=NA';
-                              }}
-                            />
-                          ) : (
-                            <div className="h-9 w-9 rounded-xl bg-[#E0F7F6] flex items-center justify-center border border-[#0EA5A4]/30">
-                              <UserIcon className="h-4 w-4 text-[#0EA5A4]" />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </header>
-                <main className="flex-1 overflow-y-auto p-4 bg-gray-100">
-                  <Outlet />
-                </main>
-                {/* Command Palette */}
-                <CommandPalette isOpen={isCommandPaletteOpen} onClose={closePalette} />
-              </SidebarInset>
-            </SidebarProvider>
-          )}
-        </SWRConfig>
+        <AppContent />
       </FrappeProvider>
-    </div>
+    </ThemeProvider>
   );
 }
 

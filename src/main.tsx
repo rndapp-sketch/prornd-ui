@@ -23,6 +23,7 @@ import AddFundSanction from './pages/AddFundSanction.tsx';
 import ProjectsView from './pages/ProjectsView.tsx';
 import ProjectDetails from './pages/ProjectDetails.tsx'; // Import ProjectDetails
 import ProjectDetailsOverview from './pages/ProjectDetailsOverview.tsx';
+import ProjectLedgerFull from './pages/ProjectLedgerFull.tsx';
 import HRPortal from './pages/HRPortal.tsx';
 import AddFundReceived from './pages/AddFundReceived.tsx';
 import { HosRndDashboard } from './pages/dashboards/HosRndDashboard.tsx';
@@ -53,6 +54,11 @@ import TaskRegistryDetails from './pages/TaskRegistryDetails.tsx';
 import TemporaryAdvanceDetails from './pages/application/TemporaryAdvanceDetails.tsx';
 import Payments from './pages/Payments.tsx';
 import AdvanceSettlementForm from './pages/application/AdvanceSettlementForm.tsx';
+import AdvanceSettlementDetails from './pages/application/AdvanceSettlementDetails.tsx';
+import DisbursalOfHonorarium from './pages/application/DisbursalOfHonorarium.tsx';
+import DisbursalOfHonorariumForm from './pages/application/DisbursalOfHonorariumForm.tsx';
+import DirectPurchase from './pages/DirectPurchase.tsx';
+import DirectPurchaseDetails from './pages/application/DirectPurchaseDetails.tsx';
 
 const router = createBrowserRouter(
   [
@@ -218,6 +224,15 @@ const router = createBrowserRouter(
         },
         // --- END OF CHANGE ---
 
+        {
+          path: "project-ledger-full/:projectName",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <ProjectLedgerFull />
+            </AuthRouteWrapper>
+          ),
+        },
+
         // Your other project details route for non-approved projects
         {
           path: "project-details/:projectName",
@@ -293,6 +308,7 @@ const router = createBrowserRouter(
             <AuthRouteWrapper allowedRole={[
               'Director',
               'Dean, RnD',
+              'Ado_RnD',
               'head_approver_1',
               'Hos, RnD (Head of Section, RnD)',
               'staff, RnD'
@@ -307,6 +323,7 @@ const router = createBrowserRouter(
             <AuthRouteWrapper allowedRole={[
               'Director',
               'Dean, RnD',
+              'Ado_RnD',
               'head_approver_1',
               'Hos, RnD (Head of Section, RnD)',
               'staff, RnD'
@@ -388,6 +405,22 @@ const router = createBrowserRouter(
           )
         },
         {
+          path: "disbursal-of-honorarium",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DisbursalOfHonorarium />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "disbursal-of-honorarium-form/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DisbursalOfHonorariumForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
           path: "task-registry",
           element: (
             <AuthRouteWrapper allowedRole={[
@@ -429,6 +462,30 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <AdvanceSettlementForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "advance-settlement/:id",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <AdvanceSettlementDetails />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "direct-purchase",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DirectPurchase />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "direct-purchase/:id",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DirectPurchaseDetails />
             </AuthRouteWrapper>
           )
         },

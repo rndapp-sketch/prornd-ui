@@ -12,15 +12,15 @@ export const ActionCard: React.FC<{
     <div
         onClick={onClick}
         className={cn(
-            "bg-white p-6 rounded-lg border border-gray-300 shadow-sm transition-all hover:shadow-[3px_3px_0px_rgba(0,0,0,0.25)] hover:translate-x-[2px] hover:translate-y-[2px] cursor-pointer group flex flex-col",
+            "bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm transition-all hover:shadow-md hover:border-zinc-300 dark:hover:border-zinc-700 cursor-pointer group flex flex-col",
             className
         )}
     >
-        <div className="flex-shrink-0 flex items-center justify-center size-12 bg-black text-white rounded-lg border border-gray-400 mb-4">
+        <div className="flex-shrink-0 flex items-center justify-center size-12 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg border border-zinc-200 dark:border-zinc-700 mb-4 group-hover:bg-[#D97757] group-hover:text-white group-hover:border-[#D97757] transition-all duration-300">
             {icon}
         </div>
-        <h3 className="text-xl font-bold mb-2 text-black uppercase">{title}</h3>
-        <p className="text-gray-900 flex-grow text-sm font-bold">{description}</p>
+        <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100 uppercase">{title}</h3>
+        <p className="text-zinc-600 dark:text-zinc-400 flex-grow text-sm font-medium">{description}</p>
     </div>
 );
 
@@ -35,16 +35,16 @@ export const AnalyticsCard: React.FC<{
 }> = ({ title, value, subtitle, icon, trend, onClick }) => (
     <div
         onClick={onClick}
-        className={cn("p-4 rounded-lg border border-gray-300", onClick ? 'cursor-pointer hover:bg-gray-100' : '')}
+        className={cn("p-4 rounded-lg border border-zinc-200 dark:border-zinc-800", onClick ? 'cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800' : '')}
     >
         <div className="flex items-center justify-between mb-2">
-            <h3 className="text-base font-bold text-black uppercase">{title}</h3>
-            <div className="text-black">{icon}</div>
+            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 uppercase">{title}</h3>
+            <div className="text-zinc-500 dark:text-zinc-400">{icon}</div>
         </div>
-        <div className="text-3xl font-bold text-black">{value}</div>
+        <div className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{value}</div>
         <div className="flex items-center justify-between mt-1">
-            <div className="text-xs text-gray-900 font-bold">{subtitle}</div>
-            {trend && (<div className={`text-xs font-bold ${trend.startsWith('+') ? 'text-emerald-700' : 'text-red-700'}`}>{trend}</div>)}
+            <div className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">{subtitle}</div>
+            {trend && (<div className={`text-xs font-bold ${trend.startsWith('+') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>{trend}</div>)}
         </div>
     </div>
 );
@@ -57,7 +57,7 @@ export const CurrentTime = () => {
         return () => clearInterval(timerId);
     }, []);
     return (
-        <div className="font-bold text-sm text-black text-right">
+        <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100 text-right">
             <div>{time.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
             <div>{time.toLocaleTimeString()}</div>
         </div>

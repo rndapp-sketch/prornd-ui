@@ -2,17 +2,14 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     SearchIcon,
-    CommandIcon,
     FileTextIcon,
     LayoutDashboardIcon,
     UsersIcon,
     ClipboardListIcon,
     FolderIcon,
     CreditCardIcon,
-    SettingsIcon,
     XIcon,
-    ArrowRightIcon,
-    CornerDownLeftIcon
+    ArrowRightIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -146,10 +143,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
             />
 
             {/* Command Palette Modal */}
-            <div className="relative w-full max-w-xl mx-4 bg-white rounded-xl shadow-2xl border border-gray-300 overflow-hidden">
+            <div className="relative w-full max-w-xl mx-4 bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
                 {/* Search Input */}
-                <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-300">
-                    <SearchIcon className="h-5 w-5 text-gray-900 flex-shrink-0" />
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
+                    <SearchIcon className="h-5 w-5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
                     <input
                         ref={inputRef}
                         type="text"
@@ -157,33 +154,33 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        className="flex-1 bg-transparent text-base text-black font-bold placeholder-gray-400 outline-none"
+                        className="flex-1 bg-transparent text-base text-zinc-900 dark:text-zinc-100 font-medium placeholder-zinc-400 dark:placeholder-zinc-500 outline-none"
                     />
                     <button
                         onClick={onClose}
-                        className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                        className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
                     >
-                        <XIcon className="h-4 w-4 text-gray-900" />
+                        <XIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                     </button>
                 </div>
 
                 {/* Results */}
                 <div className="max-h-[60vh] overflow-y-auto py-2">
                     {filteredItems.length === 0 ? (
-                        <div className="px-4 py-8 text-center text-gray-900">
-                            <SearchIcon className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                            <p className="text-sm font-bold">No results found for "{searchQuery}"</p>
+                        <div className="px-4 py-8 text-center">
+                            <SearchIcon className="h-8 w-8 mx-auto mb-2 text-zinc-400 dark:text-zinc-500" />
+                            <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">No results found for "{searchQuery}"</p>
                         </div>
                     ) : (
                         <>
                             {Object.entries(groupedItems).map(([category, items]) => (
                                 <div key={category}>
                                     <div className="px-4 py-2">
-                                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                                        <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                                             {category === 'navigation' ? 'Pages' : category === 'action' ? 'Actions' : 'Recent'}
                                         </span>
                                     </div>
-                                    {items.map((item, index) => {
+                                    {items.map((item) => {
                                         const globalIndex = filteredItems.indexOf(item);
                                         const isSelected = globalIndex === selectedIndex;
                                         return (
@@ -196,30 +193,30 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
                                                 onMouseEnter={() => setSelectedIndex(globalIndex)}
                                                 className={cn(
                                                     "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors",
-                                                    isSelected ? "bg-[#E0F7F6]" : "hover:bg-gray-50"
+                                                    isSelected ? "bg-zinc-100 dark:bg-zinc-800" : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                                                 )}
                                             >
                                                 <div className={cn(
                                                     "flex-shrink-0 h-9 w-9 rounded-lg flex items-center justify-center border",
-                                                    isSelected ? "bg-[#0EA5A4] text-white border-[#0EA5A4]" : "bg-gray-100 text-gray-900 border-gray-300"
+                                                    isSelected ? "bg-[#D97757] text-white border-[#D97757]" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700"
                                                 )}>
                                                     <item.icon className="h-4 w-4" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className={cn(
-                                                        "text-sm font-bold truncate",
-                                                        isSelected ? "text-[#0EA5A4]" : "text-black"
+                                                        "text-sm font-medium truncate",
+                                                        isSelected ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"
                                                     )}>
                                                         {item.label}
                                                     </p>
                                                     {item.description && (
-                                                        <p className="text-xs text-gray-900 font-medium truncate">
+                                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
                                                             {item.description}
                                                         </p>
                                                     )}
                                                 </div>
                                                 {isSelected && (
-                                                    <ArrowRightIcon className="h-4 w-4 text-[#0EA5A4] flex-shrink-0" />
+                                                    <ArrowRightIcon className="h-4 w-4 text-[#D97757] flex-shrink-0" />
                                                 )}
                                             </button>
                                         );
@@ -231,23 +228,23 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Footer with keyboard hints */}
-                <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-300 bg-gray-100 text-xs text-black font-bold">
+                <div className="flex items-center justify-between px-4 py-2.5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/80 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
                     <div className="flex items-center gap-4">
                         <span className="flex items-center gap-1">
-                            <kbd className="px-1.5 py-0.5 bg-white border border-gray-400 rounded text-xs font-mono text-black">↑</kbd>
-                            <kbd className="px-1.5 py-0.5 bg-white border border-gray-400 rounded text-xs font-mono text-black">↓</kbd>
+                            <kbd className="px-1.5 py-0.5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-xs font-mono text-zinc-500 dark:text-zinc-400">↑</kbd>
+                            <kbd className="px-1.5 py-0.5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-xs font-mono text-zinc-500 dark:text-zinc-400">↓</kbd>
                             <span className="ml-1">Navigate</span>
                         </span>
                         <span className="flex items-center gap-1">
-                            <kbd className="px-1.5 py-0.5 bg-white border border-gray-400 rounded text-xs font-mono text-black">↵</kbd>
+                            <kbd className="px-1.5 py-0.5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-xs font-mono text-zinc-500 dark:text-zinc-400">↵</kbd>
                             <span className="ml-1">Open</span>
                         </span>
                         <span className="flex items-center gap-1">
-                            <kbd className="px-1.5 py-0.5 bg-white border border-gray-400 rounded text-xs font-mono text-black">Esc</kbd>
+                            <kbd className="px-1.5 py-0.5 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-xs font-mono text-zinc-500 dark:text-zinc-400">Esc</kbd>
                             <span className="ml-1">Close</span>
                         </span>
                     </div>
-                    <span className="text-gray-900">{filteredItems.length} results</span>
+                    <span>{filteredItems.length} results</span>
                 </div>
             </div>
         </div>

@@ -2,7 +2,6 @@ import * as React from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
-import { AppSidebar } from "../components/RndSidebar";
 import { useUserRoles } from "../components/UserRole";
 
 // --- Icon Components (unchanged logic, purely visual helpers) ---
@@ -107,7 +106,7 @@ const Clock = () => {
   }, []);
 
   return (
-    <div className="text-sm text-black font-bold border border-gray-400 bg-white px-3 py-1 rounded-lg shadow-sm">
+    <div className="text-sm text-zinc-900 dark:text-zinc-100 font-bold border border-zinc-400 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-1 rounded-lg shadow-sm">
       {time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} <span className="mx-1">|</span> {time.toLocaleTimeString()}
     </div>
   );
@@ -123,14 +122,14 @@ interface ActionCardProps {
 const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onClick }) => (
   <div
     onClick={onClick}
-    className="bg-white p-6 rounded-lg border border-gray-300 shadow-sm hover:shadow-[3px_3px_0px_rgba(0,0,0,0.15)] hover:translate-y-[-2px] transition-all duration-150 cursor-pointer group flex flex-col h-full"
+    className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-300 dark:border-zinc-700 shadow-sm hover:shadow-[3px_3px_0px_rgba(0,0,0,0.15)] hover:translate-y-[-2px] transition-all duration-150 cursor-pointer group flex flex-col h-full"
   >
     {/* Icon Container: Added border and bg-blue-50 instead of standard sky-100 for better contrast */}
-    <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-gray-100 border border-gray-300 text-black rounded-lg mb-4 group-hover:bg-gray-800 group-hover:text-white transition-colors duration-150">
+    <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg mb-4 group-hover:bg-gray-800 group-hover:text-white transition-colors duration-150">
       {icon}
     </div>
-    <h3 className="text-xl font-bold mb-2 text-black">{title}</h3>
-    <p className="text-gray-900 flex-grow text-sm font-bold">{description}</p>
+    <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">{title}</h3>
+    <p className="text-zinc-900 dark:text-zinc-100 flex-grow text-sm font-bold">{description}</p>
   </div>
 );
 
@@ -187,34 +186,33 @@ export function Home() {
   // Show loading spinner while roles are being fetched to prevent generic Home flash
   if (isRolesLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <div className="flex items-center justify-center min-h-screen bg-zinc-100 dark:bg-zinc-800">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-800 border-t-transparent mx-auto"></div>
-          <p className="mt-4 text-lg font-medium text-gray-700">Loading...</p>
+          <p className="mt-4 text-lg font-medium text-zinc-700 dark:text-zinc-300">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 font-sans text-black">
-      <AppSidebar />
+    <div className="min-h-screen dark:bg-zinc-800 font-sans text-zinc-900 dark:text-zinc-100">
       <div className="flex-1 p-4 sm:p-6 md:p-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full mx-auto">
 
           {/* Header */}
           <header className="mb-10">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
               <div>
                 {/* No gradients on text, solid colors for brutalism */}
-                <h1 className="text-4xl font-bold tracking-tight text-black">R&D Portal</h1>
-                <p className="text-gray-900 mt-1 font-bold">Your hub for innovation and project management.</p>
+                <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">R&D Portal</h1>
+                <p className="text-zinc-500 dark:text-zinc-400 mt-1 font-bold">Your hub for innovation and project management.</p>
               </div>
               <Clock />
             </div>
 
             {/* Welcome Banner: Hard borders, solid colors */}
-            <div className="bg-emerald-50 border border-gray-400 text-emerald-900 p-4 rounded-lg shadow-sm flex items-center">
+            <div className="bg-emerald-50 border border-zinc-400 dark:border-zinc-600 text-emerald-900 p-4 rounded-lg shadow-sm flex items-center">
               <div className="w-2 h-2 bg-emerald-600 rounded-full mr-3 animate-pulse"></div>
               <p className="font-bold text-lg">Welcome back, {fullName || userName}!</p>
             </div>
@@ -224,47 +222,47 @@ export function Home() {
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
 
             {/* Card 1: Your Information */}
-            <div className="bg-white p-6 rounded-lg border border-gray-300 shadow-sm">
-              <div className="flex items-center mb-5 pb-4 border-b-2 border-gray-300">
-                <div className="w-10 h-10 mr-4 text-black flex items-center justify-center bg-gray-100 border border-gray-300 rounded-lg">
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-300 dark:border-zinc-700 shadow-sm">
+              <div className="flex items-center mb-5 pb-4 border-b-2 border-zinc-300 dark:border-zinc-700">
+                <div className="w-10 h-10 mr-4 text-zinc-900 dark:text-zinc-100 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg">
                   <User className="w-5 h-5" />
                 </div>
-                <h3 className="text-2xl font-bold text-black">Your Information</h3>
+                <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Your Information</h3>
               </div>
 
-              <div className="text-black space-y-4 font-bold">
-                <div className="flex justify-between items-center p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                  <span className="text-gray-700">Term Completion</span>
+              <div className="text-zinc-900 dark:text-zinc-100 space-y-4 font-bold">
+                <div className="flex justify-between items-center p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors">
+                  <span className="text-zinc-700 dark:text-zinc-300">Term Completion</span>
                   <span className="font-bold">2026-04-21</span>
                 </div>
 
-                <div className="flex justify-between items-center p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                  <span className="text-gray-700">Account Number</span>
+                <div className="flex justify-between items-center p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors">
+                  <span className="text-zinc-700 dark:text-zinc-300">Account Number</span>
                   <span className="flex items-center gap-3 font-mono font-bold">
                     {showAccountNumber ? '123456781234' : '•••• •••• 1234'}
-                    <button onClick={() => setShowAccountNumber(!showAccountNumber)} className="text-black hover:bg-white p-1 rounded-md border border-gray-300 transition-all">
+                    <button onClick={() => setShowAccountNumber(!showAccountNumber)} className="text-zinc-900 dark:text-zinc-100 hover:bg-white dark:bg-zinc-900 p-1 rounded-md border border-zinc-300 dark:border-zinc-700 transition-all">
                       {showAccountNumber ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                  <span className="text-gray-700">Salary Basic</span>
+                <div className="flex justify-between items-center p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors">
+                  <span className="text-zinc-700 dark:text-zinc-300">Salary Basic</span>
                   <span className="flex items-center gap-3 font-mono font-bold">
                     {showSalary ? '₹ 50,000.00' : '₹ ••••••'}
-                    <button onClick={() => setShowSalary(!showSalary)} className="text-black hover:bg-white p-1 rounded-md border border-gray-300 transition-all">
+                    <button onClick={() => setShowSalary(!showSalary)} className="text-zinc-900 dark:text-zinc-100 hover:bg-white dark:bg-zinc-900 p-1 rounded-md border border-zinc-300 dark:border-zinc-700 transition-all">
                       {showSalary ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                  <span className="text-gray-700">Hostel</span>
-                  <span className="bg-gray-100 text-black border border-gray-400 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">No</span>
+                <div className="flex justify-between items-center p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors">
+                  <span className="text-zinc-700 dark:text-zinc-300">Hostel</span>
+                  <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-400 dark:border-zinc-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">No</span>
                 </div>
 
-                <div className="flex justify-between items-center p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                  <span className="text-gray-700">HRA</span>
+                <div className="flex justify-between items-center p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors">
+                  <span className="text-zinc-700 dark:text-zinc-300">HRA</span>
                   <span className="bg-emerald-100 text-emerald-900 border border-emerald-400 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Yes</span>
                 </div>
               </div>
@@ -276,15 +274,15 @@ export function Home() {
             </div>
 
             {/* Card 2: Leave & Policies */}
-            <div className="bg-white p-6 rounded-lg border border-gray-300 shadow-sm flex flex-col">
-              <div className="flex items-center mb-5 pb-4 border-b-2 border-gray-300">
-                <div className="w-10 h-10 mr-4 text-black flex items-center justify-center bg-gray-100 border border-gray-300 rounded-lg">
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-300 dark:border-zinc-700 shadow-sm flex flex-col">
+              <div className="flex items-center mb-5 pb-4 border-b-2 border-zinc-300 dark:border-zinc-700">
+                <div className="w-10 h-10 mr-4 text-zinc-900 dark:text-zinc-100 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg">
                   <Info className="w-5 h-5" />
                 </div>
-                <h3 className="text-2xl font-bold text-black">Leave & Policies</h3>
+                <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Leave & Policies</h3>
               </div>
 
-              <div className="text-black flex-grow flex flex-col justify-center text-center py-6">
+              <div className="text-zinc-900 dark:text-zinc-100 flex-grow flex flex-col justify-center text-center py-6">
                 <div className="mb-8 p-6 bg-blue-50 border-2 border-dashed border-blue-300 rounded-lg">
                   <p className="font-bold text-blue-900">Need to take time off?</p>
                   <p className="text-sm text-blue-800 mt-1 font-bold">Review your balance and apply below.</p>
@@ -324,28 +322,28 @@ export function Home() {
 
           {/* Secondary Information Section */}
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white p-6 rounded-lg border border-gray-300 shadow-sm">
+            <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-300 dark:border-zinc-700 shadow-sm">
               <div className="flex items-center mb-4">
-                <div className="w-8 h-8 mr-3 text-black"><Megaphone /></div>
-                <h3 className="text-xl font-bold text-black">Announcements</h3>
+                <div className="w-8 h-8 mr-3 text-zinc-900 dark:text-zinc-100"><Megaphone /></div>
+                <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Announcements</h3>
               </div>
-              <div className="text-gray-700 space-y-2 border-t-2 border-gray-300 pt-4 font-bold italic">
+              <div className="text-zinc-700 dark:text-zinc-300 space-y-2 border-t-2 border-zinc-300 dark:border-zinc-700 pt-4 font-bold italic">
                 <p>No new announcements. Please check back later for updates.</p>
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-lg border border-gray-300 shadow-sm">
-              <h3 className="text-xl font-bold mb-4 text-black">Resources</h3>
-              <ul className="space-y-3 border-t-2 border-gray-200 pt-4">
+            <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-300 dark:border-zinc-700 shadow-sm">
+              <h3 className="text-xl font-bold mb-4 text-zinc-900 dark:text-zinc-100">Resources</h3>
+              <ul className="space-y-3 border-t-2 border-zinc-200 dark:border-zinc-800 pt-4">
                 <li>
-                  <a href="#" className="flex items-center text-black hover:bg-gray-100 p-2 rounded-lg transition-colors group font-bold">
-                    <FileText className="w-5 h-5 mr-3 text-gray-500 group-hover:text-black" />
+                  <a href="#" className="flex items-center text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:bg-zinc-800 p-2 rounded-lg transition-colors group font-bold">
+                    <FileText className="w-5 h-5 mr-3 text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:text-zinc-100" />
                     <span>Portal Docs</span>
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="flex items-center text-black hover:bg-gray-100 p-2 rounded-lg transition-colors group font-bold">
-                    <LifeBuoy className="w-5 h-5 mr-3 text-gray-500 group-hover:text-black" />
+                  <a href="#" className="flex items-center text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:bg-zinc-800 p-2 rounded-lg transition-colors group font-bold">
+                    <LifeBuoy className="w-5 h-5 mr-3 text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:text-zinc-100" />
                     <span>Contact Support</span>
                   </a>
                 </li>
@@ -354,19 +352,19 @@ export function Home() {
           </section>
 
           {/* Bottom Banner */}
-          <section className="bg-gray-800 text-white p-8 rounded-lg border border-gray-400 shadow-sm text-center my-12 relative overflow-hidden">
+          <section className="bg-gray-800 text-white p-8 rounded-lg border border-zinc-400 dark:border-zinc-600 shadow-sm text-center my-12 relative overflow-hidden">
             <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 2000 1500\'%3e%3crect fill=\'%23ffffff\' width=\'2000\' height=\'1500\'/%3e%3cdefs%3e%3cpath fill=\'none\' stroke-width=\'2\' stroke-opacity=\'1\' id=\'a\' d=\'M0 750c250 0 250 0 500 0s250 0 500 0s250 0 500 0s250 0 500 0\'/%3e%3c/defs%3e%3cg transform=\'translate(0 0)\'%3e%3cuse xlink:href=\'%23a\' y=\'-150\' transform=\'rotate(5 1000 750)\' stroke=\'%23000000\'/%3e%3cuse xlink:href=\'%23a\' y=\'-100\' transform=\'rotate(10 1000 750)\' stroke=\'%23000000\'/%3e%3c/g%3e%3c/svg%3e")' }}></div>
 
             <div className="relative z-10">
               <h2 className="text-3xl font-bold mb-2 tracking-tight">RnDOPs Automation System</h2>
-              <p className="text-gray-300 font-bold">The Research & Development Section welcomes you to the future of project management.</p>
+              <p className="text-zinc-300 dark:text-zinc-600 font-bold">The Research & Development Section welcomes you to the future of project management.</p>
             </div>
           </section>
 
-          <footer className="text-center text-gray-700 mt-12 pb-8 font-bold">
+          <footer className="text-center text-zinc-700 dark:text-zinc-300 mt-12 pb-8 font-bold">
             <div className="flex items-center justify-center space-x-2">
               <Mail className="w-5 h-5" />
-              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-black hover:underline decoration-2">ernd@iitg.ac.in</a></p>
+              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-zinc-900 dark:text-zinc-100 hover:underline decoration-2">ernd@iitg.ac.in</a></p>
             </div>
           </footer>
         </div>

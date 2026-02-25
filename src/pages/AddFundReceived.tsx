@@ -42,28 +42,28 @@ interface FormData {
 }
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
-const inputClasses = "w-full h-12 px-4 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100 read-only:bg-gray-100";
-const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white p-6 md:p-8 border border-gray-200 rounded-xl shadow-sm", className)}>{children}</div>);
-const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-2.5 border border-gray-200 rounded-lg font-semibold text-gray-700 bg-white shadow-sm transition-all hover:bg-gray-50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
-const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-xl font-semibold text-gray-800 border-b border-gray-200 pb-3">{title}</h2>{children}</div>);
+const inputClasses = "w-full h-12 px-4 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800 read-only:bg-zinc-100 dark:bg-zinc-800";
+const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>{children}</div>);
+const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-lg font-semibold text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
+const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-3">{title}</h2>{children}</div>);
 
 // --- MEMOIZED TABLE COMPONENTS ---
 const MemoizedTransactionsTable = memo(({ tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => {
     return (
         <div>
-            <h3 className="text-xl font-bold text-black mb-4">Transaction Details</h3>
-            <div className="overflow-x-auto border border-gray-200 rounded-md">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr className="divide-x divide-gray-100">
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">Transaction Details</h3>
+            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
+                <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                        <tr className="divide-x divide-zinc-100 dark:divide-zinc-800">
                             {['Transaction Number', 'Date', 'Amount (₹)', 'Attachment', ''].map((h) => (
-                                <th key={h} className="p-3 font-semibold text-gray-700 text-sm text-left">{h}</th>
+                                <th key={h} className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm text-left">{h}</th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                         {(tableData || []).map((row: any, i: number) => (
-                            <tr key={row.id || i} className="divide-x divide-gray-100">
+                            <tr key={row.id || i} className="divide-x divide-zinc-100 dark:divide-zinc-800">
                                 <td className="p-2">
                                     <input type="text" className={`${inputClasses} !h-11`}
                                         value={row.transaction_number || ''}
@@ -84,7 +84,7 @@ const MemoizedTransactionsTable = memo(({ tableData, onRowChange, onFileChange, 
                                 <td className="p-2">
                                     <input type="file" className={`${inputClasses} !h-11 file:mr-2`}
                                         onChange={e => onFileChange(i, 'attachment', e.target.files?.[0] || null)} />
-                                    {row.attachment_name && <span className="text-xs text-gray-500 mt-1 block">{row.attachment_name}</span>}
+                                    {row.attachment_name && <span className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 block">{row.attachment_name}</span>}
                                 </td>
                                 <td className="p-2 text-center">
                                     <FrappeButton onClick={() => onDeleteRow(i)} className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</FrappeButton>
@@ -94,7 +94,7 @@ const MemoizedTransactionsTable = memo(({ tableData, onRowChange, onFileChange, 
                     </tbody>
                 </table>
             </div>
-            <FrappeButton onClick={() => onAddRow({ transaction_number: '', transaction_date: '', amount: '', attachment: null })} className="bg-[#A5D6A7] hover:bg-[#81C784] mt-4">
+            <FrappeButton onClick={() => onAddRow({ transaction_number: '', transaction_date: '', amount: '', attachment: null })} className="bg-[#D97757] hover:bg-[#C66A4E] mt-4">
                 + Add Transaction
             </FrappeButton>
         </div>
@@ -109,12 +109,12 @@ const ProgressBar = ({ current, total, label, showWarning }: { current: number; 
     return (
         <div className="space-y-1">
             <div className="flex justify-between text-xs font-medium">
-                <span className={isOverLimit ? 'text-red-600' : 'text-gray-700'}>{label}</span>
-                <span className={isOverLimit ? 'text-red-600 font-bold' : 'text-gray-600'}>
+                <span className={isOverLimit ? 'text-red-600' : 'text-zinc-700 dark:text-zinc-300'}>{label}</span>
+                <span className={isOverLimit ? 'text-red-600 font-bold' : 'text-zinc-600 dark:text-zinc-400'}>
                     ₹{current.toLocaleString()} / ₹{total.toLocaleString()}
                 </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+            <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2.5 overflow-hidden">
                 <div
                     className={`h-2.5 rounded-full transition-all duration-300 ${isOverLimit
                         ? 'bg-red-600'
@@ -133,7 +133,7 @@ const ProgressBar = ({ current, total, label, showWarning }: { current: number; 
 };
 
 // Validation Alert Component
-const ValidationAlert = ({ isValid, message, type = 'total' }: { isValid: boolean; message: string; type?: 'total' | 'head' }) => {
+const ValidationAlert = ({ isValid, message }: { isValid: boolean; message: string; type?: 'total' | 'head' }) => {
     if (!message || message === 'No sanction selected') return null;
 
     return (
@@ -150,19 +150,19 @@ const MemoizedBudgetBreakupTable = memo(({ tableData, onRowChange, onAddRow, onD
     const options = budgetHeadOptions.length > 0 ? budgetHeadOptions : ['Consumables', 'Equipment', 'Contingency', 'Travel', 'Manpower', 'Overhead', 'Other'];
     return (
         <div>
-            <h3 className="text-xl font-bold text-black mb-4">Budget Breakup of Received Amount</h3>
-            <div className="overflow-x-auto border border-gray-200 rounded-md">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr className="divide-x divide-gray-100">
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">Budget Breakup of Received Amount</h3>
+            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
+                <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                        <tr className="divide-x divide-zinc-100 dark:divide-zinc-800">
                             {['Account Head', 'Amount (₹)', 'Remarks', ''].map((h) => (
-                                <th key={h} className="p-3 font-semibold text-gray-700 text-sm text-left">{h}</th>
+                                <th key={h} className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm text-left">{h}</th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
+                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                         {(tableData || []).map((row: any, i: number) => (
-                            <tr key={row.id || i} className="divide-x divide-gray-100">
+                            <tr key={row.id || i} className="divide-x divide-zinc-100 dark:divide-zinc-800">
                                 <td className="p-2">
                                     <select className={`${inputClasses} !h-11`}
                                         value={row.account_head || ''}
@@ -191,7 +191,7 @@ const MemoizedBudgetBreakupTable = memo(({ tableData, onRowChange, onAddRow, onD
                     </tbody>
                 </table>
             </div>
-            <FrappeButton onClick={() => onAddRow({ account_head: '', amount_received: '', remarks: '' })} className="bg-[#A5D6A7] hover:bg-[#81C784] mt-4">
+            <FrappeButton onClick={() => onAddRow({ account_head: '', amount_received: '', remarks: '' })} className="bg-[#D97757] hover:bg-[#C66A4E] mt-4">
                 + Add Budget Item
             </FrappeButton>
         </div>
@@ -221,7 +221,7 @@ interface ValidationState {
 const AddFundReceived: React.FC = () => {
     const navigate = useNavigate();
     const { projectName } = useParams<{ projectName: string }>();
-    const isPermanentEmployee = useUserRoleCheck();
+
 
     const [fields, setFields] = useState<Field[]>([]);
     const [formData, setFormData] = useState<FormData>({
@@ -821,12 +821,12 @@ const AddFundReceived: React.FC = () => {
 
         return (
             <div key={field.fieldname} className='space-y-2'>
-                <label htmlFor={field.fieldname} className="block font-bold text-black text-lg uppercase">
+                <label htmlFor={field.fieldname} className="block font-bold text-zinc-900 dark:text-zinc-100 text-lg uppercase">
                     {field.label}{field.mandatory === 1 && <span className="text-red-500">*</span>}
                 </label>
                 {renderInput()}
                 {field.description && (
-                    <p className="text-sm text-gray-600 mt-1">{field.description}</p>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">{field.description}</p>
                 )}
             </div>
         );
@@ -850,9 +850,9 @@ const AddFundReceived: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
+            <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b border-gray-200 mx-auto"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b border-zinc-200 dark:border-zinc-800 mx-auto"></div>
                     <p className="mt-4 text-lg font-semibold">Loading form data...</p>
                 </div>
             </div>
@@ -870,20 +870,20 @@ const AddFundReceived: React.FC = () => {
         : sanctionData?.message?.[0];
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8">
-                <header className="mb-8 p-6 bg-white border border-gray-200 rounded-md shadow-sm">
+                <header className="mb-8 p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-sm">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => navigate(-1)}
-                            className="p-3 bg-white border border-gray-200 rounded-md hover:bg-gray-50 active:translate-y-1 transition-transform"
+                            className="p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-50 dark:bg-zinc-800/50 active:translate-y-1 transition-transform"
                         >
                             <ArrowLeftIcon className="h-6 w-6" />
                         </button>
                         <div>
-                            <h1 className="text-3xl font-bold text-black">{editDocName ? 'Edit Received Fund' : 'Record Received Fund'}</h1>
-                            <p className="text-gray-700 mt-1">
+                            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{editDocName ? 'Edit Received Fund' : 'Record Received Fund'}</h1>
+                            <p className="text-zinc-700 dark:text-zinc-300 mt-1">
                                 For Project: <strong>{projectName}</strong> - {projectTitle}
                             </p>
                         </div>
@@ -941,14 +941,14 @@ const AddFundReceived: React.FC = () => {
                                 <FrappeButton
                                     type="button"
                                     onClick={() => navigate(-1)}
-                                    className="bg-gray-200 hover:bg-gray-300"
+                                    className="bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:bg-zinc-600"
                                 >
                                     Cancel
                                 </FrappeButton>
                                 <FrappeButton
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="bg-green-300 hover:bg-green-400 disabled:bg-gray-300"
+                                    className="bg-green-300 hover:bg-green-400 disabled:bg-zinc-300 dark:bg-zinc-600"
                                 >
                                     {isSubmitting ? 'Saving...' : 'Save Fund Received Entry'}
                                 </FrappeButton>
@@ -959,8 +959,8 @@ const AddFundReceived: React.FC = () => {
                     {/* Right: Sanction Details Panel */}
                     <div className="lg:col-span-1">
                         <div className="sticky top-4 space-y-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
-                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-5">
+                                <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-4 flex items-center gap-2">
                                     <span className="p-1.5 rounded-lg bg-[#E0F7F6]">📋</span>
                                     Sanction Details
                                 </h3>
@@ -968,24 +968,24 @@ const AddFundReceived: React.FC = () => {
                                 {sanctionLoading ? (
                                     <div className="text-center py-8">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4] mx-auto"></div>
-                                        <p className="text-sm text-gray-500 mt-2">Loading...</p>
+                                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">Loading...</p>
                                     </div>
                                 ) : selectedSanction ? (
                                     <div className="space-y-4">
                                         <div>
-                                            <p className="text-xs font-semibold text-gray-500 uppercase">Sanction Reference</p>
-                                            <p className="text-sm font-medium text-gray-900">{selectedSanction.name}</p>
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">Sanction Reference</p>
+                                            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{selectedSanction.name}</p>
                                         </div>
                                         <div>
-                                            <p className="text-xs font-semibold text-gray-500 uppercase">Sanction Letter No</p>
-                                            <p className="text-sm font-medium text-gray-900">{selectedSanction.sanction_letter_no || '-'}</p>
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">Sanction Letter No</p>
+                                            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{selectedSanction.sanction_letter_no || '-'}</p>
                                         </div>
                                         <div>
-                                            <p className="text-xs font-semibold text-gray-500 uppercase">Sanction Date</p>
-                                            <p className="text-sm font-medium text-gray-900">{selectedSanction.sanction_date || '-'}</p>
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">Sanction Date</p>
+                                            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{selectedSanction.sanction_date || '-'}</p>
                                         </div>
                                         <div>
-                                            <p className="text-xs font-semibold text-gray-500 uppercase">Total Amount</p>
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">Total Amount</p>
                                             <p className="text-lg font-bold text-[#0EA5A4]">₹ {(selectedSanction.total_sanctioned_amount || 0).toLocaleString('en-IN')}</p>
                                         </div>
 
@@ -1003,40 +1003,40 @@ const AddFundReceived: React.FC = () => {
                                             );
 
                                             return (
-                                                <div className="pt-3 border-t border-gray-200">
-                                                    <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Budget Breakup (Year-wise)</p>
+                                                <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                                                    <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">Budget Breakup (Year-wise)</p>
                                                     <div className="overflow-x-auto">
                                                         <table className="w-full text-xs">
                                                             <thead>
-                                                                <tr className="border-b border-gray-200">
-                                                                    <th className="text-left py-2 font-semibold text-gray-600">Head</th>
+                                                                <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                                                                    <th className="text-left py-2 font-semibold text-zinc-600 dark:text-zinc-400">Head</th>
                                                                     {activeYears.map(year => (
-                                                                        <th key={year.key} className="text-right py-2 font-semibold text-gray-600">{year.label}</th>
+                                                                        <th key={year.key} className="text-right py-2 font-semibold text-zinc-600 dark:text-zinc-400">{year.label}</th>
                                                                     ))}
-                                                                    <th className="text-right py-2 font-bold text-gray-700">Total</th>
+                                                                    <th className="text-right py-2 font-bold text-zinc-700 dark:text-zinc-300">Total</th>
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
                                                                 {selectedSanction.sanctioned_budget_breakup.map((row: any, i: number) => {
                                                                     const total = activeYears.reduce((sum, year) => sum + (row[year.key] || 0), 0);
                                                                     return (
-                                                                        <tr key={i} className="border-b border-gray-100">
-                                                                            <td className="py-1.5 text-gray-700 truncate max-w-[80px]" title={row.account_head}>{row.account_head}</td>
+                                                                        <tr key={i} className="border-b border-zinc-100 dark:border-zinc-800">
+                                                                            <td className="py-1.5 text-zinc-700 dark:text-zinc-300 truncate max-w-[80px]" title={row.account_head}>{row.account_head}</td>
                                                                             {activeYears.map(year => {
                                                                                 const val = row[year.key] || 0;
-                                                                                return <td key={year.key} className="py-1.5 text-right text-gray-600">{val > 0 ? (val / 1000).toFixed(0) + 'k' : '-'}</td>;
+                                                                                return <td key={year.key} className="py-1.5 text-right text-zinc-600 dark:text-zinc-400">{val > 0 ? (val / 1000).toFixed(0) + 'k' : '-'}</td>;
                                                                             })}
-                                                                            <td className="py-1.5 text-right font-semibold text-gray-900">{(total / 1000).toFixed(0)}k</td>
+                                                                            <td className="py-1.5 text-right font-semibold text-zinc-900 dark:text-zinc-100">{(total / 1000).toFixed(0)}k</td>
                                                                         </tr>
                                                                     );
                                                                 })}
                                                             </tbody>
-                                                            <tfoot className="bg-gray-50">
+                                                            <tfoot className="bg-zinc-50 dark:bg-zinc-800/50">
                                                                 <tr>
-                                                                    <td className="py-1.5 font-bold text-gray-800">Total</td>
+                                                                    <td className="py-1.5 font-bold text-zinc-800 dark:text-zinc-200">Total</td>
                                                                     {activeYears.map(year => {
                                                                         const yearTotal = selectedSanction.sanctioned_budget_breakup.reduce((sum: number, row: any) => sum + (row[year.key] || 0), 0);
-                                                                        return <td key={year.key} className="py-1.5 text-right font-semibold text-gray-700">{yearTotal > 0 ? (yearTotal / 1000).toFixed(0) + 'k' : '-'}</td>;
+                                                                        return <td key={year.key} className="py-1.5 text-right font-semibold text-zinc-700 dark:text-zinc-300">{yearTotal > 0 ? (yearTotal / 1000).toFixed(0) + 'k' : '-'}</td>;
                                                                     })}
                                                                     <td className="py-1.5 text-right font-bold text-[#0EA5A4]">
                                                                         {(selectedSanction.sanctioned_budget_breakup.reduce((sum: number, row: any) =>
@@ -1053,22 +1053,22 @@ const AddFundReceived: React.FC = () => {
                                     </div>
                                 ) : (
                                     <div className="text-center py-8">
-                                        <p className="text-sm text-gray-500">No sanction details found.</p>
-                                        <p className="text-xs text-gray-400 mt-1">Please add a sanction first.</p>
+                                        <p className="text-sm text-zinc-500 dark:text-zinc-400">No sanction details found.</p>
+                                        <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Please add a sanction first.</p>
                                     </div>
                                 )}
                             </div>
 
                             {/* Validation Summary Panel */}
-                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mt-6">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-5 mt-6">
+                                <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-4 flex items-center gap-2">
                                     <span className="p-1.5 rounded-lg bg-blue-100">✓</span>
                                     Real-time Validation
                                 </h3>
 
                                 {/* Total Budget Validation */}
                                 <div className="space-y-3 mb-4">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase">Total Budget Status</p>
+                                    <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">Total Budget Status</p>
                                     <ProgressBar
                                         current={validationState.totalValidation.previousTotal + validationState.totalValidation.currentTotal}
                                         total={validationState.totalValidation.sanctionedTotal}
@@ -1080,12 +1080,12 @@ const AddFundReceived: React.FC = () => {
                                         message={validationState.totalValidation.message}
                                     />
                                     <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                                        <div className="bg-gray-50 p-2 rounded">
-                                            <p className="text-gray-500">Previously Received</p>
-                                            <p className="font-bold text-gray-800">₹{validationState.totalValidation.previousTotal.toLocaleString()}</p>
+                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded">
+                                            <p className="text-zinc-500 dark:text-zinc-400">Previously Received</p>
+                                            <p className="font-bold text-zinc-800 dark:text-zinc-200">₹{validationState.totalValidation.previousTotal.toLocaleString()}</p>
                                         </div>
-                                        <div className="bg-gray-50 p-2 rounded">
-                                            <p className="text-gray-500">Current Entry</p>
+                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded">
+                                            <p className="text-zinc-500 dark:text-zinc-400">Current Entry</p>
                                             <p className="font-bold text-blue-600">₹{validationState.totalValidation.currentTotal.toLocaleString()}</p>
                                         </div>
                                     </div>
@@ -1093,12 +1093,12 @@ const AddFundReceived: React.FC = () => {
 
                                 {/* Budget Head-wise Validation */}
                                 {Object.keys(validationState.headValidations).length > 0 && (
-                                    <div className="pt-4 border-t border-gray-200">
-                                        <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Budget Head Status</p>
+                                    <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                                        <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">Budget Head Status</p>
                                         <div className="space-y-3 max-h-80 overflow-y-auto">
                                             {Object.entries(validationState.headValidations).map(([head, validation]) => (
-                                                <div key={head} className="space-y-2 p-3 bg-gray-50 rounded-lg">
-                                                    <p className="font-semibold text-sm text-gray-800">{head}</p>
+                                                <div key={head} className="space-y-2 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
+                                                    <p className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">{head}</p>
                                                     <ProgressBar
                                                         current={validation.previousTotal + validation.currentTotal}
                                                         total={validation.sanctionedLimit}
@@ -1109,7 +1109,7 @@ const AddFundReceived: React.FC = () => {
                                                         <span className={validation.isValid ? 'text-green-600' : 'text-red-600'}>
                                                             {validation.message}
                                                         </span>
-                                                        <span className="text-gray-600">
+                                                        <span className="text-zinc-600 dark:text-zinc-400">
                                                             Prev: ₹{validation.previousTotal.toLocaleString()} |
                                                             Curr: ₹{validation.currentTotal.toLocaleString()}
                                                         </span>
@@ -1121,7 +1121,7 @@ const AddFundReceived: React.FC = () => {
                                 )}
 
                                 {/* Overall Status Badge */}
-                                <div className="mt-4 pt-4 border-t border-gray-200">
+                                <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
                                     {validationState.totalValidation.isValid &&
                                         Object.values(validationState.headValidations).every(v => v.isValid) ? (
                                         <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">

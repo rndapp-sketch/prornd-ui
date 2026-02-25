@@ -25,7 +25,7 @@ export interface ChildTableProps {
 }
 
 // --- STYLES ---
-const inputClasses = "w-full h-11 px-3 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-gray-100";
+const inputClasses = "w-full h-11 px-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800";
 
 const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: {
     children: React.ReactNode;
@@ -39,9 +39,9 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-150",
-            "focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)]",
+            "rounded-lg px-3 py-1.5 font-medium text-xs transition-all duration-200",
             "disabled:opacity-50 disabled:cursor-not-allowed",
+            "focus:outline-none focus:ring-2 focus:ring-zinc-100 dark:focus:ring-zinc-700",
             className
         )}
     >
@@ -93,6 +93,7 @@ export const ChildTableComponent = memo(({
                         className={inputClasses}
                         value={value || ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, parseInt(e.target.value) || 0)}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                         disabled={isReadOnly}
                     />
                 );
@@ -106,6 +107,7 @@ export const ChildTableComponent = memo(({
                         className={inputClasses}
                         value={value || ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, parseFloat(e.target.value) || 0)}
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                         disabled={isReadOnly}
                     />
                 );
@@ -125,7 +127,7 @@ export const ChildTableComponent = memo(({
                 return (
                     <input
                         type="checkbox"
-                        className="w-5 h-5 rounded border-gray-300 text-[#0EA5A4] focus:ring-[#0EA5A4]"
+                        className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 text-[#0EA5A4] focus:ring-[#0EA5A4]"
                         checked={!!value}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, e.target.checked ? 1 : 0)}
                         disabled={isReadOnly}
@@ -203,36 +205,36 @@ export const ChildTableComponent = memo(({
     return (
         <div className="space-y-4">
             {label && (
-                <h3 className="text-lg font-semibold text-gray-900">{label}</h3>
+                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{label}</h3>
             )}
 
-            <div className="overflow-x-auto border border-gray-200 rounded-xl">
-                <table className="min-w-full divide-y divide-gray-100">
-                    <thead className="bg-gray-50">
-                        <tr className="divide-x divide-gray-100">
-                            <th className="p-3 font-medium text-gray-600 text-xs uppercase tracking-wider text-center w-12">
+            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-xl">
+                <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
+                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                        <tr className="divide-x divide-zinc-100 dark:divide-zinc-800">
+                            <th className="p-3 font-medium text-zinc-600 dark:text-zinc-400 text-xs uppercase tracking-wider text-center w-12">
                                 #
                             </th>
                             {visibleColumns.map(col => (
                                 <th
                                     key={col.fieldname}
-                                    className="p-3 font-medium text-gray-600 text-xs uppercase tracking-wider text-left whitespace-nowrap min-w-[150px]"
+                                    className="p-3 font-medium text-zinc-600 dark:text-zinc-400 text-xs uppercase tracking-wider text-left whitespace-nowrap min-w-[150px]"
                                 >
                                     {col.label}
                                     {!!col.mandatory && <span className="text-red-500 ml-1">*</span>}
                                 </th>
                             ))}
                             {!readOnly && (
-                                <th className="p-3 font-medium text-gray-600 text-xs uppercase tracking-wider text-center w-24">
+                                <th className="p-3 font-medium text-zinc-600 dark:text-zinc-400 text-xs uppercase tracking-wider text-center w-24">
                                     Actions
                                 </th>
                             )}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 bg-white">
+                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                         {tableData.map((row, rowIndex) => (
-                            <tr key={row.id || rowIndex} className="divide-x divide-gray-100 hover:bg-gray-50/50">
-                                <td className="p-2 text-center text-sm text-gray-500">
+                            <tr key={row.id || rowIndex} className="divide-x divide-zinc-100 dark:divide-zinc-800 hover:bg-zinc-50 dark:bg-zinc-800/50/50">
+                                <td className="p-2 text-center text-sm text-zinc-500 dark:text-zinc-400">
                                     {rowIndex + 1}
                                 </td>
                                 {visibleColumns.map(col => (
@@ -244,7 +246,7 @@ export const ChildTableComponent = memo(({
                                     <td className="p-2 text-center">
                                         <FrappeButton
                                             onClick={() => onDeleteRow(tableName, rowIndex)}
-                                            className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                                            className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/30"
                                         >
                                             Delete
                                         </FrappeButton>
@@ -256,7 +258,7 @@ export const ChildTableComponent = memo(({
                             <tr>
                                 <td
                                     colSpan={visibleColumns.length + (readOnly ? 1 : 2)}
-                                    className="p-8 text-center text-gray-500"
+                                    className="p-8 text-center text-zinc-500 dark:text-zinc-400"
                                 >
                                     No items added yet. Click "Add Row" to add an item.
                                 </td>
@@ -264,13 +266,13 @@ export const ChildTableComponent = memo(({
                         )}
                     </tbody>
                     {hasNumericColumns && tableData.length > 0 && (
-                        <tfoot className="bg-gray-50 border-t border-gray-200">
-                            <tr className="divide-x divide-gray-100">
-                                <td className="p-3 font-semibold text-gray-700 text-sm" colSpan={1}>
+                        <tfoot className="bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-800">
+                            <tr className="divide-x divide-zinc-100 dark:divide-zinc-800">
+                                <td className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm" colSpan={1}>
                                     Total
                                 </td>
                                 {visibleColumns.map(col => (
-                                    <td key={col.fieldname} className="p-3 font-semibold text-gray-900 text-sm">
+                                    <td key={col.fieldname} className="p-3 font-semibold text-zinc-900 dark:text-zinc-100 text-sm">
                                         {totals[col.fieldname] !== undefined
                                             ? col.fieldtype === 'Currency'
                                                 ? totals[col.fieldname].toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
@@ -289,7 +291,7 @@ export const ChildTableComponent = memo(({
             {!readOnly && (
                 <FrappeButton
                     onClick={() => onAddRow(tableName, createNewRow())}
-                    className="bg-[#0EA5A4] text-white hover:bg-[#0D9494]"
+                    className="w-full py-2.5 text-sm bg-white border border-zinc-200 border-dashed text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 hover:text-zinc-900 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 shadow-sm"
                 >
                     + Add Row
                 </FrappeButton>

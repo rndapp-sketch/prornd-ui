@@ -28,7 +28,7 @@ const TransactionAttachment = ({ transactionName, fallbackFile }: { transactionN
     const fileUrl = file?.file_url || fallbackFile;
     const fileName = file?.file_name || 'Attachment';
 
-    if (!fileUrl) return <span className="text-gray-400">-</span>;
+    if (!fileUrl) return <span className="text-zinc-400 dark:text-zinc-500">-</span>;
 
     return (
         <a
@@ -128,11 +128,11 @@ interface FormData {
 
 // --- STYLED COMPONENTS ---
 const FrappeCard = ({ title, children, className, icon }: { title?: string; children: React.ReactNode; className?: string; icon?: React.ReactNode }) => (
-    <div className={cn("bg-white border border-gray-300 rounded-xl shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm", className)}>
         {title && (
-            <div className="px-6 py-4 border-b border-gray-300 flex items-center gap-3">
-                {icon && <div className="p-2 bg-[#E0F7F6] rounded-lg">{icon}</div>}
-                <h3 className="text-lg font-bold text-black uppercase tracking-tight">{title}</h3>
+            <div className="px-6 py-4 border-b border-zinc-300 dark:border-zinc-700 flex items-center gap-3">
+                {icon && <div className="p-2 bg-[#FDF3F0] rounded-lg">{icon}</div>}
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">{title}</h3>
             </div>
         )}
         <div className="p-6">{children}</div>
@@ -153,11 +153,11 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'prima
         disabled={disabled}
         className={cn(
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
-            "focus:outline-none focus:ring-2 focus:ring-gray-400",
-            variant === 'primary' && "bg-[#0EA5A4] text-white hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border border-[#0D9494]",
-            variant === 'ghost' && "bg-transparent text-gray-900 hover:bg-gray-200 hover:text-black",
-            variant === 'outline' && "bg-white border-2 border-gray-400 text-black hover:border-[#0EA5A4] hover:text-[#0EA5A4] hover:bg-gray-50",
-            variant === 'action' && "bg-[#0EA5A4] text-white font-bold hover:bg-[#0C8F8E] shadow-md hover:shadow-lg border-2 border-[#0D9494]",
+            "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
+            variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#C66A4E] shadow-md hover:shadow-lg border border-[#C66A4E]",
+            variant === 'ghost' && "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
+            variant === 'outline' && "bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 hover:border-[#D97757] hover:text-[#D97757] hover:bg-zinc-50 dark:bg-zinc-800/50",
+            variant === 'action' && "bg-[#D97757] text-white font-bold hover:bg-[#C66A4E] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
             className
         )}
@@ -180,10 +180,10 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white border border-gray-200 p-6 rounded-xl shadow-lg w-full max-w-md">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Confirm {action}</h3>
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md">
+                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Confirm {action}</h3>
                 <textarea
-                    className="w-full border border-gray-300 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                    className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                     rows={4}
                     placeholder="Add a comment (optional)..."
                     value={comment}
@@ -361,9 +361,9 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
 
 // --- DETAIL ROW COMPONENT ---
 const DetailRow = ({ label, value, isCurrency = false }: { label: string; value: any; isCurrency?: boolean }) => (
-    <div className="flex justify-between py-3 border-b border-gray-200 last:border-0">
-        <span className="text-sm font-medium text-gray-700">{label}</span>
-        <span className={cn("text-sm font-bold", isCurrency ? "text-[#0EA5A4]" : "text-black")}>
+    <div className="flex justify-between py-3 border-b border-zinc-200 dark:border-zinc-800 last:border-0">
+        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{label}</span>
+        <span className={cn("text-sm font-bold", isCurrency ? "text-[#D97757]" : "text-zinc-900 dark:text-zinc-100")}>
             {isCurrency && value != null
                 ? value.toLocaleString("en-IN", { style: "currency", currency: "INR" })
                 : value || '-'}
@@ -416,8 +416,8 @@ const ActivityStream = ({ doctype, docname, onRefresh }: { doctype: string; docn
     return (
         <div className="space-y-4">
             {/* Add Comment Section */}
-            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                <label htmlFor="fund-comment-textarea" className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                <label htmlFor="fund-comment-textarea" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
                     Add a comment
                 </label>
                 <textarea
@@ -427,11 +427,11 @@ const ActivityStream = ({ doctype, docname, onRefresh }: { doctype: string; docn
                     onChange={(e) => setNewComment(e.target.value)}
                     onKeyDown={handleKeyPress}
                     disabled={isSubmitting}
-                    className="w-full resize-none bg-white p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4] text-sm"
+                    className="w-full resize-none bg-white dark:bg-zinc-900 p-3 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] text-sm"
                     rows={3}
                 />
                 <div className="flex items-center justify-between mt-3">
-                    <span className="text-xs text-gray-500">{newComment.length}/1000</span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{newComment.length}/1000</span>
                     <FrappeButton
                         variant="primary"
                         onClick={handleCommentSubmit}
@@ -446,7 +446,7 @@ const ActivityStream = ({ doctype, docname, onRefresh }: { doctype: string; docn
             <div className="space-y-3">
                 {isActivityLoading && (
                     <div className="flex justify-center py-6">
-                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#0EA5A4] border-t-transparent"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#D97757] border-t-transparent"></div>
                     </div>
                 )}
                 {activityError && (
@@ -458,32 +458,32 @@ const ActivityStream = ({ doctype, docname, onRefresh }: { doctype: string; docn
                     ? activityData.message.map((item, index) => (
                         <div
                             key={`${item.creation}-${index}`}
-                            className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg"
+                            className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg"
                         >
-                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#E0F7F6] border border-gray-200 flex items-center justify-center font-semibold text-[#0EA5A4] text-xs">
+                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#FDF3F0] border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-xs">
                                 {item.owner?.charAt(0).toUpperCase() || "U"}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-center mb-1">
-                                    <p className="text-sm font-semibold text-gray-900 truncate">
+                                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                                         {item.owner || "Unknown User"}
                                     </p>
-                                    <p className="text-xs text-gray-500 flex items-center gap-1 flex-shrink-0">
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 flex-shrink-0">
                                         <Clock className="h-3 w-3" />
                                         {item.creation ? new Date(item.creation).toLocaleString() : "N/A"}
                                     </p>
                                 </div>
                                 <div
-                                    className="text-sm text-gray-700 prose prose-sm max-w-none leading-relaxed"
+                                    className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed"
                                     dangerouslySetInnerHTML={{ __html: item.content || "No content" }}
                                 />
                             </div>
                         </div>
                     ))
                     : !isActivityLoading && (
-                        <div className="text-center py-8 text-gray-500 border border-dashed border-gray-300 rounded-lg bg-white">
-                            <MessageSquare className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                            <p className="text-sm font-medium text-gray-600">No activity yet.</p>
+                        <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900">
+                            <MessageSquare className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
+                            <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">No activity yet.</p>
                             <p className="text-xs mt-1">Be the first to add a comment.</p>
                         </div>
                     )}
@@ -843,13 +843,13 @@ const FundReceivedDetails = () => {
 
     if (error || !fundData) {
         return (
-            <div className="bg-gray-100 min-h-screen">
+            <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
                 <AppSidebar />
                 <main className="flex-1 p-4 md:p-8">
                     <FrappeCard className="text-center py-16">
-                        <FileText className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                        <h2 className="text-xl font-bold text-black mb-2 uppercase">Fund Details Not Found</h2>
-                        <p className="text-gray-900 mb-6">The requested fund details could not be loaded.</p>
+                        <FileText className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
+                        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2 uppercase">Fund Details Not Found</h2>
+                        <p className="text-zinc-900 dark:text-zinc-100 mb-6">The requested fund details could not be loaded.</p>
                         <FrappeButton onClick={() => navigate(-1)}>Go Back</FrappeButton>
                     </FrappeCard>
                 </main>
@@ -862,12 +862,15 @@ const FundReceivedDetails = () => {
     // --- NEW: HoS Approval View ---
     if (workflow_state === "Pending HoS Approval" || workflow_state === "Approved") {
         return (
-            <div className="bg-gray-100 min-h-screen">
+            <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
                 <AppSidebar />
                 <main className="flex-1 p-4 md:p-8">
                     <FundReceivedWorkflowActions
                         docname={name || ""}
-                        onActionComplete={() => mutate()}
+                        onActionComplete={() => {
+                            mutate();
+                            window.location.reload();
+                        }}
                         onBeforeAction={handleBeforeAction}
                     />
                     <div className="mb-6"></div>
@@ -880,7 +883,7 @@ const FundReceivedDetails = () => {
 
 
     return (
-        <div className="bg-gray-100 min-h-screen">
+        <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
             <GlobalLoader isLoading={isSubmitting} />
             <AppSidebar />
 
@@ -891,13 +894,13 @@ const FundReceivedDetails = () => {
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => navigate(-1)}
-                                className="p-2.5 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300"
+                                className="p-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg hover:bg-zinc-200 dark:bg-zinc-700 transition-colors border border-zinc-300 dark:border-zinc-700"
                             >
-                                <ArrowLeft className="h-5 w-5 text-gray-900" />
+                                <ArrowLeft className="h-5 w-5 text-zinc-900 dark:text-zinc-100" />
                             </button>
                             <div>
-                                <h1 className="text-2xl font-bold text-black uppercase tracking-tight">Fund Details & Deposit Slip</h1>
-                                <p className="text-sm text-gray-700 font-medium mt-0.5">{name}</p>
+                                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">Fund Details & Deposit Slip</h1>
+                                <p className="text-sm text-zinc-700 dark:text-zinc-300 font-medium mt-0.5">{name}</p>
                             </div>
                             {fundData?.workflow_state === 'Draft' && (
                                 <FrappeButton
@@ -911,7 +914,10 @@ const FundReceivedDetails = () => {
                         <div className="flex items-center gap-4">
                             <FundReceivedWorkflowActions
                                 docname={name || ""}
-                                onActionComplete={() => mutate()}
+                                onActionComplete={() => {
+                                    mutate();
+                                    window.location.reload();
+                                }}
                                 onBeforeAction={handleBeforeAction}
                                 disabledCondition={(action) => {
                                     // Disable "Generate Deposit Slip" if form is incomplete
@@ -952,32 +958,32 @@ const FundReceivedDetails = () => {
                     {/* LEFT SIDE: Deposit Slip Form - Show only for specific workflow state */}
                     {showDepositSlip && (
                         <div className="lg:col-span-1 space-y-6">
-                            <FrappeCard title="Deposit Slip Form" icon={<FileText className="h-4 w-4 text-[#0EA5A4]" />}>
+                            <FrappeCard title="Deposit Slip Form" icon={<FileText className="h-4 w-4 text-[#D97757]" />}>
                                 <div className="space-y-6">
                                     {/* Deposit Slip Type Selector */}
                                     <div className="space-y-2">
-                                        <label className="block text-sm font-semibold text-gray-800">
+                                        <label className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                                             Select Deposit Slip Type <span className="text-red-500">*</span>
                                         </label>
                                         <div className="relative">
                                             <select
                                                 value={selectedDepositSlipType}
                                                 onChange={(e) => handleDepositSlipTypeChange(e.target.value)}
-                                                className="w-full h-11 px-4 pr-10 bg-white border-2 border-gray-300 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4] appearance-none"
+                                                className="w-full h-11 px-4 pr-10 bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-zinc-700 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] appearance-none"
                                             >
                                                 <option value="">-- Select Type --</option>
                                                 {Object.entries(DEPOSIT_SLIP_TYPES).map(([key, config]) => (
                                                     <option key={key} value={key}>{config.label}</option>
                                                 ))}
                                             </select>
-                                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                                            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
                                         </div>
                                     </div>
 
                                     {/* Loading State */}
                                     {depositFormLoading && (
                                         <div className="flex items-center justify-center py-8">
-                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4]"></div>
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
                                         </div>
                                     )}
 
@@ -1112,7 +1118,7 @@ const FundReceivedDetails = () => {
 
                                     {/* No Type Selected */}
                                     {!depositFormLoading && !selectedDepositSlipType && (
-                                        <div className="text-center py-8 text-gray-500">
+                                        <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
                                             <p className="text-sm">Select a deposit slip type to load the form.</p>
                                         </div>
                                     )}
@@ -1134,34 +1140,34 @@ const FundReceivedDetails = () => {
                         <div className="grid grid-cols-2 gap-4">
                             <FrappeCard className="p-4">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <div className="p-2 bg-[#E0F7F6] rounded-lg">
-                                        <IndianRupee className="h-4 w-4 text-[#0EA5A4]" />
+                                    <div className="p-2 bg-[#FDF3F0] rounded-lg">
+                                        <IndianRupee className="h-4 w-4 text-[#D97757]" />
                                     </div>
-                                    <span className="font-bold text-gray-700 text-xs uppercase">Total Amount</span>
+                                    <span className="font-bold text-zinc-700 dark:text-zinc-300 text-xs uppercase">Total Amount</span>
                                 </div>
-                                <p className="text-2xl font-extrabold text-[#0EA5A4]">
+                                <p className="text-2xl font-extrabold text-[#D97757]">
                                     {(fund_received_amt || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}
                                 </p>
                             </FrappeCard>
                             <FrappeCard className="p-4">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <div className="p-2 bg-gray-100 rounded-lg">
-                                        <Building2 className="h-4 w-4 text-gray-600" />
+                                    <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                                        <Building2 className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
                                     </div>
-                                    <span className="font-bold text-gray-700 text-xs uppercase">Bank Account</span>
+                                    <span className="font-bold text-zinc-700 dark:text-zinc-300 text-xs uppercase">Bank Account</span>
                                 </div>
-                                <p className="text-sm font-bold text-gray-900 truncate">{bank_account || '-'}</p>
+                                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">{bank_account || '-'}</p>
                             </FrappeCard>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             {/* Sanction Reference */}
-                            <FrappeCard title="Sanction Reference" icon={<Calculator className="h-4 w-4 text-[#0EA5A4]" />}>
+                            <FrappeCard title="Sanction Reference" icon={<Calculator className="h-4 w-4 text-[#D97757]" />}>
                                 <DetailRow label="Sanction Reference" value={sanction_ref_no} />
                             </FrappeCard>
 
                             {/* Fund Info */}
-                            <FrappeCard title="Fund Information" icon={<Calculator className="h-4 w-4 text-[#0EA5A4]" />}>
+                            <FrappeCard title="Fund Information" icon={<Calculator className="h-4 w-4 text-[#D97757]" />}>
                                 <div className="space-y-1">
                                     <DetailRow label="Total Amount Received" value={fund_received_amt} isCurrency />
                                     <DetailRow label="Bank Account" value={bank_account} />
@@ -1171,29 +1177,29 @@ const FundReceivedDetails = () => {
                         </div>
 
                         {/* Budget Breakup */}
-                        <FrappeCard title="Budget Breakup" icon={<FileText className="h-4 w-4 text-[#0EA5A4]" />}>
-                            <div className="overflow-x-auto border border-gray-300 rounded-lg">
+                        <FrappeCard title="Budget Breakup" icon={<FileText className="h-4 w-4 text-[#D97757]" />}>
+                            <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
                                 <table className="min-w-full divide-y divide-gray-300">
-                                    <thead className="bg-gray-200">
+                                    <thead className="bg-zinc-200 dark:bg-zinc-700">
                                         <tr className="divide-x divide-gray-300">
-                                            <th className="px-3 py-2 text-left text-xs font-bold text-black uppercase">Account Head</th>
-                                            <th className="px-3 py-2 text-right text-xs font-bold text-black uppercase">Amount</th>
-                                            <th className="px-3 py-2 text-left text-xs font-bold text-black uppercase">Remarks</th>
+                                            <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">Account Head</th>
+                                            <th className="px-3 py-2 text-right text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">Amount</th>
+                                            <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">Remarks</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-300 bg-white">
+                                    <tbody className="divide-y divide-gray-300 bg-white dark:bg-zinc-900">
                                         {received_amt_breakup?.map((item: any, idx: number) => (
-                                            <tr key={item.name || idx} className="divide-x divide-gray-300 hover:bg-gray-50">
-                                                <td className="px-3 py-2 text-sm font-medium text-black">{resolvedHeadNames[item.account_head] || item.account_head}</td>
-                                                <td className="px-3 py-2 text-sm text-right font-bold text-[#0EA5A4]">
+                                            <tr key={item.name || idx} className="divide-x divide-gray-300 hover:bg-zinc-50 dark:bg-zinc-800/50">
+                                                <td className="px-3 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">{resolvedHeadNames[item.account_head] || item.account_head}</td>
+                                                <td className="px-3 py-2 text-sm text-right font-bold text-[#D97757]">
                                                     {item.amount_received?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
                                                 </td>
-                                                <td className="px-3 py-2 text-sm text-left text-gray-500">{item.remarks}</td>
+                                                <td className="px-3 py-2 text-sm text-left text-zinc-500 dark:text-zinc-400">{item.remarks}</td>
                                             </tr>
                                         ))}
                                         {(!received_amt_breakup || received_amt_breakup.length === 0) && (
                                             <tr>
-                                                <td colSpan={3} className="px-3 py-6 text-center text-gray-500">No breakup details</td>
+                                                <td colSpan={3} className="px-3 py-6 text-center text-zinc-500 dark:text-zinc-400">No breakup details</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -1202,23 +1208,23 @@ const FundReceivedDetails = () => {
                         </FrappeCard>
 
                         {/* Transactions */}
-                        <FrappeCard title="Transactions" icon={<CreditCard className="h-4 w-4 text-[#0EA5A4]" />}>
-                            <div className="overflow-x-auto border border-gray-300 rounded-lg">
+                        <FrappeCard title="Transactions" icon={<CreditCard className="h-4 w-4 text-[#D97757]" />}>
+                            <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
                                 <table className="min-w-full divide-y divide-gray-300">
-                                    <thead className="bg-gray-200">
+                                    <thead className="bg-zinc-200 dark:bg-zinc-700">
                                         <tr className="divide-x divide-gray-300">
-                                            <th className="px-3 py-2 text-left text-xs font-bold text-black uppercase">Date</th>
-                                            <th className="px-3 py-2 text-left text-xs font-bold text-black uppercase">Transaction No</th>
-                                            <th className="px-3 py-2 text-right text-xs font-bold text-black uppercase">Amount</th>
-                                            <th className="px-3 py-2 text-center text-xs font-bold text-black uppercase">Attachments</th>
+                                            <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">Date</th>
+                                            <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">Transaction No</th>
+                                            <th className="px-3 py-2 text-right text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">Amount</th>
+                                            <th className="px-3 py-2 text-center text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">Attachments</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-300 bg-white">
+                                    <tbody className="divide-y divide-gray-300 bg-white dark:bg-zinc-900">
                                         {fund_transactions?.map((item: any, idx: number) => (
-                                            <tr key={item.name || idx} className="divide-x divide-gray-300 hover:bg-gray-50">
-                                                <td className="px-3 py-2 text-sm font-mono text-gray-900">{item.transaction_date}</td>
-                                                <td className="px-3 py-2 text-sm font-bold text-black">{item.transaction_number}</td>
-                                                <td className="px-3 py-2 text-sm text-right font-bold text-[#0EA5A4]">
+                                            <tr key={item.name || idx} className="divide-x divide-gray-300 hover:bg-zinc-50 dark:bg-zinc-800/50">
+                                                <td className="px-3 py-2 text-sm font-mono text-zinc-900 dark:text-zinc-100">{item.transaction_date}</td>
+                                                <td className="px-3 py-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">{item.transaction_number}</td>
+                                                <td className="px-3 py-2 text-sm text-right font-bold text-[#D97757]">
                                                     {item.amount?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
                                                 </td>
                                                 <td className="px-3 py-2 text-sm text-center">
@@ -1231,7 +1237,7 @@ const FundReceivedDetails = () => {
                                         ))}
                                         {(!fund_transactions || fund_transactions.length === 0) && (
                                             <tr>
-                                                <td colSpan={4} className="px-3 py-6 text-center text-gray-500">No transactions</td>
+                                                <td colSpan={4} className="px-3 py-6 text-center text-zinc-500 dark:text-zinc-400">No transactions</td>
                                             </tr>
                                         )}
                                     </tbody>
@@ -1244,7 +1250,7 @@ const FundReceivedDetails = () => {
                 {/* Floating Activity Log Button */}
                 <button
                     onClick={() => setShowActivityLog(true)}
-                    className="fixed bottom-8 right-8 p-4 bg-[#0EA5A4] text-white rounded-full shadow-lg hover:bg-[#0C8F8E] transition-all z-40 flex items-center gap-2"
+                    className="fixed bottom-8 right-8 p-4 bg-[#D97757] text-white rounded-full shadow-lg hover:bg-[#C66A4E] transition-all z-40 flex items-center gap-2"
                 >
                     <MessageSquare className="h-6 w-6" />
                     <span className="font-semibold hidden md:block">Activity Log</span>
@@ -1260,21 +1266,21 @@ const FundReceivedDetails = () => {
                         ></div>
 
                         {/* Panel */}
-                        <div className="relative w-full max-w-md bg-white h-full shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-right duration-300">
-                            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+                        <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 h-full shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-right duration-300">
+                            <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
                                 <div className="flex items-center gap-2">
-                                    <MessageSquare className="h-5 w-5 text-[#0EA5A4]" />
-                                    <h3 className="font-bold text-lg text-gray-900">Activity Log</h3>
+                                    <MessageSquare className="h-5 w-5 text-[#D97757]" />
+                                    <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">Activity Log</h3>
                                 </div>
                                 <button
                                     onClick={() => setShowActivityLog(false)}
-                                    className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                                    className="p-2 hover:bg-zinc-200 dark:bg-zinc-700 rounded-lg transition-colors"
                                 >
-                                    <X className="h-5 w-5 text-gray-500" />
+                                    <X className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
+                            <div className="flex-1 overflow-y-auto p-4 bg-zinc-50 dark:bg-zinc-800/50">
                                 <ActivityStream
                                     doctype="Fund Received"
                                     docname={name || ""}
