@@ -66,6 +66,16 @@ export const useFrappeFetchFrom = (
           `${targetField.fieldname}:${currentSourceValue}`,
         );
 
+      // Skip fetch if source changed from undefined (initial load) but target already has a value
+      const isInitialSourceSet = !prevSourceValue && currentSourceValue;
+      if (isInitialSourceSet && targetValue) {
+        // Target was pre-filled (e.g., by auto-fill), don't overwrite with fetch_from
+        initialFetchDoneRef.current.add(
+          `${targetField.fieldname}:${currentSourceValue}`,
+        );
+        return;
+      }
+
       if (
         currentSourceValue &&
         (currentSourceValue !== prevSourceValue || isInitialFetchNeeded)
