@@ -11,7 +11,7 @@ const FundSanctionView: React.FC = () => {
     if (isLoading) return <div>Loading Sanction...</div>;
 
     return (
-        <div className="flex min-h-screen w-full bg-[#F0F4F8]">
+        <div className="flex min-h-screen w-full bg-claude-bg">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8">
                 <header className="mb-8 p-4 flex justify-between items-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-sm">

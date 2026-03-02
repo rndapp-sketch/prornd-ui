@@ -518,7 +518,7 @@ const DepositSlipForm: React.FC = () => {
 
                     <div className="mt-8 flex justify-end gap-4">
                         <FrappeButton type="button" onClick={() => navigate(-1)} className="bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:bg-zinc-600">Cancel</FrappeButton>
-                        <FrappeButton type="submit" disabled={isSubmitting} className="bg-[#D97757] text-white hover:bg-[#C66A4E] disabled:bg-zinc-300 dark:bg-zinc-600">{isSubmitting ? 'Saving...' : 'Save Deposit Slip'}</FrappeButton>
+                        <FrappeButton type="submit" disabled={isSubmitting} className="bg-[#D97757] text-white hover:bg-[#D97757] disabled:bg-zinc-300 dark:bg-zinc-600">{isSubmitting ? 'Saving...' : 'Save Deposit Slip'}</FrappeButton>
                     </div>
                 </form>
             )}

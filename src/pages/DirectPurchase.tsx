@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
 import { directPurchaseAPI } from '@/services/apiService';
 import { Plus, Trash2 } from 'lucide-react';
+import { DepartmentName } from "@/components/DepartmentName";
 
 // --- TYPE DEFINITIONS ---
 interface ChildField {
@@ -154,6 +155,14 @@ const MemoizedFormField = memo(({
     };
 
     const renderInput = () => {
+        if (field.fieldname === 'applicant_department' || field.fieldname === 'department' || field.fieldname === 'applying_for_department') {
+            return (
+                <div className={cn(inputClasses, "flex items-center bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 overflow-hidden text-ellipsis whitespace-nowrap")}>
+                    {value ? <DepartmentName name={value} /> : <span className="text-zinc-400 dark:text-zinc-500">Not provided</span>}
+                </div>
+            );
+        }
+
         if (hasLinkOptions) {
             return (
                 <select
@@ -544,7 +553,7 @@ const NeoSection = ({ title, children }: { title: string; children: React.ReactN
 const DirectPurchase: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const projectName = searchParams.get('project') || '';
+    const projectName = searchParams.get('project_no') || searchParams.get('project') || '';
     const editDocName = searchParams.get('edit') || '';
 
     const [fields, setFields] = useState<Field[]>([]);
@@ -678,36 +687,40 @@ const DirectPurchase: React.FC = () => {
             });
         }
 
-        // Also fetch designation via whitelisted API (frappe.client.get_value bypasses permissions)
+        // Fetch user details for the committee members
         const fetchDesignations = async () => {
             for (const { row, idx } of rowsToPopulate) {
                 try {
-                    const response = await fetch('/api/method/frappe.client.get_value', {
+                    const response = await fetch('/api/method/' + directPurchaseAPI.getUserDetails, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
                         credentials: 'include',
-                        body: JSON.stringify({
-                            doctype: 'User',
-                            filters: { name: row.webmail_id },
-                            fieldname: 'designation_name'
-                        })
+                        body: JSON.stringify({ user_email: row.webmail_id })
                     });
                     if (response.ok) {
                         const result = await response.json();
-                        const designation = result?.message?.designation_name || '';
-                        console.log(`[AutoPopulate] Designation for ${row.webmail_id}:`, designation);
-                        if (designation) {
-                            setChildTableData(prev => {
-                                const rows = [...(prev['table_teqd'] || [])];
-                                if (rows[idx]) {
-                                    rows[idx] = { ...rows[idx], designation };
-                                }
-                                return { ...prev, table_teqd: rows };
-                            });
-                        }
+                        const data = result?.message || {};
+                        const designation = data.designation_name || '';
+                        const department = data.department_name || '';
+                        const fullName = data.full_name || row.pc_name; // fallback to earlier mapped
+
+                        console.log(`[AutoPopulate] Details for ${row.webmail_id}:`, data);
+
+                        setChildTableData(prev => {
+                            const rows = [...(prev['table_teqd'] || [])];
+                            if (rows[idx]) {
+                                rows[idx] = {
+                                    ...rows[idx],
+                                    designation,
+                                    department,
+                                    pc_name: fullName
+                                };
+                            }
+                            return { ...prev, table_teqd: rows };
+                        });
                     }
                 } catch (err) {
-                    console.error(`[AutoPopulate] Error fetching designation for ${row.webmail_id}:`, err);
+                    console.error(`[AutoPopulate] Error fetching details for ${row.webmail_id}:`, err);
                 }
             }
         };
@@ -785,6 +798,9 @@ const DirectPurchase: React.FC = () => {
                     if (projectName && !initialData.project_name) {
                         initialData.project_name = projectName;
                     }
+                    if (projectName && !initialData.project_no) {
+                        initialData.project_no = projectName;
+                    }
 
                     setFields(apiFields);
                     setFormData(initialData);
@@ -822,6 +838,34 @@ const DirectPurchase: React.FC = () => {
 
     const handleWebmailChange = async (fieldname: string, value: string, _prefix: string) => {
         setFormData(prev => ({ ...prev, [fieldname]: value }));
+
+        if (value) {
+            try {
+                const response = await fetch('/api/method/' + directPurchaseAPI.getUserDetails, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
+                    credentials: 'include',
+                    body: JSON.stringify({ user_email: value })
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result?.message) {
+                        const { full_name, department_name, designation_name } = result.message;
+                        setFormData(prev => ({
+                            ...prev,
+                            // applying_for auto-population mappings
+                            applicant_name: full_name || prev.applicant_name,
+                            applying_for_department: department_name || prev.applying_for_department,
+                            applying_for_designation: designation_name || prev.applying_for_designation,
+                            department: department_name || prev.department,
+                            designation: designation_name || prev.designation
+                        }));
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching user details:", err);
+            }
+        }
     };
 
     const handleChildTableChange = useCallback((tableFieldname: string, rows: any[]) => {
@@ -952,7 +996,8 @@ const DirectPurchase: React.FC = () => {
             console.log('Submit result:', result);
 
             alert('Direct Purchase submitted successfully!');
-            navigate(`/project-details-overview/${projectName}`, {
+            const targetProject = formData.project_no || projectName || formData.project_name || formData.project || '';
+            navigate(`/project-details-overview/${targetProject}`, {
                 state: { tab: 'quick-actions', category: 'Purchase', app: 'Direct Purchase' }
             });
         } catch (err: any) {
@@ -1073,7 +1118,7 @@ const DirectPurchase: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+            <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b border-zinc-200 dark:border-zinc-800 mx-auto"></div>
                     <p className="mt-4 text-lg font-semibold">Loading form data...</p>
@@ -1085,7 +1130,7 @@ const DirectPurchase: React.FC = () => {
     const sections = groupFieldsBySection();
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8">
                 <PageHeader
@@ -1191,9 +1236,12 @@ const DirectPurchase: React.FC = () => {
                     <div className="mt-8 flex justify-end gap-4">
                         <FrappeButton
                             type="button"
-                            onClick={() => navigate(`/project-details-overview/${projectName}`, {
-                                state: { tab: 'quick-actions', category: 'Purchase', app: 'Direct Purchase' }
-                            })}
+                            onClick={() => {
+                                const targetProject = formData.project_no || projectName || formData.project_name || formData.project || '';
+                                navigate(`/project-details-overview/${targetProject}`, {
+                                    state: { tab: 'quick-actions', category: 'Purchase', app: 'Direct Purchase' }
+                                });
+                            }}
                             className="bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600"
                         >
                             Cancel

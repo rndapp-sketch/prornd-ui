@@ -565,7 +565,7 @@ export const FormRender: React.FC<
             <FrappeButton
               onClick={handleSubmitClick}
               disabled={isSubmitting}
-              className="bg-[#0EA5A4] text-white hover:bg-[#0D9494] border-[#0D9494]/20"
+              className="bg-[#D97757] text-white hover:bg-[#0D9494] border-[#D97757]/20"
             >
               {isSubmitting ? "Submitting..." : submitButtonText}
             </FrappeButton>

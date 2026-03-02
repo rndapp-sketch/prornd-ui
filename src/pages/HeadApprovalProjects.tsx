@@ -281,7 +281,7 @@ export function HeadApprovalProjects() {
   );
 
   return (
-    <div className="bg-[#F0F4F8]">
+    <div className="bg-claude-bg">
       <AppSidebar />
       <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
         <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight uppercase mb-8">

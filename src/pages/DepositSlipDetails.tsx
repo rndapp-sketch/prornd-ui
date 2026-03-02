@@ -34,7 +34,7 @@ import { AppSidebar } from "@/components/RndSidebar";
 //                     key={action}
 //                     onClick={() => handleAction(action)}
 //                     disabled={actionLoading}
-//                     className="px-5 py-2.5 bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white font-semibold border border-[#0D9494] rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+//                     className="px-5 py-2.5 bg-[#D97757] hover:bg-[#D97757] text-white font-semibold border border-[#D97757] rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
 //                 >
 //                     {actionLoading ? "Processing..." : action}
 //                 </button>
@@ -65,7 +65,7 @@ const DepositSlipDetails = () => {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
+            <div className="flex items-center justify-center min-h-screen bg-claude-bg">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-black border-t-cyan-300"></div>
             </div>
         );
@@ -73,9 +73,9 @@ const DepositSlipDetails = () => {
 
     if (error || !data) {
         return (
-            <div className="flex h-screen items-center justify-center bg-[#F0F4F8] gap-4">
+            <div className="flex h-screen items-center justify-center bg-claude-bg gap-4">
                 <div className="text-zinc-900 dark:text-zinc-100 font-semibold text-xl">Details not found</div>
-                <button onClick={() => navigate(-1)} className="px-5 py-2.5 bg-[#0EA5A4] text-white rounded-lg font-semibold hover:bg-[#0C8F8E] transition-colors shadow-md">Go Back</button>
+                <button onClick={() => navigate(-1)} className="px-5 py-2.5 bg-[#D97757] text-white rounded-lg font-semibold hover:bg-[#D97757] transition-colors shadow-md">Go Back</button>
             </div>
         );
     }
@@ -90,7 +90,7 @@ const DepositSlipDetails = () => {
     } = data;
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
+        <div className="bg-claude-bg min-h-screen">
             <AppSidebar />
             <div className="p-4 md:p-8">
                 {/* Header */}
@@ -111,7 +111,7 @@ const DepositSlipDetails = () => {
                         {docstatus === 0 && (
                             <button
                                 onClick={handleInitialSubmit}
-                                className="px-5 py-2.5 bg-[#0EA5A4] text-white font-semibold rounded-lg shadow-md hover:bg-[#0C8F8E]"
+                                className="px-5 py-2.5 bg-[#D97757] text-white font-semibold rounded-lg shadow-md hover:bg-[#D97757]"
                             >
                                 Submit
                             </button>
@@ -135,12 +135,12 @@ const DepositSlipDetails = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div className="bg-white dark:bg-zinc-900 p-6 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                         <div className="flex items-center gap-2 mb-2">
-                            <div className="p-2 bg-[#E0F7F6] rounded-lg">
-                                <IndianRupee className="h-4 w-4 text-[#0EA5A4]" />
+                            <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
+                                <IndianRupee className="h-4 w-4 text-[#D97757]" />
                             </div>
                             <span className="font-medium text-zinc-500 dark:text-zinc-400 text-sm">Total Amount</span>
                         </div>
-                        <p className="text-xl font-semibold text-[#0EA5A4]">
+                        <p className="text-xl font-semibold text-[#D97757]">
                             {total_amount?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}
                         </p>
                     </div>
@@ -167,8 +167,8 @@ const DepositSlipDetails = () => {
                 {/* ECS Dates Table */}
                 <div>
                     <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-3">
-                        <div className="p-2 bg-[#E0F7F6] rounded-lg">
-                            <FileText className="h-4 w-4 text-[#0EA5A4]" />
+                        <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
+                            <FileText className="h-4 w-4 text-[#D97757]" />
                         </div>
                         ECS / Dates
                     </h3>

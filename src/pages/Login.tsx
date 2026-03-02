@@ -93,7 +93,7 @@
 
 //   return (
 //     <SidebarProvider>
-//       <div className="w-full h-screen bg-[#F0F4F8] flex flex-col justify-between items-center overflow-hidden">
+//       <div className="w-full h-screen bg-claude-bg flex flex-col justify-between items-center overflow-hidden">
 //         {isLoggedIn ? (
 //           <>
 //             <div className="w-full flex justify-between items-center p-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 shadow-sm">
@@ -106,7 +106,7 @@
 //                 <SidebarTrigger />
 //                 <span className="text-[#6B7280]">Welcome, {currentUser}</span>
 //                 <Button
-//                   className="h-10 px-4 rounded-full bg-[#0EA5A4] hover:bg-[#0D9494] text-white font-medium"
+//                   className="h-10 px-4 rounded-full bg-[#D97757] hover:bg-[#0D9494] text-white font-medium"
 //                   onClick={() => {
 //                     logout().then(() => {
 //                       setIsLoggedIn(false);
@@ -154,7 +154,7 @@
 //                     <select
 //                       value={domain}
 //                       onChange={(e) => setDomain(e.target.value)}
-//                       className="h-9 px-3 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]"
+//                       className="h-9 px-3 rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#D97757]"
 //                     >
 //                       {DOMAINS.map((d) => (
 //                         <option key={d} value={d}>
@@ -178,7 +178,7 @@
 //                 </div>
 //                 <Button
 //                   type="submit"
-//                   className="w-full h-11 mt-2 bg-[#0EA5A4] text-white font-medium text-base rounded-full hover:bg-[#0D9494] shadow-sm transition-all duration-150"
+//                   className="w-full h-11 mt-2 bg-[#D97757] text-white font-medium text-base rounded-full hover:bg-[#0D9494] shadow-sm transition-all duration-150"
 //                 >
 //                   Log In
 //                 </Button>
@@ -187,7 +187,7 @@
 //               <div className="flex items-center gap-3 text-sm">
 //                 <a
 //                   href="#"
-//                   className="font-medium text-[#0EA5A4] hover:underline underline-offset-2"
+//                   className="font-medium text-[#D97757] hover:underline underline-offset-2"
 //                 >
 //                   Forgot password?
 //                 </a>
@@ -334,7 +334,7 @@ const Login: React.FC = () => {
           onClick={() => {
             logout().then(() => setIsLoggedIn(false));
           }}
-          className="px-6 py-2 bg-[#0EA5A4] text-white rounded-full hover:bg-[#0D9494]"
+          className="px-6 py-2 bg-[#D97757] text-white rounded-full hover:bg-[#0D9494]"
         >
           Log out
         </button>
@@ -344,7 +344,7 @@ const Login: React.FC = () => {
 
   return (
     // --- DESIGN: New Layout ---
-    <div className="flex w-full min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] overflow-hidden font-sans text-zinc-800">
+    <div className="flex w-full min-h-screen bg-claude-bg dark:bg-zinc-900 overflow-hidden font-sans text-zinc-800">
       {/* Load Fonts Helper */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600&display=swap');
@@ -402,7 +402,7 @@ const Login: React.FC = () => {
       </div>
 
       {/* RIGHT SIDE: Login Form */}
-      <div className="w-full lg:w-2/5 xl:w-1/3 bg-[#F0EDE4] dark:bg-[#27272A] flex flex-col p-8 md:p-16 xl:p-20 overflow-y-auto border-l border-zinc-200 dark:border-zinc-800 shadow-2xl">
+      <div className="w-full lg:w-2/5 xl:w-1/3 bg-[#F0EDE4] dark:bg-zinc-800 flex flex-col p-8 md:p-16 xl:p-20 overflow-y-auto border-l border-zinc-200 dark:border-zinc-800 shadow-2xl">
         <div className="my-auto">
           <div className="mb-10 text-center lg:text-left">
             <div className="inline-flex mb-6 p-4 bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
@@ -500,7 +500,7 @@ const Login: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full bg-[#D97757] hover:bg-[#c56a4c] dark:bg-[#18181B] dark:hover:bg-zinc-900 dark:border dark:border-zinc-700 text-white h-11 rounded-lg font-medium text-base tracking-wide transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 group ${isLoading ? 'opacity-80 cursor-not-allowed' : ''}`}
+                className={`w-full bg-[#D97757] hover:bg-[#c56a4c] dark:bg-zinc-900 dark:hover:bg-zinc-900 dark:border dark:border-zinc-700 text-white h-11 rounded-lg font-medium text-base tracking-wide transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 group ${isLoading ? 'opacity-80 cursor-not-allowed' : ''}`}
               >
                 {isLoading ? (
                   <>
@@ -510,7 +510,7 @@ const Login: React.FC = () => {
                 ) : (
                   <>
                     <span>Sign In</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-4 h-4 group:translate-x-1 transition-transform" />
                   </>
                 )}
               </button>

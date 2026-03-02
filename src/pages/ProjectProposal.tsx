@@ -38,7 +38,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange 
             case "Text": case "Small Text": case "Text Editor": return <textarea {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} rows={5} className={`${inputClasses} h-auto py-3`} />;
             case "Check": return (<label className="flex items-center gap-4 font-medium text-zinc-700 dark:text-zinc-300 cursor-pointer"><input type="checkbox" className={checkboxClasses} checked={!!value} onChange={e => onChange(field.fieldname, e.target.checked, 'checkbox')} disabled={field.read_only} /><span>{field.label}{!!field.mandatory && <span className="text-red-500">*</span>}</span></label>);
             case "Date": return <input type="date" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
-            case "Attach": return <input type="file" {...commonProps} className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:font-bold file:bg-[#D97757] text-white hover:bg-[#C66A4E] file:text-zinc-900 dark:text-zinc-100 hover:file:bg-[#8BC34A]`} onChange={e => onFileChange(field.fieldname, e.target.files?.[0] || null)} />;
+            case "Attach": return <input type="file" {...commonProps} className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:font-bold file:bg-[#D97757] text-white hover:bg-[#D97757] file:text-zinc-900 dark:text-zinc-100 hover:file:bg-[#8BC34A]`} onChange={e => onFileChange(field.fieldname, e.target.files?.[0] || null)} />;
             default: return <input type={(['Int', 'Currency', 'Float', 'Percent'].includes(field.fieldtype)) ? 'number' : 'text'} {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
         }
     };
@@ -66,7 +66,7 @@ const MemoizedGenericTable = memo(({ tableName, columns, newRow, tableData, onRo
                 </tbody>
             </table>
         </div>
-        <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#D97757] text-white hover:bg-[#C66A4E] mt-4">Add Row</FrappeButton>
+        <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#D97757] text-white hover:bg-[#D97757] mt-4">Add Row</FrappeButton>
     </div>
 ));
 
@@ -93,7 +93,7 @@ const MemoizedCollaboratorTable = memo(({ tableName, title, tableData, piOptions
                     </tbody>
                 </table>
             </div>
-            <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#D97757] text-white hover:bg-[#C66A4E] mt-4">Add Collaborator</FrappeButton>
+            <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#D97757] text-white hover:bg-[#D97757] mt-4">Add Collaborator</FrappeButton>
         </div>
     );
 });
@@ -148,7 +148,7 @@ const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, o
             </table>
         </div>
         <div className="flex flex-wrap gap-4">
-            <FrappeButton type="button" className="bg-[#D97757] text-white hover:bg-[#C66A4E]" onClick={onAddRow}>Add Budget Row</FrappeButton>
+            <FrappeButton type="button" className="bg-[#D97757] text-white hover:bg-[#D97757]" onClick={onAddRow}>Add Budget Row</FrappeButton>
             <FrappeButton type="button" className="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-200 dark:bg-zinc-700" onClick={onAddYear} disabled={budgetYears.length >= 5}>Add Year</FrappeButton>
             <FrappeButton type="button" className="bg-amber-100 text-amber-700 border border-amber-200 hover:bg-amber-200" onClick={onDeleteYear}>Delete Last Year</FrappeButton>
         </div>
@@ -341,7 +341,7 @@ const ProjectProposal: React.FC = () => {
     const handleSaveDraft = async () => { if (isSavingDraft || isSubmitting) return; setIsSavingDraft(true); try { const data = await prepareDataForApi(); await saveDraft({ data: JSON.stringify(data) }); } catch (err) { alert("File processing error."); setIsSavingDraft(false); } };
 
     // --- RENDER LOGIC ---
-    if (loading) return (<div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]"><div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-4 border-zinc-200 dark:border-zinc-800 border-t-[#D97757] mx-auto"></div><p className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">LOADING FORM...</p></div></div>);
+    if (loading) return (<div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900"><div className="text-center"><div className="animate-spin rounded-full h-16 w-16 border-4 border-zinc-200 dark:border-zinc-800 border-t-[#D97757] mx-auto"></div><p className="mt-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">LOADING FORM...</p></div></div>);
 
     const budgetTableData = formData.proposed_budget_breakup || [];
     const totalBudgetAmount = budgetTableData.reduce((acc, row) => acc + (row.years || []).reduce((sum: number, val) => sum + Number(val || 0), 0), 0);
@@ -375,7 +375,7 @@ const ProjectProposal: React.FC = () => {
                     <FrappeButton
                         type="submit"
                         disabled={isSubmitting || isSavingDraft || !isDraftSaved}
-                        className="bg-[#D97757] text-white hover:bg-[#C66A4E] disabled:bg-zinc-300 dark:bg-zinc-600"
+                        className="bg-[#D97757] text-white hover:bg-[#D97757] disabled:bg-zinc-300 dark:bg-zinc-600"
                     >
                         {isSubmitting ? "SUBMITTING..." : "Submit Proposal"}
                     </FrappeButton>
@@ -383,7 +383,7 @@ const ProjectProposal: React.FC = () => {
             ) : (
                 <FrappeButton
                     onClick={() => setActiveTab(activeTab + 1)}
-                    className={cn("bg-[#D97757] text-white hover:bg-[#C66A4E]", !showNext && "invisible")}
+                    className={cn("bg-[#D97757] text-white hover:bg-[#D97757]", !showNext && "invisible")}
                 >
                     Next Section
                 </FrappeButton>
@@ -400,9 +400,9 @@ const ProjectProposal: React.FC = () => {
     };
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B]">
+        <div className="bg-claude-bg dark:bg-zinc-900">
             <AppSidebar />
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden bg-[#FAFAF9] dark:bg-[#18181B]]">
+            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden bg-claude-bg dark:bg-zinc-900">
                 <header className="mb-3">
                     <h1 className="text-3xl md:text-4xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight ">New Endorsement</h1>
                     <p className="text-zinc-700 dark:text-zinc-300 mt-2 ">Fill all sections to submit a new endorsement.</p>

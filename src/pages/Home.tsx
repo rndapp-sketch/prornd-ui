@@ -125,7 +125,7 @@ const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onCli
     className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-300 dark:border-zinc-700 shadow-sm hover:shadow-[3px_3px_0px_rgba(0,0,0,0.15)] hover:translate-y-[-2px] transition-all duration-150 cursor-pointer group flex flex-col h-full"
   >
     {/* Icon Container: Added border and bg-blue-50 instead of standard sky-100 for better contrast */}
-    <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg mb-4 group-hover:bg-gray-800 group-hover:text-white transition-colors duration-150">
+    <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg mb-4 group:bg-gray-800 group:text-white transition-colors duration-150">
       {icon}
     </div>
     <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">{title}</h3>
@@ -337,13 +337,13 @@ export function Home() {
               <ul className="space-y-3 border-t-2 border-zinc-200 dark:border-zinc-800 pt-4">
                 <li>
                   <a href="#" className="flex items-center text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:bg-zinc-800 p-2 rounded-lg transition-colors group font-bold">
-                    <FileText className="w-5 h-5 mr-3 text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:text-zinc-100" />
+                    <FileText className="w-5 h-5 mr-3 text-zinc-500 dark:text-zinc-400 group:text-zinc-900 dark:text-zinc-100" />
                     <span>Portal Docs</span>
                   </a>
                 </li>
                 <li>
                   <a href="#" className="flex items-center text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:bg-zinc-800 p-2 rounded-lg transition-colors group font-bold">
-                    <LifeBuoy className="w-5 h-5 mr-3 text-zinc-500 dark:text-zinc-400 group-hover:text-zinc-900 dark:text-zinc-100" />
+                    <LifeBuoy className="w-5 h-5 mr-3 text-zinc-500 dark:text-zinc-400 group:text-zinc-900 dark:text-zinc-100" />
                     <span>Contact Support</span>
                   </a>
                 </li>

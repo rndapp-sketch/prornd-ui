@@ -653,7 +653,7 @@ const TemporaryAdvance: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+            <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b border-zinc-200 dark:border-zinc-800 mx-auto"></div>
                     <p className="mt-4 text-lg font-semibold">Loading form data...</p>
@@ -665,7 +665,7 @@ const TemporaryAdvance: React.FC = () => {
     const sections = groupFieldsBySection();
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8">
                 <PageHeader

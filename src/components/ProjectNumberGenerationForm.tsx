@@ -15,7 +15,7 @@ const InputField = ({ label, field, type = "text", options = [], formData, onCha
             <select
                 value={formData[field]}
                 onChange={(e) => onChange(field, e.target.value)}
-                className="w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/20 focus:border-[#0EA5A4]"
+                className="w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
             >
                 {options.map((opt: any) => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -26,7 +26,7 @@ const InputField = ({ label, field, type = "text", options = [], formData, onCha
                 type={type}
                 value={formData[field]}
                 onChange={(e) => onChange(field, e.target.value)}
-                className="w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/20 focus:border-[#0EA5A4]"
+                className="w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
             />
         )}
     </div>
@@ -150,7 +150,7 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
                     <select
                         value={formData.select_department}
                         onChange={(e) => handleChange('select_department', e.target.value)}
-                        className="w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/20 focus:border-[#0EA5A4]"
+                        className="w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
                     >
                         <option value="">Select Department</option>
                         {departmentData?.message?.map((dept: any) => (
@@ -193,7 +193,7 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
                 <FrappeButton
                     onClick={handleSubmit}
                     disabled={isSaving}
-                    className="w-full justify-center bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white"
+                    className="w-full justify-center bg-[#D97757] hover:bg-[#D97757] text-white"
                 >
                     {isSaving ? "Generating..." : "Generate Project Number"}
                 </FrappeButton>

@@ -97,7 +97,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
     if (!isOpen) return null;
 
-    const inputClasses = "w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4] placeholder:text-zinc-400 dark:placeholder:text-zinc-500";
+    const inputClasses = "w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] placeholder:text-zinc-400 dark:placeholder:text-zinc-500";
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -117,7 +117,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <div className="flex-1 overflow-auto p-6 space-y-4">
                     {isLoadingFields ? (
                         <div className="flex justify-center p-8">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4]"></div>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
                         </div>
                     ) : (
                         paymentFieldDefs.filter((f: any) => !f.hidden).map((field: any) => {
@@ -202,7 +202,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     <button
                         onClick={handleSubmitPayment}
                         disabled={isPaymentSubmitting || isLoadingFields}
-                        className="px-4 py-2 text-sm font-medium text-white bg-[#0EA5A4] rounded-lg hover:bg-[#0D9494] disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 text-sm font-medium text-white bg-[#D97757] rounded-lg hover:bg-[#0D9494] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isPaymentSubmitting ? 'Submitting...' : 'Submit Payment'}
                     </button>

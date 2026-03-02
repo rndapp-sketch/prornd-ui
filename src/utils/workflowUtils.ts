@@ -79,7 +79,7 @@ const ACTION_STYLE_MAP: Record<string, { button: string; hover: string }> = {
     'revise': { button: 'bg-amber-500 text-white', hover: 'hover:bg-amber-600' },
     'forward': { button: 'bg-teal-600 text-white', hover: 'hover:bg-teal-700' },
     'recommend': { button: 'bg-purple-600 text-white', hover: 'hover:bg-purple-700' },
-    'default': { button: 'bg-[#0EA5A4] text-white', hover: 'hover:bg-[#0D9494]' }
+    'default': { button: 'bg-[#D97757] text-white', hover: 'hover:bg-[#0D9494]' }
 };
 
 // --- UTILITY FUNCTIONS ---

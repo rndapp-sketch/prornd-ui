@@ -56,7 +56,7 @@ export function DirectorDashboard() {
   const isPermanentEmployee = userData?.user_roles?.some((role: any) => role.role === "Permanent Employee") || false;
 
   const DepartmentTooltipContent = () => (
-    <div className="bg-[#E0F7F6] text-[#0EA5A4] p-2 rounded-md border border-white/20  text-xs">
+    <div className="bg-zinc-50 dark:bg-zinc-800 text-[#D97757] p-2 rounded-md border border-white/20  text-xs">
       <h4 className="font-bold mb-1 border-b border-white/20 pb-1">Projects by Department</h4>
       <ul className="space-y-1 mt-2">
         {departmentWiseProjects.map(dept => (
@@ -70,7 +70,7 @@ export function DirectorDashboard() {
   );
 
   return (
-    <div className="bg-[#F0F4F8] min-h-screen font-sans">
+    <div className="bg-claude-bg min-h-screen font-sans">
       <AppSidebar />
       <div className="flex-1 p-4 md:p-8">
         <div className="w-full mx-auto">
@@ -132,7 +132,7 @@ export function DirectorDashboard() {
                 </div>
               </div>
               <div>
-                <div className="flex items-center mb-3 gap-2.5"><Globe className="size-5 text-[#0EA5A4]" /><h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 ">International Collaborations</h3></div>
+                <div className="flex items-center mb-3 gap-2.5"><Globe className="size-5 text-[#D97757]" /><h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 ">International Collaborations</h3></div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <AnalyticsCard title="Funding Agencies" value="18" subtitle="Active MOUs" icon={<Landmark className="size-5" />} />
                   <AnalyticsCard title="Additional PIs" value="32" subtitle="From partner institutes" icon={<Users className="size-5" />} />
@@ -188,7 +188,7 @@ export function DirectorDashboard() {
           <footer className="text-center text-zinc-600 dark:text-zinc-400 mt-6 pb-2">
             <div className="flex items-center justify-center space-x-2  text-xs">
               <Mail className="size-3.5" />
-              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#0EA5A4] hover:underline font-semibold">ernd@iitg.ac.in</a></p>
+              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#D97757] hover:underline font-semibold">ernd@iitg.ac.in</a></p>
             </div>
           </footer>
         </div>

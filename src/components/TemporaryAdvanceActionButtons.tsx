@@ -83,7 +83,7 @@
 //     if (isLoading) {
 //         return (
 //             <div className="flex items-center gap-2">
-//                 <div className="animate-spin h-5 w-5 border-2 border-zinc-300 dark:border-zinc-600 border-t-[#0EA5A4] rounded-full"></div>
+//                 <div className="animate-spin h-5 w-5 border-2 border-zinc-300 dark:border-zinc-600 border-t-[#D97757] rounded-full"></div>
 //                 <span className="text-sm text-zinc-500 dark:text-zinc-400">Loading actions...</span>
 //             </div>
 //         );
@@ -121,7 +121,7 @@
 //             return 'bg-amber-600 hover:bg-amber-700 text-white border-amber-700';
 //         }
 //         // Default style
-//         return 'bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white border-[#0D9494]';
+//         return 'bg-[#D97757] hover:bg-[#D97757] text-white border-[#D97757]';
 //     };
 
 //     return (
@@ -254,7 +254,7 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete }: TemporaryA
     if (isLoading) {
         return (
             <div className="flex items-center gap-2">
-                <div className="animate-spin h-5 w-5 border-2 border-zinc-300 dark:border-zinc-600 border-t-[#0EA5A4] rounded-full"></div>
+                <div className="animate-spin h-5 w-5 border-2 border-zinc-300 dark:border-zinc-600 border-t-[#D97757] rounded-full"></div>
                 <span className="text-sm text-zinc-500 dark:text-zinc-400">Loading actions...</span>
             </div>
         );

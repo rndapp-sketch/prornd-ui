@@ -94,7 +94,7 @@ const MemoizedTransactionsTable = memo(({ tableData, onRowChange, onFileChange, 
                     </tbody>
                 </table>
             </div>
-            <FrappeButton onClick={() => onAddRow({ transaction_number: '', transaction_date: '', amount: '', attachment: null })} className="bg-[#D97757] hover:bg-[#C66A4E] mt-4">
+            <FrappeButton onClick={() => onAddRow({ transaction_number: '', transaction_date: '', amount: '', attachment: null })} className="bg-[#D97757] hover:bg-[#D97757] mt-4">
                 + Add Transaction
             </FrappeButton>
         </div>
@@ -191,7 +191,7 @@ const MemoizedBudgetBreakupTable = memo(({ tableData, onRowChange, onAddRow, onD
                     </tbody>
                 </table>
             </div>
-            <FrappeButton onClick={() => onAddRow({ account_head: '', amount_received: '', remarks: '' })} className="bg-[#D97757] hover:bg-[#C66A4E] mt-4">
+            <FrappeButton onClick={() => onAddRow({ account_head: '', amount_received: '', remarks: '' })} className="bg-[#D97757] hover:bg-[#D97757] mt-4">
                 + Add Budget Item
             </FrappeButton>
         </div>
@@ -850,7 +850,7 @@ const AddFundReceived: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+            <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b border-zinc-200 dark:border-zinc-800 mx-auto"></div>
                     <p className="mt-4 text-lg font-semibold">Loading form data...</p>
@@ -870,7 +870,7 @@ const AddFundReceived: React.FC = () => {
         : sanctionData?.message?.[0];
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8">
                 <header className="mb-8 p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-sm">
@@ -961,13 +961,13 @@ const AddFundReceived: React.FC = () => {
                         <div className="sticky top-4 space-y-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
                             <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-5">
                                 <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-4 flex items-center gap-2">
-                                    <span className="p-1.5 rounded-lg bg-[#E0F7F6]">📋</span>
+                                    <span className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-800">📋</span>
                                     Sanction Details
                                 </h3>
 
                                 {sanctionLoading ? (
                                     <div className="text-center py-8">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4] mx-auto"></div>
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757] mx-auto"></div>
                                         <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">Loading...</p>
                                     </div>
                                 ) : selectedSanction ? (
@@ -986,7 +986,7 @@ const AddFundReceived: React.FC = () => {
                                         </div>
                                         <div>
                                             <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">Total Amount</p>
-                                            <p className="text-lg font-bold text-[#0EA5A4]">₹ {(selectedSanction.total_sanctioned_amount || 0).toLocaleString('en-IN')}</p>
+                                            <p className="text-lg font-bold text-[#D97757]">₹ {(selectedSanction.total_sanctioned_amount || 0).toLocaleString('en-IN')}</p>
                                         </div>
 
                                         {selectedSanction.sanctioned_budget_breakup?.length > 0 && (() => {
@@ -1038,7 +1038,7 @@ const AddFundReceived: React.FC = () => {
                                                                         const yearTotal = selectedSanction.sanctioned_budget_breakup.reduce((sum: number, row: any) => sum + (row[year.key] || 0), 0);
                                                                         return <td key={year.key} className="py-1.5 text-right font-semibold text-zinc-700 dark:text-zinc-300">{yearTotal > 0 ? (yearTotal / 1000).toFixed(0) + 'k' : '-'}</td>;
                                                                     })}
-                                                                    <td className="py-1.5 text-right font-bold text-[#0EA5A4]">
+                                                                    <td className="py-1.5 text-right font-bold text-[#D97757]">
                                                                         {(selectedSanction.sanctioned_budget_breakup.reduce((sum: number, row: any) =>
                                                                             activeYears.reduce((s, y) => s + (row[y.key] || 0), sum), 0
                                                                         ) / 1000).toFixed(0)}k

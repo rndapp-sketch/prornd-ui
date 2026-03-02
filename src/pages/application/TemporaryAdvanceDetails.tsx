@@ -77,10 +77,10 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
         className={cn(
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
             "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
-            variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#C66A4E] shadow-md hover:shadow-lg border border-[#C66A4E]",
+            variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
             variant === 'ghost' && "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
-            variant === 'outline' && "bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 hover:border-[#D97757] hover:text-[#D97757] hover:bg-zinc-50 dark:bg-zinc-800/50",
-            variant === 'action' && "bg-[#D97757] text-white font-bold hover:bg-[#C66A4E] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
+            variant === 'outline' && "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
+            variant === 'action' && "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
             className
         )}
@@ -105,7 +105,7 @@ const ActivityStream = ({ doctype, docname }: { doctype: string; docname: string
             {activityData?.message && activityData.message.length > 0 ? (
                 activityData.message.map((activity, idx) => (
                     <div key={idx} className="flex items-start gap-3">
-                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#FDF3F0] flex items-center justify-center font-bold text-[#D97757] text-xs">
+                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-[#D97757] text-xs">
                             {activity.owner?.charAt(0).toUpperCase() || "U"}
                         </div>
                         <div className="min-w-0">
@@ -381,7 +381,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
     }
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
+        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen font-sans">
             <AppSidebar />
 
             <main className="transition-all duration-300 ease-in-out p-6 md:p-10">
@@ -398,7 +398,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
                         {data.workflow_state === 'Draft' && id && (
                             <button
                                 onClick={() => navigate(`/temporary-advance?edit=${id}`)}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#C66A4E] shadow-md transition-all"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#D97757] shadow-md transition-all"
                             >
                                 <EditIcon className="w-4 h-4" />
                                 Edit

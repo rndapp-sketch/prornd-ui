@@ -335,7 +335,7 @@ const AddFundSanction: React.FC = () => {
     }
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B]">
+        <div className="bg-claude-bg dark:bg-zinc-900">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <header className="mb-8 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-sm">

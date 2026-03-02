@@ -56,7 +56,7 @@
 //             <header className="bg-white dark:bg-zinc-900 shadow-md sticky top-0 z-50">
 //                 <div className="container mx-auto px-6 py-4 flex justify-between items-center">
 //                     <div className="flex items-center space-x-4">
-//                         <img src="/IITG_Logo.svg" alt="IITG Logo" className="h-12" />
+//                         <img src="/IITG_Large_Logo.gif" alt="IITG Logo" className="h-12" />
 //                         <div>
 //                             <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Research and Development</h1>
 //                             <p className="text-sm text-zinc-600 dark:text-zinc-400">Indian Institute of Technology Guwahati</p>
@@ -395,12 +395,12 @@ const LandingPage: React.FC = () => {
     };
 
     return (
-        <div className="bg-[#F0F4F8] text-zinc-900 dark:text-zinc-100 font-sans">
+        <div className="bg-claude-bg text-zinc-900 dark:text-zinc-100 font-sans">
             {/* Header */}
             <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-50 shadow-sm">
                 <div className="container mx-auto px-6 py-4 flex justify-between items-center">
                     <div className="flex items-center space-x-4">
-                        <div className="h-10 w-10 bg-[#0EA5A4] text-white flex items-center justify-center font-bold text-xs rounded-xl">
+                        <div className="h-10 w-10 bg-[#D97757] text-white flex items-center justify-center font-bold text-xs rounded-xl">
                             IITG
                         </div>
                         <div>
@@ -481,7 +481,7 @@ const LandingPage: React.FC = () => {
                     </p>
                     <a
                         href="#research"
-                        className="inline-block bg-white dark:bg-zinc-900 text-[#0EA5A4] font-semibold py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-200"
+                        className="inline-block bg-white dark:bg-zinc-900 text-[#D97757] font-semibold py-3 px-8 rounded-full shadow-md hover:shadow-lg transition-all duration-200"
                     >
                         Explore Our Research
                     </a>
@@ -583,7 +583,7 @@ const LandingPage: React.FC = () => {
                             { title: "Deep Learning for Early Diagnosis of Alzheimer's Disease from MRI Scans", author: "S. Das, P. Mehta, et al.", journal: "Nature Medicine, 2025" }
                         ].map((pub, idx) => (
                             <div key={idx} className="bg-white dark:bg-zinc-900 p-5 rounded-lg border-2 border-gray-900 shadow-[2px_2px_0px_rgba(0,0,0,0.1)] hover:bg-blue-50 transition-colors cursor-pointer group">
-                                <h3 className="font-bold text-lg text-blue-800 group-hover:underline decoration-2 underline-offset-2">{pub.title}</h3>
+                                <h3 className="font-bold text-lg text-blue-800 group:underline decoration-2 underline-offset-2">{pub.title}</h3>
                                 <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-2 font-medium">{pub.author}</p>
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400 italic mt-1 border-t border-zinc-200 dark:border-zinc-800 pt-2 inline-block">{pub.journal}</p>
                             </div>
@@ -665,7 +665,7 @@ const LandingPage: React.FC = () => {
                                 <h4 className="font-bold text-sm uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-4 border-b-2 border-zinc-200 dark:border-zinc-800 pb-2">Quick Links</h4>
                                 <ul className="space-y-2 text-blue-700 font-bold text-sm">
                                     {['Project Forms', 'Research Policies', 'Industry Collaboration', 'IPR Cell', 'Faculty Directory'].map(link => (
-                                        <li key={link}><a href="#" className="hover:underline decoration-2 flex items-center group"><span className="w-1 h-1 bg-blue-700 rounded-full mr-2 group-hover:w-2 transition-all"></span>{link}</a></li>
+                                        <li key={link}><a href="#" className="hover:underline decoration-2 flex items-center group"><span className="w-1 h-1 bg-blue-700 rounded-full mr-2 group:w-2 transition-all"></span>{link}</a></li>
                                     ))}
                                 </ul>
                             </div>

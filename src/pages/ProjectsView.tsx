@@ -24,17 +24,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate, useLocation } from "react-router-dom";
-import { AppSidebar } from "../components/RndSidebar";
 import {
   ChevronRightIcon as ChevronRight,
   SearchIcon,
   ChevronsUpDown,
   CheckCircle2,
-  ChevronLeftIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from '../components/UserRole';
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { format } from "date-fns";
 
 // --- LOGIC: Interfaces & Data ---
@@ -304,14 +301,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     return <Badge variant={variant as any}>{priority}</Badge>;
   };
 
-  // --- Helper: Calculate Total Budget ---
-  const calculateTotalBudget = (project: any) => {
-    if (!project.proposed_budget_breakup) return 0;
-    return project.proposed_budget_breakup.reduce((acc: number, item: any) => {
-      return acc + (item.first_year_budget || 0) + (item.second_year_budget || 0);
-    }, 0);
-  };
-
   const getStatusBadge = (status: string) => {
     const s = status?.toLowerCase();
     let className = "bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border-zinc-200"; // Default/Draft
@@ -417,60 +406,62 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
             </div>
           </div>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Task ID</TableHead>
-                  <TableHead>Details</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {activeTasks.length === 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-zinc-500">
-                      No active tasks in this category.
-                    </TableCell>
+                    <TableHead className="w-[80px] whitespace-nowrap">Task ID</TableHead>
+                    <TableHead className="min-w-[150px]">Details</TableHead>
+                    <TableHead className="w-[100px] whitespace-nowrap">Status</TableHead>
+                    <TableHead className="w-[80px] whitespace-nowrap">Priority</TableHead>
+                    <TableHead className="w-[100px] whitespace-nowrap">Assigned To</TableHead>
+                    <TableHead className="w-[90px] whitespace-nowrap">Date</TableHead>
+                    <TableHead className="text-right w-[60px] whitespace-nowrap">Action</TableHead>
                   </TableRow>
-                ) : (
-                  activeTasks.map((task) => (
-                    <TableRow key={task.id}>
-                      <TableCell className="font-mono text-xs">{task.id}</TableCell>
-                      <TableCell>
-                        <div className="font-medium">{task.projectTitle}</div>
-                        <div className="text-xs text-zinc-500 font-mono mt-0.5">{task.projectNumber}</div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(task.status!)}</TableCell>
-                      <TableCell>{getPriorityBadge(task.priority!)}</TableCell>
-                      <TableCell className="text-zinc-500 text-sm">{task.assignedTo}</TableCell>
-                      <TableCell className="text-zinc-500 text-sm">
-                        {task.actionDate ? format(new Date(task.actionDate), "MMM dd, yyyy") : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="h-8 text-xs bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:text-zinc-900"
-                          onClick={() => {
-                            if (activeTaskTab === "Endorsement") {
-                              navigate(`/project-proposal-details/${task.id}`);
-                            } else {
-                              console.log("View clicked for", task.id);
-                            }
-                          }}
-                        >
-                          Review
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {activeTasks.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-24 text-center text-zinc-500">
+                        No active tasks in this category.
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    activeTasks.map((task) => (
+                      <TableRow key={task.id}>
+                        <TableCell className="font-mono text-xs whitespace-nowrap">{task.id}</TableCell>
+                        <TableCell>
+                          <div className="font-medium whitespace-normal min-w-[150px] max-w-[300px]">{task.projectTitle}</div>
+                          <div className="text-xs text-zinc-500 font-mono mt-0.5 whitespace-nowrap">{task.projectNumber}</div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">{getStatusBadge(task.status!)}</TableCell>
+                        <TableCell className="whitespace-nowrap">{getPriorityBadge(task.priority!)}</TableCell>
+                        <TableCell className="text-zinc-500 text-xs whitespace-nowrap">{task.assignedTo}</TableCell>
+                        <TableCell className="text-zinc-500 text-xs whitespace-nowrap">
+                          {task.actionDate ? format(new Date(task.actionDate), "MMM dd, yyyy") : "-"}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-8 text-xs bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:text-zinc-900"
+                            onClick={() => {
+                              if (activeTaskTab === "Endorsement") {
+                                navigate(`/project-proposal-details/${task.id}`);
+                              } else {
+                                console.log("View clicked for", task.id);
+                              }
+                            }}
+                          >
+                            Review
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -518,103 +509,95 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[100px]">Number</TableHead>
-                <TableHead className="min-w-[200px]">Project Title</TableHead>
-                <TableHead>Funding Agency</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Total Budget</TableHead>
-                <TableHead className="w-[120px]">Date</TableHead>
-                <TableHead className="w-[120px]">Status</TableHead>
-                <TableHead className="text-right w-[80px]">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {myProjectsLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                    <TableCell><div className="h-4 w-48 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                    <TableCell><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                    <TableCell><div className="h-4 w-12 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                    <TableCell><div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                    <TableCell><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                    <TableCell><div className="h-4 w-16 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                    <TableCell><div className="h-8 w-8 bg-zinc-100 rounded animate-pulse ml-auto" /></TableCell>
-                  </TableRow>
-                ))
-              ) : myProjectsError ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-red-500">
-                    Error loading projects. Please try again.
-                  </TableCell>
+                  <TableHead className="w-[80px] whitespace-nowrap">Number</TableHead>
+                  <TableHead className="min-w-[150px] whitespace-nowrap">Project Title</TableHead>
+                  <TableHead className="w-[120px] whitespace-nowrap">Funding Agency</TableHead>
+                  <TableHead className="w-[90px] whitespace-nowrap">Date</TableHead>
+                  <TableHead className="w-[100px] whitespace-nowrap">Status</TableHead>
+                  <TableHead className="text-right w-[60px] whitespace-nowrap">Action</TableHead>
                 </TableRow>
-              ) : paginatedProjects.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-zinc-500">
-                    No projects found matching your criteria.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                paginatedProjects.map((p: any) => (
-                  <TableRow
-                    key={p.name}
-                    className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
-                    onClick={() => {
-                      const targetPath =
-                        p.workflow_state === "Approved" || p.workflow_state === "Proposal Approved"
-                          ? `/project-details-overview/${p.name}`
-                          : `/project-details/${p.name}`;
-                      navigate(targetPath);
-                    }}
-                  >
-                    <TableCell className="font-mono text-xs font-medium text-zinc-900 dark:text-zinc-100">
-                      {p.project_no || p.name}
-                    </TableCell>
-                    <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">
-                      <div className="line-clamp-2" title={p.project_title}>{p.project_title}</div>
-                    </TableCell>
-                    <TableCell className="text-zinc-600 dark:text-zinc-400 text-sm">
-                      {p.funding_agen || "-"}
-                    </TableCell>
-                    <TableCell className="text-zinc-600 dark:text-zinc-400 text-sm">
-                      {p.project_duration_months ? `${p.project_duration_months} Months` : "-"}
-                    </TableCell>
-                    <TableCell className="text-zinc-900 dark:text-zinc-100 font-medium text-sm">
-                      {calculateTotalBudget(p) > 0 ? `₹${calculateTotalBudget(p).toLocaleString('en-IN')}` : "-"}
-                    </TableCell>
-                    <TableCell className="text-zinc-500 text-xs whitespace-nowrap">
-                      {p.creation ? format(new Date(p.creation), "MMM dd, yyyy") : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(p.workflow_state)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {p.workflow_state === "Endorsement Approved" ? (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/project-registration?docname=${p.name}&isApprovedEndorsement=true`);
-                          }}
-                        >
-                          Register Project
-                        </Button>
-                      ) : (
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <ChevronRight className="h-4 w-4" />
-                          <span className="sr-only">View</span>
-                        </Button>
-                      )}
+              </TableHeader>
+              <TableBody>
+                {myProjectsLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" /></TableCell>
+                      <TableCell><div className="h-4 w-48 bg-zinc-100 rounded animate-pulse" /></TableCell>
+                      <TableCell><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></TableCell>
+                      <TableCell><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></TableCell>
+                      <TableCell><div className="h-4 w-16 bg-zinc-100 rounded animate-pulse" /></TableCell>
+                      <TableCell><div className="h-8 w-8 bg-zinc-100 rounded animate-pulse ml-auto" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : myProjectsError ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-24 text-center text-red-500">
+                      Error loading projects. Please try again.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : paginatedProjects.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-24 text-center text-zinc-500">
+                      No projects found matching your criteria.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  paginatedProjects.map((p: any) => (
+                    <TableRow
+                      key={p.name}
+                      className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                      onClick={() => {
+                        const targetPath =
+                          p.workflow_state === "Approved" || p.workflow_state === "Proposal Approved"
+                            ? `/project-details-overview/${p.name}`
+                            : `/project-details/${p.name}`;
+                        navigate(targetPath);
+                      }}
+                    >
+                      <TableCell className="font-mono text-xs font-medium text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                        {p.project_no || p.name}
+                      </TableCell>
+                      <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">
+                        <div className="line-clamp-2 min-w-[150px] max-w-[300px]" title={p.project_title}>{p.project_title}</div>
+                      </TableCell>
+                      <TableCell className="text-zinc-600 dark:text-zinc-400 text-xs whitespace-nowrap">
+                        {p.funding_agen || "-"}
+                      </TableCell>
+                      <TableCell className="text-zinc-500 text-xs whitespace-nowrap">
+                        {p.creation ? format(new Date(p.creation), "MMM dd, yyyy") : "-"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {getStatusBadge(p.workflow_state)}
+                      </TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        {p.workflow_state === "Endorsement Approved" ? (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/project-registration?docname=${p.name}&isApprovedEndorsement=true`);
+                            }}
+                          >
+                            Register Project
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <ChevronRight className="h-4 w-4" />
+                            <span className="sr-only">View</span>
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 

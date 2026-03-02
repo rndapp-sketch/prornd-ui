@@ -28,7 +28,7 @@ const FrappeCard = ({
     >
         {title && (
             <div className="px-6 py-4 border-b border-zinc-300 dark:border-zinc-700 flex items-center gap-3">
-                {icon && <div className="p-2 bg-[#E0F7F6] rounded-lg">{icon}</div>}
+                {icon && <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg">{icon}</div>}
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">
                     {title}
                 </h3>
@@ -56,7 +56,7 @@ const DetailRow = ({
         <span
             className={cn(
                 "font-bold text-zinc-900 dark:text-zinc-100 text-sm",
-                highlight && "text-[#0EA5A4] text-base",
+                highlight && "text-[#D97757] text-base",
             )}
         >
             {isCurrency
@@ -406,7 +406,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                 <div className="space-y-6">
                     <FrappeCard
                         title={`Fund Received - ${fundReceivedName}`}
-                        icon={<Building2 className="h-4 w-4 text-[#0EA5A4]" />}
+                        icon={<Building2 className="h-4 w-4 text-[#D97757]" />}
                     >
                         <div className="mb-4">
                             <span
@@ -529,14 +529,14 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                 </div>
             </div>
 
-            {/* <FrappeCard className="bg-[#E0F7F6] border-[#0EA5A4]">
+            {/* <FrappeCard className="bg-zinc-50 dark:bg-zinc-800 border-[#D97757]">
                 <div className="flex justify-between items-center">
                     <div>
-                        <p className="font-bold text-[#0EA5A4] uppercase text-xs">Total Reconciliation</p>
+                        <p className="font-bold text-[#D97757] uppercase text-xs">Total Reconciliation</p>
                         <p className="text-sm text-zinc-700 dark:text-zinc-300">Compares Deposit Slip Total vs Fund Received Total</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-2xl font-extrabold text-[#0EA5A4]">
+                        <p className="text-2xl font-extrabold text-[#D97757]">
                             {(depositSlip.amount_inclusive_gst_capital === fundReceived.fund_received_amt) ? "MATCHED" : "MISMATCH"}
                         </p>
                     </div>

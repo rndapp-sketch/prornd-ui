@@ -16,7 +16,7 @@ export const ActionCard: React.FC<{
             className
         )}
     >
-        <div className="flex-shrink-0 flex items-center justify-center size-12 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg border border-zinc-200 dark:border-zinc-700 mb-4 group-hover:bg-[#D97757] group-hover:text-white group-hover:border-[#D97757] transition-all duration-300">
+        <div className="flex-shrink-0 flex items-center justify-center size-12 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-lg border border-zinc-200 dark:border-zinc-700 mb-4 group:bg-[#D97757] group:text-white group:border-[#D97757] transition-all duration-300">
             {icon}
         </div>
         <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100 uppercase">{title}</h3>

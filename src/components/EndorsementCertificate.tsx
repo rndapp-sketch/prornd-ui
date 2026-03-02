@@ -200,7 +200,7 @@
 //     const bodyRef = useRef<HTMLDivElement>(null);
 
 //     return (
-//         <div className="bg-[#F0F4F8] min-h-screen">
+//         <div className="bg-claude-bg min-h-screen">
 //             <AppSidebar />
 //             <main className="p-4 md:p-8 w-full">
 //                 {/* Inject print styles */}
@@ -859,7 +859,7 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
     };
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
+        <div className="bg-claude-bg min-h-screen">
             <AppSidebar />
             <main className="p-4 md:p-8 w-full">
                 {/* Inject print styles */}

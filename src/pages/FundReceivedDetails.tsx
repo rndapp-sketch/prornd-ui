@@ -199,7 +199,7 @@ const FrappeCard = ({
   >
     {title && (
       <div className="px-6 py-4 border-b border-zinc-300 dark:border-zinc-700 flex items-center gap-3">
-        {icon && <div className="p-2 bg-[#FDF3F0] rounded-lg">{icon}</div>}
+        {icon && <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg">{icon}</div>}
         <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">
           {title}
         </h3>
@@ -232,13 +232,13 @@ const FrappeButton = ({
       "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
       "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
       variant === "primary" &&
-        "bg-[#D97757] text-white hover:bg-[#C66A4E] shadow-md hover:shadow-lg border border-[#C66A4E]",
+        "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
       variant === "ghost" &&
         "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
       variant === "outline" &&
-        "bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 hover:border-[#D97757] hover:text-[#D97757] hover:bg-zinc-50 dark:bg-zinc-800/50",
+        "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
       variant === "action" &&
-        "bg-[#D97757] text-white font-bold hover:bg-[#C66A4E] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
+        "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
       "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
       className,
     )}
@@ -610,7 +610,7 @@ const ActivityStream = ({
                 key={`${item.creation}-${index}`}
                 className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg"
               >
-                <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#FDF3F0] border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-xs">
+                <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-xs">
                   {item.owner?.charAt(0).toUpperCase() || "U"}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -1661,7 +1661,7 @@ const FundReceivedDetails = () => {
             <div className="grid grid-cols-2 gap-4">
               <FrappeCard className="p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 bg-[#FDF3F0] rounded-lg">
+                  <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
                     <IndianRupee className="h-4 w-4 text-[#D97757]" />
                   </div>
                   <span className="font-bold text-zinc-700 dark:text-zinc-300 text-xs uppercase">
@@ -1842,7 +1842,7 @@ const FundReceivedDetails = () => {
         {/* Floating Activity Log Button */}
         <button
           onClick={() => setShowActivityLog(true)}
-          className="fixed bottom-8 right-8 p-4 bg-[#D97757] text-white rounded-full shadow-lg hover:bg-[#C66A4E] transition-all z-40 flex items-center gap-2"
+          className="fixed bottom-8 right-8 p-4 bg-[#D97757] text-white rounded-full shadow-lg hover:bg-[#D97757] transition-all z-40 flex items-center gap-2"
         >
           <MessageSquare className="h-6 w-6" />
           <span className="font-semibold hidden md:block">Activity Log</span>

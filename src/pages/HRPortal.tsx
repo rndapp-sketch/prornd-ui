@@ -112,7 +112,7 @@ const HRPortal: React.FC = () => {
     );
 
     return (
-        <div className=" bg-[#F0F4F8] min-h-screen font-sans">
+        <div className=" bg-claude-bg min-h-screen font-sans">
             <AppSidebar />
             <div className="flex-1 flex flex-col">
                 {/* Main Content */}

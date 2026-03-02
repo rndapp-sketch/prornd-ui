@@ -18,7 +18,7 @@ export function RndStaffDashboard() {
   const fullName = userData?.full_name || currentUser || "Guest";
 
   return (
-    <div className="min-h-screen dark:bg-[#18181B] font-sans">
+    <div className="min-h-screen dark:bg-zinc-900 font-sans">
       {/* <AppSidebar /> */}
       <div className="flex-1 p-4 md:p-8">
         <div className="w-full mx-auto">

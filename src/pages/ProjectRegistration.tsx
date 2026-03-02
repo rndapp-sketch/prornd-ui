@@ -208,7 +208,7 @@ const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, o
         <div className="mt-6 flex justify-end">
             <div className="w-full md:w-1/3 space-y-2">
                 <label className="block text-base font-bold text-zinc-900 dark:text-zinc-100">Grand Total (₹)</label>
-                <input type="text" className={`${inputClasses} !h-10 text-lg font-bold bg-[#FAFAF9] dark:bg-[#18181B] text-[#D97757]`} readOnly value={totalBudgetAmount.toFixed(2)} />
+                <input type="text" className={`${inputClasses} !h-10 text-lg font-bold bg-claude-bg dark:bg-zinc-900 text-[#D97757]`} readOnly value={totalBudgetAmount.toFixed(2)} />
             </div>
         </div>
     </div>

@@ -66,7 +66,7 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
         className={cn(
             "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-150",
             "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 disabled:opacity-50 disabled:cursor-not-allowed",
-            variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#C66A4E] shadow-sm hover:shadow-md",
+            variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#D97757] shadow-sm hover:shadow-md",
             variant === 'ghost' && "bg-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100",
             variant === 'outline' && "bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
             className
@@ -505,7 +505,7 @@ const AdvanceSettlementDetails: React.FC = () => {
 
     if (error || !data) {
         return (
-            <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+            <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
                 <AppSidebar />
                 <main className="flex-1 p-4 md:p-8">
                     <FrappeCard className="text-center py-16">
@@ -526,7 +526,7 @@ const AdvanceSettlementDetails: React.FC = () => {
     const isDraft = (!data.workflow_state || data.workflow_state === 'Draft') && data.docstatus === 0;
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8">
                 {/* Header */}

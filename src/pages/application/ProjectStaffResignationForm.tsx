@@ -261,7 +261,7 @@ const ProjectStaffResignationForm: React.FC = () => {
     // --- RENDER LOGIC ---
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+            <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent mx-auto"></div>
                     <p className="mt-4 text-lg font-medium text-zinc-700 dark:text-zinc-300">Loading form...</p>
@@ -271,7 +271,7 @@ const ProjectStaffResignationForm: React.FC = () => {
     }
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <PageHeader
@@ -309,7 +309,7 @@ const ProjectStaffResignationForm: React.FC = () => {
                             <FrappeButton
                                 type="submit"
                                 disabled={isSubmitting}
-                                className="bg-[#D97757] text-white hover:bg-[#C66A4E]"
+                                className="bg-[#D97757] text-white hover:bg-[#D97757]"
                             >
                                 {isSubmitting ? 'Submitting...' : 'Submit Resignation'}
                             </FrappeButton>

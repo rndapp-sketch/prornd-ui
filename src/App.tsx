@@ -1,7 +1,7 @@
 import { FrappeProvider, useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
 import { Outlet, useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/RndSidebar";
-import { SidebarProvider, SidebarTrigger, SidebarInset, Sidebar } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { MenuIcon, UserIcon, SearchIcon, MoonIcon, SunIcon } from "lucide-react";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { SWRConfig } from "swr";
@@ -86,7 +86,7 @@ function AppContent() {
   const userImageUrl = getUserImageUrl();
 
   return (
-    <div className="App bg-[#F9F7F2] dark:bg-[#18181B] min-h-screen">
+    <div className="App bg-[#F9F7F2] dark:bg-zinc-900 min-h-screen">
       <GlobalLoader isLoading={showGlobalLoader} />
 
       <SWRConfig value={{
@@ -98,26 +98,24 @@ function AppContent() {
         {isPublicPage ? (
           <Outlet />
         ) : (
-          <SidebarProvider className="flex h-screen bg-[#F9F7F2] dark:bg-[#18181B]">
+          <SidebarProvider className="flex h-screen bg-[#F9F7F2] dark:bg-zinc-900">
             {currentUser && (
-              <Sidebar collapsible="offcanvas" className="border-r border-zinc-200 dark:border-zinc-800">
-                <AppSidebar />
-              </Sidebar>
+              <AppSidebar />
             )}
-            <SidebarInset className="bg-[#F9F7F2] dark:bg-[#18181B]">
+            <SidebarInset className="bg-[#F9F7F2] dark:bg-zinc-900">
               <header className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 py-2 border-b border-zinc-200 bg-[#F9F7F2]/80 backdrop-blur-md dark:bg-zinc-900/80 dark:border-zinc-800">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center">
                   <SidebarTrigger className="size-10 p-2 hover:bg-[#D97757]/10 active:bg-[#D97757]/20 rounded-md text-[#D97757] transition-colors dark:text-[#D97757] dark:hover:bg-[#D97757]/10 dark:active:bg-[#D97757]/20">
                     <MenuIcon className="size-9" />
                   </SidebarTrigger>
-                </div>
 
-                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center gap-3">
-                  <div className="assamese-text font-bold text-sm text-zinc-950 dark:text-white whitespace-nowrap">ভাৰতীয় প্ৰযুক্তিবিদ্যা প্ৰতিষ্ঠান গুৱাহাটী</div>
-                  <div className="w-px h-4 bg-zinc-400 dark:bg-zinc-600"></div>
-                  <div className="hindi-text font-bold text-sm text-zinc-950 dark:text-white whitespace-nowrap">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
-                  <div className="w-px h-4 bg-zinc-400 dark:bg-zinc-600"></div>
-                  <div className="english-text font-serif font-bold text-sm text-zinc-950 dark:text-white whitespace-nowrap tracking-tight">Indian Institute of Technology Guwahati</div>
+                  <div className="hidden xl:flex items-center gap-3 ml-6 lg:ml-12 border-l border-zinc-200 dark:border-zinc-800 pl-6 py-1">
+                    <div className="assamese-text font-bold text-sm text-zinc-950 dark:text-white whitespace-nowrap leading-none">ভাৰতীয় প্ৰযুক্তিবিদ্যা প্ৰতিষ্ঠান গুৱাহাটী</div>
+                    <div className="w-px h-4 bg-zinc-400 dark:bg-zinc-600"></div>
+                    <div className="hindi-text font-bold text-sm text-zinc-950 dark:text-white whitespace-nowrap leading-none pt-0.5">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                    <div className="w-px h-4 bg-zinc-400 dark:bg-zinc-600"></div>
+                    <div className="english-text font-serif font-bold text-sm text-zinc-950 dark:text-white whitespace-nowrap tracking-tight leading-none pt-1 text-[15px]">Indian Institute of Technology Guwahati</div>
+                  </div>
                 </div>
                 {currentUser && (
                   <div className="flex items-center gap-3">
@@ -160,7 +158,7 @@ function AppContent() {
                   </div>
                 )}
               </header>
-              <main className="flex-1 overflow-y-auto p-4 lg:p-4 bg-[#F9F7F2] dark:bg-[#18181B]">
+              <main className="flex-1 overflow-y-auto p-4 lg:p-4 bg-[#F9F7F2] dark:bg-zinc-900">
                 <div className="mx-auto w-full animate-in fade-in duration-500">
                   <Outlet />
                 </div>

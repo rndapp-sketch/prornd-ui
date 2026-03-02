@@ -518,7 +518,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
             onChange={(e) => setNewComment(e.target.value)}
             onKeyDown={handleKeyPress}
             disabled={isSubmitting}
-            className="resize-none bg-white dark:bg-zinc-900 p-3 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#D97757]"
+            className="resize-none bg-white dark:bg-zinc-900 p-3 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
             rows={4}
           />
           <div className="flex items-center justify-between mt-4">
@@ -528,7 +528,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
             <FrappeButton
               onClick={handleCommentSubmit}
               disabled={isSubmitting || !newComment.trim()}
-              className="bg-[#D97757] hover:bg-[#C66A4E] text-white"
+              className="bg-[#D97757] hover:bg-[#D97757] text-white"
             >
               {isSubmitting ? "Submitting..." : "Submit"}
             </FrappeButton>
@@ -551,7 +551,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                 key={`${item.creation}-${index}`}
                 className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm"
               >
-                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#FDF3F0] dark:bg-[#D97757]/20 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-sm">
+                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-sm">
                   {item.owner?.charAt(0).toUpperCase() || "U"}
                 </div>
                 <div className="flex-1">
@@ -627,7 +627,7 @@ const WorkflowActions = ({
                 : "secondary"
           }
           className={cn("flex items-center gap-2 h-9 px-4 text-xs font-medium rounded-lg shadow-sm transition-all", {
-            "bg-[#D97757] hover:bg-[#C66A4E] text-white":
+            "bg-[#D97757] hover:bg-[#D97757] text-white":
               actionString.toLowerCase().includes("approve") ||
               actionString.toLowerCase().includes("submit"),
             "bg-red-500 hover:bg-red-600 text-white": actionString
@@ -817,7 +817,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                   {data?.project_title || "Project Details"}
                 </h1>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  ID: {projectName} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#FDF3F0] dark:bg-[#D97757]/20 text-[#D97757]">
+                  ID: {projectName} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757]">
                     {data?.workflow_state || "Draft"}
                   </span>
                 </p>
@@ -850,7 +850,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                   className={cn(
                     "flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 font-medium text-xs rounded-lg transition-all",
                     activeTab === tab.id
-                      ? "bg-[#FDF3F0] dark:bg-[#D97757]/20 text-[#D97757]"
+                      ? "bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757]"
                       : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   )}
                 >
@@ -1274,7 +1274,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                               }
                             }}
                             disabled={isViewingEndorsement}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-[#D97757] hover:bg-[#C66A4E] text-white rounded-lg font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-[#D97757] hover:bg-[#D97757] text-white rounded-lg font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                           >
                             <ExternalLinkIcon className="h-4 w-4" />
                             {isViewingEndorsement ? "Opening..." : "View Endorsement"}
@@ -1291,7 +1291,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                               const downloadUrl = `${baseUrl.replace(/\/$/, "")}/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.download_endorsement_file?docname=${projectName}&file_type=pdf`;
                               window.open(downloadUrl, '_blank');
                             }}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-[#FDF3F0] dark:bg-[#D97757]/20 hover:bg-[#B2EBF2] text-[#D97757] rounded-lg font-medium transition-colors"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 hover:bg-[#B2EBF2] text-[#D97757] rounded-lg font-medium transition-colors"
                           >
                             <DownloadIcon className="h-4 w-4" />
                             Download Certificate
@@ -1332,7 +1332,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                 href={file.file_url || file.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#D97757] bg-[#FDF3F0] dark:bg-[#D97757]/20 rounded-lg hover:bg-[#B2EBF2] transition-colors"
+                                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#D97757] bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 rounded-lg hover:bg-[#B2EBF2] transition-colors"
                               >
                                 <DownloadIcon className="h-4 w-4" />
                                 Download
@@ -1372,7 +1372,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
   };
 
   return (
-    <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+    <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
       <AppSidebar />
       <main className="flex-1 p-3 md:p-6 w-full overflow-hidden">
         {renderContent()}

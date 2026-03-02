@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppSidebar } from "../../components/RndSidebar";
-import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeGetCall, useFrappeGetDoc } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, UserIcon, EditIcon } from "lucide-react";
 import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { Textarea } from '@/components/ui/textarea';
 import { directPurchaseAPI } from '@/services/apiService';
+import { DepartmentName } from '@/components/DepartmentName';
+import { BudgetHeadName } from '@/components/BudgetHeadName';
 
 // --- TYPE DEFINITIONS ---
 interface DirectPurchaseData {
@@ -58,10 +60,10 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
         className={cn(
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
             "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
-            variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#C66A4E] shadow-md hover:shadow-lg border border-[#C66A4E]",
+            variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
             variant === 'ghost' && "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
-            variant === 'outline' && "bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 hover:border-[#D97757] hover:text-[#D97757] hover:bg-zinc-50 dark:bg-zinc-800/50",
-            variant === 'action' && "bg-[#D97757] text-white font-bold hover:bg-[#C66A4E] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
+            variant === 'outline' && "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
+            variant === 'action' && "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
             className
         )}
@@ -85,7 +87,7 @@ const ActivityStream = ({ doctype, docname }: { doctype: string; docname: string
             {activityData?.message && activityData.message.length > 0 ? (
                 activityData.message.map((activity, idx) => (
                     <div key={idx} className="flex items-start gap-3">
-                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#FDF3F0] flex items-center justify-center font-bold text-[#D97757] text-xs">
+                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-[#D97757] text-xs">
                             {activity.owner?.charAt(0).toUpperCase() || "U"}
                         </div>
                         <div className="min-w-0">
@@ -171,41 +173,24 @@ const DirectPurchaseActionButtons = ({ docname, onActionComplete }: { docname: s
 const DirectPurchaseDetails: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
-    const [data, setData] = useState<DirectPurchaseData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
-    const { call: fetchDoc } = useFrappePostCall<{ message: DirectPurchaseData }>(
-        'frappe.client.get'
+    const { data, error, isLoading: loading, mutate: reloadData } = useFrappeGetDoc<DirectPurchaseData>(
+        'Direct Purchase',
+        id || ''
     );
 
     // Sidebar State
     const [sidebarComment, setSidebarComment] = useState("");
     const [isAddingComment, setIsAddingComment] = useState(false);
+    const [isGeneratingPO, setIsGeneratingPO] = useState(false);
+    const [isGeneratingP11, setIsGeneratingP11] = useState(false);
+
     const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+    const { call: generatePO } = useFrappePostCall(directPurchaseAPI.generatePurchaseOrder);
+    const { call: generateP11 } = useFrappePostCall(directPurchaseAPI.generateP11Form);
 
-    // Fetch Document Data
-    const loadData = async () => {
-        if (!id) return;
-        setLoading(true);
-        try {
-            const docRes = await fetchDoc({ doctype: "Direct Purchase", name: id });
-            if (docRes?.message) {
-                setData(docRes.message);
-            } else {
-                setError("Document not found");
-            }
-        } catch (err) {
-            console.error("Error loading document:", err);
-            setError("Failed to load document");
-        } finally {
-            setLoading(false);
-        }
+    const loadData = () => {
+        if (id) reloadData();
     };
-
-    useEffect(() => {
-        loadData();
-    }, [id]);
 
     const handleSidebarCommentSubmit = async () => {
         if (!sidebarComment.trim() || !id) return;
@@ -226,6 +211,44 @@ const DirectPurchaseDetails: React.FC = () => {
         }
     };
 
+    const handleGeneratePO = async () => {
+        if (!id) return;
+        setIsGeneratingPO(true);
+        try {
+            const res = await generatePO({ docname: id });
+            if (res?.message?.status === 'success') {
+                alert("Purchase Order generated successfully! The document state has been updated to POGenerated.");
+                loadData();
+            } else {
+                throw new Error(res?.message?.message || "Failed to generate PO");
+            }
+        } catch (err: any) {
+            console.error("PO Generation Error:", err);
+            alert(`Error: ${err.message || "Could not generate Purchase Order."}`);
+        } finally {
+            setIsGeneratingPO(false);
+        }
+    };
+
+    const handleGenerateP11 = async () => {
+        if (!id) return;
+        setIsGeneratingP11(true);
+        try {
+            const res = await generateP11({ docname: id });
+            if (res?.message?.status === 'success') {
+                alert("P-11 Form generated successfully!");
+                loadData();
+            } else {
+                throw new Error(res?.message?.message || "Failed to generate P-11 Form");
+            }
+        } catch (err: any) {
+            console.error("P-11 Generation Error:", err);
+            alert(`Error: ${err.message || "Could not generate P-11 Form."}`);
+        } finally {
+            setIsGeneratingP11(false);
+        }
+    };
+
     if (loading) return <GlobalLoader isLoading={true} />;
 
     if (error || !data) {
@@ -233,7 +256,7 @@ const DirectPurchaseDetails: React.FC = () => {
             <div className="flex h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-800/50">
                 <div className="text-center">
                     <h2 className="text-xl font-bold text-red-600 mb-2">Error</h2>
-                    <p className="text-zinc-600 dark:text-zinc-400">{error || "Document not found"}</p>
+                    <p className="text-zinc-600 dark:text-zinc-400">{error ? (error as any).message || "Failed to load document" : "Document not found"}</p>
                     <button onClick={() => navigate(-1)} className="mt-4 text-[#D97757] hover:underline">Go Back</button>
                 </div>
             </div>
@@ -252,6 +275,15 @@ const DirectPurchaseDetails: React.FC = () => {
         }
         if (Array.isArray(value)) return null; // Skip arrays (child tables) in grid display
         if (typeof value === 'object') return JSON.stringify(value);
+
+        // Resolve specific Reference IDs to Names
+        if (key === 'applicant_department' || key === 'applying_for_department') {
+            return <DepartmentName name={value} />;
+        }
+        if (key === 'account_head') {
+            return <BudgetHeadName id={value} />;
+        }
+
         return String(value);
     };
 
@@ -281,7 +313,7 @@ const DirectPurchaseDetails: React.FC = () => {
     };
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
+        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen font-sans">
             <AppSidebar />
 
             <main className="transition-all duration-300 ease-in-out p-6 md:p-10">
@@ -295,10 +327,37 @@ const DirectPurchaseDetails: React.FC = () => {
                         {data.workflow_state === 'Draft' && id && (
                             <button
                                 onClick={() => navigate(`/direct-purchase?edit=${id}`)}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#C66A4E] shadow-md transition-all"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#D97757] shadow-md transition-all"
                             >
                                 <EditIcon className="w-4 h-4" />
                                 Edit
+                            </button>
+                        )}
+                        {/* Custom Form Generation Buttons */}
+                        {data.workflow_state === 'Approved' && id && (
+                            <button
+                                onClick={handleGenerateP11}
+                                disabled={isGeneratingP11}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-700 shadow-md transition-all disabled:opacity-50"
+                            >
+                                {isGeneratingP11 ? 'Generating P-11...' : 'Generate P-11 Form'}
+                            </button>
+                        )}
+                        {data.workflow_state === 'SancSheetApproved' && id && (
+                            <button
+                                onClick={handleGeneratePO}
+                                disabled={isGeneratingPO}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 shadow-md transition-all disabled:opacity-50"
+                            >
+                                {isGeneratingPO ? 'Generating PO...' : 'Generate Purchase Order'}
+                            </button>
+                        )}
+                        {data.workflow_state === 'POGenerated' && id && (
+                            <button
+                                onClick={() => alert("PO Print functionality will be integrated here.")}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 shadow-md transition-all"
+                            >
+                                Print PO
                             </button>
                         )}
                         {id && <DirectPurchaseActionButtons docname={id} onActionComplete={() => loadData()} />}

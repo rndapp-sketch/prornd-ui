@@ -38,7 +38,7 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
 
     return (
         <div className={cn(
-            "fixed inset-0 z-[100] flex items-center justify-center bg-[#FAFAF9]/80 dark:bg-[#18181B]/80 backdrop-blur-sm transition-opacity duration-500",
+            "fixed inset-0 z-[100] flex items-center justify-center bg-claude-bg/80 dark:bg-zinc-900/80 backdrop-blur-sm transition-opacity duration-500",
             className
         )}>
             <div className="flex flex-col items-center gap-4 animate-pulse">

@@ -19,7 +19,7 @@ interface FormDataResponse {
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-zinc-900 p-4 md:p-6 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>
         {children}
     </div>
 );
@@ -87,58 +87,58 @@ const FundDetailsSidebar = ({ projectCode }: { projectCode: string }) => {
 
     if (!projectCode) {
         return (
-            <div className="bg-gradient-to-br from-[#FDF3F0] to-gray-100 dark:from-zinc-900 dark:to-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg">
-                        <Info className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
+            <div className="bg-gradient-to-br from-[#FDF3F0] to-gray-100 dark:from-zinc-900 dark:to-zinc-900 p-4 lg:p-5 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <div className="flex items-center gap-2 mb-3">
+                    <div className="p-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-lg">
+                        <Info className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                     </div>
-                    <h3 className="font-semibold text-zinc-700 dark:text-zinc-300">Fund Details</h3>
+                    <h3 className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">Fund Details</h3>
                 </div>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">Select a project to view fund details</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Select a project to view fund details</p>
             </div>
         );
     }
 
     if (isLoading) {
         return (
-            <div className="bg-gradient-to-br from-[#FDF3F0] to-zinc-50 dark:from-zinc-900 dark:to-zinc-900 border border-[#D97757]/20 rounded-xl p-6">
-                <div className="h-6 bg-[#D97757]/20 rounded w-32 mb-4 animate-pulse"></div>
-                <div className="space-y-3">
-                    <div className="h-16 bg-[#D97757]/10 rounded animate-pulse"></div>
-                    <div className="h-16 bg-[#D97757]/10 rounded animate-pulse"></div>
+            <div className="bg-gradient-to-br from-[#FDF3F0] to-zinc-50 dark:from-zinc-900 dark:to-zinc-900 border border-[#D97757]/20 rounded-xl p-4 lg:p-5">
+                <div className="h-5 bg-[#D97757]/20 rounded w-24 mb-3 animate-pulse"></div>
+                <div className="space-y-2">
+                    <div className="h-12 bg-[#D97757]/10 rounded animate-pulse"></div>
+                    <div className="h-12 bg-[#D97757]/10 rounded animate-pulse"></div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-gradient-to-br from-[#FDF3F0] to-zinc-50 dark:from-zinc-900 dark:to-zinc-900 p-6 rounded-xl border border-[#D97757]/20 sticky top-6">
-            <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-[#D97757] rounded-lg">
-                    <Wallet className="h-5 w-5 text-white" />
+        <div className="bg-gradient-to-br from-[#FDF3F0] to-zinc-50 dark:from-zinc-900 dark:to-zinc-900 p-4 lg:p-5 rounded-xl border border-[#D97757]/20 sticky top-4">
+            <div className="flex items-center gap-2 mb-4">
+                <div className="p-1.5 bg-[#D97757] rounded-lg">
+                    <Wallet className="h-4 w-4 text-white" />
                 </div>
-                <h3 className="font-bold text-zinc-900 dark:text-zinc-100">Project Fund Details</h3>
+                <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">Project Fund Details</h3>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
                 {/* Total Fund Received */}
-                <div className="bg-white/80 dark:bg-zinc-800/80 backdrop-blur p-4 rounded-lg border border-[#D97757]/20">
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Total Fund Received</p>
-                    <p className="text-xl font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(projectData.totalFundReceived)}</p>
+                <div className="bg-white/80 dark:bg-zinc-800/80 backdrop-blur p-3 rounded-lg border border-[#D97757]/20">
+                    <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Total Fund Received</p>
+                    <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(projectData.totalFundReceived)}</p>
                 </div>
 
                 {/* Available Balance */}
-                <div className="bg-white/80 dark:bg-zinc-800/80 backdrop-blur p-4 rounded-lg border border-[#D97757]/20">
-                    <div className="flex items-center gap-2 mb-1">
-                        <TrendingUp className="h-4 w-4 text-[#D97757]" />
-                        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-0">Available Balance</p>
+                <div className="bg-white/80 dark:bg-zinc-800/80 backdrop-blur p-3 rounded-lg border border-[#D97757]/20">
+                    <div className="flex items-center gap-1.5 mb-1">
+                        <TrendingUp className="h-3.5 w-3.5 text-[#D97757]" />
+                        <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-0">Available Balance</p>
                     </div>
-                    <p className="text-2xl font-bold text-[#D97757]">{formatCurrency(projectData.availableCommitAmount)}</p>
+                    <p className="text-xl font-bold text-[#D97757]">{formatCurrency(projectData.availableCommitAmount)}</p>
                 </div>
 
                 {/* Fund Breakdown */}
-                <div className="pt-4 border-t border-[#D97757]/20">
-                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Fund Breakdown</p>
+                <div className="pt-3 border-t border-[#D97757]/20">
+                    <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Fund Breakdown</p>
                     <div className="space-y-2">
                         <div className="flex justify-between items-center text-sm">
                             <span className="text-zinc-600 dark:text-zinc-400">Total Committed</span>
@@ -557,7 +557,7 @@ const TravelForm: React.FC = () => {
     // --- RENDER LOGIC ---
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+            <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent mx-auto"></div>
                     <p className="mt-4 text-lg font-medium text-zinc-700 dark:text-zinc-300">Loading form...</p>
@@ -567,7 +567,7 @@ const TravelForm: React.FC = () => {
     }
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <PageHeader
@@ -591,10 +591,10 @@ const TravelForm: React.FC = () => {
                 )}
 
                 <form onSubmit={handleSubmit}>
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
                         {/* Main Form - 3 columns */}
                         <div className="lg:col-span-3">
-                            <FrappeCard className="space-y-8">
+                            <FrappeCard className="space-y-6">
                                 <DynamicFormRenderer
                                     fields={visibleFields}
                                     formData={formData}
@@ -623,7 +623,7 @@ const TravelForm: React.FC = () => {
                                 <FrappeButton
                                     type="submit"
                                     disabled={isSubmitting || !savedDocName}
-                                    className="bg-[#D97757] text-white hover:bg-[#C66A4E]"
+                                    className="bg-[#D97757] text-white hover:bg-[#D97757]"
                                 >
                                     {isSubmitting ? 'Submitting...' : 'Submit Application'}
                                 </FrappeButton>
@@ -709,7 +709,7 @@ export default TravelForm;
 
 //     if (!projectCode) {
 //         return (
-//             <div className="bg-white dark:bg-[#27272A] p-6 rounded-lg border border-zinc-200 dark:border-zinc-700">
+//             <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg border border-zinc-200 dark:border-zinc-700">
 //                 <div className="flex items-center gap-3 mb-4">
 //                     <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
 //                         <Info className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
@@ -723,7 +723,7 @@ export default TravelForm;
 
 //     if (isLoading) {
 //         return (
-//             <div className="bg-white dark:bg-[#27272A] p-6 rounded-lg border border-zinc-200 dark:border-zinc-700 animate-pulse">
+//             <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg border border-zinc-200 dark:border-zinc-700 animate-pulse">
 //                 <div className="h-6 bg-zinc-200 dark:bg-zinc-700 rounded w-32 mb-4"></div>
 //                 <div className="space-y-3">
 //                     <div className="h-16 bg-zinc-100 dark:bg-zinc-800 rounded"></div>
@@ -734,7 +734,7 @@ export default TravelForm;
 //     }
 
 //     return (
-//         <div className="bg-white dark:bg-[#27272A] p-6 rounded-lg border border-zinc-200 dark:border-zinc-700 sticky top-6">
+//         <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg border border-zinc-200 dark:border-zinc-700 sticky top-6">
 //             <div className="flex items-center gap-3 mb-6">
 //                 <div className="p-2 bg-[#D97757]/10 rounded-lg">
 //                     <Wallet className="h-5 w-5 text-[#D97757]" />
@@ -754,12 +754,12 @@ export default TravelForm;
 
 //                 <div className="border-b border-zinc-100 dark:border-zinc-800 pb-4">
 //                     <div className="flex items-center gap-2 mb-1">
-//                         <TrendingUp className="h-4 w-4 text-[#9A7D5A]" />
+//                         <TrendingUp className="h-4 w-4 text-claude-accent" />
 //                         <p className="font-sans text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold">
 //                             Available Balance
 //                         </p>
 //                     </div>
-//                     <p className="font-serif text-2xl font-medium text-[#9A7D5A]">
+//                     <p className="font-serif text-2xl font-medium text-claude-accent">
 //                         {formatCurrency(projectData.availableCommitAmount)}
 //                     </p>
 //                 </div>
@@ -1145,7 +1145,7 @@ export default TravelForm;
 
 //     if (loading) {
 //         return (
-//             <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+//             <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
 //                 <div className="text-center">
 //                     <div className="animate-spin rounded-full h-10 w-10 border-2 border-zinc-200 border-t-[#D97757] dark:border-zinc-700 dark:border-t-[#D97757] mx-auto"></div>
 //                     <p className="mt-4 font-sans text-sm text-zinc-500 dark:text-zinc-400">Loading form...</p>
@@ -1155,12 +1155,12 @@ export default TravelForm;
 //     }
 
 //     return (
-//         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
+//         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen font-sans">
 //             <AppSidebar />
 
 //             <button
 //                 onClick={toggleTheme}
-//                 className="fixed top-4 right-4 p-2 rounded-lg bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-[#27272A] dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50 transition-colors z-50"
+//                 className="fixed top-4 right-4 p-2 rounded-lg bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50 transition-colors z-50"
 //                 aria-label="Toggle theme"
 //             >
 //                 {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
@@ -1208,7 +1208,7 @@ export default TravelForm;
 //                 <form onSubmit={handleSubmit}>
 //                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
 //                         <div className="lg:col-span-3 space-y-6">
-//                             <div className="bg-white dark:bg-[#27272A] rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-sm p-6 md:p-8">
+//                             <div className="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-sm p-6 md:p-8">
 //                                 <DynamicFormRenderer
 //                                     fields={visibleFields}
 //                                     formData={formData}
@@ -1237,7 +1237,7 @@ export default TravelForm;
 //                                         "disabled:opacity-50 disabled:cursor-not-allowed",
 //                                         "focus:outline-none focus:ring-2 focus:ring-zinc-100 dark:focus:ring-zinc-700",
 //                                         "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50",
-//                                         "dark:bg-[#27272A] dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50"
+//                                         "dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50"
 //                                     )}
 //                                 >
 //                                     {isSubmitting ? 'Saving...' : 'Save Draft'}

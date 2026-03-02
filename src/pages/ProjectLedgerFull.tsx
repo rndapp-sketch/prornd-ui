@@ -6,6 +6,7 @@ import {
     SearchIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
+    ArrowUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +45,7 @@ interface LedgerTransaction {
     bmr: string | null;
     bankTransactionNumber: string | null;
     bankTransactionDate: string | null;
+    recordTime?: string;
 }
 
 const ProjectLedgerFull = () => {
@@ -56,6 +58,7 @@ const ProjectLedgerFull = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(20);
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
 
     // Fetch Project Details for context (Title, etc.)
     const { data: projectData } = useFrappeGetCall<{ message: any[] }>(
@@ -175,12 +178,12 @@ const ProjectLedgerFull = () => {
             const rawData = Array.isArray(result) ? result : [];
             let runningPaymentBalance = 0;
 
-            // Sort by date ascending
-            const sortedData = [...rawData].sort(
-                (a: any, b: any) =>
-                    new Date(a.transactionDate).getTime() -
-                    new Date(b.transactionDate).getTime()
-            );
+            // Sort by recordTime (with fallback to transactionDate) ascending
+            const sortedData = [...rawData].sort((a: any, b: any) => {
+                const timeA = new Date(a.recordTime || a.transactionDate).getTime();
+                const timeB = new Date(b.recordTime || b.transactionDate).getTime();
+                return timeA - timeB;
+            });
 
             const calculatedData = sortedData.map((txn: any) => {
                 const received = txn.fundReceivedAmount || 0;
@@ -193,8 +196,8 @@ const ProjectLedgerFull = () => {
             });
 
             console.log("ProjectLedgerFull: Calculated Data:", calculatedData);
-            // Reverse for display (newest first) but keep balance calculation correct
-            setLedgerTransactions(calculatedData.reverse());
+            // Store in ascending order; display sort is handled separately
+            setLedgerTransactions(calculatedData);
         } catch (error) {
             console.error("Error fetching ledger:", error);
         } finally {
@@ -213,12 +216,17 @@ const ProjectLedgerFull = () => {
         return filtered;
     }, [ledgerTransactions, searchQuery]);
 
+    // Apply sort order for display
+    const sortedTransactions = useMemo(() => {
+        return sortOrder === 'newest' ? [...filteredTransactions].reverse() : filteredTransactions;
+    }, [filteredTransactions, sortOrder]);
+
     const paginatedTransactions = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
-        return filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
-    }, [filteredTransactions, currentPage, itemsPerPage]);
+        return sortedTransactions.slice(startIndex, startIndex + itemsPerPage);
+    }, [sortedTransactions, currentPage, itemsPerPage]);
 
-    const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+    const totalPages = Math.ceil(sortedTransactions.length / itemsPerPage);
 
     const formatCurrency = (amount: number | null) => {
         if (amount === null || amount === undefined) return "-";
@@ -320,6 +328,15 @@ const ProjectLedgerFull = () => {
                                         <SelectItem value="100">100 rows</SelectItem>
                                     </SelectContent>
                                 </Select>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
+                                    className="flex items-center gap-1.5 whitespace-nowrap"
+                                >
+                                    <ArrowUpDown className="h-3.5 w-3.5" />
+                                    {sortOrder === 'newest' ? 'Newest First' : 'Oldest First'}
+                                </Button>
                             </div>
                         </div>
                     </CardHeader>
@@ -422,7 +439,7 @@ const ProjectLedgerFull = () => {
                     {/* Pagination Footer */}
                     <div className="border-t border-zinc-200 dark:border-zinc-800 p-4 flex items-center justify-between">
                         <div className="text-sm text-zinc-500">
-                            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredTransactions.length)} of {filteredTransactions.length} entries
+                            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, sortedTransactions.length)} of {sortedTransactions.length} entries
                         </div>
                         <div className="flex items-center gap-2">
                             <Button

@@ -74,7 +74,7 @@ export const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamPro
                     />
                     <div className="flex items-center justify-between mt-4">
                         <span className="text-xs text-zinc-500 dark:text-zinc-400">{newComment.length}/1000</span>
-                        <FrappeButton onClick={handleCommentSubmit} disabled={isSubmitting || !newComment.trim()} className="bg-[#0EA5A4] text-white hover:bg-[#0C8F8E]">
+                        <FrappeButton onClick={handleCommentSubmit} disabled={isSubmitting || !newComment.trim()} className="bg-[#D97757] text-white hover:bg-[#D97757]">
                             {isSubmitting ? "Submitting..." : "Submit"}
                         </FrappeButton>
                     </div>
@@ -85,7 +85,7 @@ export const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamPro
                             key={`${item.creation}-${index}`}
                             className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow"
                         >
-                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#E0F7F6] dark:bg-[#0EA5A4]/20 flex items-center justify-center font-semibold text-[#0EA5A4] text-lg">
+                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 flex items-center justify-center font-semibold text-[#D97757] text-lg">
                                 {item.owner?.charAt(0).toUpperCase() || "U"}
                             </div>
                             <div className="flex-1 min-w-0">

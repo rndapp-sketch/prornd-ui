@@ -64,13 +64,32 @@ export const advanceSettlementAPI = {
     submitPayment: `${API_BASE}.advance_settlement.advance_settlement.submit_advance_settlement_payment`
 };
 
-// Direct Purchase API endpoints
+// Direct Purchase API endpoints (Stage 1)
 export const directPurchaseAPI = {
     getFields: `${API_BASE}.direct_purchase.direct_purchase.get_direct_purchase_fields`,
     save: `${API_BASE}.direct_purchase.direct_purchase.save_direct_purchase_data`,
     getWorkflowActions: `${API_BASE}.direct_purchase.direct_purchase.get_direct_purchase_workflow_actions`,
     performAction: `${API_BASE}.direct_purchase.direct_purchase.perform_direct_purchase_action`,
-    submit: `${API_BASE}.direct_purchase.direct_purchase.submit_direct_purchase`,
+    getUserDetails: `${API_BASE}.direct_purchase.direct_purchase.get_user_details_direct_purchase`,
+    generateP11Form: `${API_BASE}.direct_purchase.direct_purchase.generate_p11_form`,
+    generateSanctionSheet: `${API_BASE}.direct_purchase.direct_purchase.generate_sanction_sheet`,
+    generatePurchaseOrder: `${API_BASE}.direct_purchase.direct_purchase.generate_purchase_order`,
+};
+
+// P_11 Form API endpoints (Stage 2)
+export const p11FormAPI = {
+    getFields: `${API_BASE}.p_11_form.p_11_form.get_p_11_form_fields`,
+    save: `${API_BASE}.p_11_form.p_11_form.save_p_11_form_data`,
+    getWorkflowActions: `${API_BASE}.p_11_form.p_11_form.get_p_11_form_workflow_actions`,
+    performAction: `${API_BASE}.p_11_form.p_11_form.perform_p_11_form_action`,
+};
+
+// Sanction Sheet API endpoints (Stage 3)
+export const sanctionSheetAPI = {
+    getFields: `${API_BASE}.sanction_sheet.sanction_sheet.get_sanction_sheet_fields`,
+    save: `${API_BASE}.sanction_sheet.sanction_sheet.save_sanction_sheet_data`,
+    getWorkflowActions: `${API_BASE}.sanction_sheet.sanction_sheet.get_sanction_sheet_workflow_actions`,
+    performAction: `${API_BASE}.sanction_sheet.sanction_sheet.perform_sanction_sheet_action`,
 };
 
 // Common utility to get user details

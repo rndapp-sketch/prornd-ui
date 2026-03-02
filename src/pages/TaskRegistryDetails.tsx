@@ -30,8 +30,8 @@ const TaskRegistryDetails: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#0EA5A4] border-t-transparent"></div>
+            <div className="flex items-center justify-center min-h-screen bg-claude-bg">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent"></div>
             </div>
         );
     }
@@ -48,7 +48,7 @@ const TaskRegistryDetails: React.FC = () => {
 
     if (error || !data) {
         return (
-            <div className="flex flex-col h-screen items-center justify-center bg-[#F0F4F8] p-4">
+            <div className="flex flex-col h-screen items-center justify-center bg-claude-bg p-4">
                 <div className="bg-white dark:bg-zinc-900 p-8 rounded-xl shadow-md max-w-lg w-full text-center">
                     <div className="text-red-500 font-bold text-xl mb-2">Unexpected Application Error!</div>
                     <div className="text-zinc-800 dark:text-zinc-200 font-medium text-lg mb-4">404 Not Found</div>
@@ -84,7 +84,7 @@ const TaskRegistryDetails: React.FC = () => {
     });
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
+        <div className="bg-claude-bg min-h-screen">
             <AppSidebar />
 
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
@@ -96,7 +96,7 @@ const TaskRegistryDetails: React.FC = () => {
                             </button>
                             <div>
                                 <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Document Details</h1>
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{doctype} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E0F7F6] text-[#0EA5A4]">{name}</span></p>
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{doctype} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-50 dark:bg-zinc-800 text-[#D97757]">{name}</span></p>
                             </div>
                         </div>
                         {/* No action buttons for registry view as it's typically read-only / historic */}
@@ -187,7 +187,7 @@ const TaskRegistryDetails: React.FC = () => {
                                                     </th>
                                                 ))}
                                                 {isBudgetTable && (
-                                                    <th className="px-4 py-3 text-xs font-semibold text-[#0EA5A4] whitespace-nowrap bg-[#E0F7F6]">
+                                                    <th className="px-4 py-3 text-xs font-semibold text-[#D97757] whitespace-nowrap bg-zinc-50 dark:bg-zinc-800">
                                                         Row Total
                                                     </th>
                                                 )}
@@ -205,7 +205,7 @@ const TaskRegistryDetails: React.FC = () => {
                                                         </td>
                                                     ))}
                                                     {isBudgetTable && (
-                                                        <td className="px-4 py-3 text-sm font-semibold text-[#0EA5A4] bg-[#E0F7F6]/30">
+                                                        <td className="px-4 py-3 text-sm font-semibold text-[#D97757] bg-zinc-50 dark:bg-zinc-800/30">
                                                             {getRowTotal(row).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
                                                         </td>
                                                     )}
@@ -224,7 +224,7 @@ const TaskRegistryDetails: React.FC = () => {
                                                             }
                                                         </td>
                                                     ))}
-                                                    <td className="px-4 py-3 text-sm font-bold text-white bg-[#0EA5A4]">
+                                                    <td className="px-4 py-3 text-sm font-bold text-white bg-[#D97757]">
                                                         {grandTotal.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
                                                     </td>
                                                 </tr>

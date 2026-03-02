@@ -25,7 +25,7 @@ export interface ChildTableProps {
 }
 
 // --- STYLES ---
-const inputClasses = "w-full h-11 px-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800";
+const inputClasses = "w-full h-11 px-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.18)] focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800";
 
 const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: {
     children: React.ReactNode;
@@ -127,7 +127,7 @@ export const ChildTableComponent = memo(({
                 return (
                     <input
                         type="checkbox"
-                        className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 text-[#0EA5A4] focus:ring-[#0EA5A4]"
+                        className="w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 text-[#D97757] focus:ring-[#D97757]"
                         checked={!!value}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, e.target.checked ? 1 : 0)}
                         disabled={isReadOnly}
@@ -154,7 +154,7 @@ export const ChildTableComponent = memo(({
                 return (
                     <input
                         type="file"
-                        className={cn(inputClasses, "py-2 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:font-medium file:bg-[#E0F7F6] file:text-[#0EA5A4] hover:file:bg-[#0EA5A4] hover:file:text-white file:transition-colors")}
+                        className={cn(inputClasses, "py-2 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:font-medium file:bg-zinc-50 dark:bg-zinc-800 file:text-[#D97757] hover:file:bg-[#D97757] hover:file:text-white file:transition-colors")}
                         onChange={(e) => onFileChange(tableName, rowIndex, col.fieldname, e.target.files?.[0] || null)}
                         disabled={isReadOnly}
                     />

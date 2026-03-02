@@ -49,7 +49,7 @@ export interface DynamicFormRendererProps {
 }
 
 // --- STYLES ---
-const inputClasses = "w-full h-12 px-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)] focus:border-[#0EA5A4] disabled:opacity-70 disabled:bg-zinc-100 dark:disabled:bg-zinc-800 read-only:bg-zinc-50 dark:read-only:bg-zinc-800/50";
+const inputClasses = "w-full h-12 px-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.18)] focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:disabled:bg-zinc-800 read-only:bg-zinc-50 dark:read-only:bg-zinc-800/50";
 
 
 // --- MEMOIZED FORM FIELD COMPONENT ---
@@ -254,7 +254,7 @@ const MemoizedFormField = memo(({
                                 href={value}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-4 py-2 bg-[#E0F7F6] text-[#0EA5A4] rounded-xl hover:bg-[#0EA5A4] hover:text-white transition-colors font-medium"
+                                className="flex items-center gap-2 px-4 py-2 bg-zinc-50 dark:bg-zinc-800 text-[#D97757] rounded-xl hover:bg-[#D97757] hover:text-white transition-colors font-medium"
                             >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -283,7 +283,7 @@ const MemoizedFormField = memo(({
                         type="file"
                         id={field.fieldname}
                         name={field.fieldname}
-                        className={cn(inputClasses, "py-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-medium file:bg-[#E0F7F6] file:text-[#0EA5A4] hover:file:bg-[#0EA5A4] hover:file:text-white file:transition-colors")}
+                        className={cn(inputClasses, "py-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-medium file:bg-zinc-50 dark:bg-zinc-800 file:text-[#D97757] hover:file:bg-[#D97757] hover:file:text-white file:transition-colors")}
                         onChange={(e) => onFileChange(field.fieldname, e.target.files?.[0] || null)}
                         accept={field.fieldtype === 'Attach Image' ? 'image/*' : undefined}
                     />
@@ -329,7 +329,7 @@ const MemoizedFormField = memo(({
                                     <div className="w-5 h-5 border-2 border-zinc-300 dark:border-zinc-600 rounded-full peer-checked:border-[#D97757] peer-checked:bg-[#D97757] transition-all duration-200"></div>
                                     <div className="absolute inset-0 m-auto w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
                                 </div>
-                                <span className="text-zinc-700 dark:text-zinc-300 font-medium group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
+                                <span className="text-zinc-700 dark:text-zinc-300 font-medium group:text-zinc-900 dark:group:text-zinc-100 transition-colors">
                                     {opt}
                                 </span>
                             </label>

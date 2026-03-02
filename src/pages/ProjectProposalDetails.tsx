@@ -45,8 +45,8 @@ const SectionWrapper = ({
         )}
     >
         <div className="flex items-center gap-3 mb-4 pb-3 border-b border-zinc-100 dark:border-zinc-800">
-            <div className="p-2 bg-[#E0F7F6] rounded-lg">
-                <Icon className="h-5 w-5 text-[#0EA5A4]" />
+            <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
+                <Icon className="h-5 w-5 text-[#D97757]" />
             </div>
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{title}</h3>
         </div>
@@ -68,7 +68,7 @@ const FieldDisplay = ({
     return (
         <div className="py-2">
             <div className="flex items-center gap-2 mb-1">
-                {Icon && <Icon className="h-4 w-4 text-[#0EA5A4]" />}
+                {Icon && <Icon className="h-4 w-4 text-[#D97757]" />}
                 <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                     {label}
                 </p>
@@ -177,7 +177,7 @@ const FrappeButton = ({
     <button
         className={cn(
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-150",
-            "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800/50 focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.18)]",
+            "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800/50 focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.18)]",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             className
         )}
@@ -232,7 +232,7 @@ const ProjectProposalDetails: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
+            <div className="flex items-center justify-center min-h-screen bg-claude-bg">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-16 w-16 border-4 border-zinc-200 dark:border-zinc-800 border-t-[#90A4AE] mx-auto"></div>
                     <p className="mt-4 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
@@ -245,7 +245,7 @@ const ProjectProposalDetails: React.FC = () => {
 
     if (error || !data) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
+            <div className="flex items-center justify-center min-h-screen bg-claude-bg">
                 <div className="text-center">
                     <p className="mt-4 text-2xl font-bold text-red-600">
                         Error loading proposal or not found.
@@ -262,7 +262,7 @@ const ProjectProposalDetails: React.FC = () => {
     const isOwner = data.owner === currentUser;
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
+        <div className="bg-claude-bg min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <header className="mb-8 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
@@ -298,7 +298,7 @@ const ProjectProposalDetails: React.FC = () => {
                                 <FrappeButton
                                     onClick={handleSubmit}
                                     disabled={isSubmitting}
-                                    className="bg-[#0EA5A4] text-white hover:bg-[#81C784] flex items-center gap-2"
+                                    className="bg-[#D97757] text-white hover:bg-[#81C784] flex items-center gap-2"
                                 >
                                     <CheckCircleIcon className="h-5 w-5" />
                                     {isSubmitting ? "Submitting..." : "Submit Proposal"}
@@ -318,7 +318,7 @@ const ProjectProposalDetails: React.FC = () => {
                                     className={cn(
                                         "flex items-center gap-2 py-3 px-5 font-semibold text-sm rounded-t-xl border border-b-0 transition-all",
                                         activeTab === tab.id
-                                            ? "bg-white dark:bg-zinc-900 text-[#0EA5A4] border-zinc-200 dark:border-zinc-800 shadow-sm"
+                                            ? "bg-white dark:bg-zinc-900 text-[#D97757] border-zinc-200 dark:border-zinc-800 shadow-sm"
                                             : "bg-zinc-50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-400 border-transparent hover:text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:bg-zinc-800"
                                     )}
                                 >
@@ -328,7 +328,7 @@ const ProjectProposalDetails: React.FC = () => {
                         </nav>
                     </div>
 
-                    <div className="bg-[#F0F4F8] p-6 md:p-8">
+                    <div className="bg-claude-bg p-6 md:p-8">
                         {activeTab === "overview" && (
                             <div className="space-y-8">
                                 <SectionWrapper title="General Information" icon={FileTextIcon}>

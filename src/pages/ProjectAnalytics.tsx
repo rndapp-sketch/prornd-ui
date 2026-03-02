@@ -62,7 +62,7 @@ const ProjectAnalytics = () => {
     const charts = analyticsData?.charts || { status: [], year: [], funding: [] };
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen font-sans">
+        <div className="bg-claude-bg min-h-screen font-sans">
             <AppSidebar />
             <div className="flex-1 p-4 md:p-8">
                 <div className="max-w-7xl mx-auto">

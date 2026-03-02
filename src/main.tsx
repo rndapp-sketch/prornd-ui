@@ -59,6 +59,8 @@ import DisbursalOfHonorarium from './pages/application/DisbursalOfHonorarium.tsx
 import DisbursalOfHonorariumForm from './pages/application/DisbursalOfHonorariumForm.tsx';
 import DirectPurchase from './pages/DirectPurchase.tsx';
 import DirectPurchaseDetails from './pages/application/DirectPurchaseDetails.tsx';
+import P11Form from './pages/application/P11Form.tsx';
+import SanctionSheetForm from './pages/application/SanctionSheetForm.tsx';
 
 const router = createBrowserRouter(
   [
@@ -489,6 +491,22 @@ const router = createBrowserRouter(
             </AuthRouteWrapper>
           )
         },
+        {
+          path: "p11-form/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <P11Form />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "sanction-sheet/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <SanctionSheetForm />
+            </AuthRouteWrapper>
+          )
+        }
       ],
     },
   ],

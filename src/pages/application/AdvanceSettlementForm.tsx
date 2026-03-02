@@ -457,7 +457,7 @@ const AdvanceSettlementForm: React.FC = () => {
     // --- RENDER LOGIC ---
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+            <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent mx-auto"></div>
                     <p className="mt-4 text-lg font-medium text-zinc-700 dark:text-zinc-300">Loading form...</p>
@@ -476,7 +476,7 @@ const AdvanceSettlementForm: React.FC = () => {
     };
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <PageHeader
@@ -530,7 +530,7 @@ const AdvanceSettlementForm: React.FC = () => {
                                 <FrappeButton
                                     onClick={handleSave}
                                     disabled={isSubmitting}
-                                    className="bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-[#27272A] dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50"
+                                    className="bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50"
                                 >
                                     {isSubmitting ? 'Saving...' : 'Save Draft'}
                                 </FrappeButton>

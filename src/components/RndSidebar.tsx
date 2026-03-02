@@ -237,21 +237,21 @@ export function AppSidebar() {
       <Sidebar
         collapsible="icon"
         variant="sidebar"
-        className="bg-[#F0EDE4] border-r border-zinc-200 dark:bg-[#18181B] dark:border-zinc-800 z-40"
+        className="bg-[#F0EDE4] border-r border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 z-40"
         style={{
-          "--sidebar-width": "10rem",
+          "--sidebar-width": "13rem",
           "--sidebar-width-icon": "3.5rem"
         } as React.CSSProperties}
       >
 
         {/* --- Header with Claude styling --- */}
         <SidebarHeader className={cn(
-          "h-16 border-b border-zinc-200 bg-[#F0EDE4] dark:bg-[#18181B] dark:border-zinc-800 flex items-center transition-all duration-200",
+          "h-16 border-b border-zinc-200 bg-[#F0EDE4] dark:bg-zinc-900 dark:border-zinc-800 flex items-center transition-all duration-200",
           state === 'expanded' ? "px-4" : "justify-center px-0"
         )}>
           <div className={cn("flex items-center", state === 'expanded' ? "gap-2 w-full" : "justify-center")}>
             <div className="flex items-center justify-center w-8 h-8 rounded-lg overflow-hidden flex-shrink-0">
-              <img src="/IITG_Logo.svg" alt="IITG Logo" className="w-full h-full object-contain" />
+              <img src="/IITG_Large_Logo.gif" alt="IITG Logo" className="w-full h-full object-contain" />
             </div>
             {state === 'expanded' && (
               <div className="flex flex-col overflow-hidden">
@@ -264,7 +264,7 @@ export function AppSidebar() {
         </SidebarHeader>
 
         {/* --- Menu with Claude styling --- */}
-        <SidebarContent className="px-2 py-3 bg-[#F0EDE4] dark:bg-[#18181B]">
+        <SidebarContent className="px-2 py-3 bg-[#F0EDE4] dark:bg-zinc-900">
           <SidebarGroup>
             <SidebarMenu className="space-y-1">
               {menuItems.map((item) => {
@@ -335,7 +335,7 @@ export function AppSidebar() {
         </SidebarContent>
 
         {/* --- Footer with Claude styling --- */}
-        <SidebarFooter className="px-2 py-3 border-t border-zinc-200 bg-[#F0EDE4] dark:bg-[#18181B] dark:border-zinc-800">
+        <SidebarFooter className="px-2 py-3 border-t border-zinc-200 bg-[#F0EDE4] dark:bg-zinc-900 dark:border-zinc-800">
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={handleLogout}

@@ -6,9 +6,8 @@ import { AppSidebar } from '@/components/RndSidebar';
 import { FrappeButton } from '@/components/ui/neo-brutalism';
 import ProjectDetailsView from "./ProjectDetails";
 import TemporaryAdvanceDetailsView from "./TemporaryAdvanceDetailsView";
-import { cn } from '@/lib/utils';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI } from '@/services/apiService';
+import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, directPurchaseAPI } from '@/services/apiService';
 import { ActivityStream } from '@/components/ActivityStream';
 import { BudgetActionsSidebar } from '@/components/BudgetActionsSidebar';
 import TemporaryAdvanceActionButtons from '@/components/TemporaryAdvanceActionButtons';
@@ -31,9 +30,9 @@ const HIDDEN_FIELDS = [
     'workflow_state'
 ];
 
-// Style constants matching DynamicFormRenderer
-const inputClasses = "w-full min-h-[48px] px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-xl text-zinc-900 dark:text-zinc-100 shadow-sm flex items-center";
-const labelClasses = "block font-medium text-zinc-900 dark:text-zinc-100 mb-2";
+// Style constants for generic details
+const labelClasses = "text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block";
+const valueClasses = "text-[15px] font-medium text-zinc-900 dark:text-zinc-100 leading-relaxed break-words";
 
 const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: { isOpen: boolean; onClose: () => void; onSubmit: (comment: string) => void; action: string; isLoading: boolean }) => {
     const [comment, setComment] = React.useState("");
@@ -45,7 +44,7 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: { isOpen
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md">
                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Confirm {action}</h3>
                 <textarea
-                    className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#0EA5A4]"
+                    className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.25)] focus:border-[#D97757]"
                     rows={4}
                     placeholder="Add a comment (optional)..."
                     value={comment}
@@ -56,7 +55,7 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: { isOpen
                     <FrappeButton
                         onClick={() => onSubmit(comment)}
                         disabled={isLoading}
-                        className="bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white"
+                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
                     >
                         {isLoading ? "Processing..." : "Confirm"}
                     </FrappeButton>
@@ -104,7 +103,7 @@ const ReimbursementWorkflowActions = ({ docname, onActionComplete }: { docname: 
                         key={action}
                         onClick={() => handleActionClick(action)}
                         disabled={actionLoading}
-                        className="bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white"
+                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
                     >
                         {action}
                     </FrappeButton>
@@ -159,7 +158,7 @@ const FundSanctionWorkflowActions = ({ docname, onActionComplete }: { docname: s
                         key={action}
                         onClick={() => handleActionClick(action)}
                         disabled={actionLoading}
-                        className="bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white"
+                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
                     >
                         {action}
                     </FrappeButton>
@@ -214,7 +213,7 @@ const TravelWorkflowActions = ({ docname, onActionComplete }: { docname: string;
                         key={action}
                         onClick={() => handleActionClick(action)}
                         disabled={actionLoading}
-                        className="bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white"
+                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
                     >
                         {action}
                     </FrappeButton>
@@ -231,7 +230,60 @@ const TravelWorkflowActions = ({ docname, onActionComplete }: { docname: string;
     );
 };
 
+const DirectPurchaseWorkflowActions = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
+    const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
+        directPurchaseAPI.getWorkflowActions,
+        { docname }
+    );
 
+    const { call: performAction, loading: actionLoading } = useFrappePostCall(
+        directPurchaseAPI.performAction
+    );
+
+    const [modalOpen, setModalOpen] = React.useState(false);
+    const [selectedAction, setSelectedAction] = React.useState("");
+
+    const handleActionClick = (action: string) => {
+        setSelectedAction(action);
+        setModalOpen(true);
+    };
+
+    const handleConfirmAction = async (comment: string) => {
+        try {
+            await performAction({ docname, action: selectedAction, comment });
+            setModalOpen(false);
+            onActionComplete();
+        } catch (error) {
+            console.error("Error performing action:", error);
+        }
+    };
+
+    if (actionsLoading || !data?.message?.length) return null;
+
+    return (
+        <>
+            <div className="flex gap-2">
+                {data.message.map((action) => (
+                    <FrappeButton
+                        key={action}
+                        onClick={() => handleActionClick(action)}
+                        disabled={actionLoading}
+                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
+                    >
+                        {action}
+                    </FrappeButton>
+                ))}
+            </div>
+            <CommentModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSubmit={handleConfirmAction}
+                action={selectedAction}
+                isLoading={actionLoading}
+            />
+        </>
+    );
+};
 
 // Helper to check if a value is a file path
 const isFilePath = (value: string) => {
@@ -434,8 +486,8 @@ const PendingTaskDetails: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#0EA5A4] border-t-transparent"></div>
+            <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent"></div>
             </div>
         );
     }
@@ -462,7 +514,7 @@ const PendingTaskDetails: React.FC = () => {
 
     if (error || !data) {
         return (
-            <div className="flex h-screen items-center justify-center bg-[#F0F4F8]">
+            <div className="flex h-screen items-center justify-center bg-claude-bg dark:bg-zinc-900">
                 <div className="text-zinc-600 dark:text-zinc-400 font-medium text-xl">Task not found</div>
             </div>
         );
@@ -481,37 +533,35 @@ const PendingTaskDetails: React.FC = () => {
 
         return (
             <div className="space-y-6">
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
-                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-5 border-b border-zinc-200 dark:border-zinc-800 pb-3">
+                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6 lg:p-8">
+                    <h2 className="text-lg font-serif font-semibold text-zinc-900 dark:text-zinc-100 mb-6 pb-4 border-b border-zinc-100 dark:border-zinc-700">
                         Overview
                     </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-6">
                         {simpleFields.map(([key, value]) => {
                             const isFile = isFilePath(String(value));
                             const displayValue = isFile ? getFileName(String(value)) : String(value);
 
                             return (
-                                <div key={key}>
-                                    <label className={labelClasses}>
+                                <div key={key} className="flex flex-col">
+                                    <span className={labelClasses}>
                                         {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                    </label>
+                                    </span>
 
                                     {isFile ? (
-                                        <div className="flex items-center gap-3">
-                                            <a
-                                                href={String(value)}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center gap-2 px-4 py-3 bg-[#E0F7F6] text-[#0EA5A4] rounded-xl hover:bg-[#0EA5A4] hover:text-white transition-colors font-medium w-full border border-transparent hover:border-[#0EA5A4]"
-                                            >
-                                                <FileIcon className="h-4 w-4 flex-shrink-0" />
-                                                <span className="truncate">{displayValue}</span>
-                                                <ExternalLinkIcon className="h-3 w-3 ml-auto flex-shrink-0 opacity-50" />
-                                            </a>
-                                        </div>
+                                        <a
+                                            href={String(value)}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="group flex items-center gap-2 mt-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-700/50 text-[#D97757] rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors font-medium border border-zinc-200 dark:border-zinc-700"
+                                        >
+                                            <FileIcon className="h-4 w-4 flex-shrink-0" />
+                                            <span className="truncate text-sm">{displayValue}</span>
+                                            <ExternalLinkIcon className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </a>
                                     ) : (
-                                        <div className={cn(inputClasses, "text-sm break-words")}>
-                                            {(value === null || value === undefined) ? '-' : displayValue}
+                                        <div className={valueClasses}>
+                                            {(value === null || value === undefined) ? <span className="text-zinc-400 dark:text-zinc-600">-</span> : displayValue}
                                         </div>
                                     )}
                                 </div>
@@ -543,31 +593,33 @@ const PendingTaskDetails: React.FC = () => {
                     const grandTotal = Object.values(columnTotals).reduce((sum, val) => sum + val, 0);
 
                     return (
-                        <div key={key} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-                            <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
-                                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                        <div key={key} className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+                            <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/80">
+                                <h3 className="text-base font-serif font-semibold text-zinc-900 dark:text-zinc-100">
                                     {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                 </h3>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead>
-                                        <tr className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
+                                        <tr className="border-b border-zinc-200 dark:border-zinc-700">
                                             {headers.map(header => (
-                                                <th key={header} className="px-4 py-3 text-xs font-semibold text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
+                                                <th key={header} className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">
                                                     {header.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                 </th>
                                             ))}
                                             {isBudgetTable && (
-                                                <th className="px-4 py-3 text-xs font-semibold text-[#0EA5A4] whitespace-nowrap bg-[#E0F7F6]">Row Total</th>
+                                                <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider bg-orange-50/50 dark:bg-orange-500/10 text-[#D97757]">
+                                                    Row Total
+                                                </th>
                                             )}
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-700/50 text-sm">
                                         {rows.map((row, idx) => (
-                                            <tr key={idx} className="hover:bg-zinc-50 dark:bg-zinc-800/50/50 transition-colors">
+                                            <tr key={idx} className="hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors">
                                                 {headers.map(header => (
-                                                    <td key={header} className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300">
+                                                    <td key={header} className="p-4 align-middle text-zinc-700 dark:text-zinc-300">
                                                         {budgetYearColumns.includes(header)
                                                             ? (parseFloat(row[header]) || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
                                                             : String(row[header] || '-')
@@ -575,20 +627,20 @@ const PendingTaskDetails: React.FC = () => {
                                                     </td>
                                                 ))}
                                                 {isBudgetTable && (
-                                                    <td className="px-4 py-3 text-sm font-semibold text-[#0EA5A4] bg-[#E0F7F6]/30">
+                                                    <td className="p-4 align-middle font-medium text-[#D97757] bg-orange-50/30 dark:bg-orange-500/5">
                                                         {getRowTotal(row).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
                                                     </td>
                                                 )}
                                             </tr>
                                         ))}
                                         {isBudgetTable && (
-                                            <tr className="bg-zinc-100 dark:bg-zinc-800 border-t-2 border-zinc-300 dark:border-zinc-700 font-semibold">
+                                            <tr className="bg-zinc-50 dark:bg-zinc-700/50 font-medium">
                                                 {headers.map(header => (
-                                                    <td key={header} className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">
+                                                    <td key={header} className="p-4 align-middle text-zinc-900 dark:text-zinc-100">
                                                         {header === 'account_head' ? 'Total' : budgetYearColumns.includes(header) ? (columnTotals[header] || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }) : ''}
                                                     </td>
                                                 ))}
-                                                <td className="px-4 py-3 text-sm font-bold text-white bg-[#0EA5A4]">
+                                                <td className="p-4 align-middle font-bold text-white bg-[#D97757]">
                                                     {grandTotal.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
                                                 </td>
                                             </tr>
@@ -604,7 +656,7 @@ const PendingTaskDetails: React.FC = () => {
     };
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
+        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen text-zinc-900 dark:text-zinc-100">
             <AppSidebar />
 
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
@@ -615,8 +667,8 @@ const PendingTaskDetails: React.FC = () => {
                                 <ArrowLeftIcon className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
                             </button>
                             <div>
-                                <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Task Details</h1>
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{doctype} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-[#E0F7F6] text-[#0EA5A4]">{name}</span></p>
+                                <h1 className="text-2xl md:text-3xl font-serif text-zinc-900 dark:text-zinc-50 tracking-tight">Task Details</h1>
+                                <p className="text-sm md:text-base text-zinc-500 dark:text-zinc-400 mt-1">{doctype} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 dark:bg-zinc-800 text-[#D97757] dark:text-[#E28362] ml-1">{name}</span></p>
                             </div>
                         </div>
                         <div className="flex gap-2">
@@ -632,6 +684,9 @@ const PendingTaskDetails: React.FC = () => {
                             {doctype === "Temporary Advance" && name && (
                                 <TemporaryAdvanceActionButtons docname={name} onActionComplete={() => window.location.reload()} />
                             )}
+                            {doctype === "Direct Purchase" && name && (
+                                <DirectPurchaseWorkflowActions docname={name} onActionComplete={() => window.location.reload()} />
+                            )}
 
                         </div>
                     </div>
@@ -645,7 +700,7 @@ const PendingTaskDetails: React.FC = () => {
                             isTravelLoading ? (
                                 <div className="flex h-64 items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                                     <div className="flex flex-col items-center gap-2">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4]"></div>
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
                                         <p className="text-zinc-500 dark:text-zinc-400 text-sm">Loading details...</p>
                                     </div>
                                 </div>
@@ -671,7 +726,7 @@ const PendingTaskDetails: React.FC = () => {
                             isAdvanceSettlementLoading ? (
                                 <div className="flex h-64 items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                                     <div className="flex flex-col items-center gap-2">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4]"></div>
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
                                         <p className="text-zinc-500 dark:text-zinc-400 text-sm">Loading details...</p>
                                     </div>
                                 </div>
@@ -697,7 +752,7 @@ const PendingTaskDetails: React.FC = () => {
                             isTemporaryAdvanceLoading ? (
                                 <div className="flex h-64 items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                                     <div className="flex flex-col items-center gap-2">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4]"></div>
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
                                         <p className="text-zinc-500 dark:text-zinc-400 text-sm">Loading details...</p>
                                     </div>
                                 </div>

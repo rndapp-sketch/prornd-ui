@@ -137,7 +137,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                     <div>
                         <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1 block">Budget Head</label>
                         <select
-                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                             value={commitHead}
                             onChange={(e) => setCommitHead(e.target.value)}
                         >
@@ -146,7 +146,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                             ))}
                         </select>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                            Available: <span className="font-medium text-[#0EA5A4]">
+                            Available: <span className="font-medium text-[#D97757]">
                                 {isBalanceLoading ? "..." : `₹${actualBalance.toLocaleString('en-IN')}`}
                             </span>
                         </p>
@@ -155,7 +155,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                         <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1 block">Amount (₹)</label>
                         <input
                             type="number"
-                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4]"
+                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                             placeholder="e.g., 5000"
                             value={commitAmount}
                             onChange={(e) => setCommitAmount(e.target.value)}
@@ -165,7 +165,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                         <button
                             onClick={handleCommit}
                             disabled={isCommitting || isSubmitting}
-                            className="flex-1 bg-[#0EA5A4] hover:bg-[#0C8F8E] text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                            className="flex-1 bg-[#D97757] hover:bg-[#D97757] text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                         >
                             {isCommitting || isSubmitting ? "Committing..." : "Commit"}
                         </button>
@@ -173,7 +173,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
 
                     <button
                         onClick={() => setIsLedgerOpen(true)}
-                        className="w-full text-center text-xs font-medium text-[#0EA5A4] hover:underline pt-2"
+                        className="w-full text-center text-xs font-medium text-[#D97757] hover:underline pt-2"
                     >
                         <div className="flex items-center justify-center gap-1">
                             <FileSpreadsheet className="w-3 h-3" />

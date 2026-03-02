@@ -173,7 +173,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
             <div className="frappe-modal w-[95%] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
                 <header className="frappe-modal-header">
                     <h2 className="text-xl font-bold flex items-center gap-2">
-                        <LedgerIcon className="w-5 h-5 text-[#0EA5A4]" />
+                        <LedgerIcon className="w-5 h-5 text-[#D97757]" />
                         Project Budget Ledger
                     </h2>
                     <button onClick={onClose} className="frappe-modal-close" aria-label="Close modal">×</button>
@@ -183,7 +183,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                     <div className="mb-6 border-b border-zinc-200 dark:border-zinc-700">
                         {isCheckingHeads ? (
                             <div className="flex items-center space-x-2 text-sm text-zinc-500 dark:text-zinc-400 py-2">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#0EA5A4]"></div>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#D97757]"></div>
                                 <span>Checking available heads...</span>
                             </div>
                         ) : visibleHeads.length > 0 ? (
@@ -196,7 +196,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                             className={cn(
                                                 "px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors",
                                                 activeLedgerHeadId === head.id
-                                                    ? "border-[#0EA5A4] text-[#0EA5A4] bg-[#F0FDFD] dark:bg-[#0EA5A4]/10"
+                                                    ? "border-[#D97757] text-[#D97757] bg-[#F0FDFD] dark:bg-[#D97757]/10"
                                                     : "border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                             )}
                                         >
@@ -207,7 +207,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                 {!showAllHeads && budgetHeadList.length > visibleHeads.length && (
                                     <button
                                         onClick={() => setShowAllHeads(true)}
-                                        className="text-xs text-[#0EA5A4] hover:underline whitespace-nowrap"
+                                        className="text-xs text-[#D97757] hover:underline whitespace-nowrap"
                                     >
                                         Show All Heads ({budgetHeadList.length})
                                     </button>
@@ -226,7 +226,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                 <span className="text-sm text-zinc-500 dark:text-zinc-400">No budget heads with transactions found.</span>
                                 <button
                                     onClick={() => setShowAllHeads(true)}
-                                    className="text-sm text-[#0EA5A4] font-medium hover:underline"
+                                    className="text-sm text-[#D97757] font-medium hover:underline"
                                 >
                                     Show All Budget Heads
                                 </button>
@@ -238,14 +238,14 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                     <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden min-h-[300px]">
                         {isLedgerLoading ? (
                             <div className="flex flex-col items-center justify-center py-20">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0EA5A4] mb-4"></div>
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757] mb-4"></div>
                                 <p className="text-zinc-500 dark:text-zinc-400">Loading ledger...</p>
                             </div>
                         ) : ledgerError ? (
                             <div className="flex flex-col items-center justify-center py-20">
                                 <p className="text-red-500 font-medium mb-2">Failed to load data</p>
                                 <p className="text-sm text-zinc-500 dark:text-zinc-400">{ledgerError}</p>
-                                <button onClick={() => fetchLedgerData(activeLedgerHeadId)} className="mt-4 text-[#0EA5A4] hover:underline text-sm font-medium">Try Again</button>
+                                <button onClick={() => fetchLedgerData(activeLedgerHeadId)} className="mt-4 text-[#D97757] hover:underline text-sm font-medium">Try Again</button>
                             </div>
                         ) : ledgerTransactions.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20">
@@ -298,7 +298,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                                 <td className="px-6 py-3 text-right font-medium text-red-600 dark:text-red-400">
                                                     {txn.paymentAmount ? `₹${txn.paymentAmount.toLocaleString('en-IN')}` : '-'}
                                                 </td>
-                                                <td className="px-6 py-3 text-right font-bold text-[#0EA5A4]">
+                                                <td className="px-6 py-3 text-right font-bold text-[#D97757]">
                                                     {txn.paymentBalance ? `₹${txn.paymentBalance.toLocaleString('en-IN')}` : '0'}
                                                 </td>
                                                 <td className="px-6 py-3 text-center">
@@ -326,7 +326,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                                                 };
                                                                 onPaymentClick(mockEntry);
                                                             }}
-                                                            className="px-2 py-1 text-xs bg-[#0EA5A4] text-white rounded hover:bg-[#0D9494] transition-colors"
+                                                            className="px-2 py-1 text-xs bg-[#D97757] text-white rounded hover:bg-[#0D9494] transition-colors"
                                                         >
                                                             Pay
                                                         </button>

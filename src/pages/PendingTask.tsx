@@ -189,7 +189,7 @@ const PendingTask: React.FC = () => {
     const getStatusBadge = (status: string) => {
         const s = status?.toLowerCase();
         // Cleaner, softer badge styles
-        let style = "bg-blue-50 text-blue-700 border-blue-200";
+        let style = "bg-orange-50 text-orange-700 border-orange-200";
         if (["pending", "under review", "approval pending"].some(t => s?.includes(t))) {
             style = "bg-amber-50 text-amber-700 border-amber-200";
         } else if (s?.includes("approved")) {
@@ -222,7 +222,7 @@ const PendingTask: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex h-screen items-center justify-center bg-[#FAFAF9] dark:bg-zinc-900">
+            <div className="flex h-screen items-center justify-center bg-claude-bg dark:bg-zinc-900">
                 <FrappeCard className="p-12 text-center max-w-md w-full">
                     <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
                         <FaExclamationCircle className="h-6 w-6 text-red-600" />
@@ -238,7 +238,7 @@ const PendingTask: React.FC = () => {
     }
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-zinc-900 min-h-screen font-sans text-zinc-900 dark:text-zinc-100">
+        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen font-sans text-zinc-900 dark:text-zinc-100">
             <GlobalLoader isLoading={isLoading} />
             <AppSidebar />
 

@@ -31,7 +31,7 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md">
                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Confirm {action}</h3>
                 <textarea
-                    className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/25 focus:border-[#0EA5A4] placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                    className="w-full border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
                     rows={4}
                     placeholder="Add a comment (optional)..."
                     value={comment}
@@ -48,7 +48,7 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: {
                     <button
                         onClick={() => { onSubmit(comment); setComment(""); }}
                         disabled={isLoading}
-                        className="px-4 py-2 text-sm font-medium text-white bg-[#0EA5A4] rounded-lg hover:bg-[#0C8F8E] disabled:opacity-50"
+                        className="px-4 py-2 text-sm font-medium text-white bg-[#D97757] rounded-lg hover:bg-[#D97757] disabled:opacity-50"
                     >
                         {isLoading ? "Processing..." : "Confirm"}
                     </button>
@@ -269,14 +269,14 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
                                         {fund.workflow_state || "Draft"}
                                     </span>
                                 </td>
-                                <td className="px-4 py-3 text-sm font-semibold text-[#0EA5A4] text-right">
+                                <td className="px-4 py-3 text-sm font-semibold text-[#D97757] text-right">
                                     {(fund.fund_received_amt || 0).toLocaleString("en-IN", { style: "currency", currency: "INR" })}
                                 </td>
                                 <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{fund.modified?.split(" ")[0] || "-"}</td>
                                 <td className="px-4 py-3 text-center">
                                     <button
                                         onClick={() => navigate(`/fund-received/${fund.name}`, { state: { prjreg_title: prjregTitle } })}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#0EA5A4] hover:bg-[#0C8F8E] rounded-lg shadow-sm transition-all"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#D97757] hover:bg-[#D97757] rounded-lg shadow-sm transition-all"
                                     >
                                         View <ArrowRight className="h-3 w-3" />
                                     </button>

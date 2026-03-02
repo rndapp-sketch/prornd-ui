@@ -227,7 +227,7 @@ import { cn } from "@/lib/utils";
 
 const Card = ({ children, className }: { children: React.ReactNode; className?: string }) => (
   <div className={cn(
-    "bg-white dark:bg-zinc-900 dark:bg-[#27272A] border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-sm transition-all overflow-hidden",
+    "bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-sm transition-all overflow-hidden",
     className
   )}>
     {children}
@@ -263,7 +263,7 @@ interface ActionCardProps {
 const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onClick }) => (
   <Card className="hover:border-zinc-300 dark:hover:border-zinc-500 cursor-pointer group">
     <button onClick={onClick} className="w-full text-left p-6 flex flex-col h-full">
-      <div className="size-10 flex items-center justify-center rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 mb-5 group-hover:bg-[#D97757] group-hover:text-white transition-all duration-300">
+      <div className="size-10 flex items-center justify-center rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 mb-5 group:bg-[#D97757] group:text-white transition-all duration-300">
         {React.cloneElement(icon as React.ReactElement<any>, { size: 20 })}
       </div>
       <h3 className="font-serif text-xl text-zinc-800 dark:text-zinc-100 font-medium mb-2">{title}</h3>
@@ -317,7 +317,7 @@ export function PiHomePage() {
   const { isOpen: isCommandPaletteOpen, openPalette, closePalette } = useCommandPalette();
 
   return (
-    <div className="min-h-screen dark:bg-[#18181B]  transition-colors duration-300">
+    <div className="min-h-screen dark:bg-zinc-900  transition-colors duration-300">
 
       <main className="p-4 md:p-8 overflow-y-auto w-full">
         <div className="w-full mx-auto">
@@ -329,7 +329,7 @@ export function PiHomePage() {
                 Dashboard
               </h1>
               <p className="font-sans text-sm text-zinc-500 dark:text-zinc-400">
-                Welcome back, <span className="text-[#9A7D5A] font-medium">{fullName}</span>
+                Welcome back, <span className="text-claude-accent font-medium">{fullName}</span>
               </p>
             </div>
 
@@ -385,7 +385,7 @@ export function PiHomePage() {
                 </div>
                 <button
                   onClick={() => navigate("/project-analytics")}
-                  className="text-xs font-sans font-semibold uppercase tracking-wider text-zinc-400 hover:text-[#9A7D5A] transition-colors"
+                  className="text-xs font-sans font-semibold uppercase tracking-wider text-zinc-400 hover:text-claude-accent transition-colors"
                 >
                   View Detail
                 </button>
@@ -407,7 +407,7 @@ export function PiHomePage() {
                 </div>
                 <button
                   onClick={() => navigate("/fund-analytics")}
-                  className="text-xs font-sans font-semibold uppercase tracking-wider text-zinc-400 hover:text-[#9A7D5A] transition-colors"
+                  className="text-xs font-sans font-semibold uppercase tracking-wider text-zinc-400 hover:text-claude-accent transition-colors"
                 >
                   View Detail
                 </button>
@@ -435,9 +435,9 @@ export function PiHomePage() {
                   { title: "System maintenance this weekend", meta: "March 9-10, 2024 | 10 PM - 6 AM", color: "bg-zinc-400" }
                 ].map((update, i) => (
                   <div key={i} className="flex items-start gap-4 group">
-                    <div className={cn("size-1.5 rounded-full mt-2.5 transition-transform group-hover:scale-150", update.color)}></div>
+                    <div className={cn("size-1.5 rounded-full mt-2.5 transition-transform group:scale-150", update.color)}></div>
                     <div className="border-b border-zinc-100 dark:border-zinc-700/50 pb-4 w-full last:border-0">
-                      <p className="font-sans text-xs font-medium text-zinc-800 dark:text-zinc-200 group-hover:text-[#9A7D5A] transition-colors">{update.title}</p>
+                      <p className="font-sans text-xs font-medium text-zinc-800 dark:text-zinc-200 group:text-claude-accent transition-colors">{update.title}</p>
                       <p className="font-sans text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">{update.meta}</p>
                     </div>
                   </div>
@@ -470,7 +470,7 @@ export function PiHomePage() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-100 dark:bg-zinc-800/50 text-xs font-sans text-zinc-500 dark:text-zinc-400">
               <Mail className="size-3.5" />
               <span>For assistance, reach out to</span>
-              <a href="mailto:ernd@iitg.ac.in" className="text-[#9A7D5A] hover:text-[#D97757] font-medium transition-colors">
+              <a href="mailto:ernd@iitg.ac.in" className="text-claude-accent hover:text-[#D97757] font-medium transition-colors">
                 ernd@iitg.ac.in
               </a>
             </div>

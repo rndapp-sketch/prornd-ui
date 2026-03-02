@@ -19,7 +19,7 @@ export function DorndDashboard() {
   const fullName = userData?.full_name || currentUser || "Guest";
 
   return (
-    <div className="bg-[#F0F4F8] min-h-screen font-sans">
+    <div className="bg-claude-bg min-h-screen font-sans">
       <AppSidebar />
       <div className="flex-1 p-4 md:p-8">
         <div className="w-full mx-auto">
@@ -84,7 +84,7 @@ export function DorndDashboard() {
           <footer className="text-center text-zinc-600 dark:text-zinc-400 mt-6 pb-2">
             <div className="flex items-center justify-center space-x-2  text-xs">
               <Mail className="size-3.5" />
-              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#0EA5A4] hover:underline font-semibold">ernd@iitg.ac.in</a></p>
+              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#D97757] hover:underline font-semibold">ernd@iitg.ac.in</a></p>
             </div>
           </footer>
         </div>

@@ -19,7 +19,7 @@ export function ProjectStaffDashboard() {
   const fullName = userData?.full_name || currentUser || "Guest";
 
   return (
-    <div className="min-h-screen dark:bg-[#18181B] font-sans">
+    <div className="min-h-screen dark:bg-zinc-900 font-sans">
       <AppSidebar />
       <div className="flex-1 p-4 md:p-8">
         <div className="w-full mx-auto">
@@ -84,15 +84,15 @@ export function ProjectStaffDashboard() {
           <section className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
             <h3 className="text-base font-bold mb-3 text-zinc-900 dark:text-zinc-100 ">Quick Resources</h3>
             <ul className="space-y-3 border-t border-zinc-200 dark:border-zinc-800 pt-4">
-              <li><a href="#" className="flex items-center text-zinc-900 dark:text-zinc-100 hover:underline group font-semibold"><FileText className="size-5 mr-3 text-zinc-500 dark:text-zinc-400" /><span className="group-hover:text-[#0EA5A4]">Download Form Templates</span></a></li>
-              <li><a href="#" className="flex items-center text-zinc-900 dark:text-zinc-100 hover:underline group font-semibold"><LifeBuoy className="size-5 mr-3 text-zinc-500 dark:text-zinc-400" /><span className="group-hover:text-[#0EA5A4]">View Travel Policy</span></a></li>
+              <li><a href="#" className="flex items-center text-zinc-900 dark:text-zinc-100 hover:underline group font-semibold"><FileText className="size-5 mr-3 text-zinc-500 dark:text-zinc-400" /><span className="group:text-[#D97757]">Download Form Templates</span></a></li>
+              <li><a href="#" className="flex items-center text-zinc-900 dark:text-zinc-100 hover:underline group font-semibold"><LifeBuoy className="size-5 mr-3 text-zinc-500 dark:text-zinc-400" /><span className="group:text-[#D97757]">View Travel Policy</span></a></li>
             </ul>
           </section>
 
           <footer className="text-center text-zinc-600 dark:text-zinc-400 mt-6 pb-2">
             <div className="flex items-center justify-center space-x-2  text-xs">
               <Mail className="size-3.5" />
-              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#0EA5A4] hover:underline font-semibold">ernd@iitg.ac.in</a></p>
+              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#D97757] hover:underline font-semibold">ernd@iitg.ac.in</a></p>
             </div>
           </footer>
         </div>

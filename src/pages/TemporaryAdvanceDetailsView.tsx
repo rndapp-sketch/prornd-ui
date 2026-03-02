@@ -174,7 +174,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                         onChange={(e) => setNewComment(e.target.value)}
                         onKeyDown={handleKeyPress}
                         disabled={isSubmitting}
-                        className="resize-none bg-white dark:bg-zinc-900 p-3 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[rgba(14,165,164,0.25)] focus:border-[#D97757]"
+                        className="resize-none bg-white dark:bg-zinc-900 p-3 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                         rows={4}
                     />
                     <div className="flex items-center justify-between mt-4">
@@ -184,7 +184,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                         <FrappeButton
                             onClick={handleCommentSubmit}
                             disabled={isSubmitting || !newComment.trim()}
-                            className="bg-[#D97757] hover:bg-[#C66A4E] text-white border-transparent"
+                            className="bg-[#D97757] hover:bg-[#D97757] text-white border-transparent"
                         >
                             {isSubmitting ? "Submitting..." : "Submit"}
                         </FrappeButton>
@@ -207,7 +207,7 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                                 key={`${item.creation}-${index}`}
                                 className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm"
                             >
-                                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#FDF3F0] dark:bg-[#D97757]/20 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-sm">
+                                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-sm">
                                     {item.owner?.charAt(0).toUpperCase() || "U"}
                                 </div>
                                 <div className="flex-1">
@@ -452,7 +452,7 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
     ];
 
     return (
-        <div className="flex bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
+        <div className="flex bg-claude-bg dark:bg-zinc-900 min-h-screen font-sans text-zinc-900 dark:text-zinc-100 transition-colors duration-200">
 
             <div className="flex-1 p-6 md:p-8 lg:p-12 w-full">
 

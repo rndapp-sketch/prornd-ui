@@ -71,9 +71,9 @@ const ProjectStaffResignationList: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[#F0F4F8]">
+            <div className="flex items-center justify-center min-h-screen bg-claude-bg">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#0EA5A4] border-t-transparent mx-auto"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent mx-auto"></div>
                     <p className="mt-4 text-lg font-medium text-zinc-700 dark:text-zinc-300">Loading resignations...</p>
                 </div>
             </div>
@@ -81,7 +81,7 @@ const ProjectStaffResignationList: React.FC = () => {
     }
 
     return (
-        <div className="bg-[#F0F4F8] min-h-screen">
+        <div className="bg-claude-bg min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <header className="mb-8 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
@@ -100,7 +100,7 @@ const ProjectStaffResignationList: React.FC = () => {
                         </div>
                         <button
                             onClick={() => navigate('/project-staff-resignation')}
-                            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm bg-[#0EA5A4] text-white hover:bg-[#0D9494] transition-all"
+                            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm bg-[#D97757] text-white hover:bg-[#0D9494] transition-all"
                         >
                             <PlusIcon className="h-4 w-4" />
                             New Resignation
@@ -117,7 +117,7 @@ const ProjectStaffResignationList: React.FC = () => {
                                 placeholder="Search by name, email, or ID..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0EA5A4]/20 focus:border-[#0EA5A4]"
+                                className="w-full pl-10 pr-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
                             />
                         </div>
                         <button className="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg">
@@ -152,7 +152,7 @@ const ProjectStaffResignationList: React.FC = () => {
                                             <td className="py-3 px-4">
                                                 <button
                                                     onClick={() => navigate(`/project-staff-resignation?edit=${resignation.name}`)}
-                                                    className="text-sm font-medium text-[#0EA5A4] hover:underline"
+                                                    className="text-sm font-medium text-[#D97757] hover:underline"
                                                 >
                                                     View
                                                 </button>
