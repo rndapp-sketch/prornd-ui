@@ -57,6 +57,7 @@ import {
   ChevronRight,
   Plus,
   X,
+  ArrowUpDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -282,7 +283,7 @@ const FrappeButton = ({
     }
     className={cn(
       className,
-      variant === "primary" && "bg-[#D97757] hover:bg-[#C66A4E] text-white",
+      variant === "primary" && "bg-[#D97757] hover:bg-[#D97757] text-white",
       variant === "outline" &&
       "border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
     )}
@@ -393,10 +394,10 @@ const AdvanceSettlementModal = ({
               <div className="flex items-center gap-2">
                 <span
                   className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
-                      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                      : settlement.workflow_state === "Submitted"
-                        ? "bg-blue-100 text-blue-800 border-blue-200"
-                        : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                    : settlement.workflow_state === "Submitted"
+                      ? "bg-blue-100 text-blue-800 border-blue-200"
+                      : "bg-zinc-100 text-zinc-800 border-zinc-200"
                     }`}
                 >
                   {settlement.workflow_state || "Draft"}
@@ -422,7 +423,7 @@ const AdvanceSettlementModal = ({
           </Button>
           <Button
             onClick={onConvertNew}
-            className="bg-[#D97757] hover:bg-[#C66A4E] text-white"
+            className="bg-[#D97757] hover:bg-[#D97757] text-white"
           >
             Create New Settlement
           </Button>
@@ -440,7 +441,6 @@ interface QuickActionsProps {
   projectNo?: string;
   projectTitle?: string;
   onNavigate: (path: string) => void;
-  onSwitchTab?: (tab: string) => void;
 }
 
 const QuickActions = ({
@@ -448,7 +448,6 @@ const QuickActions = ({
   projectNo,
   projectTitle,
   onNavigate,
-  onSwitchTab,
 }: QuickActionsProps) => {
   const { currentUser } = useFrappeAuth();
   const [activeTab, setActiveTab] = useState("Reimbursement");
@@ -866,7 +865,7 @@ const QuickActions = ({
       } else if (selectedApplication === "Direct Purchase") {
         try {
           const timestamp = Date.now();
-          const apiUrl = `/api/v2/document/Direct%20Purchase?fields=["*"]&limit_page_length=0&_=${timestamp}`;
+          const apiUrl = `/api/resource/Direct%20Purchase?fields=["name","creation","workflow_state","owner","project_no","applicant_name","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
           const fetchResponse = await fetch(apiUrl, {
             method: "GET",
             headers: { Accept: "application/json" },
@@ -876,15 +875,13 @@ const QuickActions = ({
             throw new Error(`HTTP error! status: ${fetchResponse.status}`);
           const result = await fetchResponse.json();
           const allItems = result?.data || [];
-          const user = (currentUser || "").toLowerCase();
+
           data = allItems
             .filter((item: any) => {
-              const itemOwner = (item.owner || "").toLowerCase();
-              const matchesOwner = itemOwner === user;
               const matchesProject =
-                item.project_name === projectName ||
-                item.project_name === projectNo;
-              return matchesOwner && matchesProject;
+                item.project_no === projectName ||
+                item.project_no === projectNo;
+              return matchesProject;
             })
             .map((item: any) => ({
               ...item,
@@ -909,7 +906,7 @@ const QuickActions = ({
     } finally {
       setIsLoading(false);
     }
-  }, [selectedApplication, projectName, fetchReimbursements]);
+  }, [selectedApplication, projectName, projectNo, fetchReimbursements]);
 
   useEffect(() => {
     fetchApplicationData();
@@ -1006,7 +1003,7 @@ const QuickActions = ({
         onNavigate(`/project-staff-resignation?project=${projectParam}`);
         break;
       case "Direct Purchase":
-        onNavigate(`/direct-purchase?project=${projectParam}`);
+        onNavigate(`/direct-purchase?project_no=${projectParam}`);
         break;
       default:
         alert(`Apply New: ${selectedApplication} - Route not configured yet`);
@@ -1076,7 +1073,7 @@ const QuickActions = ({
             onClick={handleApplyNew}
             className={cn(
               "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
-              "bg-[#D97757] text-white hover:bg-[#C66A4E]",
+              "bg-[#D97757] text-white hover:bg-[#D97757]",
               "shadow-sm transition-all duration-150",
             )}
           >
@@ -1213,6 +1210,14 @@ const QuickActions = ({
                         >
                           View
                         </button>
+                        {selectedApplication === "Direct Purchase" && item.workflow_state === "Approved" && (
+                          <button
+                            onClick={() => onNavigate(`/p11-form?edit=${item.name}&project=${projectName}`)}
+                            className="text-sm text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline whitespace-nowrap"
+                          >
+                            P 11
+                          </button>
+                        )}
                         {selectedApplication === "Temporary Advance Apply" && (
                           <button
                             onClick={() => handleSettleClick(item)}
@@ -1256,7 +1261,7 @@ const QuickActions = ({
                 onClick={handleApplyNew}
                 className={cn(
                   "inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
-                  "bg-[#D97757] text-white hover:bg-[#C66A4E]",
+                  "bg-[#D97757] text-white hover:bg-[#D97757]",
                   "shadow-sm transition-all duration-150",
                 )}
               >
@@ -1631,6 +1636,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   >([]);
   const [isLedgerLoading, setIsLedgerLoading] = useState(false);
   const [ledgerError, setLedgerError] = useState<string | null>(null);
+  const [ledgerSortOrder, setLedgerSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const [ledgerPageSize, setLedgerPageSize] = useState(10);
 
   // Fetch Budget Heads from Frappe v2 API
   const [budgetHeadList, setBudgetHeadList] = useState<
@@ -1734,7 +1742,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     if (activeTab === "ledger" && activeLedgerHeadId) {
       fetchLedgerData(activeLedgerHeadId);
     }
-  }, [activeTab, activeLedgerHeadId]);
+  }, [projectName, activeLedgerHeadId]);
+
+  const sortedTransactions = useMemo(() => {
+    return ledgerSortOrder === 'newest' ? [...ledgerTransactions].reverse() : ledgerTransactions;
+  }, [ledgerTransactions, ledgerSortOrder]);
 
   const fetchLedgerData = async (headId: string | number) => {
     setIsLedgerLoading(true);
@@ -2288,7 +2300,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                 </h1>
                 <p className="text-xs text-[#6B7280] dark:text-zinc-400 mt-0.5">
                   ID: {data?.project_no || projectName} ·{" "}
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#FDF3F0] dark:bg-[#D97757]/20 text-[#D97757]">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757]">
                     {data?.workflow_state || "Draft"}
                   </span>
                 </p>
@@ -2323,7 +2335,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                 </div>
                 {/* <button
                   onClick={() => setActiveTab('ledger')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#D97757] bg-[#FDF3F0] dark:bg-[#D97757]/20 hover:bg-[#B2DFDB] rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#D97757] bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 hover:bg-[#B2DFDB] rounded-lg transition-colors"
                 >
                   <LedgerIcon className="w-3.5 h-3.5" />
                   View Ledger
@@ -2376,7 +2388,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     className={cn(
                       "frappe-tab flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-bold",
                       activeTab === tab.id &&
-                      "active bg-[#FDF3F0] dark:bg-[#D97757]/20 text-[#D97757] dark:bg-[#D97757]/20",
+                      "active bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757] dark:bg-[#D97757]/20",
                     )}
                   >
                     <tab.icon className="h-3.5 w-3.5" /> {tab.label}
@@ -2718,153 +2730,166 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         title="Proposed Budget Breakup"
                         icon={IndianRupeeIcon}
                       >
-                        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-                          <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                            <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                  Budget Head
-                                </th>
-                                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                  Year 1
-                                </th>
-                                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                  Year 2
-                                </th>
-                                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                  Year 3
-                                </th>
-                                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                  Year 4
-                                </th>
-                                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                  Year 5
-                                </th>
-                                <th className="px-4 py-3 text-right text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
-                                  Total
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
-                              {data.proposed_budget_breakup.map(
-                                (row: any, index: number) => (
-                                  <tr
-                                    key={index}
-                                    className="hover:bg-zinc-50 dark:bg-zinc-800/50"
-                                  >
-                                    <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-                                      {getBudgetHeadName(row.account_head)}
+                        {(() => {
+                          // Calculate column totals to determine visibility
+                          const totals = {
+                            year1: data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.first_year_budget || 0), 0),
+                            year2: data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.second_year_budget || 0), 0),
+                            year3: data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.third_year_budget || 0), 0),
+                            year4: data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.fourth_year_budget || 0), 0),
+                            year5: data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.fifth_year_budget || 0), 0),
+                          };
+
+                          return (
+                            <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                              <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                                <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                  <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                      Budget Head
+                                    </th>
+                                    {totals.year1 > 0 && (
+                                      <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                        Year 1
+                                      </th>
+                                    )}
+                                    {totals.year2 > 0 && (
+                                      <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                        Year 2
+                                      </th>
+                                    )}
+                                    {totals.year3 > 0 && (
+                                      <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                        Year 3
+                                      </th>
+                                    )}
+                                    {totals.year4 > 0 && (
+                                      <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                        Year 4
+                                      </th>
+                                    )}
+                                    {totals.year5 > 0 && (
+                                      <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                        Year 5
+                                      </th>
+                                    )}
+                                    <th className="px-4 py-3 text-right text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                                      Total
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
+                                  {data.proposed_budget_breakup.map(
+                                    (row: any, index: number) => (
+                                      <tr
+                                        key={index}
+                                        className="hover:bg-zinc-50 dark:bg-zinc-800/50"
+                                      >
+                                        <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                                          {getBudgetHeadName(row.account_head)}
+                                        </td>
+                                        {totals.year1 > 0 && (
+                                          <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                            {(
+                                              row.first_year_budget || 0
+                                            ).toLocaleString("en-IN")}
+                                          </td>
+                                        )}
+                                        {totals.year2 > 0 && (
+                                          <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                            {(
+                                              row.second_year_budget || 0
+                                            ).toLocaleString("en-IN")}
+                                          </td>
+                                        )}
+                                        {totals.year3 > 0 && (
+                                          <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                            {(
+                                              row.third_year_budget || 0
+                                            ).toLocaleString("en-IN")}
+                                          </td>
+                                        )}
+                                        {totals.year4 > 0 && (
+                                          <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                            {(
+                                              row.fourth_year_budget || 0
+                                            ).toLocaleString("en-IN")}
+                                          </td>
+                                        )}
+                                        {totals.year5 > 0 && (
+                                          <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                            {(
+                                              row.fifth_year_budget || 0
+                                            ).toLocaleString("en-IN")}
+                                          </td>
+                                        )}
+                                        <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                          {(
+                                            (row.first_year_budget || 0) +
+                                            (row.second_year_budget || 0) +
+                                            (row.third_year_budget || 0) +
+                                            (row.fourth_year_budget || 0) +
+                                            (row.fifth_year_budget || 0)
+                                          ).toLocaleString("en-IN")}
+                                        </td>
+                                      </tr>
+                                    ),
+                                  )}
+                                </tbody>
+                                <tfoot className="bg-zinc-100 dark:bg-zinc-800">
+                                  <tr>
+                                    <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                                      GRAND TOTAL
                                     </td>
-                                    <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                    {totals.year1 > 0 && (
+                                      <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                        {totals.year1.toLocaleString("en-IN")}
+                                      </td>
+                                    )}
+                                    {totals.year2 > 0 && (
+                                      <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                        {totals.year2.toLocaleString("en-IN")}
+                                      </td>
+                                    )}
+                                    {totals.year3 > 0 && (
+                                      <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                        {totals.year3.toLocaleString("en-IN")}
+                                      </td>
+                                    )}
+                                    {totals.year4 > 0 && (
+                                      <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                        {totals.year4.toLocaleString("en-IN")}
+                                      </td>
+                                    )}
+                                    {totals.year5 > 0 && (
+                                      <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                        {totals.year5.toLocaleString("en-IN")}
+                                      </td>
+                                    )}
+                                    <td className="px-4 py-3 text-sm font-bold text-[#D97757] text-right whitespace-nowrap">
+                                      ₹{" "}
                                       {(
-                                        row.first_year_budget || 0
-                                      ).toLocaleString("en-IN")}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                      {(
-                                        row.second_year_budget || 0
-                                      ).toLocaleString("en-IN")}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                      {(
-                                        row.third_year_budget || 0
-                                      ).toLocaleString("en-IN")}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                      {(
-                                        row.fourth_year_budget || 0
-                                      ).toLocaleString("en-IN")}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                      {(
-                                        row.fifth_year_budget || 0
-                                      ).toLocaleString("en-IN")}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                      {(
-                                        (row.first_year_budget || 0) +
-                                        (row.second_year_budget || 0) +
-                                        (row.third_year_budget || 0) +
-                                        (row.fourth_year_budget || 0) +
-                                        (row.fifth_year_budget || 0)
+                                        data.total_budget_amount ||
+                                        data.proposed_budget_breakup.reduce(
+                                          (sum: number, row: any) =>
+                                            sum +
+                                            (row.first_year_budget || 0) +
+                                            (row.second_year_budget || 0) +
+                                            (row.third_year_budget || 0) +
+                                            (row.fourth_year_budget || 0) +
+                                            (row.fifth_year_budget || 0),
+                                          0,
+                                        )
                                       ).toLocaleString("en-IN")}
                                     </td>
                                   </tr>
-                                ),
-                              )}
-                            </tbody>
-                            <tfoot className="bg-zinc-100 dark:bg-zinc-800">
-                              <tr>
-                                <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-                                  GRAND TOTAL
-                                </td>
-                                <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                  {data.proposed_budget_breakup
-                                    .reduce(
-                                      (sum: number, row: any) =>
-                                        sum + (row.first_year_budget || 0),
-                                      0,
-                                    )
-                                    .toLocaleString("en-IN")}
-                                </td>
-                                <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                  {data.proposed_budget_breakup
-                                    .reduce(
-                                      (sum: number, row: any) =>
-                                        sum + (row.second_year_budget || 0),
-                                      0,
-                                    )
-                                    .toLocaleString("en-IN")}
-                                </td>
-                                <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                  {data.proposed_budget_breakup
-                                    .reduce(
-                                      (sum: number, row: any) =>
-                                        sum + (row.third_year_budget || 0),
-                                      0,
-                                    )
-                                    .toLocaleString("en-IN")}
-                                </td>
-                                <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                  {data.proposed_budget_breakup
-                                    .reduce(
-                                      (sum: number, row: any) =>
-                                        sum + (row.fourth_year_budget || 0),
-                                      0,
-                                    )
-                                    .toLocaleString("en-IN")}
-                                </td>
-                                <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                  {data.proposed_budget_breakup
-                                    .reduce(
-                                      (sum: number, row: any) =>
-                                        sum + (row.fifth_year_budget || 0),
-                                      0,
-                                    )
-                                    .toLocaleString("en-IN")}
-                                </td>
-                                <td className="px-4 py-3 text-sm font-bold text-[#D97757] text-right whitespace-nowrap">
-                                  ₹{" "}
-                                  {(
-                                    data.total_budget_amount ||
-                                    data.proposed_budget_breakup.reduce(
-                                      (sum: number, row: any) =>
-                                        sum +
-                                        (row.first_year_budget || 0) +
-                                        (row.second_year_budget || 0) +
-                                        (row.third_year_budget || 0) +
-                                        (row.fourth_year_budget || 0) +
-                                        (row.fifth_year_budget || 0),
-                                      0,
-                                    )
-                                  ).toLocaleString("en-IN")}
-                                </td>
-                              </tr>
-                            </tfoot>
-                          </table>
-                        </div>
+                                </tfoot>
+                              </table>
+                            </div>
+                          );
+                        })()}
                         {/* Display total_budget_amount from project data */}
-                        <div className="mt-4 p-4 bg-[#FDF3F0] dark:bg-[#D97757]/20 rounded-lg flex justify-between items-center">
+                        <div className="mt-4 p-4 bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 rounded-lg flex justify-between items-center">
                           <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase">
                             Total Budget Amount (from proposal)
                           </span>
@@ -3308,7 +3333,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                               className={cn(
                                 "px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
                                 activeLedgerHeadId === head.id
-                                  ? "bg-[#FDF3F0] dark:bg-[#D97757]/20 text-[#D97757]"
+                                  ? "bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757]"
                                   : "bg-zinc-50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:bg-zinc-800",
                               )}
                             >
@@ -3323,17 +3348,26 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       )}
                     </div>
 
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="shrink-0 h-9 w-9 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-                      onClick={() =>
-                        navigate(`/project-ledger-full/${projectName}`)
-                      }
-                      title="Open Full Ledger"
-                    >
-                      <ExternalLinkIcon className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setLedgerSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
+                        className="inline-flex items-center gap-1.5 px-3 h-9 text-xs font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                      >
+                        <ArrowUpDown className="w-3.5 h-3.5" />
+                        {ledgerSortOrder === 'newest' ? 'Newest' : 'Oldest'}
+                      </button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                        onClick={() =>
+                          navigate(`/project-ledger-full/${data?.project_no || projectName}`)
+                        }
+                        title="Open Full Ledger"
+                      >
+                        <ExternalLinkIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
 
                   {/* Ledger Table */}
@@ -3405,7 +3439,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                            {ledgerTransactions.map((txn) => (
+                            {sortedTransactions.map((txn) => (
                               <tr
                                 key={txn.transactionId}
                                 className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
@@ -3489,13 +3523,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
               {activeTab === "quick-actions" && (
                 <QuickActions
                   projectName={projectName || ""}
-                  projectNo={data?.project_no || data?.project_number}
-                  projectTitle={data?.project_title || ""}
+                  projectNo={data?.project_no}
+                  projectTitle={data?.title}
                   onNavigate={navigate}
-                  onSwitchTab={(tab) => {
-                    setActiveTab(tab);
-                    setSearchParams({ tab: tab });
-                  }}
                 />
               )}
 
@@ -3526,7 +3556,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                 <div className="space-y-3 max-h-[100px] overflow-y-auto pr-1 custom-scrollbar">
                   {activityData.message.map((activity, idx) => (
                     <div key={idx} className="flex items-start gap-3">
-                      <div className="flex-shrink-0 h-8 w-8 rounded-full bg-[#FDF3F0] dark:bg-[#D97757]/20 flex items-center justify-center font-bold text-[#D97757] text-xs">
+                      <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 flex items-center justify-center font-bold text-[#D97757] text-xs">
                         {activity.owner?.charAt(0).toUpperCase() || "U"}
                       </div>
                       <div className="min-w-0">
@@ -3710,7 +3740,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                           className={cn(
                             "px-4 py-2.5 text-sm font-bold rounded-t-lg transition-colors border-b-2 flex flex-col items-start",
                             activeLedgerTab === tab
-                              ? "border-[#D97757] text-[#D97757] bg-[#FDF3F0] dark:bg-[#D97757]/20"
+                              ? "border-[#D97757] text-[#D97757] bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20"
                               : "border-transparent text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:text-zinc-200 hover:bg-zinc-50 dark:bg-zinc-800/50",
                           )}
                         >
@@ -3889,7 +3919,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                 isRnDStaff && (
                                   <button
                                     onClick={() => openPaymentModal(row)}
-                                    className="px-3 py-1.5 text-xs font-semibold text-white bg-[#D97757] hover:bg-[#C66A4E] rounded-md shadow-sm transition-colors"
+                                    className="px-3 py-1.5 text-xs font-semibold text-white bg-[#D97757] hover:bg-[#D97757] rounded-md shadow-sm transition-colors"
                                   >
                                     Pay
                                   </button>
@@ -3910,7 +3940,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   };
 
   return (
-    <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+    <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
       <main className="flex-1 p-3 md:p-6 w-full">{renderContent()}</main>
 
       {/* Sanction Submit Comment Modal */}
@@ -4105,7 +4135,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
               <button
                 onClick={handleSubmitPayment}
                 disabled={isPaymentSubmitting}
-                className="px-4 py-2 text-sm font-medium text-white bg-[#D97757] rounded-lg hover:bg-[#C66A4E] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm font-medium text-white bg-[#D97757] rounded-lg hover:bg-[#D97757] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isPaymentSubmitting ? "Submitting..." : "Submit Payment"}
               </button>

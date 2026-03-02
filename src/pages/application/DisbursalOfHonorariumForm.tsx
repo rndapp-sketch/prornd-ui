@@ -74,6 +74,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
         'rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_fields'
     );
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
+    const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
     const { call: saveForm, error: saveError } = useFrappePostCall(
         'rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.save_disbursal_of_honorarium_data'
     );
@@ -112,7 +113,27 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 });
 
                 setFields(enhancedFields);
-                setLinkOptions(link_options || {});
+
+                // Initialize link options from backend
+                let baseLinkOptions = link_options || {};
+
+                // Fetch Account Heads manually since backend doesn't provide them
+                try {
+                    const headsRes = await fetchAccountHeads({
+                        doctype: 'Project Budget Head',
+                        fields: ['name']
+                    });
+                    if (headsRes?.message) {
+                        baseLinkOptions['account_head'] = headsRes.message.map((head: any) => ({
+                            value: head.name,
+                            label: head.name
+                        }));
+                    }
+                } catch (err) {
+                    console.error('Error fetching account heads:', err);
+                }
+
+                setLinkOptions(baseLinkOptions);
 
                 let initialData = { ...prefill_data };
 
@@ -286,7 +307,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     }
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <PageHeader
@@ -326,7 +347,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                         <FrappeButton
                             type="submit"
                             disabled={isSubmitting}
-                            className="bg-[#D97757] text-white hover:bg-[#C66A4E]"
+                            className="bg-[#D97757] text-white hover:bg-[#D97757]"
                         >
                             {isSubmitting ? 'Submitting...' : (
                                 <>
