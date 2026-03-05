@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
+import { Wallet, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Wallet, TrendingUp, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI, prepareFormDataForApi, commonAPI } from '@/services/apiService';
@@ -19,7 +19,7 @@ interface FormDataResponse {
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-zinc-900 p-4 md:p-6 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>
+    <div className={cn("bg-[#FFFFFF] dark:bg-[#27272A] p-4 md:p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow", className)}>
         {children}
     </div>
 );
@@ -36,9 +36,7 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-150",
-            "focus:outline-none focus:ring-2 focus:ring-[#D97757]/20",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
+            "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-white dark:ring-offset-zinc-950 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-10 px-4 py-2",
             className
         )}
     >
@@ -87,70 +85,66 @@ const FundDetailsSidebar = ({ projectCode }: { projectCode: string }) => {
 
     if (!projectCode) {
         return (
-            <div className="bg-gradient-to-br from-[#FDF3F0] to-gray-100 dark:from-zinc-900 dark:to-zinc-900 p-4 lg:p-5 rounded-xl border border-zinc-200 dark:border-zinc-800">
+            <div className="bg-[#FFFFFF] dark:bg-[#27272A] p-4 lg:p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow">
                 <div className="flex items-center gap-2 mb-3">
-                    <div className="p-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-lg">
+                    <div className="p-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
                         <Info className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                     </div>
-                    <h3 className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">Fund Details</h3>
+                    <h3 className="font-serif font-medium text-lg text-zinc-800 dark:text-zinc-100">Fund Details</h3>
                 </div>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">Select a project to view fund details</p>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">Select a project to view fund details</p>
             </div>
         );
     }
 
     if (isLoading) {
         return (
-            <div className="bg-gradient-to-br from-[#FDF3F0] to-zinc-50 dark:from-zinc-900 dark:to-zinc-900 border border-[#D97757]/20 rounded-xl p-4 lg:p-5">
-                <div className="h-5 bg-[#D97757]/20 rounded w-24 mb-3 animate-pulse"></div>
+            <div className="bg-[#FFFFFF] p-4 lg:p-6 dark:bg-[#27272A] border border-zinc-200 dark:border-zinc-800 rounded-xl shadow">
+                <div className="h-5 bg-zinc-100 dark:bg-zinc-800 rounded w-24 mb-3 animate-pulse"></div>
                 <div className="space-y-2">
-                    <div className="h-12 bg-[#D97757]/10 rounded animate-pulse"></div>
-                    <div className="h-12 bg-[#D97757]/10 rounded animate-pulse"></div>
+                    <div className="h-12 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse"></div>
+                    <div className="h-12 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse"></div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="bg-gradient-to-br from-[#FDF3F0] to-zinc-50 dark:from-zinc-900 dark:to-zinc-900 p-4 lg:p-5 rounded-xl border border-[#D97757]/20 sticky top-4">
+        <div className="bg-[#FFFFFF] dark:bg-[#27272A] p-4 lg:p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow sticky top-4">
             <div className="flex items-center gap-2 mb-4">
-                <div className="p-1.5 bg-[#D97757] rounded-lg">
-                    <Wallet className="h-4 w-4 text-white" />
+                <div className="p-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                    <Wallet className="h-4 w-4 text-zinc-700 dark:text-zinc-300" />
                 </div>
-                <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">Project Fund Details</h3>
+                <h3 className="font-serif text-lg font-medium tracking-tight text-zinc-800 dark:text-zinc-100">Project Fund Details</h3>
             </div>
 
-            <div className="space-y-3">
-                {/* Total Fund Received */}
-                <div className="bg-white/80 dark:bg-zinc-800/80 backdrop-blur p-3 rounded-lg border border-[#D97757]/20">
-                    <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Total Fund Received</p>
-                    <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{formatCurrency(projectData.totalFundReceived)}</p>
+            <div className="space-y-6">
+                <div>
+                    <p className="text-sm font-medium leading-none text-zinc-700 dark:text-zinc-300 mb-2">Total Fund Received</p>
+                    <p className="text-xl font-serif text-zinc-800 dark:text-zinc-100">{formatCurrency(projectData.totalFundReceived)}</p>
                 </div>
 
-                {/* Available Balance */}
-                <div className="bg-white/80 dark:bg-zinc-800/80 backdrop-blur p-3 rounded-lg border border-[#D97757]/20">
-                    <div className="flex items-center gap-1.5 mb-1">
-                        <TrendingUp className="h-3.5 w-3.5 text-[#D97757]" />
-                        <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-0">Available Balance</p>
+                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4">
+                    <div className="flex items-center gap-1.5 mb-2">
+                        <p className="text-sm font-medium leading-none text-zinc-700 dark:text-zinc-300">Available Balance</p>
                     </div>
-                    <p className="text-xl font-bold text-[#D97757]">{formatCurrency(projectData.availableCommitAmount)}</p>
+                    <p className="text-2xl font-serif text-[#9A7D5A] dark:text-[#D4D4D8]">{formatCurrency(projectData.availableCommitAmount)}</p>
                 </div>
 
-                {/* Fund Breakdown */}
-                <div className="pt-3 border-t border-[#D97757]/20">
-                    <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Fund Breakdown</p>
-                    <div className="space-y-2">
+                <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                    <p className="text-sm font-medium leading-none text-zinc-700 dark:text-zinc-300 mb-3">Fund Breakdown</p>
+                    <div className="space-y-3">
                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-zinc-600 dark:text-zinc-400">Total Committed</span>
-                            <span className="font-semibold text-amber-600 dark:text-amber-500">{formatCurrency(projectData.totalCommitted)}</span>
+                            <span className="text-zinc-500 dark:text-zinc-400">Total Committed</span>
+                            <span className="font-medium text-zinc-700 dark:text-zinc-300">{formatCurrency(projectData.totalCommitted)}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-zinc-600 dark:text-zinc-400">Total Paid</span>
-                            <span className="font-semibold text-red-600 dark:text-red-500">{formatCurrency(projectData.totalPaid)}</span>
+                            <span className="text-zinc-500 dark:text-zinc-400">Total Paid</span>
+                            <span className="font-medium text-zinc-700 dark:text-zinc-300">{formatCurrency(projectData.totalPaid)}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
-                            <span className="text-zinc-600 dark:text-zinc-400">Payable Balance</span>
-                            <span className="font-semibold text-blue-600 dark:text-blue-500">{formatCurrency(projectData.availablePaymentAmount)}</span>
+                            <span className="text-zinc-500 dark:text-zinc-400">Payable Balance</span>
+                            <span className="font-medium text-zinc-700 dark:text-zinc-300">{formatCurrency(projectData.availablePaymentAmount)}</span>
                         </div>
                     </div>
                 </div>
@@ -183,18 +177,18 @@ const EstimateValidation = ({ formData }: { formData: Record<string, any> }) => 
 
     return (
         <div className={cn(
-            "p-4 rounded-lg border-2 flex items-center gap-3",
-            isBalanced ? "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+            "p-4 rounded-xl border flex items-center gap-3",
+            isBalanced ? "bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-800" : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900"
         )}>
             {isBalanced ? (
                 <>
-                    <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    <span className="font-semibold text-green-700 dark:text-green-400">Budget Balanced</span>
+                    <CheckCircle2 className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
+                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Budget Balanced</span>
                 </>
             ) : (
                 <>
-                    <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                    <span className="font-semibold text-red-700 dark:text-red-400">
+                    <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-500" />
+                    <span className="text-sm font-medium text-red-600 dark:text-red-500">
                         ₹{Math.abs(diff).toLocaleString('en-IN')} {diff > 0 ? 'needs to be allocated' : 'excess allocated'}
                     </span>
                 </>
@@ -567,7 +561,7 @@ const TravelForm: React.FC = () => {
     }
 
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <PageHeader
@@ -612,18 +606,18 @@ const TravelForm: React.FC = () => {
                                 <EstimateValidation formData={formData} />
                             </FrappeCard>
 
-                            <div className="mt-8 flex justify-end gap-4">
+                            <div className="mt-8 flex justify-end gap-3">
                                 <FrappeButton
                                     onClick={handleSave}
                                     disabled={isSubmitting}
-                                    className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800/50"
+                                    className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm"
                                 >
                                     {isSubmitting ? 'Saving...' : 'Save Draft'}
                                 </FrappeButton>
                                 <FrappeButton
                                     type="submit"
                                     disabled={isSubmitting || !savedDocName}
-                                    className="bg-[#D97757] text-white hover:bg-[#D97757]"
+                                    className="bg-[#D97757] text-white hover:opacity-90 shadow-sm"
                                 >
                                     {isSubmitting ? 'Submitting...' : 'Submit Application'}
                                 </FrappeButton>

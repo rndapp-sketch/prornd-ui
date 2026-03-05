@@ -434,6 +434,92 @@ const AdvanceSettlementModal = ({
   );
 };
 
+const TADASettlementModal = ({
+  isOpen,
+  onClose,
+  settlements,
+  onConvertNew,
+  onNavigate,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  settlements: any[];
+  onConvertNew: () => void;
+  onNavigate: (path: string) => void;
+}) => {
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999]">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-lg relative z-[100000]">
+        <h3 className="text-lg font-bold mb-4 text-zinc-900 dark:text-zinc-100">
+          Existing TA DA Settlements Found
+        </h3>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+          There are already TA DA settlement(s) created for this travel application. You can
+          view/edit an existing one or create a new settlement.
+        </p>
+
+        <div className="space-y-3 mb-6 max-h-[200px] overflow-y-auto">
+          {settlements.map((settlement) => (
+            <div
+              key={settlement.name}
+              className="flex items-center justify-between p-3 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50"
+            >
+              <div>
+                <p className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
+                  {settlement.name}
+                </p>
+                <p className="text-xs text-zinc-500">
+                  {settlement.workflow_state} · ₹ {settlement.ta_da_total_claimed || settlement.ta_da_net_claimed || 0}
+                </p>
+                <p className="text-xs text-zinc-400 mt-1">
+                  {settlement.creation ? new Date(settlement.creation).toLocaleDateString() : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
+                    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                    : settlement.workflow_state === "Submitted"
+                      ? "bg-blue-100 text-blue-800 border-blue-200"
+                      : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                    }`}
+                >
+                  {settlement.workflow_state || "Draft"}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onClose();
+                    onNavigate(`/ta-da-settlement?edit=${settlement.name}`);
+                  }}
+                >
+                  View
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={onConvertNew}
+            className="bg-[#D97757] hover:bg-[#D97757] text-white"
+          >
+            Create New Settlement
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+};
+
 // --- START: REFACTORED QuickActions COMPONENT ---
 
 interface QuickActionsProps {
@@ -450,18 +536,28 @@ const QuickActions = ({
   onNavigate,
 }: QuickActionsProps) => {
   const { currentUser } = useFrappeAuth();
-  const [activeTab, setActiveTab] = useState("Reimbursement");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const defaultSubtab = searchParams.get("subtab") || "Reimbursement";
+  const defaultApp = searchParams.get("app");
+
+  const [activeTab, setActiveTab] = useState(defaultSubtab);
   const [selectedApplication, setSelectedApplication] = useState<string | null>(
-    "Reimbursement",
-  ); // Auto-select Reimbursement initially
+    defaultApp || "Reimbursement",
+  );
   const [applicationData, setApplicationData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Settle Modal State
+  // Settle Modal State (Advance)
   const [isSettleModalOpen, setIsSettleModalOpen] = useState(false);
   const [existingSettlements, setExistingSettlements] = useState<any[]>([]);
   const [selectedAdvanceForSettle, setSelectedAdvanceForSettle] =
     useState<any>(null);
+
+  // TA DA Settle Modal State (Travel)
+  const [isTADASettleModalOpen, setIsTADASettleModalOpen] = useState(false);
+  const [existingTADASettlements, setExistingTADASettlements] = useState<any[]>([]);
+  const [selectedTravelForSettle, setSelectedTravelForSettle] = useState<any>(null);
 
   const handleSettleClick = async (item: any) => {
     setIsLoading(true);
@@ -527,6 +623,56 @@ const QuickActions = ({
       setIsLoading(false);
     }
   };
+  const handleTravelSettleClick = async (item: any) => {
+    setIsLoading(true);
+    console.log(">>> handleTravelSettleClick triggered for:", item.name);
+
+    try {
+      // Direct fetch to v2 document API for the filtered settlement records
+      const apiUrl = `/api/v2/document/TA DA Settlement?filters=[["ta_da_travel_application","=","${item.name}"]]&fields=["*"]`;
+
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        credentials: "include", // Ensure session cookies are sent
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log(">>> TA DA Settlement raw API response:", result);
+
+      const fetchedSettlements = result.data || [];
+
+      // Add workflow status mappings
+      const mappedSettlements = fetchedSettlements.map((s: any) => ({
+        ...s,
+        workflow_state: s.workflow_state || (s.docstatus === 1 ? "Submitted" : s.docstatus === 2 ? "Cancelled" : "Draft"),
+        // Normalize amount property so that the existing modal component displays it correctly
+        total_amount: s.ta_da_total_claimed || s.ta_da_net_claimed || 0
+      }));
+
+      console.log(">>> Mapped TA DA Settlements:", mappedSettlements);
+
+      if (mappedSettlements.length > 0) {
+        setExistingTADASettlements(mappedSettlements);
+        setSelectedTravelForSettle(item);
+        setIsTADASettleModalOpen(true);
+        console.log(">>> Opening Modal with existing settlements");
+      } else {
+        console.log(">>> No settlements found, navigating to new form");
+        onNavigate(`/ta-da-settlement?project=${projectNo}&travel_ref=${item.name}`);
+      }
+    } catch (error) {
+      console.error("Error fetching TA DA settlements via v2 API:", error);
+      // Fallback: navigate directly to form
+      onNavigate(`/ta-da-settlement?project=${projectNo}&travel_ref=${item.name}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const groups = [
     { title: "Reimbursement", icon: IndianRupeeIcon, items: ["Reimbursement"] },
@@ -552,9 +698,8 @@ const QuickActions = ({
       title: "Recruitment",
       icon: Users,
       items: [
-        "Adhoc",
+        "Adhoc/Contractual",
         "Committee Member Change",
-        "Contractual",
         "Selection Committee Report",
         "Project Staff Resignation",
       ],
@@ -790,7 +935,7 @@ const QuickActions = ({
           ).then((res) => (res.ok ? res.json() : { data: [] }));
 
           const settlementPromise = fetch(
-            `/api/v2/document/TA DA Settlement?fields=["name","creation","workflow_state","owner","ta_da_project_code","ta_da_name"]&order_by=creation desc&limit_page_length=0`,
+            `/api/resource/TA%20DA%20Settlement?fields=["name","creation","workflow_state","owner","ta_da_project_code","ta_da_name","ta_da_travel_application","ta_da_total_claimed","ta_da_net_claimed","docstatus"]&filters=[["ta_da_project_code","=","${projectName}"]]&order_by=creation desc&limit_page_length=0`,
             {
               method: "GET",
               headers: { Accept: "application/json" },
@@ -939,18 +1084,28 @@ const QuickActions = ({
   const handleTabChange = (tabTitle: string) => {
     setActiveTab(tabTitle);
     const group = groups.find((g) => g.title === tabTitle);
+
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("subtab", tabTitle);
+
     if (group && group.items.length === 1) {
       // Auto-select the only item in this tab
       setSelectedApplication(group.items[0]);
+      newParams.set("app", group.items[0]);
     } else {
       // Reset selection for multi-item tabs
       setSelectedApplication(null);
+      newParams.delete("app");
       setApplicationData([]);
     }
+    setSearchParams(newParams);
   };
 
   const handleApplicationClick = (item: string) => {
     setSelectedApplication(item);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set("app", item);
+    setSearchParams(newParams);
   };
 
   const handleBack = () => {
@@ -961,6 +1116,9 @@ const QuickActions = ({
     }
     setSelectedApplication(null);
     setApplicationData([]);
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete("app");
+    setSearchParams(newParams);
   };
 
   const handleApplyNew = () => {
@@ -1004,6 +1162,9 @@ const QuickActions = ({
         break;
       case "Direct Purchase":
         onNavigate(`/direct-purchase?project_no=${projectParam}`);
+        break;
+      case "Adhoc/Contractual":
+        onNavigate(`/recruitment-adhoc-contractual?project=${projectParam}`);
         break;
       default:
         alert(`Apply New: ${selectedApplication} - Route not configured yet`);
@@ -1229,11 +1390,7 @@ const QuickActions = ({
                         {selectedApplication === "Travel" &&
                           item.type === "Travel Apply" && (
                             <button
-                              onClick={() =>
-                                onNavigate(
-                                  `/ta-da-settlement?project=${projectName}&travel_ref=${item.name}`,
-                                )
-                              }
+                              onClick={() => handleTravelSettleClick(item)}
                               className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:text-zinc-100 hover:underline whitespace-nowrap"
                             >
                               Settle
@@ -1281,6 +1438,20 @@ const QuickActions = ({
             if (selectedAdvanceForSettle) {
               onNavigate(
                 `/advance-settlement?advance=${selectedAdvanceForSettle.name}&project=${projectName}`,
+              );
+            }
+          }}
+          onNavigate={onNavigate}
+        />
+        <TADASettlementModal
+          isOpen={isTADASettleModalOpen}
+          onClose={() => setIsTADASettleModalOpen(false)}
+          settlements={existingTADASettlements}
+          onConvertNew={() => {
+            setIsTADASettleModalOpen(false);
+            if (selectedTravelForSettle) {
+              onNavigate(
+                `/ta-da-settlement?project=${projectNo}&travel_ref=${selectedTravelForSettle.name}`,
               );
             }
           }}

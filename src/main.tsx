@@ -61,6 +61,7 @@ import DirectPurchase from './pages/DirectPurchase.tsx';
 import DirectPurchaseDetails from './pages/application/DirectPurchaseDetails.tsx';
 import P11Form from './pages/application/P11Form.tsx';
 import SanctionSheetForm from './pages/application/SanctionSheetForm.tsx';
+import RecruitmentAdhocContractualForm from './pages/application/RecruitmentAdhocContractualForm.tsx';
 
 const router = createBrowserRouter(
   [
@@ -504,6 +505,14 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <SanctionSheetForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "recruitment-adhoc-contractual/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <RecruitmentAdhocContractualForm />
             </AuthRouteWrapper>
           )
         }

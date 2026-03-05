@@ -57,11 +57,16 @@ export const evaluateExpression = (
  * Checks if a field should be visible based on depends_on expression
  */
 export const isFieldVisible = (
-    field: { depends_on?: string; hidden?: boolean | number },
+    field: { depends_on?: string; hidden?: boolean | number | string },
     doc: Record<string, any>
 ): boolean => {
-    if (field.hidden) return false;
+    // If explicitly marked as hidden, don't show it
+    if (field.hidden === 1 || field.hidden === true || field.hidden === '1') return false;
+
+    // If there's no depends_on condition (and it's not hidden), show it
     if (!field.depends_on) return true;
+
+    // Otherwise, evaluate the depends_on condition
     return evaluateExpression(field.depends_on, doc);
 };
 

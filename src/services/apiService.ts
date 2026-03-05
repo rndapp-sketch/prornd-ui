@@ -33,6 +33,8 @@ export const tadaAPI = {
     getFields: `${API_BASE}.ta_da_settlement.ta_da_settlement.get_ta_da_settlement_fields`,
     save: `${API_BASE}.ta_da_settlement.ta_da_settlement.save_ta_da_settlement`,
     submit: `${API_BASE}.ta_da_settlement.ta_da_settlement.submit_ta_da_settlement`,
+    getWorkflowActions: `${API_BASE}.ta_da_settlement.ta_da_settlement.get_ta_da_settlement_workflow_actions`,
+    performAction: `${API_BASE}.ta_da_settlement.ta_da_settlement.perform_ta_da_settlement_action`,
 };
 
 // Project Staff Resignation API endpoints
@@ -90,6 +92,15 @@ export const sanctionSheetAPI = {
     save: `${API_BASE}.sanction_sheet.sanction_sheet.save_sanction_sheet_data`,
     getWorkflowActions: `${API_BASE}.sanction_sheet.sanction_sheet.get_sanction_sheet_workflow_actions`,
     performAction: `${API_BASE}.sanction_sheet.sanction_sheet.perform_sanction_sheet_action`,
+};
+
+// Recruitment Adhoc Contractual API endpoints
+export const recruitmentAdhocContractualAPI = {
+    getFields: `${API_BASE}.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_recruitment_adhoc_contractual_fields`,
+    save: `${API_BASE}.recruitment_adhoc_contractual.recruitment_adhoc_contractual.save_recruitment_adhoc_contractual_data`,
+    getWorkflowActions: `${API_BASE}.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_recruitment_adhoc_contractual_workflow_actions`,
+    performAction: `${API_BASE}.recruitment_adhoc_contractual.recruitment_adhoc_contractual.perform_recruitment_adhoc_contractual_action`,
+    submit: `${API_BASE}.recruitment_adhoc_contractual.recruitment_adhoc_contractual.submit_recruitment_adhoc_contractual`,
 };
 
 // Common utility to get user details
