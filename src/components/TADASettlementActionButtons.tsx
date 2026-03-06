@@ -98,29 +98,13 @@ const TADASettlementActionButtons: React.FC<
         return null;
     }
 
-    // Dynamic action style based on claudeui.md
-    const getActionStyle = (actionName: string) => {
-        const lowerName = actionName.toLowerCase();
-
-        // Primary Action (Approve / Submit) - Syncing with Claude UI Zinc-900 / Terracotta
-        if (lowerName.includes("approve") || lowerName.includes("submit") || lowerName.includes("settle")) {
-            return "bg-[#18181B] dark:bg-[#E4E4E7] text-white dark:text-zinc-900 hover:opacity-90 border border-transparent shadow-sm";
-        }
-        // Danger Action (Reject / Cancel) - Custom subtle red styling
-        if (lowerName.includes("reject") || lowerName.includes("cancel")) {
-            return "border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20";
-        }
-        // Secondary Action (Return, Forward, Revise, etc) - Clean ghost outlines
-        return "border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 shadow-sm";
-    };
-
     return (
         <div className="flex flex-wrap gap-3">
             {actions.map((action) => (
                 <Button
                     key={action}
                     onClick={() => handleActionClick(action)}
-                    className={`transition-all duration-200 ${getActionStyle(action)}`}
+                    className="bg-[#D97757] text-white hover:bg-opacity-90 transition-all duration-200"
                     disabled={actionLoading}
                 >
                     {actionLoading && selectedAction === action ? (

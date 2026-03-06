@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall, useFrappeGetDoc } from 'frappe-react-sdk';
@@ -81,6 +81,8 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     const { call: submitForm, error: submitError } = useFrappePostCall(
         'rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.submit_disbursal_of_honorarium'
     );
+    // Hook to fetch project details from Project Registration
+    const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
     // Fetch current user data for auto-fill
     const { data: currentUserData } = useFrappeGetDoc("User", "");
 
@@ -117,16 +119,17 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 // Initialize link options from backend
                 let baseLinkOptions = link_options || {};
 
-                // Fetch Account Heads manually since backend doesn't provide them
+                // Fetch Account Heads from 'Budget Head' doctype (fields.md source of truth)
                 try {
                     const headsRes = await fetchAccountHeads({
-                        doctype: 'Project Budget Head',
-                        fields: ['name']
+                        doctype: 'Budget Head',
+                        fields: ['name', 'budget_head'],
+                        limit_page_length: 0
                     });
                     if (headsRes?.message) {
                         baseLinkOptions['account_head'] = headsRes.message.map((head: any) => ({
                             value: head.name,
-                            label: head.name
+                            label: head.budget_head || head.name
                         }));
                     }
                 } catch (err) {
@@ -154,9 +157,31 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     }
                 }
 
-                // Auto-fill project from URL if provided
+                // Auto-fill project fields from URL if provided
                 if (projectFromUrl && !id) {
-                    initialData.project_number = projectFromUrl;
+                    if (!initialData.project_no) {
+                        initialData.project_no = projectFromUrl;
+                    }
+
+                    // Fetch implementation_department from Project Registration
+                    try {
+                        const projectRes = await fetchFrappeValue({
+                            doctype: 'Project Registration',
+                            filters: { project_no: projectFromUrl },
+                            fieldname: ['implementation_department'],
+                        });
+
+                        if (projectRes?.message) {
+                            if (projectRes.message.implementation_department && !initialData.department_for) {
+                                initialData.department_for = projectRes.message.implementation_department;
+                            }
+                            if (projectRes.message.implementation_department && !initialData.applicant_department) {
+                                initialData.applicant_department = projectRes.message.implementation_department;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch project details:', e);
+                    }
                 }
 
                 // Set defaults for any missing fields
@@ -171,7 +196,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     initialData.webmail_id = initialData.webmail_id || currentUserData.name || "";
                     initialData.name_of_applicant = initialData.name_of_applicant || currentUserData.full_name || "";
                     initialData.designation_of_applicant = initialData.designation_of_applicant || currentUserData.designation_name || "";
-                    initialData.department = initialData.department || currentUserData.department_name || "";
+                    initialData.applicant_department = initialData.applicant_department || currentUserData.department_name || "";
                 }
 
                 setFormData(initialData);
@@ -226,6 +251,22 @@ const DisbursalOfHonorariumForm: React.FC = () => {
             [tableName]: (prev[tableName] || []).filter((_: any, i: number) => i !== rowIndex)
         }));
     }, []);
+
+    // --- Computed: Total Amount from table_weoy (amount column) ---
+    const totalAmount = useMemo(() => {
+        const rows = formData.table_weoy || [];
+        return rows.reduce((sum: number, row: any) => {
+            const amt = parseFloat(row.amount || 0);
+            return sum + (isNaN(amt) ? 0 : amt);
+        }, 0);
+    }, [formData.table_weoy]);
+
+    // Sync total_amount field when computed value changes
+    useEffect(() => {
+        if (formData.total_amount !== String(totalAmount)) {
+            setFormData(prev => ({ ...prev, total_amount: String(totalAmount) }));
+        }
+    }, [totalAmount]);
 
     const handleSave = async () => {
         if (isSubmitting) return;

@@ -295,12 +295,9 @@ const MemoizedGenericTable = memo(
         col.type === "Currency" || col.type === "Float" || col.type === "Int"
           ? "number"
           : "text";
-      const step = col.type === "Int" ? "1" : "0.01";
-
       return (
         <input
           type={type}
-          step={type === "number" ? step : undefined}
           className={`${inputClasses} !h-11`}
           value={row[col.key] || ""}
           onChange={(e) => onRowChange(tableName, i, col.key, e.target.value)}

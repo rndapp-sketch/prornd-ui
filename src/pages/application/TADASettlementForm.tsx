@@ -243,16 +243,17 @@ const TADASettlementForm: React.FC = () => {
                 travelDoc.bank_account_number ||
                 "";
               initialData.project_no =
-                travelDoc.travel_project_number ||
+                projectName ||
                 initialData.project_no ||
-                projectName;
+                travelDoc.travel_project_number;
 
               if (travelDoc.webmail_id_travel) {
                 // Full fetch for user fields
                 const userMapped = await fetchAndMapUserDetails(
                   travelDoc.webmail_id_travel,
                   {
-                    ta_da_project_code: travelDoc.travel_project_number || "",
+                    ta_da_project_code:
+                      projectName || travelDoc.travel_project_number || "",
                   },
                 );
                 initialData = { ...initialData, ...userMapped };
@@ -266,7 +267,7 @@ const TADASettlementForm: React.FC = () => {
                   travelDoc.designation_travel || "";
                 initialData.ta_da_department_section = deptName;
                 initialData.ta_da_project_code =
-                  travelDoc.travel_project_number || "";
+                  projectName || travelDoc.travel_project_number || "";
               }
             }
           } catch (err) {

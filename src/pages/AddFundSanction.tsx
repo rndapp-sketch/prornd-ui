@@ -46,7 +46,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
         switch (field.fieldtype) {
             case "Link": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
             case "Date": return <input type="date" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
-            case "Currency": return <input type="number" step="0.01" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
+            case "Currency": return <input type="number" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
             default: return <input type="text" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
         }
     };
@@ -114,7 +114,7 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                                                     ))}
                                                 </select>
                                             ) : col.type === 'Currency' ? (
-                                                <input type="number" step="0.01" className={`${inputClasses} !h-11`}
+                                                <input type="number" className={`${inputClasses} !h-11`}
                                                     value={row[col.key] || ''}
                                                     onChange={e => onRowChange(i, col.key, e.target.value)} />
                                             ) : col.type === 'ReadOnly' ? (

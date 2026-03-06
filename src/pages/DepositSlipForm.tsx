@@ -232,15 +232,15 @@ const DepositSlipForm: React.FC = () => {
         if (tableName === 'ecs_dates') {
             newRow.innerHTML = `
                 <td class="p-2"><input type="date" name="ecs_date_${rowId}" class="${inputClasses}" /></td>
-                <td class="p-2"><input type="number" step="0.01" name="amount_${rowId}" class="${inputClasses}" placeholder="0.00" /></td>
+                <td class="p-2"><input type="number" name="amount_${rowId}" class="${inputClasses}" placeholder="0.00" /></td>
                 <td class="p-2"><input type="text" name="remarks_${rowId}" class="${inputClasses}" placeholder="Remarks" /></td>
                 <td class="p-2 text-center"><button type="button" class="${neoButtonClasses} delete-btn" data-table="${tableName}" data-id="${rowId}">Delete</button></td>
             `;
         } else if (tableName === 'credit_distribution') {
             newRow.innerHTML = `
                 <td class="p-2"><input type="text" name="credit_label_${rowId}" class="${inputClasses}" placeholder="Label" /></td>
-                <td class="p-2"><input type="number" step="0.01" name="credit_percentage_${rowId}" class="${inputClasses}" placeholder="%" /></td>
-                <td class="p-2"><input type="number" step="0.01" name="credit_amount_${rowId}" class="${inputClasses}" placeholder="Amount" /></td>
+                <td class="p-2"><input type="number" name="credit_percentage_${rowId}" class="${inputClasses}" placeholder="%" /></td>
+                <td class="p-2"><input type="number" name="credit_amount_${rowId}" class="${inputClasses}" placeholder="Amount" /></td>
                 <td class="p-2 text-center"><button type="button" class="${neoButtonClasses} delete-btn" data-table="${tableName}" data-id="${rowId}">Delete</button></td>
             `;
         }
@@ -376,7 +376,7 @@ const DepositSlipForm: React.FC = () => {
                 );
             }
             if (field.fieldtype === "Date") return <input type="date" {...commonProps} />;
-            if (field.fieldtype === "Currency" || field.fieldtype === "Float" || field.fieldtype === "Int") return <input type="number" step={field.fieldtype === 'Int' ? "1" : "0.01"} {...commonProps} />;
+            if (field.fieldtype === "Currency" || field.fieldtype === "Float" || field.fieldtype === "Int") return <input type="number" {...commonProps} />;
             if (field.fieldtype === "HTML") return <div dangerouslySetInnerHTML={{ __html: field.options || '' }} className="prose text-sm text-zinc-600 dark:text-zinc-400" />;
 
             return <input type="text" {...commonProps} />;

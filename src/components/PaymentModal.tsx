@@ -167,7 +167,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                                     ) : field.fieldtype === 'Currency' || field.fieldtype === 'Float' ? (
                                         <input
                                             type="number"
-                                            step="0.01"
                                             className={inputClasses}
                                             value={value}
                                             onChange={(e) => handlePaymentFieldChange(field.fieldname, parseFloat(e.target.value) || 0)}

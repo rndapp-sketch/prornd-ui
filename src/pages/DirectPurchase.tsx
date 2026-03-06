@@ -211,7 +211,7 @@ const MemoizedFormField = memo(({
                 );
             case "Currency":
             case "Float":
-                return <input type="number" step="0.01" {...commonInputProps} />;
+                return <input type="number" {...commonInputProps} />;
             case "Int":
                 return <input type="number" {...commonInputProps} />;
             case "Date":
@@ -472,7 +472,6 @@ const ChildTableEditor = ({
                                                 ) : (
                                                     <input
                                                         type={getInputType(cf)}
-                                                        step={cf.fieldtype === 'Float' || cf.fieldtype === 'Currency' ? '0.01' : undefined}
                                                         value={row[cf.fieldname] ?? ''}
                                                         onChange={(e) => updateRow(idx, cf.fieldname, e.target.value)}
                                                         className={tableInputClasses}

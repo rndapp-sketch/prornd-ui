@@ -76,7 +76,7 @@ const MemoizedTransactionsTable = memo(({ tableData, onRowChange, onFileChange, 
                                         onChange={e => onRowChange(i, 'transaction_date', e.target.value)} />
                                 </td>
                                 <td className="p-2">
-                                    <input type="number" step="0.01" className={`${inputClasses} !h-11`}
+                                    <input type="number" className={`${inputClasses} !h-11`}
                                         value={row.amount || ''}
                                         onChange={e => onRowChange(i, 'amount', e.target.value)}
                                         placeholder="0.00" />
@@ -172,7 +172,7 @@ const MemoizedBudgetBreakupTable = memo(({ tableData, onRowChange, onAddRow, onD
                                     </select>
                                 </td>
                                 <td className="p-2">
-                                    <input type="number" step="0.01" className={`${inputClasses} !h-11`}
+                                    <input type="number" className={`${inputClasses} !h-11`}
                                         value={row.amount_received || ''}
                                         onChange={e => onRowChange(i, 'amount_received', e.target.value)}
                                         placeholder="0.00" />
@@ -810,7 +810,7 @@ const AddFundReceived: React.FC = () => {
                         </select>
                     );
                 case "Currency":
-                    return <input type="number" step="0.01" {...commonProps} />;
+                    return <input type="number" {...commonProps} />;
                 case "Date":
                     return <input type="date" {...commonProps} />;
                 case "Data":

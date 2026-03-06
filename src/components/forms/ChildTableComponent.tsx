@@ -89,7 +89,6 @@ export const ChildTableComponent = memo(({
                 return (
                     <input
                         type="number"
-                        step="1"
                         className={inputClasses}
                         value={value || ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, parseInt(e.target.value) || 0)}
@@ -103,7 +102,6 @@ export const ChildTableComponent = memo(({
                 return (
                     <input
                         type="number"
-                        step="0.01"
                         className={inputClasses}
                         value={value || ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, parseFloat(e.target.value) || 0)}
@@ -291,7 +289,7 @@ export const ChildTableComponent = memo(({
             {!readOnly && (
                 <FrappeButton
                     onClick={() => onAddRow(tableName, createNewRow())}
-                    className="w-full py-2.5 text-sm bg-white border border-zinc-200 border-dashed text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 hover:text-zinc-900 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 shadow-sm"
+                    className="w-full py-2.5 text-sm bg-white border border-dashed border-[#D97757]/40 text-[#D97757] hover:bg-[#D97757]/5 hover:border-[#D97757]/60 hover:text-[#D97757] dark:bg-zinc-900 dark:border-[#D97757]/30 dark:text-[#D97757]/80 dark:hover:bg-[#D97757]/10 dark:hover:text-[#D97757] shadow-sm"
                 >
                     + Add Row
                 </FrappeButton>

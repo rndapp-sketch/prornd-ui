@@ -106,7 +106,7 @@ interface ActivityStreamProps {
 interface ActivityStreamHandle {
   refetch: () => void;
 }
-interface ProjectDetailsProps { }
+interface ProjectDetailsProps {}
 
 interface BudgetEntry {
   sl: number;
@@ -285,7 +285,7 @@ const FrappeButton = ({
       className,
       variant === "primary" && "bg-[#D97757] hover:bg-[#D97757] text-white",
       variant === "outline" &&
-      "border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
+        "border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
     )}
     {...props}
   >
@@ -393,12 +393,13 @@ const AdvanceSettlementModal = ({
               </div>
               <div className="flex items-center gap-2">
                 <span
-                  className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
-                    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                    : settlement.workflow_state === "Submitted"
-                      ? "bg-blue-100 text-blue-800 border-blue-200"
-                      : "bg-zinc-100 text-zinc-800 border-zinc-200"
-                    }`}
+                  className={`text-xs px-2 py-1 rounded-full border ${
+                    settlement.workflow_state === "Approved"
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                      : settlement.workflow_state === "Submitted"
+                        ? "bg-blue-100 text-blue-800 border-blue-200"
+                        : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                  }`}
                 >
                   {settlement.workflow_state || "Draft"}
                 </span>
@@ -456,8 +457,9 @@ const TADASettlementModal = ({
           Existing TA DA Settlements Found
         </h3>
         <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
-          There are already TA DA settlement(s) created for this travel application. You can
-          view/edit an existing one or create a new settlement.
+          There are already TA DA settlement(s) created for this travel
+          application. You can view/edit an existing one or create a new
+          settlement.
         </p>
 
         <div className="space-y-3 mb-6 max-h-[200px] overflow-y-auto">
@@ -471,20 +473,26 @@ const TADASettlementModal = ({
                   {settlement.name}
                 </p>
                 <p className="text-xs text-zinc-500">
-                  {settlement.workflow_state} · ₹ {settlement.ta_da_total_claimed || settlement.ta_da_net_claimed || 0}
+                  {settlement.workflow_state} · ₹{" "}
+                  {settlement.ta_da_total_claimed ||
+                    settlement.ta_da_net_claimed ||
+                    0}
                 </p>
                 <p className="text-xs text-zinc-400 mt-1">
-                  {settlement.creation ? new Date(settlement.creation).toLocaleDateString() : ""}
+                  {settlement.creation
+                    ? new Date(settlement.creation).toLocaleDateString()
+                    : ""}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <span
-                  className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
-                    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                    : settlement.workflow_state === "Submitted"
-                      ? "bg-blue-100 text-blue-800 border-blue-200"
-                      : "bg-zinc-100 text-zinc-800 border-zinc-200"
-                    }`}
+                  className={`text-xs px-2 py-1 rounded-full border ${
+                    settlement.workflow_state === "Approved"
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                      : settlement.workflow_state === "Submitted"
+                        ? "bg-blue-100 text-blue-800 border-blue-200"
+                        : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                  }`}
                 >
                   {settlement.workflow_state || "Draft"}
                 </span>
@@ -535,7 +543,6 @@ const QuickActions = ({
   projectTitle,
   onNavigate,
 }: QuickActionsProps) => {
-  const { currentUser } = useFrappeAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const defaultSubtab = searchParams.get("subtab") || "Reimbursement";
@@ -556,8 +563,11 @@ const QuickActions = ({
 
   // TA DA Settle Modal State (Travel)
   const [isTADASettleModalOpen, setIsTADASettleModalOpen] = useState(false);
-  const [existingTADASettlements, setExistingTADASettlements] = useState<any[]>([]);
-  const [selectedTravelForSettle, setSelectedTravelForSettle] = useState<any>(null);
+  const [existingTADASettlements, setExistingTADASettlements] = useState<any[]>(
+    [],
+  );
+  const [selectedTravelForSettle, setSelectedTravelForSettle] =
+    useState<any>(null);
 
   const handleSettleClick = async (item: any) => {
     setIsLoading(true);
@@ -649,9 +659,15 @@ const QuickActions = ({
       // Add workflow status mappings
       const mappedSettlements = fetchedSettlements.map((s: any) => ({
         ...s,
-        workflow_state: s.workflow_state || (s.docstatus === 1 ? "Submitted" : s.docstatus === 2 ? "Cancelled" : "Draft"),
+        workflow_state:
+          s.workflow_state ||
+          (s.docstatus === 1
+            ? "Submitted"
+            : s.docstatus === 2
+              ? "Cancelled"
+              : "Draft"),
         // Normalize amount property so that the existing modal component displays it correctly
-        total_amount: s.ta_da_total_claimed || s.ta_da_net_claimed || 0
+        total_amount: s.ta_da_total_claimed || s.ta_da_net_claimed || 0,
       }));
 
       console.log(">>> Mapped TA DA Settlements:", mappedSettlements);
@@ -663,12 +679,16 @@ const QuickActions = ({
         console.log(">>> Opening Modal with existing settlements");
       } else {
         console.log(">>> No settlements found, navigating to new form");
-        onNavigate(`/ta-da-settlement?project=${projectNo}&travel_ref=${item.name}`);
+        onNavigate(
+          `/ta-da-settlement?project=${projectNo}&travel_ref=${item.name}`,
+        );
       }
     } catch (error) {
       console.error("Error fetching TA DA settlements via v2 API:", error);
       // Fallback: navigate directly to form
-      onNavigate(`/ta-da-settlement?project=${projectNo}&travel_ref=${item.name}`);
+      onNavigate(
+        `/ta-da-settlement?project=${projectNo}&travel_ref=${item.name}`,
+      );
     } finally {
       setIsLoading(false);
     }
@@ -1293,20 +1313,20 @@ const QuickActions = ({
                         className={cn(
                           "inline-flex px-2 py-1 text-xs font-medium rounded-full",
                           item.workflow_state === "Approved" &&
-                          "bg-green-100 text-green-700",
+                            "bg-green-100 text-green-700",
                           item.workflow_state === "Pending" &&
-                          "bg-yellow-100 text-yellow-700",
+                            "bg-yellow-100 text-yellow-700",
                           item.workflow_state === "Rejected" &&
-                          "bg-red-100 text-red-700",
+                            "bg-red-100 text-red-700",
                           item.workflow_state === "Draft" &&
-                          "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
+                            "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
                           ![
                             "Approved",
                             "Pending",
                             "Rejected",
                             "Draft",
                           ].includes(item.workflow_state) &&
-                          "bg-blue-100 text-blue-700",
+                            "bg-blue-100 text-blue-700",
                         )}
                       >
                         {item.workflow_state || "Draft"}
@@ -1371,14 +1391,19 @@ const QuickActions = ({
                         >
                           View
                         </button>
-                        {selectedApplication === "Direct Purchase" && item.workflow_state === "Approved" && (
-                          <button
-                            onClick={() => onNavigate(`/p11-form?edit=${item.name}&project=${projectName}`)}
-                            className="text-sm text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline whitespace-nowrap"
-                          >
-                            P 11
-                          </button>
-                        )}
+                        {selectedApplication === "Direct Purchase" &&
+                          item.workflow_state === "Approved" && (
+                            <button
+                              onClick={() =>
+                                onNavigate(
+                                  `/p11-form?edit=${item.name}&project=${projectName}`,
+                                )
+                              }
+                              className="text-sm text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline whitespace-nowrap"
+                            >
+                              P 11
+                            </button>
+                          )}
                         {selectedApplication === "Temporary Advance Apply" && (
                           <button
                             onClick={() => handleSettleClick(item)}
@@ -1807,7 +1832,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   >([]);
   const [isLedgerLoading, setIsLedgerLoading] = useState(false);
   const [ledgerError, setLedgerError] = useState<string | null>(null);
-  const [ledgerSortOrder, setLedgerSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [ledgerSortOrder, setLedgerSortOrder] = useState<"newest" | "oldest">(
+    "newest",
+  );
   const [ledgerPage, setLedgerPage] = useState(1);
   const [ledgerPageSize, setLedgerPageSize] = useState(10);
 
@@ -1916,7 +1943,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   }, [projectName, activeLedgerHeadId]);
 
   const sortedTransactions = useMemo(() => {
-    return ledgerSortOrder === 'newest' ? [...ledgerTransactions].reverse() : ledgerTransactions;
+    return ledgerSortOrder === "newest"
+      ? [...ledgerTransactions].reverse()
+      : ledgerTransactions;
   }, [ledgerTransactions, ledgerSortOrder]);
 
   const fetchLedgerData = async (headId: string | number) => {
@@ -2341,10 +2370,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
         action.toLowerCase() === "submit"
           ? submitProjectRegistration({ doc_data: projectName })
           : triggerWorkflowAction({
-            doctype: "Project Registration",
-            docname: projectName,
-            action: action,
-          });
+              doctype: "Project Registration",
+              docname: projectName,
+              action: action,
+            });
       apiCall
         .then(() => {
           mutate();
@@ -2524,14 +2553,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                   {/* Only show Add Sanction button if no sanction exists */}
                   {(!sanctionData?.message ||
                     sanctionData.message.length === 0) && (
-                      <FrappeButton
-                        onClick={handleAddSanctionDetails}
-                        variant="outline"
-                        aria-label="Add sanction details"
-                      >
-                        <FilePlusIcon className="h-3.5 w-3.5" /> Add Sanction
-                      </FrappeButton>
-                    )}
+                    <FrappeButton
+                      onClick={handleAddSanctionDetails}
+                      variant="outline"
+                      aria-label="Add sanction details"
+                    >
+                      <FilePlusIcon className="h-3.5 w-3.5" /> Add Sanction
+                    </FrappeButton>
+                  )}
                 </div>
               )}
               <WorkflowActions
@@ -2559,7 +2588,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     className={cn(
                       "frappe-tab flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-bold",
                       activeTab === tab.id &&
-                      "active bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757] dark:bg-[#D97757]/20",
+                        "active bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757] dark:bg-[#D97757]/20",
                     )}
                   >
                     <tab.icon className="h-3.5 w-3.5" /> {tab.label}
@@ -2695,49 +2724,49 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         {data?.consultancy_category?.startsWith(
                           "Category D",
                         ) && (
-                            <>
-                              <FieldDisplay
-                                label="Category D Note"
-                                value={data?.category_d_note}
-                                icon={FileTextIcon}
-                              />
-                              <FieldDisplay
-                                label="Total Cost (Excl. GST)"
-                                value={data?.cat_d_project_cost_excl_gst}
-                                icon={IndianRupeeIcon}
-                              />
-                              <FieldDisplay
-                                label="Consultancy Fee"
-                                value={data?.cat_d_consultancy_fee_input}
-                                icon={IndianRupeeIcon}
-                              />
-                              <FieldDisplay
-                                label="Operational Expense (+OH)"
-                                value={data?.operational_expense_input_inc_10_oh}
-                                icon={IndianRupeeIcon}
-                              />
-                              <FieldDisplay
-                                label="Institute Share"
-                                value={data?.cat_d_institute_share}
-                                icon={IndianRupeeIcon}
-                              />
-                              <FieldDisplay
-                                label="Total Overhead"
-                                value={data?.cat_d_total_overhead}
-                                icon={IndianRupeeIcon}
-                              />
-                              <FieldDisplay
-                                label="GST Amount"
-                                value={data?.cat_d_gst_amt}
-                                icon={IndianRupeeIcon}
-                              />
-                              <FieldDisplay
-                                label="Grand Total"
-                                value={data?.cat_d_grand_total_calc}
-                                icon={IndianRupeeIcon}
-                              />
-                            </>
-                          )}
+                          <>
+                            <FieldDisplay
+                              label="Category D Note"
+                              value={data?.category_d_note}
+                              icon={FileTextIcon}
+                            />
+                            <FieldDisplay
+                              label="Total Cost (Excl. GST)"
+                              value={data?.cat_d_project_cost_excl_gst}
+                              icon={IndianRupeeIcon}
+                            />
+                            <FieldDisplay
+                              label="Consultancy Fee"
+                              value={data?.cat_d_consultancy_fee_input}
+                              icon={IndianRupeeIcon}
+                            />
+                            <FieldDisplay
+                              label="Operational Expense (+OH)"
+                              value={data?.operational_expense_input_inc_10_oh}
+                              icon={IndianRupeeIcon}
+                            />
+                            <FieldDisplay
+                              label="Institute Share"
+                              value={data?.cat_d_institute_share}
+                              icon={IndianRupeeIcon}
+                            />
+                            <FieldDisplay
+                              label="Total Overhead"
+                              value={data?.cat_d_total_overhead}
+                              icon={IndianRupeeIcon}
+                            />
+                            <FieldDisplay
+                              label="GST Amount"
+                              value={data?.cat_d_gst_amt}
+                              icon={IndianRupeeIcon}
+                            />
+                            <FieldDisplay
+                              label="Grand Total"
+                              value={data?.cat_d_grand_total_calc}
+                              icon={IndianRupeeIcon}
+                            />
+                          </>
+                        )}
 
                         {!data?.consultancy_category?.startsWith(
                           "Category D",
@@ -2904,11 +2933,31 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         {(() => {
                           // Calculate column totals to determine visibility
                           const totals = {
-                            year1: data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.first_year_budget || 0), 0),
-                            year2: data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.second_year_budget || 0), 0),
-                            year3: data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.third_year_budget || 0), 0),
-                            year4: data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.fourth_year_budget || 0), 0),
-                            year5: data.proposed_budget_breakup.reduce((sum: number, row: any) => sum + (row.fifth_year_budget || 0), 0),
+                            year1: data.proposed_budget_breakup.reduce(
+                              (sum: number, row: any) =>
+                                sum + (row.first_year_budget || 0),
+                              0,
+                            ),
+                            year2: data.proposed_budget_breakup.reduce(
+                              (sum: number, row: any) =>
+                                sum + (row.second_year_budget || 0),
+                              0,
+                            ),
+                            year3: data.proposed_budget_breakup.reduce(
+                              (sum: number, row: any) =>
+                                sum + (row.third_year_budget || 0),
+                              0,
+                            ),
+                            year4: data.proposed_budget_breakup.reduce(
+                              (sum: number, row: any) =>
+                                sum + (row.fourth_year_budget || 0),
+                              0,
+                            ),
+                            year5: data.proposed_budget_breakup.reduce(
+                              (sum: number, row: any) =>
+                                sum + (row.fifth_year_budget || 0),
+                              0,
+                            ),
                           };
 
                           return (
@@ -3373,10 +3422,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                                 {c.fieldname === "account_head"
                                                   ? row[c.fieldname]
                                                   : (
-                                                    parseFloat(
-                                                      row[c.fieldname],
-                                                    ) || 0
-                                                  ).toLocaleString("en-IN")}
+                                                      parseFloat(
+                                                        row[c.fieldname],
+                                                      ) || 0
+                                                    ).toLocaleString("en-IN")}
                                               </td>
                                             ))}
                                             <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
@@ -3521,18 +3570,24 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
                     <div className="flex items-center gap-2 shrink-0">
                       <button
-                        onClick={() => setLedgerSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
+                        onClick={() =>
+                          setLedgerSortOrder((prev) =>
+                            prev === "newest" ? "oldest" : "newest",
+                          )
+                        }
                         className="inline-flex items-center gap-1.5 px-3 h-9 text-xs font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
                       >
                         <ArrowUpDown className="w-3.5 h-3.5" />
-                        {ledgerSortOrder === 'newest' ? 'Newest' : 'Oldest'}
+                        {ledgerSortOrder === "newest" ? "Newest" : "Oldest"}
                       </button>
                       <Button
                         variant="outline"
                         size="icon"
                         className="h-9 w-9 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                         onClick={() =>
-                          navigate(`/project-ledger-full/${data?.project_no || projectName}`)
+                          navigate(
+                            `/project-ledger-full/${data?.project_no || projectName}`,
+                          )
                         }
                         title="Open Full Ledger"
                       >
@@ -3621,8 +3676,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                 <td className="px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                                   {txn.transactionDate
                                     ? new Date(
-                                      txn.transactionDate,
-                                    ).toLocaleDateString("en-IN")
+                                        txn.transactionDate,
+                                      ).toLocaleDateString("en-IN")
                                     : "-"}
                                 </td>
                                 <td className="px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100">
@@ -3883,11 +3938,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         tab === "All"
                           ? budgetData
                           : budgetData.filter(
-                            (e: any) =>
-                              (e.head || e.accountHead || "")
-                                .trim()
-                                .toLowerCase() === tab.trim().toLowerCase(),
-                          );
+                              (e: any) =>
+                                (e.head || e.accountHead || "")
+                                  .trim()
+                                  .toLowerCase() === tab.trim().toLowerCase(),
+                            );
                       // Use the last entry's commitableBalance for that head (running total already calculated)
                       const lastEntryForHead =
                         tabEntries.length > 0
@@ -3896,13 +3951,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       const tabBalance =
                         tab === "All"
                           ? tabEntries.reduce(
-                            (acc, e) =>
-                              acc +
-                              (e.received || 0) -
-                              (e.committed || 0) -
-                              (e.payment || 0),
-                            0,
-                          )
+                              (acc, e) =>
+                                acc +
+                                (e.received || 0) -
+                                (e.committed || 0) -
+                                (e.payment || 0),
+                              0,
+                            )
                           : lastEntryForHead?.commitableBalance || 0;
                       return (
                         <button
@@ -4067,8 +4122,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                               {activeLedgerTab === "All"
                                 ? row.actualBalance?.toLocaleString("en-IN")
                                 : (
-                                  row as any
-                                ).headActualBalance?.toLocaleString("en-IN")}
+                                    row as any
+                                  ).headActualBalance?.toLocaleString("en-IN")}
                             </td>
                             <td>
                               <span
@@ -4185,7 +4240,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
                       {/* Select for Select/Link fieldtypes */}
                       {field.fieldtype === "Select" ||
-                        field.fieldtype === "Link" ? (
+                      field.fieldtype === "Link" ? (
                         <select
                           className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                           value={value}
@@ -4220,7 +4275,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       ) : field.fieldtype === "Currency" ? (
                         <input
                           type="number"
-                          step="0.01"
                           className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                           value={value}
                           onChange={(e) =>
