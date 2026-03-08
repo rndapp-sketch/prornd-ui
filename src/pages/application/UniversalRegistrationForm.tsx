@@ -174,7 +174,7 @@ export default function UniversalRegistrationForm() {
 
     if (isLoadingFields) {
         return (
-            <div className="flex-1 w-full bg-[#FAFAF9] min-h-screen">
+            <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
                 <div className="max-w-[1240px] px-8 py-10 mx-auto">
                     <div className="flex items-center gap-4 mb-8">
                         <Skeleton className="h-10 w-10 rounded-full" />
@@ -183,12 +183,12 @@ export default function UniversalRegistrationForm() {
                             <Skeleton className="h-4 w-[200px]" />
                         </div>
                     </div>
-                    <Card className="border-zinc-200 shadow-sm">
-                        <CardHeader className="border-b border-zinc-100 bg-[#FDFDFD]">
+                    <Card className="border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <CardHeader className="border-b border-zinc-100 dark:border-zinc-800 bg-[#FDFDFD] dark:bg-[#27272A]">
                             <Skeleton className="h-6 w-[200px] mb-2" />
                             <Skeleton className="h-4 w-[350px]" />
                         </CardHeader>
-                        <CardContent className="p-8 space-y-8 bg-white">
+                        <CardContent className="p-8 space-y-8 bg-white dark:bg-zinc-900">
                             {Array.from({ length: 3 }).map((_, i) => (
                                 <div key={i} className="space-y-4">
                                     <Skeleton className="h-5 w-[150px]" />
@@ -206,7 +206,7 @@ export default function UniversalRegistrationForm() {
     }
 
     return (
-        <div className="flex-1 w-full bg-[#FAFAF9] min-h-screen">
+        <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen text-zinc-900 dark:text-zinc-100">
             <div className="max-w-[1240px] px-8 py-10 mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
 
                 {/* --- Header Section (Claude UI) --- */}
@@ -216,20 +216,20 @@ export default function UniversalRegistrationForm() {
                             variant="ghost"
                             size="icon"
                             onClick={() => navigate(-1)}
-                            className="text-zinc-500 hover:bg-zinc-200/50 hover:text-zinc-900 mt-1 transition-colors"
+                            className="text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 mt-1 transition-colors"
                         >
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
                         <div>
-                            <h1 className="text-3xl font-serif font-medium text-zinc-900 tracking-tight leading-none mb-2 flex items-center gap-3">
+                            <h1 className="text-3xl font-serif font-medium text-zinc-900 dark:text-zinc-100 tracking-tight leading-none mb-2 flex items-center gap-3">
                                 Universal Registration
                                 {formData.status_u_r && (
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-sans font-medium bg-zinc-100 text-zinc-600 border border-zinc-200">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-sans font-medium bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
                                         {formData.status_u_r}
                                     </span>
                                 )}
                             </h1>
-                            <p className="text-sm font-sans text-zinc-500 max-w-2xl">
+                            <p className="text-sm font-sans text-zinc-500 dark:text-zinc-400 max-w-2xl">
                                 {savedDocName
                                     ? `Editing universal registration document ${savedDocName}`
                                     : "Create a new universal registration profile."}
@@ -241,7 +241,7 @@ export default function UniversalRegistrationForm() {
                         <Button
                             variant="outline"
                             onClick={() => navigate(-1)}
-                            className="bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50 shadow-sm transition-all text-sm font-medium"
+                            className="bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50 shadow-sm transition-all text-sm font-medium dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                         >
                             Cancel
                         </Button>
@@ -268,15 +268,15 @@ export default function UniversalRegistrationForm() {
                 </div>
 
                 {/* --- Main Application Form Card --- */}
-                <Card className="border-zinc-200 shadow-sm overflow-hidden bg-white">
-                    <CardHeader className="bg-[#FDFDFD] border-b border-zinc-100 px-8 py-6">
+                <Card className="border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
+                    <CardHeader className="bg-[#FDFDFD] dark:bg-[#27272A] border-b border-zinc-100 dark:border-zinc-800 px-8 py-6">
                         <div className="flex items-center gap-2 mb-1">
-                            <FileText className="h-4 w-4 text-zinc-400" />
-                            <CardTitle className="text-sm font-medium text-zinc-500 uppercase tracking-wider font-sans">
+                            <FileText className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                            <CardTitle className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-sans">
                                 Registration Details
                             </CardTitle>
                         </div>
-                        <CardDescription className="text-base text-zinc-700 font-medium font-serif">
+                        <CardDescription className="text-base text-zinc-700 dark:text-zinc-300 font-medium font-serif">
                             Please fill out the form fields below. All mandatory fields are marked with a red asterisk.
                         </CardDescription>
                     </CardHeader>
@@ -299,8 +299,8 @@ export default function UniversalRegistrationForm() {
 
                         {/* Sticky Action Footer */}
                         {!isReadOnly && (
-                            <div className="sticky bottom-0 border-t border-zinc-200 bg-[#FDFDFD]/95 backdrop-blur-md px-8 py-5 flex items-center justify-between z-10 transition-all shadow-[0_-4px_24px_-12px_rgba(0,0,0,0.1)]">
-                                <div className="text-sm text-zinc-500 font-medium">
+                            <div className="sticky bottom-0 border-t border-zinc-200 dark:border-zinc-800 bg-[#FDFDFD]/95 dark:bg-zinc-900/95 backdrop-blur-md px-8 py-5 flex items-center justify-between z-10 transition-all shadow-[0_-4px_24px_-12px_rgba(0,0,0,0.1)]">
+                                <div className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">
                                     <span className="flex items-center gap-2">
                                         <CheckCircle2 className="h-4 w-4 text-[#D97757]" />
                                         Registration in Draft Mode
@@ -310,7 +310,7 @@ export default function UniversalRegistrationForm() {
                                     <Button
                                         variant="outline"
                                         onClick={() => navigate(-1)}
-                                        className="bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium transition-colors"
+                                        className="bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium transition-colors dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                                     >
                                         Discard Changes
                                     </Button>
