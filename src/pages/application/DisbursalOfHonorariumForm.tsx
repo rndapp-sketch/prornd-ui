@@ -369,35 +369,38 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                             onTableFileChange={handleTableFileChange}
                             onAddTableRow={addTableRow}
                             onDeleteTableRow={deleteTableRow}
+                            readOnly={formData.docstatus === 1}
                         />
                     </FrappeCard>
 
-                    <div className="mt-8 flex justify-end gap-4">
-                        <FrappeButton
-                            onClick={handleSave}
-                            disabled={isSubmitting}
-                            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                        >
-                            {isSubmitting ? 'Saving...' : (
-                                <>
-                                    <Save className="w-4 h-4" />
-                                    Save Draft
-                                </>
-                            )}
-                        </FrappeButton>
-                        <FrappeButton
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="bg-[#D97757] text-white hover:bg-[#D97757]"
-                        >
-                            {isSubmitting ? 'Submitting...' : (
-                                <>
-                                    <Send className="w-4 h-4" />
-                                    Submit Application
-                                </>
-                            )}
-                        </FrappeButton>
-                    </div>
+                    {(!id || formData.docstatus === 0) && (
+                        <div className="mt-8 flex justify-end gap-4">
+                            <FrappeButton
+                                onClick={handleSave}
+                                disabled={isSubmitting}
+                                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                            >
+                                {isSubmitting ? 'Saving...' : (
+                                    <>
+                                        <Save className="w-4 h-4" />
+                                        Save Draft
+                                    </>
+                                )}
+                            </FrappeButton>
+                            <FrappeButton
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="bg-[#D97757] text-white hover:bg-[#D97757]"
+                            >
+                                {isSubmitting ? 'Submitting...' : (
+                                    <>
+                                        <Send className="w-4 h-4" />
+                                        Submit Application
+                                    </>
+                                )}
+                            </FrappeButton>
+                        </div>
+                    )}
                 </form>
             </main>
         </div>

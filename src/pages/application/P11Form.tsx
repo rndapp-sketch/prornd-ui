@@ -319,6 +319,7 @@ const P11Form: React.FC = () => {
                                 onAddTableRow={addTableRow}
                                 onDeleteTableRow={deleteTableRow}
                                 onFieldChangeWithSideEffects={handleFieldChangeWithSideEffects}
+                                readOnly={formData.docstatus === 1}
                             />
                         </FrappeCard>
 

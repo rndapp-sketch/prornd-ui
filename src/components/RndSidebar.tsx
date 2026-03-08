@@ -112,6 +112,14 @@ export function AppSidebar() {
     //   path: "/reimbursement",
     // },
     {
+      label: "Universal Forms",
+      icon: FileText,
+      subMenu: [
+        { label: "Universal Registration", path: "/universal-registration" },
+        { label: "Universal User", path: "/universal-user" },
+      ]
+    },
+    {
       label: "Pending Task",
       icon: ListTodo,
       path: "/pending-task",
@@ -127,6 +135,11 @@ export function AppSidebar() {
       path: "/payments",
     },
   ].filter(item => {
+    if (item.label === "Universal Forms") {
+      // Visible only to staff, RnD
+      const allowedRoles = ['staff, RnD'];
+      return roles && allowedRoles.some(role => roles.includes(role));
+    }
     if (item.label === "Pending Task") {
       const allowedRoles = [
         'Director',

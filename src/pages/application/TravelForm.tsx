@@ -600,28 +600,31 @@ const TravelForm: React.FC = () => {
                                     onAddTableRow={addTableRow}
                                     onDeleteTableRow={deleteTableRow}
                                     onFieldChangeWithSideEffects={handleFieldChangeWithSideEffects}
+                                    readOnly={formData.docstatus === 1}
                                 />
 
                                 {/* Estimate Validation Display */}
                                 <EstimateValidation formData={formData} />
                             </FrappeCard>
 
-                            <div className="mt-8 flex justify-end gap-3">
-                                <FrappeButton
-                                    onClick={handleSave}
-                                    disabled={isSubmitting}
-                                    className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm"
-                                >
-                                    {isSubmitting ? 'Saving...' : 'Save Draft'}
-                                </FrappeButton>
-                                <FrappeButton
-                                    type="submit"
-                                    disabled={isSubmitting || !savedDocName}
-                                    className="bg-[#D97757] text-white hover:opacity-90 shadow-sm"
-                                >
-                                    {isSubmitting ? 'Submitting...' : 'Submit Application'}
-                                </FrappeButton>
-                            </div>
+                            {(!editDocName || formData.docstatus === 0) && (
+                                <div className="mt-8 flex justify-end gap-3">
+                                    <FrappeButton
+                                        onClick={handleSave}
+                                        disabled={isSubmitting}
+                                        className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm"
+                                    >
+                                        {isSubmitting ? 'Saving...' : 'Save Draft'}
+                                    </FrappeButton>
+                                    <FrappeButton
+                                        type="submit"
+                                        disabled={isSubmitting || !savedDocName}
+                                        className="bg-[#D97757] text-white hover:opacity-90 shadow-sm"
+                                    >
+                                        {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                                    </FrappeButton>
+                                </div>
+                            )}
                         </div>
 
                         {/* Fund Details Sidebar - 1 column */}

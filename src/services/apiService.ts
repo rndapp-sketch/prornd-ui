@@ -103,6 +103,50 @@ export const recruitmentAdhocContractualAPI = {
     submit: `${API_BASE}.recruitment_adhoc_contractual.recruitment_adhoc_contractual.submit_recruitment_adhoc_contractual`,
 };
 
+// Indent Cum Sanction Sheet API endpoints
+export const icssAPI = {
+    getIndentTypes: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_indent_types`,
+    getFields: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_fields`,
+    save: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.save_icss_data`,
+    getWorkflowActions: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_workflow_actions`,
+    performAction: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.perform_icss_action`,
+    submit: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.submit_icss`,
+    getUserDetails: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_user_details_icss`,
+};
+
+export const proprietaryPurchaseAPI = {
+    getFields: `${API_BASE}.proprietary_purchase.proprietary_purchase.get_proprietary_purchase_fields`,
+    save: `${API_BASE}.proprietary_purchase.proprietary_purchase.save_proprietary_purchase_data`,
+    getWorkflowActions: `${API_BASE}.proprietary_purchase.proprietary_purchase.get_proprietary_purchase_workflow_actions`,
+    performAction: `${API_BASE}.proprietary_purchase.proprietary_purchase.perform_proprietary_purchase_action`,
+};
+
+export const standardizedPurchaseAPI = {
+    getFields: `${API_BASE}.standerdized_purchase.standerdized_purchase.get_standerdized_purchase_fields`,
+    save: `${API_BASE}.standerdized_purchase.standerdized_purchase.save_standerdized_purchase_data`,
+    getWorkflowActions: `${API_BASE}.standerdized_purchase.standerdized_purchase.get_standerdized_purchase_workflow_actions`,
+    performAction: `${API_BASE}.standerdized_purchase.standerdized_purchase.perform_standerdized_purchase_action`,
+};
+
+export const repairReplacementAPI = {
+    getFields: `${API_BASE}.repair_replacement.repair_replacement.get_repair_replacement_fields`,
+    save: `${API_BASE}.repair_replacement.repair_replacement.save_repair_replacement_data`,
+    getWorkflowActions: `${API_BASE}.repair_replacement.repair_replacement.get_repair_replacement_workflow_actions`,
+    performAction: `${API_BASE}.repair_replacement.repair_replacement.perform_repair_replacement_action`,
+};
+
+// Universal Registration API endpoints
+export const universalRegistrationAPI = {
+    getFields: `${API_BASE}.universal_registration__.universal_registration__.get_universal_registration___fields`,
+    save: `${API_BASE}.universal_registration__.universal_registration__.save_universal_registration___data`,
+};
+
+// Universal User API endpoints
+export const universalUserAPI = {
+    getFields: `${API_BASE}.universal_user__.universal_user__.get_universal_user___fields`,
+    save: `${API_BASE}.universal_user__.universal_user__.save_universal_user___data`,
+};
+
 // Common utility to get user details
 export const commonAPI = {
     getUserDetails: `${API_BASE}.project_registration.project_registration.get_user_details_for_pi`,

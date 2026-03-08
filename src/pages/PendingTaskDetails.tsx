@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useFrappeGetDoc, useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
+import { useFrappeGetDoc, useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { ArrowLeftIcon, FileIcon, ExternalLinkIcon } from "lucide-react";
 import { AppSidebar } from '@/components/RndSidebar';
 import { FrappeButton } from '@/components/ui/neo-brutalism';
 import ProjectDetailsView from "./ProjectDetails";
 import TemporaryAdvanceDetailsView from "./TemporaryAdvanceDetailsView";
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, directPurchaseAPI } from '@/services/apiService';
+import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, directPurchaseAPI, tadaAPI } from '@/services/apiService';
 import { ActivityStream } from '@/components/ActivityStream';
 import { BudgetActionsSidebar } from '@/components/BudgetActionsSidebar';
 import TemporaryAdvanceActionButtons from '@/components/TemporaryAdvanceActionButtons';
+import TADASettlementActionButtons from '@/components/TADASettlementActionButtons';
+import { useUserRoles } from '@/components/UserRole';
 
 // Fields to hide from the overview
 const HIDDEN_FIELDS = [
@@ -307,6 +309,13 @@ const PendingTaskDetails: React.FC = () => {
 
     const { data, isLoading, error } = useFrappeGetDoc(doctype || "", name || "");
 
+    // Auth & Roles
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+    const isRnDStaff = roles.some(r =>
+        r === "RnD Staff" || r === "R&D Staff" || r === "Research and Development Staff" || r === "System Manager" || r === "staff, RnD" || r === "Hos, RnD (Head of Section, RnD)"
+    );
+
     // Additional state for Travel Dynamic Form
     const [travelFields, setTravelFields] = useState<FormField[]>([]);
     const [travelLinkOptions, setTravelLinkOptions] = useState<Record<string, LinkOption[]>>({});
@@ -322,9 +331,15 @@ const PendingTaskDetails: React.FC = () => {
     const [temporaryAdvanceLinkOptions, setTemporaryAdvanceLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [isTemporaryAdvanceLoading, setIsTemporaryAdvanceLoading] = useState(false);
 
+    // State for TA DA Settlement Fields
+    const [tadaFields, setTadaFields] = useState<FormField[]>([]);
+    const [tadaLinkOptions, setTadaLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [isTadaLoading, setIsTadaLoading] = useState(false);
+
     const { call: fetchTravelFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any } }>(travelAPI.getFields);
     const { call: fetchAdvanceSettlementFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any, child_table_meta?: any } }>(advanceSettlementAPI.getFields);
     const { call: fetchTemporaryAdvanceFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any } }>(temporaryAdvanceAPI.getFields);
+    const { call: fetchTadaFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any, child_table_meta?: any } }>(tadaAPI.getFields);
     // State for display data (to handle ID resolution)
     const [displayData, setDisplayData] = useState<Record<string, any>>({});
 
@@ -482,6 +497,41 @@ const PendingTaskDetails: React.FC = () => {
                 .finally(() => setIsTemporaryAdvanceLoading(false));
         }
     }, [doctype, name, fetchTemporaryAdvanceFields]);
+
+    // Fetch TA DA Settlement Fields
+    useEffect(() => {
+        if (doctype === 'TA DA Settlement' && name) {
+            setIsTadaLoading(true);
+            fetchTadaFields({ doc_name: name })
+                .then((res) => {
+                    if (res?.message) {
+                        let fields = res.message.fields || [];
+                        const childMeta = (res.message as any).child_table_meta;
+
+                        if (childMeta) {
+                            fields = fields.map((field) => {
+                                if (field.fieldtype === 'Table' && field.fieldname && childMeta[field.fieldname]) {
+                                    const childFields = childMeta[field.fieldname].fields.map((cf: any) => ({
+                                        ...cf,
+                                        label: cf.label || cf.fieldname || ''
+                                    }));
+                                    return {
+                                        ...field,
+                                        child_fields: childFields
+                                    };
+                                }
+                                return field;
+                            });
+                        }
+
+                        setTadaFields(fields);
+                        setTadaLinkOptions(res.message.link_options || {});
+                    }
+                })
+                .catch(err => console.error("Error fetching TA DA Settlement fields", err))
+                .finally(() => setIsTadaLoading(false));
+        }
+    }, [doctype, name, fetchTadaFields]);
 
 
     if (isLoading) {
@@ -687,6 +737,9 @@ const PendingTaskDetails: React.FC = () => {
                             {doctype === "Direct Purchase" && name && (
                                 <DirectPurchaseWorkflowActions docname={name} onActionComplete={() => window.location.reload()} />
                             )}
+                            {doctype === "TA DA Settlement" && name && (
+                                <TADASettlementActionButtons docName={name} onActionComplete={() => window.location.reload()} />
+                            )}
 
                         </div>
                     </div>
@@ -774,6 +827,32 @@ const PendingTaskDetails: React.FC = () => {
                             ) : (
                                 renderGenericDetails()
                             )
+                        ) : doctype === 'TA DA Settlement' ? (
+                            isTadaLoading ? (
+                                <div className="flex h-64 items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
+                                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">Loading details...</p>
+                                    </div>
+                                </div>
+                            ) : tadaFields.length > 0 ? (
+                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+                                    <DynamicFormRenderer
+                                        fields={tadaFields}
+                                        formData={displayData}
+                                        linkOptions={tadaLinkOptions}
+                                        onChange={() => { }}
+                                        onFileChange={() => { }}
+                                        onTableRowChange={() => { }}
+                                        onTableFileChange={() => { }}
+                                        onAddTableRow={() => { }}
+                                        onDeleteTableRow={() => { }}
+                                        readOnly={true}
+                                    />
+                                </div>
+                            ) : (
+                                renderGenericDetails()
+                            )
                         ) : (
                             renderGenericDetails()
                         )}
@@ -805,6 +884,15 @@ const PendingTaskDetails: React.FC = () => {
                             {doctype === 'Temporary Advance' && (data?.project_name || data?.project_code) && (
                                 <BudgetActionsSidebar
                                     projectName={data.project_name || data.project_code}
+                                    isStaff={true}
+                                    docName={name}
+                                    doctype={doctype}
+                                />
+                            )}
+                            {/* Setup for TA DA Settlement */}
+                            {doctype === 'TA DA Settlement' && isRnDStaff && (data?.project_no || data?.ta_da_project_code) && (
+                                <BudgetActionsSidebar
+                                    projectName={data.project_no || data.ta_da_project_code}
                                     isStaff={true}
                                     docName={name}
                                     doctype={doctype}

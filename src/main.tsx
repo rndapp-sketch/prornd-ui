@@ -62,6 +62,9 @@ import DirectPurchaseDetails from './pages/application/DirectPurchaseDetails.tsx
 import P11Form from './pages/application/P11Form.tsx';
 import SanctionSheetForm from './pages/application/SanctionSheetForm.tsx';
 import RecruitmentAdhocContractualForm from './pages/application/RecruitmentAdhocContractualForm.tsx';
+import IndentCumSanctionSheetForm from './pages/application/IndentCumSanctionSheetForm.tsx';
+import UniversalRegistrationForm from './pages/application/UniversalRegistrationForm.tsx';
+import UniversalUserForm from './pages/application/UniversalUserForm.tsx';
 
 const router = createBrowserRouter(
   [
@@ -515,7 +518,31 @@ const router = createBrowserRouter(
               <RecruitmentAdhocContractualForm />
             </AuthRouteWrapper>
           )
-        }
+        },
+        {
+          path: "indent-cum-sanction-sheet/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <IndentCumSanctionSheetForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "universal-registration/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <UniversalRegistrationForm />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "universal-user/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <UniversalUserForm />
+            </AuthRouteWrapper>
+          ),
+        },
       ],
     },
   ],

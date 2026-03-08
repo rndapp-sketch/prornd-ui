@@ -523,25 +523,28 @@ const AdvanceSettlementForm: React.FC = () => {
                                     onAddTableRow={addTableRow}
                                     onDeleteTableRow={deleteTableRow}
                                     onFieldChangeWithSideEffects={handleFieldChangeWithSideEffects}
+                                    readOnly={formData.docstatus === 1}
                                 />
                             </FrappeCard>
 
-                            <div className="mt-8 flex justify-end gap-4">
-                                <FrappeButton
-                                    onClick={handleSave}
-                                    disabled={isSubmitting}
-                                    className="bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50"
-                                >
-                                    {isSubmitting ? 'Saving...' : 'Save Draft'}
-                                </FrappeButton>
-                                <FrappeButton
-                                    type="submit"
-                                    disabled={isSubmitting || !savedDocName}
-                                    className="bg-[#D97757] text-white hover:opacity-90 dark:bg-[#D97757] dark:text-white"
-                                >
-                                    {isSubmitting ? 'Submitting...' : 'Submit Settlement'}
-                                </FrappeButton>
-                            </div>
+                            {(!effectiveDocName || formData.docstatus === 0) && (
+                                <div className="mt-8 flex justify-end gap-4">
+                                    <FrappeButton
+                                        onClick={handleSave}
+                                        disabled={isSubmitting}
+                                        className="bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-700/50"
+                                    >
+                                        {isSubmitting ? 'Saving...' : 'Save Draft'}
+                                    </FrappeButton>
+                                    <FrappeButton
+                                        type="submit"
+                                        disabled={isSubmitting || !savedDocName}
+                                        className="bg-[#D97757] text-white hover:opacity-90 dark:bg-[#D97757] dark:text-white"
+                                    >
+                                        {isSubmitting ? 'Submitting...' : 'Submit Settlement'}
+                                    </FrappeButton>
+                                </div>
+                            )}
                         </div>
 
                         {/* Summary Sidebar - 1 column */}

@@ -394,10 +394,10 @@ const AdvanceSettlementModal = ({
               <div className="flex items-center gap-2">
                 <span
                   className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
-                      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                      : settlement.workflow_state === "Submitted"
-                        ? "bg-blue-100 text-blue-800 border-blue-200"
-                        : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                    : settlement.workflow_state === "Submitted"
+                      ? "bg-blue-100 text-blue-800 border-blue-200"
+                      : "bg-zinc-100 text-zinc-800 border-zinc-200"
                     }`}
                 >
                   {settlement.workflow_state || "Draft"}
@@ -486,10 +486,10 @@ const TADASettlementModal = ({
               <div className="flex items-center gap-2">
                 <span
                   className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
-                      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                      : settlement.workflow_state === "Submitted"
-                        ? "bg-blue-100 text-blue-800 border-blue-200"
-                        : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                    : settlement.workflow_state === "Submitted"
+                      ? "bg-blue-100 text-blue-800 border-blue-200"
+                      : "bg-zinc-100 text-zinc-800 border-zinc-200"
                     }`}
                 >
                   {settlement.workflow_state || "Draft"}
@@ -699,7 +699,7 @@ const QuickActions = ({
     {
       title: "Disbursal",
       icon: Upload,
-      items: ["Top Up Fellowship", "Disbursal of Honorarium"],
+      items: ["Top Up Fellowship", "Disbursal of Honorarium", "Disbursal of Consultancy"],
     },
     {
       title: "Purchase",
@@ -1097,6 +1097,42 @@ const QuickActions = ({
           console.error("Adhoc/Contractual fetch error:", fetchError);
           data = [];
         }
+      } else if (selectedApplication === "Indent cum Sanction") {
+        try {
+          const timestamp = Date.now();
+          const apiUrl = `/api/resource/Indent%20Cum%20Sanction%20Sheet?fields=["name","creation","workflow_state","owner","project_code","icss_indent_type","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          const fetchResponse = await fetch(apiUrl, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            credentials: "include",
+          });
+          if (!fetchResponse.ok)
+            throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+          const result = await fetchResponse.json();
+          const allItems = result?.data || [];
+
+          data = allItems
+            .filter((item: any) => {
+              const matchesProject =
+                item.project_code === projectName ||
+                item.project_code === projectNo;
+              return matchesProject;
+            })
+            .map((item: any) => ({
+              ...item,
+              workflow_state:
+                item.workflow_state ||
+                (item.docstatus === 1
+                  ? "Submitted"
+                  : item.docstatus === 2
+                    ? "Cancelled"
+                    : "Draft"),
+              applicant_webmail: item.owner,
+            }));
+        } catch (fetchError) {
+          console.error("Indent cum Sanction fetch error:", fetchError);
+          data = [];
+        }
       }
       setApplicationData(data);
     } catch (error) {
@@ -1219,6 +1255,9 @@ const QuickActions = ({
         break;
       case "Adhoc/Contractual":
         onNavigate(`/recruitment-adhoc-contractual?project=${projectParam}`);
+        break;
+      case "Indent cum Sanction":
+        onNavigate(`/indent-cum-sanction-sheet?project=${projectParam}`);
         break;
       default:
         alert(`Apply New: ${selectedApplication} - Route not configured yet`);

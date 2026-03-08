@@ -22,10 +22,10 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
 
-    // Comprehensive check for RnD Staff roles
+    // Comprehensive check for RnD Staff roles (excludes HOS roles)
     const isRndStaff = roles?.some((r: string) =>
         r === "RnD Staff" || r === "R&D Staff" || r === "Research and Development Staff" ||
-        r === "System Manager" || r === "staff, RnD" || r === "Hos, RnD (Head of Section, RnD)"
+        r === "System Manager" || r === "staff, RnD"
     );
 
     const [commitHead, setCommitHead] = useState("");

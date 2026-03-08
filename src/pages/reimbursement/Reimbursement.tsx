@@ -403,25 +403,28 @@ const Reimbursement: React.FC = () => {
                             onAddTableRow={addTableRow}
                             onDeleteTableRow={deleteTableRow}
                             onFieldChangeWithSideEffects={handleFieldChangeWithSideEffects}
+                            readOnly={formData.docstatus === 1}
                         />
                     </FrappeCard>
 
-                    <div className="mt-8 flex justify-end gap-4">
-                        <FrappeButton
-                            onClick={handleSave}
-                            disabled={isSubmitting}
-                            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800/50"
-                        >
-                            {isSubmitting ? 'Saving...' : 'Save Draft'}
-                        </FrappeButton>
-                        <FrappeButton
-                            type="submit"
-                            disabled={isSubmitting || !isSaved}
-                            className="bg-[#D97757] text-white hover:bg-[#D97757]"
-                        >
-                            {isSubmitting ? 'Submitting...' : 'Submit Application'}
-                        </FrappeButton>
-                    </div>
+                    {(!editDocName || formData.docstatus === 0) && (
+                        <div className="mt-8 flex justify-end gap-4">
+                            <FrappeButton
+                                onClick={handleSave}
+                                disabled={isSubmitting}
+                                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:bg-zinc-800/50"
+                            >
+                                {isSubmitting ? 'Saving...' : 'Save Draft'}
+                            </FrappeButton>
+                            <FrappeButton
+                                type="submit"
+                                disabled={isSubmitting || !isSaved}
+                                className="bg-[#D97757] text-white hover:bg-[#D97757]"
+                            >
+                                {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                            </FrappeButton>
+                        </div>
+                    )}
                 </form>
             </main>
         </div>
