@@ -157,6 +157,7 @@ export default function UniversalRegistrationForm({ isFundingAgency = false }: U
             "alternate_mobile_number_u_r",
             "personal_information_section_u_r",
             "personal_history_section_u_r",
+            "address_details",
             "qualifications_u_r",
             "experiences_u_r"
         );
