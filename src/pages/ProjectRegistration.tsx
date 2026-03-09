@@ -1016,7 +1016,22 @@ const ProjectRegistration: React.FC = () => {
                                         {renderField("project_type")}
                                         {formData.project_type === "Research" && (
                                             <div className='space-y-8'>
-                                                <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700"><h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-6">{renderFields(tabFieldGroups.fundingDetails)}</div></FrappeCard>
+                                                <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                    <div className="flex items-center justify-between flex-wrap gap-4">
+                                                        <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                window.open(`${import.meta.env.VITE_BASE_PATH || ''}/new-funding-agency`, '_blank');
+                                                            }}
+                                                            className="text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md shadow-sm transition-colors uppercase tracking-wider"
+                                                        >
+                                                            Add Funding Agency
+                                                        </button>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{renderFields(tabFieldGroups.fundingDetails)}</div>
+                                                </FrappeCard>
                                                 <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700"><h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-6">{renderFields(tabFieldGroups.agencyAddress)}</div></FrappeCard>
                                             </div>
                                         )}
@@ -1062,7 +1077,22 @@ const ProjectRegistration: React.FC = () => {
                                                         </div>
                                                     )}
                                                 </div>
-                                                <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700"><h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-6">{renderFields(tabFieldGroups.fundingDetails)}</div></FrappeCard>
+                                                <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                    <div className="flex items-center justify-between flex-wrap gap-4">
+                                                        <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                window.open(`${import.meta.env.VITE_BASE_PATH || ''}/new-funding-agency`, '_blank');
+                                                            }}
+                                                            className="text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md shadow-sm transition-colors uppercase tracking-wider"
+                                                        >
+                                                            Add Funding Agency
+                                                        </button>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{renderFields(tabFieldGroups.fundingDetails)}</div>
+                                                </FrappeCard>
                                                 <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700"><h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-6">{renderFields(tabFieldGroups.agencyAddress)}</div></FrappeCard>
                                             </div>
                                         )}

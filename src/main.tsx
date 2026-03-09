@@ -543,6 +543,14 @@ const router = createBrowserRouter(
             </AuthRouteWrapper>
           ),
         },
+        {
+          path: "new-funding-agency",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <UniversalRegistrationForm isFundingAgency={true} />
+            </AuthRouteWrapper>
+          ),
+        },
       ],
     },
   ],

@@ -8,7 +8,11 @@ import DynamicFormRenderer from "@/components/forms/DynamicFormRenderer";
 import { universalRegistrationAPI, prepareFormDataForApi } from "@/services/apiService";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export default function UniversalRegistrationForm() {
+interface UniversalRegistrationFormProps {
+    isFundingAgency?: boolean;
+}
+
+export default function UniversalRegistrationForm({ isFundingAgency = false }: UniversalRegistrationFormProps) {
     const { id } = useParams();
     const navigate = useNavigate();
 
@@ -40,6 +44,12 @@ export default function UniversalRegistrationForm() {
 
                 // Default status
                 let initialData: any = { status_u_r: "Draft" };
+
+                // Pre-fill Funding Agency based on route prop
+                if (isFundingAgency && !savedDocName) {
+                    initialData.profile_type_u_r = "Organization";
+                    initialData.organization_sub_type_u_r = "Funding Agency";
+                }
 
                 // Handle Prefill Data (Edit flow)
                 if (prefill_data && savedDocName) {
