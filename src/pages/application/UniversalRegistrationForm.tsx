@@ -142,26 +142,108 @@ export default function UniversalRegistrationForm({ isFundingAgency = false }: U
     ];
     let dynamicHiddenFields = [...HIDDEN_FIELDS];
 
-    // Hide Personal fields if the profile type is Organization
-    if (formData.profile_type_u_r === "Organization") {
-        dynamicHiddenFields.push(
-            "full_name_u_r",
-            "guardian_name_u_r",
-            "dob_u_r",
-            "gender_u_r",
-            "nationality_u_r",
-            "mobile_number_u_r",
-            "email_address_u_r",
-            "whatsapp_number_u_r",
-            "same_as_mobile_number_u_r",
-            "alternate_mobile_number_u_r",
-            "personal_information_section_u_r",
-            "personal_history_section_u_r",
-            "address_details",
-            "qualifications_u_r",
-            "experiences_u_r"
-        );
+    const profile_type = formData.profile_type_u_r || null;
+    const org_sub_type = formData.organization_sub_type_u_r || null;
+
+    const is_personal = profile_type === 'Individual / Personal';
+    const is_org = profile_type === 'Organization';
+    const is_vendor = is_org && org_sub_type === 'Vendor';
+
+    // DEFAULT: HIDE EVERYTHING
+    const sectionsToHide = new Set([
+        'personal_information_section_u_r',
+        'personal_history_section_u_r',
+        'organization_basic_details_section_u_r',
+        'financial_and_documents_common_section_u_r',
+        'vendor_profile_and_statutory_section_u_r',
+        'vendor_declarations_and_signatory_section_u_r',
+        'gst_number_u_r',
+        'overhead_percentage_u_r',
+        'discount_percentage_u_r',
+        'agreement_number_u_r',
+        'full_name_u_r',
+        "guardian_name_u_r",
+        "dob_u_r",
+        "gender_u_r",
+        "nationality_u_r",
+        "mobile_number_u_r",
+        "email_address_u_r",
+        "whatsapp_number_u_r",
+        "same_as_mobile_number_u_r",
+        "alternate_mobile_number_u_r",
+        "address_details",
+        "qualifications_u_r",
+        "experiences_u_r",
+        "type_of_business_u_r",
+        "other_business_type_u_r",
+        "nature_of_org",
+        "pan_number_org_u_r",
+        "gst_status_u_r",
+        "other_registration_u_r",
+        "signatory_name_u_r",
+        "signatory_designation_u_r",
+        "date_of_signing_u_r",
+        "decl_info_true_u_r"
+    ]);
+
+    // PERSONAL FLOW
+    if (is_personal) {
+        sectionsToHide.delete('personal_information_section_u_r');
+        sectionsToHide.delete('personal_history_section_u_r');
+        sectionsToHide.delete('financial_and_documents_common_section_u_r');
+        sectionsToHide.delete('full_name_u_r');
+        sectionsToHide.delete('guardian_name_u_r');
+        sectionsToHide.delete('dob_u_r');
+        sectionsToHide.delete('gender_u_r');
+        sectionsToHide.delete('nationality_u_r');
+        sectionsToHide.delete('mobile_number_u_r');
+        sectionsToHide.delete('email_address_u_r');
+        sectionsToHide.delete('whatsapp_number_u_r');
+        sectionsToHide.delete('same_as_mobile_number_u_r');
+        sectionsToHide.delete('alternate_mobile_number_u_r');
+        sectionsToHide.delete('address_details');
+        sectionsToHide.delete('qualifications_u_r');
+        sectionsToHide.delete('experiences_u_r');
     }
+
+    // ORGANIZATION FLOW
+    if (is_org) {
+        sectionsToHide.delete('organization_basic_details_section_u_r');
+        sectionsToHide.delete('financial_and_documents_common_section_u_r');
+        sectionsToHide.delete('gst_number_u_r');
+    }
+
+    // VENDOR FLOW
+    if (is_vendor) {
+        sectionsToHide.delete('vendor_profile_and_statutory_section_u_r');
+        sectionsToHide.delete('vendor_declarations_and_signatory_section_u_r');
+        sectionsToHide.delete('type_of_business_u_r');
+        sectionsToHide.delete('other_business_type_u_r');
+        sectionsToHide.delete(' प्रकृति_of_org'); // nature_of_org equivalent? Let's fix this below 
+        sectionsToHide.delete('nature_of_org');
+        sectionsToHide.delete('pan_number_org_u_r');
+        sectionsToHide.delete('gst_status_u_r');
+        sectionsToHide.delete('other_registration_u_r');
+        sectionsToHide.delete('signatory_name_u_r');
+        sectionsToHide.delete('signatory_designation_u_r');
+        sectionsToHide.delete('date_of_signing_u_r');
+        sectionsToHide.delete('decl_info_true_u_r');
+    }
+
+    // ORG SUB-TYPE SPECIFIC FIELDS
+    if (org_sub_type === 'Funding Agency') {
+        sectionsToHide.delete('overhead_percentage_u_r');
+    }
+
+    if (org_sub_type === 'Local Supplier') {
+        sectionsToHide.delete('discount_percentage_u_r');
+    }
+
+    if (org_sub_type === 'Principle Supplier') {
+        sectionsToHide.delete('agreement_number_u_r');
+    }
+
+    dynamicHiddenFields = [...dynamicHiddenFields, ...Array.from(sectionsToHide)];
 
     const filteredFields = (fields || []).filter((f: any) => !dynamicHiddenFields.includes(f.fieldname));
 
