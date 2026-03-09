@@ -142,10 +142,24 @@ export default function UniversalRegistrationForm({ isFundingAgency = false }: U
     ];
     let dynamicHiddenFields = [...HIDDEN_FIELDS];
 
-    // Hide Personal tables if the profile type is Organization
+    // Hide Personal fields if the profile type is Organization
     if (formData.profile_type_u_r === "Organization") {
-        dynamicHiddenFields.push("qualifications_u_r");
-        dynamicHiddenFields.push("experiences_u_r");
+        dynamicHiddenFields.push(
+            "full_name_u_r",
+            "guardian_name_u_r",
+            "dob_u_r",
+            "gender_u_r",
+            "nationality_u_r",
+            "mobile_number_u_r",
+            "email_address_u_r",
+            "whatsapp_number_u_r",
+            "same_as_mobile_number_u_r",
+            "alternate_mobile_number_u_r",
+            "personal_information_section_u_r",
+            "personal_history_section_u_r",
+            "qualifications_u_r",
+            "experiences_u_r"
+        );
     }
 
     const filteredFields = (fields || []).filter((f: any) => !dynamicHiddenFields.includes(f.fieldname));
