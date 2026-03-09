@@ -140,7 +140,15 @@ export default function UniversalRegistrationForm({ isFundingAgency = false }: U
         "naming_series",
         "workflow_state",
     ];
-    const filteredFields = (fields || []).filter((f: any) => !HIDDEN_FIELDS.includes(f.fieldname));
+    let dynamicHiddenFields = [...HIDDEN_FIELDS];
+
+    // Hide Personal tables if the profile type is Organization
+    if (formData.profile_type_u_r === "Organization") {
+        dynamicHiddenFields.push("qualifications_u_r");
+        dynamicHiddenFields.push("experiences_u_r");
+    }
+
+    const filteredFields = (fields || []).filter((f: any) => !dynamicHiddenFields.includes(f.fieldname));
 
     const handleSave = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
