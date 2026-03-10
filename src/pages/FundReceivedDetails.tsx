@@ -232,13 +232,13 @@ const FrappeButton = ({
       "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
       "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
       variant === "primary" &&
-        "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
+      "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
       variant === "ghost" &&
-        "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
+      "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
       variant === "outline" &&
-        "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
+      "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
       variant === "action" &&
-        "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
+      "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
       "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
       className,
     )}
@@ -606,43 +606,43 @@ const ActivityStream = ({
         )}
         {activityData?.message && activityData.message.length > 0
           ? activityData.message.map((item, index) => (
-              <div
-                key={`${item.creation}-${index}`}
-                className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg"
-              >
-                <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-xs">
-                  {item.owner?.charAt(0).toUpperCase() || "U"}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center mb-1">
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                      {item.owner || "Unknown User"}
-                    </p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 flex-shrink-0">
-                      <Clock className="h-3 w-3" />
-                      {item.creation
-                        ? new Date(item.creation).toLocaleString()
-                        : "N/A"}
-                    </p>
-                  </div>
-                  <div
-                    className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed"
-                    dangerouslySetInnerHTML={{
-                      __html: item.content || "No content",
-                    }}
-                  />
-                </div>
+            <div
+              key={`${item.creation}-${index}`}
+              className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg"
+            >
+              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-xs">
+                {item.owner?.charAt(0).toUpperCase() || "U"}
               </div>
-            ))
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-center mb-1">
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                    {item.owner || "Unknown User"}
+                  </p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 flex-shrink-0">
+                    <Clock className="h-3 w-3" />
+                    {item.creation
+                      ? new Date(item.creation).toLocaleString()
+                      : "N/A"}
+                  </p>
+                </div>
+                <div
+                  className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed"
+                  dangerouslySetInnerHTML={{
+                    __html: item.content || "No content",
+                  }}
+                />
+              </div>
+            </div>
+          ))
           : !isActivityLoading && (
-              <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900">
-                <MessageSquare className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
-                <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                  No activity yet.
-                </p>
-                <p className="text-xs mt-1">Be the first to add a comment.</p>
-              </div>
-            )}
+            <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900">
+              <MessageSquare className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
+              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                No activity yet.
+              </p>
+              <p className="text-xs mt-1">Be the first to add a comment.</p>
+            </div>
+          )}
       </div>
     </div>
   );
@@ -669,6 +669,7 @@ const FundReceivedDetails = () => {
     useState<string>("");
   const [depositFormLoading, setDepositFormLoading] = useState(false);
   const [showActivityLog, setShowActivityLog] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
   const [childTableMeta, setChildTableMeta] = useState<Record<string, any>>({});
   const [resolvedHeadNames, setResolvedHeadNames] = useState<
     Record<string, string>
@@ -771,7 +772,7 @@ const FundReceivedDetails = () => {
     (docData?.workflow_state ===
       "Pending Misc. Staff Approval(Deposit Slip Pending)" ||
       listData?.workflow_state ===
-        "Pending Misc. Staff Approval(Deposit Slip Pending)");
+      "Pending Misc. Staff Approval(Deposit Slip Pending)");
 
   // State for client script
   const [clientScript, setClientScript] = useState<string>("");
@@ -1285,6 +1286,192 @@ const FundReceivedDetails = () => {
     );
   }
 
+  const isFundReceived = workflow_state === "Fund Received";
+
+  const renderSummaryContent = () => (
+    <div className="space-y-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 gap-4">
+        <FrappeCard className="p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
+              <IndianRupee className="h-4 w-4 text-[#D97757]" />
+            </div>
+            <span className="font-bold text-zinc-700 dark:text-zinc-300 text-xs uppercase">
+              Total Amount
+            </span>
+          </div>
+          <p className="text-2xl font-extrabold text-[#D97757]">
+            {(fund_received_amt || 0).toLocaleString("en-IN", {
+              style: "currency",
+              currency: "INR",
+            })}
+          </p>
+        </FrappeCard>
+        <FrappeCard className="p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+              <Building2 className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+            </div>
+            <span className="font-bold text-zinc-700 dark:text-zinc-300 text-xs uppercase">
+              Bank Account
+            </span>
+          </div>
+          <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
+            {bank_account || "-"}
+          </p>
+        </FrappeCard>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        {/* Sanction Reference */}
+        <FrappeCard
+          title="Sanction Reference"
+          icon={<Calculator className="h-4 w-4 text-[#D97757]" />}
+        >
+          <DetailRow label="Sanction Reference" value={sanction_ref_no} />
+        </FrappeCard>
+
+        {/* Fund Info */}
+        <FrappeCard
+          title="Fund Information"
+          icon={<Calculator className="h-4 w-4 text-[#D97757]" />}
+        >
+          <div className="space-y-1">
+            <DetailRow
+              label="Total Amount Received"
+              value={fund_received_amt}
+              isCurrency
+            />
+            <DetailRow label="Bank Account" value={bank_account} />
+            <DetailRow label="Workflow State" value={workflow_state} />
+          </div>
+        </FrappeCard>
+      </div>
+
+      {/* Budget Breakup */}
+      <FrappeCard
+        title="Budget Breakup"
+        icon={<FileText className="h-4 w-4 text-[#D97757]" />}
+      >
+        <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
+          <table className="min-w-full divide-y divide-gray-300">
+            <thead className="bg-zinc-200 dark:bg-zinc-700">
+              <tr className="divide-x divide-gray-300">
+                <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                  Account Head
+                </th>
+                <th className="px-3 py-2 text-right text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                  Amount
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                  Remarks
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-300 bg-white dark:bg-zinc-900">
+              {received_amt_breakup?.map((item: any, idx: number) => (
+                <tr
+                  key={item.name || idx}
+                  className="divide-x divide-gray-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                >
+                  <td className="px-3 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    {resolvedHeadNames[item.account_head] ||
+                      item.account_head}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-right font-bold text-[#D97757]">
+                    {item.amount_received?.toLocaleString("en-IN", {
+                      style: "currency",
+                      currency: "INR",
+                    })}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-left text-zinc-500 dark:text-zinc-400">
+                    {item.remarks}
+                  </td>
+                </tr>
+              ))}
+              {(!received_amt_breakup ||
+                received_amt_breakup.length === 0) && (
+                  <tr>
+                    <td
+                      colSpan={3}
+                      className="px-3 py-6 text-center text-zinc-500 dark:text-zinc-400"
+                    >
+                      No breakup details
+                    </td>
+                  </tr>
+                )}
+            </tbody>
+          </table>
+        </div>
+      </FrappeCard>
+
+      {/* Transactions */}
+      <FrappeCard
+        title="Transactions"
+        icon={<CreditCard className="h-4 w-4 text-[#D97757]" />}
+      >
+        <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
+          <table className="min-w-full divide-y divide-gray-300">
+            <thead className="bg-zinc-200 dark:bg-zinc-700">
+              <tr className="divide-x divide-gray-300">
+                <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                  Date
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                  Transaction No
+                </th>
+                <th className="px-3 py-2 text-right text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                  Amount
+                </th>
+                <th className="px-3 py-2 text-center text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                  Attachments
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-300 bg-white dark:bg-zinc-900">
+              {fund_transactions?.map((item: any, idx: number) => (
+                <tr
+                  key={item.name || idx}
+                  className="divide-x divide-gray-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                >
+                  <td className="px-3 py-2 text-sm font-mono text-zinc-900 dark:text-zinc-100">
+                    {item.transaction_date}
+                  </td>
+                  <td className="px-3 py-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                    {item.transaction_number}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-right font-bold text-[#D97757]">
+                    {item.amount?.toLocaleString("en-IN", {
+                      style: "currency",
+                      currency: "INR",
+                    })}
+                  </td>
+                  <td className="px-3 py-2 text-sm text-center">
+                    <TransactionAttachment
+                      transactionName={item.name}
+                      fallbackFile={item.attachment || item.file}
+                    />
+                  </td>
+                </tr>
+              ))}
+              {(!fund_transactions || fund_transactions.length === 0) && (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-3 py-6 text-center text-zinc-500 dark:text-zinc-400"
+                  >
+                    No transactions
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </FrappeCard>
+    </div>
+  );
+
   return (
     <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
       <GlobalLoader isLoading={isSubmitting} />
@@ -1292,7 +1479,7 @@ const FundReceivedDetails = () => {
 
       <main className="flex-1 p-4 md:p-8">
         {/* Header */}
-        <FrappeCard className="mb-6 p-5">
+        <FrappeCard className="mb-6 px-5 py-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
@@ -1302,12 +1489,29 @@ const FundReceivedDetails = () => {
                 <ArrowLeft className="h-5 w-5 text-zinc-900 dark:text-zinc-100" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">
+                <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">
                   Fund Details & Deposit Slip
                 </h1>
-                <p className="text-sm text-zinc-700 dark:text-zinc-300 font-medium mt-0.5">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
                   {name}
                 </p>
+                <span
+                  className={cn(
+                    "inline-block mt-1 px-2 py-0.5 rounded border font-semibold text-[10px]",
+                    {
+                      "bg-amber-100 text-amber-800 border-amber-300":
+                        workflow_state === "Draft",
+                      "bg-blue-100 text-blue-800 border-blue-300":
+                        workflow_state === "Submitted",
+                      "bg-emerald-100 text-emerald-800 border-emerald-300":
+                        workflow_state === "Approved",
+                      "bg-red-100 text-red-800 border-red-300":
+                        workflow_state === "Rejected",
+                    },
+                  )}
+                >
+                  {workflow_state}
+                </span>
               </div>
               {fundData?.workflow_state === "Draft" && (
                 <FrappeButton
@@ -1348,23 +1552,6 @@ const FundReceivedDetails = () => {
                   return false;
                 }}
               />
-              <span
-                className={cn(
-                  "px-3 py-1.5 rounded-md border font-bold text-sm",
-                  {
-                    "bg-amber-100 text-amber-800 border-amber-300":
-                      workflow_state === "Draft",
-                    "bg-blue-100 text-blue-800 border-blue-300":
-                      workflow_state === "Submitted",
-                    "bg-emerald-100 text-emerald-800 border-emerald-300":
-                      workflow_state === "Approved",
-                    "bg-red-100 text-red-800 border-red-300":
-                      workflow_state === "Rejected",
-                  },
-                )}
-              >
-                {workflow_state}
-              </span>
               {/* Hide Generate Deposit Slip button for Permanent Employees */}
               {/* {!isPermanentEmployee && (
                                 <FrappeButton onClick={() => navigate(`/deposit-slip-new/${name}`)}>
@@ -1376,516 +1563,384 @@ const FundReceivedDetails = () => {
           </div>
         </FrappeCard>
 
-        {/* Side by Side Layout - with Deposit Slip and Fund Details */}
-        <div
-          className={cn(
-            "grid gap-6 grid-cols-1",
-            showDepositSlip ? "lg:grid-cols-2" : "lg:grid-cols-1",
-          )}
-        >
-          {/* LEFT SIDE: Deposit Slip Form - Show only for specific workflow state */}
-          {showDepositSlip && (
-            <div className="lg:col-span-1 space-y-6">
-              <FrappeCard
-                title="Deposit Slip Form"
-                icon={<FileText className="h-4 w-4 text-[#D97757]" />}
-              >
-                <div className="space-y-6">
-                  {/* Deposit Slip Type Selector */}
-                  <div className="space-y-2">
-                    <label className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                      Select Deposit Slip Type{" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={selectedDepositSlipType}
-                        onChange={(e) =>
-                          handleDepositSlipTypeChange(e.target.value)
-                        }
-                        className="w-full h-11 px-4 pr-10 bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-zinc-700 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] appearance-none"
-                      >
-                        <option value="">-- Select Type --</option>
-                        {Object.entries(DEPOSIT_SLIP_TYPES).map(
-                          ([key, config]) => (
-                            <option key={key} value={key}>
-                              {config.label}
-                            </option>
-                          ),
-                        )}
-                      </select>
-                      <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
-                    </div>
+        {/* Deposit Slip Form - Full Width (Fund Details moved to floating Summary panel) */}
+        {showDepositSlip && (
+          <div className="space-y-6">
+            <FrappeCard
+              title="Deposit Slip Form"
+              icon={<FileText className="h-4 w-4 text-[#D97757]" />}
+            >
+              <div className="space-y-6">
+                {/* Deposit Slip Type Selector */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                    Select Deposit Slip Type{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedDepositSlipType}
+                      onChange={(e) =>
+                        handleDepositSlipTypeChange(e.target.value)
+                      }
+                      className="w-full h-11 px-4 pr-10 bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-zinc-700 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] appearance-none"
+                    >
+                      <option value="">-- Select Type --</option>
+                      {Object.entries(DEPOSIT_SLIP_TYPES).map(
+                        ([key, config]) => (
+                          <option key={key} value={key}>
+                            {config.label}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
                   </div>
+                </div>
 
-                  {/* Loading State */}
-                  {depositFormLoading && (
-                    <div className="flex items-center justify-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
-                    </div>
-                  )}
+                {/* Loading State */}
+                {depositFormLoading && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
+                  </div>
+                )}
 
-                  {/* Dynamic Form via FormRender */}
-                  {!depositFormLoading &&
-                    selectedDepositSlipType &&
-                    fields.length > 0 && (
-                      <FormRender
-                        fields={fields.map((f) => ({
-                          ...f,
-                          hidden:
-                            !!f.hidden ||
-                            !evaluateDependsOn(
-                              f.depends_on || f.depends_on_eval,
-                              formData,
-                            ),
-                        }))}
-                        linkOptions={linkOptions}
-                        sections={(() => {
-                          const processed: any[] = [];
-                          let currentSection: any = {
-                            title: "",
-                            fields: [],
-                            type: "default",
-                          };
+                {/* Dynamic Form via FormRender */}
+                {!depositFormLoading &&
+                  selectedDepositSlipType &&
+                  fields.length > 0 && (
+                    <FormRender
+                      fields={fields.map((f) => ({
+                        ...f,
+                        hidden:
+                          !!f.hidden ||
+                          !evaluateDependsOn(
+                            f.depends_on || f.depends_on_eval,
+                            formData,
+                          ),
+                      }))}
+                      linkOptions={linkOptions}
+                      sections={(() => {
+                        const processed: any[] = [];
+                        let currentSection: any = {
+                          title: "",
+                          fields: [],
+                          type: "default",
+                        };
 
-                          fields.forEach((field) => {
-                            const isVisible = evaluateDependsOn(
-                              field.depends_on || field.depends_on_eval,
-                              formData,
-                            );
+                        fields.forEach((field) => {
+                          const isVisible = evaluateDependsOn(
+                            field.depends_on || field.depends_on_eval,
+                            formData,
+                          );
 
-                            if (field.fieldtype === "Section Break") {
-                              if (currentSection.fields.length > 0)
-                                processed.push(currentSection);
+                          if (field.fieldtype === "Section Break") {
+                            if (currentSection.fields.length > 0)
+                              processed.push(currentSection);
 
-                              // For Section Break, hide if condition fails
-                              if (isVisible) {
-                                currentSection = {
-                                  title: field.label || "",
-                                  fields: [],
-                                  type: "default",
-                                };
-                              } else {
-                                // If section is hidden, we use a dummy hidden section or null
-                                // Fields that follow usually belong to this section.
-                                // If we set currentSection to null, we can skip adding fields.
-                                currentSection = null;
-                              }
-                            } else if (field.fieldtype === "Table") {
-                              if (
-                                currentSection &&
-                                currentSection.fields.length > 0
-                              ) {
-                                processed.push(currentSection);
-                                currentSection = {
-                                  title: "",
-                                  fields: [],
-                                  type: "default",
-                                };
-                              }
+                            // For Section Break, hide if condition fails
+                            if (isVisible) {
+                              currentSection = {
+                                title: field.label || "",
+                                fields: [],
+                                type: "default",
+                              };
+                            } else {
+                              // If section is hidden, we use a dummy hidden section or null
+                              // Fields that follow usually belong to this section.
+                              // If we set currentSection to null, we can skip adding fields.
+                              currentSection = null;
+                            }
+                          } else if (field.fieldtype === "Table") {
+                            if (
+                              currentSection &&
+                              currentSection.fields.length > 0
+                            ) {
+                              processed.push(currentSection);
+                              currentSection = {
+                                title: "",
+                                fields: [],
+                                type: "default",
+                              };
+                            }
 
-                              if (isVisible) {
-                                // Build table config dynamically from childTableMeta
-                                let tableConfig: any = null;
-                                const meta = childTableMeta[field.fieldname];
+                            if (isVisible) {
+                              // Build table config dynamically from childTableMeta
+                              let tableConfig: any = null;
+                              const meta = childTableMeta[field.fieldname];
 
-                                if (meta && meta.fields) {
-                                  // Build columns from child_table_meta.fields
-                                  const columns = meta.fields
-                                    .filter(
-                                      (f: any) =>
-                                        ![
-                                          "Section Break",
-                                          "Column Break",
-                                          "SectionBreak",
-                                          "ColumnBreak",
-                                        ].includes(f.fieldtype),
-                                    )
-                                    .map((f: any) => {
-                                      let opts: any[] = [];
-                                      let type = f.fieldtype;
+                              if (meta && meta.fields) {
+                                // Build columns from child_table_meta.fields
+                                const columns = meta.fields
+                                  .filter(
+                                    (f: any) =>
+                                      ![
+                                        "Section Break",
+                                        "Column Break",
+                                        "SectionBreak",
+                                        "ColumnBreak",
+                                      ].includes(f.fieldtype),
+                                  )
+                                  .map((f: any) => {
+                                    let opts: any[] = [];
+                                    let type = f.fieldtype;
 
-                                      // Special handling for Budget Head / Account Head
-                                      if (
-                                        [
-                                          "account_head",
-                                          "budget_head",
-                                          "head",
-                                        ].includes(f.fieldname)
-                                      ) {
-                                        opts =
-                                          linkOptions["Budget Head"] ||
-                                          linkOptions["budget_head"] ||
-                                          [];
-                                        if (opts.length > 0) type = "Link"; // Force Select rendering
-                                      }
-
-                                      if (opts.length === 0) {
-                                        if (
-                                          f.fieldtype === "Select" &&
-                                          typeof f.options === "string"
-                                        ) {
-                                          opts = f.options
-                                            .split("\n")
-                                            .filter(
-                                              (o: string) => o.trim() !== "",
-                                            )
-                                            .map((o: string) => ({
-                                              label: o,
-                                              value: o,
-                                            }));
-                                        } else if (f.options) {
-                                          opts =
-                                            linkOptions[f.fieldname] ||
-                                            linkOptions[f.options] ||
-                                            [];
-                                        }
-                                      }
-
-                                      return {
-                                        key: f.fieldname,
-                                        label: f.label || f.fieldname,
-                                        type: type,
-                                        options: opts,
-                                      };
-                                    });
-
-                                  // Build newRowTemplate with default values
-                                  const newRowTemplate: Record<string, any> = {
-                                    doctype: meta.doctype, // Required for locals[cdt][cdn] in scripts
-                                    name: `new-${Date.now()}`, // Temporary unique ID
-                                  };
-                                  meta.fields.forEach((f: any) => {
+                                    // Special handling for Budget Head / Account Head
                                     if (
-                                      f.default !== null &&
-                                      f.default !== undefined
+                                      [
+                                        "account_head",
+                                        "budget_head",
+                                        "head",
+                                      ].includes(f.fieldname)
                                     ) {
-                                      newRowTemplate[f.fieldname] = f.default;
-                                    } else if (
-                                      f.fieldtype === "Currency" ||
-                                      f.fieldtype === "Float" ||
-                                      f.fieldtype === "Int"
-                                    ) {
-                                      newRowTemplate[f.fieldname] = 0;
-                                    } else {
-                                      newRowTemplate[f.fieldname] = "";
+                                      opts =
+                                        linkOptions["Budget Head"] ||
+                                        linkOptions["budget_head"] ||
+                                        [];
+                                      if (opts.length > 0) type = "Link"; // Force Select rendering
                                     }
+
+                                    if (opts.length === 0) {
+                                      if (
+                                        f.fieldtype === "Select" &&
+                                        typeof f.options === "string"
+                                      ) {
+                                        opts = f.options
+                                          .split("\n")
+                                          .filter(
+                                            (o: string) => o.trim() !== "",
+                                          )
+                                          .map((o: string) => ({
+                                            label: o,
+                                            value: o,
+                                          }));
+                                      } else if (f.options) {
+                                        opts =
+                                          linkOptions[f.fieldname] ||
+                                          linkOptions[f.options] ||
+                                          [];
+                                      }
+                                    }
+
+                                    return {
+                                      key: f.fieldname,
+                                      label: f.label || f.fieldname,
+                                      type: type,
+                                      options: opts,
+                                    };
                                   });
 
-                                  tableConfig = {
-                                    fieldname: field.fieldname,
-                                    columns,
-                                    newRowTemplate,
-                                  };
-                                } else {
-                                  // Fallback if no metadata found
-                                  tableConfig = {
-                                    fieldname: field.fieldname,
-                                    columns: [
-                                      {
-                                        key: "name",
-                                        label: "Name",
-                                        type: "Data",
-                                      },
-                                    ],
-                                    newRowTemplate: {},
-                                  };
-                                }
-
-                                processed.push({
-                                  title: field.label,
-                                  fields: [],
-                                  type: "table",
-                                  tableConfig,
+                                // Build newRowTemplate with default values
+                                const newRowTemplate: Record<string, any> = {
+                                  doctype: meta.doctype, // Required for locals[cdt][cdn] in scripts
+                                  name: `new-${Date.now()}`, // Temporary unique ID
+                                };
+                                meta.fields.forEach((f: any) => {
+                                  if (
+                                    f.default !== null &&
+                                    f.default !== undefined
+                                  ) {
+                                    newRowTemplate[f.fieldname] = f.default;
+                                  } else if (
+                                    f.fieldtype === "Currency" ||
+                                    f.fieldtype === "Float" ||
+                                    f.fieldtype === "Int"
+                                  ) {
+                                    newRowTemplate[f.fieldname] = 0;
+                                  } else {
+                                    newRowTemplate[f.fieldname] = "";
+                                  }
                                 });
-                              }
-                            } else if (
-                              field.fieldtype === "Column Break" ||
-                              field.fieldtype === "ColumnBreak"
-                            ) {
-                              // Explicitly ignore Column Break when adding to fields list
-                              // (In a grid layout we might use it, but here we just want to hide it from being a text input)
-                              // do nothing
-                            } else {
-                              // Only add field if current section is visible
-                              if (currentSection) {
-                                currentSection.fields.push(field.fieldname);
-                              }
-                            }
-                          });
-                          if (
-                            currentSection &&
-                            currentSection.fields.length > 0
-                          )
-                            processed.push(currentSection);
-                          return processed;
-                        })()}
-                        initialData={formData}
-                        onSubmit={handleSaveDepositSlip}
-                        onFormChange={(data) => setFormData(data)}
-                        onCancel={() => setSelectedDepositSlipType("")}
-                        submitButtonText="Save Deposit Slip"
-                        isSubmitting={isSubmitting}
-                        noCard
-                        hideActions={true}
-                      />
-                    )}
 
-                  {/* No Type Selected */}
-                  {!depositFormLoading && !selectedDepositSlipType && (
-                    <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
-                      <p className="text-sm">
-                        Select a deposit slip type to load the form.
+                                tableConfig = {
+                                  fieldname: field.fieldname,
+                                  columns,
+                                  newRowTemplate,
+                                };
+                              } else {
+                                // Fallback if no metadata found
+                                tableConfig = {
+                                  fieldname: field.fieldname,
+                                  columns: [
+                                    {
+                                      key: "name",
+                                      label: "Name",
+                                      type: "Data",
+                                    },
+                                  ],
+                                  newRowTemplate: {},
+                                };
+                              }
+
+                              processed.push({
+                                title: field.label,
+                                fields: [],
+                                type: "table",
+                                tableConfig,
+                              });
+                            }
+                          } else if (
+                            field.fieldtype === "Column Break" ||
+                            field.fieldtype === "ColumnBreak"
+                          ) {
+                            // Explicitly ignore Column Break when adding to fields list
+                            // (In a grid layout we might use it, but here we just want to hide it from being a text input)
+                            // do nothing
+                          } else {
+                            // Only add field if current section is visible
+                            if (currentSection) {
+                              currentSection.fields.push(field.fieldname);
+                            }
+                          }
+                        });
+                        if (
+                          currentSection &&
+                          currentSection.fields.length > 0
+                        )
+                          processed.push(currentSection);
+                        return processed;
+                      })()}
+                      initialData={formData}
+                      onSubmit={handleSaveDepositSlip}
+                      onFormChange={(data) => setFormData(data)}
+                      onCancel={() => setSelectedDepositSlipType("")}
+                      submitButtonText="Save Deposit Slip"
+                      isSubmitting={isSubmitting}
+                      noCard
+                      hideActions={true}
+                    />
+                  )}
+
+                {/* No Type Selected */}
+                {!depositFormLoading && !selectedDepositSlipType && (
+                  <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
+                    <p className="text-sm">
+                      Select a deposit slip type to load the form.
+                    </p>
+                  </div>
+                )}
+
+                {/* No Fields */}
+                {!depositFormLoading &&
+                  selectedDepositSlipType &&
+                  fields.length === 0 && (
+                    <div className="text-center py-8 text-yellow-600">
+                      <p className="text-sm font-semibold">
+                        No form fields found for this type.
                       </p>
                     </div>
                   )}
-
-                  {/* No Fields */}
-                  {!depositFormLoading &&
-                    selectedDepositSlipType &&
-                    fields.length === 0 && (
-                      <div className="text-center py-8 text-yellow-600">
-                        <p className="text-sm font-semibold">
-                          No form fields found for this type.
-                        </p>
-                      </div>
-                    )}
-                </div>
-              </FrappeCard>
-            </div>
-          )}
-
-          {/* CENTER: Fund Details */}
-          <div className="space-y-6">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 gap-4">
-              <FrappeCard className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                    <IndianRupee className="h-4 w-4 text-[#D97757]" />
-                  </div>
-                  <span className="font-bold text-zinc-700 dark:text-zinc-300 text-xs uppercase">
-                    Total Amount
-                  </span>
-                </div>
-                <p className="text-2xl font-extrabold text-[#D97757]">
-                  {(fund_received_amt || 0).toLocaleString("en-IN", {
-                    style: "currency",
-                    currency: "INR",
-                  })}
-                </p>
-              </FrappeCard>
-              <FrappeCard className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-                    <Building2 className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
-                  </div>
-                  <span className="font-bold text-zinc-700 dark:text-zinc-300 text-xs uppercase">
-                    Bank Account
-                  </span>
-                </div>
-                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
-                  {bank_account || "-"}
-                </p>
-              </FrappeCard>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              {/* Sanction Reference */}
-              <FrappeCard
-                title="Sanction Reference"
-                icon={<Calculator className="h-4 w-4 text-[#D97757]" />}
-              >
-                <DetailRow label="Sanction Reference" value={sanction_ref_no} />
-              </FrappeCard>
-
-              {/* Fund Info */}
-              <FrappeCard
-                title="Fund Information"
-                icon={<Calculator className="h-4 w-4 text-[#D97757]" />}
-              >
-                <div className="space-y-1">
-                  <DetailRow
-                    label="Total Amount Received"
-                    value={fund_received_amt}
-                    isCurrency
-                  />
-                  <DetailRow label="Bank Account" value={bank_account} />
-                  <DetailRow label="Workflow State" value={workflow_state} />
-                </div>
-              </FrappeCard>
-            </div>
-
-            {/* Budget Breakup */}
-            <FrappeCard
-              title="Budget Breakup"
-              icon={<FileText className="h-4 w-4 text-[#D97757]" />}
-            >
-              <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-zinc-200 dark:bg-zinc-700">
-                    <tr className="divide-x divide-gray-300">
-                      <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
-                        Account Head
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
-                        Amount
-                      </th>
-                      <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
-                        Remarks
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-300 bg-white dark:bg-zinc-900">
-                    {received_amt_breakup?.map((item: any, idx: number) => (
-                      <tr
-                        key={item.name || idx}
-                        className="divide-x divide-gray-300 hover:bg-zinc-50 dark:bg-zinc-800/50"
-                      >
-                        <td className="px-3 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                          {resolvedHeadNames[item.account_head] ||
-                            item.account_head}
-                        </td>
-                        <td className="px-3 py-2 text-sm text-right font-bold text-[#D97757]">
-                          {item.amount_received?.toLocaleString("en-IN", {
-                            style: "currency",
-                            currency: "INR",
-                          })}
-                        </td>
-                        <td className="px-3 py-2 text-sm text-left text-zinc-500 dark:text-zinc-400">
-                          {item.remarks}
-                        </td>
-                      </tr>
-                    ))}
-                    {(!received_amt_breakup ||
-                      received_amt_breakup.length === 0) && (
-                      <tr>
-                        <td
-                          colSpan={3}
-                          className="px-3 py-6 text-center text-zinc-500 dark:text-zinc-400"
-                        >
-                          No breakup details
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </FrappeCard>
-
-            {/* Transactions */}
-            <FrappeCard
-              title="Transactions"
-              icon={<CreditCard className="h-4 w-4 text-[#D97757]" />}
-            >
-              <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-zinc-200 dark:bg-zinc-700">
-                    <tr className="divide-x divide-gray-300">
-                      <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
-                        Date
-                      </th>
-                      <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
-                        Transaction No
-                      </th>
-                      <th className="px-3 py-2 text-right text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
-                        Amount
-                      </th>
-                      <th className="px-3 py-2 text-center text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
-                        Attachments
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-300 bg-white dark:bg-zinc-900">
-                    {fund_transactions?.map((item: any, idx: number) => (
-                      <tr
-                        key={item.name || idx}
-                        className="divide-x divide-gray-300 hover:bg-zinc-50 dark:bg-zinc-800/50"
-                      >
-                        <td className="px-3 py-2 text-sm font-mono text-zinc-900 dark:text-zinc-100">
-                          {item.transaction_date}
-                        </td>
-                        <td className="px-3 py-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                          {item.transaction_number}
-                        </td>
-                        <td className="px-3 py-2 text-sm text-right font-bold text-[#D97757]">
-                          {item.amount?.toLocaleString("en-IN", {
-                            style: "currency",
-                            currency: "INR",
-                          })}
-                        </td>
-                        <td className="px-3 py-2 text-sm text-center">
-                          <TransactionAttachment
-                            transactionName={item.name}
-                            fallbackFile={item.attachment || item.file}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                    {(!fund_transactions || fund_transactions.length === 0) && (
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="px-3 py-6 text-center text-zinc-500 dark:text-zinc-400"
-                        >
-                          No transactions
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
               </div>
             </FrappeCard>
           </div>
-        </div>
+        )}
+
+        {/* INLINE SUMMARY FOR Fund Received STATE */}
+        {isFundReceived && (
+          <div className="mt-8 animate-in fade-in duration-500 max-w-7xl">
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-6 flex items-center gap-2">
+              <IndianRupee className="h-6 w-6 text-[#D97757]" />
+              Fund Summary
+            </h2>
+            {renderSummaryContent()}
+          </div>
+        )}
+
+        {/* Floating Summary Button - positioned above Activity Log */}
+        {!isFundReceived && (
+          <button
+            onClick={() => setShowSummary(true)}
+            className="fixed bottom-24 right-8 p-4 bg-[#D97757] text-white rounded-full shadow-lg hover:bg-[#c5684a] transition-all z-40 flex items-center gap-2"
+          >
+            <IndianRupee className="h-6 w-6" />
+            <span className="font-semibold hidden md:block">Summary</span>
+          </button>
+        )}
 
         {/* Floating Activity Log Button */}
         <button
           onClick={() => setShowActivityLog(true)}
-          className="fixed bottom-8 right-8 p-4 bg-[#D97757] text-white rounded-full shadow-lg hover:bg-[#D97757] transition-all z-40 flex items-center gap-2"
+          className="fixed bottom-8 right-8 p-4 bg-[#D97757] text-white rounded-full shadow-lg hover:bg-[#c5684a] transition-all z-40 flex items-center gap-2"
         >
           <MessageSquare className="h-6 w-6" />
           <span className="font-semibold hidden md:block">Activity Log</span>
         </button>
 
-        {/* Activity Log Panel (Slide Over) */}
-        {showActivityLog && (
-          <div className="fixed inset-0 z-50 flex justify-end">
-            {/* Backdrop */}
-            <div
-              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
-              onClick={() => setShowActivityLog(false)}
-            ></div>
+        {/* Summary Panel (Slide Over) */}
+        {
+          showSummary && (
+            <div className="fixed inset-0 z-50 flex justify-end">
+              {/* Backdrop */}
+              <div
+                className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+                onClick={() => setShowSummary(false)}
+              ></div>
 
-            {/* Panel */}
-            <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 h-full shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-right duration-300">
-              <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5 text-[#D97757]" />
-                  <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">
-                    Activity Log
-                  </h3>
+              {/* Panel */}
+              <div className="relative w-full max-w-xl bg-white dark:bg-zinc-900 h-full shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-right duration-300">
+                <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+                  <div className="flex items-center gap-2">
+                    <IndianRupee className="h-5 w-5 text-[#D97757]" />
+                    <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">
+                      Fund Summary
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setShowSummary(false)}
+                    className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                  >
+                    <X className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setShowActivityLog(false)}
-                  className="p-2 hover:bg-zinc-200 dark:bg-zinc-700 rounded-lg transition-colors"
-                >
-                  <X className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
-                </button>
-              </div>
 
-              <div className="flex-1 overflow-y-auto p-4 bg-zinc-50 dark:bg-zinc-800/50">
-                <ActivityStream
-                  doctype="Fund Received"
-                  docname={name || ""}
-                  onRefresh={() => mutate()}
-                />
+                <div className="flex-1 overflow-y-auto p-4 bg-zinc-50 dark:bg-zinc-800/50">
+                  {renderSummaryContent()}
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </main>
-    </div>
+          )
+        }
+
+        {/* Activity Log Panel (Slide Over) */}
+        {
+          showActivityLog && (
+            <div className="fixed inset-0 z-50 flex justify-end">
+              {/* Backdrop */}
+              <div
+                className="absolute inset-0 bg-black/20 backdrop-blur-sm"
+                onClick={() => setShowActivityLog(false)}
+              ></div>
+
+              {/* Panel */}
+              <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 h-full shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-right duration-300">
+                <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-[#D97757]" />
+                    <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">
+                      Activity Log
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setShowActivityLog(false)}
+                    className="p-2 hover:bg-zinc-200 dark:bg-zinc-700 rounded-lg transition-colors"
+                  >
+                    <X className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 bg-zinc-50 dark:bg-zinc-800/50">
+                  <ActivityStream
+                    doctype="Fund Received"
+                    docname={name || ""}
+                    onRefresh={() => mutate()}
+                  />
+                </div>
+              </div>
+            </div>
+          )
+        }
+      </main >
+    </div >
   );
 };
 

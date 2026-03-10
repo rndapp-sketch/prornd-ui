@@ -221,6 +221,9 @@ interface ValidationState {
 const AddFundReceived: React.FC = () => {
     const navigate = useNavigate();
     const { projectName } = useParams<{ projectName: string }>();
+    const location = useLocation();
+    const urlSearchParams = new URLSearchParams(location.search);
+    const projectNoFromUrl = urlSearchParams.get('project_no') || '';
 
 
     const [fields, setFields] = useState<Field[]>([]);
@@ -255,11 +258,11 @@ const AddFundReceived: React.FC = () => {
         { revalidateOnFocus: false }
     );
 
-    // Fetch previous Fund Received Data for validation
+    // Fetch previous Fund Received Data for validation — use project_no (not projectName)
     const { data: previousFundsData } = useFrappeGetCall(
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
-        { prjreg_title: projectName, limit: 1000 },
-        { revalidateOnFocus: false, isPaused: () => !projectName }
+        { prjreg_title: projectNoFromUrl || projectName, limit: 1000 },
+        { revalidateOnFocus: false, isPaused: () => !(projectNoFromUrl || projectName) }
     );
 
     useEffect(() => {
@@ -277,9 +280,8 @@ const AddFundReceived: React.FC = () => {
     }, [budgetHeadsResult]);
 
     // Handle Edit Mode
-    const location = useLocation();
-    const searchParams = new URLSearchParams(location.search);
-    const editDocName = searchParams.get('id');
+    const editSearchParams = new URLSearchParams(location.search);
+    const editDocName = editSearchParams.get('id');
 
     // Fetch existing document for editing
     useEffect(() => {
@@ -336,6 +338,7 @@ const AddFundReceived: React.FC = () => {
                     ...(prefill_data || {}),
                     prjreg_title: related_project_data?.name || projectName,
                     prj_type: related_project_data?.project_type || '',
+                    project_title: related_project_data?.project_title || '',
                 };
 
                 const processedFields = apiFields.map(field => {
@@ -354,8 +357,16 @@ const AddFundReceived: React.FC = () => {
                 // Initialize formData with prefill values ONLY if not editing
                 // If editing, the edit loading effect will override/merge.
                 if (!editDocName) {
+                    // Merge prefill data AND field defaults into formData
+                    const defaultsFromFields: Record<string, any> = {};
+                    processedFields.forEach(f => {
+                        if (f.fieldtype !== 'Section Break' && f.fieldtype !== 'Table' && f.default !== undefined) {
+                            defaultsFromFields[f.fieldname] = f.default;
+                        }
+                    });
                     setFormData(prev => ({
                         ...prev,
+                        ...defaultsFromFields,
                         ...prefillData,
                         fund_transactions: [],
                         received_amt_breakup: []
@@ -884,7 +895,7 @@ const AddFundReceived: React.FC = () => {
                         <div>
                             <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{editDocName ? 'Edit Received Fund' : 'Record Received Fund'}</h1>
                             <p className="text-zinc-700 dark:text-zinc-300 mt-1">
-                                For Project: <strong>{projectName}</strong> - {projectTitle}
+                                For Project: {projectNoFromUrl && <strong>{projectNoFromUrl}</strong>}{projectNoFromUrl ? ' - ' : ''}{projectTitle}
                             </p>
                         </div>
                     </div>

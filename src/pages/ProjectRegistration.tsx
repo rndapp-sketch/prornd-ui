@@ -546,16 +546,29 @@ const ProjectRegistration: React.FC = () => {
             const user = (linkOptions["pi_webmail"] || []).find(c => c.value === selectedUserEmail);
             const prefix = tableName === "co_investigator_table" ? "copi" : "pi";
             let designation = user?.designation || "";
-            if (!designation && selectedUserEmail) {
+            let address = "";
+            let contact = "";
+            if (selectedUserEmail) {
                 try {
                     const result = await fetchPiDetails({ user_email: selectedUserEmail });
                     const details = result?.message;
-                    designation = details?.designation_name || details?.designation || "";
+                    if (!designation) {
+                        designation = details?.designation_name || details?.designation || "";
+                    }
+                    address = details?.address || details?.department || details?.applicant_department || "";
+                    contact = details?.contact_number || details?.mobile_no || details?.cell_phone_number || "";
                 } catch (err) { console.error("Failed to fetch collaborator details:", err); }
             }
             setFormData(prev => {
                 const t = [...(prev[tableName] || [])];
-                t[rowIndex] = { ...t[rowIndex], [`${prefix}_name`]: user?.label || "", [`${prefix}_email`]: user?.value || "", [`${prefix}_designation`]: designation };
+                t[rowIndex] = {
+                    ...t[rowIndex],
+                    [`${prefix}_name`]: user?.label || "",
+                    [`${prefix}_email`]: user?.value || "",
+                    [`${prefix}_designation`]: designation,
+                    [`${prefix}_address`]: address,
+                    [`${prefix}_contact`]: contact
+                };
                 return { ...prev, [tableName]: t };
             });
         }, [linkOptions, fetchPiDetails]
@@ -1142,7 +1155,7 @@ const ProjectRegistration: React.FC = () => {
                                         <MemoizedBudgetTable tableData={budgetTableData} budgetYears={budgetYears} budgetHeadOptions={budgetHeadOptions} onRowChange={handleBudgetRowChange} onAddRow={addBudgetRow} onDeleteRow={deleteTableRow} onAddYear={addBudgetYear} onDeleteYear={deleteLastBudgetYear} getYearTotal={getYearTotal} totalBudgetAmount={totalBudgetAmount} />
                                         <div className="space-y-6 border-t border-zinc-300 dark:border-zinc-700 pt-8">{renderFields(tabFieldGroups.budgetToggles)}</div>
                                         {formData.equipment_checkbox ? (<MemoizedGenericTable tableName={'proposed_equipment_details'} columns={[{ key: 'item_name', label: 'Equipment Name*', type: 'text' }, { key: 'cost', label: 'Cost (₹)', type: 'number' }]} newRow={{ item_name: '', cost: 0 }} tableData={formData.proposed_equipment_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
-                                        {formData.manpower_checkbox ? (<MemoizedGenericTable tableName={'proposed_manpower_details'} columns={[{ key: 'designation_name', label: 'Position*', type: 'text' }, { key: 'salary', label: 'Salary (₹)', type: 'number' }]} newRow={{ designation_name: '', salary: 0 }} tableData={formData.proposed_manpower_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
+                                        {formData.manpower_checkbox ? (<MemoizedGenericTable tableName={'proposed_manpower_details'} columns={[{ key: 'designation_name', label: 'Position*', type: 'text' }, { key: 'manpower_salary', label: 'Salary (₹)', type: 'number' }]} newRow={{ designation_name: '', manpower_salary: 0 }} tableData={formData.proposed_manpower_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
                                     </FrappeCard>
                                     {renderNextPrevButtons(true, true)}
                                 </div>

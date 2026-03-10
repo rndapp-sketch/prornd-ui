@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AppSidebar } from "../components/RndSidebar";
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, Send, Save } from "lucide-react";
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -31,26 +31,33 @@ interface FormData {
 }
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
-const inputClasses = "w-full h-12 px-4 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800 read-only:bg-zinc-100 dark:bg-zinc-800";
-const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>{children}</div>);
-const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-lg font-semibold text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
+const inputClasses = "w-full h-9 px-3 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800 read-only:bg-zinc-100 dark:bg-zinc-800";
+const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white dark:bg-zinc-900 p-4 md:p-6 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm", className)}>{children}</div>);
+const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-md font-semibold text-sm text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
 
-const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-3">{title}</h2>{children}</div>);
+const NeoSection = ({ title, children }: any) => (<div className="space-y-4"><h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tracking-tight border-b border-zinc-300 dark:border-zinc-700 pb-2 uppercase">{title}</h2>{children}</div>);
+
+/** Prevent scroll-wheel from changing number input values */
+const preventScrollChange = (e: React.WheelEvent<HTMLInputElement | HTMLSelectElement>) => {
+    (e.target as HTMLElement).blur();
+};
 
 // --- MEMOIZED CHILD COMPONENTS ---
-const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
+const MemoizedFormField = memo(({ field, value, options, onChange, readOnlyOverride }: any) => {
     if (!field || field.hidden) return null;
-    const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: field.read_only, required: field.mandatory, disabled: field.read_only, };
+    const isReadOnly = field.read_only || readOnlyOverride;
+    const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: isReadOnly, required: field.mandatory, disabled: isReadOnly, };
 
     const renderInput = () => {
         switch (field.fieldtype) {
             case "Link": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
             case "Date": return <input type="date" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
-            case "Currency": return <input type="number" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
+            case "Currency": return <input type="number" step="0.01" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} onWheel={preventScrollChange} />;
+            case "Int": case "Float": return <input type="number" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} onWheel={preventScrollChange} />;
             default: return <input type="text" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
         }
     };
-    return (<div className='space-y-2'><label htmlFor={field.fieldname} className="block font-bold text-zinc-900 dark:text-zinc-100 text-lg uppercase">{field.label}{field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}</div>);
+    return (<div className='space-y-1'><label htmlFor={field.fieldname} className="block font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase">{field.label}{field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}</div>);
 });
 
 const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRow, budgetHeadOptions }: any) => {
@@ -90,9 +97,9 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
             <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
                 <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                     <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                        <tr className="divide-x divide-zinc-100 dark:divide-zinc-800">
+                        <tr>
                             {[...columns, { key: 'actions', label: '' }].map((c: any) => (
-                                <th key={c.key} className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm text-left text-sm">{c.label}</th>
+                                <th key={c.key} className="px-3 py-2 font-semibold text-zinc-600 dark:text-zinc-400 text-xs text-left uppercase tracking-wider">{c.label}</th>
                             ))}
                         </tr>
                     </thead>
@@ -101,11 +108,11 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                         {(tableData || []).map((row: any, i: number) => {
                             const rowTotal = calculateRowTotal(row);
                             return (
-                                <tr key={row.id || i} className="divide-x divide-zinc-100 dark:divide-zinc-800">
+                                <tr key={row.id || i} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                                     {columns.map((col: any) => (
-                                        <td key={col.key} className="p-2">
+                                        <td key={col.key} className="px-2 py-1.5">
                                             {col.type === 'Select' ? (
-                                                <select className={`${inputClasses} !h-11`}
+                                                <select className={`${inputClasses} !h-8 text-xs`}
                                                     value={row[col.key] || ''}
                                                     onChange={e => onRowChange(i, col.key, e.target.value)}>
                                                     <option value="">Select Head...</option>
@@ -114,18 +121,19 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                                                     ))}
                                                 </select>
                                             ) : col.type === 'Currency' ? (
-                                                <input type="number" className={`${inputClasses} !h-11`}
+                                                <input type="number" step="0.01" className={`${inputClasses} !h-8 text-xs`}
                                                     value={row[col.key] || ''}
-                                                    onChange={e => onRowChange(i, col.key, e.target.value)} />
+                                                    onChange={e => onRowChange(i, col.key, e.target.value)}
+                                                    onWheel={preventScrollChange} />
                                             ) : col.type === 'ReadOnly' ? (
-                                                <input readOnly className={`${inputClasses} !h-11 bg-zinc-200 dark:bg-zinc-700 font-bold`}
+                                                <input readOnly className={`${inputClasses} !h-8 text-xs bg-zinc-100 dark:bg-zinc-700 font-semibold`}
                                                     value={rowTotal.toFixed(2)} />
                                             ) : null}
                                         </td>
                                     ))}
-                                    <td className="p-2 text-center">
+                                    <td className="px-2 py-1.5 text-center">
                                         <FrappeButton onClick={() => onDeleteRow(i)}
-                                            className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</FrappeButton>
+                                            className="!py-1 text-xs bg-red-50 border-red-200 hover:bg-red-100 text-red-600">Delete</FrappeButton>
                                     </td>
                                 </tr>
                             );
@@ -133,13 +141,13 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                     </tbody>
 
                     {/* Footer with Year-wise Totals and Grand Total */}
-                    <tfoot className="bg-zinc-100 dark:bg-zinc-800 border-t-2 border-zinc-300 dark:border-zinc-700 font-bold">
-                        <tr className="divide-x divide-zinc-100 dark:divide-zinc-800">
-                            <td className="p-3 text-right">Yearly Totals (₹):</td>
+                    <tfoot className="bg-zinc-50 dark:bg-zinc-800 border-t border-zinc-200 dark:border-zinc-700 font-semibold text-xs">
+                        <tr>
+                            <td className="px-3 py-2 text-right">Yearly Totals (₹):</td>
                             {yearKeys.map(key => (
-                                <td key={key} className="p-3">{yearTotals[key]?.toFixed(2) || '0.00'}</td>
+                                <td key={key} className="px-3 py-2">{yearTotals[key]?.toFixed(2) || '0.00'}</td>
                             ))}
-                            <td className="p-3 bg-yellow-200 text-lg">{grandTotal.toFixed(2)}</td>
+                            <td className="px-3 py-2 bg-amber-100 dark:bg-amber-900/30 text-sm font-bold text-[#D97757]">{grandTotal.toFixed(2)}</td>
                             <td />
                         </tr>
                     </tfoot>
@@ -155,7 +163,7 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                     fourth_year_budget: 0,
                     fifth_year_budget: 0,
                 })}
-                className="bg-[#D97757] mt-4">
+                className="bg-[#D97757] hover:bg-[#c5684a] text-white border-[#D97757]/20 mt-2">
                 Add Budget Row
             </FrappeButton>
         </div>
@@ -164,26 +172,26 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
 
 const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => (
     <NeoSection title={title}>
-        <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
-            <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                <thead className="bg-zinc-50 dark:bg-zinc-800/50"><tr className="divide-x divide-zinc-100 dark:divide-zinc-800">{[...columns, { key: 'actions', label: '' }].map((c: any) => (<th key={c.key} className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm text-left text-sm">{c.label}</th>))}</tr></thead>
+        <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700 rounded-lg">
+            <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
+                <thead className="bg-zinc-50 dark:bg-zinc-800/50"><tr>{[...columns, { key: 'actions', label: '' }].map((c: any) => (<th key={c.key} className="px-3 py-2 font-semibold text-zinc-600 dark:text-zinc-400 text-xs text-left uppercase tracking-wider">{c.label}</th>))}</tr></thead>
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                     {(tableData || []).map((row: any, i: number) => (
-                        <tr key={row.id} className="divide-x divide-zinc-100 dark:divide-zinc-800">
-                            {columns.map((col: any) => (<td key={col.key} className="p-2">
+                        <tr key={row.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                            {columns.map((col: any) => (<td key={col.key} className="px-2 py-1.5">
                                 {col.type === 'Attach' ? (
-                                    <input type="file" className={`${inputClasses} !h-11 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:font-bold file:bg-stone-200 hover:file:bg-stone-300`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />
+                                    <input type="file" className={`${inputClasses} !h-8 text-xs file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 hover:file:bg-zinc-200`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />
                                 ) : (
-                                    <input type="text" className={`${inputClasses} !h-11`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)} />
+                                    <input type="text" className={`${inputClasses} !h-8 text-xs`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)} />
                                 )}
                             </td>))}
-                            <td className="p-2 text-center"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm">Delete</FrappeButton></td>
+                            <td className="px-2 py-1.5 text-center"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="!py-1 text-xs bg-red-50 border-red-200 hover:bg-red-100 text-red-600">Delete</FrappeButton></td>
                         </tr>
                     ))}
                 </tbody>
             </table>
         </div>
-        <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#D97757] mt-4">Add Row</FrappeButton>
+        <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#D97757] hover:bg-[#c5684a] text-white border-[#D97757]/20 mt-2">Add Row</FrappeButton>
     </NeoSection>
 ));
 
@@ -198,6 +206,7 @@ const AddFundSanction: React.FC = () => {
     const [budgetHeadOptions, setBudgetHeadOptions] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [projectDisplayLabel, setProjectDisplayLabel] = useState('');
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_fund_sanction_form_data');
     const { call: submitForm } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.save_fund_sanction_data');
@@ -224,7 +233,26 @@ const AddFundSanction: React.FC = () => {
             const { fields, prefill_data, link_options } = formDataResult.message;
             setFields(fields || []);
             setLinkOptions(link_options || {});
-            setFormData(prefill_data || {});
+
+            // Auto-select project and build display label
+            const initialData = { ...(prefill_data || {}) };
+            if (projectName) {
+                initialData.project_proposal = projectName;
+                initialData.refnum_prj_num = projectName;
+            }
+
+            // Build project display label (Project Title / Project Number)
+            if (link_options?.project_proposal) {
+                const matched = link_options.project_proposal.find((opt: LinkOption) => opt.value === projectName);
+                if (matched) {
+                    setProjectDisplayLabel(matched.label);
+                }
+            }
+            if (!projectDisplayLabel && prefill_data?.project_title) {
+                setProjectDisplayLabel(`${prefill_data.project_title} / ${projectName}`);
+            }
+
+            setFormData(initialData);
             setLoading(false);
         }
         if (formDataError) {
@@ -324,10 +352,10 @@ const AddFundSanction: React.FC = () => {
         }
     };
 
-    const renderField = useCallback((fieldname: string) => {
+    const renderField = useCallback((fieldname: string, readOnlyOverride = false) => {
         const field = fields.find(f => f.fieldname === fieldname);
         if (!field) return null;
-        return <MemoizedFormField key={field.fieldname} field={field} value={formData[field.fieldname]} options={linkOptions[field.fieldname]} onChange={handleChange} />;
+        return <MemoizedFormField key={field.fieldname} field={field} value={formData[field.fieldname]} options={linkOptions[field.fieldname]} onChange={handleChange} readOnlyOverride={readOnlyOverride} />;
     }, [fields, formData, linkOptions, handleChange]);
 
     if (loading) {
@@ -338,24 +366,37 @@ const AddFundSanction: React.FC = () => {
         <div className="bg-claude-bg dark:bg-zinc-900">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <header className="mb-8 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-sm">
+                <header className="mb-6 px-5 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => navigate(-1)} className="p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-50 dark:bg-zinc-800/50 active:translate-y-1 transition-transform">
-                            <ArrowLeftIcon className="h-6 w-6" />
+                        <button onClick={() => navigate(-1)} className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors border border-zinc-300 dark:border-zinc-700">
+                            <ArrowLeftIcon className="h-5 w-5" />
                         </button>
                         <div>
-                            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Add Fund Sanction</h1>
-                            <p className="text-zinc-700 dark:text-zinc-300  mt-1">For Project: {formData.refnum_prj_num || projectName}</p>
+                            <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">Add Fund Sanction</h1>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">For Project: {projectDisplayLabel || formData.refnum_prj_num || projectName}</p>
                         </div>
                     </div>
                 </header>
 
                 <form onSubmit={handleSubmit}>
-                    <FrappeCard className="space-y-12">
+                    <FrappeCard className="space-y-6">
                         <NeoSection title="Project & Sanction Details">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                {renderField('project_proposal')}
-                                {renderField('refnum_prj_num')}
+                            {/* Project Registered - Read-only display showing title/number */}
+                            <div className="space-y-1">
+                                <label className="block font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase">
+                                    Project Registered
+                                </label>
+                                <input
+                                    type="text"
+                                    className={`${inputClasses} bg-zinc-100 dark:bg-zinc-800 font-medium`}
+                                    readOnly
+                                    disabled
+                                    value={projectDisplayLabel || formData.project_proposal || projectName || ''}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {renderField('refnum_prj_num', true)}
                                 {renderField('total_sanctioned_amount')}
                                 {renderField('sanctioned_letter_no')}
                                 {renderField('sanctioned_letter_date')}
@@ -394,16 +435,26 @@ const AddFundSanction: React.FC = () => {
                         />
                     </FrappeCard>
 
-                    <div className="mt-8 flex justify-end gap-4">
-                        {formData.status !== "Draft" ? (
-                            <FrappeButton type="submit" disabled={isSubmitting} className="bg-blue-300">
+                    {/* Prominent Submit Buttons */}
+                    <div className="mt-6 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
+                        <div className="flex justify-end gap-3">
+                            <FrappeButton
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-600"
+                            >
+                                <Save className="h-4 w-4 mr-1.5 inline-block" />
                                 {isSubmitting ? 'Saving...' : 'Save as Draft'}
                             </FrappeButton>
-                        ) : (
-                            <FrappeButton type="submit" disabled={isSubmitting} className="bg-green-400">
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#D97757] hover:bg-[#c5684a] text-white font-semibold text-sm rounded-md shadow-sm hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Send className="h-4 w-4" />
                                 {isSubmitting ? 'Submitting...' : 'Submit Sanction'}
-                            </FrappeButton>
-                        )}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </main>

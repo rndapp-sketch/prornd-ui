@@ -1819,19 +1819,19 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   // Fetch Fund Received Data
   const fundQueryParams = useMemo(
     () => ({
-      prjreg_title: projectName || "",
+      prjreg_title: data?.project_no || "",
       limit: 200,
       start: 0,
     }),
-    [projectName],
+    [data?.project_no],
   );
 
   const fundQueryOptions = useMemo(
     () => ({
       revalidateOnFocus: false,
-      isPaused: () => !projectName,
+      isPaused: () => !data?.project_no,
     }),
-    [projectName],
+    [data?.project_no],
   );
 
   const { data: fundReceivedData } = useFrappeGetCall(
@@ -2474,7 +2474,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     }
   }, [searchParams]);
 
-  const handleAddFunds = () => navigate(`/add-fund-received/${projectName}/`);
+  const handleAddFunds = () => navigate(`/add-fund-received/${projectName}/?project_no=${encodeURIComponent(data?.project_no || '')}`);
   const handleAddSanctionDetails = () => {
     navigate(`/project-details-overview/${projectName}/add-fund-sanction`);
   };

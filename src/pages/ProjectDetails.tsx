@@ -1114,11 +1114,43 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     <TableDisplay
                       label="Proposed Budget Breakup"
                       data={data?.proposed_budget_breakup}
-                      columns={[
-                        { fieldname: "account_head", label: "Budget Head" },
-                        { fieldname: "first_year_budget", label: "Year 1" },
-                        { fieldname: "second_year_budget", label: "Year 2" },
-                      ]}
+                      columns={(() => {
+                        // Dynamically determine year columns based on project duration
+                        const durationMonths = parseInt(data?.project_duration_months) || 0;
+                        const durationDays = parseInt(data?.project_duration_days) || 0;
+                        let totalMonths = durationMonths;
+                        if (!totalMonths && durationDays > 0) {
+                          totalMonths = Math.ceil(durationDays / 30);
+                        }
+                        const yearCount = totalMonths <= 12 ? 1 : totalMonths <= 24 ? 2 : totalMonths <= 36 ? 3 : totalMonths <= 48 ? 4 : 5;
+
+                        // Also check actual data for non-zero values in higher years
+                        const yearFields = [
+                          { fieldname: "first_year_budget", label: "Year 1" },
+                          { fieldname: "second_year_budget", label: "Year 2" },
+                          { fieldname: "third_year_budget", label: "Year 3" },
+                          { fieldname: "fourth_year_budget", label: "Year 4" },
+                          { fieldname: "fifth_year_budget", label: "Year 5" },
+                        ];
+
+                        // Use the max of duration-based count and data-based count
+                        let dataBasedCount = 0;
+                        if (data?.proposed_budget_breakup) {
+                          data.proposed_budget_breakup.forEach((row: any) => {
+                            yearFields.forEach((yf, idx) => {
+                              if (parseFloat(row[yf.fieldname]) > 0) {
+                                dataBasedCount = Math.max(dataBasedCount, idx + 1);
+                              }
+                            });
+                          });
+                        }
+
+                        const finalCount = Math.max(yearCount, dataBasedCount, 1);
+                        return [
+                          { fieldname: "account_head", label: "Budget Head" },
+                          ...yearFields.slice(0, finalCount),
+                        ];
+                      })()}
                       icon={IndianRupeeIcon}
                       budgetHeadList={budgetHeadList}
                     />

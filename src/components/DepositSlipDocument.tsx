@@ -1,4 +1,5 @@
 import React from 'react';
+import { ProjectTitle } from './ProjectTitle';
 
 interface DepositSlipDocumentProps {
     depositSlip: any;
@@ -111,13 +112,22 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
             items.push({ label: dpfLabel, amount: depositSlip.dpf_amount });
         }
 
-        // PDF Amount
-        if (depositSlip.pdf_amount) {
-            items.push({ label: 'PDF (12.5% of Overhead Amount)', amount: depositSlip.pdf_amount });
-        }
-
         // PDF / Credit Distribution (if any custom distributions)
-        if (depositSlip.credit_distribution && depositSlip.credit_distribution.length > 0) {
+        if (depositSlip.pdf_credit_distribution && Array.isArray(depositSlip.pdf_credit_distribution)) {
+            depositSlip.pdf_credit_distribution.forEach((item: any) => {
+                const percentage = item.pdf_percentage || 0;
+                const amount = item.pdf_amount || 0;
+                // Add the specific PI/Co-PI to the label if available
+                const recipientName = item.recipient_name || item.select_copi_id || item.employee_id || '';
+                const labelSuffix = recipientName ? ` - ${recipientName}` : '';
+
+                items.push({
+                    label: `PDF (${percentage}% of Overhead Amount)${labelSuffix}`,
+                    amount: amount
+                });
+            });
+        } else if (depositSlip.credit_distribution && depositSlip.credit_distribution.length > 0) {
+            // Fallback for older data format
             depositSlip.credit_distribution.forEach((item: any) => {
                 items.push({
                     label: `PDF/${item.label || item.recipient_name}`,
@@ -151,7 +161,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                 amount: depositSlip.project_account_balance
             });
         }
-
+        console.log("depositSlip:", depositSlip)
         return items.map((item, idx) => (
             <tr key={idx}>
                 <td className="border border-black p-1 text-center">({String.fromCharCode(97 + idx)})</td>
@@ -184,7 +194,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
             {/* Title */}
             <div className="text-center font-bold mb-4">
                 <span className="underline">{config.titlePrefix}</span><br />
-                for {config.titleType}: {depositSlip.project_number || depositSlip.name}
+                for {config.titleType}: {depositSlip.project_no || depositSlip.name}
             </div>
 
             {/* Main Table */}
@@ -202,7 +212,12 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                         <td className="border border-black p-1">
                             {type === 'other_event' ? 'Event Title' : type.includes('consultancy') ? 'Consultancy Title' : 'Project Title'}
                         </td>
-                        <td colSpan={2} className="border border-black p-1">{depositSlip.project_title || '-'}</td>
+                        <td colSpan={2} className="border border-black p-1">
+                            <ProjectTitle
+                                projectId={depositSlip.project_title || depositSlip.project_title || depositSlip.project_title}
+                                fallbackTitle={depositSlip.project_title}
+                            />
+                        </td>
                     </tr>
 
                     {/* Row 2: Category (for consultancy types) */}
@@ -256,13 +271,19 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                     )}
 
                     {/* ECS Row */}
-                    {depositSlip.ecs_account_number && (
+                    {(depositSlip.ecs_account_number || depositSlip.ecs_scheme_no) && (
                         <tr>
                             <td className="border border-black p-1 text-center">{getRowNum()}</td>
                             <td className="border border-black p-1">ECS</td>
-                            <td className="border border-black p-1 text-center">{depositSlip.ecs_account_number}</td>
+                            <td className="border border-black p-1 text-center">{depositSlip.ecs_account_number || depositSlip.ecs_scheme_no}</td>
                             <td className="border border-black p-1 text-center">
-                                Dated: {depositSlip.ecs_dates_and_amount?.[0]?.ecs_date || '-'}
+                                Dated: {
+                                    depositSlip.ecs_dates_and_amount?.[0]?.ecs_date
+                                        ? formatDate(depositSlip.ecs_dates_and_amount[0].ecs_date)
+                                        : depositSlip.ecs_date?.[0]?.ecs_date
+                                            ? formatDate(depositSlip.ecs_date[0].ecs_date)
+                                            : '-'
+                                }
                             </td>
                         </tr>
                     )}
@@ -271,7 +292,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                     <tr>
                         <td className="border border-black p-1 text-center">{getRowNum()}</td>
                         <td className="border border-black p-1">Bank</td>
-                        <td colSpan={2} className="border border-black p-1">{depositSlip.bank || '-'}</td>
+                        <td colSpan={2} className="border border-black p-1">{depositSlip.bank_name || '-'}</td>
                     </tr>
 
                     {/* Amount Inclusive of GST */}

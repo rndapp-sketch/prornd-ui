@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
-import { AppSidebar } from "@/components/RndSidebar";
+// import { AppSidebar } from "@/components/RndSidebar";
 import { DepositSlipDocument } from "@/components/DepositSlipDocument";
 
 const FrappeCard = ({
@@ -175,6 +175,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                     if (result.data && result.data.length > 0) {
                         // Found a matching deposit slip, fetch full document
                         const docName = result.data[0].name;
+                        console.log("doctype:", doctype);
                         const docResponse = await fetch(
                             `/api/v2/document/${encodeURIComponent(doctype)}/${encodeURIComponent(docName)}`,
                             { credentials: "include" },
@@ -184,6 +185,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                             setDepositSlip(docResult.data);
                             setDepositSlipDoctype(doctype);
                             setSlipLoading(false);
+                            console.log("docResult", docResult.data);
                             return; // Found it, stop searching
                         }
                     }
@@ -282,7 +284,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     if (fundError || !fundReceived) {
         return (
             <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
-                <AppSidebar />
+                {/* <AppSidebar /> */}
                 <main className="flex-1 p-4 md:p-8">
                     <FrappeCard className="text-center py-16">
                         <FileText className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
@@ -310,7 +312,7 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     if (slipError || !depositSlip) {
         return (
             <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
-                <AppSidebar />
+                {/* <AppSidebar /> */}
                 <main className="flex-1 p-4 md:p-8">
                     <FrappeCard className="text-center py-16">
                         <FileText className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
