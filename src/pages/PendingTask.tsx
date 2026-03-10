@@ -90,7 +90,7 @@ const PendingTask: React.FC = () => {
     const [selectedModule, setSelectedModule] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState<string>('');
     const searchInputRef = useRef<HTMLInputElement>(null);
-    const itemsPerPage = 5;
+    const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
     // Fetch data from the API
     const { data, isLoading, error } = useFrappeGetCall<PendingTaskResponse>(
@@ -324,6 +324,22 @@ const PendingTask: React.FC = () => {
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
                                 </button>
                             )}
+                        </div>
+                        <div className="flex items-center gap-3 border-r border-zinc-200 dark:border-zinc-700 pr-3 mr-1">
+                            <span className="text-sm text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap hidden sm:inline">Rows:</span>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setItemsPerPage(Number(e.target.value));
+                                    setCurrentPage(1); // Reset to first page when changing row limit
+                                }}
+                                className="h-8 pl-2 pr-8 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-xs text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
+                            >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
+                            </select>
                         </div>
                         <div className="text-sm text-zinc-500 dark:text-zinc-400 font-medium whitespace-nowrap">
                             Showing <span className="text-zinc-900 dark:text-zinc-200 font-semibold">{filteredTasks.length}</span> tasks
