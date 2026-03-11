@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappeGetDoc, useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { ArrowLeftIcon, FileIcon, ExternalLinkIcon } from "lucide-react";
-import { AppSidebar } from '@/components/RndSidebar';
+// import { AppSidebar } from '@/components/RndSidebar';
 import { FrappeButton } from '@/components/ui/neo-brutalism';
 import ProjectDetailsView from "./ProjectDetails";
 import TemporaryAdvanceDetailsView from "./TemporaryAdvanceDetailsView";
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, directPurchaseAPI, tadaAPI } from '@/services/apiService';
+import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, directPurchaseAPI, tadaAPI, recruitmentAdhocContractualAPI } from '@/services/apiService';
 import { ActivityStream } from '@/components/ActivityStream';
 import { BudgetActionsSidebar } from '@/components/BudgetActionsSidebar';
 import TemporaryAdvanceActionButtons from '@/components/TemporaryAdvanceActionButtons';
@@ -287,6 +287,61 @@ const DirectPurchaseWorkflowActions = ({ docname, onActionComplete }: { docname:
     );
 };
 
+const RecruitmentAdhocContractualWorkflowActions = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
+    const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
+        recruitmentAdhocContractualAPI.getWorkflowActions,
+        { docname }
+    );
+
+    const { call: performAction, loading: actionLoading } = useFrappePostCall(
+        recruitmentAdhocContractualAPI.performAction
+    );
+
+    const [modalOpen, setModalOpen] = React.useState(false);
+    const [selectedAction, setSelectedAction] = React.useState("");
+
+    const handleActionClick = (action: string) => {
+        setSelectedAction(action);
+        setModalOpen(true);
+    };
+
+    const handleConfirmAction = async (comment: string) => {
+        try {
+            await performAction({ docname, action: selectedAction, comment });
+            setModalOpen(false);
+            onActionComplete();
+        } catch (error) {
+            console.error("Error performing action:", error);
+        }
+    };
+
+    if (actionsLoading || !data?.message?.length) return null;
+
+    return (
+        <>
+            <div className="flex gap-2">
+                {data.message.map((action) => (
+                    <FrappeButton
+                        key={action}
+                        onClick={() => handleActionClick(action)}
+                        disabled={actionLoading}
+                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
+                    >
+                        {action}
+                    </FrappeButton>
+                ))}
+            </div>
+            <CommentModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSubmit={handleConfirmAction}
+                action={selectedAction}
+                isLoading={actionLoading}
+            />
+        </>
+    );
+};
+
 // Helper to check if a value is a file path
 const isFilePath = (value: string) => {
     if (typeof value !== 'string') return false;
@@ -336,10 +391,16 @@ const PendingTaskDetails: React.FC = () => {
     const [tadaLinkOptions, setTadaLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [isTadaLoading, setIsTadaLoading] = useState(false);
 
+    // State for Recruitment Adhoc Contractual Fields
+    const [recruitmentFields, setRecruitmentFields] = useState<FormField[]>([]);
+    const [recruitmentLinkOptions, setRecruitmentLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [isRecruitmentLoading, setIsRecruitmentLoading] = useState(false);
+
     const { call: fetchTravelFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any } }>(travelAPI.getFields);
     const { call: fetchAdvanceSettlementFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any, child_table_meta?: any } }>(advanceSettlementAPI.getFields);
     const { call: fetchTemporaryAdvanceFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any } }>(temporaryAdvanceAPI.getFields);
     const { call: fetchTadaFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any, child_table_meta?: any } }>(tadaAPI.getFields);
+    const { call: fetchRecruitmentFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any, child_table_meta?: any } }>(recruitmentAdhocContractualAPI.getFields);
     // State for display data (to handle ID resolution)
     const [displayData, setDisplayData] = useState<Record<string, any>>({});
 
@@ -533,6 +594,41 @@ const PendingTaskDetails: React.FC = () => {
         }
     }, [doctype, name, fetchTadaFields]);
 
+    // Fetch Recruitment Adhoc Contractual Fields
+    useEffect(() => {
+        if (doctype === 'Recruitment Adhoc Contractual' && name) {
+            setIsRecruitmentLoading(true);
+            fetchRecruitmentFields({ doc_name: name })
+                .then((res) => {
+                    if (res?.message) {
+                        let fields = res.message.fields || [];
+                        const childMeta = (res.message as any).child_table_meta;
+
+                        if (childMeta) {
+                            fields = fields.map((field) => {
+                                if (field.fieldtype === 'Table' && field.fieldname && childMeta[field.fieldname]) {
+                                    const childFields = childMeta[field.fieldname].fields.map((cf: any) => ({
+                                        ...cf,
+                                        label: cf.label || cf.fieldname || ''
+                                    }));
+                                    return {
+                                        ...field,
+                                        child_fields: childFields
+                                    };
+                                }
+                                return field;
+                            });
+                        }
+
+                        setRecruitmentFields(fields);
+                        setRecruitmentLinkOptions(res.message.link_options || {});
+                    }
+                })
+                .catch(err => console.error("Error fetching Recruitment Adhoc Contractual fields", err))
+                .finally(() => setIsRecruitmentLoading(false));
+        }
+    }, [doctype, name, fetchRecruitmentFields]);
+
 
     if (isLoading) {
         return (
@@ -707,7 +803,7 @@ const PendingTaskDetails: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen text-zinc-900 dark:text-zinc-100">
-            <AppSidebar />
+            {/* <AppSidebar /> */}
 
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <header className="mb-6 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
@@ -739,6 +835,9 @@ const PendingTaskDetails: React.FC = () => {
                             )}
                             {doctype === "TA DA Settlement" && name && (
                                 <TADASettlementActionButtons docName={name} onActionComplete={() => window.location.reload()} />
+                            )}
+                            {doctype === "Recruitment Adhoc Contractual" && name && (
+                                <RecruitmentAdhocContractualWorkflowActions docname={name} onActionComplete={() => window.location.reload()} />
                             )}
 
                         </div>
@@ -853,6 +952,32 @@ const PendingTaskDetails: React.FC = () => {
                             ) : (
                                 renderGenericDetails()
                             )
+                        ) : doctype === 'Recruitment Adhoc Contractual' ? (
+                            isRecruitmentLoading ? (
+                                <div className="flex h-64 items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
+                                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">Loading details...</p>
+                                    </div>
+                                </div>
+                            ) : recruitmentFields.length > 0 ? (
+                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+                                    <DynamicFormRenderer
+                                        fields={recruitmentFields}
+                                        formData={displayData}
+                                        linkOptions={recruitmentLinkOptions}
+                                        onChange={() => { }}
+                                        onFileChange={() => { }}
+                                        onTableRowChange={() => { }}
+                                        onTableFileChange={() => { }}
+                                        onAddTableRow={() => { }}
+                                        onDeleteTableRow={() => { }}
+                                        readOnly={true}
+                                    />
+                                </div>
+                            ) : (
+                                renderGenericDetails()
+                            )
                         ) : (
                             renderGenericDetails()
                         )}
@@ -899,7 +1024,7 @@ const PendingTaskDetails: React.FC = () => {
                                 />
                             )}
 
-                            <ActivityStream doctype={doctype || ""} docname={name || ""} />
+                            {/* <ActivityStream doctype={doctype || ""} docname={name || ""} /> */}
                         </div>
                     </div>
                 </div>

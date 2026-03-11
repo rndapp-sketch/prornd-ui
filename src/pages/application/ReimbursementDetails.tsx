@@ -98,13 +98,13 @@ const FrappeButton = ({
       "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
       "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
       variant === "primary" &&
-        "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
+      "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
       variant === "ghost" &&
-        "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
+      "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
       variant === "outline" &&
-        "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
+      "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
       variant === "action" &&
-        "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
+      "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
       "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
       className,
     )}
@@ -704,13 +704,13 @@ const ReimbursementDetails: React.FC = () => {
     });
     const applicationDate = data.creation
       ? new Date(data.creation).toLocaleString("en-IN", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        })
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      })
       : "-";
 
     // Calculate total amount from items
@@ -831,28 +831,26 @@ const ReimbursementDetails: React.FC = () => {
             <div class="info-row"><div class="info-label">Email ID:</div><div class="info-value">${data.applicant_webmail || "-"}</div></div>
             <div class="info-row"><div class="info-label">Application Initiated by:</div><div class="info-value">${data.owner || "-"}</div></div>
 
-            ${
-              data.comment
-                ? `
+            ${data.comment
+        ? `
             <div class="comments-box">
                 <div class="section-header">Comments</div>
                 <div class="comment-content">${data.comment}</div>
                 <div class="comment-timestamp">${applicationDate} ➔</div>
             </div>`
-                : ""
-            }
+        : ""
+      }
 
-            ${
-              acceptedDeclarations
-                ? `
+            ${acceptedDeclarations
+        ? `
             <div class="declaration-box">
                 <div class="section-header">Applicant's Declaration</div>
                 <div class="declaration-content">
                     <ol>${acceptedDeclarations}</ol>
                 </div>
             </div>`
-                : ""
-            }
+        : ""
+      }
         </div>
 
         <div class="details-section">
@@ -1056,26 +1054,26 @@ const ReimbursementDetails: React.FC = () => {
               {(data.reimbursement_for_id ||
                 data.reimbursement_for_department ||
                 data.reimbursement_for_designation) && (
-                <FrappeCard title="Reimbursement For">
-                  <div className="space-y-1">
-                    <DetailRow
-                      label="Webmail ID"
-                      value={data.reimbursement_for_id}
-                    />
-                    <DetailRow
-                      label="Department"
-                      value={
-                        resolvedNames.reimbursement_for_department ||
-                        data.reimbursement_for_department
-                      }
-                    />
-                    <DetailRow
-                      label="Designation"
-                      value={data.reimbursement_for_designation}
-                    />
-                  </div>
-                </FrappeCard>
-              )}
+                  <FrappeCard title="Reimbursement For">
+                    <div className="space-y-1">
+                      <DetailRow
+                        label="Webmail ID"
+                        value={data.reimbursement_for_id}
+                      />
+                      <DetailRow
+                        label="Department"
+                        value={
+                          resolvedNames.reimbursement_for_department ||
+                          data.reimbursement_for_department
+                        }
+                      />
+                      <DetailRow
+                        label="Designation"
+                        value={data.reimbursement_for_designation}
+                      />
+                    </div>
+                  </FrappeCard>
+                )}
 
               {/* Bank Details */}
               <FrappeCard title="Bank Details">
@@ -1147,8 +1145,8 @@ const ReimbursementDetails: React.FC = () => {
                             <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-mono">
                               {item.r_date
                                 ? new Date(item.r_date).toLocaleDateString(
-                                    "en-IN",
-                                  )
+                                  "en-IN",
+                                )
                                 : "-"}
                             </td>
                             <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">
@@ -1433,7 +1431,7 @@ const ReimbursementDetails: React.FC = () => {
                           isPaying ||
                           !paymentAmount ||
                           parseFloat(paymentAmount) >
-                            (linkedCommitment?.committed || 0)
+                          (linkedCommitment?.committed || 0)
                         }
                       >
                         {isPaying ? "Processing..." : "Submit Payment"}
