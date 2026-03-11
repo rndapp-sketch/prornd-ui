@@ -65,6 +65,7 @@ import RecruitmentAdhocContractualForm from './pages/application/RecruitmentAdho
 import IndentCumSanctionSheetForm from './pages/application/IndentCumSanctionSheetForm.tsx';
 import UniversalRegistrationForm from './pages/application/UniversalRegistrationForm.tsx';
 import UniversalUserForm from './pages/application/UniversalUserForm.tsx';
+import DepartmentProjects from './pages/DepartmentProjects.tsx';
 
 const router = createBrowserRouter(
   [
@@ -277,13 +278,21 @@ const router = createBrowserRouter(
           element: (<AuthRouteWrapper allowedRole="project staff"><ProjectStaffDashboard /></AuthRouteWrapper>),
         },
         {
-          path: "hr-portal",
+          path: "department-projects",
           element: (
-            <AuthRouteWrapper allowedRole="All_ProRnd_User"> {/* Adjust role as needed */}
-              <HRPortal />
+            <AuthRouteWrapper allowedRole="head_approver_1">
+              <DepartmentProjects />
             </AuthRouteWrapper>
           ),
         },
+        // {
+        //   path: "hr-portal",
+        //   element: (
+        //     <AuthRouteWrapper allowedRole="staff, RnD"> {/* Adjust role as needed */}
+        //       <HRPortal />
+        //     </AuthRouteWrapper>
+        //   ),
+        // },
         {
           path: "reimbursement",
           element: (
@@ -433,7 +442,8 @@ const router = createBrowserRouter(
               'staff, RnD',
               'Hos, RnD (Head of Section, RnD)',
               'Dean, RnD',
-              'Director'
+              'Director',
+              'head_approver_1'
             ]}>
               <TaskRegistry />
             </AuthRouteWrapper>
@@ -446,7 +456,8 @@ const router = createBrowserRouter(
               'staff, RnD',
               'Hos, RnD (Head of Section, RnD)',
               'Dean, RnD',
-              'Director'
+              'Director',
+              'head_approver_1'
             ]}>
               <TaskRegistryDetails />
             </AuthRouteWrapper>
