@@ -1008,7 +1008,46 @@ const QuickActions = ({
       } else if (selectedApplication === "Disbursal of Honorarium") {
         try {
           const timestamp = Date.now();
-          const apiUrl = `/api/resource/Disbursal of Honorarium?fields=["name","creation","workflow_state","owner","total_amount","webmail_id","name_of_applicant","department"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          const apiUrl = `/api/resource/Disbursal of Honorarium?fields=["name","creation","workflow_state","owner","total_amount","project_name","project_number","webmail_id","name_of_applicant","department"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+
+          const fetchResponse = await fetch(apiUrl, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            credentials: "include",
+          });
+          if (!fetchResponse.ok)
+            throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+          const result = await fetchResponse.json();
+          const allHonorariums = result?.data || [];
+
+          // Same client-side filter as Reimbursement — match project_name OR project_number against projectName (URL param)
+          const projectNameLower = projectName?.toLowerCase() || "";
+          data = allHonorariums
+            .filter((item: any) => {
+              const itemProjectName   = (item.project_name   || "").toLowerCase();
+              const itemProjectNumber = (item.project_number || "").toLowerCase();
+              return (
+                itemProjectName   === projectNameLower ||
+                itemProjectNumber === projectNameLower ||
+                itemProjectName.includes(projectNameLower)   ||
+                itemProjectNumber.includes(projectNameLower) ||
+                projectNameLower.includes(itemProjectName)   ||
+                projectNameLower.includes(itemProjectNumber)
+              );
+            })
+            .map((item: any) => ({
+              ...item,
+              applicant_webmail: item.name_of_applicant || item.webmail_id || item.owner,
+            }));
+          console.log(`Disbursal of Honorarium: fetched ${allHonorariums.length}, filtered to ${data.length} for project ${projectName}`);
+        } catch (fetchError) {
+          console.error("Disbursal of Honorarium fetch error:", fetchError);
+          data = [];
+        }
+      } else if (selectedApplication === "Disbursal of Consultancy") {
+        try {
+          const timestamp = Date.now();
+          const apiUrl = `/api/resource/Disbursal of Consultancy?fields=["name","creation","workflow_state","owner","total_disbursal_amount","disbursal_project_number","project_title","webmail_id","pi_name"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
           const fetchResponse = await fetch(apiUrl, {
             method: "GET",
             headers: { Accept: "application/json" },
@@ -1019,10 +1058,11 @@ const QuickActions = ({
           const result = await fetchResponse.json();
           data = (result?.data || []).map((item: any) => ({
             ...item,
-            applicant_webmail: item.webmail_id || item.owner,
+            applicant_webmail: item.pi_name || item.webmail_id || item.owner,
+            total_amount: item.total_disbursal_amount,
           }));
         } catch (fetchError) {
-          console.error("Disbursal of Honorarium fetch error:", fetchError);
+          console.error("Disbursal of Consultancy fetch error:", fetchError);
           data = [];
         }
       } else if (selectedApplication === "Direct Purchase") {
@@ -1222,7 +1262,10 @@ const QuickActions = ({
         alert(`Apply New: ${selectedApplication} - Route not configured yet`);
         break;
       case "Disbursal of Honorarium":
-        onNavigate(`/disbursal-of-honorarium-form?project=${projectParam}`);
+        onNavigate(`/disbursal-of-honorarium-form?project=${projectName}`);
+        break;
+      case "Disbursal of Consultancy":
+        onNavigate(`/disbursal-of-consultancy-form?project=${projectParam}`);
         break;
       case "Reimbursement":
         onNavigate(`/reimbursement?project=${projectParam}`);
@@ -1437,6 +1480,11 @@ const QuickActions = ({
                               case "Disbursal of Honorarium":
                                 onNavigate(
                                   `/disbursal-of-honorarium-form/${item.name}`,
+                                );
+                                break;
+                              case "Disbursal of Consultancy":
+                                onNavigate(
+                                  `/disbursal-of-consultancy-form/${item.name}`,
                                 );
                                 break;
                               case "Direct Purchase":
