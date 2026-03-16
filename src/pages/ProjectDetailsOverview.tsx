@@ -1008,20 +1008,29 @@ const QuickActions = ({
       } else if (selectedApplication === "Disbursal of Honorarium") {
         try {
           const timestamp = Date.now();
-          const apiUrl = `/api/resource/Disbursal of Honorarium?fields=["name","creation","workflow_state","owner","total_amount","project_name","project_number","webmail_id","name_of_applicant","department"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          // Use v2 document API (same as Temporary Advance) to avoid 403 permission issues with /api/resource/
+          const apiUrl = `/api/v2/document/Disbursal of Honorarium?fields=["name","creation","modified","name_of_applicant","webmail_id","owner","workflow_state","total_amount","project_name","project_number"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
 
           const fetchResponse = await fetch(apiUrl, {
             method: "GET",
             headers: { Accept: "application/json" },
             credentials: "include",
           });
+          
+          console.log(">>> Disbursal of Honorarium raw response status:", fetchResponse.status, fetchResponse.statusText);
+          
           if (!fetchResponse.ok)
             throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+            
           const result = await fetchResponse.json();
+          console.log(">>> Disbursal of Honorarium parsed JSON:", result);
           const allHonorariums = result?.data || [];
+          console.log(">>> Disbursal of Honorarium allHonorariums:", allHonorariums);
 
-          // Same client-side filter as Reimbursement — match project_name OR project_number against projectName (URL param)
+          // Exact same client-side filter approach resilient to backend schema issues, matching Direct Purchase / Reimbursement
           const projectNameLower = projectName?.toLowerCase() || "";
+          const projectNoLower = projectNo?.toLowerCase() || "";
+          
           data = allHonorariums
             .filter((item: any) => {
               const itemProjectName   = (item.project_name   || "").toLowerCase();
@@ -1029,17 +1038,20 @@ const QuickActions = ({
               return (
                 itemProjectName   === projectNameLower ||
                 itemProjectNumber === projectNameLower ||
-                itemProjectName.includes(projectNameLower)   ||
-                itemProjectNumber.includes(projectNameLower) ||
-                projectNameLower.includes(itemProjectName)   ||
-                projectNameLower.includes(itemProjectNumber)
+                itemProjectName   === projectNoLower   ||
+                itemProjectNumber === projectNoLower   ||
+                (projectNameLower && itemProjectName.includes(projectNameLower))   ||
+                (projectNameLower && itemProjectNumber.includes(projectNameLower)) ||
+                (projectNoLower   && itemProjectName.includes(projectNoLower))     ||
+                (projectNoLower   && itemProjectNumber.includes(projectNoLower))
               );
             })
             .map((item: any) => ({
               ...item,
               applicant_webmail: item.name_of_applicant || item.webmail_id || item.owner,
             }));
-          console.log(`Disbursal of Honorarium: fetched ${allHonorariums.length}, filtered to ${data.length} for project ${projectName}`);
+            
+          console.log(`Disbursal of Honorarium: fetched ${allHonorariums.length}, filtered to ${data.length}`);
         } catch (fetchError) {
           console.error("Disbursal of Honorarium fetch error:", fetchError);
           data = [];

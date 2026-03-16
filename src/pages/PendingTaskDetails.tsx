@@ -12,6 +12,7 @@ import { ActivityStream } from '@/components/ActivityStream';
 import { BudgetActionsSidebar } from '@/components/BudgetActionsSidebar';
 import TemporaryAdvanceActionButtons from '@/components/TemporaryAdvanceActionButtons';
 import TADASettlementActionButtons from '@/components/TADASettlementActionButtons';
+import DisbursalOfHonorariumActionButtons from '@/components/DisbursalOfHonorariumActionButtons';
 import { useUserRoles } from '@/components/UserRole';
 
 // Fields to hide from the overview
@@ -739,6 +740,9 @@ const PendingTaskDetails: React.FC = () => {
                             )}
                             {doctype === "TA DA Settlement" && name && (
                                 <TADASettlementActionButtons docName={name} onActionComplete={() => window.location.reload()} />
+                            )}
+                            {doctype === "Disbursal of Honorarium" && name && (
+                                <DisbursalOfHonorariumActionButtons docname={name} onActionComplete={() => window.location.reload()} />
                             )}
 
                         </div>

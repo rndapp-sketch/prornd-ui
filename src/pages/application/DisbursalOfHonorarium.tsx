@@ -120,7 +120,7 @@ const DisbursalOfHonorarium: React.FC = () => {
                                     <tr
                                         key={item.name}
                                         className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer"
-                                        onClick={() => navigate(`/disbursal-of-honorarium-form/${item.name}`)}
+                                        onClick={() => navigate(`/disbursal-of-honorarium/${item.name}`)}
                                     >
                                         <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">{item.name}</td>
                                         <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{formatDate(item.date_of_request || item.creation)}</td>
@@ -134,11 +134,11 @@ const DisbursalOfHonorarium: React.FC = () => {
                                         <td className="px-4 py-3">
                                             <span className={cn(
                                                 "inline-flex px-2 py-1 text-xs font-medium rounded-full",
-                                                item.workflow_state === "Approved" && "bg-green-100 text-green-700",
-                                                item.workflow_state === "Pending" && "bg-yellow-100 text-yellow-700",
-                                                item.workflow_state === "Rejected" && "bg-red-100 text-red-700",
+                                                item.workflow_state === "Approved" && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                                                item.workflow_state === "Rejected" && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
                                                 item.workflow_state === "Draft" && "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
-                                                !["Approved", "Pending", "Rejected", "Draft"].includes(item.workflow_state || '') && "bg-blue-100 text-blue-700"
+                                                (item.workflow_state?.startsWith("Pending") || false) && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                                                !["Approved", "Rejected", "Draft"].includes(item.workflow_state || '') && !(item.workflow_state?.startsWith("Pending") || false) && "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
                                             )}>
                                                 {item.workflow_state || 'Draft'}
                                             </span>
@@ -147,7 +147,7 @@ const DisbursalOfHonorarium: React.FC = () => {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    navigate(`/disbursal-of-honorarium-form/${item.name}`);
+                                                    navigate(`/disbursal-of-honorarium/${item.name}`);
                                                 }}
                                                 className="text-sm text-[#D97757] hover:underline whitespace-nowrap"
                                             >

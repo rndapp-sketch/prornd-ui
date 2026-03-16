@@ -361,6 +361,8 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 alert(effectiveDocName ? "Disbursal updated successfully!" : "Draft saved successfully!");
                 if (id) {
                     navigate(`/disbursal-of-honorarium/${id}`);
+                } else if (newDocName) {
+                    navigate(`/disbursal-of-honorarium/${newDocName}`);
                 }
             } else {
                 throw new Error(res?.message?.message || "Save failed");
@@ -402,7 +404,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
             const submitRes = await submitForm({ docname });
             if (submitRes?.message?.status === 'success' || submitRes?.message) {
                 alert("Disbursal of Honorarium submitted successfully!");
-                navigate(-1);
+                navigate(`/disbursal-of-honorarium/${docname}`);
             } else {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }

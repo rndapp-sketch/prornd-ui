@@ -393,6 +393,8 @@ const PendingTask: React.FC = () => {
                                                             navigate(`/advance-settlement/${task.id}`);
                                                         } else if (task.doctype === "Temporary Advance") {
                                                             navigate(`/pending-tasks/${encodeURIComponent(task.doctype)}/${task.id}`);
+                                                        } else if (task.doctype === "Disbursal of Honorarium") {
+                                                            navigate(`/disbursal-of-honorarium/${task.id}`);
                                                         } else {
                                                             navigate(`/pending-tasks/${task.doctype}/${task.id}`);
                                                         }

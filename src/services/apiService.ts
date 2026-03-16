@@ -141,6 +141,11 @@ export const universalRegistrationAPI = {
     save: `${API_BASE}.universal_registration__.universal_registration__.save_universal_registration___data`,
 };
 
+// Disbursal of Honorarium API endpoints
+export const disbursalOfHonorariumAPI = {
+    getByProject: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_by_project`,
+};
+
 // Universal User API endpoints
 export const universalUserAPI = {
     getFields: `${API_BASE}.universal_user__.universal_user__.get_universal_user___fields`,
