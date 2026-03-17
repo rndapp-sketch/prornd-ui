@@ -1008,7 +1008,58 @@ const QuickActions = ({
       } else if (selectedApplication === "Disbursal of Honorarium") {
         try {
           const timestamp = Date.now();
-          const apiUrl = `/api/resource/Disbursal of Honorarium?fields=["name","creation","workflow_state","owner","total_amount","webmail_id","name_of_applicant","department"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          // Use v2 document API (same as Temporary Advance) to avoid 403 permission issues with /api/resource/
+          const apiUrl = `/api/v2/document/Disbursal of Honorarium?fields=["name","creation","modified","name_of_applicant","webmail_id","owner","workflow_state","total_amount","project_name","project_number"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+
+          const fetchResponse = await fetch(apiUrl, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            credentials: "include",
+          });
+          
+          console.log(">>> Disbursal of Honorarium raw response status:", fetchResponse.status, fetchResponse.statusText);
+          
+          if (!fetchResponse.ok)
+            throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+            
+          const result = await fetchResponse.json();
+          console.log(">>> Disbursal of Honorarium parsed JSON:", result);
+          const allHonorariums = result?.data || [];
+          console.log(">>> Disbursal of Honorarium allHonorariums:", allHonorariums);
+
+          // Exact same client-side filter approach resilient to backend schema issues, matching Direct Purchase / Reimbursement
+          const projectNameLower = projectName?.toLowerCase() || "";
+          const projectNoLower = projectNo?.toLowerCase() || "";
+          
+          data = allHonorariums
+            .filter((item: any) => {
+              const itemProjectName   = (item.project_name   || "").toLowerCase();
+              const itemProjectNumber = (item.project_number || "").toLowerCase();
+              return (
+                itemProjectName   === projectNameLower ||
+                itemProjectNumber === projectNameLower ||
+                itemProjectName   === projectNoLower   ||
+                itemProjectNumber === projectNoLower   ||
+                (projectNameLower && itemProjectName.includes(projectNameLower))   ||
+                (projectNameLower && itemProjectNumber.includes(projectNameLower)) ||
+                (projectNoLower   && itemProjectName.includes(projectNoLower))     ||
+                (projectNoLower   && itemProjectNumber.includes(projectNoLower))
+              );
+            })
+            .map((item: any) => ({
+              ...item,
+              applicant_webmail: item.name_of_applicant || item.webmail_id || item.owner,
+            }));
+            
+          console.log(`Disbursal of Honorarium: fetched ${allHonorariums.length}, filtered to ${data.length}`);
+        } catch (fetchError) {
+          console.error("Disbursal of Honorarium fetch error:", fetchError);
+          data = [];
+        }
+      } else if (selectedApplication === "Disbursal of Consultancy") {
+        try {
+          const timestamp = Date.now();
+          const apiUrl = `/api/resource/Disbursal of Consultancy?fields=["name","creation","workflow_state","owner","total_disbursal_amount","disbursal_project_number","project_title","webmail_id","pi_name"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
           const fetchResponse = await fetch(apiUrl, {
             method: "GET",
             headers: { Accept: "application/json" },
@@ -1019,10 +1070,11 @@ const QuickActions = ({
           const result = await fetchResponse.json();
           data = (result?.data || []).map((item: any) => ({
             ...item,
-            applicant_webmail: item.webmail_id || item.owner,
+            applicant_webmail: item.pi_name || item.webmail_id || item.owner,
+            total_amount: item.total_disbursal_amount,
           }));
         } catch (fetchError) {
-          console.error("Disbursal of Honorarium fetch error:", fetchError);
+          console.error("Disbursal of Consultancy fetch error:", fetchError);
           data = [];
         }
       } else if (selectedApplication === "Direct Purchase") {
@@ -1222,7 +1274,10 @@ const QuickActions = ({
         alert(`Apply New: ${selectedApplication} - Route not configured yet`);
         break;
       case "Disbursal of Honorarium":
-        onNavigate(`/disbursal-of-honorarium-form?project=${projectParam}`);
+        onNavigate(`/disbursal-of-honorarium-form?project=${projectName}`);
+        break;
+      case "Disbursal of Consultancy":
+        onNavigate(`/disbursal-of-consultancy-form?project=${projectParam}`);
         break;
       case "Reimbursement":
         onNavigate(`/reimbursement?project=${projectParam}`);
@@ -1439,6 +1494,11 @@ const QuickActions = ({
                                   `/disbursal-of-honorarium-form/${item.name}`,
                                 );
                                 break;
+                              case "Disbursal of Consultancy":
+                                onNavigate(
+                                  `/disbursal-of-consultancy-form/${item.name}`,
+                                );
+                                break;
                               case "Direct Purchase":
                                 onNavigate(`/direct-purchase/${item.name}`);
                                 break;
@@ -1474,12 +1534,12 @@ const QuickActions = ({
                             <button
                               onClick={() =>
                                 onNavigate(
-                                  `/p11-form?project_no=${projectNo || projectName}&app_id=${item.name}`,
+                                  `/p11-form?edit=${item.name}&project=${projectName}`,
                                 )
                               }
                               className="text-sm text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline whitespace-nowrap"
                             >
-                              P-11-Form
+                              P 11
                             </button>
                           )}
                         {selectedApplication === "Temporary Advance Apply" && (
@@ -1819,19 +1879,19 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   // Fetch Fund Received Data
   const fundQueryParams = useMemo(
     () => ({
-      prjreg_title: data?.project_no || "",
+      prjreg_title: projectName || "",
       limit: 200,
       start: 0,
     }),
-    [data?.project_no],
+    [projectName],
   );
 
   const fundQueryOptions = useMemo(
     () => ({
       revalidateOnFocus: false,
-      isPaused: () => !data?.project_no,
+      isPaused: () => !projectName,
     }),
-    [data?.project_no],
+    [projectName],
   );
 
   const { data: fundReceivedData } = useFrappeGetCall(
@@ -2030,7 +2090,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     setIsLedgerLoading(true);
     setLedgerError(null);
     try {
-      // Use proxy to avoid CORS - /ledger-api proxies to http://172.16.117.39:18083/api
+      // Use proxy to avoid CORS - /ledger-api proxies to http://172.16.135.27:18083/api
       const response = await fetch(
         `/ledger-api/commit-payment-transactions?projectNumber=${data?.project_no || projectName}&accountHeadId=${headId}`,
       );
@@ -2474,26 +2534,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     }
   }, [searchParams]);
 
-  const handleAddFunds = () => navigate(`/add-fund-received/${projectName}/?project_no=${encodeURIComponent(data?.project_no || '')}`);
-
-  const activeYearCount = useMemo(() => {
-    const rows = data?.proposed_budget_breakup;
-    if (!rows?.length) return 1;
-    const yearKeys = [
-      'first_year_budget', 'second_year_budget', 'third_year_budget',
-      'fourth_year_budget', 'fifth_year_budget',
-    ] as const;
-    for (let i = yearKeys.length - 1; i >= 0; i--) {
-      const total = rows.reduce((sum: number, row: any) => sum + (parseFloat(row[yearKeys[i]]) || 0), 0);
-      if (total > 0) return i + 1;
-    }
-    return 1;
-  }, [data?.proposed_budget_breakup]);
-
+  const handleAddFunds = () => navigate(`/add-fund-received/${projectName}/`);
   const handleAddSanctionDetails = () => {
-    navigate(`/project-details-overview/${projectName}/add-fund-sanction`, {
-      state: { activeYearCount },
-    });
+    navigate(`/project-details-overview/${projectName}/add-fund-sanction`);
   };
 
   const tabs = [

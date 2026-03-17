@@ -1,25 +1,17 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFrappeAuth } from 'frappe-react-sdk';
 import { useUserRoles } from '../components/UserRole'; // Import the new hook
 import { GlobalLoader } from '@/components/ui/global-loader';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { currentUser, isLoading: isAuthLoading } = useFrappeAuth();
 
   // Use the new useUserRoles hook to fetch user roles
-  const { roles, isLoading: isRolesLoading, error: rolesError, mutate } = useUserRoles(currentUser ?? null);
-  const [retryCount, setRetryCount] = useState(0);
+  const { roles, isLoading: isRolesLoading, error: rolesError } = useUserRoles(currentUser ?? null);
 
   useEffect(() => {
-    // GUARD: Only run redirect logic if we're actually on /dashboard
-    // This prevents unwanted redirects when navigating to other routes
-    if (location.pathname !== '/dashboard') {
-      return;
-    }
-
     // Wait until both authentication and roles are no longer loading
     if (isAuthLoading || isRolesLoading) {
       return;
@@ -39,12 +31,7 @@ const Dashboard = () => {
     // Handle error during role fetching
     if (rolesError) {
       console.error("Error fetching user roles:", rolesError);
-      if (retryCount < 5) {
-        setTimeout(() => {
-          setRetryCount(prev => prev + 1);
-          if (mutate) mutate();
-        }, 3000);
-      }
+      navigate('/home');
       return;
     }
 
@@ -64,60 +51,39 @@ const Dashboard = () => {
       const isHead = roles.includes('head_approver_1');
       const isProjectStaff = roles.includes('project staff');
       const isRndStaff = roles.includes('staff, RnD');
-      const isAdoRnd = roles.includes('Ado_RnD');
 
       const isInspiredFaculty = roles.includes('Inspired Faculty');
       const isIndependentResearcher = roles.includes('Independent Researcher');
 
-      console.log("Dashboard Checks:", { isHosRnd, isPermanentEmployee, isDirector, isDean, isHead, isProjectStaff, isRndStaff, isAdoRnd, isInspiredFaculty, isIndependentResearcher });
+      console.log("Dashboard Checks:", { isHosRnd, isPermanentEmployee, isDirector, isDean, isHead, isProjectStaff, isRndStaff, isInspiredFaculty, isIndependentResearcher });
 
-      // Role-based redirection (in order of priority)
-      // Higher administrative roles first, then specialized roles, then general roles
       if (isDirector) {
         navigate('/director-dashboard');
       } else if (isDean) {
         navigate('/dean-dashboard');
-      } else if (isAdoRnd) {
-        // Ado_RnD should come before HoS as it's a specialized administrative role
-        navigate('/ado-rnd-dashboard');
       } else if (isHosRnd) {
         navigate('/hos-rnd-dashboard');
       } else if (isHead) {
         navigate('/head-dashboard');
-      } else if (isRndStaff) {
-        // RnD staff before project staff as they have broader scope
-        navigate('/rnd-staff-dashboard');
-      } else if (isProjectStaff) {
-        navigate('/project-staff-dashboard');
       } else if (isInspiredFaculty || isIndependentResearcher) {
         navigate('/home');
       } else if (isPermanentEmployee) {
         navigate('/pihomepage');
+      } else if (isProjectStaff) {
+        navigate('/project-staff-dashboard');
+      } else if (isRndStaff) {
+        navigate('/rnd-staff-dashboard');
       } else {
-        if (retryCount < 5) {
-          setTimeout(() => {
-            setRetryCount(prev => prev + 1);
-            if (mutate) mutate();
-          }, 3000);
-        }
+        navigate('/home');
       }
     } else {
-      // If no roles found, attempt to refetch before giving up
-      if (retryCount < 5) {
-        setTimeout(() => {
-          setRetryCount(prev => prev + 1);
-          if (mutate) mutate();
-        }, 3000);
-      }
+      // If no roles found, default to home or a specific page
+      navigate('/home');
     }
-    // NOTE: navigate is intentionally omitted - React Router guarantees it's stable
-    // location.pathname is added to ensure redirect logic only runs on /dashboard route
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, isAuthLoading, roles, isRolesLoading, rolesError, location.pathname, retryCount]);
+  }, [currentUser, isAuthLoading, roles, isRolesLoading, rolesError, navigate]);
 
   // Display a loading message while we determine the correct route
-  const isLoading = isAuthLoading || isRolesLoading || Boolean(currentUser && !roles && !rolesError);
-  return <GlobalLoader isLoading={isLoading} />;
+  return <GlobalLoader isLoading={true} />;
 };
 
 export default Dashboard;

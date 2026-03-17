@@ -101,22 +101,22 @@ export function AppSidebar() {
         // { label: "Endorsement", path: "/project-proposal" },
       ],
     },
-    // {
-    //   label: "HR Portal",
-    //   icon: UsersIcon,
-    //   path: "/hr-portal",
-    // },
+    {
+      label: "HR Portal",
+      icon: UsersIcon,
+      path: "/hr-portal",
+    },
     // {
     //   label: "Reimbursement",
     //   icon: HandCoinsIcon,
     //   path: "/reimbursement",
     // },
     {
-      label: "Forms",
+      label: "Universal Forms",
       icon: FileText,
       subMenu: [
-        { label: "Agency Registration", path: "/universal-registration" },
-        { label: "User", path: "/universal-user" },
+        { label: "Universal Registration", path: "/universal-registration" },
+        { label: "Universal User", path: "/universal-user" },
       ]
     },
     {
@@ -152,13 +152,12 @@ export function AppSidebar() {
       return roles && allowedRoles.some(role => roles.includes(role));
     }
     if (item.label === "Task Registry") {
-      // Visible to staff, HOS, Dean, DoRnD, Head Approver - NOT permanent employees
+      // Visible to staff, HOS, Dean, DoRnD - NOT permanent employees
       const allowedRoles = [
         'staff, RnD',
         'Hos, RnD (Head of Section, RnD)',
         'Dean, RnD',
-        'Director',
-        'head_approver_1'
+        'Director'
       ];
       return roles && allowedRoles.some(role => roles.includes(role));
     }

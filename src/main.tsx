@@ -32,7 +32,6 @@ import { HeadDashboard } from './pages/dashboards/HeadDashboard.tsx';
 import { RndStaffDashboard } from './pages/dashboards/RndStaffDashboard.tsx';
 import { ProjectStaffDashboard } from './pages/dashboards/ProjectStaffDashboard.tsx';
 import { DirectorDashboard } from './pages/dashboards/DirectorDashboard.tsx';
-import { AdoRndDashboard } from './pages/dashboards/AdoRndDashboard.tsx';
 import Reimbursement from './pages/reimbursement/Reimbursement.tsx';
 import PendingTask from './pages/PendingTask.tsx';
 import PendingTaskDetails from './pages/PendingTaskDetails.tsx';
@@ -58,6 +57,9 @@ import AdvanceSettlementForm from './pages/application/AdvanceSettlementForm.tsx
 import AdvanceSettlementDetails from './pages/application/AdvanceSettlementDetails.tsx';
 import DisbursalOfHonorarium from './pages/application/DisbursalOfHonorarium.tsx';
 import DisbursalOfHonorariumForm from './pages/application/DisbursalOfHonorariumForm.tsx';
+import DisbursalOfHonorariumDetails from './pages/application/DisbursalOfHonorariumDetails.tsx';
+import DisbursalOfConsultancy from './pages/application/DisbursalOfConsultancy.tsx';
+import DisbursalOfConsultancyForm from './pages/application/DisbursalOfConsultancyForm.tsx';
 import DirectPurchase from './pages/DirectPurchase.tsx';
 import DirectPurchaseDetails from './pages/application/DirectPurchaseDetails.tsx';
 import P11Form from './pages/application/P11Form.tsx';
@@ -66,7 +68,6 @@ import RecruitmentAdhocContractualForm from './pages/application/RecruitmentAdho
 import IndentCumSanctionSheetForm from './pages/application/IndentCumSanctionSheetForm.tsx';
 import UniversalRegistrationForm from './pages/application/UniversalRegistrationForm.tsx';
 import UniversalUserForm from './pages/application/UniversalUserForm.tsx';
-import DepartmentProjects from './pages/DepartmentProjects.tsx';
 
 const router = createBrowserRouter(
   [
@@ -279,25 +280,13 @@ const router = createBrowserRouter(
           element: (<AuthRouteWrapper allowedRole="project staff"><ProjectStaffDashboard /></AuthRouteWrapper>),
         },
         {
-          path: "ado-rnd-dashboard",
-          element: (<AuthRouteWrapper allowedRole="Ado_RnD"><AdoRndDashboard /></AuthRouteWrapper>),
-        },
-        {
-          path: "department-projects",
+          path: "hr-portal",
           element: (
-            <AuthRouteWrapper allowedRole="head_approver_1">
-              <DepartmentProjects />
+            <AuthRouteWrapper allowedRole="All_ProRnd_User"> {/* Adjust role as needed */}
+              <HRPortal />
             </AuthRouteWrapper>
           ),
         },
-        // {
-        //   path: "hr-portal",
-        //   element: (
-        //     <AuthRouteWrapper allowedRole="staff, RnD"> {/* Adjust role as needed */}
-        //       <HRPortal />
-        //     </AuthRouteWrapper>
-        //   ),
-        // },
         {
           path: "reimbursement",
           element: (
@@ -441,14 +430,37 @@ const router = createBrowserRouter(
           )
         },
         {
+          path: "disbursal-of-honorarium/:id",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DisbursalOfHonorariumDetails />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "disbursal-of-consultancy",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DisbursalOfConsultancy />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "disbursal-of-consultancy-form/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DisbursalOfConsultancyForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
           path: "task-registry",
           element: (
             <AuthRouteWrapper allowedRole={[
               'staff, RnD',
               'Hos, RnD (Head of Section, RnD)',
               'Dean, RnD',
-              'Director',
-              'head_approver_1'
+              'Director'
             ]}>
               <TaskRegistry />
             </AuthRouteWrapper>
@@ -461,8 +473,7 @@ const router = createBrowserRouter(
               'staff, RnD',
               'Hos, RnD (Head of Section, RnD)',
               'Dean, RnD',
-              'Director',
-              'head_approver_1'
+              'Director'
             ]}>
               <TaskRegistryDetails />
             </AuthRouteWrapper>

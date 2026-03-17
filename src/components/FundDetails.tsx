@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 
 type FundDoc = any;
+const DEFAULT_PRJREG_TITLE = "2025111101DST000103";
 
 type FundDetailsProps = {
     project_title?: string;
@@ -95,7 +96,7 @@ const fetchViaDirect = async (
 };
 
 const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_no, apiAuthHeader, embedFiles = false }) => {
-    const prjregTitle = project_title && project_title.trim() ? project_title.trim() : "";
+    const prjregTitle = project_title && project_title.trim() ? project_title.trim() : DEFAULT_PRJREG_TITLE;
     const useSdk = !apiAuthHeader;
     const navigate = useNavigate();
 

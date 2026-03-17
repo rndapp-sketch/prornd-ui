@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { FileText, Users, IndianRupee, Shield } from 'lucide-react';
-import { AutocompleteEmail } from '../components/AutocompleteEmail';
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -34,18 +33,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange 
     const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: field.read_only, required: field.mandatory, disabled: field.read_only };
     const renderInput = () => {
         switch (field.fieldtype) {
-            case "Link":
-                if (field.fieldname === 'pi_webmail') {
-                    return (
-                        <AutocompleteEmail
-                            {...commonProps}
-                            value={value || ''}
-                            onChange={(val) => onChange(field.fieldname, val)}
-                            options={options || []}
-                        />
-                    );
-                }
-                return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
+            case "Link": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
             case "Select": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(field.options?.split('\n').filter(o => o) || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>);
             case "Text": case "Small Text": case "Text Editor": return <textarea {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} rows={5} className={`${inputClasses} h-auto py-3`} />;
             case "Check": return (<label className="flex items-center gap-4 font-medium text-zinc-700 dark:text-zinc-300 cursor-pointer"><input type="checkbox" className={checkboxClasses} checked={!!value} onChange={e => onChange(field.fieldname, e.target.checked, 'checkbox')} disabled={field.read_only} /><span>{field.label}{!!field.mandatory && <span className="text-red-500">*</span>}</span></label>);
@@ -88,24 +76,17 @@ const MemoizedCollaboratorTable = memo(({ tableName, title, tableData, piOptions
     return (
         <div>
             <h3 className="text-2xl font-bold  text-zinc-900 dark:text-zinc-100 mb-4">{title}</h3>
-            <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl">
+            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-xl">
                 <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                     <thead className="bg-zinc-50 dark:bg-zinc-800/50"><tr className="divide-x divide-zinc-200 dark:divide-zinc-800">{["Name*", "Email ID*", "Designation*", "Address*", "Contact*", "Actions"].map(h => (<th key={h} className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm text-left">{h}</th>))}</tr></thead>
                     <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                         {(tableData || []).map((row: any, i: number) => (
                             <tr key={row.id} className="divide-x divide-zinc-200 dark:divide-zinc-800">
-                                <td className="p-2">
-                                    <AutocompleteEmail
-                                        className={`${inputClasses} !h-11`}
-                                        value={row[`${prefix}_email`] || ''}
-                                        onChange={(val) => onCollaboratorChange(tableName, i, val)}
-                                        options={piOptions || []}
-                                    />
-                                </td>
+                                <td className="p-2"><select className={`${inputClasses} !h-11`} value={row[`${prefix}_email`] || ''} onChange={e => onCollaboratorChange(tableName, i, e.target.value)}><option value="">Select Person...</option>{(piOptions || []).map((o: any) => (<option key={o.value} value={o.value}>{o.label}</option>))}</select></td>
                                 <td className="p-2"><input type="email" readOnly className={`${inputClasses} !h-11 bg-zinc-200 dark:bg-zinc-700`} value={row[`${prefix}_email`] || ''} /></td>
                                 <td className="p-2"><input type="text" readOnly className={`${inputClasses} !h-11 bg-zinc-200 dark:bg-zinc-700`} value={row[`${prefix}_designation`] || ''} /></td>
                                 <td className="p-2"><input type="text" placeholder="Institute/Address" className={`${inputClasses} !h-11`} value={row[`${prefix}_address`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_address`, e.target.value)} /></td>
-                                <td className="p-2"><input type="tel" placeholder="91XXXXXXXXXX" maxLength={12} className={`${inputClasses} !h-11`} value={row[`${prefix}_contact`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_contact`, e.target.value.replace(/[^0-9]/g, ''))} /></td>
+                                <td className="p-2"><input type="tel" placeholder="10-digit #" maxLength={10} className={`${inputClasses} !h-11`} value={row[`${prefix}_contact`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_contact`, e.target.value.replace(/[^0-9]/g, ''))} /></td>
                                 <td className="p-2"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 w-full text-sm !py-2">Delete</FrappeButton></td>
                             </tr>
                         ))}
@@ -299,29 +280,15 @@ const ProjectProposal: React.FC = () => {
             const user = (linkOptions["pi_webmail"] || []).find(c => c.value === selectedUserEmail);
             const prefix = tableName === "co_investigator_table" ? "copi" : "pi";
             let designation = user?.designation || "";
-            let address = "";
-            let contact = "";
-            if (selectedUserEmail) {
+            if (!designation && selectedUserEmail) {
                 try {
                     const result = await fetchPiDetails({ user_email: selectedUserEmail });
-                    const details = result?.message;
-                    if (!designation) {
-                        designation = details?.designation_name || details?.designation || "";
-                    }
-                    address = details?.inst_name_address || details?.copi_address || details?.address || details?.department_name || details?.applicant_department || "";
-                    contact = details?.mobile_no || details?.copi_contact || details?.contact_number || details?.cell_phone_number || "";
+                    designation = result?.message?.designation || "";
                 } catch (err) { console.error("Failed to fetch collaborator details:", err); }
             }
             setFormData(prev => {
                 const t = [...(prev[tableName] || [])];
-                t[rowIndex] = {
-                    ...t[rowIndex],
-                    [`${prefix}_name`]: user?.label || "",
-                    [`${prefix}_email`]: user?.value || "",
-                    [`${prefix}_designation`]: designation,
-                    [`${prefix}_address`]: address,
-                    [`${prefix}_contact`]: contact
-                };
+                t[rowIndex] = { ...t[rowIndex], [`${prefix}_name`]: user?.label || "", [`${prefix}_email`]: user?.value || "", [`${prefix}_designation`]: designation };
                 return { ...prev, [tableName]: t };
             });
         }, [linkOptions, fetchPiDetails]

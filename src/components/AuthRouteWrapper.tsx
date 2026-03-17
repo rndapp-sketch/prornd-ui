@@ -108,8 +108,7 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
       navigate('/dashboard');
     }
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthLoading, isRolesLoading, currentUser, roles, rolesError, allowedRole, lastKnownUser, retryCount]);
+  }, [isAuthLoading, isRolesLoading, currentUser, roles, rolesError, allowedRole, navigate, lastKnownUser, retryCount]);
 
   // Show loading while authentication is being verified
   // If we have a last known user, assume we're still logged in during initial load

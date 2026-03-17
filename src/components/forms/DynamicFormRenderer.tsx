@@ -61,6 +61,7 @@ export interface DynamicFormRendererProps {
     onAddTableRow: (tableName: string, newRow: Record<string, any>) => void;
     onDeleteTableRow: (tableName: string, rowIndex: number) => void;
     onFieldChangeWithSideEffects?: (fieldname: string, value: any) => void;
+    onTableLinkChange?: (tableName: string, rowIndex: number, fieldname: string, value: string) => void;
     readOnly?: boolean;
 }
 
@@ -596,6 +597,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     onAddTableRow,
     onDeleteTableRow,
     onFieldChangeWithSideEffects,
+    onTableLinkChange,
     readOnly = false,
 }) => {
     // Group fields by sections
@@ -673,6 +675,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                         onAddRow={onAddTableRow}
                         onDeleteRow={onDeleteTableRow}
                         readOnly={fieldIsReadOnly}
+                        linkOptions={linkOptions}
+                        onLinkChange={onTableLinkChange}
                     />
                 </div>
             );

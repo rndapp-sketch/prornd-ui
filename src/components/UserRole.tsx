@@ -5,14 +5,13 @@ interface UseUserRolesResult {
   roles: string[];
   isLoading: boolean;
   error: any; // Use 'any' to accommodate the Frappe error type
-  mutate: any; // SWR mutate function
 }
 
 export const useUserRoles = (user: string | null): UseUserRolesResult => {
   // Track if we've ever loaded roles - prevents showing loading on revalidation
   const hasEverLoaded = useRef(false);
 
-  const { data, error, isLoading, mutate } = useFrappeGetCall(
+  const { data, error, isLoading } = useFrappeGetCall(
     "rndopsapp.rndopsapp.api.get_user_roles",
     { user },
     {
@@ -40,7 +39,7 @@ export const useUserRoles = (user: string | null): UseUserRolesResult => {
   const isEffectiveLoading = !hasEverLoaded.current && !!user && (isLoading || (data === undefined && !error));
 
   const roles = (data?.message || []) as string[];
-  return { roles, isLoading: isEffectiveLoading, error, mutate };
+  return { roles, isLoading: isEffectiveLoading, error };
 };
 
 interface UserRolesViewerProps {
