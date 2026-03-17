@@ -1007,7 +1007,8 @@ const QuickActions = ({
       } else if (selectedApplication === "Disbursal of Honorarium") {
         try {
           const timestamp = Date.now();
-          const apiUrl = `/api/resource/Disbursal of Honorarium?fields=["name","creation","workflow_state","owner","total_amount","webmail_id","name_of_applicant","department"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          // Use v2 document API to avoid 403 permission issues and include project fields for filtering
+          const apiUrl = `/api/v2/document/Disbursal of Honorarium?fields=["name","creation","modified","name_of_applicant","webmail_id","owner","workflow_state","total_amount","project_name","project_number"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
           const fetchResponse = await fetch(apiUrl, {
             method: "GET",
             headers: { Accept: "application/json" },
