@@ -12,6 +12,11 @@ export interface ChildField {
     hidden?: boolean | number;
 }
 
+export interface LinkOption {
+    value: string;
+    label: string;
+}
+
 export interface ChildTableProps {
     tableName: string;
     label?: string;
@@ -22,6 +27,9 @@ export interface ChildTableProps {
     onAddRow: (tableName: string, newRow: Record<string, any>) => void;
     onDeleteRow: (tableName: string, rowIndex: number) => void;
     readOnly?: boolean;
+    // New props for Link field support with auto-fetch
+    linkOptions?: Record<string, LinkOption[]>;
+    onLinkChange?: (tableName: string, rowIndex: number, fieldname: string, value: string) => void;
 }
 
 // --- STYLES ---
@@ -60,9 +68,11 @@ export const ChildTableComponent = memo(({
     onAddRow,
     onDeleteRow,
     readOnly = false,
+    linkOptions = {},
+    onLinkChange,
 }: ChildTableProps) => {
-    // Filter visible columns
-    const visibleColumns = columns.filter(col => !col.hidden);
+    // Filter visible columns - exclude hidden columns AND columns without labels
+    const visibleColumns = columns.filter(col => !col.hidden && col.label && col.label.trim() !== '');
 
     // Create a new row template
     const createNewRow = useCallback(() => {
@@ -170,7 +180,44 @@ export const ChildTableComponent = memo(({
                     />
                 );
 
-            default: // Data, Link, etc.
+            case 'Link':
+                // Check if we have options for this link field
+                const linkOpts = linkOptions[col.fieldname] || linkOptions[col.options as string] || [];
+                if (linkOpts.length > 0) {
+                    return (
+                        <select
+                            className={inputClasses}
+                            value={value || ''}
+                            onChange={(e) => {
+                                const selectedValue = e.target.value;
+                                // If there's a special link change handler, use it (for auto-fetch functionality)
+                                if (onLinkChange) {
+                                    onLinkChange(tableName, rowIndex, col.fieldname, selectedValue);
+                                } else {
+                                    onRowChange(tableName, rowIndex, col.fieldname, selectedValue);
+                                }
+                            }}
+                            disabled={isReadOnly}
+                        >
+                            <option value="">Select...</option>
+                            {linkOpts.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                    );
+                }
+                // Fall through to default text input if no options available
+                return (
+                    <input
+                        type="text"
+                        className={inputClasses}
+                        value={value || ''}
+                        onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, e.target.value)}
+                        disabled={isReadOnly}
+                    />
+                );
+
+            default: // Data, etc.
                 return (
                     <input
                         type="text"
