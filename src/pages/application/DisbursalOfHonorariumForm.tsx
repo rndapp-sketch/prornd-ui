@@ -114,7 +114,14 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 // Merge child_fields into the Table fields
                 const enhancedFields = (apiFields || []).map((field: FormField) => {
                     if (field.fieldtype === 'Table' && child_table_fields && child_table_fields[field.fieldname]) {
-                        return { ...field, child_fields: child_table_fields[field.fieldname] };
+                        // Force web_mail_id to be a Link field so the Auto-fill dropdown works
+                        const processedChildFields = child_table_fields[field.fieldname].map((childField: any) => {
+                            if (childField.fieldname === 'web_mail_id') {
+                                return { ...childField, fieldtype: 'Link', options: 'User' };
+                            }
+                            return childField;
+                        });
+                        return { ...field, child_fields: processedChildFields };
                     }
                     return field;
                 });
