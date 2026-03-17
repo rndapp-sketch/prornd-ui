@@ -58,6 +58,9 @@ import AdvanceSettlementForm from './pages/application/AdvanceSettlementForm.tsx
 import AdvanceSettlementDetails from './pages/application/AdvanceSettlementDetails.tsx';
 import DisbursalOfHonorarium from './pages/application/DisbursalOfHonorarium.tsx';
 import DisbursalOfHonorariumForm from './pages/application/DisbursalOfHonorariumForm.tsx';
+import DisbursalOfHonorariumDetails from './pages/application/DisbursalOfHonorariumDetails.tsx';
+import DisbursalOfConsultancy from './pages/application/DisbursalOfConsultancy.tsx';
+import DisbursalOfConsultancyForm from './pages/application/DisbursalOfConsultancyForm.tsx';
 import DirectPurchase from './pages/DirectPurchase.tsx';
 import DirectPurchaseDetails from './pages/application/DirectPurchaseDetails.tsx';
 import P11Form from './pages/application/P11Form.tsx';
@@ -437,6 +440,30 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <DisbursalOfHonorariumForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "disbursal-of-honorarium/:id",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DisbursalOfHonorariumDetails />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "disbursal-of-consultancy",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DisbursalOfConsultancy />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "disbursal-of-consultancy-form/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DisbursalOfConsultancyForm />
             </AuthRouteWrapper>
           )
         },

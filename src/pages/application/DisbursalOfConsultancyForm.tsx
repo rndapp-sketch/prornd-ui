@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Save, Send } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { prepareFormDataForApi, commonAPI } from '@/services/apiService';
+import { prepareFormDataForApi } from '@/services/apiService';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
 
@@ -50,8 +50,8 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
     </button>
 );
 
-// --- MAIN DISBURSAL OF HONORARIUM FORM COMPONENT ---
-const DisbursalOfHonorariumForm: React.FC = () => {
+// --- MAIN DISBURSAL OF CONSULTANCY FORM COMPONENT ---
+const DisbursalOfConsultancyForm: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id?: string }>();
     const [searchParams] = useSearchParams();
@@ -63,7 +63,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
-    const [savedDocName, setSavedDocName] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [clientScript, setClientScript] = useState<string>("");
 
@@ -72,24 +71,18 @@ const DisbursalOfHonorariumForm: React.FC = () => {
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(
-        'rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_fields'
+        'rndopsapp.rndopsapp.doctype.disbursal_of_consultancy.disbursal_of_consultancy.get_disbursal_of_consultancy_fields'
     );
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
     const { call: saveForm, error: saveError } = useFrappePostCall(
-        'rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.save_disbursal_of_honorarium_data'
+        'rndopsapp.rndopsapp.doctype.disbursal_of_consultancy.disbursal_of_consultancy.save_disbursal_of_consultancy_data'
     );
-    const { call: submitForm, error: submitError } = useFrappePostCall(
-        'rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.submit_disbursal_of_honorarium'
+    const { call: performAction, error: actionError } = useFrappePostCall(
+        'rndopsapp.rndopsapp.doctype.disbursal_of_consultancy.disbursal_of_consultancy.perform_disbursal_of_consultancy_action'
     );
-    // Hook to fetch project details from Project Registration
-    const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
     // Fetch current user data for auto-fill
     const { data: currentUserData } = useFrappeGetDoc("User", "");
-    // Hook to fetch user details by email for auto-fill in honorarium table
-    const { call: fetchUserDetails } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
-    // Hook to fetch users list for dropdown
-    const { call: fetchUsersList } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
 
     // --- DATA FETCHING ---
     useEffect(() => {
@@ -141,26 +134,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     console.error('Error fetching account heads:', err);
                 }
 
-                // Fetch Users list for the honorarium table dropdown (username field is Link to User)
-                try {
-                    const usersRes = await fetchUsersList({
-                        doctype: 'User',
-                        fields: ['name', 'full_name', 'email'],
-                        filters: [['enabled', '=', 1]],
-                        limit_page_length: 0
-                    });
-                    if (usersRes?.message) {
-                        baseLinkOptions['web_mail_id'] = usersRes.message.map((user: any) => ({
-                            value: user.name,
-                            label: user.full_name ? `${user.full_name} (${user.name})` : user.name
-                        }));
-                        // Also add as 'User' key for generic Link field support
-                        baseLinkOptions['User'] = baseLinkOptions['web_mail_id'];
-                    }
-                } catch (err) {
-                    console.error('Error fetching users list:', err);
-                }
-
                 setLinkOptions(baseLinkOptions);
 
                 let initialData = { ...prefill_data };
@@ -169,13 +142,12 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 if (id) {
                     try {
                         const existingDoc = await fetchExistingDoc({
-                            doctype: 'Disbursal of Honorarium',
+                            doctype: 'Disbursal of Consultancy',
                             name: id
                         });
 
                         if (existingDoc?.message) {
                             initialData = { ...initialData, ...existingDoc.message };
-                            setIsSaved(true); // Existing doc is already saved, enable submit
                         }
                     } catch (err) {
                         console.error('Error fetching existing document:', err);
@@ -183,34 +155,10 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     }
                 }
 
-                // Auto-fill project fields from URL if provided (same pattern as Reimbursement)
+                // Auto-fill project fields from URL if provided
                 if (projectFromUrl && !id) {
-                    try {
-                        const projectDoc = await fetchExistingDoc({
-                            doctype: 'Project Registration',
-                            name: projectFromUrl
-                        });
-                        if (projectDoc?.message) {
-                            const pData = projectDoc.message;
-                            // project_name = Project Name (e.g. "Development of AI...")
-                            // project_number = Data field → stores human-readable code (e.g. "RP/2024/001")
-                            initialData.project_name   = pData.project_title || pData.name || projectFromUrl;
-                            initialData.project_number = pData.project_no || pData.name || projectFromUrl;
-                            // Auto-fill department
-                            if (pData.implementation_department && !initialData.department_for) {
-                                initialData.department_for = pData.implementation_department;
-                            }
-                            if (pData.implementation_department && !initialData.applicant_department) {
-                                initialData.applicant_department = pData.implementation_department;
-                            }
-                        } else {
-                            initialData.project_number = projectFromUrl;
-                            initialData.project_name   = projectFromUrl;
-                        }
-                    } catch (e) {
-                        console.error('Failed to fetch project details:', e);
-                        initialData.project_number = projectFromUrl;
-                        initialData.project_name   = projectFromUrl;
+                    if (!initialData.disbursal_project_number) {
+                        initialData.disbursal_project_number = projectFromUrl;
                     }
                 }
 
@@ -221,12 +169,11 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     }
                 });
 
-                // Auto-fill applicant details from current user if new document
+                // Auto-fill PI details from current user if new document
                 if (!id && currentUserData) {
                     initialData.webmail_id = initialData.webmail_id || currentUserData.name || "";
-                    initialData.name_of_applicant = initialData.name_of_applicant || currentUserData.full_name || "";
-                    initialData.designation_of_applicant = initialData.designation_of_applicant || currentUserData.designation_name || "";
-                    initialData.applicant_department = initialData.applicant_department || currentUserData.department_name || "";
+                    initialData.pi_name = initialData.pi_name || currentUserData.full_name || "";
+                    initialData.employee_id = initialData.employee_id || currentUserData.employee_id || "";
                 }
 
                 setFormData(initialData);
@@ -241,7 +188,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
         };
 
         loadFormAndDocument();
-    }, [formDataResult, formDataError, id, fetchExistingDoc, projectFromUrl, dataLoaded, currentUserData, fetchUsersList, fetchAccountHeads, fetchFrappeValue]);
+    }, [formDataResult, formDataError, id, fetchExistingDoc, projectFromUrl, dataLoaded, currentUserData]);
 
     // --- EVENT HANDLERS ---
     const handleChange = useCallback((fieldname: string, value: any) => {
@@ -282,62 +229,21 @@ const DisbursalOfHonorariumForm: React.FC = () => {
         }));
     }, []);
 
-    // --- Handler for Link field selection in child tables (for auto-fetch functionality) ---
-    const handleTableLinkChange = useCallback(async (tableName: string, rowIndex: number, fieldname: string, value: string) => {
-        // Handle username field selection in the honorarium table (table_weoy)
-        if (tableName === 'table_weoy' && fieldname === 'web_mail_id' && value) {
-            try {
-                // Fetch user details by email
-                const result = await fetchUserDetails({ user_email: value });
-                const details = result?.message;
-                
-                if (details) {
-                    // Update the row with fetched user details
-                    setFormData(prev => {
-                        const table = [...(prev[tableName] || [])];
-                        table[rowIndex] = {
-                            ...table[rowIndex],
-                            web_mail_id: value,
-                            name1: details.full_name || '',
-                            emp_id: details.employee_id || '',
-                            designation: details.designation_name || details.designation || '',
-                            department_section: details.department_name || ''
-                        };
-                        return { ...prev, [tableName]: table };
-                    });
-                    return;
-                }
-            } catch (err) {
-                console.error('Failed to fetch user details:', err);
-            }
-        }
-        
-        // Default behavior: just update the field value
-        setFormData(prev => {
-            const table = [...(prev[tableName] || [])];
-            table[rowIndex] = { ...table[rowIndex], [fieldname]: value };
-            return { ...prev, [tableName]: table };
-        });
-    }, [fetchUserDetails]);
-
-    // --- Computed: Total Amount from table_weoy (amount column) ---
+    // --- Computed: Total Amount from details_of_disbursal table ---
     const totalAmount = useMemo(() => {
-        const rows = formData.table_weoy || [];
+        const rows = formData.details_of_disbursal || [];
         return rows.reduce((sum: number, row: any) => {
             const amt = parseFloat(row.amount || 0);
             return sum + (isNaN(amt) ? 0 : amt);
         }, 0);
-    }, [formData.table_weoy]);
+    }, [formData.details_of_disbursal]);
 
-    // Sync total_amount field when computed value changes
+    // Sync total_disbursal_amount field when computed value changes
     useEffect(() => {
-        if (formData.total_amount !== String(totalAmount)) {
-            setFormData(prev => ({ ...prev, total_amount: String(totalAmount) }));
+        if (formData.total_disbursal_amount !== String(totalAmount)) {
+            setFormData(prev => ({ ...prev, total_disbursal_amount: String(totalAmount) }));
         }
     }, [totalAmount]);
-
-    // The effective doc name: either from URL (/:id) or from a previous save
-    const effectiveDocName = id || savedDocName;
 
     const handleSave = async () => {
         if (isSubmitting) return;
@@ -345,24 +251,18 @@ const DisbursalOfHonorariumForm: React.FC = () => {
         try {
             const data = await prepareFormDataForApi(formData);
 
-            if (effectiveDocName) {
-                data.name = effectiveDocName;
+            if (id) {
+                data.name = id;
             }
-
-            console.log('[DisbursalForm] Saving data:', data);
 
             const res = await saveForm({ data: JSON.stringify(data) });
 
             if (res?.message?.status === 'success') {
                 setIsSaved(true);
-                // Remember the docname so future saves/submits update the same document
-                const newDocName = res.message.docname || effectiveDocName;
-                if (newDocName) setSavedDocName(newDocName);
-                alert(effectiveDocName ? "Disbursal updated successfully!" : "Draft saved successfully!");
-                if (id) {
-                    navigate(`/disbursal-of-honorarium/${id}`);
-                } else if (newDocName) {
-                    navigate(`/disbursal-of-honorarium/${newDocName}`);
+                alert("Draft saved successfully!");
+                // Navigate back to list on save if it's a new document
+                if (!id && res.message.docname) {
+                    navigate(`/disbursal-of-consultancy-form/${res.message.docname}`);
                 }
             } else {
                 throw new Error(res?.message?.message || "Save failed");
@@ -378,38 +278,41 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isSubmitting) return;
+
+        if (!isSaved && !id) {
+            alert("Please save the form as draft first before submitting.");
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const data = await prepareFormDataForApi(formData);
 
-            if (effectiveDocName) {
-                data.name = effectiveDocName;
+            // Save first if editing
+            let docname = id;
+            if (id) {
+                data.name = id;
+                const saveRes = await saveForm({ data: JSON.stringify(data) });
+
+                if (saveRes?.message?.status !== 'success') {
+                    throw new Error(saveRes?.message?.message || "Save failed during submission");
+                }
+                docname = saveRes.message.docname || id;
             }
-
-            // Always save first, then submit
-            const saveRes = await saveForm({ data: JSON.stringify(data) });
-
-            if (saveRes?.message?.status !== 'success') {
-                throw new Error(saveRes?.message?.message || "Save failed during submission");
-            }
-
-            const docname = saveRes.message.docname || effectiveDocName;
-            // Remember it in case submit fails and user retries
-            if (docname) setSavedDocName(docname);
 
             if (!docname) {
                 throw new Error("No document name available for submission");
             }
 
-            const submitRes = await submitForm({ docname });
-            if (submitRes?.message?.status === 'success' || submitRes?.message) {
-                alert("Disbursal of Honorarium submitted successfully!");
-                navigate(`/disbursal-of-honorarium/${docname}`);
+            const submitRes = await performAction({ docname, action: 'Submit' });
+            if (submitRes?.message?.status === 'success') {
+                alert("Disbursal of Consultancy submitted successfully!");
+                navigate('/disbursal-of-consultancy');
             } else {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }
         } catch (err: any) {
-            console.error(submitError || err);
+            console.error(actionError || err);
             alert(`Submission failed: ${err.message || "Please check the console for details."}`);
         } finally {
             setIsSubmitting(false);
@@ -426,9 +329,9 @@ const DisbursalOfHonorariumForm: React.FC = () => {
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <PageHeader
-                    title={id ? `Edit Disbursal: ${id}` : 'New Disbursal of Honorarium'}
+                    title={id ? `Edit Disbursal: ${id}` : 'New Disbursal of Consultancy'}
                     projectName={formData.project_title}
-                    projectNumber={formData.project_number}
+                    projectNumber={formData.disbursal_project_number}
                 />
 
                 <form onSubmit={handleSubmit}>
@@ -443,7 +346,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                             onTableFileChange={handleTableFileChange}
                             onAddTableRow={addTableRow}
                             onDeleteTableRow={deleteTableRow}
-                            onTableLinkChange={handleTableLinkChange}
                             readOnly={formData.docstatus === 1}
                         />
                     </FrappeCard>
@@ -464,7 +366,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                             </FrappeButton>
                             <FrappeButton
                                 type="submit"
-                                disabled={isSubmitting || !isSaved}
+                                disabled={isSubmitting}
                                 className="bg-[#D97757] text-white hover:bg-[#D97757]"
                             >
                                 {isSubmitting ? 'Submitting...' : (
@@ -482,4 +384,4 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     );
 };
 
-export default DisbursalOfHonorariumForm;
+export default DisbursalOfConsultancyForm;
