@@ -293,14 +293,14 @@ const router = createBrowserRouter(
             </AuthRouteWrapper>
           ),
         },
-        // {
-        //   path: "hr-portal",
-        //   element: (
-        //     <AuthRouteWrapper allowedRole="staff, RnD"> {/* Adjust role as needed */}
-        //       <HRPortal />
-        //     </AuthRouteWrapper>
-        //   ),
-        // },
+        {
+          path: "hr-portal",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User"> {/* Adjust role as needed */}
+              <HRPortal />
+            </AuthRouteWrapper>
+          ),
+        },
         {
           path: "reimbursement",
           element: (
@@ -440,6 +440,30 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <DisbursalOfHonorariumForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "disbursal-of-honorarium/:id",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DisbursalOfHonorariumDetails />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "disbursal-of-consultancy",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DisbursalOfConsultancy />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "disbursal-of-consultancy-form/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DisbursalOfConsultancyForm />
             </AuthRouteWrapper>
           )
         },
