@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappeGetDoc, useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
-import { ArrowLeftIcon, FileIcon, ExternalLinkIcon, LayoutGridIcon, ClipboardListIcon, FileTextIcon, ShoppingCartIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
-import { cn } from '@/lib/utils';
-// import { AppSidebar } from '@/components/RndSidebar';
+import { ArrowLeftIcon, FileIcon, ExternalLinkIcon } from "lucide-react";
+import { AppSidebar } from '@/components/RndSidebar';
 import { FrappeButton } from '@/components/ui/neo-brutalism';
 import ProjectDetailsView from "./ProjectDetails";
 import TemporaryAdvanceDetailsView from "./TemporaryAdvanceDetailsView";
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, directPurchaseAPI, tadaAPI, recruitmentAdhocContractualAPI } from '@/services/apiService';
+import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, directPurchaseAPI, tadaAPI } from '@/services/apiService';
 import { ActivityStream } from '@/components/ActivityStream';
 import { BudgetActionsSidebar } from '@/components/BudgetActionsSidebar';
 import TemporaryAdvanceActionButtons from '@/components/TemporaryAdvanceActionButtons';
 import TADASettlementActionButtons from '@/components/TADASettlementActionButtons';
+import DisbursalOfHonorariumActionButtons from '@/components/DisbursalOfHonorariumActionButtons';
 import { useUserRoles } from '@/components/UserRole';
 
 // Fields to hide from the overview
@@ -288,388 +288,18 @@ const DirectPurchaseWorkflowActions = ({ docname, onActionComplete }: { docname:
     );
 };
 
-const RecruitmentAdhocContractualWorkflowActions = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
-    const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
-        recruitmentAdhocContractualAPI.getWorkflowActions,
-        { docname }
-    );
-
-    const { call: performAction, loading: actionLoading } = useFrappePostCall(
-        recruitmentAdhocContractualAPI.performAction
-    );
-
-    const [modalOpen, setModalOpen] = React.useState(false);
-    const [selectedAction, setSelectedAction] = React.useState("");
-
-    const handleActionClick = (action: string) => {
-        setSelectedAction(action);
-        setModalOpen(true);
-    };
-
-    const handleConfirmAction = async (comment: string) => {
-        try {
-            await performAction({ docname, action: selectedAction, comment });
-            setModalOpen(false);
-            onActionComplete();
-        } catch (error) {
-            console.error("Error performing action:", error);
-        }
-    };
-
-    if (actionsLoading || !data?.message?.length) return null;
-
-    return (
-        <>
-            <div className="flex gap-2">
-                {data.message.map((action) => (
-                    <FrappeButton
-                        key={action}
-                        onClick={() => handleActionClick(action)}
-                        disabled={actionLoading}
-                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
-                    >
-                        {action}
-                    </FrappeButton>
-                ))}
-            </div>
-            <CommentModal
-                isOpen={modalOpen}
-                onClose={() => setModalOpen(false)}
-                onSubmit={handleConfirmAction}
-                action={selectedAction}
-                isLoading={actionLoading}
-            />
-        </>
-    );
-};
-
 // Helper to check if a value is a file path
 const isFilePath = (value: string) => {
     if (typeof value !== 'string') return false;
+    // Check for common file indicators
     return value.startsWith('/private/files/') ||
         value.startsWith('/files/') ||
         value.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx)$/i);
 };
 
 // Function to get filename from path
-const getFileName = (path: string) => path.split('/').pop() || path;
-
-// ─── Direct Purchase Tab View ─────────────────────────────────────────────────
-
-type DPTabId = 'details' | 'p11' | 'sanction' | 'po';
-
-const DP_EXCLUDED = [
-    'doctype', 'docstatus', 'idx', 'owner', 'creation', 'modified',
-    'modified_by', '_user_tags', '_comments', '_assign', '_liked_by', 'name',
-    'workflow_state', '_seen', 'parent', 'parenttype', 'parentfield',
-];
-
-const dpFormatFieldName = (key: string) =>
-    key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-
-const dpIsAmountField = (key: string) =>
-    /amount|total|price|estimate|budget|salary|fee|cost/i.test(key);
-
-const dpIsBoolCheck = (key: string, val: any) =>
-    (val === 0 || val === 1) &&
-    (key.startsWith('dec_') || key.startsWith('is_') || key.startsWith('has_') || key.startsWith('declaration_'));
-
-const dpFormatINR = (val: any) =>
-    Number(val).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
-
-// Smart document viewer for Direct Purchase details panel
-const DPDocumentViewer = ({ data }: { data: Record<string, any> }) => {
-    const allScalar = Object.entries(data).filter(([key, value]) => {
-        if (DP_EXCLUDED.includes(key)) return false;
-        if (key.startsWith('_')) return false;
-        if (Array.isArray(value)) return false;
-        if (value === null || value === undefined || value === '') return false;
-        return true;
-    });
-
-    const childTables = Object.entries(data).filter(
-        ([, value]) => Array.isArray(value) && (value as any[]).length > 0
-    );
-
-    const fileFields   = allScalar.filter(([k, v]) => isFilePath(String(v)) || k.startsWith('upload_'));
-    const boolFields   = allScalar.filter(([k, v]) => dpIsBoolCheck(k, v));
-    const amountFields = allScalar.filter(([k, v]) => dpIsAmountField(k) && !isFilePath(String(v)) && !dpIsBoolCheck(k, v));
-    const infoFields   = allScalar.filter(([k, v]) =>
-        !isFilePath(String(v)) && !dpIsBoolCheck(k, v) && !dpIsAmountField(k) && !k.startsWith('upload_')
-    );
-
-    const renderVal = (key: string, value: any): React.ReactNode => {
-        if (value === null || value === undefined || value === '') return <span className="text-[#71717A] dark:text-[#A1A1AA]">—</span>;
-
-        if (isFilePath(String(value))) {
-            return (
-                <a href={String(value)} target="_blank" rel="noopener noreferrer"
-                    className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-medium max-w-full">
-                    <FileIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span className="truncate">{getFileName(String(value))}</span>
-                    <ExternalLinkIcon className="h-3 w-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </a>
-            );
-        }
-
-        if (dpIsBoolCheck(key, value)) {
-            return value === 1
-                ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"><CheckCircle2Icon className="w-3.5 h-3.5" />Yes</span>
-                : <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]"><XCircleIcon className="w-3.5 h-3.5" />No</span>;
-        }
-
-        if (dpIsAmountField(key) && !isNaN(Number(value))) {
-            return <span className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{dpFormatINR(value)}</span>;
-        }
-
-        return String(value);
-    };
-
-    if (allScalar.length === 0 && childTables.length === 0) {
-        return <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">No data to display.</p>;
-    }
-
-    const kpiAmounts = amountFields.slice(0, 3);
-
-    return (
-        <div className="space-y-8">
-            {/* Financial KPI strip */}
-            {kpiAmounts.length > 0 && (
-                <div className={cn("grid gap-4",
-                    kpiAmounts.length === 1 && "grid-cols-1 max-w-xs",
-                    kpiAmounts.length === 2 && "grid-cols-2",
-                    kpiAmounts.length >= 3 && "grid-cols-3",
-                )}>
-                    {kpiAmounts.map(([key, value]) => (
-                        <div key={key} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/50 px-5 py-4">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1.5">{dpFormatFieldName(key)}</p>
-                            <p className="text-xl font-serif font-medium text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
-                                {!isNaN(Number(value)) ? dpFormatINR(value) : String(value)}
-                            </p>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Info fields */}
-            {infoFields.length > 0 && (
-                <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">Information</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5">
-                        {infoFields.map(([key, value]) => (
-                            <div key={key} className="flex flex-col gap-1">
-                                <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">{dpFormatFieldName(key)}</p>
-                                <p className="text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-relaxed">{renderVal(key, value)}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Declarations */}
-            {boolFields.length > 0 && (
-                <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">Declarations</h4>
-                    <div className="space-y-3">
-                        {boolFields.map(([key, value]) => (
-                            <div key={key} className="flex items-center justify-between py-2.5 px-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/40">
-                                <span className="text-sm text-[#3F3F46] dark:text-[#E4E4E7] font-medium">{dpFormatFieldName(key)}</span>
-                                {renderVal(key, value)}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Attachments */}
-            {fileFields.length > 0 && (
-                <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">Attachments</h4>
-                    <div className="flex flex-col gap-2">
-                        {fileFields.map(([key, value]) => (
-                            <div key={key} className="flex items-center gap-3">
-                                <span className="text-xs text-[#71717A] dark:text-[#A1A1AA] w-36 shrink-0 font-medium uppercase tracking-wider">{dpFormatFieldName(key)}</span>
-                                {renderVal(key, value)}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Child tables */}
-            {childTables.map(([key, rows]) => {
-                const cols = Object.keys((rows as any[])[0] || {}).filter(
-                    k => !k.startsWith('_') && !DP_EXCLUDED.includes(k)
-                );
-                const colTotals: Record<string, number> = {};
-                const hasAmountCols = cols.some(c => dpIsAmountField(c));
-                if (hasAmountCols) {
-                    cols.forEach(c => {
-                        if (dpIsAmountField(c)) colTotals[c] = (rows as any[]).reduce((s, r) => s + (parseFloat(r[c]) || 0), 0);
-                    });
-                }
-                return (
-                    <div key={key}>
-                        <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-3 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">{dpFormatFieldName(key)}</h4>
-                        <div className="overflow-x-auto rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50/80 dark:bg-zinc-800/50">
-                                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] w-10">#</th>
-                                        {cols.map(col => (
-                                            <th key={col} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
-                                                {dpFormatFieldName(col)}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {(rows as any[]).map((row, idx) => (
-                                        <tr key={idx} className={cn(
-                                            "border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors",
-                                            idx % 2 === 1 && "bg-[#FAFAF9]/60 dark:bg-zinc-800/20"
-                                        )}>
-                                            <td className="px-4 py-3 text-xs text-[#71717A] dark:text-[#A1A1AA] font-mono">{idx + 1}</td>
-                                            {cols.map(k => (
-                                                <td key={k} className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                    {dpIsAmountField(k) && !isNaN(Number(row[k]))
-                                                        ? <span className="font-medium">{dpFormatINR(row[k])}</span>
-                                                        : row[k] != null ? String(row[k]) : '—'}
-                                                </td>
-                                            ))}
-                                        </tr>
-                                    ))}
-                                    {hasAmountCols && (
-                                        <tr className="border-t-2 border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800/60 font-semibold">
-                                            <td className="px-4 py-3" />
-                                            {cols.map(c => (
-                                                <td key={c} className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                    {colTotals[c] != null ? <span className="font-semibold text-[#D97757]">{dpFormatINR(colTotals[c])}</span> : ''}
-                                                </td>
-                                            ))}
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-    );
-};
-
-// Fetches & renders a single linked Frappe document inside a tab
-const DPLinkedDocTab = ({ doctype, filterField, filterValue, emptyTitle, emptyDescription }: {
-    doctype: string; filterField: string; filterValue: string;
-    emptyTitle: string; emptyDescription: string;
-}) => {
-    const { data: listData, isLoading: listLoading } = useFrappeGetCall<{ message: { name: string }[] }>(
-        'frappe.client.get_list',
-        { doctype, filters: JSON.stringify([[filterField, '=', filterValue]]), fields: JSON.stringify(['name']), limit: 1 }
-    );
-    const docName = listData?.message?.[0]?.name || '';
-    const { data: docData, isLoading: docLoading } = useFrappeGetDoc<Record<string, any>>(doctype, docName);
-
-    if (listLoading || docLoading) {
-        return (
-            <div className="flex items-center justify-center py-16">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#D97757] border-t-transparent" />
-            </div>
-        );
-    }
-
-    if (!docName || !docData) {
-        return (
-            <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-                <FileTextIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
-                <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">{emptyTitle}</p>
-                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">{emptyDescription}</p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-2">
-            <div className="mb-5">
-                <span className="text-xs font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]">{docName}</span>
-            </div>
-            <DPDocumentViewer data={docData} />
-        </div>
-    );
-};
-
-const DP_TABS = [
-    { id: 'details' as DPTabId, label: 'Details',        icon: <LayoutGridIcon className="w-4 h-4" /> },
-    { id: 'p11'     as DPTabId, label: 'P-11 Form',      icon: <ClipboardListIcon className="w-4 h-4" /> },
-    { id: 'sanction'as DPTabId, label: 'Sanction Sheet', icon: <FileTextIcon className="w-4 h-4" /> },
-    { id: 'po'      as DPTabId, label: 'Purchase Order',  icon: <ShoppingCartIcon className="w-4 h-4" /> },
-];
-
-const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; docName: string }) => {
-    const [activeTab, setActiveTab] = useState<DPTabId>('details');
-
-    return (
-        <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
-            {/* Tab bar */}
-            <div className="flex items-center border-b border-[#E4E4E7] dark:border-[#3F3F46] overflow-x-auto bg-[#FAFAF9] dark:bg-zinc-800/30">
-                {DP_TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={cn(
-                            "inline-flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-150",
-                            activeTab === tab.id
-                                ? "border-[#D97757] text-[#D97757]"
-                                : "border-transparent text-[#71717A] dark:text-[#A1A1AA] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7] hover:border-[#E4E4E7] dark:hover:border-[#3F3F46]"
-                        )}
-                    >
-                        {tab.icon}
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
-
-            {/* Tab content */}
-            <div className="p-6">
-                {activeTab === 'details' && <DPDocumentViewer data={data} />}
-
-                {activeTab === 'p11' && (
-                    <DPLinkedDocTab
-                        doctype="P_11 Form"
-                        filterField="app_id"
-                        filterValue={docName}
-                        emptyTitle="No P-11 Form Generated Yet"
-                        emptyDescription="The P-11 Form is generated after the Direct Purchase is approved by the Associate Dean."
-                    />
-                )}
-
-                {activeTab === 'sanction' && (
-                    <DPLinkedDocTab
-                        doctype="Sanction Sheet"
-                        filterField="direct_purchase"
-                        filterValue={docName}
-                        emptyTitle="No Sanction Sheet Generated Yet"
-                        emptyDescription="The Sanction Sheet is created by RnD Staff after the P-11 Form is verified and approved."
-                    />
-                )}
-
-                {activeTab === 'po' && (
-                    <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-                        <ShoppingCartIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
-                        <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
-                            {data.workflow_state === 'POGenerated' ? 'Purchase Order Generated' : 'Purchase Order Not Yet Generated'}
-                        </p>
-                        <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
-                            {data.workflow_state === 'POGenerated'
-                                ? 'The Purchase Order has been generated and is ready to print.'
-                                : 'The Purchase Order is generated once the Sanction Sheet is approved.'}
-                        </p>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
+const getFileName = (path: string) => {
+    return path.split('/').pop() || path;
 };
 
 const PendingTaskDetails: React.FC = () => {
@@ -707,16 +337,10 @@ const PendingTaskDetails: React.FC = () => {
     const [tadaLinkOptions, setTadaLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [isTadaLoading, setIsTadaLoading] = useState(false);
 
-    // State for Recruitment Adhoc Contractual Fields
-    const [recruitmentFields, setRecruitmentFields] = useState<FormField[]>([]);
-    const [recruitmentLinkOptions, setRecruitmentLinkOptions] = useState<Record<string, LinkOption[]>>({});
-    const [isRecruitmentLoading, setIsRecruitmentLoading] = useState(false);
-
     const { call: fetchTravelFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any } }>(travelAPI.getFields);
     const { call: fetchAdvanceSettlementFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any, child_table_meta?: any } }>(advanceSettlementAPI.getFields);
     const { call: fetchTemporaryAdvanceFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any } }>(temporaryAdvanceAPI.getFields);
     const { call: fetchTadaFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any, child_table_meta?: any } }>(tadaAPI.getFields);
-    const { call: fetchRecruitmentFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any, child_table_meta?: any } }>(recruitmentAdhocContractualAPI.getFields);
     // State for display data (to handle ID resolution)
     const [displayData, setDisplayData] = useState<Record<string, any>>({});
 
@@ -910,41 +534,6 @@ const PendingTaskDetails: React.FC = () => {
         }
     }, [doctype, name, fetchTadaFields]);
 
-    // Fetch Recruitment Adhoc Contractual Fields
-    useEffect(() => {
-        if (doctype === 'Recruitment Adhoc Contractual' && name) {
-            setIsRecruitmentLoading(true);
-            fetchRecruitmentFields({ doc_name: name })
-                .then((res) => {
-                    if (res?.message) {
-                        let fields = res.message.fields || [];
-                        const childMeta = (res.message as any).child_table_meta;
-
-                        if (childMeta) {
-                            fields = fields.map((field) => {
-                                if (field.fieldtype === 'Table' && field.fieldname && childMeta[field.fieldname]) {
-                                    const childFields = childMeta[field.fieldname].fields.map((cf: any) => ({
-                                        ...cf,
-                                        label: cf.label || cf.fieldname || ''
-                                    }));
-                                    return {
-                                        ...field,
-                                        child_fields: childFields
-                                    };
-                                }
-                                return field;
-                            });
-                        }
-
-                        setRecruitmentFields(fields);
-                        setRecruitmentLinkOptions(res.message.link_options || {});
-                    }
-                })
-                .catch(err => console.error("Error fetching Recruitment Adhoc Contractual fields", err))
-                .finally(() => setIsRecruitmentLoading(false));
-        }
-    }, [doctype, name, fetchRecruitmentFields]);
-
 
     if (isLoading) {
         return (
@@ -1119,7 +708,7 @@ const PendingTaskDetails: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen text-zinc-900 dark:text-zinc-100">
-            {/* <AppSidebar /> */}
+            <AppSidebar />
 
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <header className="mb-6 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
@@ -1152,8 +741,8 @@ const PendingTaskDetails: React.FC = () => {
                             {doctype === "TA DA Settlement" && name && (
                                 <TADASettlementActionButtons docName={name} onActionComplete={() => window.location.reload()} />
                             )}
-                            {doctype === "Recruitment Adhoc Contractual" && name && (
-                                <RecruitmentAdhocContractualWorkflowActions docname={name} onActionComplete={() => window.location.reload()} />
+                            {doctype === "Disbursal of Honorarium" && name && (
+                                <DisbursalOfHonorariumActionButtons docname={name} onActionComplete={() => window.location.reload()} />
                             )}
 
                         </div>
@@ -1268,34 +857,6 @@ const PendingTaskDetails: React.FC = () => {
                             ) : (
                                 renderGenericDetails()
                             )
-                        ) : doctype === 'Recruitment Adhoc Contractual' ? (
-                            isRecruitmentLoading ? (
-                                <div className="flex h-64 items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
-                                    <div className="flex flex-col items-center gap-2">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
-                                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">Loading details...</p>
-                                    </div>
-                                </div>
-                            ) : recruitmentFields.length > 0 ? (
-                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
-                                    <DynamicFormRenderer
-                                        fields={recruitmentFields}
-                                        formData={displayData}
-                                        linkOptions={recruitmentLinkOptions}
-                                        onChange={() => { }}
-                                        onFileChange={() => { }}
-                                        onTableRowChange={() => { }}
-                                        onTableFileChange={() => { }}
-                                        onAddTableRow={() => { }}
-                                        onDeleteTableRow={() => { }}
-                                        readOnly={true}
-                                    />
-                                </div>
-                            ) : (
-                                renderGenericDetails()
-                            )
-                        ) : doctype === 'Direct Purchase' && data && name ? (
-                            <DirectPurchaseTabView data={data} docName={name} />
                         ) : (
                             renderGenericDetails()
                         )}
@@ -1342,7 +903,7 @@ const PendingTaskDetails: React.FC = () => {
                                 />
                             )}
 
-                            {/* <ActivityStream doctype={doctype || ""} docname={name || ""} /> */}
+                            <ActivityStream doctype={doctype || ""} docname={name || ""} />
                         </div>
                     </div>
                 </div>

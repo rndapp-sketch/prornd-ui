@@ -56,7 +56,7 @@ interface TableConfig {
 
 // --- STYLES & REUSABLE UI COMPONENTS (REFINED NEO-BRUTALISM) ---
 const inputClasses =
-  "w-full h-9 px-3 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 disabled:opacity-70 disabled:bg-zinc-100 dark:disabled:bg-zinc-700 read-only:bg-zinc-100 dark:read-only:bg-zinc-700 text-zinc-900 dark:text-zinc-100";
+  "w-full h-12 px-4 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-zinc-400 dark:border-zinc-600 rounded-lg font-mono shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 disabled:opacity-70 disabled:bg-zinc-100 dark:disabled:bg-zinc-700 read-only:bg-zinc-100 dark:read-only:bg-zinc-700 text-zinc-900 dark:text-zinc-100 font-bold";
 
 const FrappeCard = ({ children, className }: any) => (
   <div
@@ -81,7 +81,7 @@ const FrappeButton = ({
     onClick={onClick}
     disabled={disabled}
     className={cn(
-      "px-5 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg font-bold text-zinc-900 dark:text-zinc-100 shadow-sm transition-all duration-150",
+      "px-5 py-2.5 border border-zinc-300 dark:border-zinc-600 rounded-lg font-bold text-zinc-900 dark:text-zinc-100 shadow-sm transition-all duration-150",
       "hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:-translate-y-0.5",
       "active:shadow-none active:translate-y-0",
       "disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 disabled:bg-zinc-200 dark:disabled:bg-zinc-700",
@@ -93,8 +93,8 @@ const FrappeButton = ({
 );
 
 const NeoSection = ({ title, children }: any) => (
-  <div className="space-y-4">
-    <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tracking-tight border-b border-zinc-300 dark:border-zinc-600 pb-2 uppercase">
+  <div className="space-y-6">
+    <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight border-b-2 border-zinc-900 dark:border-zinc-600 pb-3 uppercase">
       {title}
     </h2>
     {children}
@@ -109,8 +109,8 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
   if (field.fieldtype === "Section Break") {
     if (!field.label) return null; // Skip unnamed section breaks
     return (
-      <div className="col-span-full pt-3 pb-1.5 border-b border-zinc-300 dark:border-zinc-700 mt-3 first:mt-0">
-        <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">
+      <div className="col-span-full pt-4 pb-2 border-b-2 border-zinc-300 dark:border-zinc-700 mt-4 first:mt-0">
+        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">
           {field.label}
         </h3>
         {!!field.description && (
@@ -224,10 +224,10 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
   };
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       <label
         htmlFor={field.fieldname}
-        className="block font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase"
+        className="block font-bold text-zinc-900 dark:text-zinc-100 text-lg uppercase"
       >
         {field.label}
         {!!field.mandatory && <span className="text-red-500 ml-1">*</span>}
@@ -262,7 +262,7 @@ const MemoizedGenericTable = memo(
       ) {
         return (
           <select
-            className={`${inputClasses} !h-8 text-xs`}
+            className={`${inputClasses} !h-11`}
             value={row[col.key] || ""}
             onChange={(e) => onRowChange(tableName, i, col.key, e.target.value)}
           >
@@ -284,7 +284,7 @@ const MemoizedGenericTable = memo(
         return (
           <input
             type="date"
-            className={`${inputClasses} !h-8 text-xs`}
+            className={`${inputClasses} !h-11`}
             value={row[col.key] || ""}
             onChange={(e) => onRowChange(tableName, i, col.key, e.target.value)}
           />
@@ -298,7 +298,7 @@ const MemoizedGenericTable = memo(
       return (
         <input
           type={type}
-          className={`${inputClasses} !h-8 text-xs`}
+          className={`${inputClasses} !h-11`}
           value={row[col.key] || ""}
           onChange={(e) => onRowChange(tableName, i, col.key, e.target.value)}
         />
@@ -307,35 +307,35 @@ const MemoizedGenericTable = memo(
 
     return (
       <NeoSection title={title}>
-        <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700 rounded-lg">
-          <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
-            <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-              <tr>
+        <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
+          <table className="min-w-full divide-y-2 divide-zinc-900 dark:divide-zinc-600">
+            <thead className="bg-zinc-100 dark:bg-zinc-800">
+              <tr className="divide-x-2 divide-zinc-900 dark:divide-zinc-600">
                 {[...columns, { key: "actions", label: "" }].map((c: any) => (
                   <th
                     key={c.key}
-                    className="px-3 py-2 font-semibold text-zinc-600 dark:text-zinc-400 text-xs text-left uppercase tracking-wider"
+                    className="p-3 font-bold text-zinc-900 dark:text-zinc-100 text-sm text-left uppercase"
                   >
                     {c.label}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700 bg-white dark:bg-zinc-900">
+            <tbody className="divide-y-2 divide-zinc-900 dark:divide-zinc-600 bg-white dark:bg-zinc-900">
               {(tableData || []).map((row: any, i: number) => (
                 <tr
                   key={row.id || i}
-                  className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                  className="divide-x-2 divide-zinc-900 dark:divide-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors duration-150"
                 >
                   {columns.map((col: any) => (
-                    <td key={col.key} className="px-2 py-1.5 min-w-[140px]">
+                    <td key={col.key} className="p-2 min-w-[150px]">
                       {renderCell(col, row, i)}
                     </td>
                   ))}
-                  <td className="px-2 py-1.5 text-center w-[80px]">
+                  <td className="p-2 text-center w-[100px]">
                     <FrappeButton
                       onClick={() => onDeleteRow(tableName, i)}
-                      className="!py-1 text-xs bg-red-50 border-red-200 hover:bg-red-100 text-red-600 w-full"
+                      className="!py-2 text-sm bg-red-50 border-red-200 hover:bg-red-100 text-red-700 w-full"
                     >
                       Delete
                     </FrappeButton>
@@ -347,7 +347,7 @@ const MemoizedGenericTable = memo(
         </div>
         <FrappeButton
           onClick={() => onAddRow(tableName, newRow)}
-          className="mt-0 bg-[#D97757] hover:bg-[#c5684a] text-white border-[#D97757]/20"
+          className="mt-4 bg-[#A5D6A7] hover:bg-[#8BC34A] border-[#8BC34A]/20"
         >
           Add Row
         </FrappeButton>
@@ -519,7 +519,7 @@ export const FormRender: React.FC<
 
       return (
         <NeoSection key={index} title={section.title}>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {section.fields.map((fieldname) => renderField(fieldname))}
           </div>
         </NeoSection>
@@ -527,12 +527,12 @@ export const FormRender: React.FC<
     };
 
     const Content = (
-      <div className="space-y-6">
+      <div className="space-y-12">
         {sections ? (
           sections.map((section, index) => renderSection(section, index))
         ) : (
           <NeoSection title={title}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {fields.map((field) => renderField(field.fieldname))}
             </div>
           </NeoSection>
@@ -545,7 +545,7 @@ export const FormRender: React.FC<
         {noCard ? (
           Content
         ) : (
-          <FrappeCard className="space-y-6">{Content}</FrappeCard>
+          <FrappeCard className="space-y-12">{Content}</FrappeCard>
         )}
 
         {!hideActions && (

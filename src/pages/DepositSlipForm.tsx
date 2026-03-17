@@ -1,8 +1,8 @@
-// Multi-Doctype Deposit Slip Form — Redesigned
+// Multi-Doctype Deposit Slip Form
 import React, { useState, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { ArrowLeftIcon, ChevronDown, Send, Save, Plus, Trash2 } from "lucide-react";
+import { ArrowLeftIcon, ChevronDown } from "lucide-react";
 
 // --- DEPOSIT SLIP TYPE CONFIGURATION ---
 const DEPOSIT_SLIP_TYPES: Record<string, {
@@ -81,41 +81,16 @@ interface LinkOption {
     label: string;
 }
 
-// --- REUSABLE UI COMPONENTS ---
-const inputClasses = "w-full h-12 px-4 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:disabled:bg-zinc-800 read-only:bg-zinc-100 dark:read-only:bg-zinc-800";
+const inputClasses = "w-full h-10 px-3 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800 read-only:bg-zinc-100 dark:bg-zinc-800";
+const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>{children}</div>);
+const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-5 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-lg font-semibold text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
+const NeoSection = ({ title, children }: any) => (<div className="space-y-6"><h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 border-b border-zinc-200 dark:border-zinc-800 pb-3">{title}</h2>{children}</div>);
 
-const FrappeCard = ({ children, className }: any) => (
-    <div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>
-        {children}
-    </div>
-);
-
-const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (
-    <button type={type} onClick={onClick} disabled={disabled} className={cn(
-        "inline-flex items-center gap-2 px-5 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-lg font-semibold text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed",
-        className
-    )}>
-        {children}
-    </button>
-);
-
-const NeoSection = ({ title, children }: any) => (
-    <div className="space-y-5">
-        <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-3">{title}</h2>
-        {children}
-    </div>
-);
-
-/** Prevent scroll-wheel from changing number input values */
-const preventScrollChange = (e: React.WheelEvent<HTMLInputElement>) => {
-    (e.target as HTMLElement).blur();
-};
-
-// --- MAIN COMPONENT ---
 const DepositSlipForm: React.FC = () => {
     const navigate = useNavigate();
     const { fundReceivedName } = useParams<{ fundReceivedName: string }>();
 
+    // Selected deposit slip type
     const [selectedType, setSelectedType] = useState<string>("");
     const [fields, setFields] = useState<Field[]>([]);
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
@@ -123,18 +98,18 @@ const DepositSlipForm: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formValues, setFormValues] = useState<Record<string, any>>({});
 
-    // Table data managed in React state instead of DOM manipulation
-    const [ecsDates, setEcsDates] = useState<{ id: string; ecs_date: string; amount: string; remarks: string }[]>([]);
-    const [creditDistribution, setCreditDistribution] = useState<{ id: string; label: string; percentage: string; amount: string }[]>([]);
+    const tableRowsRef = useRef<{
+        ecs_dates: string[];
+        credit_distribution: string[];
+    }>({ ecs_dates: [], credit_distribution: [] });
 
-    const generateId = () => `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const containerRef = useRef<{ [key: string]: HTMLElement | null }>({});
 
+    // Handle type change - fetch new fields
     const handleTypeChange = async (type: string) => {
         setSelectedType(type);
         setFields([]);
         setFormValues({});
-        setEcsDates([]);
-        setCreditDistribution([]);
         setLoading(true);
 
         if (!type || !DEPOSIT_SLIP_TYPES[type]) {
@@ -143,6 +118,10 @@ const DepositSlipForm: React.FC = () => {
         }
 
         try {
+            console.log(`Fetching fields for type: ${type}`);
+            console.log(`Endpoint: /api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`);
+            console.log(`Payload:`, { doc_name: fundReceivedName || undefined });
+
             const response = await fetch(`/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -150,9 +129,11 @@ const DepositSlipForm: React.FC = () => {
                 body: JSON.stringify({ doc_name: fundReceivedName || undefined })
             });
             const result = await response.json();
+            console.log("Field fetch result:", result);
 
             if (result?.message) {
                 const { fields: apiFields, link_options, prefill_data } = result.message;
+                console.log("Fields found:", apiFields?.length);
 
                 if (Array.isArray(apiFields)) {
                     const processedFields = apiFields.map(field => {
@@ -164,6 +145,7 @@ const DepositSlipForm: React.FC = () => {
                     });
                     setFields(processedFields);
 
+                    // Initialize form values with defaults
                     const initialValues: Record<string, any> = {};
                     processedFields.forEach(f => {
                         if (f.default) initialValues[f.fieldname] = f.default;
@@ -171,10 +153,11 @@ const DepositSlipForm: React.FC = () => {
                     setFormValues(initialValues);
                 }
                 setLinkOptions(prev => ({ ...prev, ...(link_options || {}) }));
+            } else {
+                console.warn("No 'message' key in response or empty result");
             }
         } catch (err) {
             console.error("Failed to load form fields:", err);
-            alert("Error loading form fields. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -221,15 +204,64 @@ const DepositSlipForm: React.FC = () => {
         return true;
     };
 
+    const generateId = () => `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    const addTableRow = useCallback((tableName: keyof typeof tableRowsRef.current) => {
+        const newId = generateId();
+        tableRowsRef.current[tableName].push(newId);
+        renderTableRows(tableName, newId);
+    }, []);
+
+    const removeTableRow = useCallback((tableName: keyof typeof tableRowsRef.current, id: string) => {
+        tableRowsRef.current[tableName] = tableRowsRef.current[tableName].filter(rowId => rowId !== id);
+        const row = containerRef.current[tableName]?.querySelector(`[data-id="${id}"]`);
+        if (row) row.remove();
+    }, []);
+
+    const renderTableRows = (tableName: keyof typeof tableRowsRef.current, rowId: string) => {
+        const container = containerRef.current[tableName];
+        if (!container) return;
+
+        const inputClasses = "w-full h-10 px-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#C66A4E]";
+        const neoButtonClasses = "px-5 py-2 !bg-red-200 hover:!bg-red-300 border border-zinc-200 dark:border-zinc-800 rounded-md font-semibold text-zinc-900 dark:text-zinc-100 shadow-sm transition-all";
+
+        const newRow = document.createElement("tr");
+        newRow.setAttribute("data-id", rowId);
+        newRow.className = "divide-x divide-zinc-100 dark:divide-zinc-800";
+
+        if (tableName === 'ecs_dates') {
+            newRow.innerHTML = `
+                <td class="p-2"><input type="date" name="ecs_date_${rowId}" class="${inputClasses}" /></td>
+                <td class="p-2"><input type="number" name="amount_${rowId}" class="${inputClasses}" placeholder="0.00" /></td>
+                <td class="p-2"><input type="text" name="remarks_${rowId}" class="${inputClasses}" placeholder="Remarks" /></td>
+                <td class="p-2 text-center"><button type="button" class="${neoButtonClasses} delete-btn" data-table="${tableName}" data-id="${rowId}">Delete</button></td>
+            `;
+        } else if (tableName === 'credit_distribution') {
+            newRow.innerHTML = `
+                <td class="p-2"><input type="text" name="credit_label_${rowId}" class="${inputClasses}" placeholder="Label" /></td>
+                <td class="p-2"><input type="number" name="credit_percentage_${rowId}" class="${inputClasses}" placeholder="%" /></td>
+                <td class="p-2"><input type="number" name="credit_amount_${rowId}" class="${inputClasses}" placeholder="Amount" /></td>
+                <td class="p-2 text-center"><button type="button" class="${neoButtonClasses} delete-btn" data-table="${tableName}" data-id="${rowId}">Delete</button></td>
+            `;
+        }
+
+        container.appendChild(newRow);
+
+        const delBtn = newRow.querySelector('.delete-btn');
+        delBtn?.addEventListener('click', () => removeTableRow(tableName, rowId));
+    };
+
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (isSubmitting || !selectedType) return;
         setIsSubmitting(true);
 
         try {
+            const formElement = e.currentTarget;
+            const form = new FormData(formElement);
             const dataToSubmit: { [key: string]: any } = {};
 
-            // Collect form field values from React state
+            // Collect regular fields
             fields.forEach(field => {
                 if (field.fieldtype !== 'Table' && field.fieldtype !== 'Section Break' && !field.hidden) {
                     const value = formValues[field.fieldname];
@@ -239,39 +271,47 @@ const DepositSlipForm: React.FC = () => {
                 }
             });
 
-            // ECS Dates from React state
-            dataToSubmit.ecs_dates = ecsDates
-                .filter(row => row.ecs_date || (row.amount && parseFloat(row.amount) !== 0))
-                .map(row => ({
-                    ecs_date: row.ecs_date || "",
-                    amount: row.amount ? parseFloat(row.amount) : 0,
-                    remarks: row.remarks || "",
-                }));
+            // Process ECS Dates table
+            dataToSubmit.ecs_dates = tableRowsRef.current.ecs_dates.map(id => {
+                const ecs_date = form.get(`ecs_date_${id}`);
+                const amount = form.get(`amount_${id}`);
+                const remarks = form.get(`remarks_${id}`);
 
-            // Credit Distribution from React state
-            dataToSubmit.credit_distribution = creditDistribution
-                .filter(row => row.label || row.percentage || row.amount)
-                .map(row => ({
-                    label: row.label || "",
-                    percentage: row.percentage ? parseFloat(row.percentage) : 0,
-                    amount: row.amount ? parseFloat(row.amount) : 0,
-                }));
+                if (!ecs_date && (!amount || parseFloat(amount as string) === 0)) return null;
+
+                return {
+                    ecs_date: ecs_date || "",
+                    amount: amount ? parseFloat(amount as string) : 0,
+                    remarks: remarks || "",
+                };
+            }).filter(row => row !== null);
+
+            // Process Credit Distribution table
+            dataToSubmit.credit_distribution = tableRowsRef.current.credit_distribution.map(id => {
+                const label = form.get(`credit_label_${id}`);
+                const percentage = form.get(`credit_percentage_${id}`);
+                const amount = form.get(`credit_amount_${id}`);
+
+                if (!label && !percentage && !amount) return null;
+
+                return {
+                    label: label || "",
+                    percentage: percentage ? parseFloat(percentage as string) : 0,
+                    amount: amount ? parseFloat(amount as string) : 0,
+                };
+            }).filter(row => row !== null);
 
             console.log('Submitting Deposit Slip:', dataToSubmit);
 
+            // Use the correct save API based on selected type
             const response = await fetch(`/api/method/${DEPOSIT_SLIP_TYPES[selectedType].save}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({ doc_data: JSON.stringify(dataToSubmit) })
             });
-
-            if (!response.ok) {
-                const errData = await response.json().catch(() => null);
-                throw new Error(errData?.exc_type || errData?._server_messages || `Server error: ${response.status}`);
-            }
-
             const result = await response.json();
+            console.log('Save result:', result);
 
             if (result?.message?.name) {
                 alert(`Deposit Slip saved successfully! Document: ${result.message.name}`);
@@ -287,25 +327,19 @@ const DepositSlipForm: React.FC = () => {
         }
     };
 
-    // Fields that should always be read-only
-    const readOnlyFieldNames = ['project_title', 'research_project', 'project_ref_no', 'project_registration'];
-
     const renderFormField = (field: Field) => {
         if (!checkDependency(field)) return null;
         if (!field || field.hidden || field.fieldtype === 'Section Break' || field.fieldtype === 'SectionBreak' || field.fieldtype === 'Column Break' || field.fieldtype === 'ColumnBreak') return null;
         if (field.fieldname.endsWith('_multiplier') || field.fieldname.endsWith('_label')) return null;
         if (field.fieldtype === 'Table') return null;
 
-        const forceReadOnly = readOnlyFieldNames.includes(field.fieldname);
-        const isReadOnly = field.read_only === 1 || forceReadOnly;
-
         const commonProps = {
             id: field.fieldname,
             name: field.fieldname,
             className: inputClasses,
-            readOnly: isReadOnly,
+            readOnly: field.read_only === 1,
             required: field.mandatory === 1,
-            disabled: isReadOnly,
+            disabled: field.read_only === 1,
             value: formValues[field.fieldname] || '',
             onChange: (e: any) => handleFieldChange(field.fieldname, e.target.value)
         };
@@ -319,21 +353,6 @@ const DepositSlipForm: React.FC = () => {
                         else if (linkOptions['project_registration']) opts = linkOptions['project_registration'];
                     }
                 }
-
-                if (forceReadOnly) {
-                    // Show as read-only text instead of dropdown
-                    const displayLabel = opts.find(o => o.value === formValues[field.fieldname])?.label || formValues[field.fieldname] || '';
-                    return (
-                        <input
-                            type="text"
-                            {...commonProps}
-                            value={displayLabel}
-                            readOnly
-                            disabled
-                        />
-                    );
-                }
-
                 return (
                     <select {...commonProps}>
                         <option value="">Select...</option>
@@ -357,18 +376,16 @@ const DepositSlipForm: React.FC = () => {
                 );
             }
             if (field.fieldtype === "Date") return <input type="date" {...commonProps} />;
-            if (field.fieldtype === "Currency" || field.fieldtype === "Float" || field.fieldtype === "Int") {
-                return <input type="number" {...commonProps} onWheel={preventScrollChange} />;
-            }
+            if (field.fieldtype === "Currency" || field.fieldtype === "Float" || field.fieldtype === "Int") return <input type="number" {...commonProps} />;
             if (field.fieldtype === "HTML") return <div dangerouslySetInnerHTML={{ __html: field.options || '' }} className="prose text-sm text-zinc-600 dark:text-zinc-400" />;
+
             return <input type="text" {...commonProps} />;
         };
 
         return (
-            <div key={field.fieldname} className='space-y-2'>
+            <div key={field.fieldname} className='space-y-1.5'>
                 <label htmlFor={field.fieldname} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {field.label}{field.mandatory === 1 && <span className="text-red-500 ml-1">*</span>}
-                    {forceReadOnly && <span className="text-xs text-zinc-400 ml-2">(auto-filled)</span>}
                 </label>
                 {renderInput()}
                 {field.description && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{field.description}</p>}
@@ -399,12 +416,11 @@ const DepositSlipForm: React.FC = () => {
     const sections = groupFieldsBySection();
 
     return (
-        <div className="p-4 md:p-8 max-w-6xl mx-auto">
-            {/* Header */}
-            <header className="mb-8 p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
+        <div className="p-4 md:p-8">
+            <header className="mb-8 p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-sm">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate(-1)} className="p-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
-                        <ArrowLeftIcon className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
+                    <button onClick={() => navigate(-1)} className="p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-50 dark:bg-zinc-800/50 transition-transform">
+                        <ArrowLeftIcon className="h-6 w-6" />
                     </button>
                     <div>
                         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">New Deposit Slip</h1>
@@ -414,8 +430,8 @@ const DepositSlipForm: React.FC = () => {
             </header>
 
             {/* Deposit Slip Type Selector */}
-            <FrappeCard className="mb-8">
-                <div className="space-y-3">
+            <FrappeCard className="mb-6">
+                <div className="space-y-2">
                     <label className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                         Select Deposit Slip Type <span className="text-red-500">*</span>
                     </label>
@@ -423,21 +439,21 @@ const DepositSlipForm: React.FC = () => {
                         <select
                             value={selectedType}
                             onChange={(e) => handleTypeChange(e.target.value)}
-                            className="w-full h-14 px-4 pr-12 bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-zinc-700 rounded-xl text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] appearance-none"
+                            className="w-full h-12 px-4 pr-10 bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-zinc-700 rounded-lg text-base font-medium focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] appearance-none"
                         >
                             <option value="">-- Select Deposit Slip Type --</option>
                             {Object.entries(DEPOSIT_SLIP_TYPES).map(([key, config]) => (
                                 <option key={key} value={key}>{config.label}</option>
                             ))}
                         </select>
-                        <ChevronDown className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
+                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
                     </div>
                 </div>
             </FrappeCard>
 
             {/* Loading State */}
             {loading && (
-                <div className="flex items-center justify-center py-24">
+                <div className="flex items-center justify-center py-20">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#D97757] mx-auto"></div>
                         <p className="mt-4 text-lg font-semibold text-zinc-600 dark:text-zinc-400">Loading form fields...</p>
@@ -454,184 +470,72 @@ const DepositSlipForm: React.FC = () => {
 
                             return (
                                 <NeoSection key={index} title={section.title}>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                         {section.fields.map(renderFormField)}
                                     </div>
                                 </NeoSection>
                             );
                         })}
 
-                        {/* ECS Dates Table — React-managed */}
+                        {/* ECS Dates Table */}
                         <NeoSection title="ECS Dates">
-                            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
                                 <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                                     <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                                        <tr>
+                                        <tr className="divide-x divide-zinc-100 dark:divide-zinc-800">
                                             {['Date', 'Amount (₹)', 'Remarks', ''].map((h) => (
                                                 <th key={h} className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm text-left">{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
-                                        {ecsDates.map((row, idx) => (
-                                            <tr key={row.id}>
-                                                <td className="p-2">
-                                                    <input type="date" className={inputClasses}
-                                                        value={row.ecs_date}
-                                                        onChange={e => {
-                                                            const newRows = [...ecsDates];
-                                                            newRows[idx] = { ...newRows[idx], ecs_date: e.target.value };
-                                                            setEcsDates(newRows);
-                                                        }} />
-                                                </td>
-                                                <td className="p-2">
-                                                    <input type="number" step="0.01" className={inputClasses}
-                                                        placeholder="0.00"
-                                                        value={row.amount}
-                                                        onChange={e => {
-                                                            const newRows = [...ecsDates];
-                                                            newRows[idx] = { ...newRows[idx], amount: e.target.value };
-                                                            setEcsDates(newRows);
-                                                        }}
-                                                        onWheel={preventScrollChange} />
-                                                </td>
-                                                <td className="p-2">
-                                                    <input type="text" className={inputClasses}
-                                                        placeholder="Remarks"
-                                                        value={row.remarks}
-                                                        onChange={e => {
-                                                            const newRows = [...ecsDates];
-                                                            newRows[idx] = { ...newRows[idx], remarks: e.target.value };
-                                                            setEcsDates(newRows);
-                                                        }} />
-                                                </td>
-                                                <td className="p-2 text-center">
-                                                    <button type="button" onClick={() => setEcsDates(prev => prev.filter((_, i) => i !== idx))}
-                                                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {ecsDates.length === 0 && (
-                                            <tr>
-                                                <td colSpan={4} className="p-6 text-center text-zinc-400 text-sm italic">No ECS dates added yet</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
+                                    <tbody ref={el => { if (el) containerRef.current['ecs_dates'] = el; }} className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900" />
                                 </table>
                             </div>
-                            <FrappeButton onClick={() => setEcsDates(prev => [...prev, { id: generateId(), ecs_date: '', amount: '', remarks: '' }])}
-                                className="mt-4">
-                                <Plus className="h-4 w-4" /> Add Row
+                            <FrappeButton onClick={() => addTableRow('ecs_dates')} className="bg-[#A5D6A7] hover:bg-[#81C784] mt-4">
+                                + Add Row
                             </FrappeButton>
                         </NeoSection>
 
-                        {/* Credit Distribution Table — React-managed */}
+                        {/* Credit Distribution Table */}
                         <NeoSection title="Credit Distribution">
-                            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
                                 <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                                     <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                                        <tr>
+                                        <tr className="divide-x divide-zinc-100 dark:divide-zinc-800">
                                             {['Label', 'Percentage (%)', 'Amount (₹)', ''].map((h) => (
                                                 <th key={h} className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm text-left">{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
-                                        {creditDistribution.map((row, idx) => (
-                                            <tr key={row.id}>
-                                                <td className="p-2">
-                                                    <input type="text" className={inputClasses}
-                                                        placeholder="Label"
-                                                        value={row.label}
-                                                        onChange={e => {
-                                                            const newRows = [...creditDistribution];
-                                                            newRows[idx] = { ...newRows[idx], label: e.target.value };
-                                                            setCreditDistribution(newRows);
-                                                        }} />
-                                                </td>
-                                                <td className="p-2">
-                                                    <input type="number" step="0.01" className={inputClasses}
-                                                        placeholder="%"
-                                                        value={row.percentage}
-                                                        onChange={e => {
-                                                            const newRows = [...creditDistribution];
-                                                            newRows[idx] = { ...newRows[idx], percentage: e.target.value };
-                                                            setCreditDistribution(newRows);
-                                                        }}
-                                                        onWheel={preventScrollChange} />
-                                                </td>
-                                                <td className="p-2">
-                                                    <input type="number" step="0.01" className={inputClasses}
-                                                        placeholder="Amount"
-                                                        value={row.amount}
-                                                        onChange={e => {
-                                                            const newRows = [...creditDistribution];
-                                                            newRows[idx] = { ...newRows[idx], amount: e.target.value };
-                                                            setCreditDistribution(newRows);
-                                                        }}
-                                                        onWheel={preventScrollChange} />
-                                                </td>
-                                                <td className="p-2 text-center">
-                                                    <button type="button" onClick={() => setCreditDistribution(prev => prev.filter((_, i) => i !== idx))}
-                                                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {creditDistribution.length === 0 && (
-                                            <tr>
-                                                <td colSpan={4} className="p-6 text-center text-zinc-400 text-sm italic">No credit distribution added yet</td>
-                                            </tr>
-                                        )}
-                                    </tbody>
+                                    <tbody ref={el => { if (el) containerRef.current['credit_distribution'] = el; }} className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900" />
                                 </table>
                             </div>
-                            <FrappeButton onClick={() => setCreditDistribution(prev => [...prev, { id: generateId(), label: '', percentage: '', amount: '' }])}
-                                className="mt-4">
-                                <Plus className="h-4 w-4" /> Add Row
+                            <FrappeButton onClick={() => addTableRow('credit_distribution')} className="bg-[#A5D6A7] hover:bg-[#81C784] mt-4">
+                                + Add Row
                             </FrappeButton>
                         </NeoSection>
                     </FrappeCard>
 
-                    {/* Prominent Action Buttons */}
-                    <div className="mt-8 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
-                        <div className="flex justify-end gap-4">
-                            <FrappeButton type="button" onClick={() => navigate(-1)} className="hover:bg-zinc-100 dark:hover:bg-zinc-800">
-                                Cancel
-                            </FrappeButton>
-                            <FrappeButton type="submit" disabled={isSubmitting} className="bg-zinc-100 dark:bg-zinc-800">
-                                <Save className="h-4 w-4" />
-                                {isSubmitting ? 'Saving...' : 'Save as Draft'}
-                            </FrappeButton>
-                            <button
-                                type="submit"
-                                disabled={isSubmitting}
-                                className="inline-flex items-center gap-2 px-6 py-3 bg-[#D97757] hover:bg-[#c5684a] text-white font-bold text-sm rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <Send className="h-4 w-4" />
-                                {isSubmitting ? 'Submitting...' : 'Submit Deposit Slip'}
-                            </button>
-                        </div>
+                    <div className="mt-8 flex justify-end gap-4">
+                        <FrappeButton type="button" onClick={() => navigate(-1)} className="bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:bg-zinc-600">Cancel</FrappeButton>
+                        <FrappeButton type="submit" disabled={isSubmitting} className="bg-[#D97757] text-white hover:bg-[#D97757] disabled:bg-zinc-300 dark:bg-zinc-600">{isSubmitting ? 'Saving...' : 'Save Deposit Slip'}</FrappeButton>
                     </div>
                 </form>
             )}
 
             {/* No Type Selected */}
             {!loading && !selectedType && (
-                <FrappeCard className="text-center py-20">
-                    <p className="text-lg text-zinc-500 dark:text-zinc-400">Please select a deposit slip type to continue.</p>
-                </FrappeCard>
+                <div className="text-center py-20 text-zinc-500 dark:text-zinc-400">
+                    <p className="text-lg">Please select a deposit slip type to continue.</p>
+                </div>
             )}
 
             {/* No Fields Loaded */}
             {!loading && selectedType && fields.length === 0 && (
-                <FrappeCard className="text-center py-20">
-                    <p className="text-lg font-semibold text-yellow-600">No form fields found for this deposit slip type.</p>
+                <div className="text-center py-20 text-yellow-600">
+                    <p className="text-lg font-semibold">No form fields found for this deposit slip type.</p>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">Please check the backend API configuration.</p>
-                </FrappeCard>
+                </div>
             )}
         </div>
     );

@@ -103,63 +103,60 @@ function AppContent() {
               <AppSidebar />
             )}
             <SidebarInset className="bg-[#F9F7F2] dark:bg-zinc-900">
-              <header className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-[#F9F7F2]/80 backdrop-blur-md dark:bg-zinc-900/80 dark:border-zinc-800">
-                <div className="flex items-center flex-1 justify-start">
+              <header className="sticky top-0 z-10 flex items-center justify-between gap-4 px-4 py-2 border-b border-zinc-200 bg-[#F9F7F2]/80 backdrop-blur-md dark:bg-zinc-900/80 dark:border-zinc-800">
+                <div className="flex items-center">
                   <SidebarTrigger className="size-10 p-2 hover:bg-[#D97757]/10 active:bg-[#D97757]/20 rounded-md text-[#D97757] transition-colors dark:text-[#D97757] dark:hover:bg-[#D97757]/10 dark:active:bg-[#D97757]/20">
                     <MenuIcon className="size-9" />
                   </SidebarTrigger>
-                </div>
 
-                <div className="hidden lg:flex shrink-0 items-center justify-center gap-2 xl:gap-3 py-1 px-4">
-                  <div className="assamese-text font-bold text-[10px] xl:text-xs 2xl:text-sm text-zinc-950 dark:text-white whitespace-nowrap leading-none">ভাৰতীয় প্ৰযুক্তিবিদ্যা প্ৰতিষ্ঠান গুৱাহাটী</div>
-                  <div className="w-px h-3 xl:h-4 bg-zinc-400 dark:bg-zinc-600"></div>
-                  <div className="hindi-text font-bold text-[10px] xl:text-xs 2xl:text-sm text-zinc-950 dark:text-white whitespace-nowrap leading-none pt-0.5">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
-                  <div className="w-px h-3 xl:h-4 bg-zinc-400 dark:bg-zinc-600"></div>
-                  <div className="english-text font-serif font-bold text-xs xl:text-sm 2xl:text-[15px] text-zinc-950 dark:text-white whitespace-nowrap tracking-tight leading-none pt-1">Indian Institute of Technology Guwahati</div>
+                  <div className="hidden xl:flex items-center gap-3 ml-6 lg:ml-12 border-l border-zinc-200 dark:border-zinc-800 pl-6 py-1">
+                    <div className="assamese-text font-bold text-sm text-zinc-950 dark:text-white whitespace-nowrap leading-none">ভাৰতীয় প্ৰযুক্তিবিদ্যা প্ৰতিষ্ঠান গুৱাহাটী</div>
+                    <div className="w-px h-4 bg-zinc-400 dark:bg-zinc-600"></div>
+                    <div className="hindi-text font-bold text-sm text-zinc-950 dark:text-white whitespace-nowrap leading-none pt-0.5">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                    <div className="w-px h-4 bg-zinc-400 dark:bg-zinc-600"></div>
+                    <div className="english-text font-serif font-bold text-sm text-zinc-950 dark:text-white whitespace-nowrap tracking-tight leading-none pt-1 text-[15px]">Indian Institute of Technology Guwahati</div>
+                  </div>
                 </div>
-
-                <div className="flex items-center flex-1 justify-end">
-                  {currentUser && (
-                    <div className="flex items-center gap-3">
-                      <ThemeToggle />
-                      {/* Search Button */}
-                      <button
-                        onClick={openPalette}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-zinc-600 bg-white dark:bg-zinc-900 hover:bg-zinc-50 border border-zinc-200 rounded-md transition-colors shadow-sm dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800 dark:hover:bg-zinc-800"
-                      >
-                        <SearchIcon className="h-4 w-4" />
-                        <span className="hidden sm:inline font-medium">Search</span>
-                        <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-mono bg-zinc-100 border border-zinc-200 rounded text-zinc-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400">
-                          ⌘K
-                        </kbd>
-                      </button>
-                      {isUserLoading ? (
-                        <div className="flex items-center gap-2">
-                          <div className="h-8 w-8 rounded-full bg-zinc-200 animate-pulse dark:bg-zinc-800"></div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-3 pl-3">
-                          {userImageUrl ? (
-                            <img
-                              src={userImageUrl}
-                              alt="User Profile"
-                              className="h-8 w-8 rounded-full object-cover border border-zinc-200 shadow-sm dark:border-zinc-700"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.onerror = null;
-                                target.src = 'https://placehold.co/36x36/E4E4E7/3F3F46?text=U';
-                              }}
-                            />
-                          ) : (
-                            <div className="h-8 w-8 rounded-full bg-zinc-100 flex items-center justify-center border border-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400">
-                              <UserIcon className="h-4 w-4" />
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                {currentUser && (
+                  <div className="flex items-center gap-3">
+                    <ThemeToggle />
+                    {/* Search Button */}
+                    <button
+                      onClick={openPalette}
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm text-zinc-600 bg-white dark:bg-zinc-900 hover:bg-zinc-50 border border-zinc-200 rounded-md transition-colors shadow-sm dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800 dark:hover:bg-zinc-800"
+                    >
+                      <SearchIcon className="h-4 w-4" />
+                      <span className="hidden sm:inline font-medium">Search</span>
+                      <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-mono bg-zinc-100 border border-zinc-200 rounded text-zinc-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400">
+                        ⌘K
+                      </kbd>
+                    </button>
+                    {isUserLoading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-zinc-200 animate-pulse dark:bg-zinc-800"></div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 pl-3">
+                        {userImageUrl ? (
+                          <img
+                            src={userImageUrl}
+                            alt="User Profile"
+                            className="h-8 w-8 rounded-full object-cover border border-zinc-200 shadow-sm dark:border-zinc-700"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.onerror = null;
+                              target.src = 'https://placehold.co/36x36/E4E4E7/3F3F46?text=U';
+                            }}
+                          />
+                        ) : (
+                          <div className="h-8 w-8 rounded-full bg-zinc-100 flex items-center justify-center border border-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400">
+                            <UserIcon className="h-4 w-4" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </header>
               <main className="flex-1 overflow-y-auto p-4 lg:p-4 bg-[#F9F7F2] dark:bg-zinc-900">
                 <div className="mx-auto w-full animate-in fade-in duration-500">

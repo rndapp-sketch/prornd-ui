@@ -221,7 +221,7 @@
 //                                 <tr>
 //                                     <td className="w-[100px] align-top">
 //                                         <img
-//                                             src="http://172.16.117.39:8000/files/IITG_logo.png"
+//                                             src="http://172.16.135.27:8000/files/IITG_logo.png"
 //                                             alt="IITG Logo"
 //                                             className="w-[90px] h-auto"
 //                                         />
@@ -247,7 +247,7 @@
 //                                     </td>
 //                                     <td className="align-top pl-4">
 //                                         <img
-//                                             src="http://172.16.117.39:8000/files/yellow_office_name.png"
+//                                             src="http://172.16.135.27:8000/files/yellow_office_name.png"
 //                                             alt="Office of R&D"
 //                                             className="h-[150px] w-auto"
 //                                         />
@@ -329,7 +329,7 @@
 //                             <div className="font-bold">Signature of the Head of Institute</div>
 //                             <div className="mt-4">
 //                                 <img
-//                                     src="http://172.16.117.39:8000/files/rohit_fake_sign.png"
+//                                     src="http://172.16.135.27:8000/files/rohit_fake_sign.png"
 //                                     alt="Signature"
 //                                     className="h-16 w-auto"
 //                                 />
@@ -691,7 +691,7 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
         <table class="header-table">
             <tr>
                 <td style="width:100px;">
-                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo" class="logo"/>
+                    <img src="http://172.16.135.27:8000/files/IITG_logo.png" alt="IITG Logo" class="logo"/>
                 </td>
                 <td style="padding-left:16px;">
                     <div class="institute-name">Indian Institute of Technology Guwahati,</div>
@@ -704,7 +704,7 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
                     <div class="qr-code">${generateQRCodeSvg(props.proposalId || "IITG-RND")}</div>
                 </td>
                 <td style="padding-left:16px;">
-                    <img src="http://172.16.117.39:8000/files/yellow_office_name.png" alt="Office of R&D" class="office-logo"/>
+                    <img src="http://172.16.135.27:8000/files/yellow_office_name.png" alt="Office of R&D" class="office-logo"/>
                 </td>
             </tr>
         </table>
@@ -738,7 +738,7 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
 
         <div class="signature">
             <div class="label">Signature of the Head of Institute</div>
-            <img src="http://172.16.117.39:8000/files/rohit_fake_sign.png" alt="Signature"/>
+            <img src="http://172.16.135.27:8000/files/rohit_fake_sign.png" alt="Signature"/>
         </div>
     </div>
 </body>
@@ -884,7 +884,7 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                                 <tr>
                                     <td className="w-[100px] align-top">
                                         <img
-                                            src="http://172.16.117.39:8000/files/IITG_logo.png"
+                                            src="http://172.16.135.27:8000/files/IITG_logo.png"
                                             alt="IITG Logo"
                                             className="w-[90px] h-auto"
                                         />
@@ -909,7 +909,7 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                                     </td>
                                     <td className="align-top pl-4">
                                         <img
-                                            src="http://172.16.117.39:8000/files/yellow_office_name.png"
+                                            src="http://172.16.135.27:8000/files/yellow_office_name.png"
                                             alt="Office of R&D"
                                             className="h-[150px] w-auto"
                                         />
@@ -959,7 +959,7 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                             <div className="font-bold">Signature of the Head of Institute</div>
                             <div className="mt-4">
                                 <img
-                                    src="http://172.16.117.39:8000/files/rohit_fake_sign.png"
+                                    src="http://172.16.135.27:8000/files/rohit_fake_sign.png"
                                     alt="Signature"
                                     className="h-16 w-auto"
                                 />

@@ -1,6 +1,6 @@
 async function test() {
     try {
-        const res = await fetch('http://172.16.117.39:8000/api/method/frappe.desk.form.load.getdoctype?doctype=Direct Purchase');
+        const res = await fetch('http://172.16.134.81:8000/api/method/frappe.desk.form.load.getdoctype?doctype=Direct Purchase');
         const data = await res.json();
         const fields = data.docs[0].fields;
         const teqdField = fields.find(f => f.fieldname === 'table_teqd');
