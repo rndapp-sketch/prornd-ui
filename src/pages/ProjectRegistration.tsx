@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { FileText, Users, IndianRupee, Shield, FileBadge, X } from 'lucide-react';
 import { EndorsementCertificate, getEndorsementHtml } from '../components/EndorsementCertificate';
 import { commonAPI } from '@/services/apiService';
+import { AutocompleteEmail } from '../components/AutocompleteEmail';
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -68,7 +69,18 @@ const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange 
     const commonProps = { id: field.fieldname, name: field.fieldname, className: inputClasses, readOnly: field.read_only, required: field.mandatory, disabled: field.read_only };
     const renderInput = () => {
         switch (field.fieldtype) {
-            case "Link": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
+            case "Link":
+                if (field.fieldname === 'pi_webmail') {
+                    return (
+                        <AutocompleteEmail
+                            {...commonProps}
+                            value={value || ''}
+                            onChange={(val) => onChange(field.fieldname, val)}
+                            options={options || []}
+                        />
+                    );
+                }
+                return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
             case "Select": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(field.options?.split('\n').filter(o => o) || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>);
             case "Text": case "Small Text": case "Text Editor": return <textarea {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} rows={5} className={`${inputClasses} h-auto py-3`} />;
             case "Check": return (<label className="flex items-center gap-3 font-semibold text-sm text-zinc-900 dark:text-zinc-100 cursor-pointer"><input type="checkbox" className={checkboxClasses} checked={!!value} onChange={e => onChange(field.fieldname, e.target.checked, 'checkbox')} disabled={field.read_only} /><span>{field.label}{field.mandatory && <span className="text-red-500">*</span>}</span></label>);
@@ -119,7 +131,7 @@ const MemoizedCollaboratorTable = memo(({ tableName, title, tableData, piOptions
     return (
         <div>
             <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">{title}</h3>
-            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-lg">
+            <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg">
                 <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
                     <thead className="bg-zinc-50/50 dark:bg-zinc-800/50">
                         <tr>
@@ -131,11 +143,18 @@ const MemoizedCollaboratorTable = memo(({ tableName, title, tableData, piOptions
                     <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800">
                         {(tableData || []).map((row: any, i: number) => (
                             <tr key={row.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50">
-                                <td className="px-4 py-2.5"><select className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`} value={row[`${prefix}_email`] || ''} onChange={e => onCollaboratorChange(tableName, i, e.target.value)}><option value="">Select Person...</option>{(piOptions || []).map((o: any) => (<option key={o.value} value={o.value}>{o.label}</option>))}</select></td>
+                                <td className="px-4 py-2.5">
+                                    <AutocompleteEmail
+                                        className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
+                                        value={row[`${prefix}_email`] || ''}
+                                        onChange={(val) => onCollaboratorChange(tableName, i, val)}
+                                        options={piOptions || []}
+                                    />
+                                </td>
                                 <td className="px-4 py-2.5"><input type="email" readOnly className={`${inputClasses} !h-8 bg-zinc-50/50 !border-zinc-100 text-zinc-600 font-medium text-xs`} value={row[`${prefix}_email`] || ''} /></td>
                                 <td className="px-4 py-2.5"><input type="text" readOnly className={`${inputClasses} !h-8 bg-zinc-50/50 !border-zinc-100 text-zinc-600 font-medium text-xs`} value={row[`${prefix}_designation`] || ''} /></td>
                                 <td className="px-4 py-2.5"><input type="text" placeholder="Institute/Address" className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`} value={row[`${prefix}_address`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_address`, e.target.value)} /></td>
-                                <td className="px-4 py-2.5"><input type="tel" placeholder="10-digit #" maxLength={10} className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`} value={row[`${prefix}_contact`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_contact`, e.target.value.replace(/[^0-9]/g, ''))} /></td>
+                                <td className="px-4 py-2.5"><input type="tel" placeholder="91XXXXXXXXXX" maxLength={12} className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`} value={row[`${prefix}_contact`] || ''} onChange={e => onRowChange(tableName, i, `${prefix}_contact`, e.target.value.replace(/[^0-9]/g, ''))} /></td>
                                 <td className="px-4 py-2.5"><FrappeButton variant="danger" onClick={() => onDeleteRow(tableName, i)} className="w-full py-1.5 h-8">Delete</FrappeButton></td>
                             </tr>
                         ))}
@@ -555,8 +574,8 @@ const ProjectRegistration: React.FC = () => {
                     if (!designation) {
                         designation = details?.designation_name || details?.designation || "";
                     }
-                    address = details?.address || details?.department || details?.applicant_department || "";
-                    contact = details?.contact_number || details?.mobile_no || details?.cell_phone_number || "";
+                    address = details?.inst_name_address || details?.copi_address || details?.address || details?.department_name || details?.applicant_department || "";
+                    contact = details?.mobile_no || details?.copi_contact || details?.contact_number || details?.cell_phone_number || "";
                 } catch (err) { console.error("Failed to fetch collaborator details:", err); }
             }
             setFormData(prev => {
@@ -1030,7 +1049,7 @@ const ProjectRegistration: React.FC = () => {
                                         {formData.project_type === "Research" && (
                                             <div className='space-y-8'>
                                                 <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                    <div className="flex items-center justify-between flex-wrap gap-4">
+                                                    {/* <div className="flex items-center justify-between flex-wrap gap-4">
                                                         <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
                                                         <button
                                                             type="button"
@@ -1042,7 +1061,7 @@ const ProjectRegistration: React.FC = () => {
                                                         >
                                                             Add Funding Agency
                                                         </button>
-                                                    </div>
+                                                    </div> */}
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{renderFields(tabFieldGroups.fundingDetails)}</div>
                                                 </FrappeCard>
                                                 <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700"><h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-6">{renderFields(tabFieldGroups.agencyAddress)}</div></FrappeCard>
@@ -1091,7 +1110,7 @@ const ProjectRegistration: React.FC = () => {
                                                     )}
                                                 </div>
                                                 <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                    <div className="flex items-center justify-between flex-wrap gap-4">
+                                                    {/* <div className="flex items-center justify-between flex-wrap gap-4">
                                                         <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
                                                         <button
                                                             type="button"
@@ -1103,7 +1122,7 @@ const ProjectRegistration: React.FC = () => {
                                                         >
                                                             Add Funding Agency
                                                         </button>
-                                                    </div>
+                                                    </div> */}
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{renderFields(tabFieldGroups.fundingDetails)}</div>
                                                 </FrappeCard>
                                                 <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700"><h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Agency Address</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-6">{renderFields(tabFieldGroups.agencyAddress)}</div></FrappeCard>

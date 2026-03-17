@@ -3,11 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AppSidebar } from "../../components/RndSidebar";
 import { useFrappePostCall, useFrappeGetCall, useFrappeGetDoc } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, UserIcon, EditIcon } from "lucide-react";
+import { CalendarIcon, UserIcon, EditIcon, FileTextIcon, ClipboardListIcon, ShoppingCartIcon, LayoutGridIcon, FileIcon, ExternalLinkIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
 import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { Textarea } from '@/components/ui/textarea';
-import { directPurchaseAPI } from '@/services/apiService';
+import { directPurchaseAPI, p11FormAPI, sanctionSheetAPI } from '@/services/apiService';
 import { DepartmentName } from '@/components/DepartmentName';
 import { BudgetHeadName } from '@/components/BudgetHeadName';
 
@@ -33,38 +33,77 @@ interface ActivityItem {
     comment_type: string;
 }
 
-// Frappe-styled components
-const FrappeCard = ({ title, children, className = '' }: { title?: string; children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm", className)}>
+type TabId = 'details' | 'p11' | 'sanction' | 'po';
+
+// --- SHARED CONSTANTS ---
+const EXCLUDED_FIELDS = [
+    'doctype', 'docstatus', 'idx', 'owner', 'creation', 'modified',
+    'modified_by', '_user_tags', '_comments', '_assign', '_liked_by', 'name',
+    'workflow_state', '_seen', 'parent', 'parenttype', 'parentfield',
+];
+
+// --- HELPERS ---
+const formatFieldName = (key: string) =>
+    key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+const formatDate = (val: string, format: 'long' | 'short' = 'long') =>
+    new Date(val).toLocaleDateString('en-IN', format === 'long'
+        ? { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+        : { day: 'numeric', month: 'short', year: 'numeric' });
+
+// --- REUSABLE UI PRIMITIVES ---
+
+const ClaudeCard = ({
+    title,
+    children,
+    className = '',
+    accentTop = false,
+}: {
+    title?: string;
+    children: React.ReactNode;
+    className?: string;
+    accentTop?: boolean;
+}) => (
+    <div className={cn(
+        "rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm",
+        accentTop && "border-t-[3px] border-t-[#D97757]",
+        className
+    )}>
         {title && (
-            <div className="px-6 py-4 border-b border-zinc-300 dark:border-zinc-700">
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">{title}</h3>
+            <div className="px-6 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                <h3 className="font-serif text-base font-medium tracking-tight text-[#3F3F46] dark:text-[#E4E4E7] uppercase">
+                    {title}
+                </h3>
             </div>
         )}
-        <div className="p-6">
-            {children}
-        </div>
+        <div className="p-6">{children}</div>
     </div>
 );
 
-const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost' }: {
+const ClaudeButton = ({
+    children,
+    onClick,
+    disabled,
+    className,
+    variant = 'outline',
+}: {
     children: React.ReactNode;
     onClick?: () => void;
     disabled?: boolean;
     className?: string;
-    variant?: 'primary' | 'ghost' | 'outline' | 'action';
+    variant?: 'primary' | 'outline' | 'ghost' | 'action';
 }) => (
     <button
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
-            "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
-            variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
-            variant === 'ghost' && "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
-            variant === 'outline' && "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
-            variant === 'action' && "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
-            "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
+            "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200 dark:focus-visible:ring-zinc-700",
+            "disabled:opacity-50 disabled:cursor-not-allowed",
+            variant === 'primary' && "bg-[#D97757] text-white hover:opacity-90 shadow-sm",
+            variant === 'action' && "bg-[#D97757] text-white hover:opacity-90 shadow-sm border border-[#C66A4E]",
+            variant === 'outline' && "border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-800",
+            variant === 'ghost' && "text-[#71717A] dark:text-[#A1A1AA] hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[#3F3F46] dark:hover:text-[#E4E4E7]",
             className
         )}
     >
@@ -72,61 +111,306 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
     </button>
 );
 
+// --- FIELD TYPE HELPERS ---
+const isFilePath = (val: any): boolean => {
+    if (typeof val !== 'string') return false;
+    return val.startsWith('/private/files/') || val.startsWith('/files/') ||
+        /\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|zip)$/i.test(val);
+};
+
+const isAmountField = (key: string): boolean =>
+    /amount|total|price|estimate|budget|salary|fee|cost/i.test(key);
+
+const isBoolCheck = (key: string, val: any): boolean =>
+    (val === 0 || val === 1) &&
+    (key.startsWith('dec_') || key.startsWith('is_') || key.startsWith('has_') || key.startsWith('declaration_'));
+
+const formatINR = (val: any): string =>
+    Number(val).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+
+const getFileName = (path: string): string => path.split('/').pop() || path;
+
+// --- DOCUMENT VIEWER ---
+// Renders any Frappe document with smart field-type detection, a financial KPI strip,
+// sectioned layout (Info / Declarations / Attachments) and enhanced child tables.
+const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
+    const allScalar = Object.entries(data).filter(([key, value]) => {
+        if (EXCLUDED_FIELDS.includes(key)) return false;
+        if (key.startsWith('_')) return false;
+        if (Array.isArray(value)) return false;
+        if (value === null || value === undefined || value === '') return false;
+        return true;
+    });
+
+    const childTables = Object.entries(data).filter(
+        ([, value]) => Array.isArray(value) && (value as any[]).length > 0
+    );
+
+    // Partition scalar fields into logical groups
+    const fileFields    = allScalar.filter(([k, v]) => isFilePath(v) || k.startsWith('upload_'));
+    const boolFields    = allScalar.filter(([k, v]) => isBoolCheck(k, v));
+    const amountFields  = allScalar.filter(([k, v]) => isAmountField(k) && !isFilePath(v) && !isBoolCheck(k, v));
+    const infoFields    = allScalar.filter(([k, v]) =>
+        !isFilePath(v) && !isBoolCheck(k, v) && !isAmountField(k) && !k.startsWith('upload_')
+    );
+
+    const renderValue = (key: string, value: any): React.ReactNode => {
+        if (value === null || value === undefined || value === '') return <span className="text-[#71717A] dark:text-[#A1A1AA]">—</span>;
+
+        if (isFilePath(value)) {
+            return (
+                <a
+                    href={String(value)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-medium max-w-full"
+                >
+                    <FileIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span className="truncate">{getFileName(String(value))}</span>
+                    <ExternalLinkIcon className="h-3 w-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </a>
+            );
+        }
+
+        if (isBoolCheck(key, value)) {
+            return value === 1
+                ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"><CheckCircle2Icon className="w-3.5 h-3.5" />Yes</span>
+                : <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]"><XCircleIcon className="w-3.5 h-3.5" />No</span>;
+        }
+
+        if (isAmountField(key) && !isNaN(Number(value))) {
+            return <span className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{formatINR(value)}</span>;
+        }
+
+        if (key === 'applicant_department' || key === 'applying_for_department') {
+            return <DepartmentName name={value} />;
+        }
+        if (key === 'account_head') {
+            return <BudgetHeadName id={value} />;
+        }
+        if (typeof value === 'object') return JSON.stringify(value);
+        return String(value);
+    };
+
+    if (allScalar.length === 0 && childTables.length === 0) {
+        return <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">No data to display.</p>;
+    }
+
+    // KPI strip — show if any amount fields exist
+    const kpiAmounts = amountFields.slice(0, 3);
+
+    return (
+        <div className="space-y-8">
+            {/* Financial KPI strip */}
+            {kpiAmounts.length > 0 && (
+                <div className={cn(
+                    "grid gap-4",
+                    kpiAmounts.length === 1 && "grid-cols-1 max-w-xs",
+                    kpiAmounts.length === 2 && "grid-cols-2",
+                    kpiAmounts.length >= 3 && "grid-cols-3",
+                )}>
+                    {kpiAmounts.map(([key, value]) => (
+                        <div key={key} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/50 px-5 py-4">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1.5">
+                                {formatFieldName(key)}
+                            </p>
+                            <p className="text-xl font-serif font-medium text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
+                                {!isNaN(Number(value)) ? formatINR(value) : String(value)}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Main info fields */}
+            {infoFields.length > 0 && (
+                <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                        Information
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5">
+                        {infoFields.map(([key, value]) => (
+                            <div key={key} className="flex flex-col gap-1">
+                                <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
+                                    {formatFieldName(key)}
+                                </p>
+                                <p className="text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-relaxed">
+                                    {renderValue(key, value)}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Declarations */}
+            {boolFields.length > 0 && (
+                <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                        Declarations
+                    </h4>
+                    <div className="space-y-3">
+                        {boolFields.map(([key, value]) => (
+                            <div key={key} className="flex items-center justify-between py-2.5 px-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/40">
+                                <span className="text-sm text-[#3F3F46] dark:text-[#E4E4E7] font-medium">
+                                    {formatFieldName(key)}
+                                </span>
+                                {renderValue(key, value)}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Attachments */}
+            {fileFields.length > 0 && (
+                <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                        Attachments
+                    </h4>
+                    <div className="flex flex-col gap-2">
+                        {fileFields.map(([key, value]) => (
+                            <div key={key} className="flex items-center gap-3">
+                                <span className="text-xs text-[#71717A] dark:text-[#A1A1AA] w-36 shrink-0 font-medium uppercase tracking-wider">
+                                    {formatFieldName(key)}
+                                </span>
+                                {renderValue(key, value)}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Child tables */}
+            {childTables.map(([key, rows]) => {
+                const cols = Object.keys((rows as any[])[0] || {}).filter(
+                    k => !k.startsWith('_') && !EXCLUDED_FIELDS.includes(k)
+                );
+                const hasAmountCols = cols.some(c => isAmountField(c));
+                const colTotals: Record<string, number> = {};
+                if (hasAmountCols) {
+                    cols.forEach(c => {
+                        if (isAmountField(c)) {
+                            colTotals[c] = (rows as any[]).reduce((s, r) => s + (parseFloat(r[c]) || 0), 0);
+                        }
+                    });
+                }
+
+                return (
+                    <div key={key}>
+                        <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-3 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            {formatFieldName(key)}
+                        </h4>
+                        <div className="overflow-x-auto rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50/80 dark:bg-zinc-800/50">
+                                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] w-10">
+                                            #
+                                        </th>
+                                        {cols.map(col => (
+                                            <th key={col} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
+                                                {formatFieldName(col)}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(rows as any[]).map((row, idx) => (
+                                        <tr
+                                            key={idx}
+                                            className={cn(
+                                                "border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors",
+                                                idx % 2 === 1 && "bg-[#FAFAF9]/60 dark:bg-zinc-800/20"
+                                            )}
+                                        >
+                                            <td className="px-4 py-3 text-xs text-[#71717A] dark:text-[#A1A1AA] font-mono">
+                                                {idx + 1}
+                                            </td>
+                                            {cols.map(k => (
+                                                <td key={k} className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                    {isAmountField(k) && !isNaN(Number(row[k]))
+                                                        ? <span className="font-medium">{formatINR(row[k])}</span>
+                                                        : row[k] !== null && row[k] !== undefined ? String(row[k]) : '—'
+                                                    }
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                    {hasAmountCols && (
+                                        <tr className="border-t-2 border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800/60 font-semibold">
+                                            <td className="px-4 py-3 text-xs text-[#71717A] dark:text-[#A1A1AA]" />
+                                            {cols.map(c => (
+                                                <td key={c} className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                    {colTotals[c] != null
+                                                        ? <span className="font-semibold text-[#D97757]">{formatINR(colTotals[c])}</span>
+                                                        : ''}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
+// --- ACTIVITY STREAM ---
 const ActivityStream = ({ doctype, docname }: { doctype: string; docname: string }) => {
     const { data: activityData, mutate: refetchActivity } = useFrappeGetCall<{ message: ActivityItem[] }>(
         "rndopsapp.rndopsapp.api.get_project_activity",
         { doctype, docname }
     );
 
-    useEffect(() => {
-        refetchActivity();
-    }, [docname]);
+    useEffect(() => { refetchActivity(); }, [docname]);
 
     return (
-        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-            {activityData?.message && activityData.message.length > 0 ? (
+        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+            {activityData?.message?.length ? (
                 activityData.message.map((activity, idx) => (
                     <div key={idx} className="flex items-start gap-3">
-                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-[#D97757] text-xs">
-                            {activity.owner?.charAt(0).toUpperCase() || "U"}
+                        <div className="flex-shrink-0 h-7 w-7 rounded-full bg-[#FAFAF9] dark:bg-zinc-800 border border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-center font-semibold text-[#D97757] text-xs">
+                            {activity.owner?.charAt(0).toUpperCase() || 'U'}
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                             <div
-                                className="text-sm text-zinc-800 dark:text-zinc-200 line-clamp-2 prose prose-sm max-w-none"
+                                className="text-sm text-[#3F3F46] dark:text-[#E4E4E7] line-clamp-2 prose prose-sm max-w-none"
                                 dangerouslySetInnerHTML={{ __html: activity.content }}
                             />
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                {activity.owner} · {activity.creation ? new Date(activity.creation).toLocaleString() : ''}
+                            <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
+                                {activity.owner} · {activity.creation ? formatDate(activity.creation, 'long') : ''}
                             </p>
                         </div>
                     </div>
                 ))
             ) : (
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">No recent activity found.</p>
+                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">No recent activity.</p>
             )}
         </div>
     );
 };
 
-// --- Workflow Action Buttons Component ---
-const DirectPurchaseActionButtons = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
+// --- WORKFLOW ACTION BUTTONS ---
+const DirectPurchaseActionButtons = ({
+    docname,
+    onActionComplete,
+}: {
+    docname: string;
+    onActionComplete: () => void;
+}) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(directPurchaseAPI.getWorkflowActions);
     const { call: performAction } = useFrappePostCall(directPurchaseAPI.performAction);
 
     useEffect(() => {
-        const loadActions = async () => {
-            try {
-                const res = await fetchActions({ docname });
-                if (res?.message) {
-                    setActions(Array.isArray(res.message) ? res.message : []);
-                }
-            } catch (err) {
-                console.error("Error fetching workflow actions:", err);
-            }
-        };
-        loadActions();
+        fetchActions({ docname }).then(res => {
+            if (res?.message) setActions(Array.isArray(res.message) ? res.message : []);
+        }).catch(err => console.error("Error fetching workflow actions:", err));
     }, [docname]);
 
     const handleAction = async (action: string) => {
@@ -144,68 +428,467 @@ const DirectPurchaseActionButtons = ({ docname, onActionComplete }: { docname: s
                 onActionComplete();
             }
         } catch (err: any) {
-            console.error("Action error:", err);
-            alert(`Action failed: ${err.message || "Unknown error"}`);
+            alert(`Action failed: ${err.message || 'Unknown error'}`);
         } finally {
             setIsPerforming(false);
         }
     };
 
-    if (actions.length === 0) return null;
+    if (!actions.length) return null;
 
     return (
         <div className="flex flex-wrap gap-2">
             {actions.map(action => (
-                <FrappeButton
+                <ClaudeButton
                     key={action}
                     variant="action"
                     onClick={() => handleAction(action)}
                     disabled={isPerforming}
                 >
-                    {isPerforming ? "Processing..." : action}
-                </FrappeButton>
+                    {isPerforming ? 'Processing…' : action}
+                </ClaudeButton>
             ))}
         </div>
     );
 };
 
+// --- P11 FORM WORKFLOW ACTION BUTTONS ---
+const P11FormActionButtons = ({
+    docname,
+    onActionComplete,
+}: {
+    docname: string;
+    onActionComplete: () => void;
+}) => {
+    const [actions, setActions] = useState<string[]>([]);
+    const [isPerforming, setIsPerforming] = useState(false);
+    const [showCommentModal, setShowCommentModal] = useState(false);
+    const [selectedAction, setSelectedAction] = useState('');
+    const [comment, setComment] = useState('');
 
+    const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
+        p11FormAPI.getWorkflowActions
+    );
+    const { call: performAction } = useFrappePostCall(p11FormAPI.performAction);
+
+    useEffect(() => {
+        if (docname) {
+            fetchActions({ docname })
+                .then(res => {
+                    if (res?.message) {
+                        setActions(Array.isArray(res.message) ? res.message : []);
+                    }
+                })
+                .catch(err => console.error("Error fetching P11 workflow actions:", err));
+        }
+    }, [docname]);
+
+    const handleActionClick = (action: string) => {
+        // Actions that need comment/confirmation
+        const needsComment = action.toLowerCase().includes('reject') ||
+                            action.toLowerCase().includes('put back');
+
+        if (needsComment) {
+            setSelectedAction(action);
+            setShowCommentModal(true);
+        } else {
+            handleActionConfirm(action, '');
+        }
+    };
+
+    const handleActionConfirm = async (action: string, actionComment: string) => {
+        setIsPerforming(true);
+        setShowCommentModal(false);
+
+        try {
+            const result: any = await performAction({
+                docname,
+                action,
+                comment: actionComment
+            });
+
+            if (result?.message?.status === 'success') {
+                alert(result.message.message || `Action "${action}" completed successfully.`);
+                onActionComplete();
+            } else if (result?.message?.status === 'error') {
+                alert(`Error: ${result.message.message}`);
+            } else {
+                alert(`Action "${action}" completed.`);
+                onActionComplete();
+            }
+        } catch (err: any) {
+            alert(`Action failed: ${err.message || 'Unknown error'}`);
+        } finally {
+            setIsPerforming(false);
+            setComment('');
+        }
+    };
+
+    const getActionButtonClass = (action: string): string => {
+        const actionLower = action.toLowerCase();
+        if (actionLower.includes('reject')) {
+            return 'bg-red-600 hover:bg-red-700 text-white border-red-700';
+        }
+        if (actionLower.includes('approve') || actionLower.includes('verify')) {
+            return 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700';
+        }
+        if (actionLower.includes('generate')) {
+            return 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700';
+        }
+        return '';
+    };
+
+    if (!actions.length) return null;
+
+    return (
+        <>
+            <div className="mt-6 pt-6 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-3">
+                    Workflow Actions
+                </p>
+                <div className="flex flex-wrap gap-2">
+                    {actions.map(action => (
+                        <ClaudeButton
+                            key={action}
+                            variant="action"
+                            className={getActionButtonClass(action)}
+                            onClick={() => handleActionClick(action)}
+                            disabled={isPerforming}
+                        >
+                            {isPerforming ? 'Processing…' : action}
+                        </ClaudeButton>
+                    ))}
+                </div>
+            </div>
+
+            {/* Comment Modal */}
+            {showCommentModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-6 rounded-xl shadow-lg w-full max-w-md">
+                        <h3 className="text-lg font-semibold text-[#3F3F46] dark:text-[#E4E4E7] mb-4">
+                            Confirm: {selectedAction}
+                        </h3>
+                        <Textarea
+                            rows={4}
+                            placeholder="Add a comment (optional)..."
+                            value={comment}
+                            onChange={e => setComment(e.target.value)}
+                            className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
+                        />
+                        <div className="flex justify-end gap-2">
+                            <ClaudeButton
+                                variant="outline"
+                                onClick={() => {
+                                    setShowCommentModal(false);
+                                    setComment('');
+                                }}
+                            >
+                                Cancel
+                            </ClaudeButton>
+                            <ClaudeButton
+                                variant="action"
+                                onClick={() => handleActionConfirm(selectedAction, comment)}
+                            >
+                                Confirm
+                            </ClaudeButton>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+
+// --- SANCTION SHEET WORKFLOW ACTION BUTTONS ---
+const SanctionSheetActionButtons = ({
+    docname,
+    onActionComplete,
+}: {
+    docname: string;
+    onActionComplete: () => void;
+}) => {
+    const [actions, setActions] = useState<string[]>([]);
+    const [isPerforming, setIsPerforming] = useState(false);
+    const [showCommentModal, setShowCommentModal] = useState(false);
+    const [selectedAction, setSelectedAction] = useState('');
+    const [comment, setComment] = useState('');
+
+    const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
+        sanctionSheetAPI.getWorkflowActions
+    );
+    const { call: performAction } = useFrappePostCall(sanctionSheetAPI.performAction);
+
+    useEffect(() => {
+        if (docname) {
+            fetchActions({ docname })
+                .then(res => {
+                    if (res?.message) {
+                        setActions(Array.isArray(res.message) ? res.message : []);
+                    }
+                })
+                .catch(err => console.error("Error fetching Sanction Sheet workflow actions:", err));
+        }
+    }, [docname]);
+
+    const handleActionClick = (action: string) => {
+        const needsComment = action.toLowerCase().includes('reject') ||
+                            action.toLowerCase().includes('put back');
+
+        if (needsComment) {
+            setSelectedAction(action);
+            setShowCommentModal(true);
+        } else {
+            handleActionConfirm(action, '');
+        }
+    };
+
+    const handleActionConfirm = async (action: string, actionComment: string) => {
+        setIsPerforming(true);
+        setShowCommentModal(false);
+
+        try {
+            const result: any = await performAction({
+                docname,
+                action,
+                comment: actionComment
+            });
+
+            if (result?.message?.status === 'success') {
+                alert(result.message.message || `Action "${action}" completed successfully.`);
+                onActionComplete();
+            } else if (result?.message?.status === 'error') {
+                alert(`Error: ${result.message.message}`);
+            } else {
+                alert(`Action "${action}" completed.`);
+                onActionComplete();
+            }
+        } catch (err: any) {
+            alert(`Action failed: ${err.message || 'Unknown error'}`);
+        } finally {
+            setIsPerforming(false);
+            setComment('');
+        }
+    };
+
+    const getActionButtonClass = (action: string): string => {
+        const actionLower = action.toLowerCase();
+        if (actionLower.includes('reject')) {
+            return 'bg-red-600 hover:bg-red-700 text-white border-red-700';
+        }
+        if (actionLower.includes('verify') || actionLower.includes('print')) {
+            return 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700';
+        }
+        if (actionLower.includes('generate')) {
+            return 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700';
+        }
+        return '';
+    };
+
+    if (!actions.length) return null;
+
+    return (
+        <>
+            <div className="mt-6 pt-6 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
+                <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-3">
+                    Workflow Actions
+                </p>
+                <div className="flex flex-wrap gap-2">
+                    {actions.map(action => (
+                        <ClaudeButton
+                            key={action}
+                            variant="action"
+                            className={getActionButtonClass(action)}
+                            onClick={() => handleActionClick(action)}
+                            disabled={isPerforming}
+                        >
+                            {isPerforming ? 'Processing…' : action}
+                        </ClaudeButton>
+                    ))}
+                </div>
+            </div>
+
+            {/* Comment Modal */}
+            {showCommentModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-6 rounded-xl shadow-lg w-full max-w-md">
+                        <h3 className="text-lg font-semibold text-[#3F3F46] dark:text-[#E4E4E7] mb-4">
+                            Confirm: {selectedAction}
+                        </h3>
+                        <Textarea
+                            rows={4}
+                            placeholder="Add a comment (optional)..."
+                            value={comment}
+                            onChange={e => setComment(e.target.value)}
+                            className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
+                        />
+                        <div className="flex justify-end gap-2">
+                            <ClaudeButton
+                                variant="outline"
+                                onClick={() => {
+                                    setShowCommentModal(false);
+                                    setComment('');
+                                }}
+                            >
+                                Cancel
+                            </ClaudeButton>
+                            <ClaudeButton
+                                variant="action"
+                                onClick={() => handleActionConfirm(selectedAction, comment)}
+                            >
+                                Confirm
+                            </ClaudeButton>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+
+// --- LINKED DOCUMENT TAB ---
+// Fetches a single linked Frappe document via get_list + get_doc, then renders it.
+const LinkedDocTab = ({
+    doctype,
+    filterField,
+    filterValue,
+    emptyTitle,
+    emptyDescription,
+    onDataReload,
+}: {
+    doctype: string;
+    filterField: string;
+    filterValue: string;
+    emptyTitle: string;
+    emptyDescription: string;
+    onDataReload?: () => void;
+}) => {
+    const { data: listData, isLoading: listLoading, mutate: reloadList } = useFrappeGetCall<{ message: { name: string }[] }>(
+        'frappe.client.get_list',
+        {
+            doctype,
+            filters: JSON.stringify([[filterField, '=', filterValue]]),
+            fields: JSON.stringify(['name']),
+            limit: 1,
+        }
+    );
+
+    const docName = listData?.message?.[0]?.name || '';
+
+    const { data: docData, isLoading: docLoading, mutate: reloadDoc } = useFrappeGetDoc<Record<string, any>>(
+        doctype,
+        docName
+    );
+
+    // Reload handler
+    const handleReload = () => {
+        reloadList();
+        reloadDoc();
+        if (onDataReload) onDataReload();
+    };
+
+    if (listLoading || docLoading) {
+        return (
+            <div className="flex items-center justify-center py-16">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#D97757] border-t-transparent" />
+            </div>
+        );
+    }
+
+    if (!docName || !docData) {
+        return (
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+                <FileTextIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
+                <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">{emptyTitle}</p>
+                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">{emptyDescription}</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-2 mb-5">
+                <span className="text-xs font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]">
+                    {docName}
+                </span>
+                {docData.workflow_state && (
+                    <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                        {docData.workflow_state}
+                    </span>
+                )}
+            </div>
+
+            <DocumentViewer data={docData} />
+
+            {/* Render workflow actions based on doctype */}
+            {doctype === 'P_11 Form' && (
+                <P11FormActionButtons
+                    docname={docName}
+                    onActionComplete={handleReload}
+                />
+            )}
+
+            {doctype === 'Sanction Sheet' && (
+                <SanctionSheetActionButtons
+                    docname={docName}
+                    onActionComplete={handleReload}
+                />
+            )}
+        </div>
+    );
+};
+
+// --- TABS ---
+interface Tab {
+    id: TabId;
+    label: string;
+    icon: React.ReactNode;
+}
+
+const TABS: Tab[] = [
+    { id: 'details', label: 'Details', icon: <LayoutGridIcon className="w-4 h-4" /> },
+    { id: 'p11', label: 'P-11 Form', icon: <ClipboardListIcon className="w-4 h-4" /> },
+    { id: 'sanction', label: 'Sanction Sheet', icon: <FileTextIcon className="w-4 h-4" /> },
+    { id: 'po', label: 'Purchase Order', icon: <ShoppingCartIcon className="w-4 h-4" /> },
+];
+
+// --- MAIN COMPONENT ---
 const DirectPurchaseDetails: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
-    const { data, error, isLoading: loading, mutate: reloadData } = useFrappeGetDoc<DirectPurchaseData>(
-        'Direct Purchase',
-        id || ''
-    );
 
-    // Sidebar State
-    const [sidebarComment, setSidebarComment] = useState("");
+    const {
+        data,
+        error,
+        isLoading: loading,
+        mutate: reloadData,
+    } = useFrappeGetDoc<DirectPurchaseData>('Direct Purchase', id || '');
+
+    const [activeTab, setActiveTab] = useState<TabId>('details');
+    const [sidebarComment, setSidebarComment] = useState('');
     const [isAddingComment, setIsAddingComment] = useState(false);
     const [isGeneratingPO, setIsGeneratingPO] = useState(false);
     const [isGeneratingP11, setIsGeneratingP11] = useState(false);
 
-    const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+    const { call: addComment } = useFrappePostCall('rndopsapp.rndopsapp.api.add_project_comment');
     const { call: generatePO } = useFrappePostCall(directPurchaseAPI.generatePurchaseOrder);
     const { call: generateP11 } = useFrappePostCall(directPurchaseAPI.generateP11Form);
 
-    const loadData = () => {
-        if (id) reloadData();
-    };
+    const loadData = () => { if (id) reloadData(); };
 
     const handleSidebarCommentSubmit = async () => {
         if (!sidebarComment.trim() || !id) return;
         setIsAddingComment(true);
         try {
             await addComment({
-                reference_doctype: "Direct Purchase",
+                reference_doctype: 'Direct Purchase',
                 reference_name: id,
                 content: sidebarComment,
-                comment_type: "Comment"
+                comment_type: 'Comment',
             });
-            setSidebarComment("");
+            setSidebarComment('');
             loadData();
-        } catch (error) {
-            console.error("Error adding comment:", error);
+        } catch (err) {
+            console.error('Error adding comment:', err);
         } finally {
             setIsAddingComment(false);
         }
@@ -217,14 +900,13 @@ const DirectPurchaseDetails: React.FC = () => {
         try {
             const res = await generatePO({ docname: id });
             if (res?.message?.status === 'success') {
-                alert("Purchase Order generated successfully! The document state has been updated to POGenerated.");
+                alert('Purchase Order generated successfully!');
                 loadData();
             } else {
-                throw new Error(res?.message?.message || "Failed to generate PO");
+                throw new Error(res?.message?.message || 'Failed to generate PO');
             }
         } catch (err: any) {
-            console.error("PO Generation Error:", err);
-            alert(`Error: ${err.message || "Could not generate Purchase Order."}`);
+            alert(`Error: ${err.message || 'Could not generate Purchase Order.'}`);
         } finally {
             setIsGeneratingPO(false);
         }
@@ -236,14 +918,13 @@ const DirectPurchaseDetails: React.FC = () => {
         try {
             const res = await generateP11({ docname: id });
             if (res?.message?.status === 'success') {
-                alert("P-11 Form generated successfully!");
+                alert('P-11 Form generated successfully!');
                 loadData();
             } else {
-                throw new Error(res?.message?.message || "Failed to generate P-11 Form");
+                throw new Error(res?.message?.message || 'Failed to generate P-11 Form');
             }
         } catch (err: any) {
-            console.error("P-11 Generation Error:", err);
-            alert(`Error: ${err.message || "Could not generate P-11 Form."}`);
+            alert(`Error: ${err.message || 'Could not generate P-11 Form.'}`);
         } finally {
             setIsGeneratingP11(false);
         }
@@ -253,232 +934,217 @@ const DirectPurchaseDetails: React.FC = () => {
 
     if (error || !data) {
         return (
-            <div className="flex h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-800/50">
-                <div className="text-center">
-                    <h2 className="text-xl font-bold text-red-600 mb-2">Error</h2>
-                    <p className="text-zinc-600 dark:text-zinc-400">{error ? (error as any).message || "Failed to load document" : "Document not found"}</p>
-                    <button onClick={() => navigate(-1)} className="mt-4 text-[#D97757] hover:underline">Go Back</button>
+            <div className="flex h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
+                <div className="text-center space-y-2">
+                    <h2 className="font-serif text-xl font-medium text-red-600">Unable to load document</h2>
+                    <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
+                        {error ? (error as any).message || 'Failed to load document' : 'Document not found'}
+                    </p>
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="mt-4 text-sm text-[#D97757] hover:underline"
+                    >
+                        Go Back
+                    </button>
                 </div>
             </div>
         );
     }
 
-    // Dynamically render all fields from the document
-    const renderFieldValue = (key: string, value: any) => {
-        if (value === null || value === undefined || value === '') return '-';
-        if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-        if (value === 1 || value === 0) {
-            // Check if it looks like a boolean field
-            if (key.startsWith('declaration_') || key.startsWith('is_') || key.startsWith('has_')) {
-                return value === 1 ? 'Yes' : 'No';
-            }
-        }
-        if (Array.isArray(value)) return null; // Skip arrays (child tables) in grid display
-        if (typeof value === 'object') return JSON.stringify(value);
-
-        // Resolve specific Reference IDs to Names
-        if (key === 'applicant_department' || key === 'applying_for_department') {
-            return <DepartmentName name={value} />;
-        }
-        if (key === 'account_head') {
-            return <BudgetHeadName id={value} />;
-        }
-
-        return String(value);
-    };
-
-    // Filter fields to display (exclude internal/meta fields)
-    const excludedFields = ['doctype', 'docstatus', 'idx', 'owner', 'creation', 'modified',
-        'modified_by', '_user_tags', '_comments', '_assign', '_liked_by', 'name',
-        'workflow_state', '_seen'];
-
-    const displayFields = Object.entries(data)
-        .filter(([key, value]) => {
-            if (excludedFields.includes(key)) return false;
-            if (key.startsWith('_')) return false;
-            if (Array.isArray(value)) return false; // Handle child tables separately
-            if (value === null || value === undefined || value === '') return false;
-            return true;
-        });
-
-    // Find child tables
-    const childTables = Object.entries(data)
-        .filter(([, value]) => Array.isArray(value) && value.length > 0);
-
-    // Format field name for display
-    const formatFieldName = (key: string) => {
-        return key
-            .replace(/_/g, ' ')
-            .replace(/\b\w/g, l => l.toUpperCase());
-    };
-
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen font-sans">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
             <AppSidebar />
 
             <main className="transition-all duration-300 ease-in-out p-6 md:p-10">
-                {/* Header Actions */}
+                {/* Page Header */}
                 <PageHeader
                     title={data.name}
                     status={data.workflow_state}
                     projectName={data.project_name}
                 >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 flex-wrap">
                         {data.workflow_state === 'Draft' && id && (
-                            <button
+                            <ClaudeButton
+                                variant="outline"
                                 onClick={() => navigate(`/direct-purchase?edit=${id}`)}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#D97757] shadow-md transition-all"
                             >
-                                <EditIcon className="w-4 h-4" />
+                                <EditIcon className="w-3.5 h-3.5" />
                                 Edit
-                            </button>
+                            </ClaudeButton>
                         )}
-                        {/* Custom Form Generation Buttons */}
                         {data.workflow_state === 'Approved' && id && (
-                            <button
+                            <ClaudeButton
+                                variant="primary"
                                 onClick={handleGenerateP11}
                                 disabled={isGeneratingP11}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-700 shadow-md transition-all disabled:opacity-50"
                             >
-                                {isGeneratingP11 ? 'Generating P-11...' : 'Generate P-11 Form'}
-                            </button>
+                                {isGeneratingP11 ? 'Generating…' : 'Generate P-11 Form'}
+                            </ClaudeButton>
                         )}
                         {data.workflow_state === 'SancSheetApproved' && id && (
-                            <button
+                            <ClaudeButton
+                                variant="primary"
                                 onClick={handleGeneratePO}
                                 disabled={isGeneratingPO}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 shadow-md transition-all disabled:opacity-50"
                             >
-                                {isGeneratingPO ? 'Generating PO...' : 'Generate Purchase Order'}
-                            </button>
+                                {isGeneratingPO ? 'Generating…' : 'Generate Purchase Order'}
+                            </ClaudeButton>
                         )}
                         {data.workflow_state === 'POGenerated' && id && (
-                            <button
-                                onClick={() => alert("PO Print functionality will be integrated here.")}
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 shadow-md transition-all"
+                            <ClaudeButton
+                                variant="outline"
+                                onClick={() => alert('PO Print functionality will be integrated here.')}
                             >
                                 Print PO
-                            </button>
+                            </ClaudeButton>
                         )}
-                        {id && <DirectPurchaseActionButtons docname={id} onActionComplete={() => loadData()} />}
+                        {id && (
+                            <DirectPurchaseActionButtons
+                                docname={id}
+                                onActionComplete={loadData}
+                            />
+                        )}
                     </div>
                 </PageHeader>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Main Content - Left Column (2/3 width) */}
-                    <div className="lg:col-span-2 space-y-8">
-                        {/* Document Details Card */}
-                        <FrappeCard title="Purchase Details" className="border-t-4 border-t-[#D97757]">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {displayFields.map(([key, value]) => (
-                                    <div key={key}>
-                                        <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
-                                            {formatFieldName(key)}
-                                        </label>
-                                        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-                                            {renderFieldValue(key, value)}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </FrappeCard>
+                    {/* Main content column */}
+                    <div className="lg:col-span-2 space-y-0">
+                        {/* Tab navigation */}
+                        <div className="flex items-center border-b border-[#E4E4E7] dark:border-[#3F3F46] mb-6 overflow-x-auto">
+                            {TABS.map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={cn(
+                                        "inline-flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-150",
+                                        activeTab === tab.id
+                                            ? "border-[#D97757] text-[#D97757]"
+                                            : "border-transparent text-[#71717A] dark:text-[#A1A1AA] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7] hover:border-[#E4E4E7] dark:hover:border-[#3F3F46]"
+                                    )}
+                                >
+                                    {tab.icon}
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
 
-                        {/* Child Tables */}
-                        {childTables.map(([key, rows]) => (
-                            <FrappeCard key={key} title={formatFieldName(key)}>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                                                {Object.keys((rows as any[])[0] || {})
-                                                    .filter(k => !k.startsWith('_') && !excludedFields.includes(k) && k !== 'parent' && k !== 'parenttype' && k !== 'parentfield')
-                                                    .map(col => (
-                                                        <th key={col} className="px-3 py-2 text-left text-xs font-bold text-zinc-500 uppercase">
-                                                            {formatFieldName(col)}
-                                                        </th>
-                                                    ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {(rows as any[]).map((row, idx) => (
-                                                <tr key={idx} className="border-b border-zinc-100 dark:border-zinc-800">
-                                                    {Object.entries(row)
-                                                        .filter(([k]) => !k.startsWith('_') && !excludedFields.includes(k) && k !== 'parent' && k !== 'parenttype' && k !== 'parentfield')
-                                                        .map(([k, v]) => (
-                                                            <td key={k} className="px-3 py-2 text-zinc-700 dark:text-zinc-300">
-                                                                {v !== null && v !== undefined ? String(v) : '-'}
-                                                            </td>
-                                                        ))}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                        {/* Tab content */}
+                        <ClaudeCard
+                            title={TABS.find(t => t.id === activeTab)?.label}
+                            accentTop={activeTab === 'details'}
+                        >
+                            {activeTab === 'details' && (
+                                <DocumentViewer data={data} />
+                            )}
+
+                            {activeTab === 'p11' && id && (
+                                <LinkedDocTab
+                                    doctype="P_11 Form"
+                                    filterField="app_id"
+                                    filterValue={id}
+                                    emptyTitle="No P-11 Form Generated Yet"
+                                    emptyDescription="The P-11 Form is generated after the Direct Purchase is approved by the Associate Dean."
+                                    onDataReload={loadData}
+                                />
+                            )}
+
+                            {activeTab === 'sanction' && id && (
+                                <LinkedDocTab
+                                    doctype="Sanction Sheet"
+                                    filterField="direct_purchase"
+                                    filterValue={id}
+                                    emptyTitle="No Sanction Sheet Generated Yet"
+                                    emptyDescription="The Sanction Sheet is created by RnD Staff after the P-11 Form is verified and approved."
+                                    onDataReload={loadData}
+                                />
+                            )}
+
+                            {activeTab === 'po' && (
+                                <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+                                    <ShoppingCartIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
+                                    <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
+                                        {data.workflow_state === 'POGenerated'
+                                            ? 'Purchase Order Generated'
+                                            : 'Purchase Order Not Yet Generated'}
+                                    </p>
+                                    <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
+                                        {data.workflow_state === 'POGenerated'
+                                            ? 'Use the Print PO button above to print the Purchase Order document.'
+                                            : 'The Purchase Order is generated from this Direct Purchase once the Sanction Sheet is approved.'}
+                                    </p>
+                                    {data.workflow_state === 'POGenerated' && (
+                                        <ClaudeButton
+                                            variant="outline"
+                                            onClick={() => alert('PO Print functionality will be integrated here.')}
+                                            className="mt-2"
+                                        >
+                                            Print PO
+                                        </ClaudeButton>
+                                    )}
                                 </div>
-                            </FrappeCard>
-                        ))}
+                            )}
+                        </ClaudeCard>
                     </div>
 
-                    {/* Sidebar - Right Column (1/3 width) */}
-                    <div className="space-y-6">
-                        {/* Latest Activity Stream */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center justify-between">
-                                Latest Activity
-                            </h3>
-                            {id && <ActivityStream doctype="Direct Purchase" docname={id} />}
-                        </div>
-
-                        {/* Add Comment Section */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3">Add Comment</h3>
-                            <Textarea
-                                className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                                rows={3}
-                                placeholder="Type your comment here..."
-                                value={sidebarComment}
-                                onChange={(e) => setSidebarComment(e.target.value)}
-                            />
-                            <FrappeButton
-                                className="w-full"
-                                variant="primary"
-                                onClick={handleSidebarCommentSubmit}
-                                disabled={isAddingComment}
-                            >
-                                {isAddingComment ? "Submitting..." : "Submit Comment"}
-                            </FrappeButton>
-                        </div>
-
+                    {/* Sidebar */}
+                    <div className="space-y-5">
                         {/* Meta Info */}
-                        <FrappeCard>
+                        <ClaudeCard>
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Created By</label>
-                                    <div className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                        <UserIcon className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
-                                        {data.owner || "-"}
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                        Created By
+                                    </p>
+                                    <div className="flex items-center gap-2 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
+                                        <UserIcon className="w-3.5 h-3.5 text-[#71717A] dark:text-[#A1A1AA]" />
+                                        {data.owner || '—'}
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Created On</label>
-                                    <div className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                        <CalendarIcon className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
-                                        {data.creation ? new Date(data.creation).toLocaleDateString('en-IN', {
-                                            day: 'numeric', month: 'long', year: 'numeric',
-                                            hour: '2-digit', minute: '2-digit'
-                                        }) : "-"}
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                        Created On
+                                    </p>
+                                    <div className="flex items-center gap-2 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
+                                        <CalendarIcon className="w-3.5 h-3.5 text-[#71717A] dark:text-[#A1A1AA]" />
+                                        {data.creation ? formatDate(data.creation, 'long') : '—'}
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Last Modified</label>
-                                    <div className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                                        <CalendarIcon className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
-                                        {data.modified ? new Date(data.modified).toLocaleDateString('en-IN', {
-                                            day: 'numeric', month: 'short', year: 'numeric'
-                                        }) : "-"}
+                                    <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                        Last Modified
+                                    </p>
+                                    <div className="flex items-center gap-2 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
+                                        <CalendarIcon className="w-3.5 h-3.5 text-[#71717A] dark:text-[#A1A1AA]" />
+                                        {data.modified ? formatDate(data.modified, 'short') : '—'}
                                     </div>
                                 </div>
                             </div>
-                        </FrappeCard>
+                        </ClaudeCard>
+
+                        {/* Activity Stream */}
+                        <ClaudeCard title="Activity">
+                            {id && <ActivityStream doctype="Direct Purchase" docname={id} />}
+                        </ClaudeCard>
+
+                        {/* Add Comment */}
+                        <ClaudeCard title="Add Comment">
+                            <Textarea
+                                rows={3}
+                                placeholder="Type your comment…"
+                                value={sidebarComment}
+                                onChange={e => setSidebarComment(e.target.value)}
+                                className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#71717A] dark:placeholder:text-[#A1A1AA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800 focus-visible:border-zinc-400 dark:focus-visible:border-zinc-500 transition-all duration-200 mb-3"
+                            />
+                            <ClaudeButton
+                                variant="primary"
+                                className="w-full"
+                                onClick={handleSidebarCommentSubmit}
+                                disabled={isAddingComment || !sidebarComment.trim()}
+                            >
+                                {isAddingComment ? 'Submitting…' : 'Submit Comment'}
+                            </ClaudeButton>
+                        </ClaudeCard>
                     </div>
                 </div>
             </main>

@@ -192,9 +192,15 @@ const SanctionSheetForm: React.FC = () => {
             if (res?.message?.status === 'success') {
                 const docname = res.message.docname || editDocName;
                 setSavedDocName(docname);
-                alert(editDocName ? "Sanction Sheet updated successfully!" : "Sanction Sheet draft saved successfully!");
+
                 if (editDocName) {
+                    // If editing, go back
+                    alert("Sanction Sheet updated successfully!");
                     navigate(-1);
+                } else {
+                    // If creating new, redirect to edit mode to show workflow actions
+                    alert("Sanction Sheet draft saved successfully! You can now proceed with workflow actions.");
+                    navigate(`/sanction-sheet/${docname}`);
                 }
             } else {
                 throw new Error(res?.message?.message || "Save failed");

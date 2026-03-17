@@ -1474,12 +1474,12 @@ const QuickActions = ({
                             <button
                               onClick={() =>
                                 onNavigate(
-                                  `/p11-form?edit=${item.name}&project=${projectName}`,
+                                  `/p11-form?project_no=${projectNo || projectName}&app_id=${item.name}`,
                                 )
                               }
                               className="text-sm text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline whitespace-nowrap"
                             >
-                              P 11
+                              P-11-Form
                             </button>
                           )}
                         {selectedApplication === "Temporary Advance Apply" && (
@@ -2030,7 +2030,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     setIsLedgerLoading(true);
     setLedgerError(null);
     try {
-      // Use proxy to avoid CORS - /ledger-api proxies to http://172.16.135.27:18083/api
+      // Use proxy to avoid CORS - /ledger-api proxies to http://172.16.117.39:18083/api
       const response = await fetch(
         `/ledger-api/commit-payment-transactions?projectNumber=${data?.project_no || projectName}&accountHeadId=${headId}`,
       );
@@ -2475,8 +2475,25 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   }, [searchParams]);
 
   const handleAddFunds = () => navigate(`/add-fund-received/${projectName}/?project_no=${encodeURIComponent(data?.project_no || '')}`);
+
+  const activeYearCount = useMemo(() => {
+    const rows = data?.proposed_budget_breakup;
+    if (!rows?.length) return 1;
+    const yearKeys = [
+      'first_year_budget', 'second_year_budget', 'third_year_budget',
+      'fourth_year_budget', 'fifth_year_budget',
+    ] as const;
+    for (let i = yearKeys.length - 1; i >= 0; i--) {
+      const total = rows.reduce((sum: number, row: any) => sum + (parseFloat(row[yearKeys[i]]) || 0), 0);
+      if (total > 0) return i + 1;
+    }
+    return 1;
+  }, [data?.proposed_budget_breakup]);
+
   const handleAddSanctionDetails = () => {
-    navigate(`/project-details-overview/${projectName}/add-fund-sanction`);
+    navigate(`/project-details-overview/${projectName}/add-fund-sanction`, {
+      state: { activeYearCount },
+    });
   };
 
   const tabs = [

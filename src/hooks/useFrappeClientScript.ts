@@ -31,6 +31,27 @@ const $ = {
     }
 };
 
+const buildFormDoc = (data: FormData) => {
+    const doc = { ...data };
+
+    Object.entries(data).forEach(([fieldname, value]) => {
+        if (!Array.isArray(value) || value.length === 0) {
+            return;
+        }
+
+        const childDoctype = value.find((row) => row?.doctype)?.doctype;
+        if (childDoctype && doc[childDoctype] === undefined) {
+            doc[childDoctype] = value;
+        }
+
+        if (fieldname.startsWith('table_') && childDoctype && doc[fieldname] === undefined) {
+            doc[fieldname] = value;
+        }
+    });
+
+    return doc;
+};
+
 // --- HOOK ---
 export const useFrappeClientScript = (
     script: string | null | undefined,
@@ -210,7 +231,7 @@ export const useFrappeClientScript = (
     // --- FORM OBJECT PROXY (The 'frm' object passed to scripts) ---
     const createFrm = useCallback(() => ({
         get doc() {
-            return { ...currentFormDataRef.current };
+            return buildFormDoc(currentFormDataRef.current);
         },
         is_new: () => true,
         set_value: (fieldOrObj: string | Record<string, any>, value?: any) => {
@@ -287,12 +308,21 @@ export const useFrappeClientScript = (
 
                 // 2. Check for Child Table events (add/remove)
                 if (Array.isArray(prevVal) && Array.isArray(currentVal)) {
+                    const childDoctype = currentVal.find((row) => row?.doctype)?.doctype
+                        || prevVal.find((row) => row?.doctype)?.doctype;
+
                     if (currentVal.length > prevVal.length) {
                         console.log(`Child table add detected: ${key}`);
                         triggerEvent(`${key}_add`);
+                        if (childDoctype) {
+                            triggerEvent(`${childDoctype}_add`);
+                        }
                     } else if (currentVal.length < prevVal.length) {
                         console.log(`Child table remove detected: ${key}`);
                         triggerEvent(`${key}_remove`);
+                        if (childDoctype) {
+                            triggerEvent(`${childDoctype}_remove`);
+                        }
                     }
 
                     // 3. Check for specific row field changes

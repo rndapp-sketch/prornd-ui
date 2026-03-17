@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
 import { FrappeButton } from './ui/neo-brutalism';
-import { DepartmentName } from './DepartmentName';
 import { CheckCircle } from 'lucide-react';
 
 interface ProjectNumberGenerationFormProps {
@@ -9,7 +8,7 @@ interface ProjectNumberGenerationFormProps {
     onSuccess?: () => void;
 }
 
-const InputField = ({ label, field, type = "text", options = [], formData, onChange, disabled = false }: any) => {
+const InputField = ({ label, field, type = "text", options = [], formData, onChange, disabled = false, maxLength }: any) => {
     const inputClasses = `w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] ${disabled ? 'opacity-60 bg-zinc-100 dark:bg-zinc-800 cursor-not-allowed' : ''}`;
     return (
         <div className="space-y-1">
@@ -33,6 +32,7 @@ const InputField = ({ label, field, type = "text", options = [], formData, onCha
                     className={inputClasses}
                     disabled={disabled}
                     readOnly={disabled}
+                    maxLength={maxLength}
                 />
             )}
         </div>
@@ -49,6 +49,17 @@ const getEmpInitial = (fullName: string): string => {
     const parts = fullName.trim().split(/\s+/);
     const initials = parts.map(p => p.charAt(0).toUpperCase()).join('');
     return initials.toUpperCase().padStart(4, 'x').slice(-4);
+};
+
+/**
+ * Generate department initials from department name.
+ * E.g. "Civil Engineering" -> "CE", "Computer Science and Engineering" -> "CSE"
+ */
+const getDeptInitial = (deptName: string): string => {
+    if (!deptName) return '';
+    const wordsToIgnore = ['and', 'of', '&', 'for', 'in', 'the'];
+    const parts = deptName.trim().split(/\s+/).filter(w => !wordsToIgnore.includes(w.toLowerCase()));
+    return parts.map(p => p.charAt(0).toUpperCase()).join('').substring(0, 4);
 };
 
 export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormProps> = ({ projectData, onSuccess }) => {
@@ -88,7 +99,16 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
 
     useEffect(() => {
         if (projectData) {
-            const newFormData = { ...formData };
+            const newFormData: any = {
+                current_year1: new Date().getFullYear().toString().slice(-2),
+                category: 'C',
+                project_no: '0',
+                select_department: '',
+                dept_initial: '',
+                project_type: 'SP',
+                emp_id: '',
+                emp_initial: ''
+            };
 
             // Category: map from project_type
             if (projectData.project_type === 'Consultancy') {
@@ -136,8 +156,9 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
     useEffect(() => {
         if (formData.select_department && departmentData?.message) {
             const selectedDept = departmentData.message.find((d: any) => d.name === formData.select_department);
-            if (selectedDept && selectedDept.dept_initials) {
-                setFormData((prev: any) => ({ ...prev, dept_initial: selectedDept.dept_initials }));
+            if (selectedDept) {
+                const initial = selectedDept.dept_initials || getDeptInitial(selectedDept.dept_name || selectedDept.name);
+                setFormData((prev: any) => ({ ...prev, dept_initial: initial }));
             }
         }
     }, [formData.select_department, departmentData]);
@@ -195,23 +216,18 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
                     <select
                         value={formData.select_department}
                         onChange={(e) => handleChange('select_department', e.target.value)}
-                        className={`w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] ${isReadOnly ? 'opacity-60 bg-zinc-100 dark:bg-zinc-800 cursor-not-allowed' : ''}`}
-                        disabled={isReadOnly}
+                        className={`w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none opacity-60 cursor-not-allowed`}
+                        disabled={true}
                     >
                         <option value="">Select Department</option>
                         {departmentData?.message?.map((dept: any) => (
                             <option key={dept.name} value={dept.name}>{dept.dept_name || dept.name}</option>
                         ))}
                     </select>
-                    {formData.select_department && (
-                        <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1">
-                            Current: <DepartmentName name={formData.select_department} />
-                        </div>
-                    )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                    <InputField label="Dept Initial" field="dept_initial" formData={formData} onChange={handleChange} disabled={isReadOnly} />
+                    <InputField label="Dept Initial" field="dept_initial" formData={formData} onChange={handleChange} disabled={true} />
                     <InputField
                         label="Project Type"
                         field="project_type"
@@ -233,7 +249,7 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
                 </div>
 
                 <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                    <InputField label="Project No (Auto/Manual)" field="project_no" formData={formData} onChange={handleChange} disabled={isReadOnly} />
+                    <InputField label="Project No (Auto/Manual)" field="project_no" formData={formData} onChange={handleChange} disabled={isReadOnly} maxLength={22} />
                 </div>
 
                 {!isReadOnly && (

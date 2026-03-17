@@ -10,16 +10,16 @@
 
 // export default {
 // 	'^/(app|api|assets|files|private)': {
-// 		target: `http://172.16.135.27:${webserver_port}`,
+// 		target: `http://172.16.117.39:${webserver_port}`,
 // 		ws: true,
 // 		router: function (req) {
 // 			// Always use the correct server IP
-// 			return `http://172.16.135.27:${webserver_port}`;
+// 			return `http://172.16.117.39:${webserver_port}`;
 // 		}
 // 	},
 // 	// Proxy for external Ledger API to avoid CORS
 // 	'/ledger-api': {
-// 		target: 'http://172.16.135.27:18083',
+// 		target: 'http://172.16.117.39:18083',
 // 		changeOrigin: true,
 // 		rewrite: (path: string) => path.replace(/^\/ledger-api/, '/api'),
 // 	}
@@ -37,9 +37,9 @@ const { webserver_port } = common_site_config;
 
 export default {
 	'^/(app|api|assets|files|private)': {
-		target: `http://172.16.135.27:${webserver_port}`,
+		target: `http://172.16.117.39:${webserver_port}`,
 		ws: true,
-		// CRITICAL ADDITION: This changes the Host header to match the target (172.16.135.27)
+		// CRITICAL ADDITION: This changes the Host header to match the target (172.16.117.39)
 		// This ensures Frappe recognizes the request context correctly.
 		changeOrigin: true,
 		secure: false,
@@ -48,12 +48,12 @@ export default {
 
 		router: function (req: string) {
 			// Always use the correct server IP
-			return `http://172.16.135.27:${webserver_port}`;
+			return `http://172.16.117.39:${webserver_port}`;
 		}
 	},
 	// Proxy for external Ledger API to avoid CORS
 	'/ledger-api': {
-		target: 'http://172.16.135.27:18083',
+		target: 'http://172.16.117.39:18083',
 		changeOrigin: true,
 		rewrite: (path: string) => path.replace(/^\/ledger-api/, '/api'), // Type annotation removed for JS config compatibility
 	}

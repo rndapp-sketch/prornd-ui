@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall } from 'frappe-react-sdk';
@@ -7,6 +7,7 @@ import { AlertCircle } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { p11FormAPI, prepareFormDataForApi } from '@/services/apiService';
+import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -14,8 +15,38 @@ interface FormDataResponse {
         fields: FormField[];
         link_options: Record<string, LinkOption[]>;
         prefill_data: Record<string, any>;
+        client_scripts?: { script: string }[];
     };
 }
+
+interface DirectPurchaseItemRow {
+    itemname?: string;
+    itemdesciption?: string;
+    quantity?: number | string;
+    estimatedprice?: number | string;
+}
+
+const toNumberOrDefault = (value: number | string | undefined, defaultValue: number) => {
+    const numericValue = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(numericValue) ? numericValue : defaultValue;
+};
+
+const calculateP11RowTotal = (row: Record<string, any>) => {
+    const quantity = toNumberOrDefault(row.item_quantity, 0);
+    const unitPrice = toNumberOrDefault(row.item_unit_price, 0);
+    const discount = toNumberOrDefault(row.item_discount, 0);
+    const gst = toNumberOrDefault(row.item_gst, 0);
+
+    return (quantity * unitPrice) - discount + gst;
+};
+
+const createChildRowName = () => `new-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+const ensureP11ItemRowMeta = (row: Record<string, any>) => ({
+    ...row,
+    doctype: row.doctype || 'p_11_item_table',
+    name: row.name || createChildRowName(),
+});
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -52,6 +83,8 @@ const P11Form: React.FC = () => {
     const [searchParams] = useSearchParams();
     const projectName = searchParams.get('project') || '';
     const editDocName = searchParams.get('edit') || '';
+    const projectNo = searchParams.get('project_no') || '';
+    const appId = searchParams.get('app_id') || '';
 
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
@@ -61,9 +94,13 @@ const P11Form: React.FC = () => {
     const [dataLoaded, setDataLoaded] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [savedDocName, setSavedDocName] = useState<string | null>(editDocName || null);
+    const [clientScript, setClientScript] = useState('');
+    const initializedTableSignatureRef = useRef('');
 
     // Workflow state
     const [workflowActions, setWorkflowActions] = useState<string[]>([]);
+
+    const { triggerEvent } = useFrappeClientScript(clientScript, formData, setFormData);
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(p11FormAPI.getFields);
@@ -85,9 +122,13 @@ const P11Form: React.FC = () => {
     useEffect(() => {
         const loadFormAndDocument = async () => {
             if (formDataResult?.message && !dataLoaded) {
-                const { fields: apiFields, prefill_data, link_options } = formDataResult.message;
+                const { fields: apiFields, prefill_data, link_options, client_scripts } = formDataResult.message;
                 setFields(apiFields || []);
                 setLinkOptions(link_options || {});
+
+                if (client_scripts && Array.isArray(client_scripts)) {
+                    setClientScript(client_scripts.map((clientScriptItem) => clientScriptItem.script).join('\n\n'));
+                }
 
                 let initialData = { ...prefill_data };
 
@@ -114,12 +155,50 @@ const P11Form: React.FC = () => {
                     }
                 }
 
+                if (appId && !editDocName) {
+                    try {
+                        const directPurchase = await fetchExistingDoc({
+                            doctype: 'Direct Purchase',
+                            name: appId
+                        });
+
+                        const directPurchaseItems = Array.isArray(directPurchase?.message?.table_gdxp)
+                            ? directPurchase.message.table_gdxp
+                            : [];
+
+                        initialData.table_hsrb = directPurchaseItems.map((row: DirectPurchaseItemRow) => ensureP11ItemRowMeta({
+                            item_name: row.itemname || '',
+                            item_description: row.itemdesciption || '',
+                            item_quantity: toNumberOrDefault(row.quantity, 0),
+                            item_unit_price: toNumberOrDefault(row.estimatedprice, 0),
+                            item_make: '',
+                            item_model: '',
+                            item_discount: 0,
+                            item_gst: 0,
+                        }));
+                    } catch (err) {
+                        console.error('Error fetching Direct Purchase for P-11 prefill:', err);
+                    }
+                }
+
                 // Set defaults for any missing fields
                 (apiFields || []).forEach((field: FormField) => {
                     if (initialData[field.fieldname] === undefined && field.default !== undefined) {
                         initialData[field.fieldname] = field.default;
                     }
                 });
+
+                // Prefill project_no and app_id if provided in URL
+                if (projectNo && !initialData.project_no) {
+                    initialData.project_no = projectNo;
+                }
+                if (appId && !initialData.app_id) {
+                    initialData.app_id = appId;
+                }
+
+                if (Array.isArray(initialData.table_hsrb)) {
+                    initialData.table_hsrb = initialData.table_hsrb.map((row: Record<string, any>) => ensureP11ItemRowMeta(row));
+                }
 
                 setFormData(initialData);
                 setDataLoaded(true);
@@ -133,7 +212,77 @@ const P11Form: React.FC = () => {
         };
 
         loadFormAndDocument();
-    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, fetchWorkflowActions, dataLoaded]);
+    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, fetchWorkflowActions, dataLoaded, appId, projectNo]);
+
+    useEffect(() => {
+        if (dataLoaded && clientScript) {
+            const tableRows = formData.table_hsrb || [];
+            const tableSignature = tableRows.map((row: Record<string, any>) => row.name || row.id || '').join('|');
+
+            if (initializedTableSignatureRef.current === tableSignature) {
+                return;
+            }
+
+            initializedTableSignatureRef.current = tableSignature;
+
+            tableRows.forEach((row: Record<string, any>) => {
+                if (row.doctype && row.name) {
+                    triggerEvent('item_quantity', row.doctype, row.name);
+                }
+            });
+            triggerEvent('refresh');
+        }
+    }, [clientScript, dataLoaded, formData.table_hsrb, triggerEvent]);
+
+    useEffect(() => {
+        const rows = Array.isArray(formData.table_hsrb) ? formData.table_hsrb : [];
+        const normalizedRows = rows.map((row: Record<string, any>) => {
+            const nextTotal = calculateP11RowTotal(row);
+            const currentTotal = toNumberOrDefault(row.dp_total_price, 0);
+
+            if (currentTotal === nextTotal) {
+                return row;
+            }
+
+            return {
+                ...row,
+                dp_total_price: nextTotal,
+            };
+        });
+
+        const totalBasicValue = normalizedRows.reduce(
+            (sum: number, row: Record<string, any>) => sum + toNumberOrDefault(row.dp_total_price, 0),
+            0
+        );
+
+        const grandTotal =
+            totalBasicValue
+            + toNumberOrDefault(formData.packing_and_forwarding, 0)
+            + toNumberOrDefault(formData.freight, 0)
+            + toNumberOrDefault(formData.other_charges, 0);
+
+        const rowsChanged = normalizedRows.some((row: Record<string, any>, index: number) => row !== rows[index]);
+        const totalBasicValueChanged = toNumberOrDefault(formData.total_basic_value, 0) !== totalBasicValue;
+        const grandTotalChanged = toNumberOrDefault(formData.grand_total, 0) !== grandTotal;
+
+        if (!rowsChanged && !totalBasicValueChanged && !grandTotalChanged) {
+            return;
+        }
+
+        setFormData((prev) => ({
+            ...prev,
+            table_hsrb: rowsChanged ? normalizedRows : prev.table_hsrb,
+            total_basic_value: totalBasicValue,
+            grand_total: grandTotal,
+        }));
+    }, [
+        formData.table_hsrb,
+        formData.packing_and_forwarding,
+        formData.freight,
+        formData.other_charges,
+        formData.total_basic_value,
+        formData.grand_total,
+    ]);
 
     // --- EVENT HANDLERS ---
     const handleChange = useCallback((fieldname: string, value: any) => {
@@ -167,9 +316,10 @@ const P11Form: React.FC = () => {
     }, []);
 
     const addTableRow = useCallback((tableName: string, newRow: Record<string, any>) => {
+        const nextRow = tableName === 'table_hsrb' ? ensureP11ItemRowMeta(newRow) : newRow;
         setFormData(prev => ({
             ...prev,
-            [tableName]: [...(prev[tableName] || []), newRow]
+            [tableName]: [...(prev[tableName] || []), nextRow]
         }));
     }, []);
 
@@ -194,9 +344,15 @@ const P11Form: React.FC = () => {
             if (res?.message?.status === 'success') {
                 const docname = res.message.docname || editDocName;
                 setSavedDocName(docname);
-                alert(editDocName ? "Form updated successfully!" : "Draft saved successfully!");
+
                 if (editDocName) {
+                    // If editing, go back
+                    alert("Form updated successfully!");
                     navigate(-1);
+                } else {
+                    // If creating new, redirect to edit mode to show submit button
+                    alert("Draft saved successfully! You can now submit the form.");
+                    navigate(`/p11-form/${docname}`);
                 }
             } else {
                 throw new Error(res?.message?.message || "Save failed");

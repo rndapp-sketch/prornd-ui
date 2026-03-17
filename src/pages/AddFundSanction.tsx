@@ -2,9 +2,9 @@
 // -=-=-=-=-=-=-=-=-=-==-=-=-=
 
 import React, { useState, useEffect, useCallback, memo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { AppSidebar } from "../components/RndSidebar";
-import { useFrappePostCall } from 'frappe-react-sdk';
+import { useFrappeGetDoc, useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { ArrowLeftIcon, Send, Save } from "lucide-react";
 
@@ -60,24 +60,24 @@ const MemoizedFormField = memo(({ field, value, options, onChange, readOnlyOverr
     return (<div className='space-y-1'><label htmlFor={field.fieldname} className="block font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase">{field.label}{field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}</div>);
 });
 
-const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRow, budgetHeadOptions }: any) => {
+const ALL_YEAR_COLUMNS = [
+    { key: 'first_year_budget', label: 'Year 1 (₹)', type: 'Currency' },
+    { key: 'second_year_budget', label: 'Year 2 (₹)', type: 'Currency' },
+    { key: 'third_year_budget', label: 'Year 3 (₹)', type: 'Currency' },
+    { key: 'fourth_year_budget', label: 'Year 4 (₹)', type: 'Currency' },
+    { key: 'fifth_year_budget', label: 'Year 5 (₹)', type: 'Currency' },
+] as const;
+
+const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRow, budgetHeadOptions, activeYearCount = 5 }: any) => {
+    const activeYearColumns = ALL_YEAR_COLUMNS.slice(0, activeYearCount);
+
     const columns = [
         { key: 'account_head', label: 'Account Head', type: 'Select', options: budgetHeadOptions || [] },
-        { key: 'first_year_budget', label: 'Year 1 (₹)', type: 'Currency' },
-        { key: 'second_year_budget', label: 'Year 2 (₹)', type: 'Currency' },
-        { key: 'third_year_budget', label: 'Year 3 (₹)', type: 'Currency' },
-        { key: 'fourth_year_budget', label: 'Year 4 (₹)', type: 'Currency' },
-        { key: 'fifth_year_budget', label: 'Year 5 (₹)', type: 'Currency' },
+        ...activeYearColumns,
         { key: 'row_total', label: 'Total (₹)', type: 'ReadOnly' },
     ];
 
-    const yearKeys = [
-        'first_year_budget',
-        'second_year_budget',
-        'third_year_budget',
-        'fourth_year_budget',
-        'fifth_year_budget'
-    ];
+    const yearKeys = activeYearColumns.map(c => c.key);
 
     const calculateRowTotal = (row: any) => {
         return yearKeys.reduce((sum, key) => sum + (parseFloat(row[key]) || 0), 0);
@@ -155,14 +155,11 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
             </div>
 
             <FrappeButton
-                onClick={() => onAddRow({
-                    account_head: '',
-                    first_year_budget: 0,
-                    second_year_budget: 0,
-                    third_year_budget: 0,
-                    fourth_year_budget: 0,
-                    fifth_year_budget: 0,
-                })}
+                onClick={() => {
+                    const newRow: Record<string, any> = { account_head: '' };
+                    yearKeys.forEach(key => { newRow[key] = 0; });
+                    onAddRow(newRow);
+                }}
                 className="bg-[#D97757] hover:bg-[#c5684a] text-white border-[#D97757]/20 mt-2">
                 Add Budget Row
             </FrappeButton>
@@ -199,7 +196,7 @@ const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableDat
 const AddFundSanction: React.FC = () => {
     const navigate = useNavigate();
     const { projectName } = useParams<{ projectName: string }>();
-
+    const location = useLocation();
     const [fields, setFields] = useState<Field[]>([]);
     const [formData, setFormData] = useState<FormData>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
@@ -207,10 +204,20 @@ const AddFundSanction: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [projectDisplayLabel, setProjectDisplayLabel] = useState('');
+    const [activeYearCount, setActiveYearCount] = useState<number>(
+        (location.state as any)?.activeYearCount ?? 2
+    );
 
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_fund_sanction_form_data');
     const { call: submitForm } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.save_fund_sanction_data');
     const { call: fetchBudgetHeads, result: budgetHeadsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head');
+
+    // Fetch the Project Registration doc directly — this is the authoritative source of proposed_budget_breakup
+    const { data: projectDoc } = useFrappeGetDoc(
+        'Project Registration',
+        projectName ?? '',
+        { revalidateOnFocus: false, revalidateOnReconnect: false }
+    );
 
     useEffect(() => {
         if (projectName) {
@@ -226,6 +233,44 @@ const AddFundSanction: React.FC = () => {
         }
     }, [budgetHeadsResult]);
 
+
+    // Prefill sanctioned_budget_breakup from Project Registration doc once it arrives
+    useEffect(() => {
+        if (!projectDoc?.proposed_budget_breakup?.length) return;
+
+        // Exclude is_total_row rows — those are computed summary rows, not actual budget head entries
+        const sourceRows: any[] = (projectDoc.proposed_budget_breakup as any[]).filter(
+            row => !row.is_total_row
+        );
+        if (!sourceRows.length) return;
+
+        // Derive active year count from the actual data rows (skip total rows)
+        const yearKeys = ALL_YEAR_COLUMNS.map(c => c.key);
+        let resolvedYearCount: number = (location.state as any)?.activeYearCount ?? 0;
+        if (!resolvedYearCount) {
+            for (let i = yearKeys.length - 1; i >= 0; i--) {
+                const total = sourceRows.reduce((sum, row) => sum + (parseFloat(row[yearKeys[i]]) || 0), 0);
+                if (total > 0) { resolvedYearCount = i + 1; break; }
+            }
+        }
+        if (resolvedYearCount < 1) resolvedYearCount = 1;
+        setActiveYearCount(resolvedYearCount);
+
+        setFormData(prev => {
+            // Don't overwrite if rows already exist (e.g. editing an existing sanction)
+            if ((prev.sanctioned_budget_breakup?.length ?? 0) > 0) return prev;
+
+            const inactiveKeys = ALL_YEAR_COLUMNS.slice(resolvedYearCount).map(c => c.key);
+            const sanctionedRows = sourceRows.map((row, i) => {
+                // account_head is a Data field — copy the value directly
+                const newRow: Record<string, any> = { account_head: row.account_head ?? '', id: `prefill-${i}` };
+                ALL_YEAR_COLUMNS.forEach(col => { newRow[col.key] = parseFloat(row[col.key]) || 0; });
+                inactiveKeys.forEach(k => { newRow[k] = 0; });
+                return newRow;
+            });
+            return { ...prev, sanctioned_budget_breakup: sanctionedRows };
+        });
+    }, [projectDoc]);
 
     // Effect to process the fetched data from API
     useEffect(() => {
@@ -250,6 +295,36 @@ const AddFundSanction: React.FC = () => {
             }
             if (!projectDisplayLabel && prefill_data?.project_title) {
                 setProjectDisplayLabel(`${prefill_data.project_title} / ${projectName}`);
+            }
+
+            // Derive activeYearCount from proposed_budget_breakup if not explicitly passed via location.state
+            // Exclude is_total_row entries from the calculation
+            const yearKeys = ALL_YEAR_COLUMNS.map(c => c.key);
+            const proposedDataRows: any[] = (initialData.proposed_budget_breakup as any[] ?? []).filter(
+                (row: any) => !row.is_total_row
+            );
+            let resolvedYearCount: number = (location.state as any)?.activeYearCount ?? 0;
+            if (!resolvedYearCount && proposedDataRows.length > 0) {
+                for (let i = yearKeys.length - 1; i >= 0; i--) {
+                    const colTotal = proposedDataRows.reduce(
+                        (sum: number, row: any) => sum + (parseFloat(row[yearKeys[i]]) || 0), 0
+                    );
+                    if (colTotal > 0) { resolvedYearCount = i + 1; break; }
+                }
+            }
+            if (resolvedYearCount < 1) resolvedYearCount = 1;
+            setActiveYearCount(resolvedYearCount);
+
+            // Prefill budget breakup from proposed data (fallback — primary path is the projectDoc effect)
+            if ((!initialData.sanctioned_budget_breakup || initialData.sanctioned_budget_breakup.length === 0) &&
+                proposedDataRows.length > 0) {
+                const inactiveKeys = ALL_YEAR_COLUMNS.slice(resolvedYearCount).map(c => c.key);
+                initialData.sanctioned_budget_breakup = proposedDataRows.map((row: any, i: number) => {
+                    const newRow: Record<string, any> = { account_head: row.account_head ?? '', id: `prefill-${i}` };
+                    ALL_YEAR_COLUMNS.forEach(col => { newRow[col.key] = parseFloat(row[col.key]) || 0; });
+                    inactiveKeys.forEach(k => { newRow[k] = 0; });
+                    return newRow;
+                });
             }
 
             setFormData(initialData);
@@ -416,6 +491,7 @@ const AddFundSanction: React.FC = () => {
                                     deleteGenericTableRow("sanctioned_budget_breakup", rowIndex)
                                 }
                                 budgetHeadOptions={budgetHeadOptions}
+                                activeYearCount={activeYearCount}
                             />
                         </NeoSection>
 
