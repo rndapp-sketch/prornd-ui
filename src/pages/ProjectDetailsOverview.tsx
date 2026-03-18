@@ -1066,11 +1066,30 @@ const QuickActions = ({
           if (!fetchResponse.ok)
             throw new Error(`HTTP error! status: ${fetchResponse.status}`);
           const result = await fetchResponse.json();
-          data = (result?.data || []).map((item: any) => ({
-            ...item,
-            applicant_webmail: item.pi_name || item.webmail_id || item.owner,
-            total_amount: item.total_disbursal_amount,
-          }));
+          // Exact same client-side filter approach resilient to backend schema issues
+          const projectNameLower = projectName?.toLowerCase() || "";
+          const projectNoLower = projectNo?.toLowerCase() || "";
+
+          data = (result?.data || [])
+            .filter((item: any) => {
+              const itemProjectName   = (item.project_title   || "").toLowerCase();
+              const itemProjectNumber = (item.disbursal_project_number || "").toLowerCase();
+              return (
+                itemProjectName   === projectNameLower ||
+                itemProjectNumber === projectNameLower ||
+                itemProjectName   === projectNoLower   ||
+                itemProjectNumber === projectNoLower   ||
+                (projectNameLower && itemProjectName.includes(projectNameLower))   ||
+                (projectNameLower && itemProjectNumber.includes(projectNameLower)) ||
+                (projectNoLower   && itemProjectName.includes(projectNoLower))     ||
+                (projectNoLower   && itemProjectNumber.includes(projectNoLower))
+              );
+            })
+            .map((item: any) => ({
+              ...item,
+              applicant_webmail: item.pi_name || item.webmail_id || item.owner,
+              total_amount: item.total_disbursal_amount,
+            }));
         } catch (fetchError) {
           console.error("Disbursal of Consultancy fetch error:", fetchError);
           data = [];
