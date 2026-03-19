@@ -696,7 +696,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
   const { call: triggerWorkflowAction, loading: isActionLoading } =
     useFrappePostCall("rndopsapp.rndopsapp.doctype.project_registration.project_registration.handle_dynamic_workflow_action");
   const { call: submitProjectRegistration } = useFrappePostCall(
-    "rndopsapp.rndopsapp.api.submit_project_registration"
+    "rndopsapp.rndopsapp.doctype.project_registration.project_registration.submit_project_registration"
   );
 
   const { call: viewEndorsementFile, loading: isViewingEndorsement } = useFrappePostCall(
