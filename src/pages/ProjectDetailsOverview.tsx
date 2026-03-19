@@ -1,3 +1,4 @@
+import { getFileUrl } from "@/utils/fileUtils";
 import React, {
   useState,
   useCallback,
@@ -2854,11 +2855,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             </p>
                           </div>
                           <a
-                            href={
-                              data.upload_proj_prop.startsWith("http")
-                                ? data.upload_proj_prop
-                                : `/files/${data.upload_proj_prop}`
-                            }
+                            href={getFileUrl(data.upload_proj_prop)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-sm font-medium text-[#D97757] hover:underline flex items-center gap-1"

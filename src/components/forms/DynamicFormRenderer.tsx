@@ -8,6 +8,7 @@ import {
 } from "@/utils/evalExpression";
 import { ChildTableComponent, type ChildField } from "./ChildTableComponent";
 import { DepartmentName } from "@/components/DepartmentName";
+import { getFileUrl } from "@/utils/fileUtils";
 
 // --- TYPE DEFINITIONS ---
 export interface FormField {
@@ -384,7 +385,7 @@ const MemoizedFormField = memo(
             return (
               <div className="flex items-center gap-3">
                 <a
-                  href={value}
+                  href={getFileUrl(value)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-md text-sm font-medium transition-colors h-10 ring-offset-white dark:ring-offset-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800"
