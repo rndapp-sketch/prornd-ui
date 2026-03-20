@@ -13,6 +13,7 @@ interface AutocompleteEmailProps extends Omit<React.InputHTMLAttributes<HTMLInpu
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  searchByLabel?: boolean;
 }
 
 export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
@@ -21,6 +22,7 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   onChange,
   placeholder = "Enter Webmail ID",
   className,
+  searchByLabel = false,
   ...rest
 }) => {
   const [inputValue, setInputValue] = useState(value);
@@ -46,8 +48,12 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   const filteredOptions = useMemo(() => {
     if (!debouncedValue) return [];
     const searchStr = debouncedValue.toLowerCase();
-    return options.filter(opt => opt.value.toLowerCase().includes(searchStr)).slice(0, 10);
-  }, [debouncedValue, options]);
+    return options.filter(opt =>
+      searchByLabel
+        ? opt.label.toLowerCase().includes(searchStr)
+        : opt.value.toLowerCase().includes(searchStr)
+    ).slice(0, 10);
+  }, [debouncedValue, options, searchByLabel]);
 
   return (
     <div ref={wrapperRef} className="relative w-full">
@@ -75,12 +81,12 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
               onMouseDown={(e) => {
                 // use onMouseDown instead of onClick to prevent onBlur from firing first
                 e.preventDefault();
-                setInputValue(opt.value);
+                setInputValue(searchByLabel ? opt.label : opt.value);
                 onChange(opt.value);
                 setIsOpen(false);
               }}
             >
-              {opt.value}
+              {searchByLabel ? opt.label : opt.value}
             </li>
           ))}
         </ul>

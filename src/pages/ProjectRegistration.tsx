@@ -146,9 +146,11 @@ const MemoizedCollaboratorTable = memo(({ tableName, title, tableData, piOptions
                                 <td className="px-4 py-2.5">
                                     <AutocompleteEmail
                                         className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
-                                        value={row[`${prefix}_email`] || ''}
+                                        value={row[`${prefix}_name`] || ''}
                                         onChange={(val) => onCollaboratorChange(tableName, i, val)}
                                         options={piOptions || []}
+                                        searchByLabel
+                                        placeholder="Enter Name"
                                     />
                                 </td>
                                 <td className="px-4 py-2.5"><input type="email" readOnly className={`${inputClasses} !h-8 bg-zinc-50/50 !border-zinc-100 text-zinc-600 font-medium text-xs`} value={row[`${prefix}_email`] || ''} /></td>
@@ -806,16 +808,7 @@ const ProjectRegistration: React.FC = () => {
             const { fields: apiFields, link_options, prefill_data } = formDataResult.message;
             setFields(apiFields);
 
-            // Fix: Ensure PI Webmail options show email as label
-            const processedLinkOptions = { ...link_options };
-            if (processedLinkOptions['pi_webmail']) {
-                processedLinkOptions['pi_webmail'] = processedLinkOptions['pi_webmail'].map((opt: LinkOption) => ({
-                    ...opt,
-                    label: opt.value // Show email (value) as label
-                }));
-            }
-
-            setLinkOptions(processedLinkOptions || {});
+            setLinkOptions(link_options || {});
             const initialFormData = { ...prefill_data };
             apiFields.forEach((field: Field) => {
                 if (initialFormData[field.fieldname] === undefined) {
