@@ -219,19 +219,19 @@
                 </div>
                 <div class="header-text">
                     <div class="header">Indian Institute of Technology Guwahati</div>
-                    <div class="sub-header">Purchase & Stores Section</div>
+                    <div class="sub-header">Purchase &amp; Stores Section</div>
                 </div>
             </div>
 
             <!-- TOP INFO -->
             <div class="top-info">
                 <div>
-                    <strong>Owner:</strong> ls@iitg.ac.in<br>
+                    <strong>Owner:</strong> {{OWNER}}<br>
                     <strong>Form Type:</strong> P_11 Form
                 </div>
                 <div class="ref">
-                    <strong>Doc Ref.:</strong> e5d7n8b86u<br>
-                    <strong>Date:</strong> 12-03-2026
+                    <strong>Doc Ref.:</strong> {{DOC_REF}}<br>
+                    <strong>Date:</strong> {{DATE}}
                 </div>
             </div>
 
@@ -242,8 +242,8 @@
 
             <!-- DETAILS PARAGRAPH -->
             <div class="details-paragraph">
-                <p>Quotation received for purchase of the items from M/s: <strong>xyz</strong></p>
-                <p>The purchase committee recommends purchase of the items from M/s: <strong>xyz</strong></p>
+                <p>Quotation received for purchase of the items from M/s: <strong>{{QUOTATION_FROM}}</strong></p>
+                <p>The purchase committee recommends purchase of the items from M/s: <strong>{{RECOMMENDATION_FROM}}</strong></p>
             </div>
 
             <!-- MAIN TABLE -->
@@ -267,21 +267,8 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- ITEM ROW -->
-                    <tr>
-                        <td class="center">1</td>
-                        <td>Test</td>
-                        <td>Test Desc</td>
-                        <td class="center">2</td>
-                        <td class="right">20,000.00</td>
-                        <td class="right">40,000.00</td>
-                    </tr>
-
-                    <!-- TOTAL ROW -->
-                    <tr>
-                        <td colspan="5" class="right"><strong>Grand Total:</strong></td>
-                        <td class="right"><strong>40,000.00</strong></td>
-                    </tr>
+                    {{ITEM_ROWS}}
+                    {{SUMMARY_ROWS}}
                 </tbody>
             </table>
 

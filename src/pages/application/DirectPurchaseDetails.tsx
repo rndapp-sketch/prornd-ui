@@ -1,15 +1,42 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { AppSidebar } from "../../components/RndSidebar";
-import { useFrappePostCall, useFrappeGetCall, useFrappeGetDoc } from 'frappe-react-sdk';
-import { cn } from '@/lib/utils';
-import { CalendarIcon, UserIcon, EditIcon, FileTextIcon, ClipboardListIcon, ShoppingCartIcon, LayoutGridIcon, FileIcon, ExternalLinkIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
-import { PageHeader } from '@/components/common/PageHeader';
-import { GlobalLoader } from '@/components/ui/global-loader';
-import { Textarea } from '@/components/ui/textarea';
-import { directPurchaseAPI, p11FormAPI, sanctionSheetAPI } from '@/services/apiService';
-import { DepartmentName } from '@/components/DepartmentName';
-import { BudgetHeadName } from '@/components/BudgetHeadName';
+import {
+    useFrappePostCall,
+    useFrappeGetCall,
+    useFrappeGetDoc,
+    useFrappeAuth,
+} from "frappe-react-sdk";
+import { useUserRoles } from "@/components/UserRole";
+import { cn } from "@/lib/utils";
+import {
+    CalendarIcon,
+    UserIcon,
+    EditIcon,
+    FileTextIcon,
+    ClipboardListIcon,
+    ShoppingCartIcon,
+    LayoutGridIcon,
+    FileIcon,
+    ExternalLinkIcon,
+    CheckCircle2Icon,
+    XCircleIcon,
+    Printer,
+} from "lucide-react";
+import { PageHeader } from "@/components/common/PageHeader";
+import { GlobalLoader } from "@/components/ui/global-loader";
+import { Textarea } from "@/components/ui/textarea";
+import {
+    directPurchaseAPI,
+    p11FormAPI,
+    sanctionSheetAPI,
+} from "@/services/apiService";
+import { DepartmentName } from "@/components/DepartmentName";
+import { BudgetHeadName } from "@/components/BudgetHeadName";
+import { generateP11Html } from "@/utils/p11Print";
+import { generateSanctionSheetHtml } from "@/utils/sanctionSheetPrint";
+import { P11PrintModal } from "@/components/P11PrintModal";
+import { POEditor } from "@/components/POEditor";
 
 // --- TYPE DEFINITIONS ---
 interface DirectPurchaseData {
@@ -33,30 +60,53 @@ interface ActivityItem {
     comment_type: string;
 }
 
-type TabId = 'details' | 'p11' | 'sanction' | 'po';
+type TabId = "details" | "p11" | "sanction" | "po";
 
 // --- SHARED CONSTANTS ---
 const EXCLUDED_FIELDS = [
-    'doctype', 'docstatus', 'idx', 'owner', 'creation', 'modified',
-    'modified_by', '_user_tags', '_comments', '_assign', '_liked_by', 'name',
-    'workflow_state', '_seen', 'parent', 'parenttype', 'parentfield',
+    "doctype",
+    "docstatus",
+    "idx",
+    "owner",
+    "creation",
+    "modified",
+    "modified_by",
+    "_user_tags",
+    "_comments",
+    "_assign",
+    "_liked_by",
+    "name",
+    "workflow_state",
+    "_seen",
+    "parent",
+    "parenttype",
+    "parentfield",
 ];
 
 // --- HELPERS ---
 const formatFieldName = (key: string) =>
-    key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 
-const formatDate = (val: string, format: 'long' | 'short' = 'long') =>
-    new Date(val).toLocaleDateString('en-IN', format === 'long'
-        ? { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }
-        : { day: 'numeric', month: 'short', year: 'numeric' });
+const formatDate = (val: string, format: "long" | "short" = "long") =>
+    new Date(val).toLocaleDateString(
+        "en-IN",
+        format === "long"
+            ? {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+              }
+            : { day: "numeric", month: "short", year: "numeric" },
+    );
 
 // --- REUSABLE UI PRIMITIVES ---
 
 const ClaudeCard = ({
     title,
     children,
-    className = '',
+    className = "",
     accentTop = false,
 }: {
     title?: string;
@@ -64,11 +114,13 @@ const ClaudeCard = ({
     className?: string;
     accentTop?: boolean;
 }) => (
-    <div className={cn(
-        "rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm",
-        accentTop && "border-t-[3px] border-t-[#D97757]",
-        className
-    )}>
+    <div
+        className={cn(
+            "rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm",
+            accentTop && "border-t-[3px] border-t-[#D97757]",
+            className,
+        )}
+    >
         {title && (
             <div className="px-6 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                 <h3 className="font-serif text-base font-medium tracking-tight text-[#3F3F46] dark:text-[#E4E4E7] uppercase">
@@ -85,13 +137,13 @@ const ClaudeButton = ({
     onClick,
     disabled,
     className,
-    variant = 'outline',
+    variant = "outline",
 }: {
     children: React.ReactNode;
     onClick?: () => void;
     disabled?: boolean;
     className?: string;
-    variant?: 'primary' | 'outline' | 'ghost' | 'action';
+    variant?: "primary" | "outline" | "ghost" | "action";
 }) => (
     <button
         onClick={onClick}
@@ -100,11 +152,15 @@ const ClaudeButton = ({
             "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200 dark:focus-visible:ring-zinc-700",
             "disabled:opacity-50 disabled:cursor-not-allowed",
-            variant === 'primary' && "bg-[#D97757] text-white hover:opacity-90 shadow-sm",
-            variant === 'action' && "bg-[#D97757] text-white hover:opacity-90 shadow-sm border border-[#C66A4E]",
-            variant === 'outline' && "border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-800",
-            variant === 'ghost' && "text-[#71717A] dark:text-[#A1A1AA] hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[#3F3F46] dark:hover:text-[#E4E4E7]",
-            className
+            variant === "primary" &&
+                "bg-[#D97757] text-white hover:opacity-90 shadow-sm",
+            variant === "action" &&
+                "bg-[#D97757] text-white hover:opacity-90 shadow-sm border border-[#C66A4E]",
+            variant === "outline" &&
+                "border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-800",
+            variant === "ghost" &&
+                "text-[#71717A] dark:text-[#A1A1AA] hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[#3F3F46] dark:hover:text-[#E4E4E7]",
+            className,
         )}
     >
         {children}
@@ -113,9 +169,12 @@ const ClaudeButton = ({
 
 // --- FIELD TYPE HELPERS ---
 const isFilePath = (val: any): boolean => {
-    if (typeof val !== 'string') return false;
-    return val.startsWith('/private/files/') || val.startsWith('/files/') ||
-        /\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|zip)$/i.test(val);
+    if (typeof val !== "string") return false;
+    return (
+        val.startsWith("/private/files/") ||
+        val.startsWith("/files/") ||
+        /\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx|zip)$/i.test(val)
+    );
 };
 
 const isAmountField = (key: string): boolean =>
@@ -123,12 +182,19 @@ const isAmountField = (key: string): boolean =>
 
 const isBoolCheck = (key: string, val: any): boolean =>
     (val === 0 || val === 1) &&
-    (key.startsWith('dec_') || key.startsWith('is_') || key.startsWith('has_') || key.startsWith('declaration_'));
+    (key.startsWith("dec_") ||
+        key.startsWith("is_") ||
+        key.startsWith("has_") ||
+        key.startsWith("declaration_"));
 
 const formatINR = (val: any): string =>
-    Number(val).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+    Number(val).toLocaleString("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0,
+    });
 
-const getFileName = (path: string): string => path.split('/').pop() || path;
+const getFileName = (path: string): string => path.split("/").pop() || path;
 
 // --- DOCUMENT VIEWER ---
 // Renders any Frappe document with smart field-type detection, a financial KPI strip,
@@ -136,26 +202,37 @@ const getFileName = (path: string): string => path.split('/').pop() || path;
 const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
     const allScalar = Object.entries(data).filter(([key, value]) => {
         if (EXCLUDED_FIELDS.includes(key)) return false;
-        if (key.startsWith('_')) return false;
+        if (key.startsWith("_")) return false;
         if (Array.isArray(value)) return false;
-        if (value === null || value === undefined || value === '') return false;
+        if (value === null || value === undefined || value === "") return false;
         return true;
     });
 
     const childTables = Object.entries(data).filter(
-        ([, value]) => Array.isArray(value) && (value as any[]).length > 0
+        ([, value]) => Array.isArray(value) && (value as any[]).length > 0,
     );
 
     // Partition scalar fields into logical groups
-    const fileFields    = allScalar.filter(([k, v]) => isFilePath(v) || k.startsWith('upload_'));
-    const boolFields    = allScalar.filter(([k, v]) => isBoolCheck(k, v));
-    const amountFields  = allScalar.filter(([k, v]) => isAmountField(k) && !isFilePath(v) && !isBoolCheck(k, v));
-    const infoFields    = allScalar.filter(([k, v]) =>
-        !isFilePath(v) && !isBoolCheck(k, v) && !isAmountField(k) && !k.startsWith('upload_')
+    const fileFields = allScalar.filter(
+        ([k, v]) => isFilePath(v) || k.startsWith("upload_"),
+    );
+    const boolFields = allScalar.filter(([k, v]) => isBoolCheck(k, v));
+    const amountFields = allScalar.filter(
+        ([k, v]) => isAmountField(k) && !isFilePath(v) && !isBoolCheck(k, v),
+    );
+    const infoFields = allScalar.filter(
+        ([k, v]) =>
+            !isFilePath(v) &&
+            !isBoolCheck(k, v) &&
+            !isAmountField(k) &&
+            !k.startsWith("upload_"),
     );
 
     const renderValue = (key: string, value: any): React.ReactNode => {
-        if (value === null || value === undefined || value === '') return <span className="text-[#71717A] dark:text-[#A1A1AA]">—</span>;
+        if (value === null || value === undefined || value === "")
+            return (
+                <span className="text-[#71717A] dark:text-[#A1A1AA]">—</span>
+            );
 
         if (isFilePath(value)) {
             return (
@@ -166,34 +243,55 @@ const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
                     className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-medium max-w-full"
                 >
                     <FileIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span className="truncate">{getFileName(String(value))}</span>
+                    <span className="truncate">
+                        {getFileName(String(value))}
+                    </span>
                     <ExternalLinkIcon className="h-3 w-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </a>
             );
         }
 
         if (isBoolCheck(key, value)) {
-            return value === 1
-                ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"><CheckCircle2Icon className="w-3.5 h-3.5" />Yes</span>
-                : <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]"><XCircleIcon className="w-3.5 h-3.5" />No</span>;
+            return value === 1 ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    <CheckCircle2Icon className="w-3.5 h-3.5" />
+                    Yes
+                </span>
+            ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <XCircleIcon className="w-3.5 h-3.5" />
+                    No
+                </span>
+            );
         }
 
         if (isAmountField(key) && !isNaN(Number(value))) {
-            return <span className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{formatINR(value)}</span>;
+            return (
+                <span className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
+                    {formatINR(value)}
+                </span>
+            );
         }
 
-        if (key === 'applicant_department' || key === 'applying_for_department') {
+        if (
+            key === "applicant_department" ||
+            key === "applying_for_department"
+        ) {
             return <DepartmentName name={value} />;
         }
-        if (key === 'account_head') {
+        if (key === "account_head") {
             return <BudgetHeadName id={value} />;
         }
-        if (typeof value === 'object') return JSON.stringify(value);
+        if (typeof value === "object") return JSON.stringify(value);
         return String(value);
     };
 
     if (allScalar.length === 0 && childTables.length === 0) {
-        return <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">No data to display.</p>;
+        return (
+            <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">
+                No data to display.
+            </p>
+        );
     }
 
     // KPI strip — show if any amount fields exist
@@ -203,19 +301,26 @@ const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
         <div className="space-y-8">
             {/* Financial KPI strip */}
             {kpiAmounts.length > 0 && (
-                <div className={cn(
-                    "grid gap-4",
-                    kpiAmounts.length === 1 && "grid-cols-1 max-w-xs",
-                    kpiAmounts.length === 2 && "grid-cols-2",
-                    kpiAmounts.length >= 3 && "grid-cols-3",
-                )}>
+                <div
+                    className={cn(
+                        "grid gap-4",
+                        kpiAmounts.length === 1 && "grid-cols-1 max-w-xs",
+                        kpiAmounts.length === 2 && "grid-cols-2",
+                        kpiAmounts.length >= 3 && "grid-cols-3",
+                    )}
+                >
                     {kpiAmounts.map(([key, value]) => (
-                        <div key={key} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/50 px-5 py-4">
+                        <div
+                            key={key}
+                            className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/50 px-5 py-4"
+                        >
                             <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1.5">
                                 {formatFieldName(key)}
                             </p>
                             <p className="text-xl font-serif font-medium text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
-                                {!isNaN(Number(value)) ? formatINR(value) : String(value)}
+                                {!isNaN(Number(value))
+                                    ? formatINR(value)
+                                    : String(value)}
                             </p>
                         </div>
                     ))}
@@ -251,7 +356,10 @@ const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
                     </h4>
                     <div className="space-y-3">
                         {boolFields.map(([key, value]) => (
-                            <div key={key} className="flex items-center justify-between py-2.5 px-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/40">
+                            <div
+                                key={key}
+                                className="flex items-center justify-between py-2.5 px-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/40"
+                            >
                                 <span className="text-sm text-[#3F3F46] dark:text-[#E4E4E7] font-medium">
                                     {formatFieldName(key)}
                                 </span>
@@ -284,14 +392,17 @@ const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
             {/* Child tables */}
             {childTables.map(([key, rows]) => {
                 const cols = Object.keys((rows as any[])[0] || {}).filter(
-                    k => !k.startsWith('_') && !EXCLUDED_FIELDS.includes(k)
+                    (k) => !k.startsWith("_") && !EXCLUDED_FIELDS.includes(k),
                 );
-                const hasAmountCols = cols.some(c => isAmountField(c));
+                const hasAmountCols = cols.some((c) => isAmountField(c));
                 const colTotals: Record<string, number> = {};
                 if (hasAmountCols) {
-                    cols.forEach(c => {
+                    cols.forEach((c) => {
                         if (isAmountField(c)) {
-                            colTotals[c] = (rows as any[]).reduce((s, r) => s + (parseFloat(r[c]) || 0), 0);
+                            colTotals[c] = (rows as any[]).reduce(
+                                (s, r) => s + (parseFloat(r[c]) || 0),
+                                0,
+                            );
                         }
                     });
                 }
@@ -308,8 +419,11 @@ const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
                                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] w-10">
                                             #
                                         </th>
-                                        {cols.map(col => (
-                                            <th key={col} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
+                                        {cols.map((col) => (
+                                            <th
+                                                key={col}
+                                                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]"
+                                            >
                                                 {formatFieldName(col)}
                                             </th>
                                         ))}
@@ -321,18 +435,29 @@ const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
                                             key={idx}
                                             className={cn(
                                                 "border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors",
-                                                idx % 2 === 1 && "bg-[#FAFAF9]/60 dark:bg-zinc-800/20"
+                                                idx % 2 === 1 &&
+                                                    "bg-[#FAFAF9]/60 dark:bg-zinc-800/20",
                                             )}
                                         >
                                             <td className="px-4 py-3 text-xs text-[#71717A] dark:text-[#A1A1AA] font-mono">
                                                 {idx + 1}
                                             </td>
-                                            {cols.map(k => (
-                                                <td key={k} className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                    {isAmountField(k) && !isNaN(Number(row[k]))
-                                                        ? <span className="font-medium">{formatINR(row[k])}</span>
-                                                        : row[k] !== null && row[k] !== undefined ? String(row[k]) : '—'
-                                                    }
+                                            {cols.map((k) => (
+                                                <td
+                                                    key={k}
+                                                    className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]"
+                                                >
+                                                    {isAmountField(k) &&
+                                                    !isNaN(Number(row[k])) ? (
+                                                        <span className="font-medium">
+                                                            {formatINR(row[k])}
+                                                        </span>
+                                                    ) : row[k] !== null &&
+                                                      row[k] !== undefined ? (
+                                                        String(row[k])
+                                                    ) : (
+                                                        "—"
+                                                    )}
                                                 </td>
                                             ))}
                                         </tr>
@@ -340,11 +465,20 @@ const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
                                     {hasAmountCols && (
                                         <tr className="border-t-2 border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800/60 font-semibold">
                                             <td className="px-4 py-3 text-xs text-[#71717A] dark:text-[#A1A1AA]" />
-                                            {cols.map(c => (
-                                                <td key={c} className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                    {colTotals[c] != null
-                                                        ? <span className="font-semibold text-[#D97757]">{formatINR(colTotals[c])}</span>
-                                                        : ''}
+                                            {cols.map((c) => (
+                                                <td
+                                                    key={c}
+                                                    className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]"
+                                                >
+                                                    {colTotals[c] != null ? (
+                                                        <span className="font-semibold text-[#D97757]">
+                                                            {formatINR(
+                                                                colTotals[c],
+                                                            )}
+                                                        </span>
+                                                    ) : (
+                                                        ""
+                                                    )}
                                                 </td>
                                             ))}
                                         </tr>
@@ -360,13 +494,20 @@ const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
 };
 
 // --- ACTIVITY STREAM ---
-const ActivityStream = ({ doctype, docname }: { doctype: string; docname: string }) => {
-    const { data: activityData, mutate: refetchActivity } = useFrappeGetCall<{ message: ActivityItem[] }>(
-        "rndopsapp.rndopsapp.api.get_project_activity",
-        { doctype, docname }
-    );
+const ActivityStream = ({
+    doctype,
+    docname,
+}: {
+    doctype: string;
+    docname: string;
+}) => {
+    const { data: activityData, mutate: refetchActivity } = useFrappeGetCall<{
+        message: ActivityItem[];
+    }>("rndopsapp.rndopsapp.api.get_project_activity", { doctype, docname });
 
-    useEffect(() => { refetchActivity(); }, [docname]);
+    useEffect(() => {
+        refetchActivity();
+    }, [docname]);
 
     return (
         <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
@@ -374,21 +515,28 @@ const ActivityStream = ({ doctype, docname }: { doctype: string; docname: string
                 activityData.message.map((activity, idx) => (
                     <div key={idx} className="flex items-start gap-3">
                         <div className="flex-shrink-0 h-7 w-7 rounded-full bg-[#FAFAF9] dark:bg-zinc-800 border border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-center font-semibold text-[#D97757] text-xs">
-                            {activity.owner?.charAt(0).toUpperCase() || 'U'}
+                            {activity.owner?.charAt(0).toUpperCase() || "U"}
                         </div>
                         <div className="min-w-0 flex-1">
                             <div
                                 className="text-sm text-[#3F3F46] dark:text-[#E4E4E7] line-clamp-2 prose prose-sm max-w-none"
-                                dangerouslySetInnerHTML={{ __html: activity.content }}
+                                dangerouslySetInnerHTML={{
+                                    __html: activity.content,
+                                }}
                             />
                             <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
-                                {activity.owner} · {activity.creation ? formatDate(activity.creation, 'long') : ''}
+                                {activity.owner} ·{" "}
+                                {activity.creation
+                                    ? formatDate(activity.creation, "long")
+                                    : ""}
                             </p>
                         </div>
                     </div>
                 ))
             ) : (
-                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">No recent activity.</p>
+                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">
+                    No recent activity.
+                </p>
             )}
         </div>
     );
@@ -404,13 +552,22 @@ const DirectPurchaseActionButtons = ({
 }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
-    const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(directPurchaseAPI.getWorkflowActions);
-    const { call: performAction } = useFrappePostCall(directPurchaseAPI.performAction);
+    const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
+        directPurchaseAPI.getWorkflowActions,
+    );
+    const { call: performAction } = useFrappePostCall(
+        directPurchaseAPI.performAction,
+    );
 
     useEffect(() => {
-        fetchActions({ docname }).then(res => {
-            if (res?.message) setActions(Array.isArray(res.message) ? res.message : []);
-        }).catch(err => console.error("Error fetching workflow actions:", err));
+        fetchActions({ docname })
+            .then((res) => {
+                if (res?.message)
+                    setActions(Array.isArray(res.message) ? res.message : []);
+            })
+            .catch((err) =>
+                console.error("Error fetching workflow actions:", err),
+            );
     }, [docname]);
 
     const handleAction = async (action: string) => {
@@ -418,17 +575,19 @@ const DirectPurchaseActionButtons = ({
         setIsPerforming(true);
         try {
             const result: any = await performAction({ docname, action });
-            if (result?.message?.status === 'success') {
-                alert(result.message.message || `Action "${action}" completed.`);
+            if (result?.message?.status === "success") {
+                alert(
+                    result.message.message || `Action "${action}" completed.`,
+                );
                 onActionComplete();
-            } else if (result?.message?.status === 'error') {
+            } else if (result?.message?.status === "error") {
                 alert(`Error: ${result.message.message}`);
             } else {
                 alert(`Action "${action}" completed.`);
                 onActionComplete();
             }
         } catch (err: any) {
-            alert(`Action failed: ${err.message || 'Unknown error'}`);
+            alert(`Action failed: ${err.message || "Unknown error"}`);
         } finally {
             setIsPerforming(false);
         }
@@ -438,14 +597,14 @@ const DirectPurchaseActionButtons = ({
 
     return (
         <div className="flex flex-wrap gap-2">
-            {actions.map(action => (
+            {actions.map((action) => (
                 <ClaudeButton
                     key={action}
                     variant="action"
                     onClick={() => handleAction(action)}
                     disabled={isPerforming}
                 >
-                    {isPerforming ? 'Processing…' : action}
+                    {isPerforming ? "Processing…" : action}
                 </ClaudeButton>
             ))}
         </div>
@@ -463,40 +622,48 @@ const P11FormActionButtons = ({
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
     const [showCommentModal, setShowCommentModal] = useState(false);
-    const [selectedAction, setSelectedAction] = useState('');
-    const [comment, setComment] = useState('');
+    const [selectedAction, setSelectedAction] = useState("");
+    const [comment, setComment] = useState("");
 
     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
-        p11FormAPI.getWorkflowActions
+        p11FormAPI.getWorkflowActions,
     );
     const { call: performAction } = useFrappePostCall(p11FormAPI.performAction);
 
     useEffect(() => {
         if (docname) {
             fetchActions({ docname })
-                .then(res => {
+                .then((res) => {
                     if (res?.message) {
-                        setActions(Array.isArray(res.message) ? res.message : []);
+                        setActions(
+                            Array.isArray(res.message) ? res.message : [],
+                        );
                     }
                 })
-                .catch(err => console.error("Error fetching P11 workflow actions:", err));
+                .catch((err) =>
+                    console.error("Error fetching P11 workflow actions:", err),
+                );
         }
     }, [docname]);
 
     const handleActionClick = (action: string) => {
         // Actions that need comment/confirmation
-        const needsComment = action.toLowerCase().includes('reject') ||
-                            action.toLowerCase().includes('put back');
+        const needsComment =
+            action.toLowerCase().includes("reject") ||
+            action.toLowerCase().includes("put back");
 
         if (needsComment) {
             setSelectedAction(action);
             setShowCommentModal(true);
         } else {
-            handleActionConfirm(action, '');
+            handleActionConfirm(action, "");
         }
     };
 
-    const handleActionConfirm = async (action: string, actionComment: string) => {
+    const handleActionConfirm = async (
+        action: string,
+        actionComment: string,
+    ) => {
         setIsPerforming(true);
         setShowCommentModal(false);
 
@@ -504,38 +671,41 @@ const P11FormActionButtons = ({
             const result: any = await performAction({
                 docname,
                 action,
-                comment: actionComment
+                comment: actionComment,
             });
 
-            if (result?.message?.status === 'success') {
-                alert(result.message.message || `Action "${action}" completed successfully.`);
+            if (result?.message?.status === "success") {
+                alert(
+                    result.message.message ||
+                        `Action "${action}" completed successfully.`,
+                );
                 onActionComplete();
-            } else if (result?.message?.status === 'error') {
+            } else if (result?.message?.status === "error") {
                 alert(`Error: ${result.message.message}`);
             } else {
                 alert(`Action "${action}" completed.`);
                 onActionComplete();
             }
         } catch (err: any) {
-            alert(`Action failed: ${err.message || 'Unknown error'}`);
+            alert(`Action failed: ${err.message || "Unknown error"}`);
         } finally {
             setIsPerforming(false);
-            setComment('');
+            setComment("");
         }
     };
 
     const getActionButtonClass = (action: string): string => {
         const actionLower = action.toLowerCase();
-        if (actionLower.includes('reject')) {
-            return 'bg-red-600 hover:bg-red-700 text-white border-red-700';
+        if (actionLower.includes("reject")) {
+            return "bg-red-600 hover:bg-red-700 text-white border-red-700";
         }
-        if (actionLower.includes('approve') || actionLower.includes('verify')) {
-            return 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700';
+        if (actionLower.includes("approve") || actionLower.includes("verify")) {
+            return "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700";
         }
-        if (actionLower.includes('generate')) {
-            return 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700';
+        if (actionLower.includes("generate")) {
+            return "bg-blue-600 hover:bg-blue-700 text-white border-blue-700";
         }
-        return '';
+        return "";
     };
 
     if (!actions.length) return null;
@@ -547,7 +717,7 @@ const P11FormActionButtons = ({
                     Workflow Actions
                 </p>
                 <div className="flex flex-wrap gap-2">
-                    {actions.map(action => (
+                    {actions.map((action) => (
                         <ClaudeButton
                             key={action}
                             variant="action"
@@ -555,7 +725,7 @@ const P11FormActionButtons = ({
                             onClick={() => handleActionClick(action)}
                             disabled={isPerforming}
                         >
-                            {isPerforming ? 'Processing…' : action}
+                            {isPerforming ? "Processing…" : action}
                         </ClaudeButton>
                     ))}
                 </div>
@@ -572,7 +742,7 @@ const P11FormActionButtons = ({
                             rows={4}
                             placeholder="Add a comment (optional)..."
                             value={comment}
-                            onChange={e => setComment(e.target.value)}
+                            onChange={(e) => setComment(e.target.value)}
                             className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
                         />
                         <div className="flex justify-end gap-2">
@@ -580,14 +750,16 @@ const P11FormActionButtons = ({
                                 variant="outline"
                                 onClick={() => {
                                     setShowCommentModal(false);
-                                    setComment('');
+                                    setComment("");
                                 }}
                             >
                                 Cancel
                             </ClaudeButton>
                             <ClaudeButton
                                 variant="action"
-                                onClick={() => handleActionConfirm(selectedAction, comment)}
+                                onClick={() =>
+                                    handleActionConfirm(selectedAction, comment)
+                                }
                             >
                                 Confirm
                             </ClaudeButton>
@@ -610,39 +782,52 @@ const SanctionSheetActionButtons = ({
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
     const [showCommentModal, setShowCommentModal] = useState(false);
-    const [selectedAction, setSelectedAction] = useState('');
-    const [comment, setComment] = useState('');
+    const [selectedAction, setSelectedAction] = useState("");
+    const [comment, setComment] = useState("");
 
     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
-        sanctionSheetAPI.getWorkflowActions
+        sanctionSheetAPI.getWorkflowActions,
     );
-    const { call: performAction } = useFrappePostCall(sanctionSheetAPI.performAction);
+    const { call: performAction } = useFrappePostCall(
+        sanctionSheetAPI.performAction,
+    );
 
     useEffect(() => {
         if (docname) {
             fetchActions({ docname })
-                .then(res => {
+                .then((res) => {
                     if (res?.message) {
-                        setActions(Array.isArray(res.message) ? res.message : []);
+                        setActions(
+                            Array.isArray(res.message) ? res.message : [],
+                        );
                     }
                 })
-                .catch(err => console.error("Error fetching Sanction Sheet workflow actions:", err));
+                .catch((err) =>
+                    console.error(
+                        "Error fetching Sanction Sheet workflow actions:",
+                        err,
+                    ),
+                );
         }
     }, [docname]);
 
     const handleActionClick = (action: string) => {
-        const needsComment = action.toLowerCase().includes('reject') ||
-                            action.toLowerCase().includes('put back');
+        const needsComment =
+            action.toLowerCase().includes("reject") ||
+            action.toLowerCase().includes("put back");
 
         if (needsComment) {
             setSelectedAction(action);
             setShowCommentModal(true);
         } else {
-            handleActionConfirm(action, '');
+            handleActionConfirm(action, "");
         }
     };
 
-    const handleActionConfirm = async (action: string, actionComment: string) => {
+    const handleActionConfirm = async (
+        action: string,
+        actionComment: string,
+    ) => {
         setIsPerforming(true);
         setShowCommentModal(false);
 
@@ -650,38 +835,41 @@ const SanctionSheetActionButtons = ({
             const result: any = await performAction({
                 docname,
                 action,
-                comment: actionComment
+                comment: actionComment,
             });
 
-            if (result?.message?.status === 'success') {
-                alert(result.message.message || `Action "${action}" completed successfully.`);
+            if (result?.message?.status === "success") {
+                alert(
+                    result.message.message ||
+                        `Action "${action}" completed successfully.`,
+                );
                 onActionComplete();
-            } else if (result?.message?.status === 'error') {
+            } else if (result?.message?.status === "error") {
                 alert(`Error: ${result.message.message}`);
             } else {
                 alert(`Action "${action}" completed.`);
                 onActionComplete();
             }
         } catch (err: any) {
-            alert(`Action failed: ${err.message || 'Unknown error'}`);
+            alert(`Action failed: ${err.message || "Unknown error"}`);
         } finally {
             setIsPerforming(false);
-            setComment('');
+            setComment("");
         }
     };
 
     const getActionButtonClass = (action: string): string => {
         const actionLower = action.toLowerCase();
-        if (actionLower.includes('reject')) {
-            return 'bg-red-600 hover:bg-red-700 text-white border-red-700';
+        if (actionLower.includes("reject")) {
+            return "bg-red-600 hover:bg-red-700 text-white border-red-700";
         }
-        if (actionLower.includes('verify') || actionLower.includes('print')) {
-            return 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700';
+        if (actionLower.includes("verify") || actionLower.includes("print")) {
+            return "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700";
         }
-        if (actionLower.includes('generate')) {
-            return 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700';
+        if (actionLower.includes("generate")) {
+            return "bg-blue-600 hover:bg-blue-700 text-white border-blue-700";
         }
-        return '';
+        return "";
     };
 
     if (!actions.length) return null;
@@ -693,7 +881,7 @@ const SanctionSheetActionButtons = ({
                     Workflow Actions
                 </p>
                 <div className="flex flex-wrap gap-2">
-                    {actions.map(action => (
+                    {actions.map((action) => (
                         <ClaudeButton
                             key={action}
                             variant="action"
@@ -701,7 +889,7 @@ const SanctionSheetActionButtons = ({
                             onClick={() => handleActionClick(action)}
                             disabled={isPerforming}
                         >
-                            {isPerforming ? 'Processing…' : action}
+                            {isPerforming ? "Processing…" : action}
                         </ClaudeButton>
                     ))}
                 </div>
@@ -718,7 +906,7 @@ const SanctionSheetActionButtons = ({
                             rows={4}
                             placeholder="Add a comment (optional)..."
                             value={comment}
-                            onChange={e => setComment(e.target.value)}
+                            onChange={(e) => setComment(e.target.value)}
                             className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
                         />
                         <div className="flex justify-end gap-2">
@@ -726,14 +914,16 @@ const SanctionSheetActionButtons = ({
                                 variant="outline"
                                 onClick={() => {
                                     setShowCommentModal(false);
-                                    setComment('');
+                                    setComment("");
                                 }}
                             >
                                 Cancel
                             </ClaudeButton>
                             <ClaudeButton
                                 variant="action"
-                                onClick={() => handleActionConfirm(selectedAction, comment)}
+                                onClick={() =>
+                                    handleActionConfirm(selectedAction, comment)
+                                }
                             >
                                 Confirm
                             </ClaudeButton>
@@ -762,22 +952,29 @@ const LinkedDocTab = ({
     emptyDescription: string;
     onDataReload?: () => void;
 }) => {
-    const { data: listData, isLoading: listLoading, mutate: reloadList } = useFrappeGetCall<{ message: { name: string }[] }>(
-        'frappe.client.get_list',
+    const {
+        data: listData,
+        isLoading: listLoading,
+        mutate: reloadList,
+    } = useFrappeGetCall<{ message: { name: string }[] }>(
+        "frappe.client.get_list",
         {
             doctype,
-            filters: JSON.stringify([[filterField, '=', filterValue]]),
-            fields: JSON.stringify(['name']),
+            filters: JSON.stringify([[filterField, "=", filterValue]]),
+            fields: JSON.stringify(["name"]),
             limit: 1,
-        }
+        },
     );
 
-    const docName = listData?.message?.[0]?.name || '';
+    const docName = listData?.message?.[0]?.name || "";
 
-    const { data: docData, isLoading: docLoading, mutate: reloadDoc } = useFrappeGetDoc<Record<string, any>>(
-        doctype,
-        docName
-    );
+    const {
+        data: docData,
+        isLoading: docLoading,
+        mutate: reloadDoc,
+    } = useFrappeGetDoc<Record<string, any>>(doctype, docName);
+
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
     // Reload handler
     const handleReload = () => {
@@ -798,40 +995,82 @@ const LinkedDocTab = ({
         return (
             <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
                 <FileTextIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
-                <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">{emptyTitle}</p>
-                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">{emptyDescription}</p>
+                <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
+                    {emptyTitle}
+                </p>
+                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
+                    {emptyDescription}
+                </p>
             </div>
         );
     }
 
     return (
         <div className="space-y-2">
-            <div className="flex items-center gap-2 mb-5">
-                <span className="text-xs font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]">
-                    {docName}
-                </span>
-                {docData.workflow_state && (
-                    <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                        {docData.workflow_state}
+            <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]">
+                        {docName}
                     </span>
+                    {docData.workflow_state && (
+                        <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                            {docData.workflow_state}
+                        </span>
+                    )}
+                </div>
+                {doctype === "P_11 Form" && (
+                    <button
+                        onClick={() => setIsPrintModalOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                    >
+                        <Printer className="w-4 h-4" /> Print / PDF
+                    </button>
+                )}
+                {doctype === "sanction_sheet" && (
+                    <button
+                        onClick={() => setIsPrintModalOpen(true)}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                    >
+                        <Printer className="w-4 h-4" /> Print / PDF
+                    </button>
                 )}
             </div>
 
             <DocumentViewer data={docData} />
 
             {/* Render workflow actions based on doctype */}
-            {doctype === 'P_11 Form' && (
-                <P11FormActionButtons
-                    docname={docName}
-                    onActionComplete={handleReload}
-                />
+            {doctype === "P_11 Form" && (
+                <>
+                    <P11FormActionButtons
+                        docname={docName}
+                        onActionComplete={handleReload}
+                    />
+                    <P11PrintModal
+                        isOpen={isPrintModalOpen}
+                        onClose={() => setIsPrintModalOpen(false)}
+                        htmlContent={
+                            isPrintModalOpen ? generateP11Html(docData) : ""
+                        }
+                        docName={docName}
+                    />
+                </>
             )}
 
-            {doctype === 'Sanction Sheet' && (
-                <SanctionSheetActionButtons
-                    docname={docName}
-                    onActionComplete={handleReload}
-                />
+            {doctype === "sanction_sheet" && (
+                <>
+                    <SanctionSheetActionButtons
+                        docname={docName}
+                        onActionComplete={handleReload}
+                    />
+                    <P11PrintModal
+                        isOpen={isPrintModalOpen}
+                        onClose={() => setIsPrintModalOpen(false)}
+                        htmlContent={
+                            isPrintModalOpen ? generateSanctionSheetHtml(docData) : ""
+                        }
+                        docName={docName}
+                    />
+                </>
             )}
         </div>
     );
@@ -845,10 +1084,26 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-    { id: 'details', label: 'Details', icon: <LayoutGridIcon className="w-4 h-4" /> },
-    { id: 'p11', label: 'P-11 Form', icon: <ClipboardListIcon className="w-4 h-4" /> },
-    { id: 'sanction', label: 'Sanction Sheet', icon: <FileTextIcon className="w-4 h-4" /> },
-    { id: 'po', label: 'Purchase Order', icon: <ShoppingCartIcon className="w-4 h-4" /> },
+    {
+        id: "details",
+        label: "Details",
+        icon: <LayoutGridIcon className="w-4 h-4" />,
+    },
+    {
+        id: "p11",
+        label: "P-11 Form",
+        icon: <ClipboardListIcon className="w-4 h-4" />,
+    },
+    {
+        id: "sanction",
+        label: "Sanction Sheet",
+        icon: <FileTextIcon className="w-4 h-4" />,
+    },
+    {
+        id: "po",
+        label: "Purchase Order",
+        icon: <ShoppingCartIcon className="w-4 h-4" />,
+    },
 ];
 
 // --- MAIN COMPONENT ---
@@ -861,34 +1116,89 @@ const DirectPurchaseDetails: React.FC = () => {
         error,
         isLoading: loading,
         mutate: reloadData,
-    } = useFrappeGetDoc<DirectPurchaseData>('Direct Purchase', id || '');
+    } = useFrappeGetDoc<DirectPurchaseData>("Direct Purchase", id || "");
 
-    const [activeTab, setActiveTab] = useState<TabId>('details');
-    const [sidebarComment, setSidebarComment] = useState('');
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+    const isStaffRnD = roles.some((r) =>
+        ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r),
+    );
+
+    const [activeTab, setActiveTab] = useState<TabId>("details");
+    const [sidebarComment, setSidebarComment] = useState("");
     const [isAddingComment, setIsAddingComment] = useState(false);
     const [isGeneratingPO, setIsGeneratingPO] = useState(false);
     const [isGeneratingP11, setIsGeneratingP11] = useState(false);
+    const [isOpeningSanctionSheet, setIsOpeningSanctionSheet] = useState(false);
+    const [poSanctionData, setPoSanctionData] = useState<Record<string, any> | null>(null);
+    const [isLoadingPOData, setIsLoadingPOData] = useState(false);
 
-    const { call: addComment } = useFrappePostCall('rndopsapp.rndopsapp.api.add_project_comment');
-    const { call: generatePO } = useFrappePostCall(directPurchaseAPI.generatePurchaseOrder);
-    const { call: generateP11 } = useFrappePostCall(directPurchaseAPI.generateP11Form);
+    const { call: addComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment",
+    );
+    const { call: generatePO } = useFrappePostCall(
+        directPurchaseAPI.generatePurchaseOrder,
+    );
+    const { call: generateP11 } = useFrappePostCall(
+        directPurchaseAPI.generateP11Form,
+    );
 
-    const loadData = () => { if (id) reloadData(); };
+    const loadData = () => {
+        if (id) reloadData();
+    };
+
+    // Fetch sanction sheet data for PO editor when PO tab is active
+    useEffect(() => {
+        if (activeTab !== "po" || !id) return;
+        if (poSanctionData) return; // already fetched
+
+        const fetchSSData = async () => {
+            setIsLoadingPOData(true);
+            try {
+                const filters = JSON.stringify([["app_id", "=", id]]);
+                const listRes = await fetch(
+                    `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`,
+                    { credentials: "include", headers: { Accept: "application/json" } },
+                ).then((r) => r.json()).catch(() => ({ data: [] }));
+
+                const ssName = listRes?.data?.[0]?.name;
+                if (ssName) {
+                    const docRes = await fetch(
+                        `/api/method/frappe.client.get`,
+                        {
+                            method: "POST",
+                            credentials: "include",
+                            headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": (window as any).csrf_token || "" },
+                            body: JSON.stringify({ doctype: "sanction_sheet", name: ssName }),
+                        },
+                    ).then((r) => r.json()).catch(() => null);
+                    if (docRes?.message) {
+                        setPoSanctionData(docRes.message);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching sanction sheet for PO:", err);
+            } finally {
+                setIsLoadingPOData(false);
+            }
+        };
+        fetchSSData();
+    }, [activeTab, id, data?.workflow_state, poSanctionData]);
 
     const handleSidebarCommentSubmit = async () => {
         if (!sidebarComment.trim() || !id) return;
         setIsAddingComment(true);
         try {
             await addComment({
-                reference_doctype: 'Direct Purchase',
+                reference_doctype: "Direct Purchase",
                 reference_name: id,
                 content: sidebarComment,
-                comment_type: 'Comment',
+                comment_type: "Comment",
             });
-            setSidebarComment('');
+            setSidebarComment("");
             loadData();
         } catch (err) {
-            console.error('Error adding comment:', err);
+            console.error("Error adding comment:", err);
         } finally {
             setIsAddingComment(false);
         }
@@ -899,14 +1209,18 @@ const DirectPurchaseDetails: React.FC = () => {
         setIsGeneratingPO(true);
         try {
             const res = await generatePO({ docname: id });
-            if (res?.message?.status === 'success') {
-                alert('Purchase Order generated successfully!');
+            if (res?.message?.status === "success") {
+                alert("Purchase Order generated successfully!");
                 loadData();
             } else {
-                throw new Error(res?.message?.message || 'Failed to generate PO');
+                throw new Error(
+                    res?.message?.message || "Failed to generate PO",
+                );
             }
         } catch (err: any) {
-            alert(`Error: ${err.message || 'Could not generate Purchase Order.'}`);
+            alert(
+                `Error: ${err.message || "Could not generate Purchase Order."}`,
+            );
         } finally {
             setIsGeneratingPO(false);
         }
@@ -917,16 +1231,47 @@ const DirectPurchaseDetails: React.FC = () => {
         setIsGeneratingP11(true);
         try {
             const res = await generateP11({ docname: id });
-            if (res?.message?.status === 'success') {
-                alert('P-11 Form generated successfully!');
+            if (res?.message?.status === "success") {
+                alert("P-11 Form generated successfully!");
                 loadData();
             } else {
-                throw new Error(res?.message?.message || 'Failed to generate P-11 Form');
+                throw new Error(
+                    res?.message?.message || "Failed to generate P-11 Form",
+                );
             }
         } catch (err: any) {
-            alert(`Error: ${err.message || 'Could not generate P-11 Form.'}`);
+            alert(`Error: ${err.message || "Could not generate P-11 Form."}`);
         } finally {
             setIsGeneratingP11(false);
+        }
+    };
+
+    const handleOpenSanctionSheet = async () => {
+        if (!id) return;
+        setIsOpeningSanctionSheet(true);
+        try {
+            const filters = JSON.stringify([["app_id", "=", id]]);
+            const res = await fetch(
+                `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=["name"]`,
+                { credentials: "include", headers: { Accept: "application/json" } },
+            );
+            if (res.ok) {
+                const result = await res.json();
+                const existing = result.data?.[0];
+                if (existing?.name) {
+                    navigate(`/sanction-sheet?edit=${existing.name}`);
+                    return;
+                }
+            }
+            navigate(
+                `/sanction-sheet?app_id=${id}&project_no=${encodeURIComponent(data?.project_name || "")}`,
+            );
+        } catch {
+            navigate(
+                `/sanction-sheet?app_id=${id}&project_no=${encodeURIComponent(data?.project_name || "")}`,
+            );
+        } finally {
+            setIsOpeningSanctionSheet(false);
         }
     };
 
@@ -936,9 +1281,14 @@ const DirectPurchaseDetails: React.FC = () => {
         return (
             <div className="flex h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
                 <div className="text-center space-y-2">
-                    <h2 className="font-serif text-xl font-medium text-red-600">Unable to load document</h2>
+                    <h2 className="font-serif text-xl font-medium text-red-600">
+                        Unable to load document
+                    </h2>
                     <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
-                        {error ? (error as any).message || 'Failed to load document' : 'Document not found'}
+                        {error
+                            ? (error as any).message ||
+                              "Failed to load document"
+                            : "Document not found"}
                     </p>
                     <button
                         onClick={() => navigate(-1)}
@@ -963,16 +1313,18 @@ const DirectPurchaseDetails: React.FC = () => {
                     projectName={data.project_name}
                 >
                     <div className="flex items-center gap-2 flex-wrap">
-                        {data.workflow_state === 'Draft' && id && (
+                        {data.workflow_state === "Draft" && id && (
                             <ClaudeButton
                                 variant="outline"
-                                onClick={() => navigate(`/direct-purchase?edit=${id}`)}
+                                onClick={() =>
+                                    navigate(`/direct-purchase?edit=${id}`)
+                                }
                             >
                                 <EditIcon className="w-3.5 h-3.5" />
                                 Edit
                             </ClaudeButton>
                         )}
-                        {data.workflow_state === 'Approved' && id && (
+                        {/*{data.workflow_state === 'Approved' && id && (
                             <ClaudeButton
                                 variant="primary"
                                 onClick={handleGenerateP11}
@@ -980,20 +1332,26 @@ const DirectPurchaseDetails: React.FC = () => {
                             >
                                 {isGeneratingP11 ? 'Generating…' : 'Generate P-11 Form'}
                             </ClaudeButton>
-                        )}
-                        {data.workflow_state === 'SancSheetApproved' && id && (
+                        )}*/}
+                        {data.workflow_state === "SancSheetApproved" && id && (
                             <ClaudeButton
                                 variant="primary"
                                 onClick={handleGeneratePO}
                                 disabled={isGeneratingPO}
                             >
-                                {isGeneratingPO ? 'Generating…' : 'Generate Purchase Order'}
+                                {isGeneratingPO
+                                    ? "Generating…"
+                                    : "Generate Purchase Order"}
                             </ClaudeButton>
                         )}
-                        {data.workflow_state === 'POGenerated' && id && (
+                        {data.workflow_state === "POGenerated" && id && (
                             <ClaudeButton
                                 variant="outline"
-                                onClick={() => alert('PO Print functionality will be integrated here.')}
+                                onClick={() =>
+                                    alert(
+                                        "PO Print functionality will be integrated here.",
+                                    )
+                                }
                             >
                                 Print PO
                             </ClaudeButton>
@@ -1012,7 +1370,7 @@ const DirectPurchaseDetails: React.FC = () => {
                     <div className="lg:col-span-2 space-y-0">
                         {/* Tab navigation */}
                         <div className="flex items-center border-b border-[#E4E4E7] dark:border-[#3F3F46] mb-6 overflow-x-auto">
-                            {TABS.map(tab => (
+                            {TABS.map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
@@ -1020,7 +1378,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                         "inline-flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-150",
                                         activeTab === tab.id
                                             ? "border-[#D97757] text-[#D97757]"
-                                            : "border-transparent text-[#71717A] dark:text-[#A1A1AA] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7] hover:border-[#E4E4E7] dark:hover:border-[#3F3F46]"
+                                            : "border-transparent text-[#71717A] dark:text-[#A1A1AA] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7] hover:border-[#E4E4E7] dark:hover:border-[#3F3F46]",
                                     )}
                                 >
                                     {tab.icon}
@@ -1031,14 +1389,14 @@ const DirectPurchaseDetails: React.FC = () => {
 
                         {/* Tab content */}
                         <ClaudeCard
-                            title={TABS.find(t => t.id === activeTab)?.label}
-                            accentTop={activeTab === 'details'}
+                            title={TABS.find((t) => t.id === activeTab)?.label}
+                            accentTop={activeTab === "details"}
                         >
-                            {activeTab === 'details' && (
+                            {activeTab === "details" && (
                                 <DocumentViewer data={data} />
                             )}
 
-                            {activeTab === 'p11' && id && (
+                            {activeTab === "p11" && id && (
                                 <LinkedDocTab
                                     doctype="P_11 Form"
                                     filterField="app_id"
@@ -1049,40 +1407,70 @@ const DirectPurchaseDetails: React.FC = () => {
                                 />
                             )}
 
-                            {activeTab === 'sanction' && id && (
-                                <LinkedDocTab
-                                    doctype="Sanction Sheet"
-                                    filterField="direct_purchase"
-                                    filterValue={id}
-                                    emptyTitle="No Sanction Sheet Generated Yet"
-                                    emptyDescription="The Sanction Sheet is created by RnD Staff after the P-11 Form is verified and approved."
-                                    onDataReload={loadData}
-                                />
+                            {activeTab === "sanction" && id && (
+                                <>
+                                    {data?.workflow_state === "RDP-11 Verified" && isStaffRnD && (
+                                        <div className="mb-5">
+                                            <button
+                                                onClick={handleOpenSanctionSheet}
+                                                disabled={isOpeningSanctionSheet}
+                                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-60"
+                                            >
+                                                {isOpeningSanctionSheet ? "Opening…" : "Sanction Sheet"}
+                                            </button>
+                                        </div>
+                                    )}
+                                    <LinkedDocTab
+                                        doctype="sanction_sheet"
+                                        filterField="app_id"
+                                        filterValue={id}
+                                        emptyTitle="No Sanction Sheet Generated Yet"
+                                        emptyDescription="The Sanction Sheet is created by RnD Staff after the P-11 Form is verified and approved."
+                                        onDataReload={loadData}
+                                    />
+                                </>
                             )}
 
-                            {activeTab === 'po' && (
-                                <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-                                    <ShoppingCartIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
-                                    <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
-                                        {data.workflow_state === 'POGenerated'
-                                            ? 'Purchase Order Generated'
-                                            : 'Purchase Order Not Yet Generated'}
-                                    </p>
-                                    <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
-                                        {data.workflow_state === 'POGenerated'
-                                            ? 'Use the Print PO button above to print the Purchase Order document.'
-                                            : 'The Purchase Order is generated from this Direct Purchase once the Sanction Sheet is approved.'}
-                                    </p>
-                                    {data.workflow_state === 'POGenerated' && (
-                                        <ClaudeButton
-                                            variant="outline"
-                                            onClick={() => alert('PO Print functionality will be integrated here.')}
-                                            className="mt-2"
-                                        >
-                                            Print PO
-                                        </ClaudeButton>
+                            {activeTab === "po" && (
+                                <>
+                                    {isLoadingPOData ? (
+                                        <div className="flex items-center justify-center py-16">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#D97757] border-t-transparent" />
+                                        </div>
+                                    ) : poSanctionData ? (
+                                        <POEditor
+                                            ssData={poSanctionData}
+                                            dpId={id || ""}
+                                            isStaffRnD={isStaffRnD}
+                                            onUploadSignedPO={async (file: File) => {
+                                                const formData = new FormData();
+                                                formData.append("file", file, file.name);
+                                                formData.append("is_private", "0");
+                                                formData.append("doctype", "Direct Purchase");
+                                                formData.append("docname", id || "");
+                                                const res = await fetch("/api/method/upload_file", {
+                                                    method: "POST",
+                                                    body: formData,
+                                                    credentials: "include",
+                                                    headers: {
+                                                        "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+                                                    },
+                                                });
+                                                if (!res.ok) throw new Error("Upload failed");
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+                                            <ShoppingCartIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
+                                            <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                No Sanction Sheet Available
+                                            </p>
+                                            <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
+                                                The Purchase Order editor requires a Sanction Sheet to be created first.
+                                            </p>
+                                        </div>
                                     )}
-                                </div>
+                                </>
                             )}
                         </ClaudeCard>
                     </div>
@@ -1098,7 +1486,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                     </p>
                                     <div className="flex items-center gap-2 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
                                         <UserIcon className="w-3.5 h-3.5 text-[#71717A] dark:text-[#A1A1AA]" />
-                                        {data.owner || '—'}
+                                        {data.owner || "—"}
                                     </div>
                                 </div>
                                 <div>
@@ -1107,7 +1495,9 @@ const DirectPurchaseDetails: React.FC = () => {
                                     </p>
                                     <div className="flex items-center gap-2 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
                                         <CalendarIcon className="w-3.5 h-3.5 text-[#71717A] dark:text-[#A1A1AA]" />
-                                        {data.creation ? formatDate(data.creation, 'long') : '—'}
+                                        {data.creation
+                                            ? formatDate(data.creation, "long")
+                                            : "—"}
                                     </div>
                                 </div>
                                 <div>
@@ -1116,7 +1506,9 @@ const DirectPurchaseDetails: React.FC = () => {
                                     </p>
                                     <div className="flex items-center gap-2 text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
                                         <CalendarIcon className="w-3.5 h-3.5 text-[#71717A] dark:text-[#A1A1AA]" />
-                                        {data.modified ? formatDate(data.modified, 'short') : '—'}
+                                        {data.modified
+                                            ? formatDate(data.modified, "short")
+                                            : "—"}
                                     </div>
                                 </div>
                             </div>
@@ -1124,7 +1516,12 @@ const DirectPurchaseDetails: React.FC = () => {
 
                         {/* Activity Stream */}
                         <ClaudeCard title="Activity">
-                            {id && <ActivityStream doctype="Direct Purchase" docname={id} />}
+                            {id && (
+                                <ActivityStream
+                                    doctype="Direct Purchase"
+                                    docname={id}
+                                />
+                            )}
                         </ClaudeCard>
 
                         {/* Add Comment */}
@@ -1133,16 +1530,22 @@ const DirectPurchaseDetails: React.FC = () => {
                                 rows={3}
                                 placeholder="Type your comment…"
                                 value={sidebarComment}
-                                onChange={e => setSidebarComment(e.target.value)}
+                                onChange={(e) =>
+                                    setSidebarComment(e.target.value)
+                                }
                                 className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#71717A] dark:placeholder:text-[#A1A1AA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800 focus-visible:border-zinc-400 dark:focus-visible:border-zinc-500 transition-all duration-200 mb-3"
                             />
                             <ClaudeButton
                                 variant="primary"
                                 className="w-full"
                                 onClick={handleSidebarCommentSubmit}
-                                disabled={isAddingComment || !sidebarComment.trim()}
+                                disabled={
+                                    isAddingComment || !sidebarComment.trim()
+                                }
                             >
-                                {isAddingComment ? 'Submitting…' : 'Submit Comment'}
+                                {isAddingComment
+                                    ? "Submitting…"
+                                    : "Submit Comment"}
                             </ClaudeButton>
                         </ClaudeCard>
                     </div>

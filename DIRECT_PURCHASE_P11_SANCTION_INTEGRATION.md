@@ -530,7 +530,7 @@ const LinkedDocTab = ({
                 />
             )}
 
-            {doctype === 'Sanction Sheet' && (
+            {doctype === 'sanction_sheet' && (
                 <SanctionSheetActionButtons
                     docname={docName}
                     onActionComplete={handleReload}
@@ -562,7 +562,7 @@ const LinkedDocTab = ({
 
 {activeTab === 'sanction' && id && (
     <LinkedDocTab
-        doctype="Sanction Sheet"
+        doctype="sanction_sheet"
         filterField="direct_purchase"
         filterValue={id}
         emptyTitle="No Sanction Sheet Generated Yet"
@@ -586,7 +586,7 @@ const LinkedDocTab = ({
 
 {activeTab === 'sanction' && id && (
     <LinkedDocTab
-        doctype="Sanction Sheet"
+        doctype="sanction_sheet"
         filterField="direct_purchase"
         filterValue={id}
         emptyTitle="No Sanction Sheet Generated Yet"
