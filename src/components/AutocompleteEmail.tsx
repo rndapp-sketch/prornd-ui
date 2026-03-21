@@ -49,10 +49,8 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
     if (!debouncedValue) return [];
     const searchStr = debouncedValue.toLowerCase();
     return options.filter(opt =>
-      searchByLabel
-        ? opt.label.toLowerCase().includes(searchStr)
-        : opt.value.toLowerCase().includes(searchStr)
-    ).slice(0, 10);
+      opt.label.toLowerCase().includes(searchStr) || opt.value.toLowerCase().includes(searchStr)
+    ).sort((a, b) => (searchByLabel ? a.label : a.value).localeCompare(searchByLabel ? b.label : b.value)).slice(0, 100);
   }, [debouncedValue, options, searchByLabel]);
 
   return (
@@ -86,7 +84,7 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
                 setIsOpen(false);
               }}
             >
-              {searchByLabel ? opt.label : opt.value}
+              {searchByLabel ? `${opt.label} (${opt.value})` : `${opt.value} (${opt.label})`}
             </li>
           ))}
         </ul>

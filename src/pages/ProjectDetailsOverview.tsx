@@ -527,6 +527,102 @@ const TADASettlementModal = ({
   );
 };
 
+const P11FormModal = ({
+  isOpen,
+  onClose,
+  forms,
+  onCreateNew,
+  onNavigate,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  forms: any[];
+  onCreateNew: () => void;
+  onNavigate: (path: string) => void;
+}) => {
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999]">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-lg relative z-[100000]">
+        <h3 className="text-lg font-bold mb-4 text-zinc-900 dark:text-zinc-100">
+          P-11 Forms
+        </h3>
+        {forms.length > 0 ? (
+          <>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+              Existing P-11 form(s) found for this Direct Purchase. Open an
+              existing form or create a new one.
+            </p>
+            <div className="space-y-3 mb-6 max-h-[280px] overflow-y-auto">
+              {forms.map((form) => (
+                <div
+                  key={form.name}
+                  className="flex items-center justify-between p-3 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50"
+                >
+                  <div>
+                    <p className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
+                      {form.name}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {form.workflow_state} · ₹ {form.grand_total ?? 0}
+                    </p>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      {form.creation
+                        ? new Date(form.creation).toLocaleDateString()
+                        : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full border ${
+                        form.workflow_state === "Approved"
+                          ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                          : form.workflow_state === "Submitted"
+                            ? "bg-blue-100 text-blue-800 border-blue-200"
+                            : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                      }`}
+                    >
+                      {form.workflow_state || "Draft"}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        onClose();
+                        onNavigate(`/p11-form?edit=${form.name}&view=true`);
+                      }}
+                    >
+                      Open
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-6">
+            No P-11 forms found for this Direct Purchase. Create a new one to
+            get started.
+          </p>
+        )}
+        <div className="flex justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={onCreateNew}
+            className="bg-[#D97757] hover:bg-[#D97757] text-white"
+          >
+            Create New P-11 Form
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+};
+
 // --- START: REFACTORED QuickActions COMPONENT ---
 
 interface QuickActionsProps {
@@ -566,6 +662,12 @@ const QuickActions = ({
     [],
   );
   const [selectedTravelForSettle, setSelectedTravelForSettle] =
+    useState<any>(null);
+
+  // P-11 Form Modal State
+  const [isP11ModalOpen, setIsP11ModalOpen] = useState(false);
+  const [existingP11Forms, setExistingP11Forms] = useState<any[]>([]);
+  const [selectedDirectPurchaseForP11, setSelectedDirectPurchaseForP11] =
     useState<any>(null);
 
   const handleSettleClick = async (item: any) => {
@@ -689,6 +791,46 @@ const QuickActions = ({
         `/ta-da-settlement?project=${projectNo}&travel_ref=${item.name}`,
       );
     } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleP11FormClick = async (item: any) => {
+    setIsLoading(true);
+    try {
+      const filters = JSON.stringify([
+        ["project_no", "=", projectNo || projectName],
+        ["app_id", "=", item.name],
+      ]);
+      const apiUrl = `/api/v2/document/P_11 Form?filters=${encodeURIComponent(filters)}&fields=["*"]`;
+
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const forms = (result.data || [])
+        .filter((f: any) => f.docstatus !== 2)
+        .map((f: any) => ({
+          ...f,
+          workflow_state:
+            f.workflow_state ||
+            (f.docstatus === 1 ? "Submitted" : "Draft"),
+        }));
+
+      setExistingP11Forms(forms);
+    } catch (error) {
+      console.error("Error fetching P_11 forms:", error);
+      setExistingP11Forms([]);
+    } finally {
+      setSelectedDirectPurchaseForP11(item);
+      setIsP11ModalOpen(true);
       setIsLoading(false);
     }
   };
@@ -1550,11 +1692,7 @@ const QuickActions = ({
                         {selectedApplication === "Direct Purchase" &&
                           item.workflow_state === "Approved" && (
                             <button
-                              onClick={() =>
-                                onNavigate(
-                                  `/p11-form?project_no=${projectNo || projectName}&app_id=${item.name}`,
-                                )
-                              }
+                              onClick={() => handleP11FormClick(item)}
                               className="text-sm text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline whitespace-nowrap"
                             >
                               P-11-Form
@@ -1633,6 +1771,20 @@ const QuickActions = ({
             if (selectedTravelForSettle) {
               onNavigate(
                 `/ta-da-settlement?project=${projectNo}&travel_ref=${selectedTravelForSettle.name}`,
+              );
+            }
+          }}
+          onNavigate={onNavigate}
+        />
+        <P11FormModal
+          isOpen={isP11ModalOpen}
+          onClose={() => setIsP11ModalOpen(false)}
+          forms={existingP11Forms}
+          onCreateNew={() => {
+            setIsP11ModalOpen(false);
+            if (selectedDirectPurchaseForP11) {
+              onNavigate(
+                `/p11-form?project_no=${projectNo || projectName}&app_id=${selectedDirectPurchaseForP11.name}`,
               );
             }
           }}

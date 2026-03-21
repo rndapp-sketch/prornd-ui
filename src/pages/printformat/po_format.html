@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Purchase Order</title>
+
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+        <style>
+            * {
+                box-sizing: border-box;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            body {
+                margin: 0;
+                padding: 0;
+                font-family: "Libre Baskerville", "Times New Roman", Times, serif;
+                background: #e0e0e0;
+            }
+
+            .page {
+                width: 210mm;
+                min-height: 297mm;
+                margin: 20px auto;
+                background: #fff;
+                position: relative;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            }
+
+            .content {
+                position: relative;
+                z-index: 1;
+                padding: 10mm 12mm;
+            }
+
+            .watermark {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                opacity: 0.08;
+                z-index: 0;
+                pointer-events: none;
+            }
+
+            .watermark img {
+                width: 350px;
+            }
+
+            .header-row {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 15px;
+                margin-bottom: 5px;
+            }
+
+            .logo-container img {
+                height: 65px;
+                width: auto;
+            }
+
+            .header-text {
+                text-align: center;
+            }
+
+            .header {
+                font-size: 22px;
+                font-weight: bold;
+                text-transform: uppercase;
+                margin-bottom: 2px;
+            }
+
+            .institution-address {
+                font-size: 13px;
+                margin-bottom: 2px;
+            }
+
+            .sub-header {
+                font-size: 18px;
+                font-weight: bold;
+            }
+
+            .sub-header-note {
+                font-size: 12px;
+                font-style: italic;
+                margin-top: 2px;
+            }
+
+            .top-info {
+                display: flex;
+                justify-content: space-between;
+                font-size: 14px;
+                margin-bottom: 10px;
+                line-height: 1.5;
+            }
+
+            .top-info .left {
+                max-width: 55%;
+            }
+
+            .top-info .right {
+                text-align: right;
+            }
+
+            .title {
+                text-align: center;
+                font-weight: bold;
+                text-decoration: underline;
+                margin: 10px 0 14px 0;
+                font-size: 18px;
+            }
+
+            .ref-line {
+                font-size: 14px;
+                margin-bottom: 6px;
+                line-height: 1.4;
+            }
+
+            .intro-paragraph {
+                font-size: 14px;
+                margin-bottom: 12px;
+                line-height: 1.5;
+            }
+
+            /* Info table (key-value pairs) */
+            .info-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 14px;
+                margin-bottom: 12px;
+            }
+
+            .info-table td {
+                border: 1px solid #000;
+                padding: 5px 8px;
+                vertical-align: top;
+                line-height: 1.3;
+            }
+
+            .info-table td.label {
+                font-weight: bold;
+                width: 45%;
+                background-color: #f7f7f7;
+            }
+
+            /* Item table */
+            table.item-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 12px;
+                margin-bottom: 10px;
+                table-layout: fixed;
+            }
+
+            table.item-table th,
+            table.item-table td {
+                border: 1px solid #000;
+                padding: 5px 6px;
+                vertical-align: middle;
+                line-height: 1.3;
+                word-wrap: break-word;
+            }
+
+            table.item-table th {
+                text-align: center;
+                font-weight: bold;
+                background-color: #f0f0f0;
+            }
+
+            .center {
+                text-align: center;
+            }
+            .right {
+                text-align: right;
+            }
+
+            .section-title {
+                font-size: 14px;
+                font-weight: bold;
+                text-decoration: underline;
+                margin: 12px 0 6px 0;
+            }
+
+            .amount-words {
+                font-size: 14px;
+                margin-bottom: 10px;
+                line-height: 1.5;
+            }
+
+            .budget-info {
+                font-size: 14px;
+                margin-bottom: 12px;
+                line-height: 1.6;
+            }
+
+            .terms-content {
+                font-size: 13px;
+                line-height: 1.6;
+                margin-bottom: 12px;
+            }
+
+            .terms-content ol,
+            .terms-content ul {
+                padding-left: 24px;
+                margin: 4px 0 10px 0;
+            }
+
+            .terms-content ol {
+                list-style-type: decimal;
+            }
+
+            .terms-content ul {
+                list-style-type: disc;
+            }
+
+            .terms-content li {
+                display: list-item;
+                margin-bottom: 5px;
+            }
+
+            .terms-content ol ol,
+            .terms-content ul ul {
+                margin: 2px 0 4px 0;
+            }
+
+            .terms-content ol ol {
+                list-style-type: lower-alpha;
+            }
+
+            .terms-content ul ul {
+                list-style-type: circle;
+            }
+
+            .signature-section {
+                margin-top: 50px;
+                display: flex;
+                justify-content: space-between;
+                font-size: 14px;
+                page-break-inside: avoid;
+            }
+
+            .sig-block {
+                text-align: center;
+            }
+
+            .sig-block.right-align {
+                text-align: right;
+            }
+
+            .sig-block.left-align {
+                text-align: left;
+            }
+
+            @page {
+                size: A4;
+                margin: 15mm 12mm;
+            }
+
+            @media print {
+                body {
+                    margin: 0;
+                    background: none;
+                }
+
+                .page {
+                    margin: 0;
+                    box-shadow: none;
+                    background: none;
+                    width: auto;
+                    min-height: auto;
+                    page-break-inside: auto;
+                }
+
+                .content {
+                    padding: 0;
+                }
+
+                .signature-section {
+                    page-break-inside: avoid;
+                }
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="page">
+            <div class="watermark">
+                <img
+                    src="http://172.16.117.39:8000/files/IITG_logo.png"
+                    alt="IITG Logo"
+                    onerror="this.style.display = 'none'"
+                />
+            </div>
+
+            <div class="content">
+                <!-- HEADER -->
+                <div class="header-row">
+                    <div class="logo-container">
+                        <img
+                            src="http://172.16.117.39:8000/files/IITG_logo.png"
+                            alt="IITG Logo"
+                            onerror="this.style.display = 'none'"
+                        />
+                    </div>
+                    <div class="header-text">
+                        <div class="header">
+                            Indian Institute of Technology Guwahati
+                        </div>
+                        <div class="institution-address">
+                            Guwahati-781039, Assam, India
+                        </div>
+                        <div class="sub-header">
+                            Research &amp; Development Section
+                        </div>
+                        <div class="sub-header-note">
+                            Direct Procurement (No repeat order will be
+                            entertained against this P.O.)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TITLE -->
+                <div class="title">PURCHASE ORDER</div>
+
+                <!-- TOP INFO: TO / PO No / Date / GSTIN -->
+                <div class="top-info">
+                    <div class="left">
+                        <strong>TO:</strong><br />
+                        {{VENDOR_ADDRESS}}
+                        <br /><br />
+                        <strong>P.O. No:</strong> {{PO_NUMBER}}
+                    </div>
+                    <div class="right">
+                        <strong>Date:</strong> {{PO_DATE}}<br />
+                        <strong>GSTIN:</strong> 18AAAJI0130P1Z8
+                    </div>
+                </div>
+
+                <!-- REFERENCE LINE -->
+                <div class="ref-line">
+                    <strong>Ref:</strong> Your Quotation No:
+                    {{QUOTATION_NO}}
+                </div>
+
+                <!-- INTRO PARAGRAPH -->
+                <div class="intro-paragraph">
+                    With reference to the above, please arrange to supply
+                    the following:
+                </div>
+
+                <!-- ITEM TABLE -->
+                <table class="item-table">
+                    <colgroup>
+                        <col style="width: 5%" />
+                        <col style="width: 14%" />
+                        <col style="width: 9%" />
+                        <col style="width: 9%" />
+                        <col style="width: 18%" />
+                        <col style="width: 6%" />
+                        <col style="width: 10%" />
+                        <col style="width: 9%" />
+                        <col style="width: 8%" />
+                        <col style="width: 12%" />
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>Sl No</th>
+                            <th>Item Name</th>
+                            <th>Make</th>
+                            <th>Model</th>
+                            <th>Description</th>
+                            <th>Qty</th>
+                            <th>Unit Rate</th>
+                            <th>Discount</th>
+                            <th>GST</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{ITEM_ROWS}}
+                        {{SUMMARY_ROWS}}
+                    </tbody>
+                </table>
+
+                <!-- AMOUNT IN WORDS -->
+                <div class="amount-words">
+                    <strong>Amount in Words:</strong> {{AMOUNT_IN_WORDS}}
+                </div>
+
+                <!-- BUDGET HEAD INFO -->
+                <div class="budget-info">
+                    <strong>Account Head:</strong> {{ACCOUNT_HEAD}}<br />
+                    <strong>Project No:</strong> {{PROJECT_NO}}<br />
+                    <strong>File No:</strong> {{FILE_NUMBER}}
+                </div>
+
+                <!-- TERMS & CONDITIONS -->
+                <div class="section-title">Terms &amp; Conditions</div>
+                <div class="terms-content">
+                    {{TERMS_AND_CONDITIONS}}
+                </div>
+
+                <!-- SIGNATURE SECTION -->
+                <div class="signature-section">
+                    <div class="sig-block left-align">
+                        <strong>Checked By:</strong> ___________
+                    </div>
+                    <div class="sig-block right-align">
+                        _______________________<br /><br />
+                        <strong>Name:</strong> {{SIGNEE_NAME}}<br />
+                        <strong>Designation:</strong>
+                        {{SIGNEE_DESIGNATION}}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

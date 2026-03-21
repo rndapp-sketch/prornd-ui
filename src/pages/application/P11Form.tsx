@@ -3,11 +3,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Printer } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { p11FormAPI, prepareFormDataForApi } from '@/services/apiService';
 import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
+import { generateP11Html } from '@/utils/p11Print';
+import { P11PrintModal } from '@/components/P11PrintModal';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -85,6 +87,7 @@ const P11Form: React.FC = () => {
     const editDocName = searchParams.get('edit') || '';
     const projectNo = searchParams.get('project_no') || '';
     const appId = searchParams.get('app_id') || '';
+    const viewOnly = searchParams.get('view') === 'true';
 
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
@@ -95,6 +98,7 @@ const P11Form: React.FC = () => {
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [savedDocName, setSavedDocName] = useState<string | null>(editDocName || null);
     const [clientScript, setClientScript] = useState('');
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const initializedTableSignatureRef = useRef('');
 
     // Workflow state
@@ -107,8 +111,6 @@ const P11Form: React.FC = () => {
     const { call: saveForm, error: saveError } = useFrappePostCall(p11FormAPI.save);
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
 
-    // Workflow Action API
-    const { call: fetchWorkflowActions } = useFrappePostCall<{ message: string[] }>(p11FormAPI.getWorkflowActions);
     const { call: performAction } = useFrappePostCall(p11FormAPI.performAction);
 
     // --- DATA FETCHING ---
@@ -143,15 +145,8 @@ const P11Form: React.FC = () => {
                         if (existingDoc?.message) {
                             initialData = { ...initialData, ...existingDoc.message };
                         }
-
-                        // Fetch workflow actions
-                        const actionsRes = await fetchWorkflowActions({ docname: editDocName });
-                        if (actionsRes?.message) {
-                            setWorkflowActions(actionsRes.message);
-                        }
                     } catch (err) {
-                        console.error('Error fetching existing document or workflow actions:', err);
-                        alert('Failed to load document for editing');
+                        console.error('Error fetching existing document:', err);
                     }
                 }
 
@@ -212,7 +207,7 @@ const P11Form: React.FC = () => {
         };
 
         loadFormAndDocument();
-    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, fetchWorkflowActions, dataLoaded, appId, projectNo]);
+    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, dataLoaded, appId, projectNo]);
 
     useEffect(() => {
         if (dataLoaded && clientScript) {
@@ -339,7 +334,7 @@ const P11Form: React.FC = () => {
             if (editDocName) {
                 data.name = editDocName;
             }
-            const res = await saveForm({ doc_data: JSON.stringify(data) });
+            const res = await saveForm({ data: JSON.stringify(data) });
 
             if (res?.message?.status === 'success') {
                 const docname = res.message.docname || editDocName;
@@ -380,7 +375,7 @@ const P11Form: React.FC = () => {
         try {
             // Force a save first to ensure latest data is processed
             const data = await prepareFormDataForApi(formData);
-            const saveRes = await saveForm({ doc_data: JSON.stringify(data) });
+            const saveRes = await saveForm({ data: JSON.stringify(data) });
 
             if (saveRes?.message?.status !== 'success') {
                 throw new Error("Failed to save draft before processing action.");
@@ -442,10 +437,20 @@ const P11Form: React.FC = () => {
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
-                <PageHeader
-                    title={editDocName ? `P-11 Form: ${editDocName}` : 'P-11 Form'}
-                    projectName={projectName}
-                />
+                <div className="flex items-center justify-between mb-2">
+                    <PageHeader
+                        title={editDocName ? `P-11 Form: ${editDocName}` : 'P-11 Form'}
+                        projectName={projectName}
+                    />
+                    {(viewOnly || editDocName) && (
+                        <button
+                            onClick={() => setIsPrintModalOpen(true)}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 shrink-0"
+                        >
+                            <Printer className="w-4 h-4" /> Print / PDF
+                        </button>
+                    )}
+                </div>
 
                 {validationErrors.length > 0 && (
                     <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
@@ -475,12 +480,12 @@ const P11Form: React.FC = () => {
                                 onAddTableRow={addTableRow}
                                 onDeleteTableRow={deleteTableRow}
                                 onFieldChangeWithSideEffects={handleFieldChangeWithSideEffects}
-                                readOnly={formData.docstatus === 1}
+                                readOnly={viewOnly || formData.docstatus === 1}
                             />
                         </FrappeCard>
 
                         <div className="mt-8 flex flex-wrap justify-end gap-4">
-                            {!editDocName && (
+                            {!viewOnly && !editDocName && (
                                 <FrappeButton
                                     onClick={handleSave}
                                     disabled={isSubmitting}
@@ -491,7 +496,7 @@ const P11Form: React.FC = () => {
                             )}
 
                             {/* Workflow Action Buttons */}
-                            {editDocName && workflowActions.length > 0 ? (
+                            {!viewOnly && editDocName && workflowActions.length > 0 ? (
                                 workflowActions.map((action, idx) => {
                                     const isRejectAction = action.toLowerCase().includes('reject');
                                     const isPutBackAction = action.toLowerCase().includes('put back');
@@ -519,7 +524,7 @@ const P11Form: React.FC = () => {
                                 })
                             ) : (
                                 // For initial submission if required, though usually handled via saving a draft then workflow
-                                editDocName && workflowActions.length === 0 && (
+                                !viewOnly && editDocName && workflowActions.length === 0 && (
                                     <FrappeButton
                                         onClick={handleSave}
                                         disabled={isSubmitting}
@@ -533,6 +538,12 @@ const P11Form: React.FC = () => {
                     </div>
                 </div>
             </main>
+            <P11PrintModal
+                isOpen={isPrintModalOpen}
+                onClose={() => setIsPrintModalOpen(false)}
+                htmlContent={isPrintModalOpen ? generateP11Html(formData) : ''}
+                docName={editDocName || formData.name || ''}
+            />
         </div>
     );
 };

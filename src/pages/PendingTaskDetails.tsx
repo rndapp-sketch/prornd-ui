@@ -14,6 +14,7 @@ import { BudgetActionsSidebar } from '@/components/BudgetActionsSidebar';
 import TemporaryAdvanceActionButtons from '@/components/TemporaryAdvanceActionButtons';
 import TADASettlementActionButtons from '@/components/TADASettlementActionButtons';
 import { useUserRoles } from '@/components/UserRole';
+import { POEditor } from '@/components/POEditor';
 
 // Fields to hide from the overview
 const HIDDEN_FIELDS = [
@@ -608,26 +609,103 @@ const DP_TABS = [
 
 const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; docName: string }) => {
     const [activeTab, setActiveTab] = useState<DPTabId>('details');
+    const [isOpeningSanctionSheet, setIsOpeningSanctionSheet] = useState(false);
+    const [poSanctionData, setPoSanctionData] = useState<Record<string, any> | null>(null);
+    const [isLoadingPOData, setIsLoadingPOData] = useState(false);
+    const navigate = useNavigate();
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+    const isStaffRnD = roles.some(r =>
+        ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r)
+    );
+
+    // Fetch sanction sheet data for PO editor when PO tab is active
+    useEffect(() => {
+        if (activeTab !== 'po' || !docName) return;
+        if (poSanctionData) return;
+
+        const fetchSSData = async () => {
+            setIsLoadingPOData(true);
+            try {
+                const filters = JSON.stringify([["app_id", "=", docName]]);
+                const listRes = await fetch(
+                    `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`,
+                    { credentials: "include", headers: { Accept: "application/json" } },
+                ).then(r => r.json()).catch(() => ({ data: [] }));
+
+                const ssName = listRes?.data?.[0]?.name;
+                if (ssName) {
+                    const docRes = await fetch(`/api/method/frappe.client.get`, {
+                        method: "POST",
+                        credentials: "include",
+                        headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": (window as any).csrf_token || "" },
+                        body: JSON.stringify({ doctype: "sanction_sheet", name: ssName }),
+                    }).then(r => r.json()).catch(() => null);
+                    if (docRes?.message) {
+                        setPoSanctionData(docRes.message);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching sanction sheet for PO:", err);
+            } finally {
+                setIsLoadingPOData(false);
+            }
+        };
+        fetchSSData();
+    }, [activeTab, docName, poSanctionData]);
+
+    const handleOpenSanctionSheet = async () => {
+        setIsOpeningSanctionSheet(true);
+        try {
+            const filters = JSON.stringify([["app_id", "=", docName]]);
+            const res = await fetch(
+                `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=["name"]`,
+                { credentials: "include", headers: { Accept: "application/json" } },
+            );
+            if (res.ok) {
+                const result = await res.json();
+                const existing = result.data?.[0];
+                if (existing?.name) {
+                    navigate(`/sanction-sheet?edit=${existing.name}`);
+                    return;
+                }
+            }
+            const projectNo = data.project_no || data.project || '';
+            navigate(`/sanction-sheet?app_id=${docName}&project_no=${encodeURIComponent(projectNo)}`);
+        } catch {
+            const projectNo = data.project_no || data.project || '';
+            navigate(`/sanction-sheet?app_id=${docName}&project_no=${encodeURIComponent(projectNo)}`);
+        } finally {
+            setIsOpeningSanctionSheet(false);
+        }
+    };
 
     return (
         <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
-            {/* Tab bar */}
-            <div className="flex items-center border-b border-[#E4E4E7] dark:border-[#3F3F46] overflow-x-auto bg-[#FAFAF9] dark:bg-zinc-800/30">
-                {DP_TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={cn(
-                            "inline-flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-150",
-                            activeTab === tab.id
-                                ? "border-[#D97757] text-[#D97757]"
-                                : "border-transparent text-[#71717A] dark:text-[#A1A1AA] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7] hover:border-[#E4E4E7] dark:hover:border-[#3F3F46]"
-                        )}
-                    >
-                        {tab.icon}
-                        {tab.label}
-                    </button>
-                ))}
+            {/* Tab bar with workflow status */}
+            <div className="flex items-center justify-between border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/30 pr-4">
+                <div className="flex items-center overflow-x-auto">
+                    {DP_TABS.map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={cn(
+                                "inline-flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-150",
+                                activeTab === tab.id
+                                    ? "border-[#D97757] text-[#D97757]"
+                                    : "border-transparent text-[#71717A] dark:text-[#A1A1AA] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7] hover:border-[#E4E4E7] dark:hover:border-[#3F3F46]"
+                            )}
+                        >
+                            {tab.icon}
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+                {data.workflow_state && (
+                    <span className="shrink-0 text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                        {data.workflow_state}
+                    </span>
+                )}
             </div>
 
             {/* Tab content */}
@@ -645,27 +723,69 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
                 )}
 
                 {activeTab === 'sanction' && (
-                    <DPLinkedDocTab
-                        doctype="Sanction Sheet"
-                        filterField="direct_purchase"
-                        filterValue={docName}
-                        emptyTitle="No Sanction Sheet Generated Yet"
-                        emptyDescription="The Sanction Sheet is created by RnD Staff after the P-11 Form is verified and approved."
-                    />
+                    <>
+                        {data.workflow_state === 'RDP-11 Verified' && isStaffRnD && (
+                            <div className="mb-5">
+                                <button
+                                    onClick={handleOpenSanctionSheet}
+                                    disabled={isOpeningSanctionSheet}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-60"
+                                >
+                                    {isOpeningSanctionSheet ? "Opening…" : "Sanction Sheet"}
+                                </button>
+                            </div>
+                        )}
+                        <DPLinkedDocTab
+                            doctype="sanction_sheet"
+                            filterField="app_id"
+                            filterValue={docName}
+                            emptyTitle="No Sanction Sheet Generated Yet"
+                            emptyDescription="The Sanction Sheet is created by RnD Staff after the P-11 Form is verified and approved."
+                        />
+                    </>
                 )}
 
                 {activeTab === 'po' && (
-                    <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-                        <ShoppingCartIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
-                        <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
-                            {data.workflow_state === 'POGenerated' ? 'Purchase Order Generated' : 'Purchase Order Not Yet Generated'}
-                        </p>
-                        <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
-                            {data.workflow_state === 'POGenerated'
-                                ? 'The Purchase Order has been generated and is ready to print.'
-                                : 'The Purchase Order is generated once the Sanction Sheet is approved.'}
-                        </p>
-                    </div>
+                    <>
+                        {isLoadingPOData ? (
+                            <div className="flex items-center justify-center py-16">
+                                <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#D97757] border-t-transparent" />
+                            </div>
+                        ) : poSanctionData ? (
+                            <POEditor
+                                ssData={poSanctionData}
+                                dpId={docName}
+                                isStaffRnD={isStaffRnD}
+                                onUploadSignedPO={async (file: File) => {
+                                    const formData = new FormData();
+                                    formData.append("file", file);
+                                    formData.append("doctype", "sanction_sheet");
+                                    formData.append("docname", poSanctionData.name);
+                                    formData.append("is_private", "1");
+                                    const res = await fetch("/api/method/upload_file", {
+                                        method: "POST",
+                                        credentials: "include",
+                                        headers: {
+                                            Accept: "application/json",
+                                            "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+                                        },
+                                        body: formData,
+                                    });
+                                    if (!res.ok) throw new Error("Upload failed");
+                                }}
+                            />
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+                                <ShoppingCartIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
+                                <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
+                                    No Sanction Sheet Available
+                                </p>
+                                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
+                                    The Purchase Order is generated once the Sanction Sheet is approved.
+                                </p>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>
