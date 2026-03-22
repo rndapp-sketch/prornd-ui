@@ -60,6 +60,7 @@ import {
 
 import { DepartmentName } from "@/components/DepartmentName";
 import { ProjectNumberGenerationForm } from "@/components/ProjectNumberGenerationForm";
+import { useUserRoles } from "@/components/UserRole";
 
 // --- Interfaces (Unchanged) ---
 interface ActivityItem {
@@ -747,7 +748,9 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState("overview"); // Default to overview
     const activityStreamRef = useRef<ActivityStreamHandle>(null);
-    const {} = useFrappeAuth();
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+    const isRnDStaff = roles.some(r => r === "staff, RnD");
 
     const { data, error, isLoading, mutate } = useFrappeGetDoc(
         "Project Registration",
@@ -843,7 +846,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     ];
 
     const needsProjectNumberGeneration =
-        data?.workflow_state === "Pending Staff Approval";
+        data?.workflow_state === "Pending Staff Approval" && isRnDStaff;
 
     const renderContent = () => {
         if (!projectName) {
@@ -1654,12 +1657,10 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                 />
                                             </div>
                                         </div>
-                                        {data?.declaration_html === 1 && (
+                                        {data?.declaration_html && (
                                             <HtmlContent
                                                 title="Declaration"
-                                                htmlString={
-                                                    "<p>Declaration content would be displayed here.</p>"
-                                                }
+                                                htmlString={data.declaration_html}
                                                 icon={FileTextIcon}
                                             />
                                         )}
