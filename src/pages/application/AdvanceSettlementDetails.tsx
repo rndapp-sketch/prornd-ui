@@ -759,18 +759,33 @@ const AdvanceSettlementDetails: React.FC = () => {
                             </FrappeCard>
                         )}
 
-                        {/* Declarations (if needed) */}
-                        <div className="px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50">
-                            <div className="flex gap-3">
-                                <FileTextIcon className="w-5 h-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
-                                <div className="space-y-2">
-                                    <h4 className="text-sm font-bold text-amber-800 dark:text-amber-200">Declarations</h4>
-                                    <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
-                                        The settlement against this advance is submitted within the stipulated period. All purchases followed standard institute procedures and do not exceed the approved advance amount.
-                                    </p>
-                                </div>
+                        {/* Declarations */}
+                        <FrappeCard title="Declarations">
+                            <div className="grid grid-cols-1 gap-3">
+                                {[
+                                    "I have enclosed the original cash memo / retail invoice / money receipt.",
+                                    "I have mentioned stock entry details on the reverse side of the cash memo / money receipt.",
+                                    "All purchases above Rs. 1,000 have supporting quotations.",
+                                ].map((text, index) => {
+                                    const key = `declare_${index + 1}`;
+                                    const isChecked = data[key] === 1 || data[key] === "1" || data[key] === true;
+                                    return (
+                                        <div
+                                            key={index}
+                                            className="flex items-start gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800"
+                                        >
+                                            <div className={cn(
+                                                "w-6 h-6 rounded flex-shrink-0 flex items-center justify-center text-white text-sm font-bold mt-0.5",
+                                                isChecked ? "bg-emerald-600" : "bg-gray-400"
+                                            )}>
+                                                {isChecked ? "✓" : ""}
+                                            </div>
+                                            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{text}</span>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        </div>
+                        </FrappeCard>
                     </div>
                 </div>
 
