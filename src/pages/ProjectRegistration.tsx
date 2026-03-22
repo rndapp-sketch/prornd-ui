@@ -103,17 +103,17 @@ const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange 
 const MemoizedGenericTable = memo(({ tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => (
     <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-lg">
         <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
-            <thead className="bg-zinc-50/50 dark:bg-zinc-800/50">
+            <thead className="bg-[#D97757]/10 dark:bg-[#D97757]/20">
                 <tr>
                     {[...columns, { key: 'actions', label: 'Actions', type: 'action' }].map((c: any) => (
-                        <th key={c.key} className="px-4 py-3 font-medium text-zinc-500 dark:text-zinc-400 text-xs text-left uppercase tracking-wider">{c.label}</th>
+                        <th key={c.key} className="px-4 py-3 font-semibold text-[#D97757] text-xs text-left uppercase tracking-wider">{c.label}</th>
                     ))}
                 </tr>
             </thead>
             <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800">
                 {(tableData || []).map((row: any, i: number) => (
                     <tr key={row.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50">
-                        {columns.map((col: any) => (<td key={col.key} className="px-4 py-2.5"> {col.type === 'file' ? (<input type="file" className={`${inputClasses} !h-8 !py-1.5 text-xs !border-zinc-200`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />) : col.type === 'select' ? (<select className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary focus:!ring-primary/20`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)}><option value="">Select...</option>{(col.options || []).map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>) : (<input type={col.type} className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary focus:!ring-primary/20`} value={row[col.key] || ''} onChange={e => { const value = col.key === 'salary' ? e.target.value.replace(/[^0-9]/g, '') : e.target.value; onRowChange(tableName, i, col.key, value); }} />)} </td>))}
+                        {columns.map((col: any) => (<td key={col.key} className="px-4 py-2.5"> {col.type === 'file' ? (<input type="file" className={`${inputClasses} !h-8 !py-1.5 text-xs !border-zinc-200`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />) : col.type === 'select' ? (<select className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary focus:!ring-primary/20`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)}><option value="">Select...</option>{(col.options || []).map((opt: any) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>) : (<input type={col.type} readOnly={!!col.readOnly} className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary focus:!ring-primary/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none${col.readOnly ? ' bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500' : ''}`} value={row[col.key] || ''} onChange={e => { if (col.readOnly) return; const value = col.key === 'salary' ? e.target.value.replace(/[^0-9]/g, '') : e.target.value; onRowChange(tableName, i, col.key, value); }} onWheel={col.type === 'number' ? (e) => (e.target as HTMLInputElement).blur() : undefined} />)} </td>))}
                         <td className="px-4 py-2.5"><FrappeButton variant="danger" onClick={() => onDeleteRow(tableName, i)} className="w-full py-1.5 h-8">Delete</FrappeButton></td>
                     </tr>
                 ))}
@@ -133,10 +133,10 @@ const MemoizedCollaboratorTable = memo(({ tableName, title, tableData, piOptions
             <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">{title}</h3>
             <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg">
                 <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
-                    <thead className="bg-zinc-50/50 dark:bg-zinc-800/50">
+                    <thead className="bg-[#D97757]/10 dark:bg-[#D97757]/20">
                         <tr>
                             {["Name*", "Email ID*", "Designation*", "Address*", "Contact*", "Actions"].map(h => (
-                                <th key={h} className="px-4 py-3 font-medium text-zinc-500 dark:text-zinc-400 text-xs text-left uppercase tracking-wider">{h}</th>
+                                <th key={h} className="px-4 py-3 font-semibold text-[#D97757] text-xs text-left uppercase tracking-wider">{h}</th>
                             ))}
                         </tr>
                     </thead>
@@ -175,12 +175,12 @@ const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, o
     <div className="space-y-4">
         <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-lg">
             <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
-                <thead className="bg-zinc-50/50 dark:bg-zinc-800/50">
+                <thead className="bg-[#D97757]/10 dark:bg-[#D97757]/20">
                     <tr>
-                        <th className="px-4 py-3 font-medium text-zinc-500 dark:text-zinc-400 text-xs text-left uppercase tracking-wider">Account Head</th>
-                        {budgetYears.map((year: number, index: number) => (<th key={index} className="px-4 py-3 font-medium text-zinc-500 dark:text-zinc-400 text-xs text-left uppercase tracking-wider">Year {year} (₹)</th>))}
-                        <th className="px-4 py-3 font-medium text-zinc-500 dark:text-zinc-400 text-xs text-left uppercase tracking-wider">Total (₹)</th>
-                        <th className="px-4 py-3 font-medium text-zinc-500 dark:text-zinc-400 text-xs text-left uppercase tracking-wider">Actions</th>
+                        <th className="px-4 py-3 font-semibold text-[#D97757] text-xs text-left uppercase tracking-wider">Account Head</th>
+                        {budgetYears.map((year: number, index: number) => (<th key={index} className="px-4 py-3 font-semibold text-[#D97757] text-xs text-left uppercase tracking-wider">Year {year} (₹)</th>))}
+                        <th className="px-4 py-3 font-semibold text-[#D97757] text-xs text-left uppercase tracking-wider">Total (₹)</th>
+                        <th className="px-4 py-3 font-semibold text-[#D97757] text-xs text-left uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -202,7 +202,7 @@ const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, o
                                         ))}
                                     </select>
                                 </td>
-                                {budgetYears.map((_: any, yearIndex: number) => (<td key={yearIndex} className="px-4 py-2.5"><input type="number" className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`} value={(row.years || [])[yearIndex] || ''} onChange={(e) => onRowChange(rowIndex, 'years', e.target.value, yearIndex)} /></td>))}
+                                {budgetYears.map((_: any, yearIndex: number) => (<td key={yearIndex} className="px-4 py-2.5"><input type="number" className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`} value={(row.years || [])[yearIndex] || ''} onChange={(e) => onRowChange(rowIndex, 'years', e.target.value, yearIndex)} onWheel={(e) => (e.target as HTMLInputElement).blur()} /></td>))}
                                 <td className="px-4 py-2.5 font-medium text-zinc-900 dark:text-zinc-100 text-right pr-6 text-xs">{rowTotal.toFixed(2)}</td>
                                 <td className="px-4 py-2.5"><FrappeButton variant="danger" type="button" className="w-full py-1.5 h-8" onClick={() => onDeleteRow('proposed_budget_breakup', rowIndex)}>Delete</FrappeButton></td>
                             </tr>
@@ -219,10 +219,10 @@ const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, o
                 </tfoot>
             </table>
             <div className="p-3 bg-zinc-50/50 dark:bg-zinc-800/50 border-t border-zinc-100 dark:border-zinc-800 flex justify-between">
-                <FrappeButton variant="secondary" onClick={onAddYear}>Add Year</FrappeButton>
-                <div>
+                <FrappeButton variant="secondary" onClick={() => onAddRow('proposed_budget_breakup', { head: '', years: new Array(budgetYears.length).fill(0) })} className="border-dashed">+ Add Row</FrappeButton>
+                <div className="flex gap-2">
                     {budgetYears.length > 1 && <FrappeButton variant="danger" onClick={onDeleteYear}>Remove Year</FrappeButton>}
-                    <FrappeButton variant="secondary" onClick={() => onAddRow('proposed_budget_breakup', { head: '', years: new Array(budgetYears.length).fill(0) })} className="ml-2 border-dashed">Add Row</FrappeButton>
+                    <FrappeButton variant="secondary" onClick={onAddYear}>+ Add Year</FrappeButton>
                 </div>
             </div>
         </div>
@@ -558,6 +558,16 @@ const ProjectRegistration: React.FC = () => {
     }, [formData, fetchPiDetails, fetchAgencyDetails, linkOptions, calculateConsultancy, updateApproverAndHead, calculateEndDate, controlYearFieldsVisibility]);
 
     const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => { setFormData(prev => { const t = [...(prev[tableName] || [])]; t[rowIndex] = { ...t[rowIndex], [fieldname]: value }; return { ...prev, [tableName]: t }; }); }, []);
+    const handleEquipmentRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
+        setFormData(prev => {
+            const t = [...(prev[tableName] || [])];
+            t[rowIndex] = { ...t[rowIndex], [fieldname]: value };
+            const qty = parseFloat(fieldname === 'item_quantity' ? value : t[rowIndex].item_quantity) || 0;
+            const unitCost = parseFloat(fieldname === 'equip_unit_cost' ? value : t[rowIndex].equip_unit_cost) || 0;
+            t[rowIndex].equip_total_unit_cost = (qty * unitCost).toFixed(2);
+            return { ...prev, [tableName]: t };
+        });
+    }, []);
     const handleTableFileChange = useCallback((tableName: string, rowIndex: number, fieldname: string, file: File | null) => { setFormData(prev => { const t = [...(prev[tableName] || [])]; t[rowIndex] = { ...t[rowIndex], [fieldname]: file }; return { ...prev, [tableName]: t }; }); }, []);
     const addTableRow = useCallback((tableName: string, newRow: object) => { const newId = Date.now().toString() + Math.random().toString(36).substring(2, 9); setFormData(prev => ({ ...prev, [tableName]: [...(prev[tableName] || []), { ...newRow, id: newId }] })); }, []);
     const deleteTableRow = useCallback((tableName: string, rowIndex: number) => { setFormData(prev => ({ ...prev, [tableName]: (prev[tableName] || []).filter((_: any, i: number) => i !== rowIndex) })); }, []);
@@ -721,9 +731,38 @@ const ProjectRegistration: React.FC = () => {
         return { doc_data: data, files: filesArray };
     };
 
+    const validateMandatoryFields = (): string[] => {
+        const errors: string[] = [];
+        for (const field of fields) {
+            // Skip hidden fields
+            if (field.hidden) continue;
+            // Skip fields that are not visible (depends_on_eval fails)
+            if (field.depends_on_eval && !evaluateDependsOn(field.depends_on_eval, formData)) continue;
+            // Determine if mandatory (static or dynamic)
+            let isMandatory = field.mandatory;
+            if (!isMandatory && field.mandatory_depends_on_eval) {
+                isMandatory = evaluateDependsOn(field.mandatory_depends_on_eval, formData);
+            }
+            if (!isMandatory) continue;
+            // Skip table fields (child tables have their own validation)
+            if (field.fieldtype === 'Table') continue;
+            const value = formData[field.fieldname];
+            const isEmpty = value === null || value === undefined || value === '' || value === 0 || value === false;
+            if (isEmpty) {
+                errors.push(field.label || field.fieldname);
+            }
+        }
+        return errors;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isSubmitting || isSavingDraft) return;
+        const errors = validateMandatoryFields();
+        if (errors.length > 0) {
+            alert(`Please fill in the following required fields before submitting:\n\n• ${errors.join('\n• ')}`);
+            return;
+        }
         setIsSubmitting(true);
         try {
             const { doc_data, files } = await prepareDataWithFiles();
@@ -738,6 +777,11 @@ const ProjectRegistration: React.FC = () => {
         console.log(">>> handleSaveDraft called! isSavingDraft:", isSavingDraft, "isSubmitting:", isSubmitting);
         if (isSavingDraft || isSubmitting) {
             console.log(">>> Early return due to isSavingDraft or isSubmitting");
+            return;
+        }
+        const errors = validateMandatoryFields();
+        if (errors.length > 0) {
+            alert(`Please fill in the following required fields before saving:\n\n• ${errors.join('\n• ')}`);
             return;
         }
         setIsSavingDraft(true);
@@ -1133,6 +1177,19 @@ const ProjectRegistration: React.FC = () => {
                                             {renderField("prj_start_date")}
                                             {renderField("prj_end_date")}
                                         </div>
+                                        {renderField("is_the_account_type_pfms")}
+                                        {formData.is_the_account_type_pfms === "Yes" && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                {renderField("scheme_name")}
+                                                {renderField("enter_scheme_number")}
+                                            </div>
+                                        )}
+                                        {formData.is_the_account_type_pfms === "No" && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                {renderField("account_number")}
+                                                {renderField("bank_name")}
+                                            </div>
+                                        )}
                                     </FrappeCard>
                                     {renderNextPrevButtons(false, true)}
                                 </div>
@@ -1165,9 +1222,16 @@ const ProjectRegistration: React.FC = () => {
                                         <h2 className="text-xl font-bold uppercase text-zinc-900 dark:text-zinc-100">3. Proposed Budget</h2>
                                         <p className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">Provide a detailed year-wise breakup of the proposed budget.</p>
                                         <MemoizedBudgetTable tableData={budgetTableData} budgetYears={budgetYears} budgetHeadOptions={budgetHeadOptions} onRowChange={handleBudgetRowChange} onAddRow={addBudgetRow} onDeleteRow={deleteTableRow} onAddYear={addBudgetYear} onDeleteYear={deleteLastBudgetYear} getYearTotal={getYearTotal} totalBudgetAmount={totalBudgetAmount} />
-                                        <div className="space-y-6 border-t border-zinc-300 dark:border-zinc-700 pt-8">{renderFields(tabFieldGroups.budgetToggles)}</div>
-                                        {formData.equipment_checkbox ? (<MemoizedGenericTable tableName={'proposed_equipment_details'} columns={[{ key: 'item_name', label: 'Equipment Name*', type: 'text' }, { key: 'cost', label: 'Cost (₹)', type: 'number' }]} newRow={{ item_name: '', cost: 0 }} tableData={formData.proposed_equipment_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
-                                        {formData.manpower_checkbox ? (<MemoizedGenericTable tableName={'proposed_manpower_details'} columns={[{ key: 'designation_name', label: 'Position*', type: 'select', options: linkOptions["designation_name"] || [] }, { key: 'vacancies', label: 'Number of Posts', type: 'number' }, { key: 'manpower_salary', label: 'Salary (₹)', type: 'number' }]} newRow={{ designation_name: '', vacancies: '', manpower_salary: 0 }} tableData={formData.proposed_manpower_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />) : null}
+                                        <div className="space-y-6 border-t border-zinc-300 dark:border-zinc-700 pt-8">
+                                            {renderField("equipment_checkbox")}
+                                            {(formData.equipment_checkbox === true || formData.equipment_checkbox === 1 || formData.equipment_checkbox === '1') && (
+                                                <MemoizedGenericTable tableName={'proposed_equipment_details'} columns={[{ key: 'item_name', label: 'Item Name*', type: 'text' }, { key: 'item_description', label: 'Description', type: 'text' }, { key: 'item_quantity', label: 'Quantity', type: 'number' }, { key: 'equip_unit_cost', label: 'Unit Cost (₹)', type: 'number' }, { key: 'equip_total_unit_cost', label: 'Total Cost (₹)', type: 'number', readOnly: true }]} newRow={{ item_name: '', item_description: '', item_quantity: '', equip_unit_cost: '', equip_total_unit_cost: '' }} tableData={formData.proposed_equipment_details} onRowChange={handleEquipmentRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />
+                                            )}
+                                            {renderField("manpower_checkbox")}
+                                            {(formData.manpower_checkbox === true || formData.manpower_checkbox === 1 || formData.manpower_checkbox === '1') && (
+                                                <MemoizedGenericTable tableName={'proposed_manpower_details'} columns={[{ key: 'designation_name', label: 'Position*', type: 'select', options: linkOptions["designation_name"] || [] }, { key: 'vacancies', label: 'Number of Posts', type: 'number' }, { key: 'manpower_salary', label: 'Salary (₹)', type: 'number' }]} newRow={{ designation_name: '', vacancies: '', manpower_salary: 0 }} tableData={formData.proposed_manpower_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />
+                                            )}
+                                        </div>
                                     </FrappeCard>
                                     {renderNextPrevButtons(true, true)}
                                 </div>
