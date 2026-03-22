@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSWRConfig } from 'swr';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappeGetDoc, useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { ArrowLeftIcon, FileIcon, ExternalLinkIcon, LayoutGridIcon, ClipboardListIcon, FileTextIcon, ShoppingCartIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
@@ -15,6 +16,7 @@ import TemporaryAdvanceActionButtons from '@/components/TemporaryAdvanceActionBu
 import TADASettlementActionButtons from '@/components/TADASettlementActionButtons';
 import { useUserRoles } from '@/components/UserRole';
 import { POEditor } from '@/components/POEditor';
+import { DeclarationFields } from '@/components/DeclarationFields';
 
 // Fields to hide from the overview
 const HIDDEN_FIELDS = [
@@ -234,7 +236,15 @@ const TravelWorkflowActions = ({ docname, onActionComplete }: { docname: string;
     );
 };
 
-const DirectPurchaseWorkflowActions = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
+const DirectPurchaseWorkflowActions = ({
+    docname,
+    onActionComplete,
+    onAfterAction,
+}: {
+    docname: string;
+    onActionComplete: () => void;
+    onAfterAction?: (action: string) => void;
+}) => {
     const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
         directPurchaseAPI.getWorkflowActions,
         { docname }
@@ -257,6 +267,7 @@ const DirectPurchaseWorkflowActions = ({ docname, onActionComplete }: { docname:
             await performAction({ docname, action: selectedAction, comment });
             setModalOpen(false);
             onActionComplete();
+            onAfterAction?.(selectedAction);
         } catch (error) {
             console.error("Error performing action:", error);
         }
@@ -379,7 +390,7 @@ const dpFormatINR = (val: any) =>
     Number(val).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
 
 // Smart document viewer for Direct Purchase details panel
-const DPDocumentViewer = ({ data }: { data: Record<string, any> }) => {
+const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<string, any>; doctype?: string }) => {
     const allScalar = Object.entries(data).filter(([key, value]) => {
         if (DP_EXCLUDED.includes(key)) return false;
         if (key.startsWith('_')) return false;
@@ -468,19 +479,7 @@ const DPDocumentViewer = ({ data }: { data: Record<string, any> }) => {
             )}
 
             {/* Declarations */}
-            {boolFields.length > 0 && (
-                <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">Declarations</h4>
-                    <div className="space-y-3">
-                        {boolFields.map(([key, value]) => (
-                            <div key={key} className="flex items-center justify-between py-2.5 px-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/40">
-                                <span className="text-sm text-[#3F3F46] dark:text-[#E4E4E7] font-medium">{dpFormatFieldName(key)}</span>
-                                {renderVal(key, value)}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+            {viewerDoctype && <DeclarationFields doctype={viewerDoctype} />}
 
             {/* Attachments */}
             {fileFields.length > 0 && (
@@ -595,7 +594,7 @@ const DPLinkedDocTab = ({ doctype, filterField, filterValue, emptyTitle, emptyDe
             <div className="mb-5">
                 <span className="text-xs font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]">{docName}</span>
             </div>
-            <DPDocumentViewer data={docData} />
+            <DPDocumentViewer data={docData} doctype={doctype} />
         </div>
     );
 };
@@ -607,8 +606,17 @@ const DP_TABS = [
     { id: 'po'      as DPTabId, label: 'Purchase Order',  icon: <ShoppingCartIcon className="w-4 h-4" /> },
 ];
 
-const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; docName: string }) => {
-    const [activeTab, setActiveTab] = useState<DPTabId>('details');
+const DirectPurchaseTabView = ({
+    data,
+    docName,
+    activeTab,
+    setActiveTab,
+}: {
+    data: Record<string, any>;
+    docName: string;
+    activeTab: DPTabId;
+    setActiveTab: (tab: DPTabId) => void;
+}) => {
     const [isOpeningSanctionSheet, setIsOpeningSanctionSheet] = useState(false);
     const [poSanctionData, setPoSanctionData] = useState<Record<string, any> | null>(null);
     const [isLoadingPOData, setIsLoadingPOData] = useState(false);
@@ -710,7 +718,7 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
 
             {/* Tab content */}
             <div className="p-6">
-                {activeTab === 'details' && <DPDocumentViewer data={data} />}
+                {activeTab === 'details' && <DPDocumentViewer data={data} doctype="Direct Purchase" />}
 
                 {activeTab === 'p11' && (
                     <DPLinkedDocTab
@@ -758,20 +766,24 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
                                 isStaffRnD={isStaffRnD}
                                 onUploadSignedPO={async (file: File) => {
                                     const formData = new FormData();
-                                    formData.append("file", file);
-                                    formData.append("doctype", "sanction_sheet");
+                                    formData.append("file", file, file.name);
                                     formData.append("docname", poSanctionData.name);
-                                    formData.append("is_private", "1");
-                                    const res = await fetch("/api/method/upload_file", {
-                                        method: "POST",
-                                        credentials: "include",
-                                        headers: {
-                                            Accept: "application/json",
-                                            "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+                                    formData.append("app_id", docName);
+                                    formData.append("project_no", poSanctionData.project_no || "");
+                                    const res = await fetch(
+                                        "/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document",
+                                        {
+                                            method: "POST",
+                                            credentials: "include",
+                                            headers: {
+                                                "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+                                            },
+                                            body: formData,
                                         },
-                                        body: formData,
-                                    });
-                                    if (!res.ok) throw new Error("Upload failed");
+                                    );
+                                    const json = await res.json().catch(() => ({}));
+                                    if (!res.ok || json?.message?.status === false)
+                                        throw new Error(json?.message?.message || "Upload failed");
                                 }}
                             />
                         ) : (
@@ -798,7 +810,13 @@ const PendingTaskDetails: React.FC = () => {
     // Decode the doctype URL parameter
     const doctype = rawDoctype ? decodeURIComponent(rawDoctype) : '';
 
-    const { data, isLoading, error } = useFrappeGetDoc(doctype || "", name || "");
+    const { data, isLoading, error, mutate } = useFrappeGetDoc(doctype || "", name || "");
+    const { mutate: globalMutate } = useSWRConfig();
+    const refreshAll = () => {
+        mutate();
+        // Revalidate workflow action keys so buttons update
+        globalMutate((key: any) => typeof key === 'string' && key.includes('workflow'), undefined, { revalidate: true });
+    };
 
     // Auth & Roles
     const { currentUser } = useFrappeAuth();
@@ -831,6 +849,15 @@ const PendingTaskDetails: React.FC = () => {
     const [recruitmentFields, setRecruitmentFields] = useState<FormField[]>([]);
     const [recruitmentLinkOptions, setRecruitmentLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [isRecruitmentLoading, setIsRecruitmentLoading] = useState(false);
+
+    // Direct Purchase tab state — restore from sessionStorage after reload
+    const [dpActiveTab, setDpActiveTab] = useState<DPTabId>(() => {
+        if (name) {
+            const saved = sessionStorage.getItem(`dp_tab_${name}`) as DPTabId | null;
+            if (saved) { sessionStorage.removeItem(`dp_tab_${name}`); return saved; }
+        }
+        return 'details';
+    });
 
     const { call: fetchTravelFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any } }>(travelAPI.getFields);
     const { call: fetchAdvanceSettlementFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any, child_table_meta?: any } }>(advanceSettlementAPI.getFields);
@@ -1267,7 +1294,16 @@ const PendingTaskDetails: React.FC = () => {
                                 <TemporaryAdvanceActionButtons docname={name} onActionComplete={() => window.location.reload()} />
                             )}
                             {doctype === "Direct Purchase" && name && (
-                                <DirectPurchaseWorkflowActions docname={name} onActionComplete={() => window.location.reload()} />
+                                <DirectPurchaseWorkflowActions
+                                    docname={name}
+                                    onActionComplete={() => {}}
+                                    onAfterAction={(action) => {
+                                        if (action.toLowerCase().includes('verify')) {
+                                            sessionStorage.setItem(`dp_tab_${name}`, 'sanction');
+                                        }
+                                        window.location.reload();
+                                    }}
+                                />
                             )}
                             {doctype === "TA DA Settlement" && name && (
                                 <TADASettlementActionButtons docName={name} onActionComplete={() => window.location.reload()} />
@@ -1415,7 +1451,12 @@ const PendingTaskDetails: React.FC = () => {
                                 renderGenericDetails()
                             )
                         ) : doctype === 'Direct Purchase' && data && name ? (
-                            <DirectPurchaseTabView data={data} docName={name} />
+                            <DirectPurchaseTabView
+                                data={data}
+                                docName={name}
+                                activeTab={dpActiveTab}
+                                setActiveTab={setDpActiveTab}
+                            />
                         ) : (
                             renderGenericDetails()
                         )}

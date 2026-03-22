@@ -12,6 +12,7 @@ import { useFrappeAuth } from 'frappe-react-sdk';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { ProjectLedgerModal } from '../../components/ProjectLedgerModal';
 import { Wallet as WalletIcon, CheckCircle2 } from 'lucide-react';
+import { DeclarationFields } from '@/components/DeclarationFields';
 
 // --- TYPE DEFINITIONS ---
 interface AdvanceSettlementData {
@@ -760,32 +761,7 @@ const AdvanceSettlementDetails: React.FC = () => {
                         )}
 
                         {/* Declarations */}
-                        <FrappeCard title="Declarations">
-                            <div className="grid grid-cols-1 gap-3">
-                                {[
-                                    "I have enclosed the original cash memo / retail invoice / money receipt.",
-                                    "I have mentioned stock entry details on the reverse side of the cash memo / money receipt.",
-                                    "All purchases above Rs. 1,000 have supporting quotations.",
-                                ].map((text, index) => {
-                                    const key = `declare_${index + 1}`;
-                                    const isChecked = data[key] === 1 || data[key] === "1" || data[key] === true;
-                                    return (
-                                        <div
-                                            key={index}
-                                            className="flex items-start gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800"
-                                        >
-                                            <div className={cn(
-                                                "w-6 h-6 rounded flex-shrink-0 flex items-center justify-center text-white text-sm font-bold mt-0.5",
-                                                isChecked ? "bg-emerald-600" : "bg-gray-400"
-                                            )}>
-                                                {isChecked ? "✓" : ""}
-                                            </div>
-                                            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{text}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </FrappeCard>
+                        <DeclarationFields doctype="Advance Settlement" />
                     </div>
                 </div>
 

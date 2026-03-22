@@ -20,6 +20,7 @@ import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { useUserRoles } from "../../components/UserRole";
 import { ProjectLedgerModal } from "../../components/ProjectLedgerModal";
 import { Textarea } from "@/components/ui/textarea"; // Assuming this exists, if not use standard textarea
+import { DeclarationFields } from "@/components/DeclarationFields";
 
 // --- TYPE DEFINITIONS ---
 interface ReimbursementData {
@@ -1216,35 +1217,9 @@ const ReimbursementDetails: React.FC = () => {
               )}
 
               {/* Declarations */}
-              <FrappeCard title="Declarations" className="lg:col-span-2">
-                <div className="grid grid-cols-1 gap-4">
-                  {[
-                    "None of the items are purchased or under rate contract.",
-                    "The items purchased were approved by the funding agency and I have enclosed the original cash memo/ retail invoice/ money receipt initialed by the Drawer.",
-                    "I, am personally satisfied that goods purchased are of the requisite quality and specification and have been purchased from a reliable supplier at a reasonable price.",
-                    "I stock entered the items, and entered the stock entry details on the reverse side of the cash memo/ money receipt with my signature.",
-                  ].map((text, index) => (
-                    <div
-                      key={index}
-                      className="flex items-start gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800"
-                    >
-                      <div
-                        className={cn(
-                          "w-6 h-6 rounded flex-shrink-0 flex items-center justify-center text-white text-sm font-bold mt-0.5",
-                          data[`dec${index + 1}`]
-                            ? "bg-emerald-600"
-                            : "bg-gray-400",
-                        )}
-                      >
-                        {data[`dec${index + 1}`] ? "✓" : ""}
-                      </div>
-                      <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                        {text}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </FrappeCard>
+              <div className="lg:col-span-2">
+                <DeclarationFields doctype="Reimbursement" />
+              </div>
 
               {/* Meta Information */}
               <FrappeCard title="Meta Information" className="lg:col-span-2">

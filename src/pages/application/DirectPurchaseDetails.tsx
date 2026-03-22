@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AppSidebar } from "../../components/RndSidebar";
 import {
     useFrappePostCall,
@@ -37,6 +37,7 @@ import { generateP11Html } from "@/utils/p11Print";
 import { generateSanctionSheetHtml } from "@/utils/sanctionSheetPrint";
 import { P11PrintModal } from "@/components/P11PrintModal";
 import { POEditor } from "@/components/POEditor";
+import { DeclarationFields } from "@/components/DeclarationFields";
 
 // --- TYPE DEFINITIONS ---
 interface DirectPurchaseData {
@@ -349,26 +350,7 @@ const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
             )}
 
             {/* Declarations */}
-            {boolFields.length > 0 && (
-                <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-                        Declarations
-                    </h4>
-                    <div className="space-y-3">
-                        {boolFields.map(([key, value]) => (
-                            <div
-                                key={key}
-                                className="flex items-center justify-between py-2.5 px-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/40"
-                            >
-                                <span className="text-sm text-[#3F3F46] dark:text-[#E4E4E7] font-medium">
-                                    {formatFieldName(key)}
-                                </span>
-                                {renderValue(key, value)}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+            <DeclarationFields doctype="Direct Purchase" />
 
             {/* Attachments */}
             {fileFields.length > 0 && (
@@ -1110,6 +1092,7 @@ const TABS: Tab[] = [
 const DirectPurchaseDetails: React.FC = () => {
     const navigate = useNavigate();
     const { id } = useParams<{ id: string }>();
+    const [searchParams] = useSearchParams();
 
     const {
         data,
@@ -1124,7 +1107,7 @@ const DirectPurchaseDetails: React.FC = () => {
         ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r),
     );
 
-    const [activeTab, setActiveTab] = useState<TabId>("details");
+    const [activeTab, setActiveTab] = useState<TabId>((searchParams.get("tab") as TabId) || "details");
     const [sidebarComment, setSidebarComment] = useState("");
     const [isAddingComment, setIsAddingComment] = useState(false);
     const [isGeneratingPO, setIsGeneratingPO] = useState(false);
@@ -1223,6 +1206,47 @@ const DirectPurchaseDetails: React.FC = () => {
             );
         } finally {
             setIsGeneratingPO(false);
+        }
+    };
+
+    const [isDownloadingPO, setIsDownloadingPO] = useState(false);
+    const handleDownloadPO = async () => {
+        if (!id) return;
+        setIsDownloadingPO(true);
+        try {
+            // Get sanction sheet name and project_no (use cached or fetch)
+            let ssName = poSanctionData?.name;
+            let projectNo = poSanctionData?.project_no;
+            if (!ssName) {
+                const filters = JSON.stringify([["app_id", "=", id]]);
+                const listRes = await fetch(
+                    `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name","project_no"]')}`,
+                    { credentials: "include", headers: { Accept: "application/json" } },
+                ).then((r) => r.json()).catch(() => ({ data: [] }));
+                ssName = listRes?.data?.[0]?.name;
+                projectNo = listRes?.data?.[0]?.project_no;
+            }
+            if (!ssName) throw new Error("Sanction Sheet not found");
+
+            const params = new URLSearchParams({ docname: ssName, app_id: id, project_no: projectNo || "" });
+            const res = await fetch(
+                `/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.get_po_document?${params}`,
+                { credentials: "include", headers: { Accept: "application/json" } },
+            );
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json?.message?.status === false)
+                throw new Error(json?.message?.message || "Failed to fetch PO");
+
+            const fileUrl = json?.message?.file_url || json?.message?.url;
+            if (fileUrl) {
+                window.open(fileUrl, "_blank");
+            } else {
+                throw new Error("No file URL returned");
+            }
+        } catch (err: any) {
+            alert(`Error: ${err.message || "Could not download PO."}`);
+        } finally {
+            setIsDownloadingPO(false);
         }
     };
 
@@ -1347,13 +1371,10 @@ const DirectPurchaseDetails: React.FC = () => {
                         {data.workflow_state === "POGenerated" && id && (
                             <ClaudeButton
                                 variant="outline"
-                                onClick={() =>
-                                    alert(
-                                        "PO Print functionality will be integrated here.",
-                                    )
-                                }
+                                onClick={handleDownloadPO}
+                                disabled={isDownloadingPO}
                             >
-                                Print PO
+                                {isDownloadingPO ? "Loading…" : "Print PO"}
                             </ClaudeButton>
                         )}
                         {id && (
@@ -1397,14 +1418,22 @@ const DirectPurchaseDetails: React.FC = () => {
                             )}
 
                             {activeTab === "p11" && id && (
-                                <LinkedDocTab
-                                    doctype="P_11 Form"
-                                    filterField="app_id"
-                                    filterValue={id}
-                                    emptyTitle="No P-11 Form Generated Yet"
-                                    emptyDescription="The P-11 Form is generated after the Direct Purchase is approved by the Associate Dean."
-                                    onDataReload={loadData}
-                                />
+                                <>
+                                    <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-sm">
+                                        <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/></svg>
+                                        <span>
+                                            <strong>Important:</strong> A printed hard copy of the P-11 Form must be submitted to the R&amp;D Office for further processing.
+                                        </span>
+                                    </div>
+                                    <LinkedDocTab
+                                        doctype="P_11 Form"
+                                        filterField="app_id"
+                                        filterValue={id}
+                                        emptyTitle="No P-11 Form Generated Yet"
+                                        emptyDescription="The P-11 Form is generated after the Direct Purchase is approved by the Associate Dean."
+                                        onDataReload={loadData}
+                                    />
+                                </>
                             )}
 
                             {activeTab === "sanction" && id && (
@@ -1445,18 +1474,23 @@ const DirectPurchaseDetails: React.FC = () => {
                                             onUploadSignedPO={async (file: File) => {
                                                 const formData = new FormData();
                                                 formData.append("file", file, file.name);
-                                                formData.append("is_private", "0");
-                                                formData.append("doctype", "Direct Purchase");
-                                                formData.append("docname", id || "");
-                                                const res = await fetch("/api/method/upload_file", {
-                                                    method: "POST",
-                                                    body: formData,
-                                                    credentials: "include",
-                                                    headers: {
-                                                        "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+                                                formData.append("docname", poSanctionData.name);
+                                                formData.append("app_id", id || "");
+                                                formData.append("project_no", poSanctionData.project_no || "");
+                                                const res = await fetch(
+                                                    "/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document",
+                                                    {
+                                                        method: "POST",
+                                                        body: formData,
+                                                        credentials: "include",
+                                                        headers: {
+                                                            "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+                                                        },
                                                     },
-                                                });
-                                                if (!res.ok) throw new Error("Upload failed");
+                                                );
+                                                const json = await res.json().catch(() => ({}));
+                                                if (!res.ok || json?.message?.status === false)
+                                                    throw new Error(json?.message?.message || "Upload failed");
                                             }}
                                         />
                                     ) : (
