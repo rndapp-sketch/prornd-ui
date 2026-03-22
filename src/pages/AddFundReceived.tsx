@@ -147,7 +147,7 @@ const ValidationAlert = ({ isValid, message }: { isValid: boolean; message: stri
 };
 
 const MemoizedBudgetBreakupTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRow, budgetHeadOptions }: any) => {
-    const options = budgetHeadOptions.length > 0 ? budgetHeadOptions : ['Consumables', 'Equipment', 'Contingency', 'Travel', 'Manpower', 'Overhead', 'Other'];
+    const options = budgetHeadOptions || [];
     return (
         <div>
             <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">Budget Breakup of Received Amount</h3>
@@ -224,6 +224,7 @@ const AddFundReceived: React.FC = () => {
     const location = useLocation();
     const urlSearchParams = new URLSearchParams(location.search);
     const projectNoFromUrl = urlSearchParams.get('project_no') || '';
+    const projectRegFromUrl = urlSearchParams.get('project_reg') || '';
 
 
     const [fields, setFields] = useState<Field[]>([]);
@@ -248,8 +249,7 @@ const AddFundReceived: React.FC = () => {
     });
 
     const { call: fetchFormData, result, error } = useFrappePostCall<FormDataResponse>('rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_fields');
-    const { call: submitForm, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_received.fund_received.save_fund_received');
-    const { call: saveDoc, error: saveError } = useFrappePostCall('frappe.client.save'); // For updates
+    const { call: submitForm, error: submitError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_received.fund_received.submit_fund_received');
     const { call: fetchBudgetHeads, result: budgetHeadsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head');
 
     const { data: sanctionData, isLoading: sanctionLoading } = useFrappeGetCall(
@@ -748,24 +748,17 @@ const AddFundReceived: React.FC = () => {
 
             console.log('Submitting data:', dataToSubmit);
 
-            if (editDocName) {
-                // UPDATE: Use standard save
-                await saveDoc({ doc: dataToSubmit });
-                alert("Fund Received updated successfully!");
-            } else {
-                // CREATE: Use custom method
-                await submitForm({ doc_data: JSON.stringify(dataToSubmit) });
-                alert("Fund Received entry saved successfully!");
-            }
+            await submitForm({ doc_data: JSON.stringify(dataToSubmit), save: true, project_no: projectNoFromUrl, project_reg: projectRegFromUrl });
+            alert(editDocName ? "Fund Received updated and submitted successfully!" : "Fund Received submitted successfully!");
 
             navigate(-1);
         } catch (err: any) {
-            console.error('Submission error:', submitError || saveError || err);
-            const serverMsg = (saveError as any)?._server_messages
-                ? JSON.parse((saveError as any)._server_messages).join('\n')
+            console.error('Submission error:', submitError || err);
+            const serverMsg = (submitError as any)?._server_messages
+                ? JSON.parse((submitError as any)._server_messages).join('\n')
                 : null;
 
-            alert(`Submission Failed: ${serverMsg || (saveError as any)?.message || (submitError as any)?.message || err.message || 'Unknown Error'}`);
+            alert(`Submission Failed: ${serverMsg || (submitError as any)?.message || err.message || 'Unknown Error'}`);
         } finally {
             setIsSubmitting(false);
         }
@@ -880,6 +873,11 @@ const AddFundReceived: React.FC = () => {
         ? sanctionData?.message?.find((s: any) => s.name === formData.sanction_ref_no)
         : sanctionData?.message?.[0];
 
+    // Derive allowed account heads from the selected sanction's budget breakup
+    const sanctionedAccountHeads: string[] = selectedSanction?.sanctioned_budget_breakup
+        ? selectedSanction.sanctioned_budget_breakup.map((row: any) => row.account_head).filter(Boolean)
+        : [];
+
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
@@ -936,7 +934,7 @@ const AddFundReceived: React.FC = () => {
                                                     onRowChange={handleBudgetRowChange}
                                                     onAddRow={addBudgetRow}
                                                     onDeleteRow={deleteBudgetRow}
-                                                    budgetHeadOptions={budgetHeadOptions}
+                                                    budgetHeadOptions={sanctionedAccountHeads}
                                                 />
                                             </div>
                                         ) : (
@@ -961,7 +959,7 @@ const AddFundReceived: React.FC = () => {
                                     disabled={isSubmitting}
                                     className="bg-green-300 hover:bg-green-400 disabled:bg-zinc-300 dark:bg-zinc-600"
                                 >
-                                    {isSubmitting ? 'Saving...' : 'Save Fund Received Entry'}
+                                    {isSubmitting ? 'Submitting...' : 'Submit Fund Received'}
                                 </FrappeButton>
                             </div>
                         </form>

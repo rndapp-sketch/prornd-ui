@@ -69,7 +69,7 @@ const FundSanctionView: React.FC = () => {
                         </div>
                     </div>
                     <button
-                        onClick={() => navigate(`/add-fund-received/${sanctionName}/?project_no=${encodeURIComponent(projectNo)}`)}
+                        onClick={() => navigate(`/add-fund-received/${sanctionName}/?project_no=${encodeURIComponent(projectNo)}&project_reg=${encodeURIComponent(projectProposal)}`)}
                         className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#D97757] hover:bg-[#c5684a] text-white font-semibold text-sm rounded-lg shadow-sm transition-all"
                     >
                         <Plus className="h-4 w-4" />
