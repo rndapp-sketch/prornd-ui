@@ -13,6 +13,7 @@ import { DepartmentName } from '@/components/DepartmentName';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { useUserRoles } from '../../components/UserRole';
 import { ProjectLedgerModal } from '../../components/ProjectLedgerModal';
+import { DeclarationFields } from '@/components/DeclarationFields';
 
 // Initialize ToWords converter
 const toWords = new ToWords({
@@ -458,33 +459,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
 
                             {/* Declarations */}
                             <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-                                <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">Declarations</label>
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${data.declaration_settlement ? 'bg-green-500 border-green-500' : 'border-zinc-300 dark:border-zinc-600'}`}>
-                                            {data.declaration_settlement && (
-                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                                            I am aware of the rule that temporary advance should be settled within 45 days from the date the advance amount is transferred.
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-5 h-5 rounded border flex items-center justify-center ${data.declaration_rate_contract ? 'bg-green-500 border-green-500' : 'border-zinc-300 dark:border-zinc-600'}`}>
-                                            {data.declaration_rate_contract && (
-                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                                            I am aware of the rule that items which are available under rate contract shall not be purchased using temporary advance. Click here for items under rate contract.
-                                        </span>
-                                    </div>
-                                </div>
+                                <DeclarationFields doctype="Temporary Advance" />
                             </div>
 
                             {/* Justification and Comments */}

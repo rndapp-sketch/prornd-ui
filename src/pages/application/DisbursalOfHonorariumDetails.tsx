@@ -21,6 +21,7 @@ import { DepartmentName } from "@/components/DepartmentName";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { useUserRoles } from "../../components/UserRole";
 import { ProjectLedgerModal } from "../../components/ProjectLedgerModal";
+import { DeclarationFields } from "@/components/DeclarationFields";
 
 // --- TYPE DEFINITIONS ---
 interface DisbursalData {
@@ -741,6 +742,9 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                 </p>
               </FrappeCard>
             )}
+
+            {/* Declarations */}
+            <DeclarationFields doctype="Disbursal of Honorarium" />
           </div>
 
           {/* Sidebar - Right Column (1/3 width) */}

@@ -47,6 +47,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DepartmentName } from "@/components/DepartmentName";
 import TemporaryAdvanceActionButtons from "@/components/TemporaryAdvanceActionButtons";
+import { DeclarationFields } from "@/components/DeclarationFields";
 
 // --- Interfaces ---
 interface ActivityItem {
@@ -556,26 +557,7 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
                                     </CardContent>
                                 </Card>
 
-                                <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-                                    <CardHeader className="pb-3 border-b border-zinc-100 dark:border-zinc-800/50">
-                                        <div className="flex items-center gap-2">
-                                            <ShieldIcon className="h-3.5 w-3.5 text-[#D97757]" />
-                                            <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">
-                                                Declarations
-                                            </CardTitle>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="pt-4 space-y-3">
-                                        <div className="flex items-start gap-3">
-                                            {data.declaration_settlement ? <CheckCircleIcon className="h-4 w-4 text-emerald-500 mt-0.5" /> : <XCircleIcon className="h-4 w-4 text-zinc-300 mt-0.5" />}
-                                            <p className="text-sm text-zinc-600 dark:text-zinc-300">I am aware of the rule that temporary advance should be settled within 45 days.</p>
-                                        </div>
-                                        <div className="flex items-start gap-3">
-                                            {data.declaration_rate_contract ? <CheckCircleIcon className="h-4 w-4 text-emerald-500 mt-0.5" /> : <XCircleIcon className="h-4 w-4 text-zinc-300 mt-0.5" />}
-                                            <p className="text-sm text-zinc-600 dark:text-zinc-300">I am aware of the rule that items available under rate contract shall not be purchased using temporary advance.</p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                <DeclarationFields doctype="Temporary Advance" />
 
                                 {(data.justification || data.reason || data.purpose || data.comments) && (
                                     <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">

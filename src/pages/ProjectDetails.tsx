@@ -61,6 +61,7 @@ import {
 import { DepartmentName } from "@/components/DepartmentName";
 import { ProjectNumberGenerationForm } from "@/components/ProjectNumberGenerationForm";
 import { useUserRoles } from "@/components/UserRole";
+import { DeclarationFields } from "@/components/DeclarationFields";
 
 // --- Interfaces (Unchanged) ---
 interface ActivityItem {
@@ -1657,13 +1658,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                 />
                                             </div>
                                         </div>
-                                        {data?.declaration_html && (
-                                            <HtmlContent
-                                                title="Declaration"
-                                                htmlString={data.declaration_html}
-                                                icon={FileTextIcon}
-                                            />
-                                        )}
+                                        {/* Declarations */}
+                                        <DeclarationFields doctype="Project Registration" />
                                     </div>
                                 )}
                                 {activeTab === "activity" && (
