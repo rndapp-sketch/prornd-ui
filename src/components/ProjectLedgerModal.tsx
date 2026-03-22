@@ -59,6 +59,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
     const [ledgerTransactions, setLedgerTransactions] = useState<LedgerTransaction[]>([]);
     const [isLedgerLoading, setIsLedgerLoading] = useState(false);
     const [ledgerError, setLedgerError] = useState<string | null>(null);
+    const [selectedYear, setSelectedYear] = useState<string>("all");
 
     // Filtered heads state
     const [headsWithData, setHeadsWithData] = useState<Set<string | number>>(new Set());
@@ -118,6 +119,30 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
         if (showAllHeads) return budgetHeadList;
         return budgetHeadList.filter(head => headsWithData.has(head.id));
     }, [budgetHeadList, headsWithData, showAllHeads]);
+
+    // Financial year helper (Apr-Mar). e.g. "2025-06-15" → "2025-26"
+    const getFinancialYear = (dateStr: string): string => {
+        const d = new Date(dateStr);
+        const month = d.getMonth();
+        const year = d.getFullYear();
+        const startYear = month >= 3 ? year : year - 1;
+        return `${startYear}-${String(startYear + 1).slice(-2)}`;
+    };
+
+    const availableYears = useMemo(() => {
+        const years = new Set<string>();
+        ledgerTransactions.forEach((txn) => {
+            if (txn.transactionDate) years.add(getFinancialYear(txn.transactionDate));
+        });
+        return Array.from(years).sort().reverse();
+    }, [ledgerTransactions]);
+
+    const filteredLedgerTransactions = useMemo(() => {
+        if (selectedYear === "all") return ledgerTransactions;
+        return ledgerTransactions.filter((txn) =>
+            txn.transactionDate && getFinancialYear(txn.transactionDate) === selectedYear
+        );
+    }, [ledgerTransactions, selectedYear]);
 
     // Fetch Ledger Data
     const fetchLedgerData = async (headId: string | number) => {
@@ -234,6 +259,40 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                         )}
                     </div>
 
+                    {/* Year Filter */}
+                    {availableYears.length > 0 && (
+                        <div className="mb-4 flex items-center gap-2">
+                            <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Financial Year:</span>
+                            <div className="flex gap-2 flex-wrap">
+                                <button
+                                    onClick={() => setSelectedYear("all")}
+                                    className={cn(
+                                        "px-3 py-1 rounded-full text-xs font-medium transition-colors",
+                                        selectedYear === "all"
+                                            ? "bg-[#D97757] text-white"
+                                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                    )}
+                                >
+                                    All
+                                </button>
+                                {availableYears.map((yr) => (
+                                    <button
+                                        key={yr}
+                                        onClick={() => setSelectedYear(yr)}
+                                        className={cn(
+                                            "px-3 py-1 rounded-full text-xs font-medium transition-colors",
+                                            selectedYear === yr
+                                                ? "bg-[#D97757] text-white"
+                                                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                        )}
+                                    >
+                                        FY {yr}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Table */}
                     <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden min-h-[300px]">
                         {isLedgerLoading ? (
@@ -247,10 +306,12 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                 <p className="text-sm text-zinc-500 dark:text-zinc-400">{ledgerError}</p>
                                 <button onClick={() => fetchLedgerData(activeLedgerHeadId)} className="mt-4 text-[#D97757] hover:underline text-sm font-medium">Try Again</button>
                             </div>
-                        ) : ledgerTransactions.length === 0 ? (
+                        ) : filteredLedgerTransactions.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20">
                                 <FileText className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mb-3" />
-                                <p className="text-zinc-500 dark:text-zinc-400">No transactions found for this head</p>
+                                <p className="text-zinc-500 dark:text-zinc-400">
+                                    {selectedYear !== "all" ? `No transactions found for FY ${selectedYear}` : "No transactions found for this head"}
+                                </p>
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
@@ -272,7 +333,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                        {ledgerTransactions.map((txn) => (
+                                        {filteredLedgerTransactions.map((txn) => (
                                             <tr key={txn.transactionId} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30">
                                                 <td className="px-6 py-3 text-zinc-500 dark:text-zinc-400 font-mono">{txn.transactionId || '-'}</td>
                                                 <td className="px-6 py-3 text-zinc-900 dark:text-zinc-100 whitespace-nowrap font-mono text-xs">

@@ -59,6 +59,7 @@ const ProjectLedgerFull = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(20);
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+    const [selectedYear, setSelectedYear] = useState<string>("all");
 
     // Fetch Project Details for context (Title, etc.)
     const { data: projectData } = useFrappeGetCall<{ message: any[] }>(
@@ -205,16 +206,41 @@ const ProjectLedgerFull = () => {
         }
     };
 
+    // Get financial year string from a date (Apr-Mar). e.g. "2025-06-15" → "2025-26"
+    const getFinancialYear = (dateStr: string): string => {
+        const d = new Date(dateStr);
+        const month = d.getMonth(); // 0-indexed: 0=Jan, 3=Apr
+        const year = d.getFullYear();
+        const startYear = month >= 3 ? year : year - 1; // Apr(3)–Dec → same year; Jan–Mar → prev year
+        return `${startYear}-${String(startYear + 1).slice(-2)}`;
+    };
+
+    // Extract unique financial years from transactions
+    const availableYears = useMemo(() => {
+        const years = new Set<string>();
+        ledgerTransactions.forEach((txn) => {
+            if (txn.transactionDate) years.add(getFinancialYear(txn.transactionDate));
+        });
+        return Array.from(years).sort().reverse();
+    }, [ledgerTransactions]);
+
     // Filter and Pagination Logic
     const filteredTransactions = useMemo(() => {
-        const filtered = ledgerTransactions.filter((txn) =>
-            txn.particulars.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            txn.refDetails?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            txn.bmr?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-        console.log("ProjectLedgerFull: Filtered Data Length:", filtered.length);
+        const filtered = ledgerTransactions.filter((txn) => {
+            // Year filter
+            if (selectedYear !== "all" && txn.transactionDate) {
+                if (getFinancialYear(txn.transactionDate) !== selectedYear) return false;
+            }
+            // Search filter
+            const q = searchQuery.toLowerCase();
+            return (
+                txn.particulars.toLowerCase().includes(q) ||
+                txn.refDetails?.toLowerCase().includes(q) ||
+                txn.bmr?.toLowerCase().includes(q)
+            );
+        });
         return filtered;
-    }, [ledgerTransactions, searchQuery]);
+    }, [ledgerTransactions, searchQuery, selectedYear]);
 
     // Apply sort order for display
     const sortedTransactions = useMemo(() => {
@@ -314,6 +340,20 @@ const ProjectLedgerFull = () => {
                                         className="pl-9 bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
                                     />
                                 </div>
+                                <Select
+                                    value={selectedYear}
+                                    onValueChange={(val) => { setSelectedYear(val); setCurrentPage(1); }}
+                                >
+                                    <SelectTrigger className="w-[130px]">
+                                        <SelectValue placeholder="Year" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Years</SelectItem>
+                                        {availableYears.map((yr) => (
+                                            <SelectItem key={yr} value={yr}>FY {yr}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                                 <Select
                                     value={itemsPerPage.toString()}
                                     onValueChange={(val) => setItemsPerPage(Number(val))}
