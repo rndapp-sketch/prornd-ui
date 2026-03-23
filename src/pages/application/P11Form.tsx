@@ -3,13 +3,14 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
 import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { AlertCircle, Printer } from 'lucide-react';
+import { AlertCircle, Printer, CheckCircle2 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { p11FormAPI, prepareFormDataForApi } from '@/services/apiService';
 import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
 import { generateP11Html } from '@/utils/p11Print';
 import { P11PrintModal } from '@/components/P11PrintModal';
+import { CommentModal } from '@/components/CommentModal';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -97,12 +98,15 @@ const P11Form: React.FC = () => {
     const [dataLoaded, setDataLoaded] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [savedDocName, setSavedDocName] = useState<string | null>(editDocName || null);
+    const [savePopup, setSavePopup] = useState(false);
     const [clientScript, setClientScript] = useState('');
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
     const initializedTableSignatureRef = useRef('');
 
     // Workflow state
     const [workflowActions, setWorkflowActions] = useState<string[]>([]);
+    const [commentModalOpen, setCommentModalOpen] = useState(false);
+    const [pendingWorkflowAction, setPendingWorkflowAction] = useState<string>('');
 
     const { triggerEvent } = useFrappeClientScript(clientScript, formData, setFormData);
 
@@ -341,13 +345,32 @@ const P11Form: React.FC = () => {
                 setSavedDocName(docname);
 
                 if (editDocName) {
-                    // If editing, go back
-                    alert("Form updated successfully!");
-                    navigate(-1);
+                    // If editing existing doc: show popup then navigate to direct-purchase p11 tab
+                    setSavePopup(true);
+                    const targetAppId = appId || formData.app_id;
+                    if (targetAppId) {
+                        setTimeout(() => {
+                            setSavePopup(false);
+                            navigate(`/direct-purchase/${targetAppId}?tab=p11`);
+                        }, 2500);
+                    } else {
+                        setTimeout(() => { setSavePopup(false); navigate(-1); }, 2500);
+                    }
                 } else {
-                    // If creating new, redirect to edit mode to show submit button
-                    alert("Draft saved successfully! You can now submit the form.");
-                    navigate(`/p11-form/${docname}`);
+                    // If creating new, show popup then go to direct-purchase p11 tab for submission
+                    setSavePopup(true);
+                    const targetAppId = appId || formData.app_id;
+                    if (targetAppId) {
+                        setTimeout(() => {
+                            setSavePopup(false);
+                            navigate(`/direct-purchase/${targetAppId}?tab=p11`);
+                        }, 2500);
+                    } else {
+                        setTimeout(() => {
+                            setSavePopup(false);
+                            navigate(`/p11-form/${docname}`);
+                        }, 2500);
+                    }
                 }
             } else {
                 throw new Error(res?.message?.message || "Save failed");
@@ -360,16 +383,16 @@ const P11Form: React.FC = () => {
         }
     };
 
-    const handleWorkflowAction = async (action: string) => {
+    const handleWorkflowAction = (action: string) => {
         if (isSubmitting || !savedDocName) return;
+        setPendingWorkflowAction(action);
+        setCommentModalOpen(true);
+    };
 
-        // Optional: Ask for a comment if the action is typically a rejection
-        let comment = "";
-        if (action.toLowerCase().includes('reject') || action.toLowerCase().includes('put back')) {
-            const userComment = prompt(`Please provide a reason for '${action}':`);
-            if (userComment === null) return; // Cancelled
-            comment = userComment;
-        }
+    const handleConfirmWorkflowAction = async (comment: string) => {
+        setCommentModalOpen(false);
+        const action = pendingWorkflowAction;
+        if (!action) return;
 
         setIsSubmitting(true);
         try {
@@ -384,7 +407,7 @@ const P11Form: React.FC = () => {
             const res = await performAction({
                 docname: savedDocName,
                 action: action,
-                comment: comment
+                comment: comment.trim() || undefined,
             });
 
             if (res?.message?.status === 'success') {
@@ -398,6 +421,7 @@ const P11Form: React.FC = () => {
             alert(`Action failed: ${err.message || "Unknown error"}`);
         } finally {
             setIsSubmitting(false);
+            setPendingWorkflowAction('');
         }
     };
 
@@ -436,6 +460,27 @@ const P11Form: React.FC = () => {
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
+
+            {/* Save Success Popup */}
+            {savePopup && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+                    <div className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl px-8 py-8 max-w-sm w-full mx-4 flex flex-col items-center gap-4 animate-in zoom-in-95 duration-300">
+                        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30">
+                            <CheckCircle2 className="w-9 h-9 text-green-600 dark:text-green-400" />
+                        </div>
+                        <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 text-center">
+                            Draft Saved Successfully!
+                        </h3>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 text-center">
+                            Redirecting you to the P-11 submission page…
+                        </p>
+                        <div className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                            <div className="h-full bg-green-500 rounded-full animate-[progress_2.5s_linear_forwards]" style={{ width: '0%', animation: 'none', transition: 'width 2.5s linear' }} ref={(el) => { if (el) { requestAnimationFrame(() => { el.style.width = '100%'; }); } }} />
+                        </div>
+                    </div>
+                </div>
+            )}
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
                     <PageHeader
@@ -543,6 +588,13 @@ const P11Form: React.FC = () => {
                 onClose={() => setIsPrintModalOpen(false)}
                 htmlContent={isPrintModalOpen ? generateP11Html(formData) : ''}
                 docName={editDocName || formData.name || ''}
+            />
+            <CommentModal
+                isOpen={commentModalOpen}
+                onClose={() => { setCommentModalOpen(false); setPendingWorkflowAction(''); }}
+                onSubmit={handleConfirmWorkflowAction}
+                action={pendingWorkflowAction}
+                isLoading={isSubmitting}
             />
         </div>
     );

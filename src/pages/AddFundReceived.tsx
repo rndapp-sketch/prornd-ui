@@ -79,6 +79,7 @@ const MemoizedTransactionsTable = memo(({ tableData, onRowChange, onFileChange, 
                                     <input type="number" className={`${inputClasses} !h-11`}
                                         value={row.amount || ''}
                                         onChange={e => onRowChange(i, 'amount', e.target.value)}
+                                        onWheel={e => e.currentTarget.blur()}
                                         placeholder="0.00" />
                                 </td>
                                 <td className="p-2">
@@ -175,6 +176,7 @@ const MemoizedBudgetBreakupTable = memo(({ tableData, onRowChange, onAddRow, onD
                                     <input type="number" className={`${inputClasses} !h-11`}
                                         value={row.amount_received || ''}
                                         onChange={e => onRowChange(i, 'amount_received', e.target.value)}
+                                        onWheel={e => e.currentTarget.blur()}
                                         placeholder="0.00" />
                                 </td>
                                 <td className="p-2">
@@ -448,25 +450,7 @@ const AddFundReceived: React.FC = () => {
             }
         });
 
-        // 3. Validate Total Amount
-        const totalSanctioned = selectedSanction.total_sanctioned_amount || 0;
-        const newTotalReceived = prevTotal + currentTotal;
-        const remainingTotal = totalSanctioned - newTotalReceived;
-
-        const totalValidation = {
-            isValid: newTotalReceived <= totalSanctioned,
-            message: newTotalReceived > totalSanctioned
-                ? `⚠️ EXCEEDS sanctioned amount by ₹${(newTotalReceived - totalSanctioned).toLocaleString()}`
-                : remainingTotal > 0
-                    ? `✓ ₹${remainingTotal.toLocaleString()} remaining`
-                    : '✓ Full amount utilized',
-            currentTotal,
-            previousTotal: prevTotal,
-            sanctionedTotal: totalSanctioned,
-            remaining: remainingTotal
-        };
-
-        // 4. Validate Head-wise Amount
+        // 3a. Build head-wise sanctioned map first (needed for total fallback)
         const sanctionedHeadMap: Record<string, number> = {};
         if (selectedSanction.sanctioned_budget_breakup && Array.isArray(selectedSanction.sanctioned_budget_breakup)) {
             const yearKeys = ['first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget'];
@@ -475,6 +459,32 @@ const AddFundReceived: React.FC = () => {
                 sanctionedHeadMap[row.account_head] = headTotalSanctioned;
             });
         }
+
+        // 3b. Validate Total Amount
+        // Use total_sanctioned_amount if available, otherwise derive from budget breakup rows
+        const breakupTotal = Object.values(sanctionedHeadMap).reduce((sum, v) => sum + v, 0);
+        const totalSanctioned = (selectedSanction.total_sanctioned_amount || 0) > 0
+            ? selectedSanction.total_sanctioned_amount
+            : breakupTotal;
+        const newTotalReceived = prevTotal + currentTotal;
+        const remainingTotal = totalSanctioned - newTotalReceived;
+
+        const totalValidation = {
+            isValid: totalSanctioned === 0 || newTotalReceived <= totalSanctioned,
+            message: totalSanctioned === 0
+                ? '⚠️ No sanctioned amount found'
+                : newTotalReceived > totalSanctioned
+                    ? `⚠️ EXCEEDS sanctioned amount by ₹${(newTotalReceived - totalSanctioned).toLocaleString()}`
+                    : remainingTotal > 0
+                        ? `✓ ₹${remainingTotal.toLocaleString()} remaining`
+                        : '✓ Full amount utilized',
+            currentTotal,
+            previousTotal: prevTotal,
+            sanctionedTotal: totalSanctioned,
+            remaining: remainingTotal
+        };
+
+        // 4. Validate Head-wise Amount
 
         const headValidations: Record<string, any> = {};
 
@@ -625,29 +635,30 @@ const AddFundReceived: React.FC = () => {
                 );
             }
 
-            // Check head-wise validations
+            // Check head-wise validations (soft validation — warn but allow proceed)
             const invalidHeads = Object.entries(validationState.headValidations)
                 .filter(([_, validation]) => !validation.isValid);
 
             if (invalidHeads.length > 0) {
-                const errorDetails = invalidHeads.map(([head, validation]) => {
+                const warningDetails = invalidHeads.map(([head, validation]) => {
                     const exceeded = (validation.currentTotal + validation.previousTotal) - validation.sanctionedLimit;
                     return (
-                        `\n📌 ${head}:\n` +
-                        `   Total: ₹${(validation.currentTotal + validation.previousTotal).toLocaleString()} ` +
+                        `\n• ${head}:\n` +
+                        `  Total: ₹${(validation.currentTotal + validation.previousTotal).toLocaleString()} ` +
                         `(Limit: ₹${validation.sanctionedLimit.toLocaleString()})\n` +
-                        `   Exceeded by: ₹${exceeded.toLocaleString()}\n` +
-                        `   - Previous: ₹${validation.previousTotal.toLocaleString()}\n` +
-                        `   - Current: ₹${validation.currentTotal.toLocaleString()}`
+                        `  Exceeded by: ₹${exceeded.toLocaleString()}`
                     );
                 }).join('\n');
 
-                throw new Error(
-                    `❌ BUDGET HEAD VALIDATION FAILED\n\n` +
-                    `${invalidHeads.length} budget head(s) exceed sanctioned limits:` +
-                    errorDetails +
-                    `\n\nPlease adjust the amounts for these budget heads.`
+                const proceed = window.confirm(
+                    `⚠️ WARNING: Budget Head Limit Exceeded\n\n` +
+                    `${invalidHeads.length} budget head(s) exceed their sanctioned limits:` +
+                    warningDetails +
+                    `\n\nThe overall total is within the sanctioned amount. Do you want to proceed anyway?`
                 );
+                if (!proceed) {
+                    throw new Error('CANCELLED');
+                }
             }
 
             // Get selected sanction for final validation
@@ -665,7 +676,9 @@ const AddFundReceived: React.FC = () => {
                 heads: validationState.headValidations
             });
         } catch (validationError: any) {
-            alert(validationError.message);
+            if (validationError.message !== 'CANCELLED') {
+                alert(validationError.message);
+            }
             setIsSubmitting(false);
             return;
         }
@@ -814,7 +827,7 @@ const AddFundReceived: React.FC = () => {
                         </select>
                     );
                 case "Currency":
-                    return <input type="number" {...commonProps} />;
+                    return <input type="number" {...commonProps} onWheel={e => e.currentTarget.blur()} />;
                 case "Date":
                     return <input type="date" {...commonProps} />;
                 case "Data":

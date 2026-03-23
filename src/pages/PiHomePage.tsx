@@ -210,7 +210,7 @@
 
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
+import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
 import {
   PlusCircle, LayoutGrid, FileText, BarChart, PieChart, TrendingUp,
@@ -218,6 +218,42 @@ import {
   UsersIcon, SearchIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface ProjectOverview {
+  total_projects: number;
+  draft_projects: number;
+  completion_rate: number;
+  pending_review: number;
+  active_staff: number;
+}
+
+interface FinancialSummary {
+  total_allocation: number;
+  utilized: number;
+  available: number;
+  pending_requests: number;
+  financial_year: string;
+  utilization_rate: number;
+}
+
+interface RecentUpdate {
+  title: string;
+  meta: string;
+  type: string;
+}
+
+interface PiDashboardData {
+  project_overview: ProjectOverview;
+  financial_summary: FinancialSummary;
+  recent_updates: RecentUpdate[];
+}
+
+function formatCrore(amount: number): string {
+  if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(1)}Cr`;
+  if (amount >= 100000) return `₹${(amount / 100000).toFixed(0)}L`;
+  if (amount >= 1000) return `₹${(amount / 1000).toFixed(0)}K`;
+  return `₹${amount}`;
+}
 
 
 
@@ -313,8 +349,19 @@ export function PiHomePage() {
     enabled: !!currentUser,
   });
 
+  const { data: dashboardData, isLoading: dashboardLoading } = useFrappeGetCall<{ message: PiDashboardData }>(
+    "rndopsapp.dashboard.get_pi_dashboard_data",
+    { user: currentUser },
+    currentUser ? undefined : null,
+    { revalidateOnFocus: false }
+  );
+
   const fullName = userData?.full_name || currentUser || "Guest";
   const { isOpen: isCommandPaletteOpen, openPalette, closePalette } = useCommandPalette();
+
+  const overview = dashboardData?.message?.project_overview;
+  const financials = dashboardData?.message?.financial_summary;
+  const recentUpdates = dashboardData?.message?.recent_updates ?? [];
 
   return (
     <div className="min-h-screen dark:bg-zinc-900  transition-colors duration-300">

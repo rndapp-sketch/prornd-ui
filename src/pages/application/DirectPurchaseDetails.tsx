@@ -38,6 +38,7 @@ import { generateSanctionSheetHtml } from "@/utils/sanctionSheetPrint";
 import { P11PrintModal } from "@/components/P11PrintModal";
 import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
+import { useProjectBudget } from "@/hooks/useProjectBudget";
 
 // --- TYPE DEFINITIONS ---
 interface DirectPurchaseData {
@@ -1126,6 +1127,37 @@ const DirectPurchaseDetails: React.FC = () => {
         directPurchaseAPI.generateP11Form,
     );
 
+    // Commit Payment state
+    const [commitHead, setCommitHead] = useState("");
+    const [commitAmount, setCommitAmount] = useState("");
+    const [paymentAmount, setPaymentAmount] = useState("");
+
+    const { call: submitCommit, loading: isCommitting } = useFrappePostCall(
+        "rndopsapp.rndopsapp.commitPayment.submit_commit_data",
+    );
+    const { call: submitPayment, loading: isPaying } = useFrappePostCall(
+        "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
+    );
+
+    const projectTitle = data?.project_name || "";
+    const { budgetData, heads: budgetHeads, actualBalance } = useProjectBudget(projectTitle);
+
+    const linkedCommitment = budgetData.find(
+        (e) => (e.ref === (id || "") || e.frapAppId === (id || "")) && e.type === "commitment",
+    );
+    const isCommitted = !!linkedCommitment;
+
+    useEffect(() => {
+        if (budgetHeads.length > 0 && !commitHead) setCommitHead(budgetHeads[0]);
+    }, [budgetHeads]);
+
+    useEffect(() => {
+        if (linkedCommitment) {
+            setCommitHead(linkedCommitment.head || "");
+            if (!paymentAmount) setPaymentAmount(String(linkedCommitment.committed));
+        }
+    }, [linkedCommitment]);
+
     const loadData = () => {
         if (id) reloadData();
     };
@@ -1184,6 +1216,63 @@ const DirectPurchaseDetails: React.FC = () => {
             console.error("Error adding comment:", err);
         } finally {
             setIsAddingComment(false);
+        }
+    };
+
+    const handleCommit = async () => {
+        if (!commitAmount || !commitHead || !id || !data) {
+            alert("Please select a budget head and enter an amount.");
+            return;
+        }
+        try {
+            await submitCommit({
+                doctype: "Direct Purchase",
+                frapAppId: id,
+                name: id,
+                project_name: data.project_name,
+                commit_amount: parseFloat(commitAmount),
+                budget_head: commitHead,
+                bmr: "",
+                refDetails: id,
+            });
+            try {
+                await addComment({
+                    doctype: "Direct Purchase",
+                    docname: id,
+                    content: `Commitment of ₹ ${parseFloat(commitAmount).toLocaleString("en-IN")} under "${commitHead}" has been sent to the Account Side.`,
+                });
+            } catch (commentErr) {
+                console.error("Failed to add commitment comment:", commentErr);
+            }
+            alert("Commitment submitted successfully!");
+            setCommitAmount("");
+            window.location.reload();
+        } catch (error: any) {
+            console.error("Commit failed:", error);
+            alert(`Commitment failed: ${error.message || "Unknown error"}`);
+        }
+    };
+
+    const handlePayment = async () => {
+        if (!paymentAmount || !commitHead || !id || !data) {
+            alert("Please select a budget head and enter an amount.");
+            return;
+        }
+        try {
+            await submitPayment({
+                doctype: "Direct Purchase",
+                name: id,
+                project_name: data.project_name,
+                payment_amount: parseFloat(paymentAmount),
+                budget_head: commitHead,
+                bmr: "",
+            });
+            alert("Payment recorded successfully!");
+            setPaymentAmount("");
+            window.location.reload();
+        } catch (error: any) {
+            console.error("Payment failed:", error);
+            alert(`Payment failed: ${error.message || "Unknown error"}`);
         }
     };
 
@@ -1557,6 +1646,101 @@ const DirectPurchaseDetails: React.FC = () => {
                                 />
                             )}
                         </ClaudeCard>
+
+                        {/* Commit Payment — only for Staff RnD, only when not in Draft */}
+                        {isStaffRnD && data.workflow_state !== "Draft" && !isCommitted && (
+                            <ClaudeCard title="Make a Commitment" accentTop>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                            Budget Head
+                                        </label>
+                                        <select
+                                            className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                            value={commitHead}
+                                            onChange={(e) => setCommitHead(e.target.value)}
+                                        >
+                                            {budgetHeads.length > 0 ? (
+                                                budgetHeads.map((head) => (
+                                                    <option key={head} value={head}>{head}</option>
+                                                ))
+                                            ) : (
+                                                <option value="">No Budget Heads</option>
+                                            )}
+                                        </select>
+                                        <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-1">
+                                            Available:{" "}
+                                            <span className="font-semibold text-[#D97757]">
+                                                ₹ {actualBalance.toLocaleString("en-IN")}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                            Amount (₹)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                            placeholder="e.g., 5000"
+                                            value={commitAmount}
+                                            onChange={(e) => setCommitAmount(e.target.value)}
+                                            onWheel={(e) => e.currentTarget.blur()}
+                                        />
+                                    </div>
+                                    <ClaudeButton
+                                        variant="primary"
+                                        className="w-full"
+                                        onClick={handleCommit}
+                                        disabled={isCommitting}
+                                    >
+                                        {isCommitting ? "Submitting…" : "Submit Commitment"}
+                                    </ClaudeButton>
+                                </div>
+                            </ClaudeCard>
+                        )}
+
+                        {/* Committed state display + Payment */}
+                        {isStaffRnD && data.workflow_state !== "Draft" && isCommitted && (
+                            <ClaudeCard title="Commitment Details" accentTop>
+                                <div className="space-y-4">
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
+                                            Commitment Initiated
+                                        </p>
+                                        <div className="flex justify-between items-end">
+                                            <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
+                                                {linkedCommitment?.head}
+                                            </p>
+                                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                                                ₹ {Number(linkedCommitment?.committed || 0).toLocaleString("en-IN")}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                            Payment Amount (₹)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                            placeholder="Enter payment amount"
+                                            value={paymentAmount}
+                                            onChange={(e) => setPaymentAmount(e.target.value)}
+                                            onWheel={(e) => e.currentTarget.blur()}
+                                        />
+                                    </div>
+                                    <ClaudeButton
+                                        variant="primary"
+                                        className="w-full"
+                                        onClick={handlePayment}
+                                        disabled={isPaying}
+                                    >
+                                        {isPaying ? "Recording…" : "Record Payment"}
+                                    </ClaudeButton>
+                                </div>
+                            </ClaudeCard>
+                        )}
 
                         {/* Add Comment */}
                         <ClaudeCard title="Add Comment">
