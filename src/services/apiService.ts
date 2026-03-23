@@ -10,6 +10,8 @@ export const rateContractAPI = {
     getFields: `${API_BASE}.rate_contract.rate_contract.get_rate_contract_fields`,
     save: `${API_BASE}.rate_contract.rate_contract.save_rate_contract`,
     submit: `${API_BASE}.rate_contract.rate_contract.submit_rate_contract`,
+    getWorkflowActions: `${API_BASE}.rate_contract.rate_contract.get_rate_contract_workflow_actions`,
+    performAction: `${API_BASE}.rate_contract.rate_contract.perform_rate_contract_action`,
     getPrincipalSuppliersByItemType: `${API_BASE}.rate_contract.rate_contract.get_principal_suppliers_by_item_type`,
     getLocalSuppliersByPrincipal: `${API_BASE}.rate_contract.rate_contract.get_local_suppliers_by_principal`,
     getPrincipalSupplierDetails: `${API_BASE}.rate_contract.rate_contract.get_principal_supplier_details`,
@@ -17,6 +19,13 @@ export const rateContractAPI = {
     getVendorDetails: `${API_BASE}.rate_contract.rate_contract.get_vendor_details`,
     getFormTypeConfig: `${API_BASE}.rate_contract.rate_contract.get_form_type_config`,
     getVendorsByP4ItemType: `${API_BASE}.rate_contract.rate_contract.get_vendors_by_p4_item_type`,
+};
+
+export const annualMaintenanceContractAPI = {
+    getFields: `${API_BASE}.annual_maintenance_contract.annual_maintenance_contract.get_annual_maintenance_contract_fields`,
+    save: `${API_BASE}.annual_maintenance_contract.annual_maintenance_contract.save_annual_maintenance_contract_data`,
+    getWorkflowActions: `${API_BASE}.annual_maintenance_contract.annual_maintenance_contract.get_annual_maintenance_contract_workflow_actions`,
+    performAction: `${API_BASE}.annual_maintenance_contract.annual_maintenance_contract.perform_annual_maintenance_contract_action`,
 };
 
 // Travel API endpoints
