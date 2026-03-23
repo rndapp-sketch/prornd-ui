@@ -1835,8 +1835,8 @@ const FundReceivedDetails = () => {
           </div>
         )}
 
-        {/* INLINE SUMMARY FOR Fund Received STATE */}
-        {isFundReceived && (
+        {/* INLINE SUMMARY — shown when deposit slip form is not active */}
+        {!showDepositSlip && (
           <div className="mt-8 animate-in fade-in duration-500 max-w-7xl">
             <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-6 flex items-center gap-2">
               <IndianRupee className="h-6 w-6 text-[#D97757]" />
@@ -1846,8 +1846,8 @@ const FundReceivedDetails = () => {
           </div>
         )}
 
-        {/* Floating Summary Button - positioned above Activity Log */}
-        {!isFundReceived && (
+        {/* Floating Summary Button — only shown when deposit slip form is active */}
+        {showDepositSlip && (
           <button
             onClick={() => setShowSummary(true)}
             className="fixed bottom-24 right-8 p-4 bg-[#D97757] text-white rounded-full shadow-lg hover:bg-[#c5684a] transition-all z-40 flex items-center gap-2"

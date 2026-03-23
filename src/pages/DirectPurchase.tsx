@@ -5,6 +5,7 @@ import { useFrappePostCall } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
 import { directPurchaseAPI } from '@/services/apiService';
+import { CommentModal } from '@/components/CommentModal';
 import { Plus, Trash2 } from 'lucide-react';
 import { DepartmentName } from "@/components/DepartmentName";
 
@@ -211,9 +212,9 @@ const MemoizedFormField = memo(({
                 );
             case "Currency":
             case "Float":
-                return <input type="number" {...commonInputProps} />;
+                return <input type="number" {...commonInputProps} onWheel={e => e.currentTarget.blur()} />;
             case "Int":
-                return <input type="number" {...commonInputProps} />;
+                return <input type="number" {...commonInputProps} onWheel={e => e.currentTarget.blur()} />;
             case "Date":
                 return <input type="date" {...commonInputProps} />;
             case "Text":
@@ -478,6 +479,7 @@ const ChildTableEditor = ({
                                                         readOnly={cf.read_only === 1}
                                                         disabled={cf.read_only === 1}
                                                         required={cf.mandatory === 1}
+                                                        onWheel={getInputType(cf) === 'number' ? e => e.currentTarget.blur() : undefined}
                                                     />
                                                 )}
                                             </td>
@@ -565,6 +567,8 @@ const DirectPurchase: React.FC = () => {
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [savedDocName, setSavedDocName] = useState<string>(editDocName || '');
     const [dataLoaded, setDataLoaded] = useState(false);
+    const [declarationAccepted, setDeclarationAccepted] = useState(false);
+    const [commentModalOpen, setCommentModalOpen] = useState(false);
 
     const { call: fetchFormData, result, error } = useFrappePostCall<FormDataResponse>(
         directPurchaseAPI.getFields
@@ -974,23 +978,33 @@ const DirectPurchase: React.FC = () => {
         }
     };
 
-    const handleSubmitDoc = async () => {
+    const handleSubmitDoc = () => {
         if (isSubmitting) return;
         if (!validateBeforeSave()) return;
+
+        const hasDeclarations = fields.some(f => f.fieldtype === 'HTML' && f.options?.trim());
+        if (hasDeclarations && !declarationAccepted) {
+            alert('You must read and accept all declarations before submitting.');
+            return;
+        }
 
         if (!savedDocName) {
             alert('Please save as draft first before submitting.');
             return;
         }
 
+        setCommentModalOpen(true);
+    };
+
+    const handleConfirmSubmit = async (comment: string) => {
+        setCommentModalOpen(false);
         setIsSubmitting(true);
 
         try {
-            // Use workflow performAction to transition from Draft → next state
-            console.log('Submitting Direct Purchase (workflow action):', savedDocName);
             const result = await submitDocCall({
                 docname: savedDocName,
-                action: 'Submit'
+                action: 'Submit',
+                comment: comment.trim() || undefined,
             });
             console.log('Submit result:', result);
 
@@ -1231,6 +1245,22 @@ const DirectPurchase: React.FC = () => {
                         ))}
                     </FrappeCard>
 
+                    {/* Declaration Acceptance Checkbox */}
+                    {fields.some(f => f.fieldtype === 'HTML' && f.options?.trim()) && (
+                        <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl flex items-start gap-3">
+                            <input
+                                type="checkbox"
+                                id="declarationAccepted"
+                                checked={declarationAccepted}
+                                onChange={e => setDeclarationAccepted(e.target.checked)}
+                                className="mt-0.5 h-4 w-4 accent-[#D97757] cursor-pointer flex-shrink-0"
+                            />
+                            <label htmlFor="declarationAccepted" className="text-sm font-medium text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                I have read and accept all the above declarations. <span className="text-red-500">*</span>
+                            </label>
+                        </div>
+                    )}
+
                     {/* Action Buttons */}
                     <div className="mt-8 flex justify-end gap-4">
                         <FrappeButton
@@ -1264,6 +1294,14 @@ const DirectPurchase: React.FC = () => {
                     </div>
                 </form>
             </main>
+
+            <CommentModal
+                isOpen={commentModalOpen}
+                onClose={() => setCommentModalOpen(false)}
+                onSubmit={handleConfirmSubmit}
+                action="Submit Direct Purchase"
+                isLoading={isSubmitting}
+            />
         </div>
     );
 };

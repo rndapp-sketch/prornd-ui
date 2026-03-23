@@ -8,6 +8,7 @@ import { FileText, Users, IndianRupee, Shield, FileBadge, X } from 'lucide-react
 import { EndorsementCertificate, getEndorsementHtml } from '../components/EndorsementCertificate';
 import { commonAPI } from '@/services/apiService';
 import { AutocompleteEmail } from '../components/AutocompleteEmail';
+import { useUserRoles } from '@/components/UserRole';
 
 // --- TYPE DEFINITIONS ---
 interface Field {
@@ -240,6 +241,9 @@ const MemoizedBudgetTable = memo(({ tableData, budgetYears, budgetHeadOptions, o
 const ProjectRegistration: React.FC = () => {
     // --- STATE & API HOOKS ---
     const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+    const isStaffRnD = roles.some(r => ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r));
+    const [isSavingPfms, setIsSavingPfms] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
     const [fields, setFields] = useState<Field[]>([]);
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
@@ -293,6 +297,7 @@ const ProjectRegistration: React.FC = () => {
     const { call: fetchAgencyDetails, result: agencyDetailsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_funding_agency_details');
     const { call: fetchBudgetHeads, result: budgetHeadsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head');
     const { call: fetchDeptHead } = useFrappePostCall('frappe.client.get_value');
+    const { call: updatePfmsFields } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.update_project_fields');
 
 
     // --- STABILIZED EVENT HANDLERS & RENDER FUNCTIONS ---
@@ -1177,17 +1182,51 @@ const ProjectRegistration: React.FC = () => {
                                             {renderField("prj_start_date")}
                                             {renderField("prj_end_date")}
                                         </div>
-                                        {renderField("is_the_account_type_pfms")}
-                                        {formData.is_the_account_type_pfms === "Yes" && (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                {renderField("scheme_name")}
-                                                {renderField("enter_scheme_number")}
-                                            </div>
-                                        )}
-                                        {formData.is_the_account_type_pfms === "No" && (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                {renderField("account_number")}
-                                                {renderField("bank_name")}
+                                        {isStaffRnD && (
+                                            <div className="space-y-4 pt-6 border-t border-zinc-200 dark:border-zinc-700">
+                                                <h3 className="text-base font-bold uppercase text-zinc-900 dark:text-zinc-100">Account Details</h3>
+                                                {renderField("is_the_account_type_pfms")}
+                                                {formData.is_the_account_type_pfms === "Yes" && (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                        {renderField("scheme_name")}
+                                                        {renderField("enter_scheme_number")}
+                                                    </div>
+                                                )}
+                                                {formData.is_the_account_type_pfms === "No" && (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                        {renderField("account_number")}
+                                                        {renderField("bank_name")}
+                                                    </div>
+                                                )}
+                                                {docname && (
+                                                    <div className="flex justify-end pt-2">
+                                                        <FrappeButton
+                                                            variant="primary"
+                                                            disabled={isSavingPfms}
+                                                            onClick={async () => {
+                                                                if (!docname) return;
+                                                                setIsSavingPfms(true);
+                                                                try {
+                                                                    await updatePfmsFields({
+                                                                        docname: docname,
+                                                                        is_the_account_type_pfms: formData.is_the_account_type_pfms || "",
+                                                                        scheme_name: formData.scheme_name || "",
+                                                                        enter_scheme_number: formData.enter_scheme_number || "",
+                                                                        account_number: formData.account_number || "",
+                                                                        bank_name: formData.bank_name || "",
+                                                                    });
+                                                                    alert("Account details saved successfully.");
+                                                                } catch (e: any) {
+                                                                    alert("Failed to save account details: " + (e?.message || "Unknown error"));
+                                                                } finally {
+                                                                    setIsSavingPfms(false);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {isSavingPfms ? "Saving..." : "Save Account Details"}
+                                                        </FrappeButton>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </FrappeCard>
