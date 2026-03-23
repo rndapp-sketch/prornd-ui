@@ -45,7 +45,6 @@ import DepositSlipForm from './pages/DepositSlipForm.tsx';
 import DepositSlipDetails from './pages/DepositSlipDetails.tsx';
 import TemporaryAdvance from './pages/TemporaryAdvance.tsx';
 import ReimbursementDetails from './pages/application/ReimbursementDetails.tsx';
-import RateContractForm from './pages/application/RateContractForm.tsx';
 import TravelForm from './pages/application/TravelForm.tsx';
 import TravelDetails from './pages/application/TravelDetails.tsx';
 import TADASettlementForm from './pages/application/TADASettlementForm.tsx';
@@ -384,14 +383,6 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <TemporaryAdvance />
-            </AuthRouteWrapper>
-          )
-        },
-        {
-          path: "rate-contract",
-          element: (
-            <AuthRouteWrapper allowedRole="All_ProRnd_User">
-              <RateContractForm />
             </AuthRouteWrapper>
           )
         },
