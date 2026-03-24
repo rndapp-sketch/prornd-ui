@@ -91,34 +91,17 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     // API Hooks
     const { call: getFieldsCall } = useFrappePostCall(icssAPI.getFields);
 
-    // Sub-form get fields hooks
+    // Sub-form field metadata hooks (read-only, used to fetch field definitions per indent type)
     const { call: getProprietaryFields } = useFrappePostCall(proprietaryPurchaseAPI.getFields);
     const { call: getStandardizedFields } = useFrappePostCall(standardizedPurchaseAPI.getFields);
     const { call: getRepairFields } = useFrappePostCall(repairReplacementAPI.getFields);
     const { call: getRateContractFields } = useFrappePostCall(rateContractAPI.getFields);
     const { call: getAmcFields } = useFrappePostCall(annualMaintenanceContractAPI.getFields);
 
-    // Save hooks
-    const { call: saveGenericCall } = useFrappePostCall(icssAPI.save);
-    const { call: saveProprietaryCall } = useFrappePostCall(proprietaryPurchaseAPI.save);
-    const { call: saveStandardizedCall } = useFrappePostCall(standardizedPurchaseAPI.save);
-    const { call: saveRepairCall } = useFrappePostCall(repairReplacementAPI.save);
-    const { call: saveRateContractCall } = useFrappePostCall(rateContractAPI.save);
-    const { call: saveAmcCall } = useFrappePostCall(annualMaintenanceContractAPI.save);
-
+    // All save/workflow/action operations route through parent ICSS APIs
+    const { call: saveCall } = useFrappePostCall(icssAPI.save);
     const { call: getActionsCall } = useFrappePostCall(icssAPI.getWorkflowActions);
-    const { call: getProprietaryActions } = useFrappePostCall(proprietaryPurchaseAPI.getWorkflowActions);
-    const { call: getStandardizedActions } = useFrappePostCall(standardizedPurchaseAPI.getWorkflowActions);
-    const { call: getRepairActions } = useFrappePostCall(repairReplacementAPI.getWorkflowActions);
-    const { call: getRateContractActions } = useFrappePostCall(rateContractAPI.getWorkflowActions);
-    const { call: getAmcActions } = useFrappePostCall(annualMaintenanceContractAPI.getWorkflowActions);
-
     const { call: performActionCall } = useFrappePostCall(icssAPI.performAction);
-    const { call: performProprietaryAction } = useFrappePostCall(proprietaryPurchaseAPI.performAction);
-    const { call: performStandardizedAction } = useFrappePostCall(standardizedPurchaseAPI.performAction);
-    const { call: performRepairAction } = useFrappePostCall(repairReplacementAPI.performAction);
-    const { call: performRateContractAction } = useFrappePostCall(rateContractAPI.performAction);
-    const { call: performAmcAction } = useFrappePostCall(annualMaintenanceContractAPI.performAction);
 
     const { call: getICSSUserDetails } = useFrappePostCall<{ message: any }>(icssAPI.getUserDetails);
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>(
@@ -254,57 +237,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     }, [computationRules]);
 
 
-    // --- Determine the correct save API based on indent type ---
-    const getSaveCall = useCallback(() => {
-        switch (selectedIndentType) {
-            case "Proprietary Purchase with Proprietary certificate from the OEM":
-                return saveProprietaryCall;
-            case "Standerdised/ Emergent Purchase":
-                return saveStandardizedCall;
-            case "Repair/ Repleacement":
-                return saveRepairCall;
-            case "Rate Contract Purchase":
-                return saveRateContractCall;
-            case "Annual Maintenance Contract":
-                return saveAmcCall;
-            default:
-                return saveGenericCall;
-        }
-    }, [selectedIndentType, saveProprietaryCall, saveStandardizedCall, saveRepairCall, saveRateContractCall, saveAmcCall, saveGenericCall]);
-
-    const getWorkflowActionsCall = useCallback(() => {
-        switch (selectedIndentType) {
-            case "Proprietary Purchase with Proprietary certificate from the OEM":
-                return getProprietaryActions;
-            case "Standerdised/ Emergent Purchase":
-                return getStandardizedActions;
-            case "Repair/ Repleacement":
-                return getRepairActions;
-            case "Rate Contract Purchase":
-                return getRateContractActions;
-            case "Annual Maintenance Contract":
-                return getAmcActions;
-            default:
-                return getActionsCall;
-        }
-    }, [selectedIndentType, getProprietaryActions, getStandardizedActions, getRepairActions, getRateContractActions, getAmcActions, getActionsCall]);
-
-    const getPerformActionCall = useCallback(() => {
-        switch (selectedIndentType) {
-            case "Proprietary Purchase with Proprietary certificate from the OEM":
-                return performProprietaryAction;
-            case "Standerdised/ Emergent Purchase":
-                return performStandardizedAction;
-            case "Repair/ Repleacement":
-                return performRepairAction;
-            case "Rate Contract Purchase":
-                return performRateContractAction;
-            case "Annual Maintenance Contract":
-                return performAmcAction;
-            default:
-                return performActionCall;
-        }
-    }, [selectedIndentType, performProprietaryAction, performStandardizedAction, performRepairAction, performRateContractAction, performAmcAction, performActionCall]);
+    // All save/workflow/action operations route through parent ICSS controller.
+    // Backend handles sub-doctype creation/update automatically via before_save hooks.
 
     // --- DATA FETCHING ---
     const fetchFormConfiguration = useCallback(async () => {
@@ -517,8 +451,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     const fetchWorkflowActions = useCallback(
         async (docName: string) => {
             try {
-                const call = getWorkflowActionsCall();
-                const response = await call({ docname: docName });
+                const response = await getActionsCall({ docname: docName });
                 if (response && response.message) {
                     setAvailableActions(response.message);
                 }
@@ -527,7 +460,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 setAvailableActions([]);
             }
         },
-        [getWorkflowActionsCall],
+        [getActionsCall],
     );
 
     // Initial load
@@ -858,7 +791,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
             });
 
             console.log("Saving ICSS Payload:", preparedData);
-            const saveCall = getSaveCall();
             const response = await saveCall({ data: preparedData });
 
             if (response && response.message?.status === "success") {
@@ -915,8 +847,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 });
             }
 
-            const performCall = getPerformActionCall();
-            const response = await performCall({
+            const response = await performActionCall({
                 docname: docNameToUse,
                 action: action,
                 updated_data: preparedData,
