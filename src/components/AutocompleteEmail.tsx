@@ -14,6 +14,10 @@ interface AutocompleteEmailProps extends Omit<React.InputHTMLAttributes<HTMLInpu
   placeholder?: string;
   className?: string;
   searchByLabel?: boolean;
+  /** Show all options when the field is focused (even with empty input) */
+  showAllOnFocus?: boolean;
+  /** Show only the label in dropdown items, without the value in parentheses */
+  displayOnlyLabel?: boolean;
 }
 
 export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
@@ -23,6 +27,8 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   placeholder = "Enter Webmail ID",
   className,
   searchByLabel = false,
+  showAllOnFocus = false,
+  displayOnlyLabel = false,
   ...rest
 }) => {
   const [inputValue, setInputValue] = useState(value);
@@ -46,12 +52,17 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   }, []);
 
   const filteredOptions = useMemo(() => {
-    if (!debouncedValue) return [];
+    if (!debouncedValue && !showAllOnFocus) return [];
     const searchStr = debouncedValue.toLowerCase();
-    return options.filter(opt =>
-      opt.label.toLowerCase().includes(searchStr) || opt.value.toLowerCase().includes(searchStr)
-    ).sort((a, b) => (searchByLabel ? a.label : a.value).localeCompare(searchByLabel ? b.label : b.value)).slice(0, 100);
-  }, [debouncedValue, options, searchByLabel]);
+    const filtered = searchStr
+      ? options.filter(opt =>
+          opt.label.toLowerCase().includes(searchStr) || opt.value.toLowerCase().includes(searchStr)
+        )
+      : options;
+    return filtered.sort((a, b) =>
+      (searchByLabel ? a.label : a.value).localeCompare(searchByLabel ? b.label : b.value)
+    );
+  }, [debouncedValue, options, searchByLabel, showAllOnFocus]);
 
   return (
     <div ref={wrapperRef} className="relative w-full">
@@ -65,7 +76,7 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
           setIsOpen(true);
         }}
         onFocus={() => {
-          if (inputValue) setIsOpen(true);
+          setIsOpen(true);
         }}
         autoComplete="off"
         {...rest}
@@ -84,7 +95,11 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
                 setIsOpen(false);
               }}
             >
-              {searchByLabel ? `${opt.label} (${opt.value})` : `${opt.value} (${opt.label})`}
+              {displayOnlyLabel
+                ? opt.label
+                : searchByLabel
+                  ? `${opt.label} (${opt.value})`
+                  : `${opt.value} (${opt.label})`}
             </li>
           ))}
         </ul>

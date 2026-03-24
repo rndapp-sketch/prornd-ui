@@ -81,6 +81,20 @@ const MemoizedFormField = memo(({ field, value, options, onChange, onFileChange 
                         />
                     );
                 }
+                if (field.fieldname === 'funding_agen') {
+                    return (
+                        <AutocompleteEmail
+                            {...commonProps}
+                            value={value || ''}
+                            onChange={(val) => onChange(field.fieldname, val)}
+                            options={options || []}
+                            placeholder="Search funding agency..."
+                            searchByLabel
+                            showAllOnFocus
+                            displayOnlyLabel
+                        />
+                    );
+                }
                 return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(options || []).map(opt => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}</select>);
             case "Select": return (<select {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)}><option value="">Select...</option>{(field.options?.split('\n').filter(o => o) || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}</select>);
             case "Text": case "Small Text": case "Text Editor": return <textarea {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} rows={5} className={`${inputClasses} h-auto py-3`} />;
