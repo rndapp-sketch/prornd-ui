@@ -675,7 +675,17 @@ const FundReceivedDetails = () => {
     Record<string, string>
   >({});
 
-  // Fetch fund received data (conditional fetch: only when prjreg_title exists)
+  // Fetch the full document first (always available from URL param)
+  const {
+    data: docData,
+    isLoading: docLoading,
+    error: docError,
+  } = useFrappeGetDoc("Fund Received", name || "");
+
+  // Use prjreg_title from navigation state, or fall back to the loaded document's field.
+  // This ensures the enriched list API fires even when navigating from pending tasks.
+  const effectivePrjregTitle = prjreg_title || docData?.prjreg_title;
+
   const {
     data: apiData,
     isLoading: listLoading,
@@ -683,17 +693,24 @@ const FundReceivedDetails = () => {
     mutate,
   } = useFrappeGetCall(
     "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
-    prjreg_title
-      ? { prjreg_title: prjreg_title, limit: 200, start: 0 }
-      : undefined,
-    prjreg_title || undefined,
+    effectivePrjregTitle
+      ? { prjreg_title: effectivePrjregTitle, limit: 200, start: 0 }
+      : null,
+    effectivePrjregTitle || null,
   );
 
-  const {
-    data: docData,
-    isLoading: docLoading,
-    error: docError,
-  } = useFrappeGetDoc("Fund Received", name || "");
+  // Resolve sanction_ref_no from all available sources
+  const resolvedSanctionRef =
+    docData?.sanction_ref_no ||
+    docData?.fund_transactions?.[0]?.sanction_ref_no ||
+    docData?.received_amt_breakup?.[0]?.sanction_ref_no ||
+    "";
+
+  // Fetch linked Fund Sanction document for full details
+  const { data: sanctionDoc } = useFrappeGetDoc(
+    "Fund Sanction",
+    resolvedSanctionRef || "NONE",
+  );
 
   // Normalize fund data
   const normalizeResponse = (raw: any) => {
@@ -707,10 +724,19 @@ const FundReceivedDetails = () => {
 
   const funds = normalizeResponse(apiData);
   const listData = funds.find((f: any) => f.name === name);
-  const fundData = listData || docData;
+  // Use enriched listData when available (has joined fields like sanction_ref_no),
+  // merge with docData so no fields are lost. Fall back to docData only.
+  const fundData = listData
+    ? { ...docData, ...listData }
+    : docData
+      ? {
+          ...docData,
+          sanction_ref_no: resolvedSanctionRef,
+        }
+      : null;
 
-  const isLoading = listLoading || (!listData && docLoading);
-  const error = listError || (!listData && docError);
+  const isLoading = docLoading || (effectivePrjregTitle ? listLoading : false);
+  const error = docError || (effectivePrjregTitle ? listError : null);
 
   // Resolve budget head names
   React.useEffect(() => {
@@ -1329,7 +1355,21 @@ const FundReceivedDetails = () => {
           title="Sanction Reference"
           icon={<Calculator className="h-4 w-4 text-[#D97757]" />}
         >
-          <DetailRow label="Sanction Reference" value={sanction_ref_no} />
+          <div className="space-y-1">
+            <DetailRow label="Sanction" value={sanction_ref_no} />
+            {sanctionDoc && (
+              <>
+                <DetailRow label="Status" value={sanctionDoc.workflow_state} />
+                <DetailRow label="Letter No" value={sanctionDoc.sanction_letter_no} />
+                <DetailRow label="Date" value={sanctionDoc.sanction_date} />
+                <DetailRow
+                  label="Amount"
+                  value={sanctionDoc.total_sanctioned_amount}
+                  isCurrency
+                />
+              </>
+            )}
+          </div>
         </FrappeCard>
 
         {/* Fund Info */}
