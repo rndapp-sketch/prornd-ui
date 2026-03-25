@@ -22,6 +22,7 @@ import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { useUserRoles } from "../../components/UserRole";
 import { ProjectLedgerModal } from "../../components/ProjectLedgerModal";
 import { DeclarationFields } from "@/components/DeclarationFields";
+import { BudgetHeadName } from "@/components/BudgetHeadName";
 
 // --- TYPE DEFINITIONS ---
 interface DisbursalData {
@@ -31,7 +32,7 @@ interface DisbursalData {
   modified: string;
   workflow_state: string;
   docstatus: number;
-  project_number?: string;
+  project_no?: string;
   project_name?: string;
   project_title?: string;
   webmail_id?: string;
@@ -169,7 +170,6 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
   const [data, setData] = useState<DisbursalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [resolvedAccountHead, setResolvedAccountHead] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { call: fetchDoc } = useFrappePostCall<{ message: DisbursalData }>(
@@ -201,7 +201,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
 
   // Fetch Project Budget Data
   const projectTitle =
-    data?.project_number || data?.project_name || data?.project_title || "";
+    data?.project_no || data?.project_name || data?.project_title || "";
   const [budgetHeadList, setBudgetHeadList] = useState<
     { name: string; id: string }[]
   >([]);
@@ -211,6 +211,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
       try {
         const response = await fetch(
           '/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc',
+          { credentials: "include" },
         );
         const result = await response.json();
         if (result?.data) {
@@ -235,7 +236,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
   } = useProjectBudget(projectTitle);
 
   const balanceApiParams = React.useMemo(
-    () => ({ project_number: projectTitle }),
+    () => ({ project_no: projectTitle }),
     [projectTitle],
   );
   const balanceApiOptions = React.useMemo(
@@ -366,32 +367,6 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     loadData();
   }, [id]);
 
-  // Resolve account head name
-  useEffect(() => {
-    const resolveAccountHeadName = async () => {
-      if (!data?.account_head) return;
-      try {
-        const response = await fetch(
-          `/api/v2/document/Budget%20Head/${data.account_head}`,
-          {
-            credentials: "include",
-          },
-        );
-        if (response.ok) {
-          const json = await response.json();
-          if (json.data) {
-            setResolvedAccountHead(json.data.budget_head || json.data.name);
-          }
-        } else {
-          setResolvedAccountHead(data.account_head);
-        }
-      } catch (err) {
-        console.error("Error resolving account head:", err);
-        setResolvedAccountHead(data.account_head);
-      }
-    };
-    resolveAccountHeadName();
-  }, [data?.account_head]);
 
   // Handle submit for draft
   const handleSubmit = async () => {
@@ -495,7 +470,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
           title={data.name}
           status={data.workflow_state || "Draft"}
           projectName={data.project_name || data.project_title}
-          projectNumber={data.project_number}
+          projectNumber={data.project_no}
         >
           <div className="flex items-center gap-3">
             {/* Edit Button - Only for Draft */}
@@ -558,7 +533,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                     Project Number
                   </label>
                   <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-                    {data.project_number || "-"}
+                    {data.project_no || "-"}
                   </div>
                 </div>
                 <div>
@@ -574,7 +549,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                     Account Head
                   </label>
                   <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-                    {resolvedAccountHead || data.account_head || "-"}
+                    {data.account_head ? <BudgetHeadName id={data.account_head} /> : "-"}
                   </div>
                 </div>
                 <div>

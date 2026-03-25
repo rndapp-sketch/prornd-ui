@@ -107,7 +107,7 @@ interface ActivityStreamProps {
 interface ActivityStreamHandle {
   refetch: () => void;
 }
-interface ProjectDetailsProps { }
+interface ProjectDetailsProps {}
 
 interface BudgetEntry {
   sl: number;
@@ -286,7 +286,7 @@ const FrappeButton = ({
       className,
       variant === "primary" && "bg-[#D97757] hover:bg-[#D97757] text-white",
       variant === "outline" &&
-      "border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
+        "border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
     )}
     {...props}
   >
@@ -394,12 +394,13 @@ const AdvanceSettlementModal = ({
               </div>
               <div className="flex items-center gap-2">
                 <span
-                  className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
-                    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                    : settlement.workflow_state === "Submitted"
-                      ? "bg-blue-100 text-blue-800 border-blue-200"
-                      : "bg-zinc-100 text-zinc-800 border-zinc-200"
-                    }`}
+                  className={`text-xs px-2 py-1 rounded-full border ${
+                    settlement.workflow_state === "Approved"
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                      : settlement.workflow_state === "Submitted"
+                        ? "bg-blue-100 text-blue-800 border-blue-200"
+                        : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                  }`}
                 >
                   {settlement.workflow_state || "Draft"}
                 </span>
@@ -486,12 +487,13 @@ const TADASettlementModal = ({
               </div>
               <div className="flex items-center gap-2">
                 <span
-                  className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
-                    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                    : settlement.workflow_state === "Submitted"
-                      ? "bg-blue-100 text-blue-800 border-blue-200"
-                      : "bg-zinc-100 text-zinc-800 border-zinc-200"
-                    }`}
+                  className={`text-xs px-2 py-1 rounded-full border ${
+                    settlement.workflow_state === "Approved"
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                      : settlement.workflow_state === "Submitted"
+                        ? "bg-blue-100 text-blue-800 border-blue-200"
+                        : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                  }`}
                 >
                   {settlement.workflow_state || "Draft"}
                 </span>
@@ -820,8 +822,7 @@ const QuickActions = ({
         .map((f: any) => ({
           ...f,
           workflow_state:
-            f.workflow_state ||
-            (f.docstatus === 1 ? "Submitted" : "Draft"),
+            f.workflow_state || (f.docstatus === 1 ? "Submitted" : "Draft"),
         }));
 
       setExistingP11Forms(forms);
@@ -841,7 +842,11 @@ const QuickActions = ({
     {
       title: "Disbursal",
       icon: Upload,
-      items: ["Top Up Fellowship", "Disbursal of Honorarium", "Disbursal of Consultancy"],
+      items: [
+        "Top Up Fellowship",
+        "Disbursal of Honorarium",
+        "Disbursal of Consultancy",
+      ],
     },
     {
       title: "Purchase",
@@ -1151,48 +1156,36 @@ const QuickActions = ({
         try {
           const timestamp = Date.now();
           // Use v2 document API to avoid 403 permission issues and include project fields for filtering
-          const apiUrl = `/api/v2/document/Disbursal of Honorarium?fields=["name","creation","modified","name_of_applicant","webmail_id","owner","workflow_state","total_amount","project_name","project_number"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          const apiUrl = `/api/v2/document/Disbursal of Honorarium?fields=["name","creation","modified","name_of_applicant","webmail_id","owner","workflow_state","total_amount","project_no"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
           const fetchResponse = await fetch(apiUrl, {
             method: "GET",
             headers: { Accept: "application/json" },
             credentials: "include",
           });
-          
-          console.log(">>> Disbursal of Honorarium raw response status:", fetchResponse.status, fetchResponse.statusText);
-          
+
           if (!fetchResponse.ok)
             throw new Error(`HTTP error! status: ${fetchResponse.status}`);
-            
-          const result = await fetchResponse.json();
-          console.log(">>> Disbursal of Honorarium parsed JSON:", result);
-          const allHonorariums = result?.data || [];
-          console.log(">>> Disbursal of Honorarium allHonorariums:", allHonorariums);
 
-          // Exact same client-side filter approach resilient to backend schema issues, matching Direct Purchase / Reimbursement
-          const projectNameLower = projectName?.toLowerCase() || "";
-          const projectNoLower = projectNo?.toLowerCase() || "";
-          
+          const result = await fetchResponse.json();
+          const allHonorariums = result?.data || [];
+
+          // Filter by project_no matching either the projectNo or projectName (doc ID fallback)
+          const projectNoLower = (projectNo || projectName || "").toLowerCase();
+
           data = allHonorariums
             .filter((item: any) => {
-              const itemProjectName   = (item.project_name   || "").toLowerCase();
-              const itemProjectNumber = (item.project_number || "").toLowerCase();
-              return (
-                itemProjectName   === projectNameLower ||
-                itemProjectNumber === projectNameLower ||
-                itemProjectName   === projectNoLower   ||
-                itemProjectNumber === projectNoLower   ||
-                (projectNameLower && itemProjectName.includes(projectNameLower))   ||
-                (projectNameLower && itemProjectNumber.includes(projectNameLower)) ||
-                (projectNoLower   && itemProjectName.includes(projectNoLower))     ||
-                (projectNoLower   && itemProjectNumber.includes(projectNoLower))
-              );
+              const itemNo = (item.project_no || "").toLowerCase();
+              return projectNoLower && itemNo === projectNoLower;
             })
             .map((item: any) => ({
               ...item,
-              applicant_webmail: item.name_of_applicant || item.webmail_id || item.owner,
+              applicant_webmail:
+                item.name_of_applicant || item.webmail_id || item.owner,
             }));
-            
-          console.log(`Disbursal of Honorarium: fetched ${allHonorariums.length}, filtered to ${data.length}`);
+
+          console.log(
+            `Disbursal of Honorarium: fetched ${allHonorariums.length}, filtered to ${data.length}`,
+          );
         } catch (fetchError) {
           console.error("Disbursal of Honorarium fetch error:", fetchError);
           data = [];
@@ -1215,17 +1208,21 @@ const QuickActions = ({
 
           data = (result?.data || [])
             .filter((item: any) => {
-              const itemProjectName   = (item.project_title   || "").toLowerCase();
-              const itemProjectNumber = (item.disbursal_project_number || "").toLowerCase();
+              const itemProjectName = (item.project_title || "").toLowerCase();
+              const itemProjectNumber = (
+                item.disbursal_project_number || ""
+              ).toLowerCase();
               return (
-                itemProjectName   === projectNameLower ||
+                itemProjectName === projectNameLower ||
                 itemProjectNumber === projectNameLower ||
-                itemProjectName   === projectNoLower   ||
-                itemProjectNumber === projectNoLower   ||
-                (projectNameLower && itemProjectName.includes(projectNameLower))   ||
-                (projectNameLower && itemProjectNumber.includes(projectNameLower)) ||
-                (projectNoLower   && itemProjectName.includes(projectNoLower))     ||
-                (projectNoLower   && itemProjectNumber.includes(projectNoLower))
+                itemProjectName === projectNoLower ||
+                itemProjectNumber === projectNoLower ||
+                (projectNameLower &&
+                  itemProjectName.includes(projectNameLower)) ||
+                (projectNameLower &&
+                  itemProjectNumber.includes(projectNameLower)) ||
+                (projectNoLower && itemProjectName.includes(projectNoLower)) ||
+                (projectNoLower && itemProjectNumber.includes(projectNoLower))
               );
             })
             .map((item: any) => ({
@@ -1434,7 +1431,7 @@ const QuickActions = ({
         alert(`Apply New: ${selectedApplication} - Route not configured yet`);
         break;
       case "Disbursal of Honorarium":
-        onNavigate(`/disbursal-of-honorarium-form?project=${projectName}`);
+        onNavigate(`/disbursal-of-honorarium-form?project=${projectParam}${projectTitle ? `&project_name=${encodeURIComponent(projectTitle)}` : ""}`);
         break;
       case "Disbursal of Consultancy":
         onNavigate(`/disbursal-of-consultancy-form?project=${projectParam}`);
@@ -1601,20 +1598,20 @@ const QuickActions = ({
                         className={cn(
                           "inline-flex px-2 py-1 text-xs font-medium rounded-full",
                           item.workflow_state === "Approved" &&
-                          "bg-green-100 text-green-700",
+                            "bg-green-100 text-green-700",
                           item.workflow_state === "Pending" &&
-                          "bg-yellow-100 text-yellow-700",
+                            "bg-yellow-100 text-yellow-700",
                           item.workflow_state === "Rejected" &&
-                          "bg-red-100 text-red-700",
+                            "bg-red-100 text-red-700",
                           item.workflow_state === "Draft" &&
-                          "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
+                            "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
                           ![
                             "Approved",
                             "Pending",
                             "Rejected",
                             "Draft",
                           ].includes(item.workflow_state) &&
-                          "bg-blue-100 text-blue-700",
+                            "bg-blue-100 text-blue-700",
                         )}
                       >
                         {item.workflow_state || "Draft"}
@@ -2678,10 +2675,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
         action.toLowerCase() === "submit"
           ? submitProjectRegistration({ doc_data: projectName })
           : triggerWorkflowAction({
-            doctype: "Project Registration",
-            docname: projectName,
-            action: action,
-          });
+              doctype: "Project Registration",
+              docname: projectName,
+              action: action,
+            });
       apiCall
         .then(() => {
           mutate();
@@ -2704,17 +2701,26 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     }
   }, [searchParams]);
 
-  const handleAddFunds = () => navigate(`/add-fund-received/${projectName}/?project_no=${encodeURIComponent(data?.project_no || '')}`);
+  const handleAddFunds = () =>
+    navigate(
+      `/add-fund-received/${projectName}/?project_no=${encodeURIComponent(data?.project_no || "")}`,
+    );
 
   const activeYearCount = useMemo(() => {
     const rows = data?.proposed_budget_breakup;
     if (!rows?.length) return 1;
     const yearKeys = [
-      'first_year_budget', 'second_year_budget', 'third_year_budget',
-      'fourth_year_budget', 'fifth_year_budget',
+      "first_year_budget",
+      "second_year_budget",
+      "third_year_budget",
+      "fourth_year_budget",
+      "fifth_year_budget",
     ] as const;
     for (let i = yearKeys.length - 1; i >= 0; i--) {
-      const total = rows.reduce((sum: number, row: any) => sum + (parseFloat(row[yearKeys[i]]) || 0), 0);
+      const total = rows.reduce(
+        (sum: number, row: any) => sum + (parseFloat(row[yearKeys[i]]) || 0),
+        0,
+      );
       if (total > 0) return i + 1;
     }
     return 1;
@@ -2878,14 +2884,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                   {/* Only show Add Sanction button if no sanction exists */}
                   {(!sanctionData?.message ||
                     sanctionData.message.length === 0) && (
-                      <FrappeButton
-                        onClick={handleAddSanctionDetails}
-                        variant="outline"
-                        aria-label="Add sanction details"
-                      >
-                        <FilePlusIcon className="h-3.5 w-3.5" /> Add Sanction
-                      </FrappeButton>
-                    )}
+                    <FrappeButton
+                      onClick={handleAddSanctionDetails}
+                      variant="outline"
+                      aria-label="Add sanction details"
+                    >
+                      <FilePlusIcon className="h-3.5 w-3.5" /> Add Sanction
+                    </FrappeButton>
+                  )}
                 </div>
               )}
               <WorkflowActions
@@ -2913,7 +2919,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     className={cn(
                       "frappe-tab flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-bold",
                       activeTab === tab.id &&
-                      "active bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757] dark:bg-[#D97757]/20",
+                        "active bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757] dark:bg-[#D97757]/20",
                     )}
                   >
                     <tab.icon className="h-3.5 w-3.5" /> {tab.label}
@@ -3045,49 +3051,49 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         {data?.consultancy_category?.startsWith(
                           "Category D",
                         ) && (
-                            <>
-                              <FieldDisplay
-                                label="Category D Note"
-                                value={data?.category_d_note}
-                                icon={FileTextIcon}
-                              />
-                              <FieldDisplay
-                                label="Total Cost (Excl. GST)"
-                                value={data?.cat_d_project_cost_excl_gst}
-                                icon={IndianRupeeIcon}
-                              />
-                              <FieldDisplay
-                                label="Consultancy Fee"
-                                value={data?.cat_d_consultancy_fee_input}
-                                icon={IndianRupeeIcon}
-                              />
-                              <FieldDisplay
-                                label="Operational Expense (+OH)"
-                                value={data?.operational_expense_input_inc_10_oh}
-                                icon={IndianRupeeIcon}
-                              />
-                              <FieldDisplay
-                                label="Institute Share"
-                                value={data?.cat_d_institute_share}
-                                icon={IndianRupeeIcon}
-                              />
-                              <FieldDisplay
-                                label="Total Overhead"
-                                value={data?.cat_d_total_overhead}
-                                icon={IndianRupeeIcon}
-                              />
-                              <FieldDisplay
-                                label="GST Amount"
-                                value={data?.cat_d_gst_amt}
-                                icon={IndianRupeeIcon}
-                              />
-                              <FieldDisplay
-                                label="Grand Total"
-                                value={data?.cat_d_grand_total_calc}
-                                icon={IndianRupeeIcon}
-                              />
-                            </>
-                          )}
+                          <>
+                            <FieldDisplay
+                              label="Category D Note"
+                              value={data?.category_d_note}
+                              icon={FileTextIcon}
+                            />
+                            <FieldDisplay
+                              label="Total Cost (Excl. GST)"
+                              value={data?.cat_d_project_cost_excl_gst}
+                              icon={IndianRupeeIcon}
+                            />
+                            <FieldDisplay
+                              label="Consultancy Fee"
+                              value={data?.cat_d_consultancy_fee_input}
+                              icon={IndianRupeeIcon}
+                            />
+                            <FieldDisplay
+                              label="Operational Expense (+OH)"
+                              value={data?.operational_expense_input_inc_10_oh}
+                              icon={IndianRupeeIcon}
+                            />
+                            <FieldDisplay
+                              label="Institute Share"
+                              value={data?.cat_d_institute_share}
+                              icon={IndianRupeeIcon}
+                            />
+                            <FieldDisplay
+                              label="Total Overhead"
+                              value={data?.cat_d_total_overhead}
+                              icon={IndianRupeeIcon}
+                            />
+                            <FieldDisplay
+                              label="GST Amount"
+                              value={data?.cat_d_gst_amt}
+                              icon={IndianRupeeIcon}
+                            />
+                            <FieldDisplay
+                              label="Grand Total"
+                              value={data?.cat_d_grand_total_calc}
+                              icon={IndianRupeeIcon}
+                            />
+                          </>
+                        )}
 
                         {!data?.consultancy_category?.startsWith(
                           "Category D",
@@ -3743,10 +3749,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                                 {c.fieldname === "account_head"
                                                   ? row[c.fieldname]
                                                   : (
-                                                    parseFloat(
-                                                      row[c.fieldname],
-                                                    ) || 0
-                                                  ).toLocaleString("en-IN")}
+                                                      parseFloat(
+                                                        row[c.fieldname],
+                                                      ) || 0
+                                                    ).toLocaleString("en-IN")}
                                               </td>
                                             ))}
                                             <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
@@ -3997,8 +4003,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                 <td className="px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                                   {txn.transactionDate
                                     ? new Date(
-                                      txn.transactionDate,
-                                    ).toLocaleDateString("en-IN")
+                                        txn.transactionDate,
+                                      ).toLocaleDateString("en-IN")
                                     : "-"}
                                 </td>
                                 <td className="px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100">
@@ -4259,11 +4265,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         tab === "All"
                           ? budgetData
                           : budgetData.filter(
-                            (e: any) =>
-                              (e.head || e.accountHead || "")
-                                .trim()
-                                .toLowerCase() === tab.trim().toLowerCase(),
-                          );
+                              (e: any) =>
+                                (e.head || e.accountHead || "")
+                                  .trim()
+                                  .toLowerCase() === tab.trim().toLowerCase(),
+                            );
                       // Use the last entry's commitableBalance for that head (running total already calculated)
                       const lastEntryForHead =
                         tabEntries.length > 0
@@ -4272,13 +4278,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       const tabBalance =
                         tab === "All"
                           ? tabEntries.reduce(
-                            (acc, e) =>
-                              acc +
-                              (e.received || 0) -
-                              (e.committed || 0) -
-                              (e.payment || 0),
-                            0,
-                          )
+                              (acc, e) =>
+                                acc +
+                                (e.received || 0) -
+                                (e.committed || 0) -
+                                (e.payment || 0),
+                              0,
+                            )
                           : lastEntryForHead?.commitableBalance || 0;
                       return (
                         <button
@@ -4443,8 +4449,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                               {activeLedgerTab === "All"
                                 ? row.actualBalance?.toLocaleString("en-IN")
                                 : (
-                                  row as any
-                                ).headActualBalance?.toLocaleString("en-IN")}
+                                    row as any
+                                  ).headActualBalance?.toLocaleString("en-IN")}
                             </td>
                             <td>
                               <span
@@ -4561,7 +4567,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
                       {/* Select for Select/Link fieldtypes */}
                       {field.fieldtype === "Select" ||
-                        field.fieldtype === "Link" ? (
+                      field.fieldtype === "Link" ? (
                         <select
                           className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                           value={value}
