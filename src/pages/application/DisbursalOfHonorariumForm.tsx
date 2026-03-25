@@ -56,6 +56,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     const { id } = useParams<{ id?: string }>();
     const [searchParams] = useSearchParams();
     const projectFromUrl = searchParams.get('project');
+    const projectNameFromUrl = searchParams.get('project_name');
 
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
@@ -190,34 +191,60 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                     }
                 }
 
-                // Auto-fill project fields from URL if provided (same pattern as Reimbursement)
+                // Auto-fill project fields from URL params.
+                // ?project=  → project_no (e.g. "26RICPSSP0391XXLS0854")
+                // ?project_name= → project title (passed directly, avoids extra backend call)
                 if (projectFromUrl && !id) {
+                    // Always set project_no from URL immediately
+                    initialData.project_no     = projectFromUrl;
+                    initialData.project_number = projectFromUrl;
+
+                    // If project_name was passed in the URL use it directly
+                    if (projectNameFromUrl) {
+                        initialData.project_name = projectNameFromUrl;
+                    }
+
                     try {
-                        const projectDoc = await fetchExistingDoc({
+                        let pData: any = null;
+
+                        // Lookup by project_no to get department and any missing fields
+                        const byNoResp = await fetchUsersList({
                             doctype: 'Project Registration',
-                            name: projectFromUrl
+                            filters: [['project_no', '=', projectFromUrl]],
+                            fields: ['name', 'project_no', 'project_title', 'implementation_department'],
+                            limit: 1,
                         });
-                        if (projectDoc?.message) {
-                            const pData = projectDoc.message;
-                            // project_name = Project Name (e.g. "Development of AI...")
-                            // project_number = Data field → stores human-readable code (e.g. "RP/2024/001")
-                            initialData.project_name   = pData.project_title || pData.name || projectFromUrl;
-                            initialData.project_number = pData.project_no || pData.name || projectFromUrl;
-                            // Auto-fill department
+                        if (byNoResp?.message?.length > 0) {
+                            pData = byNoResp.message[0];
+                        }
+
+                        // Fallback: look up by doc name (internal ID)
+                        if (!pData) {
+                            const projectDoc = await fetchExistingDoc({
+                                doctype: 'Project Registration',
+                                name: projectFromUrl,
+                            });
+                            if (projectDoc?.message) {
+                                pData = projectDoc.message;
+                            }
+                        }
+
+                        if (pData) {
+                            initialData.project_no     = pData.project_no || projectFromUrl;
+                            initialData.project_number = initialData.project_no;
+                            // Only override project_name if not already set from URL param
+                            if (!projectNameFromUrl) {
+                                initialData.project_name = pData.project_title || pData.name || projectFromUrl;
+                            }
                             if (pData.implementation_department && !initialData.department_for) {
                                 initialData.department_for = pData.implementation_department;
                             }
                             if (pData.implementation_department && !initialData.applicant_department) {
                                 initialData.applicant_department = pData.implementation_department;
                             }
-                        } else {
-                            initialData.project_number = projectFromUrl;
-                            initialData.project_name   = projectFromUrl;
                         }
                     } catch (e) {
                         console.error('Failed to fetch project details:', e);
-                        initialData.project_number = projectFromUrl;
-                        initialData.project_name   = projectFromUrl;
                     }
                 }
 

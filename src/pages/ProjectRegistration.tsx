@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { AppSidebar } from "../components/RndSidebar";
 import { useLocation } from 'react-router-dom';
 
-import { useFrappePostCall, useFrappeAuth, useFrappeGetDoc } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth, useFrappeGetDoc, useFrappeGetDocList } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { FileText, Users, IndianRupee, Shield, FileBadge, X } from 'lucide-react';
 import { EndorsementCertificate, getEndorsementHtml } from '../components/EndorsementCertificate';
@@ -309,6 +309,11 @@ const ProjectRegistration: React.FC = () => {
     const { call: saveEndorsementDraft, result: saveEndorsementResult, error: saveEndorsementError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.save_endorsement_draft');
     const { call: fetchPiDetails } = useFrappePostCall(commonAPI.getUserDetailsByEmail);
     const { call: fetchAgencyDetails, result: agencyDetailsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_funding_agency_details');
+    const { data: allFundingAgencies } = useFrappeGetDocList('Funding Agency', {
+        fields: ['name', 'funding_agency_name'],
+        limit: 0,
+        revalidateOnFocus: false,
+    } as any);
     const { call: fetchBudgetHeads, result: budgetHeadsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head');
     const { call: fetchDeptHead } = useFrappePostCall('frappe.client.get_value');
     const { call: updatePfmsFields } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.update_project_fields');
@@ -894,6 +899,19 @@ const ProjectRegistration: React.FC = () => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formDataResult, formDataError, currentUser]);
+
+    // Override funding_agen options with the full unbounded list from Frappe
+    useEffect(() => {
+        if (allFundingAgencies && allFundingAgencies.length > 0) {
+            const agencyOptions = allFundingAgencies.map((a: any) => ({
+                value: a.name,
+                label: a.funding_agency_name || a.name,
+            }));
+            // Store under both the doctype key ("Funding Agency") and the fieldname key
+            // so the renderField lookup (linkOptions[field.options] || linkOptions[fieldname]) finds it
+            setLinkOptions(prev => ({ ...prev, 'Funding Agency': agencyOptions, funding_agen: agencyOptions }));
+        }
+    }, [allFundingAgencies]);
 
     // --- SIDE EFFECTS for dependent API calls ---
     useEffect(() => {
