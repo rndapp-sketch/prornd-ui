@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Save, Send } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { prepareFormDataForApi, commonAPI, disbursalOfHonorariumAPI } from '@/services/apiService';
+import { commonAPI, disbursalOfHonorariumAPI } from '@/services/apiService';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
 
@@ -50,6 +50,64 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
     </button>
 );
 
+// --- FILE UPLOAD HELPER ---
+/**
+ * Sends a multipart POST to save_disbursal_of_honorarium_data(data, files=None).
+ *
+ * - Non-file fields (including child table rows) are JSON-stringified into the `data` field.
+ * - File objects are stripped from `data` and appended as real file parts so Frappe
+ *   collects them in the `files` parameter (keyed as "fieldname" or "tablename__rowIdx__fieldname").
+ */
+const callSaveApi = async (endpoint: string, formData: Record<string, any>): Promise<any> => {
+    const fd = new globalThis.FormData();
+    const data: Record<string, any> = {};
+
+    for (const key in formData) {
+        const value = formData[key];
+
+        if (value instanceof File) {
+            fd.append(key, value, value.name);
+        } else if (Array.isArray(value)) {
+            data[key] = value.map((row: any, rowIdx: number) => {
+                const cleanRow: Record<string, any> = {};
+                for (const rowKey in row) {
+                    if (row[rowKey] instanceof File) {
+                        fd.append(`${key}__${rowIdx}__${rowKey}`, row[rowKey], row[rowKey].name);
+                        cleanRow[rowKey] = null;
+                    } else {
+                        cleanRow[rowKey] = row[rowKey];
+                    }
+                }
+                return cleanRow;
+            });
+        } else {
+            data[key] = value;
+        }
+    }
+
+    fd.append('data', JSON.stringify(data));
+
+    const response = await fetch(`/api/method/${endpoint}`, {
+        method: 'POST',
+        body: fd,
+        headers: {
+            'X-Frappe-CSRF-Token': (window as any).csrf_token || '',
+        },
+        credentials: 'include',
+    });
+
+    const text = await response.text();
+    if (!response.ok) {
+        throw new Error(`Save failed (${response.status}): ${text.slice(0, 200)}`);
+    }
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        throw new Error(`Unexpected response: ${text.slice(0, 200)}`);
+    }
+};
+
 // --- MAIN DISBURSAL OF HONORARIUM FORM COMPONENT ---
 const DisbursalOfHonorariumForm: React.FC = () => {
     const navigate = useNavigate();
@@ -77,14 +135,9 @@ const DisbursalOfHonorariumForm: React.FC = () => {
     );
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
-    const { call: saveForm, error: saveError } = useFrappePostCall(
-        disbursalOfHonorariumAPI.save
-    );
-    const { call: submitForm, error: submitError } = useFrappePostCall(
+    const { call: submitForm } = useFrappePostCall(
         disbursalOfHonorariumAPI.submit
     );
-    // Hook to fetch project details from Project Registration
-    const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
     // Fetch current user data for auto-fill
     const { data: currentUserData } = useFrappeGetDoc("User", "");
     // Hook to fetch user details by email for auto-fill in honorarium table
@@ -275,7 +328,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
         };
 
         loadFormAndDocument();
-    }, [formDataResult, formDataError, id, fetchExistingDoc, projectFromUrl, dataLoaded, currentUserData, fetchUsersList, fetchAccountHeads, fetchFrappeValue]);
+    }, [formDataResult, formDataError, id, fetchExistingDoc, projectFromUrl, dataLoaded, currentUserData, fetchUsersList, fetchAccountHeads]);
 
     // --- EVENT HANDLERS ---
     const handleChange = useCallback((fieldname: string, value: any) => {
@@ -377,17 +430,13 @@ const DisbursalOfHonorariumForm: React.FC = () => {
         if (isSubmitting) return;
         setIsSubmitting(true);
         try {
-            const data = await prepareFormDataForApi(formData);
+            const payload: Record<string, any> = { ...formData };
+            if (effectiveDocName) payload.name = effectiveDocName;
 
-            if (effectiveDocName) {
-                data.name = effectiveDocName;
-            }
-
-            const res = await saveForm({ data: JSON.stringify(data) });
+            const res = await callSaveApi(disbursalOfHonorariumAPI.save, payload);
 
             if (res?.message?.status === 'success') {
                 setIsSaved(true);
-                // Remember the docname so future saves/submits update the same document
                 const newDocName = res.message.docname || effectiveDocName;
                 if (newDocName) setSavedDocName(newDocName);
                 alert(effectiveDocName ? "Disbursal updated successfully!" : "Draft saved successfully!");
@@ -400,7 +449,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(saveError || err);
+            console.error(err);
             alert(`Save failed: ${err.message || "Unknown error"}`);
         } finally {
             setIsSubmitting(false);
@@ -412,20 +461,16 @@ const DisbursalOfHonorariumForm: React.FC = () => {
         if (isSubmitting) return;
         setIsSubmitting(true);
         try {
-            const data = await prepareFormDataForApi(formData);
+            const payload: Record<string, any> = { ...formData };
+            if (effectiveDocName) payload.name = effectiveDocName;
 
-            if (effectiveDocName) {
-                data.name = effectiveDocName;
-            }
-
-            const saveRes = await saveForm({ data: JSON.stringify(data) });
+            const saveRes = await callSaveApi(disbursalOfHonorariumAPI.save, payload);
 
             if (saveRes?.message?.status !== 'success') {
                 throw new Error(saveRes?.message?.message || "Save failed during submission");
             }
 
             const docname = saveRes.message.docname || effectiveDocName;
-            // Remember it in case submit fails and user retries
             if (docname) setSavedDocName(docname);
 
             if (!docname) {
@@ -440,7 +485,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 throw new Error(submitRes?.message?.message || "Submission failed");
             }
         } catch (err: any) {
-            console.error(submitError || err);
+            console.error(err);
             alert(`Submission failed: ${err.message || "Please check the console for details."}`);
         } finally {
             setIsSubmitting(false);
