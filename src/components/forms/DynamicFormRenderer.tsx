@@ -478,34 +478,50 @@ const MemoizedFormField = memo(
           const radioOpts = field.options?.split("\n").filter(Boolean) || [];
           return (
             <div className="flex flex-col gap-3 mt-2">
-              {radioOpts.map((opt) => (
-                <label
-                  key={opt}
-                  className="flex items-center gap-3 cursor-pointer group"
-                >
-                  <div className="relative flex items-center">
+              {radioOpts.map((opt) => {
+                const isSelected = value === opt;
+                return (
+                  <label
+                    key={opt}
+                    className={cn(
+                      "flex items-center gap-3 cursor-pointer",
+                      isReadOnly && "cursor-not-allowed opacity-60",
+                    )}
+                  >
                     <input
                       type="radio"
                       name={field.fieldname}
                       value={opt}
-                      checked={value === opt}
+                      checked={isSelected}
                       onChange={(e) =>
                         handleChange(field.fieldname, e.target.value)
                       }
                       disabled={isReadOnly}
-                      className="peer sr-only"
+                      className="sr-only"
                     />
-                    <div className="w-4 h-4 border border-zinc-400 dark:border-zinc-500 rounded-full peer-checked:border-zinc-900 dark:peer-checked:border-zinc-100 peer-checked:bg-white dark:peer-checked:bg-[#27272A] transition-all duration-200 focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800 ring-offset-white dark:ring-offset-zinc-950 flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-zinc-900 dark:bg-zinc-100 opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
+                    <div
+                      className={cn(
+                        "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-200",
+                        isSelected
+                          ? "border-[#D97757]"
+                          : "border-zinc-400 dark:border-zinc-500",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "w-2 h-2 rounded-full transition-all duration-200",
+                          isSelected
+                            ? "bg-[#D97757] scale-100"
+                            : "bg-transparent scale-0",
+                        )}
+                      />
                     </div>
-                  </div>
-                  <span className="text-sm font-medium leading-none text-zinc-700 dark:text-zinc-300 peer-disabled:cursor-not-allowed peer-disabled:opacity-70 transition-colors">
-                    {opt}
-                  </span>
-                </label>
-              ))}
-            </div>
-          );
+                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      {opt}
+                    </span>
+                  </label>
+                );
+              })}
 
         case "Data":
         default:
