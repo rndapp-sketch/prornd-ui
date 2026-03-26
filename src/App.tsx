@@ -98,11 +98,11 @@ function AppContent() {
         {isPublicPage ? (
           <Outlet />
         ) : (
-          <SidebarProvider className="flex h-screen bg-[#F9F7F2] dark:bg-zinc-900">
+          <SidebarProvider className="flex min-h-screen bg-[#F9F7F2] dark:bg-zinc-900">
             {currentUser && (
               <AppSidebar />
             )}
-            <SidebarInset className="bg-[#F9F7F2] dark:bg-zinc-900">
+            <SidebarInset className="bg-[#F9F7F2] dark:bg-zinc-900 flex flex-col min-h-screen">
               <header className="sticky top-0 z-10 flex items-center justify-between px-4 py-2 border-b border-zinc-200 bg-[#F9F7F2]/80 backdrop-blur-md dark:bg-zinc-900/80 dark:border-zinc-800">
                 <div className="flex items-center flex-1 justify-start">
                   <SidebarTrigger className="size-10 p-2 hover:bg-[#D97757]/10 active:bg-[#D97757]/20 rounded-md text-[#D97757] transition-colors dark:text-[#D97757] dark:hover:bg-[#D97757]/10 dark:active:bg-[#D97757]/20">
@@ -161,7 +161,7 @@ function AppContent() {
                   )}
                 </div>
               </header>
-              <main className="flex-1 overflow-y-auto p-4 lg:p-4 bg-[#F9F7F2] dark:bg-zinc-900">
+              <main className="flex-1 p-4 lg:p-4 bg-[#F9F7F2] dark:bg-zinc-900">
                 <div className="mx-auto w-full animate-in fade-in duration-500">
                   <Outlet />
                 </div>
