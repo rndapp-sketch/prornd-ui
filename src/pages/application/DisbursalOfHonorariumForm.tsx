@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { Save, Send } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { prepareFormDataForApi, commonAPI } from '@/services/apiService';
+import { prepareFormDataForApi, commonAPI, disbursalOfHonorariumAPI } from '@/services/apiService';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useFrappeClientScript } from '@/hooks/useFrappeClientScript';
 
@@ -73,15 +73,15 @@ const DisbursalOfHonorariumForm: React.FC = () => {
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(
-        'rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_fields'
+        disbursalOfHonorariumAPI.getFields
     );
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
     const { call: saveForm, error: saveError } = useFrappePostCall(
-        'rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.save_disbursal_of_honorarium_data'
+        disbursalOfHonorariumAPI.save
     );
     const { call: submitForm, error: submitError } = useFrappePostCall(
-        'rndopsapp.rndopsapp.doctype.disbursal_of_honorarium.disbursal_of_honorarium.submit_disbursal_of_honorarium'
+        disbursalOfHonorariumAPI.submit
     );
     // Hook to fetch project details from Project Registration
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
@@ -383,8 +383,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 data.name = effectiveDocName;
             }
 
-            console.log('[DisbursalForm] Saving data:', data);
-
             const res = await saveForm({ data: JSON.stringify(data) });
 
             if (res?.message?.status === 'success') {
@@ -420,7 +418,6 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                 data.name = effectiveDocName;
             }
 
-            // Always save first, then submit
             const saveRes = await saveForm({ data: JSON.stringify(data) });
 
             if (saveRes?.message?.status !== 'success') {
@@ -498,7 +495,7 @@ const DisbursalOfHonorariumForm: React.FC = () => {
                             </FrappeButton>
                             <FrappeButton
                                 type="submit"
-                                disabled={isSubmitting || !isSaved}
+                                disabled={isSubmitting}
                                 className="bg-[#D97757] text-white hover:bg-[#D97757]"
                             >
                                 {isSubmitting ? 'Submitting...' : (
