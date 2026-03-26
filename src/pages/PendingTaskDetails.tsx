@@ -825,6 +825,13 @@ const PendingTaskDetails: React.FC = () => {
         r === "RnD Staff" || r === "R&D Staff" || r === "Research and Development Staff" || r === "System Manager" || r === "staff, RnD" || r === "Hos, RnD (Head of Section, RnD)"
     );
 
+    // Redirect dedicated detail pages
+    useEffect(() => {
+        if (doctype === "Disbursal of Honorarium" && name) {
+            navigate(`/disbursal-of-honorarium/${name}`, { replace: true });
+        }
+    }, [doctype, name]);
+
     // Additional state for Travel Dynamic Form
     const [travelFields, setTravelFields] = useState<FormField[]>([]);
     const [travelLinkOptions, setTravelLinkOptions] = useState<Record<string, LinkOption[]>>({});
