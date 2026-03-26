@@ -74,6 +74,7 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
         emp_initial: ''
     });
     const [isGenerated, setIsGenerated] = useState(false);
+    const [prefillApplied, setPrefillApplied] = useState(false);
 
     const { call: saveProjectNumber, loading: isSaving } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.project_number_generation.project_number_generation.save_project_number_generation_data"
@@ -89,6 +90,13 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
         }
     );
 
+    // Fetch backend-computed prefill values
+    const { data: prefillResponse } = useFrappeGetCall<{ message: any }>(
+        'rndopsapp.rndopsapp.doctype.project_number_generation.project_number_generation.get_project_number_generation_fields',
+        projectData?.name ? { doc_name: projectData.name } : undefined,
+        projectData?.name ? undefined : null
+    );
+
     // Check if project number is already generated
     const alreadyGenerated = useMemo(() => {
         if (!projectData) return false;
@@ -97,63 +105,82 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
 
     const isReadOnly = isGenerated || alreadyGenerated;
 
+    // Apply backend prefill first (takes priority over local computation)
     useEffect(() => {
-        if (projectData) {
-            const newFormData: any = {
-                current_year1: new Date().getFullYear().toString().slice(-2),
-                category: 'C',
-                project_no: '0',
-                select_department: '',
-                dept_initial: '',
-                project_type: 'SP',
-                emp_id: '',
-                emp_initial: ''
-            };
+        if (prefillApplied || !prefillResponse?.message?.prefill_data) return;
+        const prefill = prefillResponse.message.prefill_data;
+        setFormData((prev: any) => ({
+            ...prev,
+            ...(prefill.current_year1 && { current_year1: prefill.current_year1 }),
+            ...(prefill.category && { category: prefill.category }),
+            ...(prefill.project_no && { project_no: prefill.project_no }),
+            ...(prefill.select_department && { select_department: prefill.select_department }),
+            ...(prefill.dept_initial && { dept_initial: prefill.dept_initial }),
+            ...(prefill.project_type && { project_type: prefill.project_type }),
+            ...(prefill.emp_id && { emp_id: prefill.emp_id }),
+            ...(prefill.emp_initial && { emp_initial: prefill.emp_initial }),
+        }));
+        setPrefillApplied(true);
+    }, [prefillResponse, prefillApplied]);
 
-            // Category: map from project_type
-            if (projectData.project_type === 'Consultancy') {
-                newFormData.category = 'C';
-            } else if (projectData.project_type === 'Research') {
-                newFormData.category = 'R';
-            } else {
-                newFormData.category = 'O';
-            }
+    // Fallback local prefill from projectData (only if backend prefill hasn't applied)
+    useEffect(() => {
+        if (prefillApplied || !projectData) return;
+        const newFormData: any = {
+            current_year1: new Date().getFullYear().toString().slice(-2),
+            category: 'C',
+            project_no: '0',
+            select_department: '',
+            dept_initial: '',
+            project_type: 'SP',
+            emp_id: '',
+            emp_initial: ''
+        };
 
-            // Department
-            if (projectData.implementation_department) {
-                newFormData.select_department = projectData.implementation_department;
-            }
-
-            // Emp ID: from PI employee ID
-            if (projectData.pi_employee_id) {
-                newFormData.emp_id = projectData.pi_employee_id;
-            }
-
-            // Emp Initial: calculated from PI name
-            if (projectData.principal_investigator_name) {
-                newFormData.emp_initial = getEmpInitial(projectData.principal_investigator_name);
-            }
-
-            // Project No: from existing project_no if available
-            if (projectData.project_no && projectData.project_no !== '0') {
-                newFormData.project_no = projectData.project_no;
-            }
-
-            // Project Type mapping
-            if (projectData.project_type === 'Research') {
-                newFormData.project_type = 'SP';
-            } else if (projectData.project_type === 'Consultancy') {
-                newFormData.project_type = 'CN';
-            } else if (projectData.project_type === 'Testing') {
-                newFormData.project_type = 'TT';
-            }
-
-            setFormData(newFormData);
+        // Category: map from project_type
+        if (projectData.project_type === 'Consultancy') {
+            newFormData.category = 'C';
+        } else if (projectData.project_type === 'Research') {
+            newFormData.category = 'R';
+        } else {
+            newFormData.category = 'O';
         }
-    }, [projectData]);
 
-    // Update dept_initial when department changes
+        // Department
+        if (projectData.implementation_department) {
+            newFormData.select_department = projectData.implementation_department;
+        }
+
+        // Emp ID: from PI employee ID
+        if (projectData.pi_employee_id) {
+            newFormData.emp_id = projectData.pi_employee_id;
+        }
+
+        // Emp Initial: calculated from PI name
+        if (projectData.principal_investigator_name) {
+            newFormData.emp_initial = getEmpInitial(projectData.principal_investigator_name);
+        }
+
+        // Project No: from existing project_no if available
+        if (projectData.project_no && projectData.project_no !== '0') {
+            newFormData.project_no = projectData.project_no;
+        }
+
+        // Project Type mapping
+        if (projectData.project_type === 'Research') {
+            newFormData.project_type = 'SP';
+        } else if (projectData.project_type === 'Consultancy') {
+            newFormData.project_type = 'CN';
+        } else if (projectData.project_type === 'Testing') {
+            newFormData.project_type = 'TT';
+        }
+
+        setFormData(newFormData);
+    }, [projectData, prefillApplied]);
+
+    // Update dept_initial when department changes (only if prefill hasn't set it)
     useEffect(() => {
+        if (prefillApplied) return;
         if (formData.select_department && departmentData?.message) {
             const selectedDept = departmentData.message.find((d: any) => d.name === formData.select_department);
             if (selectedDept) {
@@ -161,7 +188,14 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
                 setFormData((prev: any) => ({ ...prev, dept_initial: initial }));
             }
         }
-    }, [formData.select_department, departmentData]);
+    }, [formData.select_department, departmentData, prefillApplied]);
+
+    // Live preview of assembled project number
+    const previewProjectNumber = useMemo(() => {
+        const { current_year1, category, dept_initial, project_type, emp_id, emp_initial, project_no } = formData;
+        if (!current_year1 && !category && !dept_initial && !project_type && !emp_id && !emp_initial && !project_no) return '';
+        return `${current_year1 || ''}${category || ''}${dept_initial || ''}${project_type || ''}${emp_id || ''}${emp_initial || ''}${project_no || ''}`;
+    }, [formData]);
 
     const handleChange = (field: string, value: any) => {
         if (isReadOnly) return;
@@ -248,8 +282,14 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
                     <InputField label="Emp Initial" field="emp_initial" formData={formData} onChange={handleChange} disabled={isReadOnly} />
                 </div>
 
-                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
                     <InputField label="Project No (Auto/Manual)" field="project_no" formData={formData} onChange={handleChange} disabled={isReadOnly} maxLength={22} />
+                    {previewProjectNumber && (
+                        <div className="p-2 rounded-md bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Preview</p>
+                            <p className="text-sm font-mono font-semibold text-[#D97757]">{previewProjectNumber}</p>
+                        </div>
+                    )}
                 </div>
 
                 {!isReadOnly && (
