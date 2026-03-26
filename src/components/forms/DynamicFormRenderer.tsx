@@ -328,7 +328,7 @@ const MemoizedFormField = memo(
               <div className="relative flex items-center mt-0.5">
                 <input
                   type="checkbox"
-                  className="peer sr-only"
+                  className="peer opacity-0 absolute inset-0 w-full h-full cursor-pointer"
                   checked={isChecked}
                   onChange={(e) =>
                     handleChange(field.fieldname, e.target.checked ? 1 : 0)
@@ -522,6 +522,8 @@ const MemoizedFormField = memo(
                   </label>
                 );
               })}
+          </div>
+        );
 
         case "Data":
         default:
