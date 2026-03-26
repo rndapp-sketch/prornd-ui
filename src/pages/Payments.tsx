@@ -672,7 +672,7 @@ const Payments: React.FC = () => {
                                                         ₹{payment.payment_amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
                                                     </td>
                                                     <td className="p-4">
-                                                        {isRnDStaff && (
+                                                        {isRnDStaff && payment.payment_status !== 'PAID' && (
                                                             <FrappeButton
                                                                 variant="action"
                                                                 onClick={(e) => {

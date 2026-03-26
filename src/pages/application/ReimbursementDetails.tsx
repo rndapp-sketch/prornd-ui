@@ -500,7 +500,7 @@ const ReimbursementDetails: React.FC = () => {
         commit_amount: parseFloat(commitAmount),
         budget_head: commitHead,
         bmr: "", // Optional BMR
-        refDetails: id,
+        refDetails: linkedCommitment?.transactionId ? String(linkedCommitment.transactionId) : undefined,
       });
 
       // Add activity comment for the commitment
