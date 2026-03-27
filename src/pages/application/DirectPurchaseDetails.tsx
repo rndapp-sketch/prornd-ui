@@ -1647,8 +1647,8 @@ const DirectPurchaseDetails: React.FC = () => {
                             )}
                         </ClaudeCard>
 
-                        {/* Commit Payment — only for Staff RnD, only when not in Draft */}
-                        {isStaffRnD && data.workflow_state !== "Draft" && !isCommitted && (
+                        {/* Commit Payment — only for Staff RnD, only when Pending Staff Approval */}
+                        {isStaffRnD && data.workflow_state === "Pending Staff Approval" && !isCommitted && (
                             <ClaudeCard title="Make a Commitment" accentTop>
                                 <div className="space-y-4">
                                     <div>
@@ -1701,7 +1701,7 @@ const DirectPurchaseDetails: React.FC = () => {
                         )}
 
                         {/* Committed state display + Payment */}
-                        {isStaffRnD && data.workflow_state !== "Draft" && isCommitted && (
+                        {isStaffRnD && data.workflow_state === "Pending Staff Approval" && isCommitted && (
                             <ClaudeCard title="Commitment Details" accentTop>
                                 <div className="space-y-4">
                                     <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">

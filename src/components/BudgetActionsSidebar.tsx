@@ -3,7 +3,7 @@ import { useFrappeGetCall, useFrappePostCall, useFrappeAuth } from 'frappe-react
 import { PaymentModal } from './PaymentModal';
 import { ProjectLedgerModal, type BudgetEntry } from './ProjectLedgerModal';
 import { FrappeButton } from '@/components/ui/neo-brutalism';
-import { CreditCardIcon, FileSpreadsheet } from 'lucide-react';
+import { CreditCardIcon, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
 import { useUserRoles } from './UserRole';
 
 interface BudgetActionsSidebarProps {
@@ -35,6 +35,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     const [initialPaymentData, setInitialPaymentData] = useState<any>(null);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [commitSuccess, setCommitSuccess] = useState<{ amount: number; head: string } | null>(null);
 
     // API Hooks for Commit
     const { call: submitCommit, loading: isCommitting } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_commit_data");
@@ -114,10 +115,8 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                 bmr: "" // Optional
             });
 
-            alert("Commitment submitted successfully!");
+            setCommitSuccess({ amount, head: commitHead });
             setCommitAmount("");
-            // Ideally trigger a refresh of budget data or ledger
-            window.location.reload();
         } catch (error: any) {
             console.error("Commit failed:", error);
             alert(`Commitment failed: ${error.message || "Unknown error"}`);
@@ -130,6 +129,27 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
 
     return (
         <div className="space-y-6">
+            {/* Commit success popup */}
+            {commitSuccess && (
+                <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 flex gap-3 items-start">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">
+                            ₹{commitSuccess.amount.toLocaleString('en-IN')} committed under "{commitSuccess.head}"
+                        </p>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1 leading-relaxed">
+                            After Dean approval, this will be reflected in your account.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => setCommitSuccess(null)}
+                        className="text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-200 text-lg leading-none flex-shrink-0"
+                        aria-label="Dismiss"
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
             {/* Make a Commitment Widget */}
             <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
                 <h3 className="frappe-widget-title mb-3 font-semibold text-zinc-900 dark:text-zinc-100">Make a Commitment</h3>
