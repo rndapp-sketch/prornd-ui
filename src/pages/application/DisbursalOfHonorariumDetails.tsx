@@ -7,11 +7,49 @@ import {
     useFrappeAuth,
 } from "frappe-react-sdk";
 import { disbursalOfHonorariumAPI } from "@/services/apiService";
+
+// --- FILE SAVE HELPER (mirrors DisbursalOfHonorariumForm) ---
+const callSaveApi = async (endpoint: string, formData: Record<string, any>): Promise<any> => {
+    const fd = new globalThis.FormData();
+    const data: Record<string, any> = {};
+    for (const key in formData) {
+        const value = formData[key];
+        if (value instanceof File) {
+            fd.append(key, value, value.name);
+        } else if (Array.isArray(value)) {
+            data[key] = value.map((row: any, rowIdx: number) => {
+                const cleanRow: Record<string, any> = {};
+                for (const rowKey in row) {
+                    if (row[rowKey] instanceof File) {
+                        fd.append(`${key}__${rowIdx}__${rowKey}`, row[rowKey], row[rowKey].name);
+                        cleanRow[rowKey] = null;
+                    } else {
+                        cleanRow[rowKey] = row[rowKey];
+                    }
+                }
+                return cleanRow;
+            });
+        } else {
+            data[key] = value;
+        }
+    }
+    fd.append('data', JSON.stringify(data));
+    const response = await fetch(`/api/method/${endpoint}`, {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-Frappe-CSRF-Token': (window as any).csrf_token || '' },
+        credentials: 'include',
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(`Save failed (${response.status}): ${text.slice(0, 200)}`);
+    try { return JSON.parse(text); } catch { throw new Error(`Unexpected response: ${text.slice(0, 200)}`); }
+};
 import { cn } from "@/lib/utils";
 import {
     CalendarIcon,
     FileSpreadsheetIcon as LedgerIcon,
     EditIcon,
+    Send,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -162,6 +200,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     >({});
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Sidebar state
     const [sidebarComment, setSidebarComment] = useState("");
@@ -193,6 +232,9 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     );
     const { call: submitPayment, loading: isPaying } = useFrappePostCall(
         "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
+    );
+    const { call: submitForm } = useFrappePostCall(
+        disbursalOfHonorariumAPI.submit,
     );
 
     const { currentUser } = useFrappeAuth();
@@ -472,6 +514,33 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
         }
     };
 
+    // --- SUBMIT APPLICATION ---
+    const handleSubmitApplication = async () => {
+        if (!id || isSubmitting) return;
+        if (!window.confirm("Are you sure you want to submit this application?")) return;
+        setIsSubmitting(true);
+        try {
+            const payload: Record<string, any> = { ...formData, name: id };
+            const saveRes = await callSaveApi(disbursalOfHonorariumAPI.save, payload);
+            if (saveRes?.message?.status !== 'success') {
+                throw new Error(saveRes?.message?.message || "Save failed during submission");
+            }
+            const docname = saveRes.message.docname || id;
+            const submitRes = await submitForm({ docname });
+            if (submitRes?.message?.status === 'success' || submitRes?.message) {
+                alert("Disbursal of Honorarium submitted successfully!");
+                handleRefresh();
+            } else {
+                throw new Error(submitRes?.message?.message || "Submission failed");
+            }
+        } catch (err: any) {
+            console.error(err);
+            alert(`Submission failed: ${err.message || "Please check the console for details."}`);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     // --- COMMENT ---
     const handleSidebarCommentSubmit = async () => {
         if (!sidebarComment.trim() || !id) return;
@@ -514,17 +583,27 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                     {(formData.workflow_state === "Draft" ||
                         !formData.workflow_state) &&
                         id && (
-                            <button
-                                onClick={() =>
-                                    navigate(
-                                        `/disbursal-of-honorarium-form/${id}`,
-                                    )
-                                }
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
-                            >
-                                <EditIcon className="w-4 h-4" />
-                                Edit
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() =>
+                                        navigate(
+                                            `/disbursal-of-honorarium-form/${id}`,
+                                        )
+                                    }
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                                >
+                                    <EditIcon className="w-4 h-4" />
+                                    Edit
+                                </button>
+                                <button
+                                    onClick={handleSubmitApplication}
+                                    disabled={isSubmitting}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Send className="w-4 h-4" />
+                                    {isSubmitting ? "Submitting..." : "Submit Application"}
+                                </button>
+                            </div>
                         )}
                 </PageHeader>
 

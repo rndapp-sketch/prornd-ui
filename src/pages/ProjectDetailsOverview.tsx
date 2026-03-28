@@ -3013,12 +3013,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             </p>
                           </div>
                           <a
-                            href={getFileUrl(data.upload_proj_prop)}
+                            href={`http://172.16.135.118:9000/rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-sm font-medium text-[#D97757] hover:underline flex items-center gap-1"
                           >
-                            <ExternalLinkIcon className="h-3 w-3" /> View File
+                            <ExternalLinkIcon className="h-3 w-3" />{" "}
+                            {data.upload_proj_prop.split("/").pop()}
                           </a>
                         </div>
                       )}

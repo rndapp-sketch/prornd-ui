@@ -71,7 +71,8 @@ export const useDepositSlipCalculations = (
       return `tt:${amount}:${cgst}:${sgst}:${multiplier}:${tableSig}`;
     } else if (depositSlipType === "research_deposit_slip") {
       // Research Deposit Slip - trigger on total_amount or overhead_amount changes
-      // Also include child table percentages so row edits trigger recalculation
+      // For DPF/PDF tables: only track row COUNT (percentages are auto-calculated, not user input)
+      // For other tables: track user-editable percentages
       const total = flt(formData.total_amount);
       const overhead = flt(formData.overhead_amount);
       const childTableSigs = Object.keys(formData)
@@ -83,15 +84,16 @@ export const useDepositSlipCalculations = (
         )
         .map((k) => {
           const rows = formData[k];
+          const sample = rows[0];
+          // DPF/PDF tables have auto-split percentages — only track row count to avoid loops
+          const isPdfDpf =
+            "dpf_percentage" in sample || "pdf_percentage" in sample;
+          if (isPdfDpf) {
+            return `${k}:count:${rows.length}`;
+          }
           const rowSig = rows
             .map((r: any) => {
-              // Capture percentage-like fields to detect user edits
-              const pct =
-                r.dpf_percentage ??
-                r.pdf_percentage ??
-                r.percentage_of_overhead ??
-                r.percentage ??
-                "";
+              const pct = r.percentage_of_overhead ?? r.percentage ?? "";
               return `${pct}`;
             })
             .join(",");
@@ -327,10 +329,30 @@ function calculateResearchDeposit(formData: FormData): FormData {
             : null;
 
     if (pctField && amtField) {
-      childTableUpdates[key] = val.map((row: any) => {
-        const pct = flt(row[pctField]);
-        return { ...row, [amtField]: flt(overhead * (pct / 100)) };
-      });
+      const isPdfDpf =
+        pctField === "dpf_percentage" || pctField === "pdf_percentage";
+      if (isPdfDpf) {
+        // Auto-split 25% pool evenly across all rows
+        const POOL = 25;
+        const n = val.length;
+        const splitPct = n > 0 ? flt(POOL / n) : 0;
+        let remaining = flt(POOL);
+        childTableUpdates[key] = val.map((row: any, i: number) => {
+          const isLast = i === n - 1;
+          const pct = isLast ? remaining : splitPct;
+          remaining = flt(remaining - pct);
+          return {
+            ...row,
+            [pctField]: pct,
+            [amtField]: flt(overhead * (pct / 100)),
+          };
+        });
+      } else {
+        childTableUpdates[key] = val.map((row: any) => {
+          const pct = flt(row[pctField]);
+          return { ...row, [amtField]: flt(overhead * (pct / 100)) };
+        });
+      }
     }
   }
 

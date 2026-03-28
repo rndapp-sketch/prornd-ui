@@ -86,8 +86,8 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
       return;
     }
 
-    // If roles is null/undefined after loading completes, that's an issue
-    if (!roles) {
+    // If roles is null/undefined/empty after loading completes, wait — don't redirect yet
+    if (!roles || roles.length === 0) {
       console.warn("AuthRouteWrapper: No roles data available after loading.");
       return;
     }
@@ -116,7 +116,7 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
   if (isAuthLoading || (isRolesLoading && !hasInitialized.current)) {
     // Show a minimal loading state instead of null
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-[#F9F7F2] dark:bg-zinc-950">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
       </div>
     );
