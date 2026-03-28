@@ -830,6 +830,9 @@ const PendingTaskDetails: React.FC = () => {
         if (doctype === "Disbursal of Honorarium" && name) {
             navigate(`/disbursal-of-honorarium/${name}`, { replace: true });
         }
+        if (doctype === "Disbursal of Consultancy" && name) {
+            navigate(`/disbursal-of-consultancy/${name}`, { replace: true });
+        }
     }, [doctype, name]);
 
     // Additional state for Travel Dynamic Form

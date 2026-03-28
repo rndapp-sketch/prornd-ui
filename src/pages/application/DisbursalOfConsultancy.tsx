@@ -4,6 +4,7 @@ import { AppSidebar } from '@/components/RndSidebar';
 import { cn } from '@/lib/utils';
 import { Plus, ArrowLeftIcon } from 'lucide-react';
 import { GlobalLoader } from '@/components/ui/global-loader';
+import { DepartmentName } from '@/components/DepartmentName';
 
 // --- TYPE DEFINITIONS ---
 interface DisbursalListItem {
@@ -13,6 +14,7 @@ interface DisbursalListItem {
     total_disbursal_amount?: number;
     disbursal_project_number?: string;
     project_title?: string;
+    department?: string;
     webmail_id?: string;
     pi_name?: string;
     owner?: string;
@@ -27,7 +29,9 @@ const DisbursalOfConsultancy: React.FC = () => {
     const fetchList = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await fetch('/api/resource/Disbursal of Consultancy?fields=["name","creation","workflow_state","total_disbursal_amount","disbursal_project_number","project_title","webmail_id","pi_name","owner"]&order_by=creation desc&limit_page_length=0');
+            const response = await fetch(
+                '/api/resource/Disbursal of Consultancy?fields=["name","creation","workflow_state","total_disbursal_amount","disbursal_project_number","project_title","department","webmail_id","pi_name","owner"]&order_by=creation desc&limit_page_length=0'
+            );
             const data = await response.json();
             if (data.data) {
                 setDisbursalList(data.data);
@@ -107,7 +111,7 @@ const DisbursalOfConsultancy: React.FC = () => {
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Application ID</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Date</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">PI Name</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Project Title</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Department</th>
                                     <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Amount</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Status</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Actions</th>
@@ -118,13 +122,17 @@ const DisbursalOfConsultancy: React.FC = () => {
                                     <tr
                                         key={item.name}
                                         className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 cursor-pointer"
-                                        onClick={() => navigate(`/disbursal-of-consultancy-form/${item.name}`)}
+                                        onClick={() => navigate(`/disbursal-of-consultancy/${item.name}`)}
                                     >
                                         <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">{item.name}</td>
                                         <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{formatDate(item.creation)}</td>
                                         <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">{item.pi_name || item.webmail_id || item.owner}</td>
                                         <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
-                                            {item.project_title || '-'}
+                                            {item.department ? (
+                                                <DepartmentName name={item.department} />
+                                            ) : (
+                                                '-'
+                                            )}
                                         </td>
                                         <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 text-right font-medium">
                                             ₹{(item.total_disbursal_amount || 0).toLocaleString('en-IN')}
@@ -132,11 +140,13 @@ const DisbursalOfConsultancy: React.FC = () => {
                                         <td className="px-4 py-3">
                                             <span className={cn(
                                                 "inline-flex px-2 py-1 text-xs font-medium rounded-full",
-                                                item.workflow_state === "Approved" && "bg-green-100 text-green-700",
-                                                item.workflow_state === "Pending" && "bg-yellow-100 text-yellow-700",
-                                                item.workflow_state === "Rejected" && "bg-red-100 text-red-700",
+                                                item.workflow_state === "Approved" && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                                                item.workflow_state === "Rejected" && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
                                                 item.workflow_state === "Draft" && "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
-                                                !["Approved", "Pending", "Rejected", "Draft"].includes(item.workflow_state || '') && "bg-blue-100 text-blue-700"
+                                                (item.workflow_state?.startsWith("Pending") || false) && "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                                                !["Approved", "Rejected", "Draft"].includes(item.workflow_state || '') &&
+                                                    !(item.workflow_state?.startsWith("Pending") || false) &&
+                                                    "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
                                             )}>
                                                 {item.workflow_state || 'Draft'}
                                             </span>
@@ -145,7 +155,7 @@ const DisbursalOfConsultancy: React.FC = () => {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    navigate(`/disbursal-of-consultancy-form/${item.name}`);
+                                                    navigate(`/disbursal-of-consultancy/${item.name}`);
                                                 }}
                                                 className="text-sm text-[#D97757] hover:underline whitespace-nowrap"
                                             >

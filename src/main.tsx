@@ -60,6 +60,7 @@ import DisbursalOfHonorariumForm from './pages/application/DisbursalOfHonorarium
 import DisbursalOfHonorariumDetails from './pages/application/DisbursalOfHonorariumDetails.tsx';
 import DisbursalOfConsultancy from './pages/application/DisbursalOfConsultancy.tsx';
 import DisbursalOfConsultancyForm from './pages/application/DisbursalOfConsultancyForm.tsx';
+import DisbursalOfConsultancyDetails from './pages/application/DisbursalOfConsultancyDetails.tsx';
 import DirectPurchase from './pages/DirectPurchase.tsx';
 import DirectPurchaseDetails from './pages/application/DirectPurchaseDetails.tsx';
 import P11Form from './pages/application/P11Form.tsx';
@@ -459,26 +460,18 @@ const router = createBrowserRouter(
           )
         },
         {
+          path: "disbursal-of-consultancy/:id",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <DisbursalOfConsultancyDetails />
+            </AuthRouteWrapper>
+          )
+        },
+        {
           path: "disbursal-of-honorarium/:id",
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <DisbursalOfHonorariumDetails />
-            </AuthRouteWrapper>
-          )
-        },
-        {
-          path: "disbursal-of-consultancy",
-          element: (
-            <AuthRouteWrapper allowedRole="All_ProRnd_User">
-              <DisbursalOfConsultancy />
-            </AuthRouteWrapper>
-          )
-        },
-        {
-          path: "disbursal-of-consultancy-form/:id?",
-          element: (
-            <AuthRouteWrapper allowedRole="All_ProRnd_User">
-              <DisbursalOfConsultancyForm />
             </AuthRouteWrapper>
           )
         },

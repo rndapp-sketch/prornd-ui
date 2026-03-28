@@ -379,6 +379,13 @@ const TaskRegistryDetails: React.FC = () => {
     const { call: fetchTadaFields }    = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(tadaAPI.getFields);
     const { call: fetchRecFields }     = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(recruitmentAdhocContractualAPI.getFields);
 
+    // Redirect dedicated detail pages
+    useEffect(() => {
+        if (doctype === 'Disbursal of Consultancy' && name) {
+            navigate(`/disbursal-of-consultancy/${name}`, { replace: true });
+        }
+    }, [doctype, name]);
+
     useEffect(() => {
         if (doctype === 'Travel' && name) {
             setIsTravelLoading(true);

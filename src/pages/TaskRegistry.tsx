@@ -340,6 +340,8 @@ const TaskRegistry: React.FC = () => {
                                                     navigate(`/fund-received/${task.id}`);
                                                 } else if (task.doctype === "Reimbursement") {
                                                     navigate(`/reimbursement/${task.id}`);
+                                                } else if (task.doctype === "Disbursal of Consultancy") {
+                                                    navigate(`/disbursal-of-consultancy/${task.id}`);
                                                 } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
                                                     navigate(`/project-details-overview/${task.id}`);
                                                 } else {
@@ -380,6 +382,8 @@ const TaskRegistry: React.FC = () => {
                                                             navigate(`/fund-received/${task.id}`);
                                                         } else if (task.doctype === "Reimbursement") {
                                                             navigate(`/reimbursement/${task.id}`);
+                                                        } else if (task.doctype === "Disbursal of Consultancy") {
+                                                            navigate(`/disbursal-of-consultancy/${task.id}`);
                                                         } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
                                                             navigate(`/project-details-overview/${task.id}`);
                                                         } else {

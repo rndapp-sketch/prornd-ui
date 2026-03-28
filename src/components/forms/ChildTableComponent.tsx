@@ -100,7 +100,7 @@ export const ChildTableComponent = memo(({
                     <input
                         type="number"
                         className={inputClasses}
-                        value={value || ''}
+                        value={value ?? ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, parseInt(e.target.value) || 0)}
                         onWheel={(e) => (e.target as HTMLInputElement).blur()}
                         disabled={isReadOnly}
@@ -113,7 +113,7 @@ export const ChildTableComponent = memo(({
                     <input
                         type="number"
                         className={inputClasses}
-                        value={value || ''}
+                        value={value ?? ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, parseFloat(e.target.value) || 0)}
                         onWheel={(e) => (e.target as HTMLInputElement).blur()}
                         disabled={isReadOnly}

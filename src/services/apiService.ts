@@ -150,6 +150,17 @@ export const universalRegistrationAPI = {
     save: `${API_BASE}.universal_registration__.universal_registration__.save_universal_registration___data`,
 };
 
+// Disbursal of Consultancy API endpoints
+export const disbursalOfConsultancyAPI = {
+    getFields: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.get_disbursal_of_consultancy_fields`,
+    save: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.save_disbursal_of_consultancy_data`,
+    submit: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.submit_disbursal_of_consultancy`,
+    getWorkflowActions: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.get_disbursal_of_consultancy_workflow_actions`,
+    performAction: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.perform_disbursal_of_consultancy_action`,
+    getByProject: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.get_disbursal_of_consultancy_by_project`,
+    getByWebmail: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.get_disbursal_of_consultancy_by_webmail`,
+};
+
 // Disbursal of Honorarium API endpoints
 export const disbursalOfHonorariumAPI = {
     getFields: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_fields`,

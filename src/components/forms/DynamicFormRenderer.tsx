@@ -113,7 +113,8 @@ const MemoizedFormField = memo(
       readOnly: isReadOnly,
       required: isMandatory,
       disabled: isReadOnly,
-      value: value || "",
+      // Use ?? so numeric 0 is preserved (0 || "" would wrongly render as empty)
+      value: value ?? "",
       onChange: (
         e: React.ChangeEvent<
           HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
