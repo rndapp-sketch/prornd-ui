@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { FileSpreadsheet as LedgerIcon, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -219,7 +220,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
 
     if (!isOpen) return null;
 
-    return (
+    return createPortal(
         <div className="frappe-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
             <div className="frappe-modal w-[95%] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
                 <header className="frappe-modal-header">
@@ -541,6 +542,7 @@ export const ProjectLedgerModal: React.FC<ProjectLedgerModalProps> = ({
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

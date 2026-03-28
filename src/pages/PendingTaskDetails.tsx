@@ -1,46 +1,88 @@
-import React, { useState, useEffect } from 'react';
-import { useSWRConfig } from 'swr';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useFrappeGetDoc, useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
-import { ArrowLeftIcon, FileIcon, ExternalLinkIcon, LayoutGridIcon, ClipboardListIcon, FileTextIcon, ShoppingCartIcon, CheckCircle2Icon, XCircleIcon } from "lucide-react";
-import { cn } from '@/lib/utils';
+import React, { useState, useEffect } from "react";
+import { useSWRConfig } from "swr";
+import { useParams, useNavigate } from "react-router-dom";
+import {
+    useFrappeGetDoc,
+    useFrappePostCall,
+    useFrappeGetCall,
+    useFrappeAuth,
+} from "frappe-react-sdk";
+import {
+    ArrowLeftIcon,
+    FileIcon,
+    ExternalLinkIcon,
+    LayoutGridIcon,
+    ClipboardListIcon,
+    FileTextIcon,
+    ShoppingCartIcon,
+    CheckCircle2Icon,
+    XCircleIcon,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 // import { AppSidebar } from '@/components/RndSidebar';
-import { FrappeButton } from '@/components/ui/neo-brutalism';
+import { FrappeButton } from "@/components/ui/neo-brutalism";
 import ProjectDetailsView from "./ProjectDetails";
 import TemporaryAdvanceDetailsView from "./TemporaryAdvanceDetailsView";
-import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, directPurchaseAPI, tadaAPI, recruitmentAdhocContractualAPI } from '@/services/apiService';
-import { ActivityStream } from '@/components/ActivityStream';
-import { BudgetActionsSidebar } from '@/components/BudgetActionsSidebar';
-import TemporaryAdvanceActionButtons from '@/components/TemporaryAdvanceActionButtons';
-import TADASettlementActionButtons from '@/components/TADASettlementActionButtons';
-import { useUserRoles } from '@/components/UserRole';
-import { POEditor } from '@/components/POEditor';
-import { DeclarationFields } from '@/components/DeclarationFields';
+import {
+    DynamicFormRenderer,
+    type FormField,
+    type LinkOption,
+} from "@/components/forms/DynamicFormRenderer";
+import {
+    travelAPI,
+    advanceSettlementAPI,
+    temporaryAdvanceAPI,
+    directPurchaseAPI,
+    tadaAPI,
+    recruitmentAdhocContractualAPI,
+} from "@/services/apiService";
+import { DepartmentName } from "@/components/DepartmentName";
+import { BudgetHeadName } from "@/components/BudgetHeadName";
+import { ActivityStream } from "@/components/ActivityStream";
+import { BudgetActionsSidebar } from "@/components/BudgetActionsSidebar";
+import TemporaryAdvanceActionButtons from "@/components/TemporaryAdvanceActionButtons";
+import TADASettlementActionButtons from "@/components/TADASettlementActionButtons";
+import { useUserRoles } from "@/components/UserRole";
+import { POEditor } from "@/components/POEditor";
+import { DeclarationFields } from "@/components/DeclarationFields";
 
 // Fields to hide from the overview
 const HIDDEN_FIELDS = [
-    'total_first_year_budget_1',
-    'total_second_year_budget_1',
-    'total_third_year_budget_1',
-    'total_fourth_year_budget_1',
-    'total_fifth_year_budget_1',
-    'grand_total_proposal_1',
-    'total_first_year_budget',
-    'total_second_year_budget',
-    'total_third_year_budget',
-    'total_fourth_year_budget',
-    'total_fifth_year_budget',
-    'grand_total_proposal',
-    'amended_from',
-    'workflow_state'
+    "total_first_year_budget_1",
+    "total_second_year_budget_1",
+    "total_third_year_budget_1",
+    "total_fourth_year_budget_1",
+    "total_fifth_year_budget_1",
+    "grand_total_proposal_1",
+    "total_first_year_budget",
+    "total_second_year_budget",
+    "total_third_year_budget",
+    "total_fourth_year_budget",
+    "total_fifth_year_budget",
+    "grand_total_proposal",
+    "amended_from",
+    "workflow_state",
 ];
 
 // Style constants for generic details
-const labelClasses = "text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block";
-const valueClasses = "text-[15px] font-medium text-zinc-900 dark:text-zinc-100 leading-relaxed break-words";
+const labelClasses =
+    "text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1 block";
+const valueClasses =
+    "text-[15px] font-medium text-zinc-900 dark:text-zinc-100 leading-relaxed break-words";
 
-const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: { isOpen: boolean; onClose: () => void; onSubmit: (comment: string) => void; action: string; isLoading: boolean }) => {
+const CommentModal = ({
+    isOpen,
+    onClose,
+    onSubmit,
+    action,
+    isLoading,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (comment: string) => void;
+    action: string;
+    isLoading: boolean;
+}) => {
     const [comment, setComment] = React.useState("");
 
     if (!isOpen) return null;
@@ -48,16 +90,24 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: { isOpen
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md">
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Confirm {action}</h3>
+                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+                    Confirm {action}
+                </h3>
                 <textarea
                     className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.25)] focus:border-[#D97757]"
                     rows={4}
                     placeholder="Add a comment (optional)..."
                     value={comment}
-                    onChange={e => setComment(e.target.value)}
+                    onChange={(e) => setComment(e.target.value)}
                 />
                 <div className="flex justify-end gap-2">
-                    <FrappeButton onClick={onClose} className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:bg-zinc-700" disabled={isLoading}>Cancel</FrappeButton>
+                    <FrappeButton
+                        onClick={onClose}
+                        className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:bg-zinc-700"
+                        disabled={isLoading}
+                    >
+                        Cancel
+                    </FrappeButton>
                     <FrappeButton
                         onClick={() => onSubmit(comment)}
                         disabled={isLoading}
@@ -71,14 +121,22 @@ const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: { isOpen
     );
 };
 
-const ReimbursementWorkflowActions = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
-    const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
+const ReimbursementWorkflowActions = ({
+    docname,
+    onActionComplete,
+}: {
+    docname: string;
+    onActionComplete: () => void;
+}) => {
+    const { data, isLoading: actionsLoading } = useFrappeGetCall<{
+        message: string[];
+    }>(
         "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_reimbursement_workflow_actions",
-        { docname }
+        { docname },
     );
 
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
-        "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.perform_reimbursement_action"
+        "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.perform_reimbursement_action",
     );
 
     const [modalOpen, setModalOpen] = React.useState(false);
@@ -126,14 +184,22 @@ const ReimbursementWorkflowActions = ({ docname, onActionComplete }: { docname: 
     );
 };
 
-const FundSanctionWorkflowActions = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
-    const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
+const FundSanctionWorkflowActions = ({
+    docname,
+    onActionComplete,
+}: {
+    docname: string;
+    onActionComplete: () => void;
+}) => {
+    const { data, isLoading: actionsLoading } = useFrappeGetCall<{
+        message: string[];
+    }>(
         "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_fund_sanction_workflow_actions",
-        { docname }
+        { docname },
     );
 
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
-        "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.perform_fund_sanction_action"
+        "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.perform_fund_sanction_action",
     );
 
     const [modalOpen, setModalOpen] = React.useState(false);
@@ -181,14 +247,24 @@ const FundSanctionWorkflowActions = ({ docname, onActionComplete }: { docname: s
     );
 };
 
-const TravelWorkflowActions = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
-    const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
+const TravelWorkflowActions = ({
+    docname,
+    onActionComplete,
+}: {
+    docname: string;
+    onActionComplete: () => void;
+}) => {
+    const { data, isLoading: actionsLoading } = useFrappeGetCall<{
+        message: string[];
+    }>(
         "rndopsapp.rndopsapp.doctype.travel.travel.get_travel_workflow_actions",
-        { docname }
+        {
+            docname,
+        },
     );
 
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
-        "rndopsapp.rndopsapp.doctype.travel.travel.perform_travel_action"
+        "rndopsapp.rndopsapp.doctype.travel.travel.perform_travel_action",
     );
 
     const [modalOpen, setModalOpen] = React.useState(false);
@@ -245,40 +321,107 @@ const DirectPurchaseWorkflowActions = ({
     onActionComplete: () => void;
     onAfterAction?: (action: string) => void;
 }) => {
-    const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
-        directPurchaseAPI.getWorkflowActions,
-        { docname }
-    );
+    const [actions, setActions] = React.useState<string[]>([]);
+    const [actionsLoading, setActionsLoading] = React.useState(true);
+    const isMountedRef = React.useRef(true);
+
+    const { call: fetchActions } = useFrappePostCall<{
+        message: string[];
+    }>(directPurchaseAPI.getWorkflowActions);
 
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
-        directPurchaseAPI.performAction
+        directPurchaseAPI.performAction,
     );
 
     const [modalOpen, setModalOpen] = React.useState(false);
     const [selectedAction, setSelectedAction] = React.useState("");
 
+    const loadActions = React.useCallback(async () => {
+        setActionsLoading(true);
+        try {
+            const response = await fetchActions({ docname });
+            if (!isMountedRef.current) return;
+            console.log("[DirectPurchaseWorkflowActions] fetched actions", {
+                docname,
+                endpoint: directPurchaseAPI.getWorkflowActions,
+                actions: response?.message,
+            });
+            setActions(
+                Array.isArray(response?.message) ? response.message : [],
+            );
+        } catch (error) {
+            if (isMountedRef.current) {
+                console.error(
+                    "Error fetching direct purchase workflow actions:",
+                    error,
+                );
+                setActions([]);
+            }
+        } finally {
+            if (isMountedRef.current) {
+                setActionsLoading(false);
+            }
+        }
+    }, [docname, fetchActions]);
+
+    React.useEffect(() => {
+        isMountedRef.current = true;
+        loadActions();
+
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, [loadActions]);
+
     const handleActionClick = (action: string) => {
+        console.log("[DirectPurchaseWorkflowActions] action clicked", {
+            docname,
+            action,
+            endpoint: directPurchaseAPI.performAction,
+        });
         setSelectedAction(action);
         setModalOpen(true);
     };
 
     const handleConfirmAction = async (comment: string) => {
         try {
-            await performAction({ docname, action: selectedAction, comment });
+            console.log("[DirectPurchaseWorkflowActions] submitting action", {
+                docname,
+                action: selectedAction,
+                comment,
+                endpoint: directPurchaseAPI.performAction,
+            });
+            const response = await performAction({
+                docname,
+                action: selectedAction,
+                comment,
+            });
+            console.log("[DirectPurchaseWorkflowActions] action response", {
+                docname,
+                action: selectedAction,
+                endpoint: directPurchaseAPI.performAction,
+                response,
+            });
+            await loadActions();
             setModalOpen(false);
             onActionComplete();
             onAfterAction?.(selectedAction);
         } catch (error) {
-            console.error("Error performing action:", error);
+            console.error("[DirectPurchaseWorkflowActions] action failed", {
+                docname,
+                action: selectedAction,
+                endpoint: directPurchaseAPI.performAction,
+                error,
+            });
         }
     };
 
-    if (actionsLoading || !data?.message?.length) return null;
+    if (actionsLoading || !actions.length) return null;
 
     return (
         <>
             <div className="flex gap-2">
-                {data.message.map((action) => (
+                {actions.map((action) => (
                     <FrappeButton
                         key={action}
                         onClick={() => handleActionClick(action)}
@@ -300,14 +443,19 @@ const DirectPurchaseWorkflowActions = ({
     );
 };
 
-const RecruitmentAdhocContractualWorkflowActions = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
-    const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
-        recruitmentAdhocContractualAPI.getWorkflowActions,
-        { docname }
-    );
+const RecruitmentAdhocContractualWorkflowActions = ({
+    docname,
+    onActionComplete,
+}: {
+    docname: string;
+    onActionComplete: () => void;
+}) => {
+    const { data, isLoading: actionsLoading } = useFrappeGetCall<{
+        message: string[];
+    }>(recruitmentAdhocContractualAPI.getWorkflowActions, { docname });
 
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
-        recruitmentAdhocContractualAPI.performAction
+        recruitmentAdhocContractualAPI.performAction,
     );
 
     const [modalOpen, setModalOpen] = React.useState(false);
@@ -357,88 +505,158 @@ const RecruitmentAdhocContractualWorkflowActions = ({ docname, onActionComplete 
 
 // Helper to check if a value is a file path
 const isFilePath = (value: string) => {
-    if (typeof value !== 'string') return false;
-    return value.startsWith('/private/files/') ||
-        value.startsWith('/files/') ||
-        value.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx)$/i);
+    if (typeof value !== "string") return false;
+    return (
+        value.startsWith("/private/files/") ||
+        value.startsWith("/files/") ||
+        value.match(/\.(pdf|jpg|jpeg|png|doc|docx|xls|xlsx)$/i)
+    );
 };
 
 // Function to get filename from path
-const getFileName = (path: string) => path.split('/').pop() || path;
+const getFileName = (path: string) => path.split("/").pop() || path;
 
 // ─── Direct Purchase Tab View ─────────────────────────────────────────────────
 
-type DPTabId = 'details' | 'p11' | 'sanction' | 'po';
+type DPTabId = "details" | "p11" | "sanction" | "po";
 
 const DP_EXCLUDED = [
-    'doctype', 'docstatus', 'idx', 'owner', 'creation', 'modified',
-    'modified_by', '_user_tags', '_comments', '_assign', '_liked_by', 'name',
-    'workflow_state', '_seen', 'parent', 'parenttype', 'parentfield',
+    "doctype",
+    "docstatus",
+    "idx",
+    "owner",
+    "creation",
+    "modified",
+    "modified_by",
+    "_user_tags",
+    "_comments",
+    "_assign",
+    "_liked_by",
+    "name",
+    "workflow_state",
+    "_seen",
+    "parent",
+    "parenttype",
+    "parentfield",
 ];
 
 const dpFormatFieldName = (key: string) =>
-    key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 
 const dpIsAmountField = (key: string) =>
     /amount|total|price|estimate|budget|salary|fee|cost/i.test(key);
 
 const dpIsBoolCheck = (key: string, val: any) =>
     (val === 0 || val === 1) &&
-    (key.startsWith('dec_') || key.startsWith('is_') || key.startsWith('has_') || key.startsWith('declaration_'));
+    (key.startsWith("dec_") ||
+        key.startsWith("is_") ||
+        key.startsWith("has_") ||
+        key.startsWith("declaration_"));
 
 const dpFormatINR = (val: any) =>
-    Number(val).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+    Number(val).toLocaleString("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0,
+    });
 
 // Smart document viewer for Direct Purchase details panel
-const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<string, any>; doctype?: string }) => {
+const DPDocumentViewer = ({
+    data,
+    doctype: viewerDoctype,
+}: {
+    data: Record<string, any>;
+    doctype?: string;
+}) => {
     const allScalar = Object.entries(data).filter(([key, value]) => {
         if (DP_EXCLUDED.includes(key)) return false;
-        if (key.startsWith('_')) return false;
+        if (key.startsWith("_")) return false;
         if (Array.isArray(value)) return false;
-        if (value === null || value === undefined || value === '') return false;
+        if (value === null || value === undefined || value === "") return false;
         return true;
     });
 
     const childTables = Object.entries(data).filter(
-        ([, value]) => Array.isArray(value) && (value as any[]).length > 0
+        ([, value]) => Array.isArray(value) && (value as any[]).length > 0,
     );
 
-    const fileFields   = allScalar.filter(([k, v]) => isFilePath(String(v)) || k.startsWith('upload_'));
-    const boolFields   = allScalar.filter(([k, v]) => dpIsBoolCheck(k, v));
-    const amountFields = allScalar.filter(([k, v]) => dpIsAmountField(k) && !isFilePath(String(v)) && !dpIsBoolCheck(k, v));
-    const infoFields   = allScalar.filter(([k, v]) =>
-        !isFilePath(String(v)) && !dpIsBoolCheck(k, v) && !dpIsAmountField(k) && !k.startsWith('upload_')
+    const fileFields = allScalar.filter(
+        ([k, v]) => isFilePath(String(v)) || k.startsWith("upload_"),
+    );
+    const boolFields = allScalar.filter(([k, v]) => dpIsBoolCheck(k, v));
+    const amountFields = allScalar.filter(
+        ([k, v]) =>
+            dpIsAmountField(k) &&
+            !isFilePath(String(v)) &&
+            !dpIsBoolCheck(k, v),
+    );
+    const infoFields = allScalar.filter(
+        ([k, v]) =>
+            !isFilePath(String(v)) &&
+            !dpIsBoolCheck(k, v) &&
+            !dpIsAmountField(k) &&
+            !k.startsWith("upload_"),
     );
 
     const renderVal = (key: string, value: any): React.ReactNode => {
-        if (value === null || value === undefined || value === '') return <span className="text-[#71717A] dark:text-[#A1A1AA]">—</span>;
+        if (value === null || value === undefined || value === "")
+            return (
+                <span className="text-[#71717A] dark:text-[#A1A1AA]">—</span>
+            );
 
         if (isFilePath(String(value))) {
             return (
-                <a href={String(value)} target="_blank" rel="noopener noreferrer"
-                    className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-medium max-w-full">
+                <a
+                    href={String(value)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800 text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-medium max-w-full"
+                >
                     <FileIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span className="truncate">{getFileName(String(value))}</span>
+                    <span className="truncate">
+                        {getFileName(String(value))}
+                    </span>
                     <ExternalLinkIcon className="h-3 w-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </a>
             );
         }
 
         if (dpIsBoolCheck(key, value)) {
-            return value === 1
-                ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"><CheckCircle2Icon className="w-3.5 h-3.5" />Yes</span>
-                : <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]"><XCircleIcon className="w-3.5 h-3.5" />No</span>;
+            return value === 1 ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                    <CheckCircle2Icon className="w-3.5 h-3.5" />
+                    Yes
+                </span>
+            ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <XCircleIcon className="w-3.5 h-3.5" />
+                    No
+                </span>
+            );
         }
 
         if (dpIsAmountField(key) && !isNaN(Number(value))) {
-            return <span className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{dpFormatINR(value)}</span>;
+            return (
+                <span className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
+                    {dpFormatINR(value)}
+                </span>
+            );
         }
+
+        if (key === "applicant_department")
+            return <DepartmentName name={String(value)} />;
+        if (key === "account_head")
+            return <BudgetHeadName id={String(value)} />;
 
         return String(value);
     };
 
     if (allScalar.length === 0 && childTables.length === 0) {
-        return <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">No data to display.</p>;
+        return (
+            <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">
+                No data to display.
+            </p>
+        );
     }
 
     const kpiAmounts = amountFields.slice(0, 3);
@@ -447,16 +665,26 @@ const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<strin
         <div className="space-y-8">
             {/* Financial KPI strip */}
             {kpiAmounts.length > 0 && (
-                <div className={cn("grid gap-4",
-                    kpiAmounts.length === 1 && "grid-cols-1 max-w-xs",
-                    kpiAmounts.length === 2 && "grid-cols-2",
-                    kpiAmounts.length >= 3 && "grid-cols-3",
-                )}>
+                <div
+                    className={cn(
+                        "grid gap-4",
+                        kpiAmounts.length === 1 && "grid-cols-1 max-w-xs",
+                        kpiAmounts.length === 2 && "grid-cols-2",
+                        kpiAmounts.length >= 3 && "grid-cols-3",
+                    )}
+                >
                     {kpiAmounts.map(([key, value]) => (
-                        <div key={key} className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/50 px-5 py-4">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1.5">{dpFormatFieldName(key)}</p>
+                        <div
+                            key={key}
+                            className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/50 px-5 py-4"
+                        >
+                            <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1.5">
+                                {dpFormatFieldName(key)}
+                            </p>
                             <p className="text-xl font-serif font-medium text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
-                                {!isNaN(Number(value)) ? dpFormatINR(value) : String(value)}
+                                {!isNaN(Number(value))
+                                    ? dpFormatINR(value)
+                                    : String(value)}
                             </p>
                         </div>
                     ))}
@@ -466,12 +694,18 @@ const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<strin
             {/* Info fields */}
             {infoFields.length > 0 && (
                 <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">Information</h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                        Information
+                    </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5">
                         {infoFields.map(([key, value]) => (
                             <div key={key} className="flex flex-col gap-1">
-                                <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">{dpFormatFieldName(key)}</p>
-                                <p className="text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-relaxed">{renderVal(key, value)}</p>
+                                <p className="text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
+                                    {dpFormatFieldName(key)}
+                                </p>
+                                <p className="text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-relaxed">
+                                    {renderVal(key, value)}
+                                </p>
                             </div>
                         ))}
                     </div>
@@ -484,11 +718,15 @@ const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<strin
             {/* Attachments */}
             {fileFields.length > 0 && (
                 <div>
-                    <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">Attachments</h4>
+                    <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-4 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                        Attachments
+                    </h4>
                     <div className="flex flex-col gap-2">
                         {fileFields.map(([key, value]) => (
                             <div key={key} className="flex items-center gap-3">
-                                <span className="text-xs text-[#71717A] dark:text-[#A1A1AA] w-36 shrink-0 font-medium uppercase tracking-wider">{dpFormatFieldName(key)}</span>
+                                <span className="text-xs text-[#71717A] dark:text-[#A1A1AA] w-36 shrink-0 font-medium uppercase tracking-wider">
+                                    {dpFormatFieldName(key)}
+                                </span>
                                 {renderVal(key, value)}
                             </div>
                         ))}
@@ -499,25 +737,36 @@ const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<strin
             {/* Child tables */}
             {childTables.map(([key, rows]) => {
                 const cols = Object.keys((rows as any[])[0] || {}).filter(
-                    k => !k.startsWith('_') && !DP_EXCLUDED.includes(k)
+                    (k) => !k.startsWith("_") && !DP_EXCLUDED.includes(k),
                 );
                 const colTotals: Record<string, number> = {};
-                const hasAmountCols = cols.some(c => dpIsAmountField(c));
+                const hasAmountCols = cols.some((c) => dpIsAmountField(c));
                 if (hasAmountCols) {
-                    cols.forEach(c => {
-                        if (dpIsAmountField(c)) colTotals[c] = (rows as any[]).reduce((s, r) => s + (parseFloat(r[c]) || 0), 0);
+                    cols.forEach((c) => {
+                        if (dpIsAmountField(c))
+                            colTotals[c] = (rows as any[]).reduce(
+                                (s, r) => s + (parseFloat(r[c]) || 0),
+                                0,
+                            );
                     });
                 }
                 return (
                     <div key={key}>
-                        <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-3 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">{dpFormatFieldName(key)}</h4>
+                        <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-3 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            {dpFormatFieldName(key)}
+                        </h4>
                         <div className="overflow-x-auto rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50/80 dark:bg-zinc-800/50">
-                                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] w-10">#</th>
-                                        {cols.map(col => (
-                                            <th key={col} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
+                                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] w-10">
+                                            #
+                                        </th>
+                                        {cols.map((col) => (
+                                            <th
+                                                key={col}
+                                                className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]"
+                                            >
                                                 {dpFormatFieldName(col)}
                                             </th>
                                         ))}
@@ -525,16 +774,34 @@ const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<strin
                                 </thead>
                                 <tbody>
                                     {(rows as any[]).map((row, idx) => (
-                                        <tr key={idx} className={cn(
-                                            "border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors",
-                                            idx % 2 === 1 && "bg-[#FAFAF9]/60 dark:bg-zinc-800/20"
-                                        )}>
-                                            <td className="px-4 py-3 text-xs text-[#71717A] dark:text-[#A1A1AA] font-mono">{idx + 1}</td>
-                                            {cols.map(k => (
-                                                <td key={k} className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                    {dpIsAmountField(k) && !isNaN(Number(row[k]))
-                                                        ? <span className="font-medium">{dpFormatINR(row[k])}</span>
-                                                        : row[k] != null ? String(row[k]) : '—'}
+                                        <tr
+                                            key={idx}
+                                            className={cn(
+                                                "border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors",
+                                                idx % 2 === 1 &&
+                                                    "bg-[#FAFAF9]/60 dark:bg-zinc-800/20",
+                                            )}
+                                        >
+                                            <td className="px-4 py-3 text-xs text-[#71717A] dark:text-[#A1A1AA] font-mono">
+                                                {idx + 1}
+                                            </td>
+                                            {cols.map((k) => (
+                                                <td
+                                                    key={k}
+                                                    className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]"
+                                                >
+                                                    {dpIsAmountField(k) &&
+                                                    !isNaN(Number(row[k])) ? (
+                                                        <span className="font-medium">
+                                                            {dpFormatINR(
+                                                                row[k],
+                                                            )}
+                                                        </span>
+                                                    ) : row[k] != null ? (
+                                                        String(row[k])
+                                                    ) : (
+                                                        "—"
+                                                    )}
                                                 </td>
                                             ))}
                                         </tr>
@@ -542,9 +809,20 @@ const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<strin
                                     {hasAmountCols && (
                                         <tr className="border-t-2 border-[#E4E4E7] dark:border-[#3F3F46] bg-zinc-50 dark:bg-zinc-800/60 font-semibold">
                                             <td className="px-4 py-3" />
-                                            {cols.map(c => (
-                                                <td key={c} className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                    {colTotals[c] != null ? <span className="font-semibold text-[#D97757]">{dpFormatINR(colTotals[c])}</span> : ''}
+                                            {cols.map((c) => (
+                                                <td
+                                                    key={c}
+                                                    className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]"
+                                                >
+                                                    {colTotals[c] != null ? (
+                                                        <span className="font-semibold text-[#D97757]">
+                                                            {dpFormatINR(
+                                                                colTotals[c],
+                                                            )}
+                                                        </span>
+                                                    ) : (
+                                                        ""
+                                                    )}
                                                 </td>
                                             ))}
                                         </tr>
@@ -560,16 +838,31 @@ const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<strin
 };
 
 // Fetches & renders a single linked Frappe document inside a tab
-const DPLinkedDocTab = ({ doctype, filterField, filterValue, emptyTitle, emptyDescription }: {
-    doctype: string; filterField: string; filterValue: string;
-    emptyTitle: string; emptyDescription: string;
+const DPLinkedDocTab = ({
+    doctype,
+    filterField,
+    filterValue,
+    emptyTitle,
+    emptyDescription,
+}: {
+    doctype: string;
+    filterField: string;
+    filterValue: string;
+    emptyTitle: string;
+    emptyDescription: string;
 }) => {
-    const { data: listData, isLoading: listLoading } = useFrappeGetCall<{ message: { name: string }[] }>(
-        'frappe.client.get_list',
-        { doctype, filters: JSON.stringify([[filterField, '=', filterValue]]), fields: JSON.stringify(['name']), limit: 1 }
-    );
-    const docName = listData?.message?.[0]?.name || '';
-    const { data: docData, isLoading: docLoading } = useFrappeGetDoc<Record<string, any>>(doctype, docName);
+    const { data: listData, isLoading: listLoading } = useFrappeGetCall<{
+        message: { name: string }[];
+    }>("frappe.client.get_list", {
+        doctype,
+        filters: JSON.stringify([[filterField, "=", filterValue]]),
+        fields: JSON.stringify(["name"]),
+        limit: 1,
+    });
+    const docName = listData?.message?.[0]?.name || "";
+    const { data: docData, isLoading: docLoading } = useFrappeGetDoc<
+        Record<string, any>
+    >(doctype, docName);
 
     if (listLoading || docLoading) {
         return (
@@ -583,8 +876,12 @@ const DPLinkedDocTab = ({ doctype, filterField, filterValue, emptyTitle, emptyDe
         return (
             <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
                 <FileTextIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
-                <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">{emptyTitle}</p>
-                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">{emptyDescription}</p>
+                <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
+                    {emptyTitle}
+                </p>
+                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
+                    {emptyDescription}
+                </p>
             </div>
         );
     }
@@ -592,7 +889,9 @@ const DPLinkedDocTab = ({ doctype, filterField, filterValue, emptyTitle, emptyDe
     return (
         <div className="space-y-2">
             <div className="mb-5">
-                <span className="text-xs font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]">{docName}</span>
+                <span className="text-xs font-mono bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded text-[#71717A] dark:text-[#A1A1AA] border border-[#E4E4E7] dark:border-[#3F3F46]">
+                    {docName}
+                </span>
             </div>
             <DPDocumentViewer data={docData} doctype={doctype} />
         </div>
@@ -600,10 +899,26 @@ const DPLinkedDocTab = ({ doctype, filterField, filterValue, emptyTitle, emptyDe
 };
 
 const DP_TABS = [
-    { id: 'details' as DPTabId, label: 'Details',        icon: <LayoutGridIcon className="w-4 h-4" /> },
-    { id: 'p11'     as DPTabId, label: 'P-11 Form',      icon: <ClipboardListIcon className="w-4 h-4" /> },
-    { id: 'sanction'as DPTabId, label: 'Sanction Sheet', icon: <FileTextIcon className="w-4 h-4" /> },
-    { id: 'po'      as DPTabId, label: 'Purchase Order',  icon: <ShoppingCartIcon className="w-4 h-4" /> },
+    {
+        id: "details" as DPTabId,
+        label: "Details",
+        icon: <LayoutGridIcon className="w-4 h-4" />,
+    },
+    {
+        id: "p11" as DPTabId,
+        label: "P-11 Form",
+        icon: <ClipboardListIcon className="w-4 h-4" />,
+    },
+    {
+        id: "sanction" as DPTabId,
+        label: "Sanction Sheet",
+        icon: <FileTextIcon className="w-4 h-4" />,
+    },
+    {
+        id: "po" as DPTabId,
+        label: "Purchase Order",
+        icon: <ShoppingCartIcon className="w-4 h-4" />,
+    },
 ];
 
 const DirectPurchaseTabView = ({
@@ -618,18 +933,21 @@ const DirectPurchaseTabView = ({
     setActiveTab: (tab: DPTabId) => void;
 }) => {
     const [isOpeningSanctionSheet, setIsOpeningSanctionSheet] = useState(false);
-    const [poSanctionData, setPoSanctionData] = useState<Record<string, any> | null>(null);
+    const [poSanctionData, setPoSanctionData] = useState<Record<
+        string,
+        any
+    > | null>(null);
     const [isLoadingPOData, setIsLoadingPOData] = useState(false);
     const navigate = useNavigate();
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
-    const isStaffRnD = roles.some(r =>
-        ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r)
+    const isStaffRnD = roles.some((r) =>
+        ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r),
     );
 
     // Fetch sanction sheet data for PO editor when PO tab is active
     useEffect(() => {
-        if (activeTab !== 'po' || !docName) return;
+        if (activeTab !== "po" || !docName) return;
         if (poSanctionData) return;
 
         const fetchSSData = async () => {
@@ -638,17 +956,35 @@ const DirectPurchaseTabView = ({
                 const filters = JSON.stringify([["app_id", "=", docName]]);
                 const listRes = await fetch(
                     `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`,
-                    { credentials: "include", headers: { Accept: "application/json" } },
-                ).then(r => r.json()).catch(() => ({ data: [] }));
+                    {
+                        credentials: "include",
+                        headers: { Accept: "application/json" },
+                    },
+                )
+                    .then((r) => r.json())
+                    .catch(() => ({ data: [] }));
 
                 const ssName = listRes?.data?.[0]?.name;
                 if (ssName) {
-                    const docRes = await fetch(`/api/method/frappe.client.get`, {
-                        method: "POST",
-                        credentials: "include",
-                        headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": (window as any).csrf_token || "" },
-                        body: JSON.stringify({ doctype: "sanction_sheet", name: ssName }),
-                    }).then(r => r.json()).catch(() => null);
+                    const docRes = await fetch(
+                        `/api/method/frappe.client.get`,
+                        {
+                            method: "POST",
+                            credentials: "include",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Accept: "application/json",
+                                "X-Frappe-CSRF-Token":
+                                    (window as any).csrf_token || "",
+                            },
+                            body: JSON.stringify({
+                                doctype: "sanction_sheet",
+                                name: ssName,
+                            }),
+                        },
+                    )
+                        .then((r) => r.json())
+                        .catch(() => null);
                     if (docRes?.message) {
                         setPoSanctionData(docRes.message);
                     }
@@ -668,7 +1004,10 @@ const DirectPurchaseTabView = ({
             const filters = JSON.stringify([["app_id", "=", docName]]);
             const res = await fetch(
                 `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=["name"]`,
-                { credentials: "include", headers: { Accept: "application/json" } },
+                {
+                    credentials: "include",
+                    headers: { Accept: "application/json" },
+                },
             );
             if (res.ok) {
                 const result = await res.json();
@@ -678,11 +1017,15 @@ const DirectPurchaseTabView = ({
                     return;
                 }
             }
-            const projectNo = data.project_no || data.project || '';
-            navigate(`/sanction-sheet?app_id=${docName}&project_no=${encodeURIComponent(projectNo)}`);
+            const projectNo = data.project_no || data.project || "";
+            navigate(
+                `/sanction-sheet?app_id=${docName}&project_no=${encodeURIComponent(projectNo)}`,
+            );
         } catch {
-            const projectNo = data.project_no || data.project || '';
-            navigate(`/sanction-sheet?app_id=${docName}&project_no=${encodeURIComponent(projectNo)}`);
+            const projectNo = data.project_no || data.project || "";
+            navigate(
+                `/sanction-sheet?app_id=${docName}&project_no=${encodeURIComponent(projectNo)}`,
+            );
         } finally {
             setIsOpeningSanctionSheet(false);
         }
@@ -693,7 +1036,7 @@ const DirectPurchaseTabView = ({
             {/* Tab bar with workflow status */}
             <div className="flex items-center justify-between border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800/30 pr-4">
                 <div className="flex items-center overflow-x-auto">
-                    {DP_TABS.map(tab => (
+                    {DP_TABS.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
@@ -701,7 +1044,7 @@ const DirectPurchaseTabView = ({
                                 "inline-flex items-center gap-2 px-5 py-3.5 text-sm font-medium whitespace-nowrap border-b-2 transition-all duration-150",
                                 activeTab === tab.id
                                     ? "border-[#D97757] text-[#D97757]"
-                                    : "border-transparent text-[#71717A] dark:text-[#A1A1AA] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7] hover:border-[#E4E4E7] dark:hover:border-[#3F3F46]"
+                                    : "border-transparent text-[#71717A] dark:text-[#A1A1AA] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7] hover:border-[#E4E4E7] dark:hover:border-[#3F3F46]",
                             )}
                         >
                             {tab.icon}
@@ -718,9 +1061,11 @@ const DirectPurchaseTabView = ({
 
             {/* Tab content */}
             <div className="p-6">
-                {activeTab === 'details' && <DPDocumentViewer data={data} doctype="Direct Purchase" />}
+                {activeTab === "details" && (
+                    <DPDocumentViewer data={data} doctype="Direct Purchase" />
+                )}
 
-                {activeTab === 'p11' && (
+                {activeTab === "p11" && (
                     <DPLinkedDocTab
                         doctype="P_11 Form"
                         filterField="app_id"
@@ -730,19 +1075,22 @@ const DirectPurchaseTabView = ({
                     />
                 )}
 
-                {activeTab === 'sanction' && (
+                {activeTab === "sanction" && (
                     <>
-                        {data.workflow_state === 'RDP-11 Verified' && isStaffRnD && (
-                            <div className="mb-5">
-                                <button
-                                    onClick={handleOpenSanctionSheet}
-                                    disabled={isOpeningSanctionSheet}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-60"
-                                >
-                                    {isOpeningSanctionSheet ? "Opening…" : "Sanction Sheet"}
-                                </button>
-                            </div>
-                        )}
+                        {data.workflow_state === "RDP-11 Verified" &&
+                            isStaffRnD && (
+                                <div className="mb-5">
+                                    <button
+                                        onClick={handleOpenSanctionSheet}
+                                        disabled={isOpeningSanctionSheet}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-60"
+                                    >
+                                        {isOpeningSanctionSheet
+                                            ? "Opening…"
+                                            : "Sanction Sheet"}
+                                    </button>
+                                </div>
+                            )}
                         <DPLinkedDocTab
                             doctype="sanction_sheet"
                             filterField="app_id"
@@ -753,7 +1101,7 @@ const DirectPurchaseTabView = ({
                     </>
                 )}
 
-                {activeTab === 'po' && (
+                {activeTab === "po" && (
                     <>
                         {isLoadingPOData ? (
                             <div className="flex items-center justify-center py-16">
@@ -767,23 +1115,39 @@ const DirectPurchaseTabView = ({
                                 onUploadSignedPO={async (file: File) => {
                                     const formData = new FormData();
                                     formData.append("file", file, file.name);
-                                    formData.append("docname", poSanctionData.name);
+                                    formData.append(
+                                        "docname",
+                                        poSanctionData.name,
+                                    );
                                     formData.append("app_id", docName);
-                                    formData.append("project_no", poSanctionData.project_no || "");
+                                    formData.append(
+                                        "project_no",
+                                        poSanctionData.project_no || "",
+                                    );
                                     const res = await fetch(
                                         "/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document",
                                         {
                                             method: "POST",
                                             credentials: "include",
                                             headers: {
-                                                "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+                                                "X-Frappe-CSRF-Token":
+                                                    (window as any)
+                                                        .csrf_token || "",
                                             },
                                             body: formData,
                                         },
                                     );
-                                    const json = await res.json().catch(() => ({}));
-                                    if (!res.ok || json?.message?.status === false)
-                                        throw new Error(json?.message?.message || "Upload failed");
+                                    const json = await res
+                                        .json()
+                                        .catch(() => ({}));
+                                    if (
+                                        !res.ok ||
+                                        json?.message?.status === false
+                                    )
+                                        throw new Error(
+                                            json?.message?.message ||
+                                                "Upload failed",
+                                        );
                                 }}
                             />
                         ) : (
@@ -793,7 +1157,8 @@ const DirectPurchaseTabView = ({
                                     No Sanction Sheet Available
                                 </p>
                                 <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
-                                    The Purchase Order is generated once the Sanction Sheet is approved.
+                                    The Purchase Order is generated once the
+                                    Sanction Sheet is approved.
                                 </p>
                             </div>
                         )}
@@ -805,24 +1170,40 @@ const DirectPurchaseTabView = ({
 };
 
 const PendingTaskDetails: React.FC = () => {
-    const { doctype: rawDoctype, name } = useParams<{ doctype: string; name: string }>();
+    const { doctype: rawDoctype, name } = useParams<{
+        doctype: string;
+        name: string;
+    }>();
     const navigate = useNavigate();
     // Decode the doctype URL parameter
-    const doctype = rawDoctype ? decodeURIComponent(rawDoctype) : '';
+    const doctype = rawDoctype ? decodeURIComponent(rawDoctype) : "";
 
-    const { data, isLoading, error, mutate } = useFrappeGetDoc(doctype || "", name || "");
+    const { data, isLoading, error, mutate } = useFrappeGetDoc(
+        doctype || "",
+        name || "",
+    );
     const { mutate: globalMutate } = useSWRConfig();
     const refreshAll = () => {
         mutate();
         // Revalidate workflow action keys so buttons update
-        globalMutate((key: any) => typeof key === 'string' && key.includes('workflow'), undefined, { revalidate: true });
+        globalMutate(
+            (key: any) => typeof key === "string" && key.includes("workflow"),
+            undefined,
+            { revalidate: true },
+        );
     };
 
     // Auth & Roles
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
-    const isRnDStaff = roles.some(r =>
-        r === "RnD Staff" || r === "R&D Staff" || r === "Research and Development Staff" || r === "System Manager" || r === "staff, RnD" || r === "Hos, RnD (Head of Section, RnD)"
+    const isRnDStaff = roles.some(
+        (r) =>
+            r === "RnD Staff" ||
+            r === "R&D Staff" ||
+            r === "Research and Development Staff" ||
+            r === "System Manager" ||
+            r === "staff, RnD" ||
+            r === "Hos, RnD (Head of Section, RnD)",
     );
 
     // Redirect dedicated detail pages
@@ -837,43 +1218,84 @@ const PendingTaskDetails: React.FC = () => {
 
     // Additional state for Travel Dynamic Form
     const [travelFields, setTravelFields] = useState<FormField[]>([]);
-    const [travelLinkOptions, setTravelLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [travelLinkOptions, setTravelLinkOptions] = useState<
+        Record<string, LinkOption[]>
+    >({});
     const [isTravelLoading, setIsTravelLoading] = useState(false);
 
     // State for Advance Settlement Fields
-    const [advanceSettlementFields, setAdvanceSettlementFields] = useState<FormField[]>([]);
-    const [advanceSettlementLinkOptions, setAdvanceSettlementLinkOptions] = useState<Record<string, LinkOption[]>>({});
-    const [isAdvanceSettlementLoading, setIsAdvanceSettlementLoading] = useState(false);
+    const [advanceSettlementFields, setAdvanceSettlementFields] = useState<
+        FormField[]
+    >([]);
+    const [advanceSettlementLinkOptions, setAdvanceSettlementLinkOptions] =
+        useState<Record<string, LinkOption[]>>({});
+    const [isAdvanceSettlementLoading, setIsAdvanceSettlementLoading] =
+        useState(false);
 
     // State for Temporary Advance Fields
-    const [temporaryAdvanceFields, setTemporaryAdvanceFields] = useState<FormField[]>([]);
-    const [temporaryAdvanceLinkOptions, setTemporaryAdvanceLinkOptions] = useState<Record<string, LinkOption[]>>({});
-    const [isTemporaryAdvanceLoading, setIsTemporaryAdvanceLoading] = useState(false);
+    const [temporaryAdvanceFields, setTemporaryAdvanceFields] = useState<
+        FormField[]
+    >([]);
+    const [temporaryAdvanceLinkOptions, setTemporaryAdvanceLinkOptions] =
+        useState<Record<string, LinkOption[]>>({});
+    const [isTemporaryAdvanceLoading, setIsTemporaryAdvanceLoading] =
+        useState(false);
 
     // State for TA DA Settlement Fields
     const [tadaFields, setTadaFields] = useState<FormField[]>([]);
-    const [tadaLinkOptions, setTadaLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [tadaLinkOptions, setTadaLinkOptions] = useState<
+        Record<string, LinkOption[]>
+    >({});
     const [isTadaLoading, setIsTadaLoading] = useState(false);
 
     // State for Recruitment Adhoc Contractual Fields
     const [recruitmentFields, setRecruitmentFields] = useState<FormField[]>([]);
-    const [recruitmentLinkOptions, setRecruitmentLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [recruitmentLinkOptions, setRecruitmentLinkOptions] = useState<
+        Record<string, LinkOption[]>
+    >({});
     const [isRecruitmentLoading, setIsRecruitmentLoading] = useState(false);
 
     // Direct Purchase tab state — restore from sessionStorage after reload
     const [dpActiveTab, setDpActiveTab] = useState<DPTabId>(() => {
         if (name) {
-            const saved = sessionStorage.getItem(`dp_tab_${name}`) as DPTabId | null;
-            if (saved) { sessionStorage.removeItem(`dp_tab_${name}`); return saved; }
+            const saved = sessionStorage.getItem(
+                `dp_tab_${name}`,
+            ) as DPTabId | null;
+            if (saved) {
+                sessionStorage.removeItem(`dp_tab_${name}`);
+                return saved;
+            }
         }
-        return 'details';
+        return "details";
     });
 
-    const { call: fetchTravelFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any } }>(travelAPI.getFields);
-    const { call: fetchAdvanceSettlementFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any, child_table_meta?: any } }>(advanceSettlementAPI.getFields);
-    const { call: fetchTemporaryAdvanceFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any } }>(temporaryAdvanceAPI.getFields);
-    const { call: fetchTadaFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any, child_table_meta?: any } }>(tadaAPI.getFields);
-    const { call: fetchRecruitmentFields } = useFrappePostCall<{ message: { fields: FormField[], link_options: any, child_table_meta?: any } }>(recruitmentAdhocContractualAPI.getFields);
+    const { call: fetchTravelFields } = useFrappePostCall<{
+        message: { fields: FormField[]; link_options: any };
+    }>(travelAPI.getFields);
+    const { call: fetchAdvanceSettlementFields } = useFrappePostCall<{
+        message: {
+            fields: FormField[];
+            link_options: any;
+            child_table_meta?: any;
+        };
+    }>(advanceSettlementAPI.getFields);
+    const { call: fetchTemporaryAdvanceFields } = useFrappePostCall<{
+        message: { fields: FormField[]; link_options: any };
+    }>(temporaryAdvanceAPI.getFields);
+    const { call: fetchTadaFields } = useFrappePostCall<{
+        message: {
+            fields: FormField[];
+            link_options: any;
+            child_table_meta?: any;
+        };
+    }>(tadaAPI.getFields);
+    const { call: fetchRecruitmentFields } = useFrappePostCall<{
+        message: {
+            fields: FormField[];
+            link_options: any;
+            child_table_meta?: any;
+        };
+    }>(recruitmentAdhocContractualAPI.getFields);
     // State for display data (to handle ID resolution)
     const [displayData, setDisplayData] = useState<Record<string, any>>({});
 
@@ -885,79 +1307,114 @@ const PendingTaskDetails: React.FC = () => {
     }, [data]);
 
     // Helper to resolve Linked fields to readable names
-    const resolveLinkFields = async (fields: FormField[], currentData: Record<string, any>) => {
-        const fieldsToResolve = fields.filter(f =>
-            (f.fieldname === 'applicant_department' || f.fieldname === 'applicant_category' || f.fieldname.includes('department') || f.fieldname.includes('category')) &&
-            f.fieldtype === 'Link' &&
-            f.options &&
-            currentData[f.fieldname]
+    const resolveLinkFields = async (
+        fields: FormField[],
+        currentData: Record<string, any>,
+    ) => {
+        const fieldsToResolve = fields.filter(
+            (f) =>
+                (f.fieldname === "applicant_department" ||
+                    f.fieldname === "applicant_category" ||
+                    f.fieldname.includes("department") ||
+                    f.fieldname.includes("category")) &&
+                f.fieldtype === "Link" &&
+                f.options &&
+                currentData[f.fieldname],
         );
 
         if (fieldsToResolve.length === 0) return;
 
         const updates: Record<string, any> = {};
 
-        await Promise.all(fieldsToResolve.map(async (field) => {
-            const value = currentData[field.fieldname];
-            if (!value) return;
+        await Promise.all(
+            fieldsToResolve.map(async (field) => {
+                const value = currentData[field.fieldname];
+                if (!value) return;
 
-            try {
-                // Fetch the linked document
-                // We use a specific call or generic get_value if possible, but get_doc is safer without specific API
-                const response = await (window as any).frappe?.call({
-                    method: 'frappe.client.get',
-                    args: {
-                        doctype: field.options,
-                        name: value
+                try {
+                    // Fetch the linked document
+                    // We use a specific call or generic get_value if possible, but get_doc is safer without specific API
+                    const response = await (window as any).frappe?.call({
+                        method: "frappe.client.get",
+                        args: {
+                            doctype: field.options,
+                            name: value,
+                        },
+                    });
+
+                    if (response?.message) {
+                        const doc = response.message;
+                        // Try to find a readable field
+                        // Common readable fields: title, department_name, employee_category_name, name (if not hash-like)
+                        // We can also check if the doc has a 'meta' title_field, but we don't have that here.
+
+                        let readable = value;
+                        if (doc.title) readable = doc.title;
+                        else if (doc.department_name)
+                            readable = doc.department_name;
+                        else if (doc.employee_category_name)
+                            readable = doc.employee_category_name;
+                        else if (doc.designation_name)
+                            readable = doc.designation_name;
+                        else if (doc.name && doc.name !== value)
+                            readable = doc.name; // If name is different from ID (unlikely in Frappe unless custom)
+
+                        // Special case for our known hashes
+                        if (
+                            field.options === "Department" &&
+                            doc.department_name
+                        )
+                            readable = doc.department_name;
+                        if (field.options === "Employee Category" && doc.name)
+                            readable = doc.name; // Often Category name IS the ID if readable, but here it's a hash
+                        // If Employee Category uses 'name' as human readable but we see a hash, then maybe the field is different.
+                        // Let's look for any likely field.
+                        if (readable === value) {
+                            // Fallback: look for any string field that isn't the ID
+                            const potential = Object.values(doc).find(
+                                (v) =>
+                                    typeof v === "string" &&
+                                    v !== value &&
+                                    (v as string).length > 2 &&
+                                    (v as string).length < 50,
+                            );
+                            if (potential) readable = potential as string;
+                        }
+
+                        updates[field.fieldname] = readable;
                     }
-                });
-
-                if (response?.message) {
-                    const doc = response.message;
-                    // Try to find a readable field
-                    // Common readable fields: title, department_name, employee_category_name, name (if not hash-like)
-                    // We can also check if the doc has a 'meta' title_field, but we don't have that here.
-
-                    let readable = value;
-                    if (doc.title) readable = doc.title;
-                    else if (doc.department_name) readable = doc.department_name;
-                    else if (doc.employee_category_name) readable = doc.employee_category_name;
-                    else if (doc.designation_name) readable = doc.designation_name;
-                    else if (doc.name && doc.name !== value) readable = doc.name; // If name is different from ID (unlikely in Frappe unless custom)
-
-                    // Special case for our known hashes
-                    if (field.options === 'Department' && doc.department_name) readable = doc.department_name;
-                    if (field.options === 'Employee Category' && doc.name) readable = doc.name; // Often Category name IS the ID if readable, but here it's a hash
-                    // If Employee Category uses 'name' as human readable but we see a hash, then maybe the field is different.
-                    // Let's look for any likely field.
-                    if (readable === value) {
-                        // Fallback: look for any string field that isn't the ID
-                        const potential = Object.values(doc).find(v => typeof v === 'string' && v !== value && (v as string).length > 2 && (v as string).length < 50);
-                        if (potential) readable = potential as string;
-                    }
-
-                    updates[field.fieldname] = readable;
+                } catch (e) {
+                    console.warn(
+                        `Failed to resolve link for ${field.fieldname}`,
+                        e,
+                    );
                 }
-            } catch (e) {
-                console.warn(`Failed to resolve link for ${field.fieldname}`, e);
-            }
-        }));
+            }),
+        );
 
         if (Object.keys(updates).length > 0) {
-            setDisplayData(prev => ({ ...prev, ...updates }));
+            setDisplayData((prev) => ({ ...prev, ...updates }));
         }
     };
 
     // Resolve IDs for Advance Settlement
     useEffect(() => {
-        if (doctype === 'Advance Settlement' && advanceSettlementFields.length > 0 && data) {
+        if (
+            doctype === "Advance Settlement" &&
+            advanceSettlementFields.length > 0 &&
+            data
+        ) {
             resolveLinkFields(advanceSettlementFields, data);
         }
     }, [advanceSettlementFields, data, doctype]);
 
     // Resolve IDs for Temporary Advance
     useEffect(() => {
-        if (doctype === 'Temporary Advance' && temporaryAdvanceFields.length > 0 && data) {
+        if (
+            doctype === "Temporary Advance" &&
+            temporaryAdvanceFields.length > 0 &&
+            data
+        ) {
             resolveLinkFields(temporaryAdvanceFields, data);
         }
     }, [temporaryAdvanceFields, data, doctype]);
@@ -966,7 +1423,7 @@ const PendingTaskDetails: React.FC = () => {
     // const formDataToUse = displayData;
 
     useEffect(() => {
-        if (doctype === 'Travel' && name) {
+        if (doctype === "Travel" && name) {
             setIsTravelLoading(true);
             fetchTravelFields({ doc_name: name })
                 .then((res) => {
@@ -975,14 +1432,16 @@ const PendingTaskDetails: React.FC = () => {
                         setTravelLinkOptions(res.message.link_options || {});
                     }
                 })
-                .catch(err => console.error("Error fetching travel fields", err))
+                .catch((err) =>
+                    console.error("Error fetching travel fields", err),
+                )
                 .finally(() => setIsTravelLoading(false));
         }
     }, [doctype, name, fetchTravelFields]);
 
     // Fetch Advance Settlement Fields
     useEffect(() => {
-        if (doctype === 'Advance Settlement' && name) {
+        if (doctype === "Advance Settlement" && name) {
             setIsAdvanceSettlementLoading(true);
             fetchAdvanceSettlementFields({ doc_name: name })
                 .then((res) => {
@@ -993,14 +1452,20 @@ const PendingTaskDetails: React.FC = () => {
 
                         if (childMeta) {
                             fields = fields.map((field) => {
-                                if (field.fieldtype === 'Table' && field.fieldname && childMeta[field.fieldname]) {
-                                    const childFields = childMeta[field.fieldname].fields.map((cf: any) => ({
+                                if (
+                                    field.fieldtype === "Table" &&
+                                    field.fieldname &&
+                                    childMeta[field.fieldname]
+                                ) {
+                                    const childFields = childMeta[
+                                        field.fieldname
+                                    ].fields.map((cf: any) => ({
                                         ...cf,
-                                        label: cf.label || cf.fieldname || ''
+                                        label: cf.label || cf.fieldname || "",
                                     }));
                                     return {
                                         ...field,
-                                        child_fields: childFields
+                                        child_fields: childFields,
                                     };
                                 }
                                 return field;
@@ -1008,33 +1473,47 @@ const PendingTaskDetails: React.FC = () => {
                         }
 
                         setAdvanceSettlementFields(fields);
-                        setAdvanceSettlementLinkOptions(res.message.link_options || {});
+                        setAdvanceSettlementLinkOptions(
+                            res.message.link_options || {},
+                        );
                     }
                 })
-                .catch(err => console.error("Error fetching advance settlement fields", err))
+                .catch((err) =>
+                    console.error(
+                        "Error fetching advance settlement fields",
+                        err,
+                    ),
+                )
                 .finally(() => setIsAdvanceSettlementLoading(false));
         }
     }, [doctype, name, fetchAdvanceSettlementFields]);
 
     // Fetch Temporary Advance Fields
     useEffect(() => {
-        if (doctype === 'Temporary Advance' && name) {
+        if (doctype === "Temporary Advance" && name) {
             setIsTemporaryAdvanceLoading(true);
             fetchTemporaryAdvanceFields({ doc_name: name })
                 .then((res) => {
                     if (res?.message) {
                         setTemporaryAdvanceFields(res.message.fields || []);
-                        setTemporaryAdvanceLinkOptions(res.message.link_options || {});
+                        setTemporaryAdvanceLinkOptions(
+                            res.message.link_options || {},
+                        );
                     }
                 })
-                .catch(err => console.error("Error fetching temporary advance fields", err))
+                .catch((err) =>
+                    console.error(
+                        "Error fetching temporary advance fields",
+                        err,
+                    ),
+                )
                 .finally(() => setIsTemporaryAdvanceLoading(false));
         }
     }, [doctype, name, fetchTemporaryAdvanceFields]);
 
     // Fetch TA DA Settlement Fields
     useEffect(() => {
-        if (doctype === 'TA DA Settlement' && name) {
+        if (doctype === "TA DA Settlement" && name) {
             setIsTadaLoading(true);
             fetchTadaFields({ doc_name: name })
                 .then((res) => {
@@ -1044,14 +1523,20 @@ const PendingTaskDetails: React.FC = () => {
 
                         if (childMeta) {
                             fields = fields.map((field) => {
-                                if (field.fieldtype === 'Table' && field.fieldname && childMeta[field.fieldname]) {
-                                    const childFields = childMeta[field.fieldname].fields.map((cf: any) => ({
+                                if (
+                                    field.fieldtype === "Table" &&
+                                    field.fieldname &&
+                                    childMeta[field.fieldname]
+                                ) {
+                                    const childFields = childMeta[
+                                        field.fieldname
+                                    ].fields.map((cf: any) => ({
                                         ...cf,
-                                        label: cf.label || cf.fieldname || ''
+                                        label: cf.label || cf.fieldname || "",
                                     }));
                                     return {
                                         ...field,
-                                        child_fields: childFields
+                                        child_fields: childFields,
                                     };
                                 }
                                 return field;
@@ -1062,14 +1547,19 @@ const PendingTaskDetails: React.FC = () => {
                         setTadaLinkOptions(res.message.link_options || {});
                     }
                 })
-                .catch(err => console.error("Error fetching TA DA Settlement fields", err))
+                .catch((err) =>
+                    console.error(
+                        "Error fetching TA DA Settlement fields",
+                        err,
+                    ),
+                )
                 .finally(() => setIsTadaLoading(false));
         }
     }, [doctype, name, fetchTadaFields]);
 
     // Fetch Recruitment Adhoc Contractual Fields
     useEffect(() => {
-        if (doctype === 'Recruitment Adhoc Contractual' && name) {
+        if (doctype === "Recruitment Adhoc Contractual" && name) {
             setIsRecruitmentLoading(true);
             fetchRecruitmentFields({ doc_name: name })
                 .then((res) => {
@@ -1079,14 +1569,20 @@ const PendingTaskDetails: React.FC = () => {
 
                         if (childMeta) {
                             fields = fields.map((field) => {
-                                if (field.fieldtype === 'Table' && field.fieldname && childMeta[field.fieldname]) {
-                                    const childFields = childMeta[field.fieldname].fields.map((cf: any) => ({
+                                if (
+                                    field.fieldtype === "Table" &&
+                                    field.fieldname &&
+                                    childMeta[field.fieldname]
+                                ) {
+                                    const childFields = childMeta[
+                                        field.fieldname
+                                    ].fields.map((cf: any) => ({
                                         ...cf,
-                                        label: cf.label || cf.fieldname || ''
+                                        label: cf.label || cf.fieldname || "",
                                     }));
                                     return {
                                         ...field,
-                                        child_fields: childFields
+                                        child_fields: childFields,
                                     };
                                 }
                                 return field;
@@ -1094,14 +1590,20 @@ const PendingTaskDetails: React.FC = () => {
                         }
 
                         setRecruitmentFields(fields);
-                        setRecruitmentLinkOptions(res.message.link_options || {});
+                        setRecruitmentLinkOptions(
+                            res.message.link_options || {},
+                        );
                     }
                 })
-                .catch(err => console.error("Error fetching Recruitment Adhoc Contractual fields", err))
+                .catch((err) =>
+                    console.error(
+                        "Error fetching Recruitment Adhoc Contractual fields",
+                        err,
+                    ),
+                )
                 .finally(() => setIsRecruitmentLoading(false));
         }
     }, [doctype, name, fetchRecruitmentFields]);
-
 
     if (isLoading) {
         return (
@@ -1134,7 +1636,9 @@ const PendingTaskDetails: React.FC = () => {
     if (error || !data) {
         return (
             <div className="flex h-screen items-center justify-center bg-claude-bg dark:bg-zinc-900">
-                <div className="text-zinc-600 dark:text-zinc-400 font-medium text-xl">Task not found</div>
+                <div className="text-zinc-600 dark:text-zinc-400 font-medium text-xl">
+                    Task not found
+                </div>
             </div>
         );
     }
@@ -1143,11 +1647,22 @@ const PendingTaskDetails: React.FC = () => {
     const renderGenericDetails = () => {
         const simpleFields = Object.entries(data).filter(([key, value]) => {
             if (HIDDEN_FIELDS.includes(key)) return false;
-            return !Array.isArray(value) && (typeof value !== 'object' || value === null) && !key.startsWith('_') && key !== 'docstatus' && key !== 'idx' && key !== 'creation' && key !== 'modified' && key !== 'owner' && key !== 'name' && key !== 'doctype';
+            return (
+                !Array.isArray(value) &&
+                (typeof value !== "object" || value === null) &&
+                !key.startsWith("_") &&
+                key !== "docstatus" &&
+                key !== "idx" &&
+                key !== "creation" &&
+                key !== "modified" &&
+                key !== "owner" &&
+                key !== "name" &&
+                key !== "doctype"
+            );
         });
 
         const tableFields = Object.entries(data).filter(([key, value]) => {
-            return Array.isArray(value) && !key.startsWith('_');
+            return Array.isArray(value) && !key.startsWith("_");
         });
 
         return (
@@ -1159,12 +1674,18 @@ const PendingTaskDetails: React.FC = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-6">
                         {simpleFields.map(([key, value]) => {
                             const isFile = isFilePath(String(value));
-                            const displayValue = isFile ? getFileName(String(value)) : String(value);
+                            const displayValue = isFile
+                                ? getFileName(String(value))
+                                : String(value);
 
                             return (
                                 <div key={key} className="flex flex-col">
                                     <span className={labelClasses}>
-                                        {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                        {key
+                                            .replace(/_/g, " ")
+                                            .replace(/\b\w/g, (l) =>
+                                                l.toUpperCase(),
+                                            )}
                                     </span>
 
                                     {isFile ? (
@@ -1175,12 +1696,21 @@ const PendingTaskDetails: React.FC = () => {
                                             className="group flex items-center gap-2 mt-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-700/50 text-[#D97757] rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors font-medium border border-zinc-200 dark:border-zinc-700"
                                         >
                                             <FileIcon className="h-4 w-4 flex-shrink-0" />
-                                            <span className="truncate text-sm">{displayValue}</span>
+                                            <span className="truncate text-sm">
+                                                {displayValue}
+                                            </span>
                                             <ExternalLinkIcon className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                                         </a>
                                     ) : (
                                         <div className={valueClasses}>
-                                            {(value === null || value === undefined) ? <span className="text-zinc-400 dark:text-zinc-600">-</span> : displayValue}
+                                            {value === null ||
+                                            value === undefined ? (
+                                                <span className="text-zinc-400 dark:text-zinc-600">
+                                                    -
+                                                </span>
+                                            ) : (
+                                                displayValue
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -1193,38 +1723,84 @@ const PendingTaskDetails: React.FC = () => {
                     const rows = value as any[];
                     if (rows.length === 0) return null;
 
-                    const isBudgetTable = key.toLowerCase().includes('budget') || key.toLowerCase().includes('breakup');
+                    const isBudgetTable =
+                        key.toLowerCase().includes("budget") ||
+                        key.toLowerCase().includes("breakup");
                     const budgetYearColumns = [
-                        'first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget'
+                        "first_year_budget",
+                        "second_year_budget",
+                        "third_year_budget",
+                        "fourth_year_budget",
+                        "fifth_year_budget",
                     ];
-                    const hiddenTableColumns = ['is_total_row', 'doctype', 'total_proposal_of_heads'];
-                    const headers = Object.keys(rows[0]).filter(k =>
-                        !k.startsWith('_') && k !== 'name' && k !== 'owner' && k !== 'creation' && k !== 'modified' && k !== 'modified_by' && k !== 'docstatus' && k !== 'idx' && k !== 'parent' && k !== 'parentfield' && k !== 'parenttype' && !hiddenTableColumns.includes(k.toLowerCase())
+                    const hiddenTableColumns = [
+                        "is_total_row",
+                        "doctype",
+                        "total_proposal_of_heads",
+                    ];
+                    const headers = Object.keys(rows[0]).filter(
+                        (k) =>
+                            !k.startsWith("_") &&
+                            k !== "name" &&
+                            k !== "owner" &&
+                            k !== "creation" &&
+                            k !== "modified" &&
+                            k !== "modified_by" &&
+                            k !== "docstatus" &&
+                            k !== "idx" &&
+                            k !== "parent" &&
+                            k !== "parentfield" &&
+                            k !== "parenttype" &&
+                            !hiddenTableColumns.includes(k.toLowerCase()),
                     );
 
-                    const getRowTotal = (row: any) => budgetYearColumns.reduce((sum, col) => sum + (parseFloat(row[col]) || 0), 0);
+                    const getRowTotal = (row: any) =>
+                        budgetYearColumns.reduce(
+                            (sum, col) => sum + (parseFloat(row[col]) || 0),
+                            0,
+                        );
                     const columnTotals: Record<string, number> = {};
                     if (isBudgetTable) {
-                        budgetYearColumns.forEach(col => {
-                            columnTotals[col] = rows.reduce((sum, row) => sum + (parseFloat(row[col]) || 0), 0);
+                        budgetYearColumns.forEach((col) => {
+                            columnTotals[col] = rows.reduce(
+                                (sum, row) => sum + (parseFloat(row[col]) || 0),
+                                0,
+                            );
                         });
                     }
-                    const grandTotal = Object.values(columnTotals).reduce((sum, val) => sum + val, 0);
+                    const grandTotal = Object.values(columnTotals).reduce(
+                        (sum, val) => sum + val,
+                        0,
+                    );
 
                     return (
-                        <div key={key} className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+                        <div
+                            key={key}
+                            className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden"
+                        >
                             <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/80">
                                 <h3 className="text-base font-serif font-semibold text-zinc-900 dark:text-zinc-100">
-                                    {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                    {key
+                                        .replace(/_/g, " ")
+                                        .replace(/\b\w/g, (l) =>
+                                            l.toUpperCase(),
+                                        )}
                                 </h3>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead>
                                         <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                                            {headers.map(header => (
-                                                <th key={header} className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">
-                                                    {header.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                            {headers.map((header) => (
+                                                <th
+                                                    key={header}
+                                                    className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider"
+                                                >
+                                                    {header
+                                                        .replace(/_/g, " ")
+                                                        .replace(/\b\w/g, (l) =>
+                                                            l.toUpperCase(),
+                                                        )}
                                                 </th>
                                             ))}
                                             {isBudgetTable && (
@@ -1236,31 +1812,93 @@ const PendingTaskDetails: React.FC = () => {
                                     </thead>
                                     <tbody className="divide-y divide-zinc-100 dark:divide-zinc-700/50 text-sm">
                                         {rows.map((row, idx) => (
-                                            <tr key={idx} className="hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors">
-                                                {headers.map(header => (
-                                                    <td key={header} className="p-4 align-middle text-zinc-700 dark:text-zinc-300">
-                                                        {budgetYearColumns.includes(header)
-                                                            ? (parseFloat(row[header]) || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
-                                                            : String(row[header] || '-')
-                                                        }
+                                            <tr
+                                                key={idx}
+                                                className="hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors"
+                                            >
+                                                {headers.map((header) => (
+                                                    <td
+                                                        key={header}
+                                                        className="p-4 align-middle text-zinc-700 dark:text-zinc-300"
+                                                    >
+                                                        {budgetYearColumns.includes(
+                                                            header,
+                                                        )
+                                                            ? (
+                                                                  parseFloat(
+                                                                      row[
+                                                                          header
+                                                                      ],
+                                                                  ) || 0
+                                                              ).toLocaleString(
+                                                                  "en-IN",
+                                                                  {
+                                                                      style: "currency",
+                                                                      currency:
+                                                                          "INR",
+                                                                      maximumFractionDigits: 0,
+                                                                  },
+                                                              )
+                                                            : String(
+                                                                  row[header] ||
+                                                                      "-",
+                                                              )}
                                                     </td>
                                                 ))}
                                                 {isBudgetTable && (
                                                     <td className="p-4 align-middle font-medium text-[#D97757] bg-orange-50/30 dark:bg-orange-500/5">
-                                                        {getRowTotal(row).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+                                                        {getRowTotal(
+                                                            row,
+                                                        ).toLocaleString(
+                                                            "en-IN",
+                                                            {
+                                                                style: "currency",
+                                                                currency: "INR",
+                                                                maximumFractionDigits: 0,
+                                                            },
+                                                        )}
                                                     </td>
                                                 )}
                                             </tr>
                                         ))}
                                         {isBudgetTable && (
                                             <tr className="bg-zinc-50 dark:bg-zinc-700/50 font-medium">
-                                                {headers.map(header => (
-                                                    <td key={header} className="p-4 align-middle text-zinc-900 dark:text-zinc-100">
-                                                        {header === 'account_head' ? 'Total' : budgetYearColumns.includes(header) ? (columnTotals[header] || 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }) : ''}
+                                                {headers.map((header) => (
+                                                    <td
+                                                        key={header}
+                                                        className="p-4 align-middle text-zinc-900 dark:text-zinc-100"
+                                                    >
+                                                        {header ===
+                                                        "account_head"
+                                                            ? "Total"
+                                                            : budgetYearColumns.includes(
+                                                                    header,
+                                                                )
+                                                              ? (
+                                                                    columnTotals[
+                                                                        header
+                                                                    ] || 0
+                                                                ).toLocaleString(
+                                                                    "en-IN",
+                                                                    {
+                                                                        style: "currency",
+                                                                        currency:
+                                                                            "INR",
+                                                                        maximumFractionDigits: 0,
+                                                                    },
+                                                                )
+                                                              : ""}
                                                     </td>
                                                 ))}
                                                 <td className="p-4 align-middle font-bold text-white bg-[#D97757]">
-                                                    {grandTotal.toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
+                                                    {grandTotal.toLocaleString(
+                                                        "en-IN",
+                                                        {
+                                                            style: "currency",
+                                                            currency: "INR",
+                                                            maximumFractionDigits: 0,
+                                                        },
+                                                    )}
                                                 </td>
                                             </tr>
                                         )}
@@ -1282,46 +1920,88 @@ const PendingTaskDetails: React.FC = () => {
                 <header className="mb-6 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
-                            <button onClick={() => navigate(-1)} className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:bg-zinc-800 transition-colors">
+                            <button
+                                onClick={() => navigate(-1)}
+                                className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:bg-zinc-800 transition-colors"
+                            >
                                 <ArrowLeftIcon className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
                             </button>
                             <div>
-                                <h1 className="text-2xl md:text-3xl font-serif text-zinc-900 dark:text-zinc-50 tracking-tight">Task Details</h1>
-                                <p className="text-sm md:text-base text-zinc-500 dark:text-zinc-400 mt-1">{doctype} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 dark:bg-zinc-800 text-[#D97757] dark:text-[#E28362] ml-1">{name}</span></p>
+                                {/*<h1 className="text-2xl md:text-3xl font-serif text-zinc-900 dark:text-zinc-50 tracking-tight">Task Details</h1>*/}
+                                <h1 className="text-sm md:text-base text-zinc-500 dark:text-zinc-400 mt-1">
+                                    {doctype} ·{" "}
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 dark:bg-zinc-800 text-[#D97757] dark:text-[#E28362] ml-1">
+                                        {name}
+                                    </span>
+                                </h1>
                             </div>
                         </div>
                         <div className="flex gap-2">
                             {doctype === "Reimbursement" && name && (
-                                <ReimbursementWorkflowActions docname={name} onActionComplete={() => window.location.reload()} />
+                                <ReimbursementWorkflowActions
+                                    docname={name}
+                                    onActionComplete={() =>
+                                        window.location.reload()
+                                    }
+                                />
                             )}
                             {doctype === "Fund Sanction" && name && (
-                                <FundSanctionWorkflowActions docname={name} onActionComplete={() => window.location.reload()} />
+                                <FundSanctionWorkflowActions
+                                    docname={name}
+                                    onActionComplete={() =>
+                                        window.location.reload()
+                                    }
+                                />
                             )}
                             {doctype === "Travel" && name && (
-                                <TravelWorkflowActions docname={name} onActionComplete={() => window.location.reload()} />
+                                <TravelWorkflowActions
+                                    docname={name}
+                                    onActionComplete={() =>
+                                        window.location.reload()
+                                    }
+                                />
                             )}
                             {doctype === "Temporary Advance" && name && (
-                                <TemporaryAdvanceActionButtons docname={name} onActionComplete={() => window.location.reload()} />
+                                <TemporaryAdvanceActionButtons
+                                    docname={name}
+                                    onActionComplete={() =>
+                                        window.location.reload()
+                                    }
+                                />
                             )}
                             {doctype === "Direct Purchase" && name && (
                                 <DirectPurchaseWorkflowActions
                                     docname={name}
                                     onActionComplete={() => {}}
                                     onAfterAction={(action) => {
-                                        if (action.toLowerCase().includes('verify')) {
-                                            sessionStorage.setItem(`dp_tab_${name}`, 'sanction');
+                                        if (
+                                            action
+                                                .toLowerCase()
+                                                .includes("verify")
+                                        ) {
+                                            setDpActiveTab("sanction");
                                         }
-                                        window.location.reload();
+                                        refreshAll();
                                     }}
                                 />
                             )}
                             {doctype === "TA DA Settlement" && name && (
-                                <TADASettlementActionButtons docName={name} onActionComplete={() => window.location.reload()} />
+                                <TADASettlementActionButtons
+                                    docName={name}
+                                    onActionComplete={() =>
+                                        window.location.reload()
+                                    }
+                                />
                             )}
-                            {doctype === "Recruitment Adhoc Contractual" && name && (
-                                <RecruitmentAdhocContractualWorkflowActions docname={name} onActionComplete={() => window.location.reload()} />
-                            )}
-
+                            {doctype === "Recruitment Adhoc Contractual" &&
+                                name && (
+                                    <RecruitmentAdhocContractualWorkflowActions
+                                        docname={name}
+                                        onActionComplete={() =>
+                                            window.location.reload()
+                                        }
+                                    />
+                                )}
                         </div>
                     </div>
                 </header>
@@ -1330,12 +2010,14 @@ const PendingTaskDetails: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     {/* Left Column: Main Detail View */}
                     <div className="lg:col-span-3 space-y-6">
-                        {doctype === 'Travel' ? (
+                        {doctype === "Travel" ? (
                             isTravelLoading ? (
                                 <div className="flex h-64 items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                                     <div className="flex flex-col items-center gap-2">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
-                                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">Loading details...</p>
+                                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">
+                                            Loading details...
+                                        </p>
                                     </div>
                                 </div>
                             ) : travelFields.length > 0 ? (
@@ -1344,24 +2026,26 @@ const PendingTaskDetails: React.FC = () => {
                                         fields={travelFields}
                                         formData={data}
                                         linkOptions={travelLinkOptions}
-                                        onChange={() => { }}
-                                        onFileChange={() => { }}
-                                        onTableRowChange={() => { }}
-                                        onTableFileChange={() => { }}
-                                        onAddTableRow={() => { }}
-                                        onDeleteTableRow={() => { }}
+                                        onChange={() => {}}
+                                        onFileChange={() => {}}
+                                        onTableRowChange={() => {}}
+                                        onTableFileChange={() => {}}
+                                        onAddTableRow={() => {}}
+                                        onDeleteTableRow={() => {}}
                                         readOnly={true}
                                     />
                                 </div>
                             ) : (
                                 renderGenericDetails()
                             )
-                        ) : doctype === 'Advance Settlement' ? (
+                        ) : doctype === "Advance Settlement" ? (
                             isAdvanceSettlementLoading ? (
                                 <div className="flex h-64 items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                                     <div className="flex flex-col items-center gap-2">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
-                                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">Loading details...</p>
+                                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">
+                                            Loading details...
+                                        </p>
                                     </div>
                                 </div>
                             ) : advanceSettlementFields.length > 0 ? (
@@ -1369,25 +2053,29 @@ const PendingTaskDetails: React.FC = () => {
                                     <DynamicFormRenderer
                                         fields={advanceSettlementFields}
                                         formData={displayData}
-                                        linkOptions={advanceSettlementLinkOptions}
-                                        onChange={() => { }}
-                                        onFileChange={() => { }}
-                                        onTableRowChange={() => { }}
-                                        onTableFileChange={() => { }}
-                                        onAddTableRow={() => { }}
-                                        onDeleteTableRow={() => { }}
+                                        linkOptions={
+                                            advanceSettlementLinkOptions
+                                        }
+                                        onChange={() => {}}
+                                        onFileChange={() => {}}
+                                        onTableRowChange={() => {}}
+                                        onTableFileChange={() => {}}
+                                        onAddTableRow={() => {}}
+                                        onDeleteTableRow={() => {}}
                                         readOnly={true}
                                     />
                                 </div>
                             ) : (
                                 renderGenericDetails()
                             )
-                        ) : doctype === 'Temporary Advance' ? (
+                        ) : doctype === "Temporary Advance" ? (
                             isTemporaryAdvanceLoading ? (
                                 <div className="flex h-64 items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                                     <div className="flex flex-col items-center gap-2">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
-                                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">Loading details...</p>
+                                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">
+                                            Loading details...
+                                        </p>
                                     </div>
                                 </div>
                             ) : temporaryAdvanceFields.length > 0 ? (
@@ -1395,25 +2083,29 @@ const PendingTaskDetails: React.FC = () => {
                                     <DynamicFormRenderer
                                         fields={temporaryAdvanceFields}
                                         formData={displayData}
-                                        linkOptions={temporaryAdvanceLinkOptions}
-                                        onChange={() => { }}
-                                        onFileChange={() => { }}
-                                        onTableRowChange={() => { }}
-                                        onTableFileChange={() => { }}
-                                        onAddTableRow={() => { }}
-                                        onDeleteTableRow={() => { }}
+                                        linkOptions={
+                                            temporaryAdvanceLinkOptions
+                                        }
+                                        onChange={() => {}}
+                                        onFileChange={() => {}}
+                                        onTableRowChange={() => {}}
+                                        onTableFileChange={() => {}}
+                                        onAddTableRow={() => {}}
+                                        onDeleteTableRow={() => {}}
                                         readOnly={true}
                                     />
                                 </div>
                             ) : (
                                 renderGenericDetails()
                             )
-                        ) : doctype === 'TA DA Settlement' ? (
+                        ) : doctype === "TA DA Settlement" ? (
                             isTadaLoading ? (
                                 <div className="flex h-64 items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                                     <div className="flex flex-col items-center gap-2">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
-                                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">Loading details...</p>
+                                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">
+                                            Loading details...
+                                        </p>
                                     </div>
                                 </div>
                             ) : tadaFields.length > 0 ? (
@@ -1422,24 +2114,26 @@ const PendingTaskDetails: React.FC = () => {
                                         fields={tadaFields}
                                         formData={displayData}
                                         linkOptions={tadaLinkOptions}
-                                        onChange={() => { }}
-                                        onFileChange={() => { }}
-                                        onTableRowChange={() => { }}
-                                        onTableFileChange={() => { }}
-                                        onAddTableRow={() => { }}
-                                        onDeleteTableRow={() => { }}
+                                        onChange={() => {}}
+                                        onFileChange={() => {}}
+                                        onTableRowChange={() => {}}
+                                        onTableFileChange={() => {}}
+                                        onAddTableRow={() => {}}
+                                        onDeleteTableRow={() => {}}
                                         readOnly={true}
                                     />
                                 </div>
                             ) : (
                                 renderGenericDetails()
                             )
-                        ) : doctype === 'Recruitment Adhoc Contractual' ? (
+                        ) : doctype === "Recruitment Adhoc Contractual" ? (
                             isRecruitmentLoading ? (
                                 <div className="flex h-64 items-center justify-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                                     <div className="flex flex-col items-center gap-2">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
-                                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">Loading details...</p>
+                                        <p className="text-zinc-500 dark:text-zinc-400 text-sm">
+                                            Loading details...
+                                        </p>
                                     </div>
                                 </div>
                             ) : recruitmentFields.length > 0 ? (
@@ -1448,19 +2142,19 @@ const PendingTaskDetails: React.FC = () => {
                                         fields={recruitmentFields}
                                         formData={displayData}
                                         linkOptions={recruitmentLinkOptions}
-                                        onChange={() => { }}
-                                        onFileChange={() => { }}
-                                        onTableRowChange={() => { }}
-                                        onTableFileChange={() => { }}
-                                        onAddTableRow={() => { }}
-                                        onDeleteTableRow={() => { }}
+                                        onChange={() => {}}
+                                        onFileChange={() => {}}
+                                        onTableRowChange={() => {}}
+                                        onTableFileChange={() => {}}
+                                        onAddTableRow={() => {}}
+                                        onDeleteTableRow={() => {}}
                                         readOnly={true}
                                     />
                                 </div>
                             ) : (
                                 renderGenericDetails()
                             )
-                        ) : doctype === 'Direct Purchase' && data && name ? (
+                        ) : doctype === "Direct Purchase" && data && name ? (
                             <DirectPurchaseTabView
                                 data={data}
                                 docName={name}
@@ -1477,41 +2171,68 @@ const PendingTaskDetails: React.FC = () => {
                         <div className="sticky top-6 space-y-6">
                             {/* Budget Actions */}
                             {/* Setup for Travel */}
-                            {doctype === 'Travel' && data?.travel_project_title && (
-                                <BudgetActionsSidebar
-                                    projectName={data.travel_project_title}
-                                    isStaff={true}
-                                    docName={name}
-                                    doctype={doctype}
-                                />
-                            )}
+                            {doctype === "Travel" &&
+                                data?.travel_project_title && (
+                                    <BudgetActionsSidebar
+                                        projectName={data.travel_project_title}
+                                        isStaff={true}
+                                        docName={name}
+                                        doctype={doctype}
+                                    />
+                                )}
                             {/* Setup for Advance Settlement */}
-                            {doctype === 'Advance Settlement' && data?.project_name && (
-                                <BudgetActionsSidebar
-                                    projectName={data.project_name}
-                                    isStaff={true}
-                                    docName={name}
-                                    doctype={doctype}
-                                />
-                            )}
+                            {doctype === "Advance Settlement" &&
+                                data?.project_name && (
+                                    <BudgetActionsSidebar
+                                        projectName={data.project_name}
+                                        isStaff={true}
+                                        docName={name}
+                                        doctype={doctype}
+                                    />
+                                )}
                             {/* Setup for Temporary Advance */}
-                            {doctype === 'Temporary Advance' && (data?.project_name || data?.project_code) && (
-                                <BudgetActionsSidebar
-                                    projectName={data.project_name || data.project_code}
-                                    isStaff={true}
-                                    docName={name}
-                                    doctype={doctype}
-                                />
-                            )}
+                            {doctype === "Temporary Advance" &&
+                                (data?.project_name || data?.project_code) && (
+                                    <BudgetActionsSidebar
+                                        projectName={
+                                            data.project_name ||
+                                            data.project_code
+                                        }
+                                        isStaff={true}
+                                        docName={name}
+                                        doctype={doctype}
+                                    />
+                                )}
                             {/* Setup for TA DA Settlement */}
-                            {doctype === 'TA DA Settlement' && isRnDStaff && (data?.project_no || data?.ta_da_project_code) && (
-                                <BudgetActionsSidebar
-                                    projectName={data.project_no || data.ta_da_project_code}
-                                    isStaff={true}
-                                    docName={name}
-                                    doctype={doctype}
-                                />
-                            )}
+                            {doctype === "TA DA Settlement" &&
+                                isRnDStaff &&
+                                (data?.project_no ||
+                                    data?.ta_da_project_code) && (
+                                    <BudgetActionsSidebar
+                                        projectName={
+                                            data.project_no ||
+                                            data.ta_da_project_code
+                                        }
+                                        isStaff={true}
+                                        docName={name}
+                                        doctype={doctype}
+                                    />
+                                )}
+                            {/* Setup for Direct Purchase */}
+                            {doctype === "Direct Purchase" &&
+                                isRnDStaff &&
+                                data?.workflow_state ===
+                                    "Pending Staff Approval" &&
+                                (data?.project_no || data?.project_name) && (
+                                    <BudgetActionsSidebar
+                                        projectName={
+                                            data.project_no || data.project_name
+                                        }
+                                        isStaff={true}
+                                        docName={name}
+                                        doctype={doctype}
+                                    />
+                                )}
 
                             {/* <ActivityStream doctype={doctype || ""} docname={name || ""} /> */}
                         </div>
