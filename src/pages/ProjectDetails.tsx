@@ -44,6 +44,7 @@ import {
     FolderOpenIcon,
     DownloadIcon,
     ExternalLinkIcon,
+    PencilIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -971,6 +972,14 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                             </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
+                            {(data?.workflow_state === 'Draft' || !data?.workflow_state) && (
+                                <button
+                                    onClick={() => navigate(`/project-registration?docname=${projectName}&edit=true`)}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D97757] hover:bg-[#c66a4e] text-white text-xs font-semibold shadow-sm transition-colors"
+                                >
+                                    <PencilIcon className="h-3.5 w-3.5" /> Edit
+                                </button>
+                            )}
                             <WorkflowActions
                                 docname={projectName}
                                 onAction={handleWorkflowAction}
