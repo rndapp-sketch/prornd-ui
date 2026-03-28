@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 
 import { useFrappePostCall, useFrappeAuth, useFrappeGetDoc, useFrappeGetDocList } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { FileText, Users, IndianRupee, Shield, FileBadge, X } from 'lucide-react';
+import { FileText, Users, IndianRupee, Shield, FileBadge, X, Pencil } from 'lucide-react';
 import { EndorsementCertificate, getEndorsementHtml } from '../components/EndorsementCertificate';
 import { commonAPI } from '@/services/apiService';
 import { AutocompleteEmail } from '../components/AutocompleteEmail';
@@ -278,6 +278,13 @@ const ProjectRegistration: React.FC = () => {
     const [budgetYears, setBudgetYears] = useState([1]);
     const [showEndorsementModal, setShowEndorsementModal] = useState(false);
     const [endorsementHtml, setEndorsementHtml] = useState<string>('');
+    const [validationErrors, setValidationErrors] = useState<string[]>([]);
+    // Edit mode: new forms start editable; existing docs start read-only
+    const [isEditMode, setIsEditMode] = useState<boolean>(() => {
+        const params = new URLSearchParams(location.search);
+        // New doc OR explicitly navigated with edit=true → start editable
+        return !params.get('docname') || params.get('edit') === 'true';
+    });
 
     // Check if endorsement fields are filled
     const isEndorsementEnabled = useMemo(() => {
@@ -700,6 +707,9 @@ const ProjectRegistration: React.FC = () => {
             }
         }
 
+        // If form is in view mode, all fields are read-only
+        if (!isEditMode) isReadOnly = true;
+
         const effectiveField = { ...field, mandatory: isMandatory, read_only: isReadOnly };
         const options = linkOptions[field.options as string] || linkOptions[fieldname];
 
@@ -713,7 +723,7 @@ const ProjectRegistration: React.FC = () => {
                 onFileChange={handleFileChange}
             />
         );
-    }, [fields, formData, linkOptions, handleFieldChangeWithSideEffects, handleFileChange]);
+    }, [fields, formData, linkOptions, handleFieldChangeWithSideEffects, handleFileChange, isEditMode]);
 
     const renderFields = (fieldnames: string[]) => fieldnames.map(fn => renderField(fn));
 
@@ -757,25 +767,82 @@ const ProjectRegistration: React.FC = () => {
 
     const validateMandatoryFields = (): string[] => {
         const errors: string[] = [];
+
+        // --- Top-level fields ---
         for (const field of fields) {
-            // Skip hidden fields
             if (field.hidden) continue;
-            // Skip fields that are not visible (depends_on_eval fails)
             if (field.depends_on_eval && !evaluateDependsOn(field.depends_on_eval, formData)) continue;
-            // Determine if mandatory (static or dynamic)
             let isMandatory = field.mandatory;
             if (!isMandatory && field.mandatory_depends_on_eval) {
                 isMandatory = evaluateDependsOn(field.mandatory_depends_on_eval, formData);
             }
             if (!isMandatory) continue;
-            // Skip table fields (child tables have their own validation)
             if (field.fieldtype === 'Table') continue;
             const value = formData[field.fieldname];
-            const isEmpty = value === null || value === undefined || value === '' || value === 0 || value === false;
-            if (isEmpty) {
-                errors.push(field.label || field.fieldname);
+            const isEmpty = value === null || value === undefined || value === '';
+            if (isEmpty) errors.push(field.label || field.fieldname);
+        }
+
+        // --- Budget breakup: every row must have a budget head ---
+        const budgetRows: any[] = formData.proposed_budget_breakup || [];
+        if (budgetRows.length === 0) {
+            errors.push('Budget Breakup (at least one row required)');
+        } else {
+            budgetRows.forEach((row, i) => {
+                if (!row.head) errors.push(`Budget Breakup Row ${i + 1}: Budget Head is required`);
+            });
+        }
+
+        // --- Additional PI table (only when toggle is "Yes") ---
+        if (formData.is_additional_pi === 'Yes') {
+            const rows: any[] = formData.additional_pi_table || [];
+            if (rows.length === 0) {
+                errors.push('Additional PI (at least one row required)');
+            } else {
+                rows.forEach((row, i) => {
+                    if (!row.pi_name) errors.push(`Additional PI Row ${i + 1}: Name is required`);
+                });
             }
         }
+
+        // --- Co-Investigator table (only when toggle is "Yes") ---
+        if (formData.has_co_pi === 'Yes') {
+            const rows: any[] = formData.co_investigator_table || [];
+            if (rows.length === 0) {
+                errors.push('Co-Investigator (at least one row required)');
+            } else {
+                rows.forEach((row, i) => {
+                    if (!row.copi_name) errors.push(`Co-PI Row ${i + 1}: Name is required`);
+                });
+            }
+        }
+
+        // --- Equipment details (only when checkbox is on) ---
+        const equipOn = formData.equipment_checkbox === true || formData.equipment_checkbox === 1 || formData.equipment_checkbox === '1';
+        if (equipOn) {
+            const rows: any[] = formData.proposed_equipment_details || [];
+            if (rows.length === 0) {
+                errors.push('Equipment Details (at least one row required)');
+            } else {
+                rows.forEach((row, i) => {
+                    if (!row.item_name) errors.push(`Equipment Row ${i + 1}: Item Name is required`);
+                });
+            }
+        }
+
+        // --- Manpower details (only when checkbox is on) ---
+        const manpowerOn = formData.manpower_checkbox === true || formData.manpower_checkbox === 1 || formData.manpower_checkbox === '1';
+        if (manpowerOn) {
+            const rows: any[] = formData.proposed_manpower_details || [];
+            if (rows.length === 0) {
+                errors.push('Manpower Details (at least one row required)');
+            } else {
+                rows.forEach((row, i) => {
+                    if (!row.designation_name) errors.push(`Manpower Row ${i + 1}: Position is required`);
+                });
+            }
+        }
+
         return errors;
     };
 
@@ -784,7 +851,7 @@ const ProjectRegistration: React.FC = () => {
         if (isSubmitting || isSavingDraft) return;
         const errors = validateMandatoryFields();
         if (errors.length > 0) {
-            alert(`Please fill in the following required fields before submitting:\n\n• ${errors.join('\n• ')}`);
+            setValidationErrors(errors);
             return;
         }
         setIsSubmitting(true);
@@ -805,7 +872,7 @@ const ProjectRegistration: React.FC = () => {
         }
         const errors = validateMandatoryFields();
         if (errors.length > 0) {
-            alert(`Please fill in the following required fields before saving:\n\n• ${errors.join('\n• ')}`);
+            setValidationErrors(errors);
             return;
         }
         setIsSavingDraft(true);
@@ -875,21 +942,29 @@ const ProjectRegistration: React.FC = () => {
         if (formDataResult?.message?.fields) {
             const { fields: apiFields, link_options, prefill_data } = formDataResult.message;
             setFields(apiFields);
-
             setLinkOptions(link_options || {});
-            const initialFormData = { ...prefill_data };
+
+            const initialFormData: Record<string, any> = { ...prefill_data };
             apiFields.forEach((field: Field) => {
                 if (initialFormData[field.fieldname] === undefined) {
                     initialFormData[field.fieldname] = field.default ?? '';
                 }
             });
-            setFormData(initialFormData);
+
+            // Merge: prefill_data provides defaults, but any data already set by
+            // existingDoc useEffect takes priority (prev wins over initialFormData)
+            setFormData(prev => ({ ...initialFormData, ...prev }));
             setLoading(false);
-            if (prefill_data?.pi_webmail) {
-                handleFieldChangeWithSideEffects('pi_webmail', prefill_data.pi_webmail);
-            } else if (currentUser) {
-                // Auto-select current user if no draft/saved data
-                handleFieldChangeWithSideEffects('pi_webmail', currentUser);
+
+            // Only auto-fill PI details for new docs — on edit, existingDoc already has all PI fields.
+            // Calling handleFieldChangeWithSideEffects when docname is set would overwrite
+            // existingDoc data because it captures stale formData={} in its closure.
+            if (!docname) {
+                if (prefill_data?.pi_webmail) {
+                    handleFieldChangeWithSideEffects('pi_webmail', prefill_data.pi_webmail);
+                } else if (currentUser) {
+                    handleFieldChangeWithSideEffects('pi_webmail', currentUser);
+                }
             }
         }
         if (formDataError) {
@@ -919,23 +994,33 @@ const ProjectRegistration: React.FC = () => {
             const mappedDoc = { ...existingDoc };
 
             // Map proposed_budget_breakup to include the years array and head
+            // Try all known Frappe field name conventions for year values
+            const getYearVal = (row: any, idx: number) => {
+                const names = [
+                    [`first_year_budget`,  `first_year`,  `year_1`, `amount_1`, `year1`, `yr_1`],
+                    [`second_year_budget`, `second_year`, `year_2`, `amount_2`, `year2`, `yr_2`],
+                    [`third_year_budget`,  `third_year`,  `year_3`, `amount_3`, `year3`, `yr_3`],
+                    [`fourth_year_budget`, `fourth_year`, `year_4`, `amount_4`, `year4`, `yr_4`],
+                    [`fifth_year_budget`,  `fifth_year`,  `year_5`, `amount_5`, `year5`, `yr_5`],
+                ];
+                for (const key of (names[idx] || [])) {
+                    if (row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key];
+                }
+                return 0;
+            };
+
             if (mappedDoc.proposed_budget_breakup && Array.isArray(mappedDoc.proposed_budget_breakup)) {
                 mappedDoc.proposed_budget_breakup = mappedDoc.proposed_budget_breakup.map((row: any) => ({
                     ...row,
                     head: row.budget_head || row.account_head || row.head || "",
-                    years: [
-                        row.first_year || row.year_1 || 0,
-                        row.second_year || row.year_2 || 0,
-                        row.third_year || row.year_3 || 0,
-                        row.fourth_year || row.year_4 || 0,
-                        row.fifth_year || row.year_5 || 0
-                    ]
+                    years: [0, 1, 2, 3, 4].map(i => getYearVal(row, i)),
                 }));
             }
 
             setFormData(prev => ({ ...prev, ...mappedDoc }));
+            setLoading(false);
 
-            // Pre-fill budget years based on duration
+            // Determine number of budget year columns
             const pType = existingDoc.project_type;
             let durationMonthsToParse = 0;
             if (pType === 'Research') {
@@ -944,18 +1029,26 @@ const ProjectRegistration: React.FC = () => {
                 const days = parseInt(existingDoc.project_duration_days) || 0;
                 durationMonthsToParse = Math.ceil(days / 30);
             }
-            if (durationMonthsToParse > 0) {
-                // We shouldn't call controlYearFieldsVisibility directly because it modifies 
-                // formData which could overwrite our setFormData above. 
-                // Let's implement the logic safely here.
-                const years = durationMonthsToParse <= 12 ? 1 : durationMonthsToParse <= 24 ? 2 : durationMonthsToParse <= 36 ? 3 : durationMonthsToParse <= 48 ? 4 : 5;
-                setBudgetYears(Array.from({ length: years }, (_, i) => i + 1));
 
+            let yearCount = durationMonthsToParse > 0
+                ? (durationMonthsToParse <= 12 ? 1 : durationMonthsToParse <= 24 ? 2 : durationMonthsToParse <= 36 ? 3 : durationMonthsToParse <= 48 ? 4 : 5)
+                : 0;
+
+            // Fallback: derive from how many year columns have data in the rows
+            if (yearCount === 0 && mappedDoc.proposed_budget_breakup?.length > 0) {
+                const firstRow = mappedDoc.proposed_budget_breakup[0];
+                for (let i = 4; i >= 0; i--) {
+                    if (Number(firstRow.years?.[i]) > 0) { yearCount = i + 1; break; }
+                }
+                if (yearCount === 0) yearCount = 1;
+            }
+
+            if (yearCount > 0) {
+                setBudgetYears(Array.from({ length: yearCount }, (_, i) => i + 1));
                 setFields(prevFields => prevFields.map(field => {
                     const totals = ["total_first_year_budget", "total_second_year_budget", "total_third_year_budget", "total_fourth_year_budget", "total_fifth_year_budget"];
                     if (totals.includes(field.fieldname)) {
-                        const yearIndex = totals.indexOf(field.fieldname);
-                        return { ...field, hidden: (yearIndex + 1) > years };
+                        return { ...field, hidden: (totals.indexOf(field.fieldname) + 1) > yearCount };
                     }
                     return field;
                 }));
@@ -1001,14 +1094,16 @@ const ProjectRegistration: React.FC = () => {
             {/* If Last Tab → Show Only "Save as Draft" */}
             {isLast ? (
                 <div className="flex flex-col sm:flex-row gap-4">
-                    <FrappeButton
-                        variant="secondary"
-                        onClick={handleSaveDraft}
-                        disabled={isSubmitting || isSavingDraft}
-                    >
-                        {isSavingDraft ? "SAVING..." : "Save As Draft"}
-                    </FrappeButton>
-                    {isApprovedEndorsement && (
+                    {isEditMode && (
+                        <FrappeButton
+                            variant="secondary"
+                            onClick={handleSaveDraft}
+                            disabled={isSubmitting || isSavingDraft}
+                        >
+                            {isSavingDraft ? "SAVING..." : "Save As Draft"}
+                        </FrappeButton>
+                    )}
+                    {isEditMode && isApprovedEndorsement && (
                         <FrappeButton
                             variant="primary"
                             onClick={handleSubmit}
@@ -1045,11 +1140,58 @@ const ProjectRegistration: React.FC = () => {
 
     return (
         <div className="bg-zinc-100 dark:bg-zinc-800">
+            {/* Mandatory fields validation modal */}
+            {validationErrors.length > 0 && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md">
+                        <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+                            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                                <X className="w-4 h-4 text-red-600 dark:text-red-400" />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Required Fields Missing</h3>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Please fill in all mandatory fields before proceeding.</p>
+                            </div>
+                        </div>
+                        <ul className="px-6 py-4 space-y-1.5 max-h-60 overflow-y-auto">
+                            {validationErrors.map((err, i) => (
+                                <li key={i} className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                                    {err}
+                                </li>
+                            ))}
+                        </ul>
+                        <div className="px-6 pb-6">
+                            <button
+                                onClick={() => setValidationErrors([])}
+                                className="w-full py-2.5 rounded-lg bg-[#D97757] hover:bg-[#c66a4e] text-white text-sm font-semibold transition-colors"
+                            >
+                                OK, I'll fix these
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-                <header className="mb-3">
-                    <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight uppercase">New Project Registration</h1>
-                    <p className="text-zinc-600 dark:text-zinc-400 mt-1 font-medium text-sm">Fill all sections to register a new project.</p>
+                <header className="mb-3 flex items-start justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight uppercase">
+                            {docname ? 'Project Registration' : 'New Project Registration'}
+                        </h1>
+                        <p className="text-zinc-600 dark:text-zinc-400 mt-1 font-medium text-sm">
+                            {isEditMode ? 'Fill all sections to register a new project.' : 'Viewing saved draft — click Edit to make changes.'}
+                        </p>
+                    </div>
+                    {docname && !isEditMode && (
+                        <button
+                            type="button"
+                            onClick={() => setIsEditMode(true)}
+                            className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#D97757] hover:bg-[#c66a4e] text-white text-sm font-semibold shadow-sm transition-colors"
+                        >
+                            <Pencil className="w-4 h-4" /> Edit
+                        </button>
+                    )}
                 </header>
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm">
                     <div className="border-b border-zinc-300 dark:border-zinc-700">
@@ -1282,8 +1424,8 @@ const ProjectRegistration: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="space-y-6">{renderFields(tabFieldGroups.collaboratorToggles)}</div>
-                                        {formData.is_additional_pi === "Yes" && <MemoizedCollaboratorTable tableName="additional_pi_table" title="Details of Additional PI(s)" tableData={formData.additional_pi_table} piOptions={linkOptions["pi_webmail"]} onCollaboratorChange={handleCollaboratorChange} onRowChange={handleTableRowChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />}
-                                        {formData.has_co_pi === "Yes" && <MemoizedCollaboratorTable tableName="co_investigator_table" title="Details of Co-PI(s)" tableData={formData.co_investigator_table} piOptions={linkOptions["pi_webmail"]} onCollaboratorChange={handleCollaboratorChange} onRowChange={handleTableRowChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />}
+                                        {formData.is_additional_pi === "Yes" && <MemoizedCollaboratorTable tableName="additional_pi_table" title="Details of Additional PI(s)" tableData={formData.additional_pi_table} piOptions={linkOptions["pi_webmail"]} onCollaboratorChange={isEditMode ? handleCollaboratorChange : () => {}} onRowChange={isEditMode ? handleTableRowChange : () => {}} onAddRow={isEditMode ? addTableRow : () => {}} onDeleteRow={isEditMode ? deleteTableRow : () => {}} />}
+                                        {formData.has_co_pi === "Yes" && <MemoizedCollaboratorTable tableName="co_investigator_table" title="Details of Co-PI(s)" tableData={formData.co_investigator_table} piOptions={linkOptions["pi_webmail"]} onCollaboratorChange={isEditMode ? handleCollaboratorChange : () => {}} onRowChange={isEditMode ? handleTableRowChange : () => {}} onAddRow={isEditMode ? addTableRow : () => {}} onDeleteRow={isEditMode ? deleteTableRow : () => {}} />}
                                     </FrappeCard>
                                     {renderNextPrevButtons(true, true)}
                                 </div>
@@ -1292,15 +1434,15 @@ const ProjectRegistration: React.FC = () => {
                                     <FrappeCard className="space-y-6">
                                         <h2 className="text-xl font-bold uppercase text-zinc-900 dark:text-zinc-100">3. Proposed Budget</h2>
                                         <p className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">Provide a detailed year-wise breakup of the proposed budget.</p>
-                                        <MemoizedBudgetTable tableData={budgetTableData} budgetYears={budgetYears} budgetHeadOptions={budgetHeadOptions} onRowChange={handleBudgetRowChange} onAddRow={addBudgetRow} onDeleteRow={deleteTableRow} onAddYear={addBudgetYear} onDeleteYear={deleteLastBudgetYear} getYearTotal={getYearTotal} totalBudgetAmount={totalBudgetAmount} />
+                                        <MemoizedBudgetTable tableData={budgetTableData} budgetYears={budgetYears} budgetHeadOptions={budgetHeadOptions} onRowChange={isEditMode ? handleBudgetRowChange : () => {}} onAddRow={isEditMode ? addBudgetRow : () => {}} onDeleteRow={isEditMode ? deleteTableRow : () => {}} onAddYear={isEditMode ? addBudgetYear : () => {}} onDeleteYear={isEditMode ? deleteLastBudgetYear : () => {}} getYearTotal={getYearTotal} totalBudgetAmount={totalBudgetAmount} />
                                         <div className="space-y-6 border-t border-zinc-300 dark:border-zinc-700 pt-8">
                                             {renderField("equipment_checkbox")}
                                             {(formData.equipment_checkbox === true || formData.equipment_checkbox === 1 || formData.equipment_checkbox === '1') && (
-                                                <MemoizedGenericTable tableName={'proposed_equipment_details'} columns={[{ key: 'item_name', label: 'Item Name*', type: 'text' }, { key: 'item_description', label: 'Description', type: 'text' }, { key: 'item_quantity', label: 'Quantity', type: 'number' }, { key: 'equip_unit_cost', label: 'Unit Cost (₹)', type: 'number' }, { key: 'equip_total_unit_cost', label: 'Total Cost (₹)', type: 'number', readOnly: true }]} newRow={{ item_name: '', item_description: '', item_quantity: '', equip_unit_cost: '', equip_total_unit_cost: '' }} tableData={formData.proposed_equipment_details} onRowChange={handleEquipmentRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />
+                                                <MemoizedGenericTable tableName={'proposed_equipment_details'} columns={[{ key: 'item_name', label: 'Item Name*', type: 'text' }, { key: 'item_description', label: 'Description', type: 'text' }, { key: 'item_quantity', label: 'Quantity', type: 'number' }, { key: 'equip_unit_cost', label: 'Unit Cost (₹)', type: 'number' }, { key: 'equip_total_unit_cost', label: 'Total Cost (₹)', type: 'number', readOnly: true }]} newRow={{ item_name: '', item_description: '', item_quantity: '', equip_unit_cost: '', equip_total_unit_cost: '' }} tableData={formData.proposed_equipment_details} onRowChange={isEditMode ? handleEquipmentRowChange : () => {}} onFileChange={isEditMode ? handleTableFileChange : () => {}} onAddRow={isEditMode ? addTableRow : () => {}} onDeleteRow={isEditMode ? deleteTableRow : () => {}} />
                                             )}
                                             {renderField("manpower_checkbox")}
                                             {(formData.manpower_checkbox === true || formData.manpower_checkbox === 1 || formData.manpower_checkbox === '1') && (
-                                                <MemoizedGenericTable tableName={'proposed_manpower_details'} columns={[{ key: 'designation_name', label: 'Position*', type: 'select', options: linkOptions["designation_name"] || [] }, { key: 'vacancies', label: 'Number of Posts', type: 'number' }, { key: 'manpower_salary', label: 'Salary (₹)', type: 'number' }]} newRow={{ designation_name: '', vacancies: '', manpower_salary: 0 }} tableData={formData.proposed_manpower_details} onRowChange={handleTableRowChange} onFileChange={handleTableFileChange} onAddRow={addTableRow} onDeleteRow={deleteTableRow} />
+                                                <MemoizedGenericTable tableName={'proposed_manpower_details'} columns={[{ key: 'designation_name', label: 'Position*', type: 'select', options: linkOptions["designation_name"] || [] }, { key: 'vacancies', label: 'Number of Posts', type: 'number' }, { key: 'manpower_salary', label: 'Salary (₹)', type: 'number' }]} newRow={{ designation_name: '', vacancies: '', manpower_salary: 0 }} tableData={formData.proposed_manpower_details} onRowChange={isEditMode ? handleTableRowChange : () => {}} onFileChange={isEditMode ? handleTableFileChange : () => {}} onAddRow={isEditMode ? addTableRow : () => {}} onDeleteRow={isEditMode ? deleteTableRow : () => {}} />
                                             )}
                                         </div>
                                     </FrappeCard>
