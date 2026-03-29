@@ -1920,9 +1920,10 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                             }
                                                         }}
                                                         disabled={
-                                                            isViewingEndorsement
+                                                            isViewingEndorsement ||
+                                                            !data?.endorsement_status
                                                         }
-                                                        className="flex items-center gap-2 px-4 py-2.5 bg-[#D97757] hover:bg-[#D97757] text-white rounded-lg font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                                                        className="flex items-center gap-2 px-4 py-2.5 bg-[#D97757] hover:bg-[#D97757] text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
                                                         <ExternalLinkIcon className="h-4 w-4" />
                                                         {isViewingEndorsement
@@ -1953,7 +1954,10 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                                 "_blank",
                                                             );
                                                         }}
-                                                        className="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 hover:bg-[#B2EBF2] text-[#D97757] rounded-lg font-medium transition-colors"
+                                                        disabled={
+                                                            !data?.endorsement_status
+                                                        }
+                                                        className="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 hover:bg-[#B2EBF2] text-[#D97757] rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
                                                         <DownloadIcon className="h-4 w-4" />
                                                         Download Certificate

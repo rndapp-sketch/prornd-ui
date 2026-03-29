@@ -1049,7 +1049,9 @@ const LinkedDocTab = ({
                         isOpen={isPrintModalOpen}
                         onClose={() => setIsPrintModalOpen(false)}
                         htmlContent={
-                            isPrintModalOpen ? generateSanctionSheetHtml(docData) : ""
+                            isPrintModalOpen
+                                ? generateSanctionSheetHtml(docData)
+                                : ""
                         }
                         docName={docName}
                     />
@@ -1107,14 +1109,20 @@ const DirectPurchaseDetails: React.FC = () => {
     const isStaffRnD = roles.some((r) =>
         ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r),
     );
+    const isPermanentEmployee = roles.some((r) => r === "Permanent Employee");
 
-    const [activeTab, setActiveTab] = useState<TabId>((searchParams.get("tab") as TabId) || "details");
+    const [activeTab, setActiveTab] = useState<TabId>(
+        (searchParams.get("tab") as TabId) || "details",
+    );
     const [sidebarComment, setSidebarComment] = useState("");
     const [isAddingComment, setIsAddingComment] = useState(false);
     const [isGeneratingPO, setIsGeneratingPO] = useState(false);
     const [isGeneratingP11, setIsGeneratingP11] = useState(false);
     const [isOpeningSanctionSheet, setIsOpeningSanctionSheet] = useState(false);
-    const [poSanctionData, setPoSanctionData] = useState<Record<string, any> | null>(null);
+    const [poSanctionData, setPoSanctionData] = useState<Record<
+        string,
+        any
+    > | null>(null);
     const [isLoadingPOData, setIsLoadingPOData] = useState(false);
 
     const { call: addComment } = useFrappePostCall(
@@ -1140,21 +1148,29 @@ const DirectPurchaseDetails: React.FC = () => {
     );
 
     const projectTitle = data?.project_name || "";
-    const { budgetData, heads: budgetHeads, actualBalance } = useProjectBudget(projectTitle);
+    const {
+        budgetData,
+        heads: budgetHeads,
+        actualBalance,
+    } = useProjectBudget(projectTitle);
 
     const linkedCommitment = budgetData.find(
-        (e) => (e.ref === (id || "") || e.frapAppId === (id || "")) && e.type === "commitment",
+        (e) =>
+            (e.ref === (id || "") || e.frapAppId === (id || "")) &&
+            e.type === "commitment",
     );
     const isCommitted = !!linkedCommitment;
 
     useEffect(() => {
-        if (budgetHeads.length > 0 && !commitHead) setCommitHead(budgetHeads[0]);
+        if (budgetHeads.length > 0 && !commitHead)
+            setCommitHead(budgetHeads[0]);
     }, [budgetHeads]);
 
     useEffect(() => {
         if (linkedCommitment) {
             setCommitHead(linkedCommitment.head || "");
-            if (!paymentAmount) setPaymentAmount(String(linkedCommitment.committed));
+            if (!paymentAmount)
+                setPaymentAmount(String(linkedCommitment.committed));
         }
     }, [linkedCommitment]);
 
@@ -1162,9 +1178,9 @@ const DirectPurchaseDetails: React.FC = () => {
         if (id) reloadData();
     };
 
-    // Fetch sanction sheet data for PO editor when PO tab is active
+    // Fetch sanction sheet data for PO editor (on load and after re-fetch triggers)
     useEffect(() => {
-        if (activeTab !== "po" || !id) return;
+        if (!id) return;
         if (poSanctionData) return; // already fetched
 
         const fetchSSData = async () => {
@@ -1173,8 +1189,13 @@ const DirectPurchaseDetails: React.FC = () => {
                 const filters = JSON.stringify([["app_id", "=", id]]);
                 const listRes = await fetch(
                     `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name"]')}`,
-                    { credentials: "include", headers: { Accept: "application/json" } },
-                ).then((r) => r.json()).catch(() => ({ data: [] }));
+                    {
+                        credentials: "include",
+                        headers: { Accept: "application/json" },
+                    },
+                )
+                    .then((r) => r.json())
+                    .catch(() => ({ data: [] }));
 
                 const ssName = listRes?.data?.[0]?.name;
                 if (ssName) {
@@ -1183,10 +1204,20 @@ const DirectPurchaseDetails: React.FC = () => {
                         {
                             method: "POST",
                             credentials: "include",
-                            headers: { "Content-Type": "application/json", Accept: "application/json", "X-Frappe-CSRF-Token": (window as any).csrf_token || "" },
-                            body: JSON.stringify({ doctype: "sanction_sheet", name: ssName }),
+                            headers: {
+                                "Content-Type": "application/json",
+                                Accept: "application/json",
+                                "X-Frappe-CSRF-Token":
+                                    (window as any).csrf_token || "",
+                            },
+                            body: JSON.stringify({
+                                doctype: "sanction_sheet",
+                                name: ssName,
+                            }),
                         },
-                    ).then((r) => r.json()).catch(() => null);
+                    )
+                        .then((r) => r.json())
+                        .catch(() => null);
                     if (docRes?.message) {
                         setPoSanctionData(docRes.message);
                     }
@@ -1310,17 +1341,29 @@ const DirectPurchaseDetails: React.FC = () => {
                 const filters = JSON.stringify([["app_id", "=", id]]);
                 const listRes = await fetch(
                     `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name","project_no"]')}`,
-                    { credentials: "include", headers: { Accept: "application/json" } },
-                ).then((r) => r.json()).catch(() => ({ data: [] }));
+                    {
+                        credentials: "include",
+                        headers: { Accept: "application/json" },
+                    },
+                )
+                    .then((r) => r.json())
+                    .catch(() => ({ data: [] }));
                 ssName = listRes?.data?.[0]?.name;
                 projectNo = listRes?.data?.[0]?.project_no;
             }
             if (!ssName) throw new Error("Sanction Sheet not found");
 
-            const params = new URLSearchParams({ docname: ssName, app_id: id, project_no: projectNo || "" });
+            const params = new URLSearchParams({
+                docname: ssName,
+                app_id: id,
+                project_no: projectNo || "",
+            });
             const res = await fetch(
                 `/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.get_po_document?${params}`,
-                { credentials: "include", headers: { Accept: "application/json" } },
+                {
+                    credentials: "include",
+                    headers: { Accept: "application/json" },
+                },
             );
             const json = await res.json().catch(() => ({}));
             if (!res.ok || json?.message?.status === false)
@@ -1366,7 +1409,10 @@ const DirectPurchaseDetails: React.FC = () => {
             const filters = JSON.stringify([["app_id", "=", id]]);
             const res = await fetch(
                 `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=["name"]`,
-                { credentials: "include", headers: { Accept: "application/json" } },
+                {
+                    credentials: "include",
+                    headers: { Accept: "application/json" },
+                },
             );
             if (res.ok) {
                 const result = await res.json();
@@ -1446,18 +1492,21 @@ const DirectPurchaseDetails: React.FC = () => {
                                 {isGeneratingP11 ? 'Generating…' : 'Generate P-11 Form'}
                             </ClaudeButton>
                         )}*/}
-                        {data.workflow_state === "SancSheetApproved" && id && (
-                            <ClaudeButton
-                                variant="primary"
-                                onClick={handleGeneratePO}
-                                disabled={isGeneratingPO}
-                            >
-                                {isGeneratingPO
-                                    ? "Generating…"
-                                    : "Generate Purchase Order"}
-                            </ClaudeButton>
-                        )}
-                        {data.workflow_state === "POGenerated" && id && (
+                        {data.workflow_state === "Sanction Approved" &&
+                            id &&
+                            isStaffRnD &&
+                            poSanctionData?.file_path && (
+                                <ClaudeButton
+                                    variant="primary"
+                                    onClick={handleGeneratePO}
+                                    disabled={isGeneratingPO}
+                                >
+                                    {isGeneratingPO
+                                        ? "Generating…"
+                                        : "Generate Purchase Order"}
+                                </ClaudeButton>
+                            )}
+                        {/*{data.workflow_state === "POGenerated" && id && (
                             <ClaudeButton
                                 variant="outline"
                                 onClick={handleDownloadPO}
@@ -1465,7 +1514,7 @@ const DirectPurchaseDetails: React.FC = () => {
                             >
                                 {isDownloadingPO ? "Loading…" : "Print PO"}
                             </ClaudeButton>
-                        )}
+                        )}*/}
                         {id && (
                             <DirectPurchaseActionButtons
                                 docname={id}
@@ -1509,9 +1558,24 @@ const DirectPurchaseDetails: React.FC = () => {
                             {activeTab === "p11" && id && (
                                 <>
                                     <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-sm">
-                                        <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/></svg>
+                                        <svg
+                                            className="w-5 h-5 shrink-0 mt-0.5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"
+                                            />
+                                        </svg>
                                         <span>
-                                            <strong>Important:</strong> A printed hard copy of the P-11 Form must be submitted to the R&amp;D Office for further processing.
+                                            <strong>Important:</strong> A
+                                            printed hard copy of the P-11 Form
+                                            must be submitted to the R&amp;D
+                                            Office for further processing.
                                         </span>
                                     </div>
                                     <LinkedDocTab
@@ -1527,17 +1591,25 @@ const DirectPurchaseDetails: React.FC = () => {
 
                             {activeTab === "sanction" && id && (
                                 <>
-                                    {data?.workflow_state === "RDP-11 Verified" && isStaffRnD && (
-                                        <div className="mb-5">
-                                            <button
-                                                onClick={handleOpenSanctionSheet}
-                                                disabled={isOpeningSanctionSheet}
-                                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-60"
-                                            >
-                                                {isOpeningSanctionSheet ? "Opening…" : "Sanction Sheet"}
-                                            </button>
-                                        </div>
-                                    )}
+                                    {data?.workflow_state ===
+                                        "RDP-11 Verified" &&
+                                        isStaffRnD && (
+                                            <div className="mb-5">
+                                                <button
+                                                    onClick={
+                                                        handleOpenSanctionSheet
+                                                    }
+                                                    disabled={
+                                                        isOpeningSanctionSheet
+                                                    }
+                                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] hover:bg-[#c66a4e] text-white disabled:opacity-60"
+                                                >
+                                                    {isOpeningSanctionSheet
+                                                        ? "Opening…"
+                                                        : "Sanction Sheet"}
+                                                </button>
+                                            </div>
+                                        )}
                                     <LinkedDocTab
                                         doctype="sanction_sheet"
                                         filterField="app_id"
@@ -1555,17 +1627,40 @@ const DirectPurchaseDetails: React.FC = () => {
                                         <div className="flex items-center justify-center py-16">
                                             <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#D97757] border-t-transparent" />
                                         </div>
-                                    ) : poSanctionData ? (
+                                    ) : poSanctionData &&
+                                      (isStaffRnD ||
+                                          data?.workflow_state ===
+                                              "POGenerated") ? (
                                         <POEditor
                                             ssData={poSanctionData}
                                             dpId={id || ""}
                                             isStaffRnD={isStaffRnD}
-                                            onUploadSignedPO={async (file: File) => {
+                                            isPIReadOnly={
+                                                isPermanentEmployee &&
+                                                !isStaffRnD
+                                            }
+                                            onUploadSignedPO={async (
+                                                file: File,
+                                            ) => {
                                                 const formData = new FormData();
-                                                formData.append("file", file, file.name);
-                                                formData.append("docname", poSanctionData.name);
-                                                formData.append("app_id", id || "");
-                                                formData.append("project_no", poSanctionData.project_no || "");
+                                                formData.append(
+                                                    "file",
+                                                    file,
+                                                    file.name,
+                                                );
+                                                formData.append(
+                                                    "docname",
+                                                    poSanctionData.name,
+                                                );
+                                                formData.append(
+                                                    "app_id",
+                                                    id || "",
+                                                );
+                                                formData.append(
+                                                    "project_no",
+                                                    poSanctionData.project_no ||
+                                                        "",
+                                                );
                                                 const res = await fetch(
                                                     "/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document",
                                                     {
@@ -1573,15 +1668,42 @@ const DirectPurchaseDetails: React.FC = () => {
                                                         body: formData,
                                                         credentials: "include",
                                                         headers: {
-                                                            "X-Frappe-CSRF-Token": (window as any).csrf_token || "",
+                                                            "X-Frappe-CSRF-Token":
+                                                                (window as any)
+                                                                    .csrf_token ||
+                                                                "",
                                                         },
                                                     },
                                                 );
-                                                const json = await res.json().catch(() => ({}));
-                                                if (!res.ok || json?.message?.status === false)
-                                                    throw new Error(json?.message?.message || "Upload failed");
+                                                const json = await res
+                                                    .json()
+                                                    .catch(() => ({}));
+                                                if (
+                                                    !res.ok ||
+                                                    json?.message?.status ===
+                                                        false
+                                                )
+                                                    throw new Error(
+                                                        json?.message
+                                                            ?.message ||
+                                                            "Upload failed",
+                                                    );
+                                                // Reset so the effect re-fetches with updated file_path
+                                                setPoSanctionData(null);
                                             }}
                                         />
+                                    ) : poSanctionData ? (
+                                        <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+                                            <ShoppingCartIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
+                                            <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                Purchase Order Not Yet Generated
+                                            </p>
+                                            <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
+                                                The Purchase Order has not been
+                                                generated by staff yet. Please
+                                                check back later.
+                                            </p>
+                                        </div>
                                     ) : (
                                         <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
                                             <ShoppingCartIcon className="h-10 w-10 text-[#E4E4E7] dark:text-[#3F3F46]" />
@@ -1589,7 +1711,9 @@ const DirectPurchaseDetails: React.FC = () => {
                                                 No Sanction Sheet Available
                                             </p>
                                             <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">
-                                                The Purchase Order editor requires a Sanction Sheet to be created first.
+                                                The Purchase Order editor
+                                                requires a Sanction Sheet to be
+                                                created first.
                                             </p>
                                         </div>
                                     )}
@@ -1648,99 +1772,140 @@ const DirectPurchaseDetails: React.FC = () => {
                         </ClaudeCard>
 
                         {/* Commit Payment — only for Staff RnD, only when Pending Staff Approval */}
-                        {isStaffRnD && data.workflow_state === "Pending Staff Approval" && !isCommitted && (
-                            <ClaudeCard title="Make a Commitment" accentTop>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-                                            Budget Head
-                                        </label>
-                                        <select
-                                            className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                                            value={commitHead}
-                                            onChange={(e) => setCommitHead(e.target.value)}
-                                        >
-                                            {budgetHeads.length > 0 ? (
-                                                budgetHeads.map((head) => (
-                                                    <option key={head} value={head}>{head}</option>
-                                                ))
-                                            ) : (
-                                                <option value="">No Budget Heads</option>
-                                            )}
-                                        </select>
-                                        <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-1">
-                                            Available:{" "}
-                                            <span className="font-semibold text-[#D97757]">
-                                                ₹ {actualBalance.toLocaleString("en-IN")}
-                                            </span>
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-                                            Amount (₹)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                                            placeholder="e.g., 5000"
-                                            value={commitAmount}
-                                            onChange={(e) => setCommitAmount(e.target.value)}
-                                            onWheel={(e) => e.currentTarget.blur()}
-                                        />
-                                    </div>
-                                    <ClaudeButton
-                                        variant="primary"
-                                        className="w-full"
-                                        onClick={handleCommit}
-                                        disabled={isCommitting}
-                                    >
-                                        {isCommitting ? "Submitting…" : "Submit Commitment"}
-                                    </ClaudeButton>
-                                </div>
-                            </ClaudeCard>
-                        )}
-
-                        {/* Committed state display + Payment */}
-                        {isStaffRnD && data.workflow_state === "Pending Staff Approval" && isCommitted && (
-                            <ClaudeCard title="Commitment Details" accentTop>
-                                <div className="space-y-4">
-                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
-                                        <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
-                                            Commitment Initiated
-                                        </p>
-                                        <div className="flex justify-between items-end">
-                                            <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
-                                                {linkedCommitment?.head}
-                                            </p>
-                                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                                                ₹ {Number(linkedCommitment?.committed || 0).toLocaleString("en-IN")}
+                        {isStaffRnD &&
+                            data.workflow_state === "Pending Staff Approval" &&
+                            !isCommitted && (
+                                <ClaudeCard title="Make a Commitment" accentTop>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                                Budget Head
+                                            </label>
+                                            <select
+                                                className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                                value={commitHead}
+                                                onChange={(e) =>
+                                                    setCommitHead(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            >
+                                                {budgetHeads.length > 0 ? (
+                                                    budgetHeads.map((head) => (
+                                                        <option
+                                                            key={head}
+                                                            value={head}
+                                                        >
+                                                            {head}
+                                                        </option>
+                                                    ))
+                                                ) : (
+                                                    <option value="">
+                                                        No Budget Heads
+                                                    </option>
+                                                )}
+                                            </select>
+                                            <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-1">
+                                                Available:{" "}
+                                                <span className="font-semibold text-[#D97757]">
+                                                    ₹{" "}
+                                                    {actualBalance.toLocaleString(
+                                                        "en-IN",
+                                                    )}
+                                                </span>
                                             </p>
                                         </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                                Amount (₹)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                                placeholder="e.g., 5000"
+                                                value={commitAmount}
+                                                onChange={(e) =>
+                                                    setCommitAmount(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                onWheel={(e) =>
+                                                    e.currentTarget.blur()
+                                                }
+                                            />
+                                        </div>
+                                        <ClaudeButton
+                                            variant="primary"
+                                            className="w-full"
+                                            onClick={handleCommit}
+                                            disabled={isCommitting}
+                                        >
+                                            {isCommitting
+                                                ? "Submitting…"
+                                                : "Submit Commitment"}
+                                        </ClaudeButton>
                                     </div>
-                                    <div>
-                                        <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-                                            Payment Amount (₹)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                                            placeholder="Enter payment amount"
-                                            value={paymentAmount}
-                                            onChange={(e) => setPaymentAmount(e.target.value)}
-                                            onWheel={(e) => e.currentTarget.blur()}
-                                        />
+                                </ClaudeCard>
+                            )}
+
+                        {/* Committed state display + Payment */}
+                        {isStaffRnD &&
+                            data.workflow_state === "Pending Staff Approval" &&
+                            isCommitted && (
+                                <ClaudeCard
+                                    title="Commitment Details"
+                                    accentTop
+                                >
+                                    <div className="space-y-4">
+                                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+                                            <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
+                                                Commitment Initiated
+                                            </p>
+                                            <div className="flex justify-between items-end">
+                                                <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
+                                                    {linkedCommitment?.head}
+                                                </p>
+                                                <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                                                    ₹{" "}
+                                                    {Number(
+                                                        linkedCommitment?.committed ||
+                                                            0,
+                                                    ).toLocaleString("en-IN")}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                                Payment Amount (₹)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                                placeholder="Enter payment amount"
+                                                value={paymentAmount}
+                                                onChange={(e) =>
+                                                    setPaymentAmount(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                onWheel={(e) =>
+                                                    e.currentTarget.blur()
+                                                }
+                                            />
+                                        </div>
+                                        <ClaudeButton
+                                            variant="primary"
+                                            className="w-full"
+                                            onClick={handlePayment}
+                                            disabled={isPaying}
+                                        >
+                                            {isPaying
+                                                ? "Recording…"
+                                                : "Record Payment"}
+                                        </ClaudeButton>
                                     </div>
-                                    <ClaudeButton
-                                        variant="primary"
-                                        className="w-full"
-                                        onClick={handlePayment}
-                                        disabled={isPaying}
-                                    >
-                                        {isPaying ? "Recording…" : "Record Payment"}
-                                    </ClaudeButton>
-                                </div>
-                            </ClaudeCard>
-                        )}
+                                </ClaudeCard>
+                            )}
 
                         {/* Add Comment */}
                         <ClaudeCard title="Add Comment">

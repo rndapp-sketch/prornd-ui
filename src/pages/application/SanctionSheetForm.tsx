@@ -435,7 +435,7 @@ const SanctionSheetForm: React.FC = () => {
                 } else {
                     // If creating new, redirect to edit mode to show workflow actions
                     alert(
-                        "Sanction Sheet draft saved successfully! You can now proceed with workflow actions.",
+                        "Sanction sheet saved successfully. Please wait for the staff to generate the Purchase Order.",
                     );
                     navigate(`/sanction-sheet/${docname}`);
                 }

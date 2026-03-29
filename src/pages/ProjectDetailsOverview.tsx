@@ -4195,11 +4195,18 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     </label>
                     <input
                       type="number"
+                      min="0"
                       id="commit-amount"
+                      title="Enter a positive amount in ₹"
                       className="frappe-input"
                       placeholder="e.g., 5000"
                       value={commitAmount}
                       onChange={(e) => setCommitAmount(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
                     />
                   </div>
                   <div className="flex gap-2 pt-1">
@@ -4603,6 +4610,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       ) : field.fieldtype === "Currency" ? (
                         <input
                           type="number"
+                          min="0"
+                          title="Enter a positive amount in ₹"
                           className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                           value={value}
                           onChange={(e) =>
@@ -4613,6 +4622,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                           }
                           disabled={field.read_only}
                           placeholder="0.00"
+                          onKeyDown={(e) => {
+                            if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                              e.preventDefault();
+                            }
+                          }}
                         />
                       ) : (
                         <input

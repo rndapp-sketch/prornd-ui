@@ -264,6 +264,8 @@ const MemoizedFormField = memo(
           return (
             <input
               type="number"
+              min="0"
+              title="Enter a positive whole number"
               {...commonProps}
               onChange={(e) => {
                 const val = e.target.value;
@@ -273,6 +275,11 @@ const MemoizedFormField = memo(
                 );
               }}
               onWheel={(e) => (e.target as HTMLInputElement).blur()}
+              onKeyDown={(e) => {
+                if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                  e.preventDefault();
+                }
+              }}
             />
           );
 
@@ -280,6 +287,8 @@ const MemoizedFormField = memo(
           return (
             <input
               type="number"
+              min="0"
+              title="Enter a positive number"
               {...commonProps}
               onChange={(e) => {
                 const val = e.target.value;
@@ -289,6 +298,11 @@ const MemoizedFormField = memo(
                 );
               }}
               onWheel={(e) => (e.target as HTMLInputElement).blur()}
+              onKeyDown={(e) => {
+                if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                  e.preventDefault();
+                }
+              }}
             />
           );
 
@@ -296,6 +310,8 @@ const MemoizedFormField = memo(
           return (
             <input
               type="number"
+              min="0"
+              title="Enter a positive amount in ₹"
               {...commonProps}
               onChange={(e) => {
                 const val = e.target.value;
@@ -311,6 +327,11 @@ const MemoizedFormField = memo(
                 );
               }}
               onWheel={(e) => (e.target as HTMLInputElement).blur()}
+              onKeyDown={(e) => {
+                if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                  e.preventDefault();
+                }
+              }}
             />
           );
 

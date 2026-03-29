@@ -53,4 +53,9 @@ export default {
         changeOrigin: true,
         rewrite: (path: string) => path.replace(/^\/ledger-api/, "/api"), // Type annotation removed for JS config compatibility
     },
+    // Proxy for MinIO file storage
+    "/rnd-files": {
+        target: "http://172.16.135.118:9000",
+        changeOrigin: true,
+    },
 };
