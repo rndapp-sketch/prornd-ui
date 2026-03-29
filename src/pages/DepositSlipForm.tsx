@@ -673,9 +673,16 @@ const DepositSlipForm: React.FC = () => {
                 return (
                     <input
                         type="number"
+                        min="0"
+                        title="Enter a positive amount"
                         {...commonProps}
                         onWheel={preventScrollChange}
                         onWheelCapture={preventScrollChange}
+                        onKeyDown={(e) => {
+                            if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                                e.preventDefault();
+                            }
+                        }}
                     />
                 );
             }
@@ -910,7 +917,9 @@ const DepositSlipForm: React.FC = () => {
                                                 <td className="p-2">
                                                     <input
                                                         type="number"
+                                                        min="0"
                                                         step="0.01"
+                                                        title="Enter a positive amount"
                                                         className={inputClasses}
                                                         placeholder="0.00"
                                                         value={row.amount}
@@ -933,6 +942,11 @@ const DepositSlipForm: React.FC = () => {
                                                         onWheelCapture={
                                                             preventScrollChange
                                                         }
+                                                        onKeyDown={(e) => {
+                                                            if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                                                                e.preventDefault();
+                                                            }
+                                                        }}
                                                     />
                                                 </td>
                                                 <td className="p-2">
@@ -1059,7 +1073,9 @@ const DepositSlipForm: React.FC = () => {
                                                 <td className="p-2">
                                                     <input
                                                         type="number"
+                                                        min="0"
                                                         step="0.01"
+                                                        title="Enter a positive percentage"
                                                         className={inputClasses}
                                                         placeholder="%"
                                                         value={row.percentage}
@@ -1083,12 +1099,19 @@ const DepositSlipForm: React.FC = () => {
                                                         onWheelCapture={
                                                             preventScrollChange
                                                         }
+                                                        onKeyDown={(e) => {
+                                                            if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                                                                e.preventDefault();
+                                                            }
+                                                        }}
                                                     />
                                                 </td>
                                                 <td className="p-2">
                                                     <input
                                                         type="number"
+                                                        min="0"
                                                         step="0.01"
+                                                        title="Enter a positive amount in ₹"
                                                         className={inputClasses}
                                                         placeholder="Amount"
                                                         value={row.amount}
@@ -1111,6 +1134,11 @@ const DepositSlipForm: React.FC = () => {
                                                         onWheelCapture={
                                                             preventScrollChange
                                                         }
+                                                        onKeyDown={(e) => {
+                                                            if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                                                                e.preventDefault();
+                                                            }
+                                                        }}
                                                     />
                                                 </td>
                                                 <td className="p-2 text-center">
@@ -1334,6 +1362,13 @@ const DepositSlipForm: React.FC = () => {
                                                                 onWheelCapture={
                                                                     preventScrollChange
                                                                 }
+                                                                min="0"
+                                                                title="Enter a positive percentage"
+                                                                onKeyDown={(e) => {
+                                                                    if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                                                                        e.preventDefault();
+                                                                    }
+                                                                }}
                                                             />
                                                         </td>
                                                         <td className="p-2">
@@ -1600,6 +1635,13 @@ const DepositSlipForm: React.FC = () => {
                                                                 onWheelCapture={
                                                                     preventScrollChange
                                                                 }
+                                                                min="0"
+                                                                title="Enter a positive percentage"
+                                                                onKeyDown={(e) => {
+                                                                    if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                                                                        e.preventDefault();
+                                                                    }
+                                                                }}
                                                             />
                                                         </td>
                                                         <td className="p-2">

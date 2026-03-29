@@ -175,10 +175,17 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                         <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1 block">Amount (₹)</label>
                         <input
                             type="number"
+                            min="0"
+                            title="Enter a positive amount in ₹"
                             className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                             placeholder="e.g., 5000"
                             value={commitAmount}
                             onChange={(e) => setCommitAmount(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                                    e.preventDefault();
+                                }
+                            }}
                         />
                     </div>
                     <div className="flex gap-2 pt-1">

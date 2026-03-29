@@ -157,9 +157,9 @@ const MemoizedFormField = memo(({
                 );
             case "Currency":
             case "Float":
-                return <input type="number" {...commonInputProps} />;
+                return <input type="number" min="0" title="Enter a positive amount" {...commonInputProps} onKeyDown={(e) => { if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) e.preventDefault(); }} />;
             case "Int":
-                return <input type="number" {...commonInputProps} />;
+                return <input type="number" min="0" title="Enter a positive whole number" {...commonInputProps} onKeyDown={(e) => { if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) e.preventDefault(); }} />;
             case "Date":
                 return <input type="date" {...commonInputProps} />;
             case "Text":

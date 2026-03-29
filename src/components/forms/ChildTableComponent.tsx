@@ -99,10 +99,17 @@ export const ChildTableComponent = memo(({
                 return (
                     <input
                         type="number"
+                        min="0"
+                        title="Enter a positive whole number"
                         className={inputClasses}
                         value={value ?? ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, parseInt(e.target.value) || 0)}
                         onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                        onKeyDown={(e) => {
+                            if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                                e.preventDefault();
+                            }
+                        }}
                         disabled={isReadOnly}
                     />
                 );
@@ -112,10 +119,17 @@ export const ChildTableComponent = memo(({
                 return (
                     <input
                         type="number"
+                        min="0"
+                        title="Enter a positive amount"
                         className={inputClasses}
                         value={value ?? ''}
                         onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, parseFloat(e.target.value) || 0)}
                         onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                        onKeyDown={(e) => {
+                            if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                                e.preventDefault();
+                            }
+                        }}
                         disabled={isReadOnly}
                     />
                 );
