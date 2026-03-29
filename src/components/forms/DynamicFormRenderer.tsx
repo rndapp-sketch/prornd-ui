@@ -263,22 +263,20 @@ const MemoizedFormField = memo(
         case "Int":
           return (
             <input
-              type="number"
-              min="0"
+              type="text"
+              inputMode="numeric"
               title="Enter a positive whole number"
               {...commonProps}
+              value={String(value ?? "")}
               onChange={(e) => {
                 const val = e.target.value;
-                handleChange(
-                  field.fieldname,
-                  val === "" ? "" : parseInt(val, 10) || 0,
-                );
-              }}
-              onWheel={(e) => (e.target as HTMLInputElement).blur()}
-              onKeyDown={(e) => {
-                if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
-                  e.preventDefault();
+                if (val === "" || /^\d*$/.test(val)) {
+                  handleChange(field.fieldname, val);
                 }
+              }}
+              onBlur={(e) => {
+                const val = e.target.value;
+                if (val !== "") handleChange(field.fieldname, parseInt(val, 10) || 0);
               }}
             />
           );
@@ -286,22 +284,20 @@ const MemoizedFormField = memo(
         case "Float":
           return (
             <input
-              type="number"
-              min="0"
+              type="text"
+              inputMode="decimal"
               title="Enter a positive number"
               {...commonProps}
+              value={String(value ?? "")}
               onChange={(e) => {
                 const val = e.target.value;
-                handleChange(
-                  field.fieldname,
-                  val === "" ? "" : parseFloat(val) || 0,
-                );
-              }}
-              onWheel={(e) => (e.target as HTMLInputElement).blur()}
-              onKeyDown={(e) => {
-                if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
-                  e.preventDefault();
+                if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                  handleChange(field.fieldname, val);
                 }
+              }}
+              onBlur={(e) => {
+                const val = e.target.value;
+                if (val !== "") handleChange(field.fieldname, parseFloat(val) || 0);
               }}
             />
           );
@@ -309,27 +305,22 @@ const MemoizedFormField = memo(
         case "Currency":
           return (
             <input
-              type="number"
-              min="0"
+              type="text"
+              inputMode="decimal"
               title="Enter a positive amount in ₹"
               {...commonProps}
+              value={String(value ?? "")}
               onChange={(e) => {
                 const val = e.target.value;
-                // Round to 2 decimal places for currency
-                const numVal = parseFloat(val);
-                handleChange(
-                  field.fieldname,
-                  val === ""
-                    ? ""
-                    : isNaN(numVal)
-                      ? 0
-                      : Math.round(numVal * 100) / 100,
-                );
+                if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                  handleChange(field.fieldname, val);
+                }
               }}
-              onWheel={(e) => (e.target as HTMLInputElement).blur()}
-              onKeyDown={(e) => {
-                if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
-                  e.preventDefault();
+              onBlur={(e) => {
+                const val = e.target.value;
+                if (val !== "") {
+                  const numVal = parseFloat(val);
+                  handleChange(field.fieldname, isNaN(numVal) ? 0 : Math.round(numVal * 100) / 100);
                 }
               }}
             />

@@ -98,17 +98,18 @@ export const ChildTableComponent = memo(({
             case 'Int':
                 return (
                     <input
-                        type="number"
-                        min="0"
+                        type="text"
+                        inputMode="numeric"
                         title="Enter a positive whole number"
                         className={inputClasses}
-                        value={value ?? ''}
-                        onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, parseInt(e.target.value) || 0)}
-                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                        onKeyDown={(e) => {
-                            if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
-                                e.preventDefault();
-                            }
+                        value={String(value ?? '')}
+                        onChange={(e) => {
+                            const v = e.target.value;
+                            if (v === '' || /^\d*$/.test(v)) onRowChange(tableName, rowIndex, col.fieldname, v);
+                        }}
+                        onBlur={(e) => {
+                            const v = e.target.value;
+                            if (v !== '') onRowChange(tableName, rowIndex, col.fieldname, parseInt(v, 10) || 0);
                         }}
                         disabled={isReadOnly}
                     />
@@ -118,17 +119,18 @@ export const ChildTableComponent = memo(({
             case 'Currency':
                 return (
                     <input
-                        type="number"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
                         title="Enter a positive amount"
                         className={inputClasses}
-                        value={value ?? ''}
-                        onChange={(e) => onRowChange(tableName, rowIndex, col.fieldname, parseFloat(e.target.value) || 0)}
-                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
-                        onKeyDown={(e) => {
-                            if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
-                                e.preventDefault();
-                            }
+                        value={String(value ?? '')}
+                        onChange={(e) => {
+                            const v = e.target.value;
+                            if (v === '' || /^\d*\.?\d*$/.test(v)) onRowChange(tableName, rowIndex, col.fieldname, v);
+                        }}
+                        onBlur={(e) => {
+                            const v = e.target.value;
+                            if (v !== '') onRowChange(tableName, rowIndex, col.fieldname, parseFloat(v) || 0);
                         }}
                         disabled={isReadOnly}
                     />

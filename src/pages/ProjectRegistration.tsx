@@ -735,32 +735,20 @@ const MemoizedBudgetTable = memo(
                                                 className="px-4 py-2.5"
                                             >
                                                 <input
-                                                    type="number"
-                                                    min="0"
+                                                    type="text"
+                                                    inputMode="decimal"
                                                     title="Enter a positive budget amount"
-                                                    className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-                                                    value={
-                                                        (row.years || [])[
-                                                            yearIndex
-                                                        ] || ""
-                                                    }
-                                                    onChange={(e) =>
-                                                        onRowChange(
-                                                            rowIndex,
-                                                            "years",
-                                                            e.target.value,
-                                                            yearIndex,
-                                                        )
-                                                    }
-                                                    onWheel={(e) =>
-                                                        (
-                                                            e.target as HTMLInputElement
-                                                        ).blur()
-                                                    }
-                                                    onKeyDown={(e) => {
-                                                        if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
-                                                            e.preventDefault();
+                                                    className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
+                                                    value={String((row.years || [])[yearIndex] ?? "")}
+                                                    onChange={(e) => {
+                                                        const v = e.target.value;
+                                                        if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                                                            onRowChange(rowIndex, "years", v, yearIndex);
                                                         }
+                                                    }}
+                                                    onBlur={(e) => {
+                                                        const v = e.target.value;
+                                                        if (v !== "") onRowChange(rowIndex, "years", parseFloat(v) || 0, yearIndex);
                                                     }}
                                                 />
                                             </td>
