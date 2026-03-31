@@ -124,7 +124,7 @@ export function AppSidebar() {
                     label: "Agency Registration",
                     path: "/universal-registration",
                 },
-                { label: "User", path: "/universal-user" },
+                // { label: "User", path: "/universal-user" },
             ],
         },
         {
@@ -146,6 +146,10 @@ export function AppSidebar() {
         if (item.label === "Universal Forms") {
             // Visible only to staff, RnD
             const allowedRoles = ["staff, RnD"];
+            return roles && allowedRoles.some((role) => roles.includes(role));
+        }
+        if (item.label === "Forms") {
+            const allowedRoles = ["staff, RnD", "Permanent Employee"];
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
         if (item.label === "Pending Task") {
@@ -178,30 +182,8 @@ export function AppSidebar() {
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
         if (item.label === "Projects") {
-            // Hide Projects tab for "staff, RnD"
-            // if (roles && roles.includes("staff, RnD")) {
-            //   return false;
-            // }
-            // if (roles?.some(r =>
-            //   r === "staff, RnD" ||
-            //   r === "Hos, RnD (Head of Section, RnD)"
-            // )) {
-            //   return false;
-            // }
-            // if (roles?.some(r =>
-            //   r === "staff, RnD" ||
-            //   r === "Hos, RnD (Head of Section, RnD)"
-            // )) {
-            //   return false;
-            // }
-
-            if (
-                roles &&
-                (roles.includes("staff, RnD") ||
-                    roles.includes("Hos, RnD (Head of Section, RnD)"))
-            ) {
-                return false;
-            }
+            const allowedRoles = ["Permanent Employee", "head_approver_1", "Dean, RnD"];
+            return roles && allowedRoles.some((role) => roles.includes(role));
         }
         return true;
     });
