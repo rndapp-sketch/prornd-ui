@@ -7,8 +7,9 @@ import { FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import { AppSidebar } from '@/components/RndSidebar';
 import { useNavigate } from 'react-router-dom';
-import { useFrappeGetCall } from 'frappe-react-sdk';
+import { useFrappeGetCall, useFrappeAuth, useFrappeGetDocList } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
+import { useUserRoles } from '../components/UserRole';
 
 // Define interfaces for the API response
 interface PendingTaskRecord {
@@ -18,6 +19,7 @@ interface PendingTaskRecord {
     creation: string;
     modified: string;
     owner: string;
+    head_approver?: string;
 }
 
 interface PendingTaskResult {
@@ -92,6 +94,22 @@ const PendingTask: React.FC = () => {
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+    const isHeadApprover = roles?.includes("head_approver_1") ?? false;
+
+    // Fetch Project Registration names where head_approver matches current user
+    const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
+        filters: [["head_approver", "=", currentUser ?? ""]],
+        fields: ["name"],
+        limit: 500,
+    }, isHeadApprover && !!currentUser ? undefined : null);
+
+    const allowedProjectNames = React.useMemo(() => {
+        if (!isHeadApprover || !headApproverProjects) return null;
+        return new Set(headApproverProjects.map((p: { name: string }) => p.name));
+    }, [isHeadApprover, headApproverProjects]);
+
     // Fetch data from the API
     const { data, isLoading, error } = useFrappeGetCall<PendingTaskResponse>(
         "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_task",
@@ -114,6 +132,10 @@ const PendingTask: React.FC = () => {
             // Only process this group if mod_vis is 1 (or truthy) - OR if it's Advance Settlement (force show)
             if (group.mod_vis || group.doctype === "Advance Settlement") {
                 group.records.forEach((record) => {
+                    // For head_approver_1 role, filter Project Registration to only those assigned to current user
+                    if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
+                        return;
+                    }
                     tasks.push({
                         id: record.name,
                         title: record.title,
@@ -129,7 +151,7 @@ const PendingTask: React.FC = () => {
             }
         });
         return tasks;
-    }, [data]);
+    }, [data, isHeadApprover, allowedProjectNames]);
 
     // Get unique module names for filter dropdown
     const moduleNames = React.useMemo(() => {
