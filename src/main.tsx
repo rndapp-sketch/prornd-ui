@@ -70,6 +70,7 @@ import IndentCumSanctionSheetForm from './pages/application/IndentCumSanctionShe
 import UniversalRegistrationForm from './pages/application/UniversalRegistrationForm.tsx';
 import UniversalUserForm from './pages/application/UniversalUserForm.tsx';
 import DepartmentProjects from './pages/DepartmentProjects.tsx';
+import AdminLogin from './pages/AdminLogin.tsx';
 
 const router = createBrowserRouter(
   [
@@ -92,6 +93,10 @@ const router = createBrowserRouter(
         {
           path: "login",
           element: <Login />,
+        },
+        {
+          path: "x-admin",
+          element: <AdminLogin />,
         },
         {
           // This is the main entry point after login, which handles redirection
