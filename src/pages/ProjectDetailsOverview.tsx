@@ -1437,7 +1437,9 @@ const QuickActions = ({
         onNavigate(`/disbursal-of-consultancy-form?project=${projectParam}`);
         break;
       case "Reimbursement":
-        onNavigate(`/reimbursement?project=${projectParam}`);
+        // Use projectName (Document ID like 2026...) instead of projectParam (project_no like 26RBS...)
+        // so that the Reimbursement form can successfully fetch the project document.
+        onNavigate(`/reimbursement?project=${projectName}${projectTitle ? `&projectTitle=${encodeURIComponent(projectTitle)}` : ""}`);
         break;
       case "Temporary Advance Apply":
         onNavigate(

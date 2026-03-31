@@ -629,6 +629,26 @@ const ReimbursementDetails: React.FC = () => {
             );
           }
 
+          // Resolve project name (Project Registration doctype with project_title field)
+          if (docData.project_name) {
+            nameMap.project_name = await resolveLinkName(
+              "Project Registration",
+              docData.project_name,
+              "project_title",
+            );
+            // Fallback to title if project_title is empty
+            if (nameMap.project_name === docData.project_name) {
+              const altTitle = await resolveLinkName(
+                "Project Registration",
+                docData.project_name,
+                "title",
+              );
+              if (altTitle !== docData.project_name) {
+                nameMap.project_name = altTitle;
+              }
+            }
+          }
+
           setResolvedNames(nameMap);
         } else {
           setError("Reimbursement not found");
@@ -858,7 +878,7 @@ const ReimbursementDetails: React.FC = () => {
             <div class="section-header">Form Details</div>
             <div class="info-row"><div class="info-label">Own/ Other Project:</div><div class="info-value">${data.self_other || "Own"}</div></div>
             <div class="info-row"><div class="info-label">Project Number:</div><div class="info-value">${data.project_number || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Project Name:</div><div class="info-value">${data.project_name || "-"}</div></div>
+            <div class="info-row"><div class="info-label">Project Name:</div><div class="info-value">${resolvedNames.project_name || data.project_name || "-"}</div></div>
             <div class="info-row"><div class="info-label">Account Head:</div><div class="info-value">${resolvedNames.account_head || data.account_head || "-"}</div></div>
             <div class="info-row"><div class="info-label">Total Amount (₹):</div><div class="info-value">${totalAmount.toLocaleString("en-IN")}</div></div>
             <div class="info-row"><div class="info-label">Date and Time:</div><div class="info-value">${applicationDate}</div></div>
@@ -1099,7 +1119,7 @@ const ReimbursementDetails: React.FC = () => {
                     label="Project Number"
                     value={data.project_number}
                   />
-                  <DetailRow label="Project Name" value={data.project_name} />
+                  <DetailRow label="Project Name" value={resolvedNames.project_name || data.project_name} />
                   <DetailRow
                     label="Account Head"
                     value={resolvedNames.account_head || data.account_head}
