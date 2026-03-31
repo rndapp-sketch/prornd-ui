@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 // import { AppSidebar } from '@/components/RndSidebar';
-import { useFrappePostCall } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 // import { ArrowLeftIcon } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
+import { isFieldVisible } from '@/utils/evalExpression';
 import { prepareFormDataForApi } from '@/services/apiService';
 
 // --- TYPE DEFINITIONS ---
@@ -48,11 +49,15 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 );
 
 // --- MAIN REIMBURSEMENT COMPONENT ---
+const AUTOCOMPLETE_FIELDS = ['applicant_webmail', 'reimbursement_for_id'];
+
 const Reimbursement: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const editDocName = searchParams.get('edit');
     const projectFromUrl = searchParams.get('project');
+    const projectTitleFromUrl = searchParams.get('projectTitle');
+    const { currentUser } = useFrappeAuth();
 
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
@@ -62,6 +67,7 @@ const Reimbursement: React.FC = () => {
     const [isSaved, setIsSaved] = useState(false);
     const [savedDocName, setSavedDocName] = useState<string | null>(null);
     const [dataLoaded, setDataLoaded] = useState(false);
+    const [projectTitle, setProjectTitle] = useState<string>('');
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>('rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_reimbursement_fields');
@@ -126,16 +132,20 @@ const Reimbursement: React.FC = () => {
                         if (projectDoc?.message) {
                             const pData = projectDoc.message;
                             initialData.project_number = pData.project_no || pData.name || projectFromUrl;
-                            initialData.project_name = pData.project_title || pData.name || projectFromUrl;
+                            // Use doc name (ID) for the Link field so the dropdown can match it
+                            initialData.project_name = pData.name || projectFromUrl;
+                            setProjectTitle(projectTitleFromUrl || pData.project_title || '');
                         } else {
                             // Fallback if fetch fails or no message
                             initialData.project_name = projectFromUrl;
                             initialData.project_number = projectFromUrl;
+                            if (projectTitleFromUrl) setProjectTitle(projectTitleFromUrl);
                         }
                     } catch (err) {
                         console.warn('Could not fetch project details for auto-fill:', err);
                         initialData.project_name = projectFromUrl;
                         initialData.project_number = projectFromUrl;
+                        if (projectTitleFromUrl) setProjectTitle(projectTitleFromUrl);
                     }
                 }
 
@@ -145,6 +155,11 @@ const Reimbursement: React.FC = () => {
                         initialData[field.fieldname] = field.default;
                     }
                 });
+
+                // Default applicant_webmail to current logged-in user if not already set
+                if (!initialData.applicant_webmail && !editDocName && currentUser) {
+                    initialData.applicant_webmail = currentUser;
+                }
 
                 // Auto-fill applicant details if webmail is prefilled
                 if (initialData.applicant_webmail && !editDocName) {
@@ -172,7 +187,46 @@ const Reimbursement: React.FC = () => {
         };
 
         loadFormAndDocument();
-    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, projectFromUrl, dataLoaded, fetchProjectDetails]);
+    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, projectFromUrl, dataLoaded, fetchProjectDetails, currentUser]);
+
+    // Resolve project title after data is loaded
+    useEffect(() => {
+        if (!dataLoaded || projectTitle) return;
+        const projectNameValue = formData.project_name;
+        if (!projectNameValue) return;
+
+        // First try linkOptions lookup
+        const option = linkOptions['project_name']?.find(opt => opt.value === projectNameValue);
+        if (option?.label) {
+            setProjectTitle(option.label);
+            return;
+        }
+
+        // Fallback: fetch from API
+        fetchProjectDetails({
+            doctype: 'Project Registration',
+            name: projectNameValue
+        }).then(res => {
+            if (res?.message) {
+                const title = res.message.project_title || res.message.title || '';
+                if (title) {
+                    setProjectTitle(title);
+                    // Also inject it into linkOptions so the DynamicFormRenderer can use it!
+                    setLinkOptions(prev => {
+                        const existingOpts = prev['project_name'] || [];
+                        if (!existingOpts.find(opt => opt.value === projectNameValue)) {
+                            return {
+                                ...prev,
+                                'project_name': [...existingOpts, { value: projectNameValue, label: title }]
+                            };
+                        }
+                        return prev;
+                    });
+                }
+            }
+        }).catch(() => {});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dataLoaded, formData.project_name, projectTitle]);
 
     // --- EVENT HANDLERS ---
     const handleChange = useCallback((fieldname: string, value: any) => {
@@ -227,6 +281,12 @@ const Reimbursement: React.FC = () => {
             // project_name is a Link field (dropdown, value = Project ID)
             // project_number is a Data field (needs text value)
             if (fieldname === 'project_name') {
+                // Immediately look up label from linkOptions for the header
+                const selectedOption = linkOptionsRef.current['project_name']?.find(opt => opt.value === value);
+                if (selectedOption?.label) {
+                    setProjectTitle(selectedOption.label);
+                }
+
                 // Immediately set project_number to the selected ID (value)
                 setFormData(prev => ({
                     ...prev,
@@ -249,10 +309,17 @@ const Reimbursement: React.FC = () => {
                                     project_number: pData.project_no
                                 }));
                             }
+                            // Use project_title from API (overrides linkOptions label if available)
+                            const apiTitle = pData.project_title || pData.title;
+                            if (apiTitle) {
+                                setProjectTitle(apiTitle);
+                            }
                         }
                     } catch (err) {
                         console.warn('Could not fetch project details for auto-fill:', err);
                     }
+                } else {
+                    setProjectTitle('');
                 }
             }
 
@@ -296,6 +363,19 @@ const Reimbursement: React.FC = () => {
 
     const handleSave = async () => {
         if (isSubmitting) return;
+
+        // Validate all visible declaration checkboxes are checked before saving
+        const uncheckedFields = fields.filter(f =>
+            f.fieldtype === 'Check' &&
+            isFieldVisible(f, formData) &&
+            !(formData[f.fieldname] === 1 || formData[f.fieldname] === '1' || formData[f.fieldname] === true)
+        );
+        if (uncheckedFields.length > 0) {
+            const names = uncheckedFields.map(f => f.label || f.fieldname).join(', ');
+            alert(`Please select all declaration checkboxes before saving: ${names}`);
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const data = await prepareFormDataForApi(formData);
@@ -384,7 +464,7 @@ const Reimbursement: React.FC = () => {
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <PageHeader
                     title={editDocName ? `Edit Reimbursement` : 'Reimbursement Application'}
-                    projectName={formData.project_name}
+                    projectName={projectTitle || linkOptions['project_name']?.find(opt => opt.value === formData.project_name)?.label || formData.project_name}
                     projectNumber={formData.project_number}
                     status={editDocName ? 'Editing' : 'New'}
                     showBack={true}
@@ -404,6 +484,7 @@ const Reimbursement: React.FC = () => {
                             onDeleteTableRow={deleteTableRow}
                             onFieldChangeWithSideEffects={handleFieldChangeWithSideEffects}
                             readOnly={formData.docstatus === 1}
+                            autocompleteFields={AUTOCOMPLETE_FIELDS}
                         />
                     </FrappeCard>
 
