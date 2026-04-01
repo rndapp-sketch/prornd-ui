@@ -343,7 +343,7 @@ const TaskRegistry: React.FC = () => {
                                                 } else if (task.doctype === "Disbursal of Consultancy") {
                                                     navigate(`/disbursal-of-consultancy/${task.id}`);
                                                 } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
-                                                    navigate(`/project-details-overview/${task.id}`);
+                                                    navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
                                                 } else {
                                                     navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                 }
@@ -385,7 +385,7 @@ const TaskRegistry: React.FC = () => {
                                                         } else if (task.doctype === "Disbursal of Consultancy") {
                                                             navigate(`/disbursal-of-consultancy/${task.id}`);
                                                         } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
-                                                            navigate(`/project-details-overview/${task.id}`);
+                                                            navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
                                                         } else {
                                                             navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                         }
