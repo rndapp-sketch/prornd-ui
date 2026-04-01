@@ -9,6 +9,7 @@ import {
 import { ChildTableComponent, type ChildField } from "./ChildTableComponent";
 import { DepartmentName } from "@/components/DepartmentName";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
+import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { getFileUrl } from "@/utils/fileUtils";
 
 // --- TYPE DEFINITIONS ---
@@ -65,6 +66,8 @@ export interface DynamicFormRendererProps {
   onFieldChangeWithSideEffects?: (fieldname: string, value: any) => void;
   onTableLinkChange?: (tableName: string, rowIndex: number, fieldname: string, value: string) => void;
   readOnly?: boolean;
+  /** Fieldnames that should render as searchable autocomplete instead of a plain select dropdown */
+  autocompleteFields?: string[];
 }
 
 // --- STYLES ---
@@ -82,6 +85,7 @@ const MemoizedFormField = memo(
     onChange,
     onFileChange,
     onFieldChangeWithSideEffects,
+    isAutocomplete,
   }: {
     field: FormField;
     value: any;
@@ -91,6 +95,7 @@ const MemoizedFormField = memo(
     onChange: (fieldname: string, value: any) => void;
     onFileChange: (fieldname: string, file: File | null) => void;
     onFieldChangeWithSideEffects?: (fieldname: string, value: any) => void;
+    isAutocomplete?: boolean;
   }) => {
     if (
       !field.label &&
@@ -126,6 +131,41 @@ const MemoizedFormField = memo(
     const renderInput = () => {
       switch (field.fieldtype) {
         case "Link":
+          // If the field is read-only, render it as plain text finding the label from options
+          if (isReadOnly) {
+            const readOnlyLabel = options?.find((opt) => opt.value === value)?.label || value;
+            return (
+              <div className="flex h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100">
+                {(field.fieldname === "department" ||
+                  field.fieldname === "department_for" ||
+                  field.fieldname === "upfa_department" ||
+                  field.fieldname === "implementation_department" ||
+                  field.fieldname === "applicant_department") &&
+                value ? (
+                  <DepartmentName name={value} />
+                ) : (
+                  readOnlyLabel || "-"
+                )}
+              </div>
+            );
+          }
+
+          // Render searchable autocomplete for fields marked via autocompleteFields prop
+          if (isAutocomplete && options && options.length > 0) {
+            return (
+              <div className="relative flex flex-col pt-1">
+                <AutocompleteEmail
+                  className={inputClasses}
+                  value={value ?? ""}
+                  onChange={(val) => handleChange(field.fieldname, val)}
+                  options={options}
+                  searchByLabel
+                  placeholder={`Enter ${field.label}...`}
+                  disabled={isReadOnly}
+                />
+              </div>
+            );
+          }
           // specific check: if options exist, render select. Else render text input (fallback for large link fields like User)
           if (options && options.length > 0) {
             return (
@@ -482,6 +522,7 @@ const MemoizedFormField = memo(
           );
 
         case "Read Only":
+          const readOnlyLabel = options?.find(opt => opt.value === value)?.label || value;
           return (
             <div className="flex h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100">
               {(field.fieldname === "department" ||
@@ -492,7 +533,7 @@ const MemoizedFormField = memo(
               value ? (
                 <DepartmentName name={value} />
               ) : (
-                value || "-"
+                readOnlyLabel || "-"
               )}
             </div>
           );
@@ -672,6 +713,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   onFieldChangeWithSideEffects,
   onTableLinkChange,
   readOnly = false,
+  autocompleteFields,
 }) => {
   // Group fields by sections
   const groupFieldsBySection = useCallback((): FormSection[] => {
@@ -768,6 +810,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         onChange={onChange}
         onFileChange={onFileChange}
         onFieldChangeWithSideEffects={onFieldChangeWithSideEffects}
+        isAutocomplete={autocompleteFields?.includes(field.fieldname)}
       />
     );
   };
