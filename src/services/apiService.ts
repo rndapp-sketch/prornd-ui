@@ -44,6 +44,7 @@ export const tadaAPI = {
     submit: `${API_BASE}.ta_da_settlement.ta_da_settlement.submit_ta_da_settlement`,
     getWorkflowActions: `${API_BASE}.ta_da_settlement.ta_da_settlement.get_ta_da_settlement_workflow_actions`,
     performAction: `${API_BASE}.ta_da_settlement.ta_da_settlement.perform_ta_da_settlement_action`,
+    getCommitDetails: `${API_BASE}.ta_da_settlement.ta_da_settlement.get_ta_da_settlement_commit_details`,
 };
 
 // Project Staff Resignation API endpoints

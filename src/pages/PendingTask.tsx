@@ -411,6 +411,8 @@ const PendingTask: React.FC = () => {
                                                             navigate(`/pending-tasks/${encodeURIComponent(task.doctype)}/${task.id}`);
                                                         } else if (task.doctype === "Disbursal of Consultancy") {
                                                             navigate(`/disbursal-of-consultancy/${task.id}`);
+                                                        } else if (task.doctype === "Travel") {
+                                                            navigate(`/travel/${task.id}`);
                                                         } else {
                                                             navigate(`/pending-tasks/${task.doctype}/${task.id}`);
                                                         }

@@ -12,6 +12,7 @@ import {
     CalendarIcon,
     FileSpreadsheetIcon as LedgerIcon,
     EditIcon,
+    Send,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -158,6 +159,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Sidebar state
     const [sidebarComment, setSidebarComment] = useState("");
@@ -186,6 +188,8 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
     const { call: addComment } = useFrappePostCall(
         "rndopsapp.rndopsapp.api.add_project_comment",
     );
+    const { call: submitDocument } = useFrappePostCall<{ message: any }>(disbursalOfConsultancyAPI.submit);
+    const { call: stageCommit } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_commit_data");
     const { call: submitCommit, loading: isCommitting } = useFrappePostCall(
         "rndopsapp.rndopsapp.commitPayment.submit_commit_data",
     );
@@ -415,6 +419,39 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
         setLoading(true);
     }, []);
 
+    // --- SUBMIT DRAFT ---
+    const handleSubmitDraft = async () => {
+        if (!id || isSubmitting) return;
+        setIsSubmitting(true);
+        try {
+            const submitRes = await submitDocument({ docname: id });
+            const msg = submitRes?.message;
+            if (msg?.status === "success" || msg?.status === "info" || msg?.docname) {
+                // Stage commit so Kafka fires on Dean approval
+                try {
+                    await stageCommit({
+                        doctype: "Disbursal of Consultancy",
+                        frapAppId: id,
+                        name: id,
+                        project_name: formData.disbursal_project_number || "",
+                        commit_amount: formData.total_disbursal_amount ?? 0,
+                        budget_head: "Consultancy",
+                    });
+                } catch (commitErr) {
+                    console.warn("Commit staging failed (non-fatal):", commitErr);
+                }
+                alert("Disbursal of Consultancy submitted successfully!");
+                handleRefresh();
+            } else {
+                throw new Error(msg?.message || "Submission failed");
+            }
+        } catch (err: any) {
+            alert(`Submission failed: ${err.message || "Unknown error"}`);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     // --- COMMIT ---
     const handleCommit = async () => {
         if (!commitAmount || !commitHead || !id || !formData) {
@@ -512,15 +549,25 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                     {(formData.workflow_state === "Draft" ||
                         !formData.workflow_state) &&
                         id && (
-                            <button
-                                onClick={() =>
-                                    navigate(`/disbursal-of-consultancy-form/${id}`)
-                                }
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
-                            >
-                                <EditIcon className="w-4 h-4" />
-                                Edit
-                            </button>
+                            <>
+                                <button
+                                    onClick={() =>
+                                        navigate(`/disbursal-of-consultancy-form/${id}`)
+                                    }
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                                >
+                                    <EditIcon className="w-4 h-4" />
+                                    Edit
+                                </button>
+                                <button
+                                    onClick={handleSubmitDraft}
+                                    disabled={isSubmitting}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50"
+                                >
+                                    <Send className="w-4 h-4" />
+                                    {isSubmitting ? "Submitting..." : "Submit Application"}
+                                </button>
+                            </>
                         )}
                 </PageHeader>
 

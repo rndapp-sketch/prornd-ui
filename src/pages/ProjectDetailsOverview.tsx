@@ -1594,28 +1594,60 @@ const QuickActions = ({
                       {item.applicant_webmail || item.owner}
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={cn(
-                          "inline-flex px-2 py-1 text-xs font-medium rounded-full",
-                          item.workflow_state === "Approved" &&
-                            "bg-green-100 text-green-700",
-                          item.workflow_state === "Pending" &&
-                            "bg-yellow-100 text-yellow-700",
-                          item.workflow_state === "Rejected" &&
-                            "bg-red-100 text-red-700",
-                          item.workflow_state === "Draft" &&
-                            "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
-                          ![
-                            "Approved",
-                            "Pending",
-                            "Rejected",
-                            "Draft",
-                          ].includes(item.workflow_state) &&
-                            "bg-blue-100 text-blue-700",
-                        )}
-                      >
-                        {item.workflow_state || "Draft"}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span
+                          className={cn(
+                            "inline-flex px-2 py-1 text-xs font-medium rounded-full",
+                            item.workflow_state === "Approved" &&
+                              "bg-green-100 text-green-700",
+                            item.workflow_state === "Pending" &&
+                              "bg-yellow-100 text-yellow-700",
+                            item.workflow_state === "Rejected" &&
+                              "bg-red-100 text-red-700",
+                            item.workflow_state === "Draft" &&
+                              "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
+                            ![
+                              "Approved",
+                              "Pending",
+                              "Rejected",
+                              "Draft",
+                            ].includes(item.workflow_state) &&
+                              "bg-blue-100 text-blue-700",
+                          )}
+                        >
+                          {item.workflow_state || "Draft"}
+                        </span>
+                        {/* Show linked TA/DA Settlement status for Travel Apply rows */}
+                        {selectedApplication === "Travel" &&
+                          item.type === "Travel Apply" &&
+                          applicationData
+                            .filter(
+                              (s: any) =>
+                                s.type === "TA DA Settlement" &&
+                                s.ta_da_travel_application === item.name,
+                            )
+                            .slice(0, 1)
+                            .map((settlement: any) => (
+                              <span
+                                key={settlement.name}
+                                className={cn(
+                                  "inline-flex px-2 py-1 text-xs font-medium rounded-full",
+                                  settlement.workflow_state === "Approved" &&
+                                    "bg-green-100 text-green-700",
+                                  settlement.workflow_state === "Rejected" &&
+                                    "bg-red-100 text-red-700",
+                                  settlement.workflow_state === "Draft" &&
+                                    "bg-zinc-100 text-zinc-700",
+                                  !["Approved", "Rejected", "Draft"].includes(
+                                    settlement.workflow_state,
+                                  ) && "bg-blue-100 text-blue-700",
+                                )}
+                                title={`Settlement: ${settlement.name}`}
+                              >
+                                Settled: {settlement.workflow_state}
+                              </span>
+                            ))}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-3">

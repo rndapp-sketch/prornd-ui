@@ -88,6 +88,8 @@ const TADASettlementForm: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
+  // Tracks the docname created/returned by a Save Draft action so Submit can reuse it
+  const [savedDocName, setSavedDocName] = useState<string>("");
 
   // --- API HOOKS ---
   const {
@@ -501,6 +503,10 @@ const TADASettlementForm: React.FC = () => {
       const res = await saveForm({ doc_data: JSON.stringify(data) });
 
       if (res?.message?.status === "success") {
+        // Track the returned docname so Submit can reuse the same document
+        if (res.message.docname && !editDocName) {
+          setSavedDocName(res.message.docname);
+        }
         alert(
           editDocName
             ? "TA DA Settlement updated successfully!"
@@ -525,8 +531,12 @@ const TADASettlementForm: React.FC = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      // 1. Save first
+      // 1. Save first — include existing docname so we don't create a duplicate
+      const effectiveName = editDocName || savedDocName;
       const data = await prepareFormDataForApi(formData);
+      if (effectiveName) {
+        data.name = effectiveName;
+      }
       const saveRes = await saveForm({ doc_data: JSON.stringify(data) });
 
       if (saveRes?.message?.status !== "success") {
@@ -535,7 +545,7 @@ const TADASettlementForm: React.FC = () => {
         );
       }
 
-      const docname = saveRes.message.docname;
+      const docname = saveRes.message.docname || effectiveName;
 
       // 2. Submit
       const submitRes = await submitForm({ docname });

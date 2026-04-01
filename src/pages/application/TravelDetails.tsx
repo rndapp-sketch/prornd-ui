@@ -1,30 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { AppSidebar } from '@/components/RndSidebar';
-import { useFrappePostCall } from 'frappe-react-sdk';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+
+import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { FileText, Calendar, MapPin, Building, Download, ExternalLink } from 'lucide-react';
+import { CalendarIcon, FileSpreadsheetIcon as LedgerIcon, EditIcon, Send, ReceiptText } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
+import { GlobalLoader } from '@/components/ui/global-loader';
+import { Textarea } from '@/components/ui/textarea';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { travelAPI } from '@/services/apiService';
+import { travelAPI, prepareFormDataForApi } from '@/services/apiService';
 import TravelActionButtons from '@/components/TravelActionButtons';
-import { getStateBadgeStyle } from '@/utils/workflowUtils';
+import { useProjectBudget } from '@/hooks/useProjectBudget';
+import { useUserRoles } from '@/components/UserRole';
+import { ProjectLedgerModal } from '@/components/ProjectLedgerModal';
+import { BudgetHeadName } from '@/components/BudgetHeadName';
 
 // --- TYPE DEFINITIONS ---
-interface TravelDoc {
-    name: string;
-    workflow_state: string;
-    docstatus: number;
-    applicant_name_travel?: string;
-    webmail_id_travel?: string;
-    travel_project_title?: string;
-    from_date?: string;
-    to_date?: string;
-    destination?: string;
-    nature_of_travel?: string;
-    [key: string]: any;
-}
-
 interface FormDataResponse {
     message: {
         fields: FormField[];
@@ -33,39 +24,355 @@ interface FormDataResponse {
     };
 }
 
-// --- STYLES & REUSABLE UI COMPONENTS ---
-const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>
-        {children}
+interface ActivityItem {
+    owner: string;
+    creation: string;
+    content: string;
+    comment_type: string;
+}
+
+// --- UI COMPONENTS ---
+const FrappeCard = ({
+    title,
+    children,
+    className = "",
+}: {
+    title?: string;
+    children: React.ReactNode;
+    className?: string;
+}) => (
+    <div
+        className={cn(
+            "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm",
+            className,
+        )}
+    >
+        {title && (
+            <div className="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800">
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                    {title}
+                </h3>
+            </div>
+        )}
+        <div className="p-6">{children}</div>
     </div>
 );
 
-// --- STATUS BADGE COMPONENT (DYNAMIC) ---
-const StatusBadge = ({ status }: { status: string }) => {
+const FrappeButton = ({
+    children,
+    onClick,
+    disabled,
+    className,
+    variant = "ghost",
+}: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+    className?: string;
+    variant?: "primary" | "ghost" | "outline";
+}) => (
+    <button
+        onClick={onClick}
+        disabled={disabled}
+        className={cn(
+            "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
+            "focus:outline-none focus:ring-2 focus:ring-zinc-400",
+            variant === "primary" &&
+                "bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-md border border-[#C66A4E]",
+            variant === "ghost" &&
+                "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:hover:bg-zinc-700",
+            variant === "outline" &&
+                "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
+            "disabled:opacity-50 disabled:cursor-not-allowed",
+            className,
+        )}
+    >
+        {children}
+    </button>
+);
+
+// --- ACTIVITY STREAM ---
+const ActivityStream = ({
+    doctype,
+    docname,
+}: {
+    doctype: string;
+    docname: string;
+}) => {
+    const { data: activityData, mutate: refetch } = useFrappeGetCall<{
+        message: ActivityItem[];
+    }>("rndopsapp.rndopsapp.api.get_project_activity", { doctype, docname });
+
+    useEffect(() => {
+        refetch();
+    }, [docname]);
+
     return (
-        <span className={cn(
-            "px-3 py-1 rounded-full text-sm font-medium border",
-            getStateBadgeStyle(status)
-        )}>
-            {status || 'Draft'}
-        </span>
+        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+            {activityData?.message?.length ? (
+                activityData.message.map((item, idx) => (
+                    <div key={idx} className="flex items-start gap-3">
+                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-[#D97757] text-xs">
+                            {item.owner?.charAt(0).toUpperCase() || "U"}
+                        </div>
+                        <div className="min-w-0">
+                            <div
+                                className="text-sm text-zinc-800 dark:text-zinc-200 prose prose-sm max-w-none"
+                                dangerouslySetInnerHTML={{ __html: item.content }}
+                            />
+                            <p className="text-xs text-zinc-500 mt-0.5">
+                                {item.owner} ·{" "}
+                                {item.creation
+                                    ? new Date(item.creation).toLocaleString()
+                                    : ""}
+                            </p>
+                        </div>
+                    </div>
+                ))
+            ) : (
+                <p className="text-sm text-zinc-500 italic">No activity yet.</p>
+            )}
+        </div>
     );
 };
-
 
 // --- MAIN COMPONENT ---
 const TravelDetails: React.FC = () => {
     const { docName } = useParams<{ docName: string }>();
+    const navigate = useNavigate();
 
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+
+    // Override account_head fieldtype to Link so DynamicFormRenderer uses BudgetHeadName overlay
+    const renderedFields = useMemo(() =>
+        fields.map(f => f.fieldname === 'account_head' ? { ...f, fieldtype: 'Link' } : f),
+    [fields]);
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Sidebar state
+    const [sidebarComment, setSidebarComment] = useState("");
+    const [isAddingComment, setIsAddingComment] = useState(false);
+    const [isLedgerOpen, setIsLedgerOpen] = useState(false);
+
+    // Commit / Payment state — commitHead stores the Frappe docname (uid) of the selected Budget Head
+    const [commitHead, setCommitHead] = useState("");
+    const [commitAmount, setCommitAmount] = useState("");
+    const [paymentAmount, setPaymentAmount] = useState("");
+    // Staged commit: tracked locally because travel commits are staged (ledger not updated until approval)
+    const [stagedCommit, setStagedCommit] = useState<{ head: string; amount: number } | null>(null);
+
+    // Budget head list for ledger modal
+    const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
+    // Full budget head list: uid = Frappe docname, label = human-readable name for dropdown options
+    const [allBudgetHeads, setAllBudgetHeads] = useState<{ uid: string; label: string; id: string }[]>([]);
+
+    // Resolved project number — travel_project_number is a Link field whose value is
+    // the Frappe docname of Project Registration (may be an internal ID like "110001").
+    // We fetch the actual project_no from that document to use for budget lookups & display.
+    const [resolvedProjectNo, setResolvedProjectNo] = useState<string>("");
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(travelAPI.getFields);
-    const { call: fetchDocument } = useFrappePostCall<{ message: TravelDoc }>('frappe.client.get');
+    const { call: fetchDocument } = useFrappePostCall<{ message: any }>('frappe.client.get');
+    const { call: saveForm } = useFrappePostCall<{ message: any }>(travelAPI.save);
+    const { call: submitDocument } = useFrappePostCall<{ message: any }>(travelAPI.submit);
+    const { call: addComment } = useFrappePostCall('rndopsapp.rndopsapp.api.add_project_comment');
+
+    // Fetch linked TA/DA Settlement status
+    const { data: tadaListData } = useFrappeGetCall<{ message: { name: string; workflow_state: string }[] }>(
+        'frappe.client.get_list',
+        docName ? {
+            doctype: 'TA DA Settlement',
+            filters: JSON.stringify([['ta_da_travel_application', '=', docName]]),
+            fields: JSON.stringify(['name', 'workflow_state']),
+            limit: 1,
+        } : undefined,
+        undefined,
+        { revalidateOnFocus: false, isPaused: () => !docName },
+    );
+    const tadaSettlement = tadaListData?.message?.[0] ?? null;
+    const { call: submitCommit, loading: isCommitting } = useFrappePostCall(
+        'rndopsapp.rndopsapp.commitPayment.submit_commit_data',
+    );
+    const { call: submitPayment, loading: isPaying } = useFrappePostCall(
+        'rndopsapp.rndopsapp.commitPayment.submit_payment_data',
+    );
+
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+
+    // --- RESOLVE ACTUAL PROJECT NUMBER ---
+    // travel_project_number is a Link field whose stored value is the Frappe docname of
+    // Project Registration (may be an internal ID like "110001").
+    // Fetch the linked document to get the actual project_no field (e.g. "26RBSBESP0391XXLS0010").
+    useEffect(() => {
+        const linkedName = formData?.travel_project_number;
+        if (!linkedName) return;
+        fetchDocument({ doctype: "Project Registration", name: linkedName })
+            .then((res) => {
+                const projectDoc = res?.message;
+                if (projectDoc?.project_no) {
+                    setResolvedProjectNo(projectDoc.project_no);
+                } else {
+                    // Fallback: use the raw link value if project_no not found
+                    setResolvedProjectNo(linkedName);
+                }
+            })
+            .catch(() => {
+                setResolvedProjectNo(linkedName);
+            });
+    }, [formData?.travel_project_number]);
+
+    // --- PROJECT BUDGET ---
+    // Use the resolved project_no (actual code) for all budget/ledger lookups
+    const projectTitle = resolvedProjectNo || formData?.travel_project_title || "";
+
+    const {
+        budgetData,
+        heads: budgetHeads,
+        actualBalance,
+    } = useProjectBudget(projectTitle);
+
+    const balanceApiParams = React.useMemo(
+        () => ({ project_number: projectTitle }),
+        [projectTitle],
+    );
+    const balanceApiOptions = React.useMemo(
+        () => ({ revalidateOnFocus: false, isPaused: () => !projectTitle }),
+        [projectTitle],
+    );
+    const { data: projectAmountsData } = useFrappeGetCall<{
+        message: {
+            status: string;
+            data: {
+                availableCommitAmount: number;
+                availablePaymentAmount: number;
+            };
+        };
+    }>(
+        "rndopsapp.rndopsapp.commitPayment.get_project_available_amounts",
+        balanceApiParams,
+        balanceApiOptions,
+    );
+
+    const projectAmountsResult =
+        (projectAmountsData as any)?.message?.data ??
+        (projectAmountsData as any)?.data ??
+        {};
+    const totalCommitableBalance = projectAmountsResult?.availablePaymentAmount ?? 0;
+
+    const linkedCommitment = budgetData.find(
+        (e) =>
+            (e.ref === (docName || "") || e.frapAppId === (docName || "")) &&
+            e.type === "commitment",
+    );
+
+    const linkedPayment = budgetData.find(
+        (e) =>
+            (e.ref === (docName || "") || e.frapAppId === (docName || "")) &&
+            e.type === "transaction" &&
+            e.payment > 0,
+    );
+
+    const isCommitted = !!linkedCommitment || !!stagedCommit;
+
+    // Unified commitment display: prefer ledger data, fall back to staged
+    const displayCommitment = linkedCommitment
+        ? { head: linkedCommitment.head, committed: linkedCommitment.committed }
+        : stagedCommit
+          ? { head: stagedCommit.head, committed: stagedCommit.amount }
+          : null;
+
+    const isRnDStaff = roles.some(
+        (r) =>
+            r === "RnD Staff" ||
+            r === "R&D Staff" ||
+            r === "Research and Development Staff" ||
+            r === "System Manager" ||
+            r === "staff, RnD" ||
+            r === "Hos, RnD (Head of Section, RnD)",
+    );
+
+    // Advance / Settle logic
+    const needsAdvance = formData.travel_financial_assistance === "Yes";
+    const isApproved = formData.workflow_state === "Approved";
+    // Settle: after Dean approval; if advance needed, only after payment recorded
+    const showSettleButton = isApproved && (needsAdvance ? !!linkedPayment : true);
+
+    // Block "Forward" when R&D Staff hasn't committed yet but advance is required
+    const isForwardBlocked =
+        formData.workflow_state === "Pending Staff Approval" &&
+        isRnDStaff &&
+        needsAdvance &&
+        !isCommitted;
+    const blockedActions = isForwardBlocked
+        ? [{ action: "Forward", reason: "Please make a commitment before forwarding." }]
+        : [];
+
+    // Show commit section for any in-progress workflow state (not Draft/Rejected/Cancelled)
+    const showCommitSection =
+        isRnDStaff &&
+        formData.workflow_state &&
+        !["Draft", "Rejected", "Cancelled"].includes(formData.workflow_state);
+
+    // Pre-fill commit inputs from formData — store uid in commitHead so BudgetHeadName can resolve it
+    useEffect(() => {
+        if (!showCommitSection || isCommitted || !formData.account_head) return;
+        setCommitHead(formData.account_head);
+        setCommitAmount(String(formData.total_estimate ?? ""));
+    }, [showCommitSection, isCommitted, formData.account_head, formData.total_estimate]);
+
+    useEffect(() => {
+        if (budgetHeads.length > 0 && !commitHead) {
+            setCommitHead(budgetHeads[0] || "Overhead");
+        }
+    }, [budgetHeads]);
+
+    useEffect(() => {
+        if (linkedCommitment) {
+            setCommitHead(linkedCommitment.head || "");
+            if (!paymentAmount) setPaymentAmount(String(linkedCommitment.committed));
+        } else if (stagedCommit) {
+            setCommitHead(stagedCommit.head);
+            if (!paymentAmount) setPaymentAmount(String(stagedCommit.amount));
+        }
+    }, [linkedCommitment, stagedCommit]);
+
+    // Fetch budget head list — also used to resolve account_head docname → label
+    useEffect(() => {
+        const fetchBudgetHeads = async () => {
+            try {
+                const response = await fetch(
+                    '/api/v2/document/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc',
+                    { credentials: "include" },
+                );
+                const result = await response.json();
+                if (result?.data) {
+                    const mapped = result.data.map((item: any) => ({
+                        uid: item.name,          // Frappe docname — stored in account_head
+                        label: item.budget_head, // Human-readable label
+                        id: item.id,
+                    }));
+                    setAllBudgetHeads(mapped);
+                    setBudgetHeadList(mapped.map((h: any) => ({ name: h.label, id: h.id })));
+                    // Inject into linkOptions so DynamicFormRenderer resolves account_head uid → label
+                    const budgetHeadOptions = mapped.map((h: any) => ({ value: h.uid, label: h.label }));
+                    setLinkOptions(prev => ({
+                        ...prev,
+                        'Budget Head': budgetHeadOptions,
+                        'account_head': budgetHeadOptions,
+                    }));
+                }
+            } catch (err) {
+                console.error("Failed to fetch Budget Heads:", err);
+            }
+        };
+        fetchBudgetHeads();
+    }, []);
 
     // --- DATA FETCHING ---
     useEffect(() => {
@@ -84,80 +391,207 @@ const TravelDetails: React.FC = () => {
                 try {
                     const doc = await fetchDocument({
                         doctype: 'Travel',
-                        name: docName
+                        name: docName,
                     });
-
                     if (doc?.message) {
                         setFormData(doc.message);
                     }
                 } catch (err) {
                     console.error('Error fetching document:', err);
-                    alert('Failed to load Travel document');
                 }
 
                 setLoading(false);
             }
             if (formDataError) {
                 console.error("Failed to load form data:", formDataError);
-                alert("Error: Could not load the Travel document.");
                 setLoading(false);
             }
         };
 
         loadDocument();
-    }, [formDataResult, formDataError, docName, fetchDocument]);
+    }, [formDataResult, formDataError, docName]);
 
-    const handleRefresh = () => {
-        setRefreshKey(prev => prev + 1);
+    const handleRefresh = useCallback(() => {
+        setRefreshKey((k) => k + 1);
         setLoading(true);
+    }, []);
+
+    // --- SUBMIT DRAFT ---
+    // Mirrors TravelForm.handleSubmit: save first (to satisfy backend), then submit
+    const handleSubmitDraft = async () => {
+        if (!docName || isSubmitting) return;
+        setIsSubmitting(true);
+        try {
+            // 1. Save existing doc data first (same as TravelForm does before submit)
+            const data = await prepareFormDataForApi({ ...formData, name: docName });
+            const saveRes = await saveForm({ doc_data: JSON.stringify(data) });
+            if (saveRes?.message?.status !== 'success') {
+                throw new Error(saveRes?.message?.message || "Save failed");
+            }
+            const docname = saveRes.message.docname || docName;
+
+            // 2. Submit
+            const submitRes = await submitDocument({ docname });
+            if (submitRes?.message?.status === 'success') {
+                alert("Travel application submitted successfully!");
+                handleRefresh();
+            } else {
+                throw new Error(submitRes?.message?.message || "Submission failed");
+            }
+        } catch (err: any) {
+            alert(`Submission failed: ${err.message || "Unknown error"}`);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
-    // Placeholder handlers for read-only mode
-    const noOp = () => { };
-    const noOpFile = () => { };
-    const noOpTable = () => { };
+    // --- COMMIT ---
+    const handleCommit = async () => {
+        if (!docName) return;
+        // commitHead stores the Frappe uid — resolve to human-readable label for the API
+        const resolvedHead = allBudgetHeads.find(h => h.uid === commitHead)?.label || commitHead;
+        const amount = parseFloat(commitAmount);
+        const project = projectTitle;
+        if (!resolvedHead || !amount) {
+            alert("Commit details not ready. Please refresh and try again.");
+            return;
+        }
+        try {
+            await submitCommit({
+                doctype: "Travel",
+                frapAppId: docName,
+                name: docName,
+                project_name: project,
+                commit_amount: amount,
+                budget_head: resolvedHead,
+                bmr: "",
+            });
+            try {
+                await addComment({
+                    doctype: "Travel",
+                    docname: docName,
+                    content: `Commitment of ₹ ${amount.toLocaleString("en-IN")} under "${resolvedHead}" has been sent to the Account Side.`,
+                });
+            } catch (_) {}
+            alert("Commitment submitted successfully!");
+            setStagedCommit({ head: resolvedHead, amount });
+        } catch (error: any) {
+            alert(`Commitment failed: ${error.message || "Unknown error"}`);
+        }
+    };
 
-    // --- RENDER LOGIC ---
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent mx-auto"></div>
-                    <p className="mt-4 text-lg font-medium text-zinc-700 dark:text-zinc-300">Loading document...</p>
-                </div>
-            </div>
-        );
-    }
+    // --- PAYMENT ---
+    const handlePayment = async () => {
+        if (!paymentAmount || !commitHead || !docName) {
+            alert("Please select a budget head and enter an amount.");
+            return;
+        }
+        try {
+            await submitPayment({
+                doctype: "Travel",
+                name: docName,
+                project_name: projectTitle,
+                payment_amount: parseFloat(paymentAmount),
+                budget_head: commitHead,
+                bmr: "",
+            });
+            alert("Payment recorded successfully!");
+            setPaymentAmount("");
+            window.location.reload();
+        } catch (error: any) {
+            alert(`Payment failed: ${error.message || "Unknown error"}`);
+        }
+    };
+
+    // --- COMMENT ---
+    const handleSidebarCommentSubmit = async () => {
+        if (!sidebarComment.trim() || !docName) return;
+        setIsAddingComment(true);
+        try {
+            await addComment({
+                doctype: "Travel",
+                docname: docName,
+                content: sidebarComment,
+            });
+            setSidebarComment("");
+            handleRefresh();
+        } catch {
+            alert("Failed to submit comment.");
+        } finally {
+            setIsAddingComment(false);
+        }
+    };
+
+    // No-op handlers for read-only form
+    const noOp = () => {};
+
+    // --- RENDER ---
+    if (loading) return <GlobalLoader isLoading={true} />;
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <AppSidebar />
+            
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 {/* Header */}
                 <PageHeader
-                    title={`Travel: ${docName}`}
-                    status={formData.workflow_state}
+                    title={formData.name || docName || "Travel"}
+                    status={formData.workflow_state || "Draft"}
                     projectName={formData.travel_project_title}
+                    projectNumber={resolvedProjectNo || formData.travel_project_number}
                 >
-                    {/* Actions */}
-                    <TravelActionButtons
-                        docName={docName || ''}
-                        onActionComplete={handleRefresh}
-                    />
+                    {(formData.workflow_state === "Draft" || !formData.workflow_state) && docName && (
+                        <>
+                            <button
+                                onClick={() => navigate(`/travel?edit=${docName}`)}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 shadow-sm transition-all"
+                            >
+                                <EditIcon className="w-4 h-4" />
+                                Edit
+                            </button>
+                            <button
+                                onClick={handleSubmitDraft}
+                                disabled={isSubmitting}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50"
+                            >
+                                <Send className="w-4 h-4" />
+                                {isSubmitting ? "Submitting..." : "Submit Application"}
+                            </button>
+                        </>
+                    )}
+                    {showSettleButton && docName && (
+                        <button
+                            onClick={() => navigate(`/ta-da-settlement?project=${resolvedProjectNo || formData.travel_project_number}&travel_ref=${docName}`)}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all"
+                        >
+                            <ReceiptText className="w-4 h-4" />
+                            Settle Travel
+                        </button>
+                    )}
                 </PageHeader>
 
+                {/* Workflow Action Buttons */}
+                {docName && formData.workflow_state && formData.workflow_state !== "Draft" && (
+                    <div className="mb-6">
+                        <TravelActionButtons
+                            docName={docName}
+                            onActionComplete={handleRefresh}
+                            blockedActions={blockedActions}
+                        />
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    {/* Main Content - 3 columns */}
+                    {/* Main Content — read-only form */}
                     <div className="lg:col-span-3">
-                        <FrappeCard className="space-y-8">
+                        <FrappeCard>
                             <DynamicFormRenderer
-                                fields={fields}
+                                fields={renderedFields}
                                 formData={formData}
                                 linkOptions={linkOptions}
                                 onChange={noOp}
-                                onFileChange={noOpFile}
-                                onTableRowChange={noOpTable}
-                                onTableFileChange={noOpTable}
+                                onFileChange={noOp}
+                                onTableRowChange={noOp}
+                                onTableFileChange={noOp}
                                 onAddTableRow={noOp}
                                 onDeleteTableRow={noOp}
                                 readOnly={true}
@@ -165,97 +599,275 @@ const TravelDetails: React.FC = () => {
                         </FrappeCard>
                     </div>
 
-                    {/* Sidebar - 1 column */}
-                    <div className="lg:col-span-1 space-y-6">
-                        {/* Quick Info Card */}
-                        <div className="bg-gradient-to-br from-[#FDF3F0] to-zinc-50 p-6 rounded-xl border border-[#D97757]/20">
-                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
-                                <FileText className="h-5 w-5 text-[#D97757]" />
-                                Travel Summary
+                    {/* Sidebar */}
+                    <aside className="lg:col-span-1 space-y-5">
+                        {/* Status */}
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+                                Status
                             </h3>
-                            <div className="space-y-3 text-sm">
-                                {formData.nature_of_travel && (
-                                    <div className="flex items-center gap-2">
-                                        <MapPin className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-                                        <span className="text-zinc-600 dark:text-zinc-400">{formData.nature_of_travel}</span>
-                                    </div>
-                                )}
-                                {formData.from_date && (
-                                    <div className="flex items-center gap-2">
-                                        <Calendar className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-                                        <span className="text-zinc-600 dark:text-zinc-400">
-                                            {formData.from_date} to {formData.to_date}
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-zinc-600 dark:text-zinc-400">Workflow State</span>
+                                    <span
+                                        className={cn(
+                                            "px-3 py-1 text-xs font-bold rounded-full",
+                                            formData.workflow_state === "Approved" &&
+                                                "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                                            formData.workflow_state === "Rejected" &&
+                                                "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                                            formData.workflow_state === "Draft" &&
+                                                "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
+                                            !["Approved", "Rejected", "Draft"].includes(
+                                                formData.workflow_state || "",
+                                            ) &&
+                                                "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                                        )}
+                                    >
+                                        {formData.workflow_state || "Draft"}
+                                    </span>
+                                </div>
+                                {tadaSettlement && (
+                                    <div className="flex justify-between items-center pt-1 border-t border-zinc-100 dark:border-zinc-800 mt-1">
+                                        <span className="text-zinc-600 dark:text-zinc-400">TA/DA Settlement</span>
+                                        <span
+                                            className={cn(
+                                                "px-3 py-1 text-xs font-bold rounded-full",
+                                                tadaSettlement.workflow_state === "Approved" &&
+                                                    "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                                                tadaSettlement.workflow_state === "Rejected" &&
+                                                    "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                                                !["Approved", "Rejected"].includes(tadaSettlement.workflow_state || "") &&
+                                                    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+                                            )}
+                                        >
+                                            {tadaSettlement.workflow_state || "Pending"}
                                         </span>
                                     </div>
                                 )}
-                                {formData.destination && (
-                                    <div className="flex items-center gap-2">
-                                        <Building className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-                                        <span className="text-zinc-600 dark:text-zinc-400">{formData.destination}</span>
+                                {formData.modified && (
+                                    <div className="flex justify-between">
+                                        <span className="text-zinc-600 dark:text-zinc-400">Last Modified</span>
+                                        <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1">
+                                            <CalendarIcon className="w-3 h-3" />
+                                            {new Date(formData.modified).toLocaleDateString("en-IN")}
+                                        </span>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* Attachments Card */}
-                        {(formData.travel_supporting_docs || formData.travel_attachment) && (
-                            <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Attachments</h3>
-                                <div className="space-y-2">
-                                    {formData.travel_supporting_docs && (
-                                        <a
-                                            href={formData.travel_supporting_docs}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-2 text-sm text-[#D97757] hover:text-[#C66A4E]"
+                        {/* Project Budget */}
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                                Project Budget
+                            </h3>
+                            <div className="flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800 mb-3">
+                                <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                                    Commitable Balance
+                                </p>
+                                <p className="text-lg font-bold text-[#D97757]">
+                                    ₹ {totalCommitableBalance.toLocaleString("en-IN")}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setIsLedgerOpen(true)}
+                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 text-[#D97757] font-bold text-sm hover:bg-[#B2DFDB] transition-colors"
+                            >
+                                <LedgerIcon className="w-4 h-4" />
+                                View Project Ledger
+                            </button>
+                        </div>
+
+                        {/* Latest Activity */}
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                                Latest Activity
+                            </h3>
+                            {docName && (
+                                <ActivityStream
+                                    doctype="Travel"
+                                    docname={docName}
+                                />
+                            )}
+                        </div>
+
+                        {/* Add Comment */}
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-3">
+                                Add Comment
+                            </h3>
+                            <Textarea
+                                rows={3}
+                                placeholder="Type your comment here..."
+                                value={sidebarComment}
+                                onChange={(e) => setSidebarComment(e.target.value)}
+                                className="w-full mb-3 text-sm"
+                            />
+                            <FrappeButton
+                                className="w-full"
+                                variant="primary"
+                                onClick={handleSidebarCommentSubmit}
+                                disabled={isAddingComment}
+                            >
+                                {isAddingComment ? "Submitting..." : "Submit Comment"}
+                            </FrappeButton>
+                        </div>
+
+                        {/* Make a Commitment */}
+                        {showCommitSection && !isCommitted && (
+                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                                    Make a Commitment
+                                </h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                            Budget Head
+                                        </label>
+                                        <select
+                                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
+                                            value={commitHead}
+                                            onChange={(e) => setCommitHead(e.target.value)}
                                         >
-                                            <Download className="h-4 w-4" />
-                                            Supporting Documents
-                                            <ExternalLink className="h-3 w-3" />
-                                        </a>
-                                    )}
-                                    {formData.travel_attachment && (
-                                        <a
-                                            href={formData.travel_attachment}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-2 text-sm text-[#D97757] hover:text-[#C66A4E]"
-                                        >
-                                            <Download className="h-4 w-4" />
-                                            Attachment
-                                            <ExternalLink className="h-3 w-3" />
-                                        </a>
-                                    )}
+                                            <option value="">Select...</option>
+                                            {allBudgetHeads.map((h) => (
+                                                <option key={h.uid} value={h.uid}>
+                                                    {h.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="text-xs text-zinc-500 mt-1">
+                                            Available:{" "}
+                                            <span className="font-medium text-[#D97757]">
+                                                ₹ {actualBalance.toLocaleString("en-IN")}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                            Amount (₹)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
+                                            value={commitAmount}
+                                            onChange={(e) => setCommitAmount(e.target.value)}
+                                            placeholder="e.g., 5000"
+                                        />
+                                    </div>
+                                    <FrappeButton
+                                        className="w-full"
+                                        variant="primary"
+                                        onClick={handleCommit}
+                                        disabled={isCommitting || !commitHead || !commitAmount}
+                                    >
+                                        {isCommitting ? "Submitting..." : "Submit Commitment"}
+                                    </FrappeButton>
                                 </div>
                             </div>
                         )}
 
-                        {/* Status History */}
-                        <div className="bg-white dark:bg-zinc-900 p-6 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                            <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-4">Status</h3>
-                            <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    <span className="text-zinc-600 dark:text-zinc-400">Current State</span>
-                                    <StatusBadge status={formData.workflow_state} />
+                        {/* Commitment Details */}
+                        {showCommitSection && isCommitted && (
+                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                                    Commitment Details
+                                </h3>
+                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
+                                    <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
+                                        Linked Commitment
+                                    </p>
+                                    <div className="flex justify-between items-end">
+                                        <p className="text-sm font-medium text-blue-900">
+                                            <BudgetHeadName id={displayCommitment?.head || ""} />
+                                        </p>
+                                        <p className="text-lg font-bold text-blue-700">
+                                            ₹ {Number(displayCommitment?.committed || 0).toLocaleString("en-IN")}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-zinc-600 dark:text-zinc-400">Doc Status</span>
-                                    <span className="font-medium">
-                                        {formData.docstatus === 0 ? 'Draft' :
-                                            formData.docstatus === 1 ? 'Submitted' : 'Cancelled'}
-                                    </span>
-                                </div>
-                                {formData.modified && (
-                                    <div className="flex justify-between">
-                                        <span className="text-zinc-600 dark:text-zinc-400">Last Modified</span>
-                                        <span className="font-medium">{new Date(formData.modified).toLocaleDateString()}</span>
+                            </div>
+                        )}
+
+                        {/* Record Payment */}
+                        {showCommitSection && (
+                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                                    Record Payment
+                                </h3>
+                                {isCommitted ? (
+                                    <div className="space-y-4">
+                                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
+                                            <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
+                                                Linked Commitment
+                                            </p>
+                                            <div className="flex justify-between items-end">
+                                                <p className="text-sm font-medium text-blue-900">
+                                                    {displayCommitment?.head}
+                                                </p>
+                                                <p className="text-lg font-bold text-blue-700">
+                                                    ₹ {Number(displayCommitment?.committed || 0).toLocaleString("en-IN")}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                                Payment Amount (₹)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
+                                                placeholder="e.g., 5000"
+                                                value={paymentAmount}
+                                                onChange={(e) => setPaymentAmount(e.target.value)}
+                                                max={displayCommitment?.committed}
+                                            />
+                                            <p className="text-xs text-zinc-500 mt-1">
+                                                Max: ₹ {Number(displayCommitment?.committed || 0).toLocaleString("en-IN")}
+                                            </p>
+                                        </div>
+                                        <FrappeButton
+                                            className="w-full"
+                                            variant="outline"
+                                            onClick={handlePayment}
+                                            disabled={
+                                                isPaying ||
+                                                !paymentAmount ||
+                                                parseFloat(paymentAmount) > (displayCommitment?.committed || 0)
+                                            }
+                                        >
+                                            {isPaying ? "Processing..." : "Submit Payment"}
+                                        </FrappeButton>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6 px-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700">
+                                        <div className="mx-auto w-10 h-10 bg-zinc-200 dark:bg-zinc-700 rounded-full flex items-center justify-center mb-3">
+                                            <LedgerIcon className="w-5 h-5 text-zinc-400" />
+                                        </div>
+                                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                            Commitment Required
+                                        </p>
+                                        <p className="text-xs text-zinc-500 mt-1">
+                                            Make a commitment above before recording payment.
+                                        </p>
                                     </div>
                                 )}
                             </div>
-                        </div>
-                    </div>
+                        )}
+                    </aside>
                 </div>
             </main>
+
+            {/* Budget Ledger Modal */}
+            {isLedgerOpen && (
+                <ProjectLedgerModal
+                    isOpen={isLedgerOpen}
+                    onClose={() => setIsLedgerOpen(false)}
+                    projectName={projectTitle}
+                    budgetHeadList={budgetHeadList}
+                />
+            )}
         </div>
     );
 };
