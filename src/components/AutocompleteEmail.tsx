@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { cn } from '@/lib/utils';
-import { useDebounce } from 'use-debounce';
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { cn } from "@/lib/utils";
+import { useDebounce } from "use-debounce";
 
 interface Option {
   label: string;
   value: string;
 }
 
-interface AutocompleteEmailProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
+interface AutocompleteEmailProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  "onChange" | "value"
+> {
   options: Option[];
   value: string;
   onChange: (value: string) => void;
@@ -39,7 +42,7 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   // Update internal input value if external value changes (e.g. reset/cleared)
   useEffect(() => {
     if (searchByLabel && value) {
-      const matched = options.find(opt => opt.value === value);
+      const matched = options.find((opt) => opt.value === value);
       setInputValue(matched ? matched.label : value);
     } else {
       setInputValue(value);
@@ -48,7 +51,10 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
@@ -60,12 +66,16 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
     if (!debouncedValue && !showAllOnFocus) return [];
     const searchStr = debouncedValue.toLowerCase();
     const filtered = searchStr
-      ? options.filter(opt =>
-          opt.label.toLowerCase().includes(searchStr) || opt.value.toLowerCase().includes(searchStr)
+      ? options.filter(
+          (opt) =>
+            opt.label.toLowerCase().includes(searchStr) ||
+            opt.value.toLowerCase().includes(searchStr),
         )
       : options;
     return filtered.sort((a, b) =>
-      (searchByLabel ? a.label : a.value).localeCompare(searchByLabel ? b.label : b.value)
+      (searchByLabel ? a.label : a.value).localeCompare(
+        searchByLabel ? b.label : b.value,
+      ),
     );
   }, [debouncedValue, options, searchByLabel, showAllOnFocus]);
 
