@@ -10,6 +10,7 @@ import { ChildTableComponent, type ChildField } from "./ChildTableComponent";
 import { DepartmentName } from "@/components/DepartmentName";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { getFileUrl } from "@/utils/fileUtils";
+import { CountrySelect } from "@/components/CountrySelect";
 
 // --- TYPE DEFINITIONS ---
 export interface FormField {
@@ -581,6 +582,16 @@ const MemoizedFormField = memo(
 
         case "Data":
         default:
+          // Special handling for nationality field — render country dropdown
+          if (field.fieldname === "nationality_u_r") {
+            return (
+              <CountrySelect
+                value={value ?? ""}
+                onChange={(val) => handleChange(field.fieldname, val)}
+                disabled={isReadOnly}
+              />
+            );
+          }
           return (
             <div className="relative flex flex-col pt-1">
               <div className="relative">

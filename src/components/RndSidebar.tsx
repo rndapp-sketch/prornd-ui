@@ -121,7 +121,7 @@ export function AppSidebar() {
             icon: FileText,
             subMenu: [
                 {
-                    label: "Agency Registration",
+                    label: "Stakeholder Registration",
                     path: "/universal-registration",
                 },
                 // { label: "User", path: "/universal-user" },
