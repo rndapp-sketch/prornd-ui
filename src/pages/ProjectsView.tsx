@@ -31,7 +31,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useUserRoles } from '../components/UserRole';
+import { useUserRoles } from "../components/UserRole";
 import { format } from "date-fns";
 
 // --- LOGIC: Interfaces & Data ---
@@ -114,13 +114,18 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   // const [openPipeline, setOpenPipeline] = React.useState<string | null>(null); // Unused
   const [searchQuery, setSearchQuery] = React.useState("");
   const [sortField, setSortField] = React.useState<
-    "creation" | "name" | "project_title" | "workflow_state" | "modified" | "owner"
+    | "creation"
+    | "name"
+    | "project_title"
+    | "workflow_state"
+    | "modified"
+    | "owner"
   >("creation");
   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(10); // Unused set, but kept for future or consistency
   const [activeTaskTab, setActiveTaskTab] = React.useState(
-    Object.keys(pendingTasksData)[0]
+    Object.keys(pendingTasksData)[0],
   );
 
   const navigate = useNavigate();
@@ -130,10 +135,17 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     fields: ["*"],
     enabled: !!currentUser,
   });
-  const { roles: fetchedRoles, isLoading: isRolesLoading, error: rolesError } = useUserRoles(currentUser ?? null);
+  const {
+    roles: fetchedRoles,
+    isLoading: isRolesLoading,
+    error: rolesError,
+  } = useUserRoles(currentUser ?? null);
 
   const { isAdministrator, isPermanentEmployee } = React.useMemo(() => {
-    const roles = fetchedRoles?.length > 0 ? fetchedRoles : userData?.roles?.map((r: any) => r.role) ?? [];
+    const roles =
+      fetchedRoles?.length > 0
+        ? fetchedRoles
+        : (userData?.roles?.map((r: any) => r.role) ?? []);
     return {
       isAdministrator: roles.includes("Administrator"),
       isPermanentEmployee: roles.includes("Permanent Employee"),
@@ -153,7 +165,9 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     error: createdError,
   } = useFrappeGetDocList<Project>("Project Registration", {
     fields: ["*"],
-    filters: currentUser ? [["pi_webmail", "=", currentUser]] : [["name", "=", "NON_EXISTENT_DOC"]],
+    filters: currentUser
+      ? [["pi_webmail", "=", currentUser]]
+      : [["name", "=", "NON_EXISTENT_DOC"]],
     limit: 1000,
   });
 
@@ -163,7 +177,9 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     error: approvalError,
   } = useFrappeGetDocList<Project>("Project Registration", {
     fields: ["*"],
-    filters: currentUser ? [["head_approver", "=", currentUser]] : [["name", "=", "NON_EXISTENT_DOC"]],
+    filters: currentUser
+      ? [["head_approver", "=", currentUser]]
+      : [["name", "=", "NON_EXISTENT_DOC"]],
     limit: 1000,
   });
 
@@ -187,7 +203,9 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     error: hosError,
   } = useFrappeGetDocList<Project>("Project Registration", {
     fields: ["*"],
-    filters: isHosRnd ? [["workflow_state", "=", "Pending HoS Approval"]] : [["name", "=", "NON_EXISTENT_DOC"]],
+    filters: isHosRnd
+      ? [["workflow_state", "=", "Pending HoS Approval"]]
+      : [["name", "=", "NON_EXISTENT_DOC"]],
     limit: 1000,
   });
 
@@ -209,7 +227,9 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     error: rndstaffError,
   } = useFrappeGetDocList<Project>("Project Registration", {
     fields: ["*"],
-    filters: isRndStaff ? [["workflow_state", "=", "Pending Staff Approval"]] : [["name", "=", "NON_EXISTENT_DOC"]],
+    filters: isRndStaff
+      ? [["workflow_state", "=", "Pending Staff Approval"]]
+      : [["name", "=", "NON_EXISTENT_DOC"]],
     limit: 1000,
   });
 
@@ -219,27 +239,49 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     error: ownedError,
   } = useFrappeGetDocList<Project>("Project Registration", {
     fields: ["*"],
-    filters: currentUser ? [["owner", "=", currentUser]] : [["name", "=", "NON_EXISTENT_DOC"]],
+    filters: currentUser
+      ? [["owner", "=", currentUser]]
+      : [["name", "=", "NON_EXISTENT_DOC"]],
     limit: 1000,
   });
 
-  const { myProjects, isLoading: myProjectsLoading, error: myProjectsError } = React.useMemo(() => {
+  const {
+    myProjects,
+    isLoading: myProjectsLoading,
+    error: myProjectsError,
+  } = React.useMemo(() => {
     if (isHosRnd) {
-      return { myProjects: hosAprovalProjects, isLoading: hosLoading, error: hosError };
+      return {
+        myProjects: hosAprovalProjects,
+        isLoading: hosLoading,
+        error: hosError,
+      };
     }
     if (isRndStaff) {
-      return { myProjects: rndstaffAprovalProjects, isLoading: rndstaffLoading, error: rndstaffError };
+      return {
+        myProjects: rndstaffAprovalProjects,
+        isLoading: rndstaffLoading,
+        error: rndstaffError,
+      };
     }
     if (isAdministrator) {
-      return { myProjects: allProjectsForAdmin, isLoading: adminLoading, error: adminError };
+      return {
+        myProjects: allProjectsForAdmin,
+        isLoading: adminLoading,
+        error: adminError,
+      };
     }
     if (isDoRnd) {
-      return { myProjects: doRndApprovalProjects, isLoading: doRndLoading, error: doRndError };
+      return {
+        myProjects: doRndApprovalProjects,
+        isLoading: doRndLoading,
+        error: doRndError,
+      };
     }
 
-    const combined = [...(myCreatedProjects ?? []), ...(myApprovalProjects ?? []), ...(myOwnedProjects ?? [])];
+    const combined = [...(myCreatedProjects ?? []), ...(myOwnedProjects ?? [])];
     const uniqueProjectsMap = new Map<string, Project>();
-    combined.forEach(project => {
+    combined.forEach((project) => {
       // Allow all project applications to be listed so their progress can be tracked
       // from endorsement phase to project registration phase.
       uniqueProjectsMap.set(project.name, project);
@@ -249,25 +291,39 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 
     return {
       myProjects: uniqueProjects,
-      isLoading: createdLoading || approvalLoading,
-      error: createdError || approvalError,
+      isLoading: createdLoading || ownedLoading,
+      error: createdError || ownedError,
     };
   }, [
     isAdministrator,
-    allProjectsForAdmin, adminLoading, adminError,
-    myCreatedProjects, createdLoading, createdError,
-    myApprovalProjects, approvalLoading, approvalError,
-    myOwnedProjects, ownedLoading, ownedError,
-    isHosRnd, hosAprovalProjects, hosLoading, hosError,
-    isRndStaff, rndstaffAprovalProjects, rndstaffLoading, rndstaffError
+    allProjectsForAdmin,
+    adminLoading,
+    adminError,
+    myCreatedProjects,
+    createdLoading,
+    createdError,
+    myApprovalProjects,
+    approvalLoading,
+    approvalError,
+    myOwnedProjects,
+    ownedLoading,
+    ownedError,
+    isHosRnd,
+    hosAprovalProjects,
+    hosLoading,
+    hosError,
+    isRndStaff,
+    rndstaffAprovalProjects,
+    rndstaffLoading,
+    rndstaffError,
   ]);
 
   const filteredAndSortedProjects = React.useMemo(() => {
     if (!myProjects) return [];
     let filtered = myProjects.filter((p) =>
       Object.values(p).some((val) =>
-        String(val).toLowerCase().includes(searchQuery.toLowerCase())
-      )
+        String(val).toLowerCase().includes(searchQuery.toLowerCase()),
+      ),
     );
     filtered.sort((a, b) => {
       const aVal = (a as any)[sortField] ?? "";
@@ -282,11 +338,17 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   const totalPages = Math.ceil(filteredAndSortedProjects.length / itemsPerPage);
   const paginatedProjects = filteredAndSortedProjects.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   const handleSortChange = (
-    field: "creation" | "name" | "project_title" | "workflow_state" | "modified" | "owner"
+    field:
+      | "creation"
+      | "name"
+      | "project_title"
+      | "workflow_state"
+      | "modified"
+      | "owner",
   ) => {
     setSortField(field);
     setSortOrder(sortField === field && sortOrder === "desc" ? "asc" : "desc");
@@ -303,25 +365,76 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 
   const getStatusBadge = (status: string) => {
     const s = status?.toLowerCase();
-    let className = "bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border-zinc-200"; // Default/Draft
+    let className =
+      "bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border-zinc-200"; // Default/Draft
 
-    if (["pending", "under review", "approval pending", "process"].some((t) => s?.includes(t))) {
-      className = "bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-200"; // Pending
+    if (
+      ["pending", "under review", "approval pending", "process"].some((t) =>
+        s?.includes(t),
+      )
+    ) {
+      className =
+        "bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-200"; // Pending
     } else if (s?.includes("approved") || s?.includes("open")) {
-      className = "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-200"; // Success
+      className =
+        "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-200"; // Success
     } else if (s?.includes("rejected") || s?.includes("closed")) {
       className = "bg-rose-100 text-rose-800 hover:bg-rose-200 border-rose-200"; // Error/Closed
     }
 
-    return <Badge variant="outline" className={cn("border", className)}>{status}</Badge>;
+    return (
+      <Badge variant="outline" className={cn("border", className)}>
+        {status}
+      </Badge>
+    );
+  };
+
+  // --- Fetch all Fund Sanctions: only "Sanction Approved" ones hide the "(Pending Sanction)" label ---
+  // Fund Sanction.refnum_prj_num stores the Project Registration name (p.name)
+  const { data: allSanctions } = useFrappeGetDocList("Fund Sanction", {
+    fields: ["refnum_prj_num"],
+    filters: [["workflow_state", "=", "Sanction Approved"]],
+    limit: 2000,
+  });
+
+  const sanctionedProjectsSet = React.useMemo(() => {
+    const s = new Set<string>();
+    (allSanctions ?? []).forEach((doc: any) => {
+      if (doc.refnum_prj_num) s.add(doc.refnum_prj_num);
+    });
+    console.log("[Sanction] allSanctions raw:", allSanctions);
+    console.log("[Sanction] sanctionedProjectsSet:", Array.from(s));
+    return s;
+  }, [allSanctions]);
+
+  // p.name == Fund Sanction.refnum_prj_num
+  const hasSanction = (p: any) => {
+    const result = sanctionedProjectsSet.has(p.name);
+    console.log(
+      `[Sanction] hasSanction(${p.name}):`,
+      result,
+      "| set size:",
+      sanctionedProjectsSet.size,
+    );
+    return result;
   };
 
   // --- Fetch Project Proposals ---
-  const { data: projectProposals, isLoading: proposalsLoading } = useFrappeGetDocList("Project Proposal", {
-    fields: ["name", "project_title", "workflow_state", "creation", "modified", "owner"],
-    filters: currentUser ? [["owner", "=", currentUser]] : [["name", "=", "NON_EXISTENT_DOC"]],
-    limit: 100,
-  });
+  const { data: projectProposals, isLoading: proposalsLoading } =
+    useFrappeGetDocList("Project Registration", {
+      fields: [
+        "name",
+        "project_title",
+        "workflow_state",
+        "creation",
+        "modified",
+        "pi_webmail",
+      ],
+      filters: currentUser
+        ? [["pi_webmail", "=", currentUser]]
+        : [["name", "=", "NON_EXISTENT_DOC"]],
+      limit: 100,
+    });
 
   const allPendingTasks: Record<string, Task[]> = React.useMemo(() => {
     const proposals: Task[] = (projectProposals || []).map((p: any) => ({
@@ -335,18 +448,20 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     }));
 
     return {
-      "Endorsement": proposals,
+      Endorsement: proposals,
       ...pendingTasksData,
     };
   }, [projectProposals]);
 
   // Ensure activeTaskTab is valid
   React.useEffect(() => {
-    if (!allPendingTasks[activeTaskTab] && Object.keys(allPendingTasks).length > 0) {
+    if (
+      !allPendingTasks[activeTaskTab] &&
+      Object.keys(allPendingTasks).length > 0
+    ) {
       setActiveTaskTab(Object.keys(allPendingTasks)[0]);
     }
   }, [allPendingTasks, activeTaskTab]);
-
 
   // --- Render Functions ---
   const renderPendingTasks = () => {
@@ -367,7 +482,9 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       return (
         <Card className="text-center py-12">
           <CheckCircle2 className="h-12 w-12 text-zinc-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-zinc-900">No Pending Tasks</h3>
+          <h3 className="text-lg font-medium text-zinc-900">
+            No Pending Tasks
+          </h3>
           <p className="text-zinc-500 text-sm mt-1">You're all caught up!</p>
         </Card>
       );
@@ -377,8 +494,12 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       <div className="space-y-6 animate-in fade-in duration-500">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-serif font-medium text-zinc-900 dark:text-zinc-100">Pending Actions</h2>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">Review and approve requests.</p>
+            <h2 className="text-lg font-serif font-medium text-zinc-900 dark:text-zinc-100">
+              Pending Actions
+            </h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Review and approve requests.
+            </p>
           </div>
           <Badge variant="secondary">{totalTasks} Total</Badge>
         </div>
@@ -394,7 +515,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                     "px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap",
                     activeTaskTab === category
                       ? "border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
-                      : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200"
+                      : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200",
                   )}
                 >
                   {category}
@@ -410,35 +531,64 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[80px] whitespace-nowrap">Task ID</TableHead>
+                    <TableHead className="w-[80px] whitespace-nowrap">
+                      Task ID
+                    </TableHead>
                     <TableHead className="min-w-[150px]">Details</TableHead>
-                    <TableHead className="w-[100px] whitespace-nowrap">Status</TableHead>
-                    <TableHead className="w-[80px] whitespace-nowrap">Priority</TableHead>
-                    <TableHead className="w-[100px] whitespace-nowrap">Assigned To</TableHead>
-                    <TableHead className="w-[90px] whitespace-nowrap">Date</TableHead>
-                    <TableHead className="text-right w-[60px] whitespace-nowrap">Action</TableHead>
+                    <TableHead className="w-[100px] whitespace-nowrap">
+                      Status
+                    </TableHead>
+                    <TableHead className="w-[80px] whitespace-nowrap">
+                      Priority
+                    </TableHead>
+                    <TableHead className="w-[100px] whitespace-nowrap">
+                      Assigned To
+                    </TableHead>
+                    <TableHead className="w-[90px] whitespace-nowrap">
+                      Date
+                    </TableHead>
+                    <TableHead className="text-right w-[60px] whitespace-nowrap">
+                      Action
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {activeTasks.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-zinc-500">
+                      <TableCell
+                        colSpan={7}
+                        className="h-24 text-center text-zinc-500"
+                      >
                         No active tasks in this category.
                       </TableCell>
                     </TableRow>
                   ) : (
                     activeTasks.map((task) => (
                       <TableRow key={task.id}>
-                        <TableCell className="font-mono text-xs whitespace-nowrap">{task.id}</TableCell>
-                        <TableCell>
-                          <div className="font-medium whitespace-normal min-w-[150px] max-w-[300px]">{task.projectTitle}</div>
-                          <div className="text-xs text-zinc-500 font-mono mt-0.5 whitespace-nowrap">{task.projectNumber}</div>
+                        <TableCell className="font-mono text-xs whitespace-nowrap">
+                          {task.id}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">{getStatusBadge(task.status!)}</TableCell>
-                        <TableCell className="whitespace-nowrap">{getPriorityBadge(task.priority!)}</TableCell>
-                        <TableCell className="text-zinc-500 text-xs whitespace-nowrap">{task.assignedTo}</TableCell>
+                        <TableCell>
+                          <div className="font-medium whitespace-normal min-w-[150px] max-w-[300px]">
+                            {task.projectTitle}
+                          </div>
+                          <div className="text-xs text-zinc-500 font-mono mt-0.5 whitespace-nowrap">
+                            {task.projectNumber}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {getStatusBadge(task.status!)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {getPriorityBadge(task.priority!)}
+                        </TableCell>
                         <TableCell className="text-zinc-500 text-xs whitespace-nowrap">
-                          {task.actionDate ? format(new Date(task.actionDate), "MMM dd, yyyy") : "-"}
+                          {task.assignedTo}
+                        </TableCell>
+                        <TableCell className="text-zinc-500 text-xs whitespace-nowrap">
+                          {task.actionDate
+                            ? format(new Date(task.actionDate), "MMM dd, yyyy")
+                            : "-"}
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap">
                           <Button
@@ -447,7 +597,9 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                             className="h-8 text-xs bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:text-zinc-900"
                             onClick={() => {
                               if (activeTaskTab === "Endorsement") {
-                                navigate(`/project-proposal-details/${task.id}`);
+                                navigate(
+                                  `/project-proposal-details/${task.id}`,
+                                );
                               } else {
                                 console.log("View clicked for", task.id);
                               }
@@ -484,7 +636,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
           />
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
-          <Select value={sortField} onValueChange={(v: any) => handleSortChange(v)}>
+          <Select
+            value={sortField}
+            onValueChange={(v: any) => handleSortChange(v)}
+          >
             <SelectTrigger className="w-[180px] bg-white dark:bg-zinc-900">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
@@ -513,35 +668,65 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[80px] whitespace-nowrap">Number</TableHead>
-                  <TableHead className="min-w-[150px] whitespace-nowrap">Project Title</TableHead>
-                  <TableHead className="w-[120px] whitespace-nowrap">Funding Agency</TableHead>
-                  <TableHead className="w-[90px] whitespace-nowrap">Date</TableHead>
-                  <TableHead className="w-[100px] whitespace-nowrap">Status</TableHead>
-                  <TableHead className="text-right w-[60px] whitespace-nowrap">Action</TableHead>
+                  <TableHead className="w-[80px] whitespace-nowrap">
+                    Number
+                  </TableHead>
+                  <TableHead className="min-w-[150px] whitespace-nowrap">
+                    Project Title
+                  </TableHead>
+                  <TableHead className="w-[120px] whitespace-nowrap">
+                    Funding Agency
+                  </TableHead>
+                  <TableHead className="w-[90px] whitespace-nowrap">
+                    Date
+                  </TableHead>
+                  <TableHead className="w-[100px] whitespace-nowrap">
+                    Status
+                  </TableHead>
+                  <TableHead className="text-right w-[60px] whitespace-nowrap">
+                    Action
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {myProjectsLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell><div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                      <TableCell><div className="h-4 w-48 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                      <TableCell><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                      <TableCell><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                      <TableCell><div className="h-4 w-16 bg-zinc-100 rounded animate-pulse" /></TableCell>
-                      <TableCell><div className="h-8 w-8 bg-zinc-100 rounded animate-pulse ml-auto" /></TableCell>
+                      <TableCell>
+                        <div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 w-48 bg-zinc-100 rounded animate-pulse" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-4 w-16 bg-zinc-100 rounded animate-pulse" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-8 w-8 bg-zinc-100 rounded animate-pulse ml-auto" />
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : myProjectsError ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center text-red-500">
+                    <TableCell
+                      colSpan={8}
+                      className="h-24 text-center text-red-500"
+                    >
                       Error loading projects. Please try again.
                     </TableCell>
                   </TableRow>
                 ) : paginatedProjects.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center text-zinc-500">
+                    <TableCell
+                      colSpan={8}
+                      className="h-24 text-center text-zinc-500"
+                    >
                       No projects found matching your criteria.
                     </TableCell>
                   </TableRow>
@@ -552,7 +737,8 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                       className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
                       onClick={() => {
                         const targetPath =
-                          p.workflow_state === "Approved" || p.workflow_state === "Proposal Approved"
+                          p.workflow_state === "Approved" ||
+                          p.workflow_state === "Proposal Approved"
                             ? `/project-details-overview/${p.name}`
                             : `/project-details/${p.name}`;
                         navigate(targetPath);
@@ -562,16 +748,35 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                         {p.project_no || p.name}
                       </TableCell>
                       <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">
-                        <div className="line-clamp-2 min-w-[150px] max-w-[300px]" title={p.project_title}>{p.project_title}</div>
+                        <div
+                          className="line-clamp-2 min-w-[150px] max-w-[300px]"
+                          title={p.project_title}
+                        >
+                          {p.project_title}
+                        </div>
                       </TableCell>
                       <TableCell className="text-zinc-600 dark:text-zinc-400 text-xs whitespace-nowrap">
                         {p.funding_agen || "-"}
                       </TableCell>
                       <TableCell className="text-zinc-500 text-xs whitespace-nowrap">
-                        {p.creation ? format(new Date(p.creation), "MMM dd, yyyy") : "-"}
+                        {p.creation
+                          ? format(new Date(p.creation), "MMM dd, yyyy")
+                          : "-"}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
-                        {getStatusBadge(p.workflow_state)}
+                        <div className="flex flex-col gap-0.5">
+                          {getStatusBadge(p.workflow_state)}
+                          {p.workflow_state === "Approved" &&
+                            (hasSanction(p) ? (
+                              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                (Sanction Approved)
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                                (Pending Sanction)
+                              </span>
+                            ))}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">
                         {p.workflow_state === "Endorsement Approved" ? (
@@ -580,13 +785,19 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(`/project-registration?docname=${p.name}&isApprovedEndorsement=true`);
+                              navigate(
+                                `/project-registration?docname=${p.name}&isApprovedEndorsement=true`,
+                              );
                             }}
                           >
                             Register Project
                           </Button>
                         ) : (
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                          >
                             <ChevronRight className="h-4 w-4" />
                             <span className="sr-only">View</span>
                           </Button>
@@ -633,8 +844,12 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     <div className="w-full mx-auto space-y-8 animate-in fade-in duration-500">
       {/* Page Header */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-serif font-medium text-zinc-900 dark:text-zinc-50">Projects</h1>
-        <p className="text-zinc-500 dark:text-zinc-400">Manage and track all your research projects.</p>
+        <h1 className="text-3xl font-serif font-medium text-zinc-900 dark:text-zinc-50">
+          Projects
+        </h1>
+        <p className="text-zinc-500 dark:text-zinc-400">
+          Manage and track all your research projects.
+        </p>
       </div>
 
       {/* Tabs */}
@@ -642,8 +857,12 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         <div className="border-b border-zinc-200 dark:border-zinc-800">
           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             {[
-              { id: "myProjects", label: "My Projects", count: myProjects?.length || 0 },
-              { id: "pending", label: "Pending Review", count: Object.values(allPendingTasks).flat().length },
+              {
+                id: "myProjects",
+                label: "My Projects",
+                count: myProjects?.length || 0,
+              },
+              // { id: "pending", label: "Pending Review", count: Object.values(allPendingTasks).flat().length },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -652,17 +871,19 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                   "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors",
                   activeTab === tab.id
                     ? "border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
-                    : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200"
+                    : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200",
                 )}
               >
                 {tab.label}
                 {tab.count > 0 && (
-                  <span className={cn(
-                    "ml-2 py-0.5 px-2 rounded-full text-xs font-medium",
-                    activeTab === tab.id
-                      ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-                      : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
-                  )}>
+                  <span
+                    className={cn(
+                      "ml-2 py-0.5 px-2 rounded-full text-xs font-medium",
+                      activeTab === tab.id
+                        ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500",
+                    )}
+                  >
                     {tab.count}
                   </span>
                 )}
@@ -672,7 +893,9 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         </div>
 
         <div className="pt-2">
-          {activeTab === "pending" ? renderPendingTasks() : renderProjectsTable()}
+          {activeTab === "pending"
+            ? renderPendingTasks()
+            : renderProjectsTable()}
         </div>
       </div>
     </div>

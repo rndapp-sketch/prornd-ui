@@ -8,7 +8,7 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 
 import { createPortal } from "react-dom";
 import {
@@ -640,6 +640,7 @@ const QuickActions = ({
   projectTitle,
   onNavigate,
 }: QuickActionsProps) => {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const defaultSubtab = searchParams.get("subtab") || "Reimbursement";
@@ -837,13 +838,21 @@ const QuickActions = ({
   };
 
   const groups = [
-    { title: "Reimbursement", icon: IndianRupeeIcon, items: ["Reimbursement"] },
-    { title: "Advance", icon: CreditCard, items: ["Temporary Advance Apply"] },
+    {
+      title: "Reimbursement",
+      icon: IndianRupeeIcon,
+      items: ["Reimbursement"],
+    },
+    {
+      title: "Advance",
+      icon: CreditCard,
+      items: ["Temporary Advance Apply"],
+    },
     {
       title: "Disbursal",
       icon: Upload,
       items: [
-        "Top Up Fellowship",
+        // "Top Up Fellowship",
         "Disbursal of Honorarium",
         "Disbursal of Consultancy",
       ],
@@ -853,33 +862,33 @@ const QuickActions = ({
       icon: ShoppingCart,
       items: [
         "Direct Purchase",
-        "General Indent",
-        "Generate NIQ",
-        "Indent cum Sanction",
-        "Rate Contract",
+        // "General Indent",
+        // "Generate NIQ",
+        // "Indent cum Sanction",
+        // "Rate Contract",
       ],
     },
     {
       title: "Recruitment",
       icon: Users,
       items: [
-        "Adhoc/Contractual",
-        "Committee Member Change",
-        "Selection Committee Report",
-        "Project Staff Resignation",
+        // "Adhoc/Contractual",
+        // "Committee Member Change",
+        // "Selection Committee Report",
+        // "Project Staff Resignation",
       ],
     },
     { title: "Travel", icon: Plane, items: ["Travel"] },
-    {
-      title: "Utilities",
-      icon: Settings,
-      items: [
-        "Add New User",
-        "Application History",
-        "Form Tracking",
-        "Incharge Assignment",
-      ],
-    },
+    // {
+    //   title: "Utilities",
+    //   icon: Settings,
+    //   items: [
+    //     "Add New User",
+    //     "Application History",
+    //     "Form Tracking",
+    //     "Incharge Assignment",
+    //   ],
+    // },
   ];
 
   // Frappe SDK hooks for fetching data
@@ -1397,14 +1406,14 @@ const QuickActions = ({
       newParams.delete("app");
       setApplicationData([]);
     }
-    setSearchParams(newParams);
+    setSearchParams(newParams, { state: location.state });
   };
 
   const handleApplicationClick = (item: string) => {
     setSelectedApplication(item);
     const newParams = new URLSearchParams(searchParams);
     newParams.set("app", item);
-    setSearchParams(newParams);
+    setSearchParams(newParams, { state: location.state });
   };
 
   const handleBack = () => {
@@ -1417,7 +1426,7 @@ const QuickActions = ({
     setApplicationData([]);
     const newParams = new URLSearchParams(searchParams);
     newParams.delete("app");
-    setSearchParams(newParams);
+    setSearchParams(newParams, { state: location.state });
   };
 
   const handleApplyNew = () => {
@@ -1431,7 +1440,9 @@ const QuickActions = ({
         alert(`Apply New: ${selectedApplication} - Route not configured yet`);
         break;
       case "Disbursal of Honorarium":
-        onNavigate(`/disbursal-of-honorarium-form?project=${projectParam}${projectTitle ? `&project_name=${encodeURIComponent(projectTitle)}` : ""}`);
+        onNavigate(
+          `/disbursal-of-honorarium-form?project=${projectParam}${projectTitle ? `&project_name=${encodeURIComponent(projectTitle)}` : ""}`,
+        );
         break;
       case "Disbursal of Consultancy":
         onNavigate(`/disbursal-of-consultancy-form?project=${projectParam}`);
@@ -1439,7 +1450,9 @@ const QuickActions = ({
       case "Reimbursement":
         // Use projectName (Document ID like 2026...) instead of projectParam (project_no like 26RBS...)
         // so that the Reimbursement form can successfully fetch the project document.
-        onNavigate(`/reimbursement?project=${projectName}${projectTitle ? `&projectTitle=${encodeURIComponent(projectTitle)}` : ""}`);
+        onNavigate(
+          `/reimbursement?project=${projectName}${projectTitle ? `&projectTitle=${encodeURIComponent(projectTitle)}` : ""}`,
+        );
         break;
       case "Temporary Advance Apply":
         onNavigate(
@@ -1845,7 +1858,10 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { data: activityData, mutate: refetchActivity } = useFrappeGetCall<{
       message: ActivityItem[];
-    }>("rndopsapp.rndopsapp.api.get_project_activity", { doctype, docname });
+    }>("rndopsapp.rndopsapp.api.get_project_activity", {
+      doctype,
+      docname,
+    });
     const { call: addComment } = useFrappePostCall(
       "rndopsapp.rndopsapp.api.add_project_comment",
     );
@@ -1999,6 +2015,8 @@ const normalizeResponse = (raw: any): any[] => {
 const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   const { projectName } = useParams<{ projectName: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isFromTaskRegistry = !!(location.state as any)?.fromTaskRegistry;
   const [activeTab, setActiveTab] = useState("overview");
   const activityStreamRef = useRef<ActivityStreamHandle>(null);
   const { currentUser } = useFrappeAuth();
@@ -2069,10 +2087,12 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     fundQueryOptions,
   );
 
-  const { data: activityData } = useFrappeGetCall<{ message: ActivityItem[] }>(
-    "rndopsapp.rndopsapp.api.get_project_activity",
-    { doctype: "Project Registration", docname: projectName },
-  );
+  const { data: activityData } = useFrappeGetCall<{
+    message: ActivityItem[];
+  }>("rndopsapp.rndopsapp.api.get_project_activity", {
+    doctype: "Project Registration",
+    docname: projectName,
+  });
 
   // --- Budget State ---
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
@@ -2736,11 +2756,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
   const tabs = [
     { id: "overview", label: "Overview", icon: FileTextIcon },
-    { id: "sanction-details", label: "Sanction Details", icon: CreditCardIcon },
+    {
+      id: "sanction-details",
+      label: "Sanction Details",
+      icon: CreditCardIcon,
+    },
     // { id: "sanction-details", label: "Sanction Details", icon: CreditCardIcon },
     // { id: "disbursal", label: "Disbursal", icon: Upload }, // Removed as per request
     { id: "ledger", label: "Ledger", icon: LedgerIcon },
-    { id: "quick-actions", label: "Applications", icon: ZapIcon },
+    ...(!isFromTaskRegistry
+      ? [{ id: "quick-actions", label: "Applications", icon: ZapIcon }]
+      : []),
     { id: "activity", label: "Activity Log", icon: MessageSquareIcon },
   ];
 
@@ -2915,7 +2941,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     key={tab.id}
                     onClick={() => {
                       setActiveTab(tab.id);
-                      setSearchParams({ tab: tab.id });
+                      setSearchParams(
+                        { tab: tab.id },
+                        { state: location.state },
+                      );
                     }}
                     aria-selected={activeTab === tab.id}
                     className={cn(
@@ -3015,7 +3044,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             </p>
                           </div>
                           <a
-                            href={`http://172.16.135.118:9000/rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
+                            href={`http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-sm font-medium text-[#D97757] hover:underline flex items-center gap-1"
@@ -3233,9 +3262,18 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       label="Additional PIs"
                       data={data?.additional_pi_table}
                       columns={[
-                        { fieldname: "pi_name", label: "Name" },
-                        { fieldname: "pi_designation", label: "Designation" },
-                        { fieldname: "pi_email", label: "Email" },
+                        {
+                          fieldname: "pi_name",
+                          label: "Name",
+                        },
+                        {
+                          fieldname: "pi_designation",
+                          label: "Designation",
+                        },
+                        {
+                          fieldname: "pi_email",
+                          label: "Email",
+                        },
                       ]}
                       icon={UsersIcon}
                     />
@@ -3245,9 +3283,18 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       label="Co-Investigators"
                       data={data?.co_investigator_table}
                       columns={[
-                        { fieldname: "copi_name", label: "Name" },
-                        { fieldname: "copi_designation", label: "Designation" },
-                        { fieldname: "copi_email", label: "Email" },
+                        {
+                          fieldname: "copi_name",
+                          label: "Name",
+                        },
+                        {
+                          fieldname: "copi_designation",
+                          label: "Designation",
+                        },
+                        {
+                          fieldname: "copi_email",
+                          label: "Email",
+                        },
                       ]}
                       icon={UsersIcon}
                     />
@@ -3457,8 +3504,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       label="Proposed Equipment"
                       data={data?.proposed_equipment_details}
                       columns={[
-                        { fieldname: "item_name", label: "Equipment Name" },
-                        { fieldname: "equip_total_unit_cost", label: "Cost" },
+                        {
+                          fieldname: "item_name",
+                          label: "Equipment Name",
+                        },
+                        {
+                          fieldname: "equip_total_unit_cost",
+                          label: "Cost",
+                        },
                       ]}
                       icon={ShoppingCartIcon}
                     />
@@ -3468,8 +3521,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       label="Proposed Manpower"
                       data={data?.proposed_manpower_details}
                       columns={[
-                        { fieldname: "designation_name", label: "Position" },
-                        { fieldname: "manpower_salary", label: "Salary" },
+                        {
+                          fieldname: "designation_name",
+                          label: "Position",
+                        },
+                        {
+                          fieldname: "manpower_salary",
+                          label: "Salary",
+                        },
                       ]}
                       icon={UsersGroupIcon}
                     />
@@ -3576,12 +3635,30 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         if (!sanction) return null;
 
                         const budgetColumnsAll = [
-                          { fieldname: "account_head", label: "Account Head" },
-                          { fieldname: "first_year_budget", label: "Year 1" },
-                          { fieldname: "second_year_budget", label: "Year 2" },
-                          { fieldname: "third_year_budget", label: "Year 3" },
-                          { fieldname: "fourth_year_budget", label: "Year 4" },
-                          { fieldname: "fifth_year_budget", label: "Year 5" },
+                          {
+                            fieldname: "account_head",
+                            label: "Account Head",
+                          },
+                          {
+                            fieldname: "first_year_budget",
+                            label: "Year 1",
+                          },
+                          {
+                            fieldname: "second_year_budget",
+                            label: "Year 2",
+                          },
+                          {
+                            fieldname: "third_year_budget",
+                            label: "Year 3",
+                          },
+                          {
+                            fieldname: "fourth_year_budget",
+                            label: "Year 4",
+                          },
+                          {
+                            fieldname: "fifth_year_budget",
+                            label: "Year 5",
+                          },
                         ];
                         // Filter to only show years that have data
                         const budgetColumns = budgetColumnsAll.filter((c) => {
@@ -3596,18 +3673,24 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         const budgetYearFieldnames = budgetColumns
                           .filter((c) => c.fieldname !== "account_head")
                           .map((c) => c.fieldname);
-                        const columnTotals: { [key: string]: number } =
-                          budgetYearFieldnames.reduce(
-                            (totals: { [key: string]: number }, fieldname) => {
-                              totals[fieldname] = (
-                                sanction.sanctioned_budget_breakup || []
-                              ).reduce((sum: number, row: any) => {
-                                return sum + (parseFloat(row[fieldname]) || 0);
-                              }, 0);
-                              return totals;
+                        const columnTotals: {
+                          [key: string]: number;
+                        } = budgetYearFieldnames.reduce(
+                          (
+                            totals: {
+                              [key: string]: number;
                             },
-                            {},
-                          );
+                            fieldname,
+                          ) => {
+                            totals[fieldname] = (
+                              sanction.sanctioned_budget_breakup || []
+                            ).reduce((sum: number, row: any) => {
+                              return sum + (parseFloat(row[fieldname]) || 0);
+                            }, 0);
+                            return totals;
+                          },
+                          {},
+                        );
                         const grandTotal = Object.values(columnTotals).reduce(
                           (sum: number, total: any) => sum + total,
                           0,
@@ -4118,7 +4201,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       <div className="min-w-0">
                         <div
                           className="text-sm text-zinc-800 dark:text-zinc-200 line-clamp-2 prose prose-sm max-w-none"
-                          dangerouslySetInnerHTML={{ __html: activity.content }}
+                          dangerouslySetInnerHTML={{
+                            __html: activity.content,
+                          }}
                         />
                         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                           {activity.owner} ·{" "}
@@ -4205,7 +4290,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       value={commitAmount}
                       onChange={(e) => setCommitAmount(e.target.value)}
                       onKeyDown={(e) => {
-                        if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                        if (
+                          ["e", "E", "+", "-"].includes(e.key) ||
+                          /[a-zA-Z]/.test(e.key)
+                        ) {
                           e.preventDefault();
                         }
                       }}
@@ -4390,11 +4478,41 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         <th>Date</th>
                         <th>Particulars</th>
                         <th>BMR</th>
-                        <th style={{ textAlign: "right" }}>Fund Received</th>
-                        <th style={{ textAlign: "right" }}>Commit Amt</th>
-                        <th style={{ textAlign: "right" }}>Commitable Bal</th>
-                        <th style={{ textAlign: "right" }}>Payment Amt</th>
-                        <th style={{ textAlign: "right" }}>Payment Bal</th>
+                        <th
+                          style={{
+                            textAlign: "right",
+                          }}
+                        >
+                          Fund Received
+                        </th>
+                        <th
+                          style={{
+                            textAlign: "right",
+                          }}
+                        >
+                          Commit Amt
+                        </th>
+                        <th
+                          style={{
+                            textAlign: "right",
+                          }}
+                        >
+                          Commitable Bal
+                        </th>
+                        <th
+                          style={{
+                            textAlign: "right",
+                          }}
+                        >
+                          Payment Amt
+                        </th>
+                        <th
+                          style={{
+                            textAlign: "right",
+                          }}
+                        >
+                          Payment Bal
+                        </th>
                         <th>Status</th>
                         <th>ACTIONS</th>
                       </tr>
@@ -4417,7 +4535,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             <td>{row.particulars}</td>
                             <td>{row.bmr}</td>
                             <td
-                              style={{ textAlign: "right" }}
+                              style={{
+                                textAlign: "right",
+                              }}
                               className={
                                 row.received ? "text-green-600 font-medium" : ""
                               }
@@ -4427,7 +4547,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                 : "-"}
                             </td>
                             <td
-                              style={{ textAlign: "right" }}
+                              style={{
+                                textAlign: "right",
+                              }}
                               className={
                                 row.committed ? "text-red-600 font-medium" : ""
                               }
@@ -4437,13 +4559,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                 : "-"}
                             </td>
                             <td
-                              style={{ textAlign: "right" }}
+                              style={{
+                                textAlign: "right",
+                              }}
                               className="font-semibold text-zinc-900 dark:text-zinc-100"
                             >
                               {row.commitableBalance?.toLocaleString("en-IN")}
                             </td>
                             <td
-                              style={{ textAlign: "right" }}
+                              style={{
+                                textAlign: "right",
+                              }}
                               className={
                                 row.payment ? "text-red-600 font-medium" : ""
                               }
@@ -4453,7 +4579,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                 : "-"}
                             </td>
                             <td
-                              style={{ textAlign: "right" }}
+                              style={{
+                                textAlign: "right",
+                              }}
                               className="font-semibold text-zinc-900 dark:text-zinc-100"
                             >
                               {activeLedgerTab === "All"
@@ -4625,7 +4753,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                           disabled={field.read_only}
                           placeholder="0.00"
                           onKeyDown={(e) => {
-                            if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                            if (
+                              ["e", "E", "+", "-"].includes(e.key) ||
+                              /[a-zA-Z]/.test(e.key)
+                            ) {
                               e.preventDefault();
                             }
                           }}

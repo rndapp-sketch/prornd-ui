@@ -1,221 +1,25 @@
-// import * as React from "react";
-// import { useNavigate } from "react-router-dom";
-// import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
-// import { Button } from "@/components/ui/button";
-// import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-// import { Badge } from "@/components/ui/badge";
-// import { Skeleton } from "@/components/ui/skeleton";
-// import {
-//   Table,
-//   TableBody,
-//   TableCell,
-//   TableHead,
-//   TableHeader,
-//   TableRow,
-// } from "@/components/ui/table";
-// import { format } from "date-fns";
-// import {
-//   PlusIcon,
-//   Briefcase,
-//   TrendingUp,
-//   CheckCircle2,
-//   FileText,
-//   ArrowRight
-// } from "lucide-react";
-
-// export const PiHomePage = () => {
-//   const { currentUser } = useFrappeAuth();
-//   const navigate = useNavigate();
-
-//   const { data: userDoc, isLoading: userLoading } = useFrappeGetDoc(
-//     "User",
-//     currentUser ?? "",
-//     {
-//       fields: ["full_name"],
-//       enabled: !!currentUser
-//     }
-//   );
-
-//   const { data: projects, isLoading: projectsLoading } = useFrappeGetCall<{ message: any[] }>(
-//     "rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_projects_by_pi",
-//     { pi_id: currentUser }
-//   );
-
-//   const projectList = projects?.message || [];
-
-//   // Calculate stats
-//   const totalProjects = projectList.length;
-//   const activeProjects = projectList.filter(p => p.status === "Open").length;
-//   // const pendingProjects = projectList.filter(p => p.status === "Pending").length;
-//   const closedProjects = projectList.filter(p => p.status === "Closed").length;
-
-//   const getStatusBadge = (status: string) => {
-//     switch (status) {
-//       case "Open":
-//         return <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700">Active</Badge>;
-//       case "Closed":
-//         return <Badge variant="secondary">Closed</Badge>;
-//       default:
-//         return <Badge variant="outline">{status}</Badge>;
-//     }
-//   };
-
-//   if (userLoading || projectsLoading) {
-//     return (
-//       <div className="space-y-8 p-6">
-//         <div className="flex items-center justify-between">
-//           <Skeleton className="h-10 w-64" />
-//           <Skeleton className="h-10 w-32" />
-//         </div>
-//         <div className="grid gap-6 md:grid-cols-3">
-//           {[1, 2, 3].map((i) => (
-//             <Skeleton key={i} className="h-32 w-full" />
-//           ))}
-//         </div>
-//         <Skeleton className="h-96 w-full" />
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <div className="space-y-8 animate-in fade-in duration-500">
-//       {/* Header Section */}
-//       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-//         <div>
-//           <h1 className="text-3xl font-serif text-zinc-900 dark:text-zinc-50">
-//             Welcome back, {userDoc?.full_name?.split(" ")[0]}
-//           </h1>
-//           <p className="text-zinc-500 dark:text-zinc-400 mt-1">
-//             Manage your research projects and track progress.
-//           </p>
-//         </div>
-//         <Button onClick={() => navigate("/project-registration")} className="shadow-lg shadow-terracotta/20">
-//           <PlusIcon className="mr-2 h-4 w-4" />
-//           New Project
-//         </Button>
-//       </div>
-
-//       {/* KPI Cards */}
-//       <div className="grid gap-6 md:grid-cols-3">
-//         <Card className="hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
-//           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-//             <CardTitle className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-//               Total Projects
-//             </CardTitle>
-//             <Briefcase className="h-4 w-4 text-zinc-400" />
-//           </CardHeader>
-//           <CardContent>
-//             <div className="text-2xl font-bold font-serif text-zinc-900 dark:text-zinc-50">{totalProjects}</div>
-//             <p className="text-xs text-zinc-500 mt-1">
-//               Across all categories
-//             </p>
-//           </CardContent>
-//         </Card>
-
-//         <Card className="hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
-//           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-//             <CardTitle className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-//               Active Projects
-//             </CardTitle>
-//             <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-500" />
-//           </CardHeader>
-//           <CardContent>
-//             <div className="text-2xl font-bold font-serif text-zinc-900 dark:text-zinc-50">{activeProjects}</div>
-//             <p className="text-xs text-zinc-500 mt-1">
-//               Ongoing research
-//             </p>
-//           </CardContent>
-//         </Card>
-
-//         <Card className="hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors">
-//           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-//             <CardTitle className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-//               Closed Projects
-//             </CardTitle>
-//             <CheckCircle2 className="h-4 w-4 text-zinc-400" />
-//           </CardHeader>
-//           <CardContent>
-//             <div className="text-2xl font-bold font-serif text-zinc-900 dark:text-zinc-50">{closedProjects}</div>
-//             <p className="text-xs text-zinc-500 mt-1">
-//               Completed
-//             </p>
-//           </CardContent>
-//         </Card>
-//       </div>
-
-//       {/* Recent Projects Table */}
-//       <Card>
-//         <CardHeader>
-//           <CardTitle>Recent Projects</CardTitle>
-//           <CardDescription>
-//             A list of your recently active research projects.
-//           </CardDescription>
-//         </CardHeader>
-//         <CardContent>
-//           {projectList.length === 0 ? (
-//             <div className="flex flex-col items-center justify-center py-10 text-center">
-//               <FileText className="h-12 w-12 text-zinc-300 mb-4" />
-//               <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">No projects found</h3>
-//               <p className="text-zinc-500 mb-4 max-w-sm">
-//                 You haven't created any projects yet. Start by creating a new research project.
-//               </p>
-//               <Button onClick={() => navigate("/project-registration")} variant="outline">
-//                 Create Project
-//               </Button>
-//             </div>
-//           ) : (
-//             <Table>
-//               <TableHeader>
-//                 <TableRow>
-//                   <TableHead>Project Title</TableHead>
-//                   <TableHead>Project No.</TableHead>
-//                   <TableHead>Date</TableHead>
-//                   <TableHead>Status</TableHead>
-//                   <TableHead className="text-right">Action</TableHead>
-//                 </TableRow>
-//               </TableHeader>
-//               <TableBody>
-//                 {projectList.slice(0, 5).map((project) => (
-//                   <TableRow key={project.name} className="cursor-pointer" onClick={() => navigate(`/projects/${project.name}`)}>
-//                     <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">
-//                       {project.project_title || "Untitled Project"}
-//                     </TableCell>
-//                     <TableCell>{project.name}</TableCell>
-//                     <TableCell>{project.creation ? format(new Date(project.creation), "MMM dd, yyyy") : "-"}</TableCell>
-//                     <TableCell>{getStatusBadge(project.status)}</TableCell>
-//                     <TableCell className="text-right">
-//                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-//                         <ArrowRight className="h-4 w-4" />
-//                         <span className="sr-only">View</span>
-//                       </Button>
-//                     </TableCell>
-//                   </TableRow>
-//                 ))}
-//               </TableBody>
-//             </Table>
-//           )}
-//         </CardContent>
-//       </Card>
-//     </div>
-//   );
-// };
-
-// export default PiHomePage;
-
-
-
-
-// -=-=-==-=-=-
-
-
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
+import {
+  useFrappeAuth,
+  useFrappeGetDoc,
+  useFrappeGetCall,
+} from "frappe-react-sdk";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
 import {
-  PlusCircle, LayoutGrid, FileText, BarChart, PieChart, TrendingUp,
-  AlertCircle, Megaphone, LifeBuoy, Mail, Clock,
-  UsersIcon, SearchIcon
+  PlusCircle,
+  LayoutGrid,
+  FileText,
+  BarChart,
+  PieChart,
+  TrendingUp,
+  AlertCircle,
+  Megaphone,
+  LifeBuoy,
+  Mail,
+  Clock,
+  UsersIcon,
+  SearchIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -255,17 +59,23 @@ function formatCrore(amount: number): string {
   return `₹${amount}`;
 }
 
-
-
 /**
  * --- Reusable UI Components (Atomic Design) ---
  */
 
-const Card = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={cn(
-    "bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-sm transition-all overflow-hidden",
-    className
-  )}>
+const Card = ({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) => (
+  <div
+    className={cn(
+      "bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-sm transition-all overflow-hidden",
+      className,
+    )}
+  >
     {children}
   </div>
 );
@@ -280,10 +90,14 @@ const CurrentTime = () => {
   return (
     <div className="text-right hidden sm:block">
       <div className="font-sans text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold">
-        {time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+        {time.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        })}
       </div>
       <div className="text-zinc-800 dark:text-zinc-200 font-serif text-lg leading-tight">
-        {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
       </div>
     </div>
   );
@@ -296,47 +110,73 @@ interface ActionCardProps {
   onClick: () => void;
 }
 
-const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onClick }) => (
+const ActionCard: React.FC<ActionCardProps> = ({
+  icon,
+  title,
+  description,
+  onClick,
+}) => (
   <Card className="hover:border-zinc-300 dark:hover:border-zinc-500 cursor-pointer group">
-    <button onClick={onClick} className="w-full text-left p-6 flex flex-col h-full">
+    <button
+      onClick={onClick}
+      className="w-full text-left p-6 flex flex-col h-full"
+    >
       <div className="size-10 flex items-center justify-center rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 mb-5 group:bg-[#D97757] group:text-white transition-all duration-300">
         {React.cloneElement(icon as React.ReactElement<any>, { size: 20 })}
       </div>
-      <h3 className="font-serif text-xl text-zinc-800 dark:text-zinc-100 font-medium mb-2">{title}</h3>
-      <p className="font-sans text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">{description}</p>
+      <h3 className="font-serif text-xl text-zinc-800 dark:text-zinc-100 font-medium mb-2">
+        {title}
+      </h3>
+      <p className="font-sans text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+        {description}
+      </p>
     </button>
   </Card>
 );
 
-const AnalyticsCard: React.FC<{ title: string; value: string; subtitle: string; icon: React.ReactNode; trend?: string; onClick?: () => void; }> =
-  ({ title, value, subtitle, icon, trend, onClick }) => (
-    <div
-      onClick={onClick}
-      className={cn(
-        "p-4 rounded-lg border border-zinc-100 dark:border-zinc-700/50 bg-zinc-50/30 dark:bg-zinc-900/20 transition-all",
-        onClick ? 'cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800' : ''
-      )}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-sans uppercase tracking-widest text-zinc-500 dark:text-zinc-400 font-bold">{title}</span>
-        <div className="text-zinc-400 dark:text-zinc-500">{icon}</div>
-      </div>
-      <div className="text-xl font-serif text-zinc-800 dark:text-zinc-100 mb-1">{value}</div>
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-sans text-zinc-400 dark:text-zinc-500">{subtitle}</span>
-        {trend && (
-          <span className={cn(
-            "text-[11px] font-medium px-1.5 py-0.5 rounded-full",
-            trend.startsWith('+')
-              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
-              : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
-          )}>
-            {trend}
-          </span>
-        )}
-      </div>
+const AnalyticsCard: React.FC<{
+  title: string;
+  value: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  trend?: string;
+  onClick?: () => void;
+}> = ({ title, value, subtitle, icon, trend, onClick }) => (
+  <div
+    onClick={onClick}
+    className={cn(
+      "p-4 rounded-lg border border-zinc-100 dark:border-zinc-700/50 bg-zinc-50/30 dark:bg-zinc-900/20 transition-all",
+      onClick ? "cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800" : "",
+    )}
+  >
+    <div className="flex items-center justify-between mb-2">
+      <span className="text-[10px] font-sans uppercase tracking-widest text-zinc-500 dark:text-zinc-400 font-bold">
+        {title}
+      </span>
+      <div className="text-zinc-400 dark:text-zinc-500">{icon}</div>
     </div>
-  );
+    <div className="text-xl font-serif text-zinc-800 dark:text-zinc-100 mb-1">
+      {value}
+    </div>
+    <div className="flex items-center justify-between">
+      <span className="text-[11px] font-sans text-zinc-400 dark:text-zinc-500">
+        {subtitle}
+      </span>
+      {trend && (
+        <span
+          className={cn(
+            "text-[11px] font-medium px-1.5 py-0.5 rounded-full",
+            trend.startsWith("+")
+              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
+              : "bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400",
+          )}
+        >
+          {trend}
+        </span>
+      )}
+    </div>
+  </div>
+);
 
 /**
  * --- Main PI Home Page Component ---
@@ -349,15 +189,20 @@ export function PiHomePage() {
     enabled: !!currentUser,
   });
 
-  const { data: dashboardData, isLoading: dashboardLoading } = useFrappeGetCall<{ message: PiDashboardData }>(
-    "rndopsapp.dashboard.get_pi_dashboard_data",
-    { user: currentUser },
-    currentUser ? undefined : null,
-    { revalidateOnFocus: false }
-  );
+  const { data: dashboardData, isLoading: dashboardLoading } =
+    useFrappeGetCall<{ message: PiDashboardData }>(
+      "rndopsapp.dashboard.get_pi_dashboard_data",
+      { user: currentUser },
+      currentUser ? undefined : null,
+      { revalidateOnFocus: false },
+    );
 
   const fullName = userData?.full_name || currentUser || "Guest";
-  const { isOpen: isCommandPaletteOpen, openPalette, closePalette } = useCommandPalette();
+  const {
+    isOpen: isCommandPaletteOpen,
+    openPalette,
+    closePalette,
+  } = useCommandPalette();
 
   const overview = dashboardData?.message?.project_overview;
   const financials = dashboardData?.message?.financial_summary;
@@ -365,10 +210,8 @@ export function PiHomePage() {
 
   return (
     <div className="min-h-screen dark:bg-zinc-900  transition-colors duration-300">
-
       <main className="p-4 md:p-8 overflow-y-auto w-full">
         <div className="w-full mx-auto">
-
           {/* Header Section */}
           <header className="mb-12 flex justify-between items-end">
             <div className="space-y-1">
@@ -376,7 +219,10 @@ export function PiHomePage() {
                 Dashboard
               </h1>
               <p className="font-sans text-sm text-zinc-500 dark:text-zinc-400">
-                Welcome back, <span className="text-claude-accent font-medium">{fullName}</span>
+                Welcome back,{" "}
+                <span className="text-claude-accent font-medium">
+                  {fullName}
+                </span>
               </p>
             </div>
 
@@ -397,7 +243,10 @@ export function PiHomePage() {
             </div>
           </header>
 
-          <CommandPalette isOpen={isCommandPaletteOpen} onClose={closePalette} />
+          <CommandPalette
+            isOpen={isCommandPaletteOpen}
+            onClose={closePalette}
+          />
 
           {/* Quick Actions */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
@@ -417,7 +266,7 @@ export function PiHomePage() {
               icon={<Clock />}
               title="Pending Tasks"
               description="Review items requiring your immediate attention or approval."
-              onClick={() => navigate("/projects-view", { state: { filter: "Application Under Process" } })}
+              onClick={() => navigate("/projects-view")}
             />
           </section>
 
@@ -428,7 +277,9 @@ export function PiHomePage() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2.5">
                   <BarChart className="size-4 text-zinc-400" />
-                  <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium">Project Overview</h3>
+                  <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium">
+                    Project Overview
+                  </h3>
                 </div>
                 <button
                   onClick={() => navigate("/project-analytics")}
@@ -440,25 +291,39 @@ export function PiHomePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <AnalyticsCard
                   title="Total Projects"
-                  value={dashboardLoading ? "—" : String(overview?.total_projects ?? 0)}
+                  value={
+                    dashboardLoading
+                      ? "—"
+                      : String(overview?.total_projects ?? 0)
+                  }
                   subtitle={`${overview?.draft_projects ?? 0} in draft stage`}
                   icon={<FileText size={14} />}
                 />
                 <AnalyticsCard
                   title="Completion"
-                  value={dashboardLoading ? "—" : `${overview?.completion_rate ?? 0}%`}
+                  value={
+                    dashboardLoading
+                      ? "—"
+                      : `${overview?.completion_rate ?? 0}%`
+                  }
                   subtitle="On track"
                   icon={<TrendingUp size={14} />}
                 />
                 <AnalyticsCard
                   title="Pending Review"
-                  value={dashboardLoading ? "—" : String(overview?.pending_review ?? 0)}
+                  value={
+                    dashboardLoading
+                      ? "—"
+                      : String(overview?.pending_review ?? 0)
+                  }
                   subtitle="Awaiting action"
                   icon={<AlertCircle size={14} />}
                 />
                 <AnalyticsCard
                   title="Staffing"
-                  value={dashboardLoading ? "—" : String(overview?.active_staff ?? 0)}
+                  value={
+                    dashboardLoading ? "—" : String(overview?.active_staff ?? 0)
+                  }
                   subtitle="Active members"
                   icon={<UsersIcon size={14} />}
                 />
@@ -470,7 +335,9 @@ export function PiHomePage() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2.5">
                   <PieChart className="size-4 text-zinc-400" />
-                  <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium">Financial Summary</h3>
+                  <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium">
+                    Financial Summary
+                  </h3>
                 </div>
                 <button
                   onClick={() => navigate("/fund-analytics")}
@@ -482,25 +349,41 @@ export function PiHomePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <AnalyticsCard
                   title="Total Allocation"
-                  value={dashboardLoading ? "—" : formatCrore(financials?.total_allocation ?? 0)}
+                  value={
+                    dashboardLoading
+                      ? "—"
+                      : formatCrore(financials?.total_allocation ?? 0)
+                  }
                   subtitle={`FY ${financials?.financial_year ?? "—"}`}
                   icon={<PieChart size={14} />}
                 />
                 <AnalyticsCard
                   title="Utilization"
-                  value={dashboardLoading ? "—" : `${financials?.utilization_rate ?? 0}%`}
+                  value={
+                    dashboardLoading
+                      ? "—"
+                      : `${financials?.utilization_rate ?? 0}%`
+                  }
                   subtitle={`${formatCrore(financials?.utilized ?? 0)} spent`}
                   icon={<TrendingUp size={14} />}
                 />
                 <AnalyticsCard
                   title="Available"
-                  value={dashboardLoading ? "—" : formatCrore(financials?.available ?? 0)}
+                  value={
+                    dashboardLoading
+                      ? "—"
+                      : formatCrore(financials?.available ?? 0)
+                  }
                   subtitle="Net balance"
                   icon={<PieChart size={14} />}
                 />
                 <AnalyticsCard
                   title="Requests"
-                  value={dashboardLoading ? "—" : formatCrore(financials?.pending_requests ?? 0)}
+                  value={
+                    dashboardLoading
+                      ? "—"
+                      : formatCrore(financials?.pending_requests ?? 0)
+                  }
                   subtitle="Pending review"
                   icon={<AlertCircle size={14} />}
                 />
@@ -513,40 +396,62 @@ export function PiHomePage() {
             <Card className="lg:col-span-2 p-6">
               <div className="flex items-center gap-2.5 mb-5">
                 <Megaphone className="size-4 text-zinc-400" />
-                <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium">Recent Updates</h3>
+                <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium">
+                  Recent Updates
+                </h3>
               </div>
               <div className="space-y-4">
                 {dashboardLoading ? (
                   <p className="text-xs text-zinc-400">Loading updates...</p>
                 ) : recentUpdates.length === 0 ? (
                   <p className="text-xs text-zinc-400">No recent updates.</p>
-                ) : recentUpdates.map((update, i) => (
-                  <div key={i} className="flex items-start gap-4 group">
-                    <div className={cn(
-                      "size-1.5 rounded-full mt-2.5",
-                      update.type === "announcement" ? "bg-[#9A7D5A]" : "bg-zinc-400"
-                    )}></div>
-                    <div className="border-b border-zinc-100 dark:border-zinc-700/50 pb-4 w-full last:border-0">
-                      <p className="font-sans text-xs font-medium text-zinc-800 dark:text-zinc-200">{update.title}</p>
-                      <p className="font-sans text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">{update.meta}</p>
+                ) : (
+                  recentUpdates.map((update, i) => (
+                    <div key={i} className="flex items-start gap-4 group">
+                      <div
+                        className={cn(
+                          "size-1.5 rounded-full mt-2.5",
+                          update.type === "announcement"
+                            ? "bg-[#9A7D5A]"
+                            : "bg-zinc-400",
+                        )}
+                      ></div>
+                      <div className="border-b border-zinc-100 dark:border-zinc-700/50 pb-4 w-full last:border-0">
+                        <p className="font-sans text-xs font-medium text-zinc-800 dark:text-zinc-200">
+                          {update.title}
+                        </p>
+                        <p className="font-sans text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          {update.meta}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </Card>
 
             <Card className="p-6">
-              <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium mb-5">Quick Resources</h3>
+              <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium mb-5">
+                Quick Resources
+              </h3>
               <ul className="space-y-1.5">
                 {[
                   { icon: <FileText />, label: "Project Guidelines" },
                   { icon: <LifeBuoy />, label: "Support Portal" },
                   { icon: <BarChart />, label: "Analytics Reports" },
-                  { icon: <PieChart />, label: "Financial Templates" }
+                  { icon: <PieChart />, label: "Financial Templates" },
                 ].map((item, i) => (
                   <li key={i}>
-                    <a href="#" className="flex items-center gap-2.5 p-2 rounded-lg text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all">
-                      <span className="text-zinc-400">{React.cloneElement(item.icon as React.ReactElement<any>, { size: 15 })}</span>
+                    <a
+                      href="#"
+                      className="flex items-center gap-2.5 p-2 rounded-lg text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all"
+                    >
+                      <span className="text-zinc-400">
+                        {React.cloneElement(
+                          item.icon as React.ReactElement<any>,
+                          { size: 15 },
+                        )}
+                      </span>
                       {item.label}
                     </a>
                   </li>
@@ -560,7 +465,10 @@ export function PiHomePage() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-100 dark:bg-zinc-800/50 text-xs font-sans text-zinc-500 dark:text-zinc-400">
               <Mail className="size-3.5" />
               <span>For assistance, reach out to</span>
-              <a href="mailto:ernd@iitg.ac.in" className="text-claude-accent hover:text-[#D97757] font-medium transition-colors">
+              <a
+                href="mailto:ernd@iitg.ac.in"
+                className="text-claude-accent hover:text-[#D97757] font-medium transition-colors"
+              >
                 ernd@iitg.ac.in
               </a>
             </div>

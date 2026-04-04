@@ -13,7 +13,11 @@
 
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
+import {
+  useFrappeAuth,
+  useFrappeGetDoc,
+  useFrappeGetCall,
+} from "frappe-react-sdk";
 import { AnalyticsCard, CurrentTime } from "../../components/DashboardCards";
 import { cn } from "@/lib/utils";
 import {
@@ -138,7 +142,9 @@ interface AdoRndDashboardData {
 
 const getStatusStyle = (status: string) => {
   const s = status?.toLowerCase() || "";
-  if (["pending", "under review", "approval pending"].some((t) => s.includes(t)))
+  if (
+    ["pending", "under review", "approval pending"].some((t) => s.includes(t))
+  )
     return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800";
   if (s.includes("approved"))
     return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800";
@@ -215,7 +221,11 @@ export function AdoRndDashboard() {
   });
 
   // Fetch user permissions from backend
-  const { data: permissionsData, isLoading: isLoadingPermissions, error: permissionError } = useFrappeGetCall<{
+  const {
+    data: permissionsData,
+    isLoading: isLoadingPermissions,
+    error: permissionError,
+  } = useFrappeGetCall<{
     message: UserPermissions;
   }>(
     "rndopsapp.dashboard.get_ado_rnd_permissions",
@@ -223,29 +233,35 @@ export function AdoRndDashboard() {
     {
       enabled: !!currentUser,
       revalidateOnFocus: false,
-    }
+    },
   );
 
   // Fetch pending tasks
-  const { data: pendingData, isLoading: pendingLoading } = useFrappeGetCall<PendingTaskResponse>(
-    "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_task",
-    { page_name: "pending-task" },
-    {
-      revalidateOnFocus: false,
-    }
-  );
+  const { data: pendingData, isLoading: pendingLoading } =
+    useFrappeGetCall<PendingTaskResponse>(
+      "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_task",
+      { page_name: "pending-task" },
+      {
+        revalidateOnFocus: false,
+      },
+    );
 
   // Fetch task registry
-  const { data: registryData, isLoading: registryLoading } = useFrappeGetCall<TaskRegistryResponse>(
-    "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_task_registry",
-    { page_name: "task-registry" },
-    {
-      revalidateOnFocus: false,
-    }
-  );
+  const { data: registryData, isLoading: registryLoading } =
+    useFrappeGetCall<TaskRegistryResponse>(
+      "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_task_registry",
+      { page_name: "task-registry" },
+      {
+        revalidateOnFocus: false,
+      },
+    );
 
   // Fetch Ado_RnD specific dashboard data
-  const { data: dashboardData, isLoading: isDashboardLoading, error: dashboardError } = useFrappeGetCall<{
+  const {
+    data: dashboardData,
+    isLoading: isDashboardLoading,
+    error: dashboardError,
+  } = useFrappeGetCall<{
     message: AdoRndDashboardData;
   }>(
     "rndopsapp.dashboard.get_ado_rnd_dashboard_data",
@@ -253,16 +269,23 @@ export function AdoRndDashboard() {
     {
       enabled: !!currentUser,
       revalidateOnFocus: false,
-    }
+    },
   );
 
   const fullName = userData?.full_name || currentUser || "Guest";
-  const isLoading = pendingLoading || registryLoading || isDashboardLoading || isLoadingPermissions;
+  const isLoading =
+    pendingLoading ||
+    registryLoading ||
+    isDashboardLoading ||
+    isLoadingPermissions;
 
   // User permissions with safe defaults - fallback to read-only if API fails
   const permissions: UserPermissions = useMemo(() => {
     if (permissionError) {
-      console.warn("Failed to fetch permissions, using restricted defaults:", permissionError);
+      console.warn(
+        "Failed to fetch permissions, using restricted defaults:",
+        permissionError,
+      );
       return {
         can_view_financials: false,
         can_approve_projects: false,
@@ -274,16 +297,18 @@ export function AdoRndDashboard() {
         can_export_data: false,
       };
     }
-    return permissionsData?.message || {
-      can_view_financials: true,
-      can_approve_projects: true,
-      can_manage_staff: true,
-      can_view_analytics: true,
-      can_process_payments: true,
-      can_manage_inventory: true,
-      can_approve_budgets: true,
-      can_export_data: true,
-    };
+    return (
+      permissionsData?.message || {
+        can_view_financials: true,
+        can_approve_projects: true,
+        can_manage_staff: true,
+        can_view_analytics: true,
+        can_process_payments: true,
+        can_manage_inventory: true,
+        can_approve_budgets: true,
+        can_export_data: true,
+      }
+    );
   }, [permissionsData, permissionError]);
 
   // Dashboard data with safe defaults
@@ -291,47 +316,49 @@ export function AdoRndDashboard() {
     if (dashboardError) {
       console.warn("Failed to fetch dashboard data:", dashboardError);
     }
-    return dashboardData?.message || {
-      overview: {
-        total_pending_approvals: 0,
-        total_processed_today: 0,
-        active_projects: 0,
-        pending_payments: 0,
-        urgent_items: 0,
-        overdue_items: 0,
-      },
-      financials: {
-        total_budget_allocated: 0,
-        total_disbursed: 0,
-        pending_disbursements: 0,
-        monthly_expenditure: 0,
-        quarterly_expenditure: 0,
-        budget_utilization_rate: 0,
-      },
-      operations: {
-        pending_reimbursements: 0,
-        pending_advances: 0,
-        pending_settlements: 0,
-        pending_purchases: 0,
-        pending_honorariums: 0,
-        avg_processing_time: 0,
-        completion_rate: 0,
-      },
-      staff_analytics: {
-        total_staff: 0,
-        pending_recruitments: 0,
-        pending_resignations: 0,
-        pending_honorariums: 0,
-        active_staff: 0,
-        contractor_count: 0,
-      },
-      recent_activities: [],
-      performance_metrics: {
-        tasks_processed_today: 0,
-        average_response_time: 0,
-        satisfaction_score: 0,
-      },
-    };
+    return (
+      dashboardData?.message || {
+        overview: {
+          total_pending_approvals: 0,
+          total_processed_today: 0,
+          active_projects: 0,
+          pending_payments: 0,
+          urgent_items: 0,
+          overdue_items: 0,
+        },
+        financials: {
+          total_budget_allocated: 0,
+          total_disbursed: 0,
+          pending_disbursements: 0,
+          monthly_expenditure: 0,
+          quarterly_expenditure: 0,
+          budget_utilization_rate: 0,
+        },
+        operations: {
+          pending_reimbursements: 0,
+          pending_advances: 0,
+          pending_settlements: 0,
+          pending_purchases: 0,
+          pending_honorariums: 0,
+          avg_processing_time: 0,
+          completion_rate: 0,
+        },
+        staff_analytics: {
+          total_staff: 0,
+          pending_recruitments: 0,
+          pending_resignations: 0,
+          pending_honorariums: 0,
+          active_staff: 0,
+          contractor_count: 0,
+        },
+        recent_activities: [],
+        performance_metrics: {
+          tasks_processed_today: 0,
+          average_response_time: 0,
+          satisfaction_score: 0,
+        },
+      }
+    );
   }, [dashboardData, dashboardError]);
 
   // Computed pending tasks
@@ -345,7 +372,9 @@ export function AdoRndDashboard() {
         });
       }
     });
-    return tasks.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+    return tasks.sort(
+      (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime(),
+    );
   }, [pendingData]);
 
   // Computed registry tasks
@@ -359,7 +388,9 @@ export function AdoRndDashboard() {
         });
       }
     });
-    return tasks.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+    return tasks.sort(
+      (a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime(),
+    );
   }, [registryData]);
 
   // Stats
@@ -376,7 +407,7 @@ export function AdoRndDashboard() {
   const recentActivityCount = useMemo(() => {
     const today = new Date().toDateString();
     return [...pendingTasks, ...registryTasks].filter(
-      (t) => new Date(t.modified).toDateString() === today
+      (t) => new Date(t.modified).toDateString() === today,
     ).length;
   }, [pendingTasks, registryTasks]);
 
@@ -410,7 +441,10 @@ export function AdoRndDashboard() {
                   </h1>
                 </div>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400 ml-14">
-                  Welcome back, <span className="font-semibold text-zinc-800 dark:text-zinc-200">{fullName}</span>
+                  Welcome back,{" "}
+                  <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+                    {fullName}
+                  </span>
                   {" • "}Administrative Operations & Finance Management
                 </p>
               </div>
@@ -438,41 +472,6 @@ export function AdoRndDashboard() {
             </div>
           </header>
 
-          {/* ==================== ERROR BANNERS ==================== */}
-          {permissionError && (
-            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-amber-900 dark:text-amber-300">
-                  Limited Access Mode
-                </p>
-                <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                  Unable to load full permissions. Some features may be restricted. Contact system administrator if this persists.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {dashboardError && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-red-900 dark:text-red-300">
-                  Dashboard Data Unavailable
-                </p>
-                <p className="text-xs text-red-700 dark:text-red-400 mt-1">
-                  Some statistics may not be available. The system will continue to function normally.
-                </p>
-              </div>
-              <button
-                onClick={() => window.location.reload()}
-                className="px-3 py-1.5 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
-              >
-                <RefreshCw className="h-3 w-3" /> Retry
-              </button>
-            </div>
-          )}
-
           {/* ==================== QUICK ACTION CARDS ==================== */}
           <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {/* Pending Approvals */}
@@ -490,9 +489,13 @@ export function AdoRndDashboard() {
                   </span>
                 )}
               </div>
-              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Pending Approvals</h3>
+              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">
+                Pending Approvals
+              </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {totalPending > 0 ? `${totalPending} items require action` : "All caught up!"}
+                {totalPending > 0
+                  ? `${totalPending} items require action`
+                  : "All caught up!"}
               </p>
               <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-zinc-300 group-hover:text-[#D97757] group-hover:translate-x-1 transition-all" />
             </button>
@@ -512,9 +515,13 @@ export function AdoRndDashboard() {
                   </span>
                 )}
               </div>
-              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Processed Tasks</h3>
+              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">
+                Processed Tasks
+              </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {totalProcessed > 0 ? `${totalProcessed} completed` : "No records yet"}
+                {totalProcessed > 0
+                  ? `${totalProcessed} completed`
+                  : "No records yet"}
               </p>
               <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-zinc-300 group-hover:text-[#D97757] group-hover:translate-x-1 transition-all" />
             </button>
@@ -535,7 +542,9 @@ export function AdoRndDashboard() {
                     </span>
                   )}
                 </div>
-                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Active Projects</h3>
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">
+                  Active Projects
+                </h3>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400">
                   {data.overview.active_projects} projects running
                 </p>
@@ -544,7 +553,9 @@ export function AdoRndDashboard() {
             </PermissionBasedWidget>
 
             {/* Payments */}
-            <PermissionBasedWidget permission={permissions.can_process_payments}>
+            <PermissionBasedWidget
+              permission={permissions.can_process_payments}
+            >
               <button
                 onClick={() => navigate("/payments")}
                 className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#D97757]/40 transition-all text-left"
@@ -559,7 +570,9 @@ export function AdoRndDashboard() {
                     </span>
                   )}
                 </div>
-                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Pending Payments</h3>
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">
+                  Pending Payments
+                </h3>
                 <p className="text-sm text-zinc-500 dark:text-zinc-400">
                   {data.overview.pending_payments} awaiting processing
                 </p>
@@ -605,26 +618,38 @@ export function AdoRndDashboard() {
           </section>
 
           {/* ==================== FINANCIAL OVERVIEW (Permission-Based) ==================== */}
-          <PermissionBasedWidget permission={permissions.can_view_financials && showSensitiveData}>
+          <PermissionBasedWidget
+            permission={permissions.can_view_financials && showSensitiveData}
+          >
             <section className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
               <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 rounded-xl border border-emerald-200 dark:border-emerald-800 shadow-sm p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <IndianRupee className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                  <h4 className="text-sm font-bold text-emerald-900 dark:text-emerald-300">Total Budget</h4>
+                  <h4 className="text-sm font-bold text-emerald-900 dark:text-emerald-300">
+                    Total Budget
+                  </h4>
                 </div>
                 <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
-                  {isLoading ? "—" : formatCurrency(data.financials.total_budget_allocated)}
+                  {isLoading
+                    ? "—"
+                    : formatCurrency(data.financials.total_budget_allocated)}
                 </p>
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">Allocated this FY</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                  Allocated this FY
+                </p>
               </div>
 
               <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl border border-blue-200 dark:border-blue-800 shadow-sm p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  <h4 className="text-sm font-bold text-blue-900 dark:text-blue-300">Disbursed</h4>
+                  <h4 className="text-sm font-bold text-blue-900 dark:text-blue-300">
+                    Disbursed
+                  </h4>
                 </div>
                 <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                  {isLoading ? "—" : formatCurrency(data.financials.total_disbursed)}
+                  {isLoading
+                    ? "—"
+                    : formatCurrency(data.financials.total_disbursed)}
                 </p>
                 <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                   {data.financials.total_budget_allocated > 0
@@ -636,23 +661,35 @@ export function AdoRndDashboard() {
               <div className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-xl border border-amber-200 dark:border-amber-800 shadow-sm p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                  <h4 className="text-sm font-bold text-amber-900 dark:text-amber-300">Pending Disbursals</h4>
+                  <h4 className="text-sm font-bold text-amber-900 dark:text-amber-300">
+                    Pending Disbursals
+                  </h4>
                 </div>
                 <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
-                  {isLoading ? "—" : formatCurrency(data.financials.pending_disbursements)}
+                  {isLoading
+                    ? "—"
+                    : formatCurrency(data.financials.pending_disbursements)}
                 </p>
-                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Awaiting approval</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  Awaiting approval
+                </p>
               </div>
 
               <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl border border-purple-200 dark:border-purple-800 shadow-sm p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <CalendarDays className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                  <h4 className="text-sm font-bold text-purple-900 dark:text-purple-300">Monthly Expenditure</h4>
+                  <h4 className="text-sm font-bold text-purple-900 dark:text-purple-300">
+                    Monthly Expenditure
+                  </h4>
                 </div>
                 <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-                  {isLoading ? "—" : formatCurrency(data.financials.monthly_expenditure)}
+                  {isLoading
+                    ? "—"
+                    : formatCurrency(data.financials.monthly_expenditure)}
                 </p>
-                <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">Current month</p>
+                <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                  Current month
+                </p>
               </div>
             </section>
           </PermissionBasedWidget>
@@ -663,29 +700,39 @@ export function AdoRndDashboard() {
             <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6">
               <div className="flex items-center gap-2 mb-5">
                 <BarChart3 className="h-5 w-5 text-[#D97757]" />
-                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">Pending Operations</h3>
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">
+                  Pending Operations
+                </h3>
               </div>
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Reimbursements</span>
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Reimbursements
+                  </span>
                   <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-sm font-bold rounded-full">
                     {isLoading ? "—" : data.operations.pending_reimbursements}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Temporary Advances</span>
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Temporary Advances
+                  </span>
                   <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-bold rounded-full">
                     {isLoading ? "—" : data.operations.pending_advances}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Advance Settlements</span>
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Advance Settlements
+                  </span>
                   <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-sm font-bold rounded-full">
                     {isLoading ? "—" : data.operations.pending_settlements}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Direct Purchases</span>
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    Direct Purchases
+                  </span>
                   <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-sm font-bold rounded-full">
                     {isLoading ? "—" : data.operations.pending_purchases}
                   </span>
@@ -700,12 +747,16 @@ export function AdoRndDashboard() {
                 <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6">
                   <div className="flex items-center gap-2 mb-5">
                     <Shield className="h-5 w-5 text-zinc-400" />
-                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">Staff Analytics</h3>
+                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">
+                      Staff Analytics
+                    </h3>
                   </div>
                   <div className="flex items-center justify-center h-48 text-zinc-400">
                     <div className="text-center">
                       <Shield className="h-12 w-12 mx-auto mb-3 text-zinc-300" />
-                      <p className="text-sm font-medium">Insufficient Permissions</p>
+                      <p className="text-sm font-medium">
+                        Insufficient Permissions
+                      </p>
                       <p className="text-xs mt-1">Contact admin for access</p>
                     </div>
                   </div>
@@ -715,31 +766,47 @@ export function AdoRndDashboard() {
               <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6">
                 <div className="flex items-center gap-2 mb-5">
                   <Users className="h-5 w-5 text-[#D97757]" />
-                  <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">Staff Analytics</h3>
+                  <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">
+                    Staff Analytics
+                  </h3>
                 </div>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Total Staff</span>
+                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Total Staff
+                    </span>
                     <span className="px-3 py-1 bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 text-sm font-bold rounded-full">
                       {isLoading ? "—" : data.staff_analytics.total_staff}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Pending Recruitments</span>
+                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Pending Recruitments
+                    </span>
                     <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-bold rounded-full">
-                      {isLoading ? "—" : data.staff_analytics.pending_recruitments}
+                      {isLoading
+                        ? "—"
+                        : data.staff_analytics.pending_recruitments}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Pending Resignations</span>
+                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Pending Resignations
+                    </span>
                     <span className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm font-bold rounded-full">
-                      {isLoading ? "—" : data.staff_analytics.pending_resignations}
+                      {isLoading
+                        ? "—"
+                        : data.staff_analytics.pending_resignations}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Pending Honorariums</span>
+                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      Pending Honorariums
+                    </span>
                     <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-sm font-bold rounded-full">
-                      {isLoading ? "—" : data.staff_analytics.pending_honorariums}
+                      {isLoading
+                        ? "—"
+                        : data.staff_analytics.pending_honorariums}
                     </span>
                   </div>
                 </div>
@@ -781,15 +848,24 @@ export function AdoRndDashboard() {
                   pendingTasks.slice(0, 8).map((task) => (
                     <button
                       key={task.name}
-                      onClick={() => navigate(getTaskRoute(task.doctype, task.name))}
+                      onClick={() =>
+                        navigate(getTaskRoute(task.doctype, task.name))
+                      }
                       className="w-full px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors flex items-center gap-3 text-left group"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", getStatusStyle(task.status))}>
+                          <span
+                            className={cn(
+                              "px-2 py-0.5 rounded text-[10px] font-bold border",
+                              getStatusStyle(task.status),
+                            )}
+                          >
                             {task.status}
                           </span>
-                          <span className="text-[10px] text-zinc-400 font-medium">{task.doctype}</span>
+                          <span className="text-[10px] text-zinc-400 font-medium">
+                            {task.doctype}
+                          </span>
                         </div>
                         <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
                           {task.title}
@@ -830,25 +906,39 @@ export function AdoRndDashboard() {
                 ) : registryTasks.length === 0 ? (
                   <div className="p-8 text-center text-zinc-400">
                     <FolderKanban className="h-8 w-8 mx-auto mb-2 text-zinc-300" />
-                    <p className="text-sm font-medium">No processed documents yet</p>
+                    <p className="text-sm font-medium">
+                      No processed documents yet
+                    </p>
                   </div>
                 ) : (
                   registryTasks.slice(0, 8).map((task) => (
                     <button
                       key={task.name}
                       onClick={() => {
-                        if (task.doctype === "Fund Received") navigate(`/fund-received/${task.name}`);
-                        else if (task.doctype === "Reimbursement") navigate(`/reimbursement/${task.name}`);
-                        else navigate(`/task-registry/${task.doctype}/${task.name}`);
+                        if (task.doctype === "Fund Received")
+                          navigate(`/fund-received/${task.name}`);
+                        else if (task.doctype === "Reimbursement")
+                          navigate(`/reimbursement/${task.name}`);
+                        else
+                          navigate(
+                            `/task-registry/${task.doctype}/${task.name}`,
+                          );
                       }}
                       className="w-full px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors flex items-center gap-3 text-left group"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", getStatusStyle(task.status))}>
+                          <span
+                            className={cn(
+                              "px-2 py-0.5 rounded text-[10px] font-bold border",
+                              getStatusStyle(task.status),
+                            )}
+                          >
                             {task.status}
                           </span>
-                          <span className="text-[10px] text-zinc-400 font-medium">{task.doctype}</span>
+                          <span className="text-[10px] text-zinc-400 font-medium">
+                            {task.doctype}
+                          </span>
                         </div>
                         <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
                           {task.title}
@@ -870,7 +960,9 @@ export function AdoRndDashboard() {
             <section className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6 mb-6">
               <div className="flex items-center gap-2 mb-5">
                 <Clock className="h-5 w-5 text-[#D97757]" />
-                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">Pending by Module</h3>
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">
+                  Pending by Module
+                </h3>
               </div>
               <div className="space-y-3">
                 {moduleBreakdown.map(({ doctype, count }) => (
@@ -899,7 +991,10 @@ export function AdoRndDashboard() {
               <Mail className="size-3.5" />
               <p>
                 For queries, contact HoS R&D or email{" "}
-                <a href="mailto:ernd@iitg.ac.in" className="text-[#D97757] hover:underline font-semibold">
+                <a
+                  href="mailto:ernd@iitg.ac.in"
+                  className="text-[#D97757] hover:underline font-semibold"
+                >
                   ernd@iitg.ac.in
                 </a>
               </p>
