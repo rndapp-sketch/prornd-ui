@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
 import {
@@ -45,6 +45,14 @@ export default function UniversalRegistrationForm({
   const { call: checkDuplicatesCall } = useFrappePostCall<{ message: any }>(
     universalRegistrationAPI.checkDuplicates,
   );
+  const { call: checkEmailCall } = useFrappePostCall<{ message: any }>(
+    universalRegistrationAPI.checkEmailAvailability,
+  );
+
+  // Email validation state
+  const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "available" | "unavailable" | "invalid">("idle");
+  const [emailMessage, setEmailMessage] = useState<string>("");
+  const emailCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch Form Configuration based on Document State
   const fetchFormConfiguration = useCallback(async () => {
@@ -75,10 +83,70 @@ export default function UniversalRegistrationForm({
 
         if (fetchedFields) {
           enableAccountType(fetchedFields);
-        }
 
-        // Set Fields
-        setFields(fetchedFields || []);
+          let processedFields = [...fetchedFields];
+
+          const pullField = (fname: string) => {
+            const idx = processedFields.findIndex((f) => f.fieldname === fname);
+            if (idx !== -1) {
+              return processedFields.splice(idx, 1)[0];
+            }
+            return null;
+          };
+
+          const emailField = pullField("email_address_u_r");
+          const profileTypeIdx = processedFields.findIndex((f) => f.fieldname === "profile_type_u_r");
+          if (profileTypeIdx !== -1 && emailField) {
+            processedFields.splice(profileTypeIdx + 1, 0, emailField);
+          } else if (emailField) {
+            processedFields.unshift(emailField);
+          }
+
+          const personalFnames = ["full_name_u_r", "gender_u_r", "nationality_u_r", "guardian_name_u_r", "dob_u_r"];
+          const personalExtracted = personalFnames.map(f => pullField(f)).filter(Boolean);
+
+          const contactFnames = ["mobile_number_u_r", "same_as_mobile_number_u_r", "whatsapp_number_u_r", "alternate_mobile_number_u_r"];
+          const contactExtracted = contactFnames.map(f => pullField(f)).filter(Boolean);
+
+          const uniFnames = ["university_name_u_r", "university_address_u_r", "designation_u_r", "department_u_r"];
+          const uniExtracted = uniFnames.map(f => pullField(f)).filter(Boolean);
+
+          const personalSec = pullField("personal_information_section_u_r") || {
+            fieldname: "personal_information_section_u_r",
+            fieldtype: "Section Break",
+            label: "Personal Information",
+          };
+          
+          const contactSec = pullField("contact_information_section_u_r") || {
+            fieldname: "contact_information_section_u_r",
+            fieldtype: "Section Break",
+            label: "Contact Information",
+          };
+
+          const uniSec = pullField("university_detail_u_r") || {
+            fieldname: "university_detail_u_r",
+            fieldtype: "Section Break",
+            label: "University Details",
+          };
+
+          const anchorIdx = processedFields.findIndex((f) => f.fieldname === "organization_sub_type_u_r");
+          const insertAt = anchorIdx !== -1 ? anchorIdx + 1 : (profileTypeIdx !== -1 ? profileTypeIdx + 2 : 0);
+
+          const blockToInsert = [
+            personalSec,
+            ...personalExtracted,
+            contactSec,
+            ...contactExtracted,
+            uniSec,
+            ...uniExtracted,
+          ];
+
+          processedFields.splice(insertAt, 0, ...blockToInsert);
+
+          setFields(processedFields);
+        } else {
+          setFields([]);
+        }
 
         // Set Link Options
         setLinkOptions(link_options || {});
@@ -153,6 +221,66 @@ export default function UniversalRegistrationForm({
       return updated;
     });
 
+    // --- Real-time Email Availability Check ---
+    if (fieldname === "email_address_u_r") {
+      // Clear any previous timer
+      if (emailCheckTimerRef.current) {
+        clearTimeout(emailCheckTimerRef.current);
+      }
+
+      const emailValue = typeof value === "string" ? value.trim().toLowerCase() : "";
+
+      // Basic email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!emailValue) {
+        setEmailStatus("idle");
+        setEmailMessage("");
+        return; // Skip further checks but still run pincode logic below if needed
+      }
+
+      if (!emailRegex.test(emailValue)) {
+        setEmailStatus("invalid");
+        setEmailMessage("Please enter a valid email address.");
+        return;
+      }
+
+      // Set checking state and debounce the API call
+      setEmailStatus("checking");
+      setEmailMessage("Checking availability...");
+
+      emailCheckTimerRef.current = setTimeout(async () => {
+        try {
+          const response = await checkEmailCall({
+            email: emailValue,
+            exclude_docname: savedDocName || undefined,
+          });
+
+          const result =
+            typeof response?.message === "string"
+              ? JSON.parse(response.message)
+              : response?.message;
+
+          if (result?.status === "success") {
+            if (result.available) {
+              setEmailStatus("available");
+              setEmailMessage("✓ Email is available.");
+            } else {
+              setEmailStatus("unavailable");
+              setEmailMessage(result.message || "This email is already registered.");
+            }
+          } else {
+            setEmailStatus("idle");
+            setEmailMessage("");
+          }
+        } catch (err) {
+          console.error("Email availability check failed:", err);
+          setEmailStatus("idle");
+          setEmailMessage("");
+        }
+      }, 500); // 500ms debounce
+    }
+
     if (
       typeof fieldname === "string" &&
       (fieldname.toLowerCase().includes("pin_code") || fieldname.toLowerCase().includes("pincode")) &&
@@ -184,7 +312,7 @@ export default function UniversalRegistrationForm({
         })
         .catch((err) => console.error("Error fetching pincode details:", err));
     }
-  }, []);
+  }, [checkEmailCall, savedDocName]);
 
   // Handle file changes for root fields
   const handleFileChange = useCallback(
@@ -359,12 +487,13 @@ export default function UniversalRegistrationForm({
   const is_personal = profile_type === "Individual / Personal";
   const is_org = profile_type === "Organization";
   const is_vendor = is_org && org_sub_type === "Vendor";
-  const is_pi_copi = profile_type === "PI / Co-PI";
+  const is_pi_copi = profile_type === "PI / Co-PI (External only)";
 
   // DEFAULT: HIDE EVERYTHING
   const sectionsToHide = new Set([
     // --- Sections ---
     "personal_information_section_u_r",
+    "contact_information_section_u_r",
     "personal_history_section_u_r",
     "organization_basic_details_section_u_r",
     "financial_and_documents_common_section_u_r",
@@ -412,7 +541,7 @@ export default function UniversalRegistrationForm({
     "signatory_designation_u_r",
     "date_of_signing_u_r",
     "decl_info_true_u_r",
-    // --- University Detail fields (shown for PI / Co-PI) ---
+    // --- University Detail fields (shown for PI / Co-PI (External only)) ---
     "university_detail_u_r",
     "university_name_u_r",
     "university_address_u_r",
@@ -426,6 +555,7 @@ export default function UniversalRegistrationForm({
   // PERSONAL FLOW
   if (is_personal) {
     sectionsToHide.delete("personal_information_section_u_r");
+    sectionsToHide.delete("contact_information_section_u_r");
     sectionsToHide.delete("personal_history_section_u_r");
     sectionsToHide.delete("financial_and_documents_common_section_u_r");
     sectionsToHide.delete("full_name_u_r");
@@ -445,10 +575,11 @@ export default function UniversalRegistrationForm({
     sectionsToHide.delete("bank_details_u_r");
   }
 
-  // PI / Co-PI FLOW
+  // PI / Co-PI (External only) FLOW
   if (is_pi_copi) {
     // Personal Details: Full Name*, Gender, Nationality
     sectionsToHide.delete("personal_information_section_u_r");
+    sectionsToHide.delete("contact_information_section_u_r");
     sectionsToHide.delete("full_name_u_r");
     sectionsToHide.delete("gender_u_r");
     sectionsToHide.delete("nationality_u_r");
@@ -726,6 +857,23 @@ export default function UniversalRegistrationForm({
                 onTableFileChange={handleTableFileChange}
                 onAddTableRow={handleAddTableRow}
                 onDeleteTableRow={handleDeleteTableRow}
+                fieldMessages={
+                  emailStatus !== "idle"
+                    ? {
+                        email_address_u_r: {
+                          type:
+                            emailStatus === "checking"
+                              ? "loading"
+                              : emailStatus === "available"
+                                ? "success"
+                                : emailStatus === "unavailable"
+                                  ? "error"
+                                  : "warning",
+                          message: emailMessage,
+                        },
+                      }
+                    : undefined
+                }
               />
             </div>
 

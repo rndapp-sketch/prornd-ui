@@ -149,6 +149,7 @@ export const universalRegistrationAPI = {
     getFields: `${API_BASE}.universal_registration__.universal_registration__.get_universal_registration___fields`,
     save: `${API_BASE}.universal_registration__.universal_registration__.save_universal_registration___data`,
     checkDuplicates: `${API_BASE}.universal_registration__.universal_registration__.check_duplicate_registration`,
+    checkEmailAvailability: `${API_BASE}.universal_registration__.universal_registration__.check_email_availability`,
 };
 
 // Disbursal of Consultancy API endpoints
