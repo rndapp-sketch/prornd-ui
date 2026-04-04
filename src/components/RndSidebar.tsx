@@ -604,127 +604,117 @@ export function AppSidebar() {
           {
             label: "Home",
             icon: HomeIcon,
-            path: "/home",
-        },
-        {
-            label: "Projects",
-            icon: FileText,
-            subMenu: [
-                { label: "Projects View", path: "/projects-view" },
-                { label: "Registration", path: "/project-registration" },
-                // { label: "Endorsement", path: "/project-proposal" },
-            ],
-        },
-        // {
-        //   label: "HR Portal",
-        //   icon: UsersIcon,
-        //   path: "/hr-portal",
-        // },
-        // {
-        //   label: "Reimbursement",
-        //   icon: HandCoinsIcon,
-        //   path: "/reimbursement",
-        // },
-        {
-            label: "Forms",
-            icon: FileText,
-            subMenu: [
-                {
-                    label: "Stakeholder Registration",
-                    path: "/universal-registration",
-                },
-                // { label: "User", path: "/universal-user" },
-            ],
-        },
-        {
-            label: "Pending Task",
-            icon: ListTodo,
-            path: "/pending-task",
-        },
-        {
-            label: "Task Registry",
-            icon: FileText,
-            path: "/task-registry",
-        },
-        {
-            label: "Payments",
-            icon: CreditCard,
-            path: "/payments",
-        },
-    ].filter((item) => {
-        if (item.label === "Universal Forms") {
-            // Visible only to staff, RnD
-            const allowedRoles = ["staff, RnD"];
-            return roles && allowedRoles.some((role) => roles.includes(role));
-        }
-        if (item.label === "Forms") {
-            const allowedRoles = ["staff, RnD", "Permanent Employee"];
-            return roles && allowedRoles.some((role) => roles.includes(role));
-        }
-        if (item.label === "Pending Task") {
-            const allowedRoles = [
-                "Dean, RnD",
-                "Ado_RnD",
-                "head_approver_1",
-                "Hos, RnD (Head of Section, RnD)",
-                "staff, RnD",
-            ];
-            return roles && allowedRoles.some((role) => roles.includes(role));
-        }
-        if (item.label === "Task Registry") {
-            // Visible to staff, HOS, Dean, DoRnD, Head Approver - NOT permanent employees
-            const allowedRoles = [
-                "staff, RnD",
-                "Hos, RnD (Head of Section, RnD)",
-                "Dean, RnD",
-                "head_approver_1",
-            ];
-            return roles && allowedRoles.some((role) => roles.includes(role));
-        }
-        if (item.label === "Payments") {
-            // Visible only to staff
-            const allowedRoles = [
-                "staff, RnD",
-                "Hos, RnD (Head of Section, RnD)",
-            ];
-            return roles && allowedRoles.some((role) => roles.includes(role));
-        }
-        if (item.label === "Projects") {
-            const allowedRoles = ["Permanent Employee", "head_approver_1", "Dean, RnD"];
-            return roles && allowedRoles.some((role) => roles.includes(role));
-        }
-        return true;
-      })
-      : [
-          {
-            label: "Home",
-            icon: HomeIcon,
-            path: "/home",
+            path: "/dashboard",
           },
+        ]
+      : []),
+    ...(hasOverviewAccess
+      ? [
           {
             label: "Overview",
             icon: BarChart3,
-            isSubOf: "Overview",
-            path: "/dashboard",
+            path: "/director-dashboard?view=Director",
           },
-          ...(hasOverviewAccess
-              ? [
-                    {
-                        label: "Pending Task",
-                        icon: ListTodo,
-                        path: "/pending-task",
-                    },
-                ]
-              : []),
           {
-              label: "Task Registry",
-              icon: FileText,
-              path: "/task-registry",
+            label: "Departments",
+            icon: BarChart3,
+            path: "/director-dashboard?view=Department",
+            isSubOf: "Overview",
           },
-        ]),
-  ];
+          {
+            label: "PI Projects",
+            icon: BarChart3,
+            path: "/director-dashboard?view=PI",
+            isSubOf: "Overview",
+          },
+        ]
+      : []),
+    {
+      label: "Projects",
+      icon: FileText,
+      subMenu: [
+        { label: "Projects View", path: "/projects-view" },
+        { label: "Registration", path: "/project-registration" },
+        // { label: "Endorsement", path: "/project-proposal" },
+      ],
+    },
+    // {
+    //   label: "HR Portal",
+    //   icon: UsersIcon,
+    //   path: "/hr-portal",
+    // },
+    // {
+    //   label: "Reimbursement",
+    //   icon: HandCoinsIcon,
+    //   path: "/reimbursement",
+    // },
+    {
+      label: "Stakeholder Registration",
+      icon: FileText,
+      path: "/universal-registration",
+    },
+    {
+      label: "Pending Task",
+      icon: ListTodo,
+      path: "/pending-task",
+    },
+    {
+      label: "Task Registry",
+      icon: FileText,
+      path: "/task-registry",
+    },
+    {
+      label: "Payments",
+      icon: CreditCard,
+      path: "/payments",
+    },
+  ].filter((item) => {
+    if (item.label === "Universal Forms") {
+      // Visible only to staff, RnD
+      const allowedRoles = ["staff, RnD"];
+      return roles && allowedRoles.some((role) => roles.includes(role));
+    }
+    if (item.label === "Agency Registration") {
+      const allowedRoles = ["staff, RnD", "Permanent Employee"];
+      return roles && allowedRoles.some((role) => roles.includes(role));
+    }
+    if (item.label === "Pending Task") {
+      const allowedRoles = [
+        "Dean, RnD",
+        "Ado_RnD",
+        "head_approver_1",
+        "Hos, RnD (Head of Section, RnD)",
+        "staff, RnD",
+      ];
+      return roles && allowedRoles.some((role) => roles.includes(role));
+    }
+    if (item.label === "Task Registry") {
+      // Visible to staff, HOS, Dean, DoRnD, Head Approver - NOT permanent employees
+      const allowedRoles = [
+        "staff, RnD",
+        "Hos, RnD (Head of Section, RnD)",
+        "Dean, RnD",
 
-  // --- LOGIC: Event Handlers ---
+        "head_approver_1",
+      ];
+      return roles && allowedRoles.some((role) => roles.includes(role));
+    }
+    if (item.label === "Payments") {
+      // Visible only to staff
+      const allowedRoles = ["staff, RnD", "Hos, RnD (Head of Section, RnD)"];
+      return roles && allowedRoles.some((role) => roles.includes(role));
+    }
+    if (item.label === "Projects") {
+      const allowedRoles = [
+        "Permanent Employee",
+        "head_approver_1",
+        "Dean, RnD",
+      ];
+      return roles && allowedRoles.some((role) => roles.includes(role));
+    }
+    return true;
+  });
+
   const handleMenuItemClick = (item: MenuItem) => {
     if (item.subMenu) {
       setOpenSubMenus((prev) =>
@@ -732,10 +722,10 @@ export function AppSidebar() {
           ? prev.filter((label) => label !== item.label)
           : [...prev, item.label],
       );
-    } else if (item.label === "Home") {
-      navigate("/dashboard");
     } else if (item.path) {
       navigate(item.path);
+    } else if (item.label === "Home") {
+      navigate("/dashboard");
     }
   };
 
@@ -760,13 +750,23 @@ export function AppSidebar() {
     }
   };
 
-  // --- LOGIC: Path Checking ---
+  // --- LOGIC: Path Checking (Unchanged) ---
   const isActivePath = (path: string) => {
     if (path === "/home") {
       return (
         location.pathname === "/home" || location.pathname === "/pihomepage"
       );
     }
+
+    if (path.startsWith("/director-dashboard")) {
+      const searchParams = new URLSearchParams(location.search);
+      const viewMode = searchParams.get("view") || "Director";
+      return (
+        location.pathname === "/director-dashboard" &&
+        path === `/director-dashboard?view=${viewMode}`
+      );
+    }
+
     return location.pathname.startsWith(path) && path !== "/";
   };
 
