@@ -698,9 +698,12 @@ import DirectPurchaseDetails from './pages/application/DirectPurchaseDetails.tsx
 import P11Form from './pages/application/P11Form.tsx';
 import SanctionSheetForm from './pages/application/SanctionSheetForm.tsx';
 import RecruitmentAdhocContractualForm from './pages/application/RecruitmentAdhocContractualForm.tsx';
+import CandidateApplications from './pages/application/CandidateApplications.tsx';
+import CandidateDetails from './pages/application/CandidateDetails.tsx';
 import IndentCumSanctionSheetForm from './pages/application/IndentCumSanctionSheetForm.tsx';
 import UniversalRegistrationForm from './pages/application/UniversalRegistrationForm.tsx';
 import UniversalUserForm from './pages/application/UniversalUserForm.tsx';
+import SelectionCommitteeReportForm from './pages/application/SelectionCommitteeReportForm.tsx';
 import DepartmentProjects from './pages/DepartmentProjects.tsx';
 import AdminLogin from './pages/AdminLogin.tsx';
 
@@ -1220,6 +1223,30 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <RecruitmentAdhocContractualForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "selection-committee-report/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <SelectionCommitteeReportForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "candidate-applications",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <CandidateApplications />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "candidate-details/:candidateId",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <CandidateDetails />
             </AuthRouteWrapper>
           )
         },
