@@ -38,8 +38,13 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
 
   // Update internal input value if external value changes (e.g. reset/cleared)
   useEffect(() => {
-    setInputValue(value);
-  }, [value]);
+    if (searchByLabel && value) {
+      const matched = options.find(opt => opt.value === value);
+      setInputValue(matched ? matched.label : value);
+    } else {
+      setInputValue(value);
+    }
+  }, [value, options, searchByLabel]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -56,8 +61,8 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
     const searchStr = debouncedValue.toLowerCase();
     const filtered = searchStr
       ? options.filter(opt =>
-          opt.label.toLowerCase().includes(searchStr) || opt.value.toLowerCase().includes(searchStr)
-        )
+        opt.label.toLowerCase().includes(searchStr) || opt.value.toLowerCase().includes(searchStr)
+      )
       : options;
     return filtered.sort((a, b) =>
       (searchByLabel ? a.label : a.value).localeCompare(searchByLabel ? b.label : b.value)
