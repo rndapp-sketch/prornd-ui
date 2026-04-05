@@ -107,7 +107,7 @@ interface ActivityStreamProps {
 interface ActivityStreamHandle {
   refetch: () => void;
 }
-interface ProjectDetailsProps { }
+interface ProjectDetailsProps {}
 
 interface BudgetEntry {
   sl: number;
@@ -1685,6 +1685,31 @@ const QuickActions = ({
                         >
                           View
                         </button>
+                        {selectedApplication === "Adhoc/Contractual" &&
+                          item.workflow_state === "Approved" && (
+                            <>
+                                <button
+                                  onClick={() =>
+                                    onNavigate(
+                                      `/candidate-applications?refNum=${item.name}`,
+                                    )
+                                  }
+                                  className="text-sm text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:underline whitespace-nowrap"
+                                >
+                                  Add
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    onNavigate(
+                                      `/selection-committee-report?interview_id=${item.name}`,
+                                    )
+                                  }
+                                  className="text-sm text-green-600 hover:text-green-800 dark:text-green-500 hover:underline whitespace-nowrap"
+                                >
+                                  SCR
+                                </button>
+                            </>
+                          )}
                         {selectedApplication === "Direct Purchase" &&
                           item.workflow_state === "Approved" && (
                             <button
