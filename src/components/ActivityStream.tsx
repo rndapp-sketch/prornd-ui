@@ -89,10 +89,10 @@ export const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamPro
                                 {item.owner?.charAt(0).toUpperCase() || "U"}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center mb-1">
-                                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{item.owner || "Unknown User"}</p>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-                                        <ClockIcon className="h-3.5 w-3.5" />
+                                <div className="flex flex-wrap justify-between items-center gap-1 mb-1">
+                                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate max-w-[60%]">{item.owner || "Unknown User"}</p>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 whitespace-nowrap">
+                                        <ClockIcon className="h-3.5 w-3.5 flex-shrink-0" />
                                         {item.creation ? new Date(item.creation).toLocaleString() : "N/A"}
                                     </p>
                                 </div>

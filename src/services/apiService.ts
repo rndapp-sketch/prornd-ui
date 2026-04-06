@@ -144,6 +144,28 @@ export const repairReplacementAPI = {
     performAction: `${API_BASE}.repair_replacement.repair_replacement.perform_repair_replacement_action`,
 };
 
+// General Indent Form API endpoints
+export const generalIndentAPI = {
+    getFields: `${API_BASE}.indent_general_form.indent_general_form.get_indent_general_form_fields`,
+    save: `${API_BASE}.indent_general_form.indent_general_form.save_indent_general_form_data`,
+    getWorkflowActions: `${API_BASE}.indent_general_form.indent_general_form.get_indent_general_form_workflow_actions`,
+    performAction: `${API_BASE}.indent_general_form.indent_general_form.perform_indent_general_form_action`,
+    getUserDetails: `${API_BASE}.indent_general_form.indent_general_form.get_user_details_indent_general_form`,
+};
+
+// Leave Module API endpoints
+export const leaveModuleAPI = {
+    getFields: `${API_BASE}.leave_module.leave_module.get_leave_module_fields`,
+    save: `${API_BASE}.leave_module.leave_module.save_leave_module_data`,
+    submit: `${API_BASE}.leave_module.leave_module.submit_leave_module`,
+    getWorkflowActions: `${API_BASE}.leave_module.leave_module.get_leave_module_workflow_actions`,
+    performAction: `${API_BASE}.leave_module.leave_module.perform_leave_module_action`,
+    getMyLeaves: `${API_BASE}.leave_module.leave_module.get_my_leaves`,
+    getPendingApprovals: `${API_BASE}.leave_module.leave_module.get_pending_approvals`,
+    getDetail: `${API_BASE}.leave_module.leave_module.get_leave_detail`,
+    getLeaveBalance: `${API_BASE}.leave_module.leave_module.get_leave_balance`,
+};
+
 // Universal Registration API endpoints
 export const universalRegistrationAPI = {
     getFields: `${API_BASE}.universal_registration__.universal_registration__.get_universal_registration___fields`,

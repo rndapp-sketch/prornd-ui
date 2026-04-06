@@ -97,6 +97,7 @@ const PendingTask: React.FC = () => {
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
     const isHeadApprover = roles?.includes("head_approver_1") ?? false;
+    const isPermanentEmployee = roles?.includes("Permanent Employee") ?? false;
 
     // Fetch Project Registration names where head_approver matches current user
     const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
@@ -109,6 +110,18 @@ const PendingTask: React.FC = () => {
         if (!isHeadApprover || !headApproverProjects) return null;
         return new Set(headApproverProjects.map((p: { name: string }) => p.name));
     }, [isHeadApprover, headApproverProjects]);
+
+    // Fetch Leave Module names where pi matches current user (so only the assigned PI sees pending leaves)
+    const { data: piLeaveModules } = useFrappeGetDocList("Leave Module", {
+        filters: [["pi", "=", currentUser ?? ""]],
+        fields: ["name"],
+        limit: 500,
+    }, isPermanentEmployee && !!currentUser ? undefined : null);
+
+    const allowedLeaveNames = React.useMemo(() => {
+        if (!isPermanentEmployee || !piLeaveModules) return null;
+        return new Set(piLeaveModules.map((l: { name: string }) => l.name));
+    }, [isPermanentEmployee, piLeaveModules]);
 
     // Fetch data from the API
     const { data, isLoading, error } = useFrappeGetCall<PendingTaskResponse>(
@@ -136,6 +149,10 @@ const PendingTask: React.FC = () => {
                     if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
                         return;
                     }
+                    // For Permanent Employee role, filter Leave Module in "Pending PI Approval" to only those where current user is PI
+                    if (isPermanentEmployee && group.doctype === "Leave Module" && record.status === "Pending PI Approval" && allowedLeaveNames && !allowedLeaveNames.has(record.name)) {
+                        return;
+                    }
                     tasks.push({
                         id: record.name,
                         title: record.title,
@@ -151,7 +168,7 @@ const PendingTask: React.FC = () => {
             }
         });
         return tasks;
-    }, [data, isHeadApprover, allowedProjectNames]);
+    }, [data, isHeadApprover, allowedProjectNames, isPermanentEmployee, allowedLeaveNames]);
 
     // Get unique module names for filter dropdown
     const moduleNames = React.useMemo(() => {

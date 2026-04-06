@@ -28,9 +28,10 @@ import {
   useFrappeAuth,
   useFrappeGetDoc,
   useFrappeGetCall,
+  useFrappeGetDocList,
 } from "frappe-react-sdk";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { useSWRConfig } from "swr";
@@ -70,25 +71,44 @@ export function AppSidebar() {
 
   const { roles } = useUserRoles(currentUser || null);
 
+  const isPermanentEmployee = roles?.includes("Permanent Employee") ?? false;
+
   // Fetch pending task count
   const { data: pendingTaskData } = useFrappeGetCall<{
-    message: { results: Array<{ records: any[] }> };
+    message: { results: Array<{ doctype: string; records: any[] }> };
   }>(
     "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_task",
     {
       page_name: "pending-task",
-      status_value: "Pending Staff Approval",
     },
-    {
-      enabled: !!currentUser,
-    },
+    currentUser ? `sidebar-pending-${currentUser}` : null,
   );
-  console.log("pendingTaskData :", pendingTaskData);
-  // Calculate total pending tasks count
-  const pendingTaskCount =
-    pendingTaskData?.message?.results?.reduce((total, group) => {
+
+  // Fetch Leave Module names where PI matches current user (for accurate count)
+  const { data: piLeaveModules } = useFrappeGetDocList("Leave Module", {
+    filters: [["pi", "=", currentUser ?? ""]],
+    fields: ["name"],
+    limit: 500,
+  }, isPermanentEmployee && !!currentUser ? undefined : null);
+
+  const allowedLeaveNames = useMemo(() => {
+    if (!isPermanentEmployee || !piLeaveModules) return null;
+    return new Set(piLeaveModules.map((l: { name: string }) => l.name));
+  }, [isPermanentEmployee, piLeaveModules]);
+
+  // Calculate total pending tasks count (filtering Leave Module for PI)
+  const pendingTaskCount = useMemo(() => {
+    if (!pendingTaskData?.message?.results) return 0;
+    return pendingTaskData.message.results.reduce((total, group) => {
+      if (isPermanentEmployee && group.doctype === "Leave Module" && allowedLeaveNames) {
+        const filtered = group.records?.filter((r: any) =>
+          r.status !== "Pending PI Approval" || allowedLeaveNames.has(r.name)
+        ) || [];
+        return total + filtered.length;
+      }
       return total + (group.records?.length || 0);
-    }, 0) || 0;
+    }, 0);
+  }, [pendingTaskData, isPermanentEmployee, allowedLeaveNames]);
 
   // --- LOGIC: Menu Data (Unchanged) ---
   const isDirector = roles?.includes("Director");
@@ -172,6 +192,11 @@ export function AppSidebar() {
       icon: CreditCard,
       path: "/payments",
     },
+    {
+      label: "Leave Module",
+      icon: FileText,
+      path: "/leave-module",
+    },
   ].filter((item) => {
     if (item.label === "Universal Forms") {
       // Visible only to staff, RnD
@@ -189,6 +214,7 @@ export function AppSidebar() {
         "head_approver_1",
         "Hos, RnD (Head of Section, RnD)",
         "staff, RnD",
+        "Permanent Employee",
       ];
       return roles && allowedRoles.some((role) => roles.includes(role));
     }
@@ -206,6 +232,10 @@ export function AppSidebar() {
     if (item.label === "Payments") {
       // Visible only to staff
       const allowedRoles = ["staff, RnD", "Hos, RnD (Head of Section, RnD)"];
+      return roles && allowedRoles.some((role) => roles.includes(role));
+    }
+    if (item.label === "Leave Module") {
+      const allowedRoles = ["project staff", "Inspired Faculty", "Independent Researcher"];
       return roles && allowedRoles.some((role) => roles.includes(role));
     }
     if (item.label === "Projects") {

@@ -17,8 +17,14 @@ import {
     ShoppingCartIcon,
     CheckCircle2Icon,
     XCircleIcon,
+    User,
+    Calendar,
+    Phone,
+    MapPin,
+    MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 // import { AppSidebar } from '@/components/RndSidebar';
 import { FrappeButton } from "@/components/ui/neo-brutalism";
 import ProjectDetailsView from "./ProjectDetails";
@@ -35,6 +41,7 @@ import {
     directPurchaseAPI,
     tadaAPI,
     recruitmentAdhocContractualAPI,
+    leaveModuleAPI,
 } from "@/services/apiService";
 import { DepartmentName } from "@/components/DepartmentName";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
@@ -62,6 +69,9 @@ const HIDDEN_FIELDS = [
     "grand_total_proposal",
     "amended_from",
     "workflow_state",
+    "modified_by",
+    "docstatus",
+    "idx",
 ];
 
 // Style constants for generic details
@@ -456,6 +466,66 @@ const RecruitmentAdhocContractualWorkflowActions = ({
 
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
         recruitmentAdhocContractualAPI.performAction,
+    );
+
+    const [modalOpen, setModalOpen] = React.useState(false);
+    const [selectedAction, setSelectedAction] = React.useState("");
+
+    const handleActionClick = (action: string) => {
+        setSelectedAction(action);
+        setModalOpen(true);
+    };
+
+    const handleConfirmAction = async (comment: string) => {
+        try {
+            await performAction({ docname, action: selectedAction, comment });
+            setModalOpen(false);
+            onActionComplete();
+        } catch (error) {
+            console.error("Error performing action:", error);
+        }
+    };
+
+    if (actionsLoading || !data?.message?.length) return null;
+
+    return (
+        <>
+            <div className="flex gap-2">
+                {data.message.map((action) => (
+                    <FrappeButton
+                        key={action}
+                        onClick={() => handleActionClick(action)}
+                        disabled={actionLoading}
+                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
+                    >
+                        {action}
+                    </FrappeButton>
+                ))}
+            </div>
+            <CommentModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSubmit={handleConfirmAction}
+                action={selectedAction}
+                isLoading={actionLoading}
+            />
+        </>
+    );
+};
+
+const LeaveModuleWorkflowActions = ({
+    docname,
+    onActionComplete,
+}: {
+    docname: string;
+    onActionComplete: () => void;
+}) => {
+    const { data, isLoading: actionsLoading } = useFrappeGetCall<{
+        message: string[];
+    }>(leaveModuleAPI.getWorkflowActions, { docname });
+
+    const { call: performAction, loading: actionLoading } = useFrappePostCall(
+        leaveModuleAPI.performAction,
     );
 
     const [modalOpen, setModalOpen] = React.useState(false);
@@ -1925,6 +1995,139 @@ const PendingTaskDetails: React.FC = () => {
         );
     };
 
+    const renderLeaveModuleDetails = () => {
+        const formatDate = (dateStr: string | null | undefined) => {
+            if (!dateStr) return '—';
+            try {
+                return format(new Date(dateStr), 'dd MMM yyyy');
+            } catch {
+                return dateStr;
+            }
+        };
+
+        const LeaveInfoCard = ({ icon: Icon, label, value, className }: {
+            icon: React.ElementType;
+            label: string;
+            value?: string | null;
+            className?: string;
+        }) => (
+            <div className={cn("flex items-start gap-3 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg", className)}>
+                <Icon className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" />
+                <div className="min-w-0">
+                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
+                    <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-0.5 break-words">{value || '—'}</p>
+                </div>
+            </div>
+        );
+
+        return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left column: Applicant Info + Reason & Contact */}
+                <div className="space-y-6">
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+                        <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-4 uppercase tracking-wide">
+                            Applicant Information
+                        </h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <LeaveInfoCard icon={User} label="Name" value={data.username} />
+                            <LeaveInfoCard icon={User} label="Email" value={data.email} />
+                            <LeaveInfoCard icon={User} label="PI / Mentor" value={data.pi} className="sm:col-span-2" />
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+                        <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-4 uppercase tracking-wide">
+                            Reason & Contact
+                        </h2>
+                        <div className="space-y-4">
+                            <LeaveInfoCard icon={MessageSquare} label="Reason for Leave" value={data.reason_for_leave} />
+                            <LeaveInfoCard icon={MapPin} label="Address on Leave" value={data.address_on_leave} />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <LeaveInfoCard icon={Phone} label="Contact Number" value={data.contact_number} />
+                                {data.additional_remarks && (
+                                    <LeaveInfoCard icon={MessageSquare} label="Additional Remarks" value={data.additional_remarks} />
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Right column: Leave Details + Station Leave + On Duty Doc */}
+                <div className="space-y-6">
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+                        <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-4 uppercase tracking-wide">
+                            Leave Details
+                        </h2>
+                        <div className="space-y-4">
+                            <LeaveInfoCard icon={FileTextIcon} label="Nature of Leave" value={data.leave_type} />
+
+                            {/* CL dates */}
+                            {data.leave_type === 'CL' && data.cl_dates_table && data.cl_dates_table.length > 0 && (
+                                <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg">
+                                    <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">CL Dates</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {data.cl_dates_table.map((row: any, i: number) => (
+                                            <span
+                                                key={i}
+                                                className="px-3 py-1.5 bg-white dark:bg-zinc-700 rounded-lg text-sm font-medium text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-600"
+                                            >
+                                                {formatDate(row.cl_date)}
+                                                {row.day_type && (
+                                                    <span className="ml-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                                        ({row.day_type})
+                                                    </span>
+                                                )}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* EL / On Duty Leave dates */}
+                            {(data.leave_type === 'EL' || data.leave_type === 'On Duty Leave') && (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <LeaveInfoCard icon={Calendar} label="From Date" value={formatDate(data.from_date)} />
+                                    <LeaveInfoCard icon={Calendar} label="To Date" value={formatDate(data.to_date)} />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Station Leave */}
+                    {data.station_leave_permission === 'Required' && (
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+                            <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-4 uppercase tracking-wide">
+                                Station Leave
+                            </h2>
+                            <div className="grid grid-cols-2 gap-4">
+                                <LeaveInfoCard icon={Calendar} label="Station Leave From" value={formatDate(data.sl_from_date)} />
+                                <LeaveInfoCard icon={Calendar} label="Station Leave To" value={formatDate(data.sl_to_date)} />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* On Duty document */}
+                    {data.leave_type === 'On Duty Leave' && data.onduty_leave_docs && (
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+                            <h2 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-4 uppercase tracking-wide">
+                                Attached Document
+                            </h2>
+                            <a
+                                href={data.onduty_leave_docs}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 text-teal-600 hover:text-teal-700 hover:underline text-sm font-medium"
+                            >
+                                <FileIcon className="w-4 h-4" />
+                                View Attached Document
+                            </a>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen text-zinc-900 dark:text-zinc-100">
             {/* <AppSidebar /> */}
@@ -1940,7 +2143,6 @@ const PendingTaskDetails: React.FC = () => {
                                 <ArrowLeftIcon className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
                             </button>
                             <div>
-                                {/*<h1 className="text-2xl md:text-3xl font-serif text-zinc-900 dark:text-zinc-50 tracking-tight">Task Details</h1>*/}
                                 <h1 className="text-sm md:text-base text-zinc-500 dark:text-zinc-400 mt-1">
                                     {doctype} ·{" "}
                                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 dark:bg-zinc-800 text-[#D97757] dark:text-[#E28362] ml-1">
@@ -1949,7 +2151,12 @@ const PendingTaskDetails: React.FC = () => {
                                 </h1>
                             </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex items-center gap-3">
+                            {data?.workflow_state && (
+                                <span className="inline-flex items-center text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                                    {data.workflow_state}
+                                </span>
+                            )}
                             {doctype === "Reimbursement" && name && (
                                 <ReimbursementWorkflowActions
                                     docname={name}
@@ -2015,6 +2222,14 @@ const PendingTaskDetails: React.FC = () => {
                                         }
                                     />
                                 )}
+                            {doctype === "Leave Module" && name && (
+                                <LeaveModuleWorkflowActions
+                                    docname={name}
+                                    onActionComplete={() =>
+                                        window.location.reload()
+                                    }
+                                />
+                            )}
                         </div>
                     </div>
                 </header>
@@ -2174,6 +2389,8 @@ const PendingTaskDetails: React.FC = () => {
                                 activeTab={dpActiveTab}
                                 setActiveTab={setDpActiveTab}
                             />
+                        ) : doctype === "Leave Module" ? (
+                            renderLeaveModuleDetails()
                         ) : (
                             renderGenericDetails()
                         )}
@@ -2248,6 +2465,9 @@ const PendingTaskDetails: React.FC = () => {
                                 )}
 
                             {/* <ActivityStream doctype={doctype || ""} docname={name || ""} /> */}
+                            {doctype === "Leave Module" && name && (
+                                <ActivityStream doctype={doctype} docname={name} />
+                            )}
                         </div>
                     </div>
                 </div>

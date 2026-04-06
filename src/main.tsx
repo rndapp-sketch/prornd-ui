@@ -67,10 +67,14 @@ import P11Form from "./pages/application/P11Form.tsx";
 import SanctionSheetForm from "./pages/application/SanctionSheetForm.tsx";
 import RecruitmentAdhocContractualForm from "./pages/application/RecruitmentAdhocContractualForm.tsx";
 import IndentCumSanctionSheetForm from "./pages/application/IndentCumSanctionSheetForm.tsx";
+import GeneralIndentForm from "./pages/application/GeneralIndentForm.tsx";
 import UniversalRegistrationForm from "./pages/application/UniversalRegistrationForm.tsx";
 import UniversalUserForm from "./pages/application/UniversalUserForm.tsx";
 import DepartmentProjects from "./pages/DepartmentProjects.tsx";
 import AdminLogin from "./pages/AdminLogin.tsx";
+import LeaveModule from "./pages/LeaveModule.tsx";
+import LeaveModuleDetails from "./pages/LeaveModuleDetails.tsx";
+import LeaveModuleForm from "./pages/LeaveModuleForm.tsx";
 
 const router = createBrowserRouter(
   [
@@ -391,6 +395,7 @@ const router = createBrowserRouter(
                 "head_approver_1",
                 "Hos, RnD (Head of Section, RnD)",
                 "staff, RnD",
+                "Permanent Employee",
               ]}
             >
               <PendingTask />
@@ -408,6 +413,7 @@ const router = createBrowserRouter(
                 "head_approver_1",
                 "Hos, RnD (Head of Section, RnD)",
                 "staff, RnD",
+                "Permanent Employee",
               ]}
             >
               <PendingTaskDetails />
@@ -641,6 +647,22 @@ const router = createBrowserRouter(
           ),
         },
         {
+          path: "general-indent",
+          element: (
+            <AuthRouteWrapper allowedRole="Permanent Employee">
+              <GeneralIndentForm />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "general-indent/:id",
+          element: (
+            <AuthRouteWrapper allowedRole="Permanent Employee">
+              <GeneralIndentForm />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
           path: "universal-registration/:id?",
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
@@ -661,6 +683,30 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <UniversalRegistrationForm isFundingAgency={true} />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "leave-module",
+          element: (
+            <AuthRouteWrapper allowedRole={["project staff", "Inspired Faculty", "Independent Researcher"]}>
+              <LeaveModule />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "leave-module/new",
+          element: (
+            <AuthRouteWrapper allowedRole={["project staff", "Inspired Faculty", "Independent Researcher"]}>
+              <LeaveModuleForm />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "leave-module/:id",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <LeaveModuleDetails />
             </AuthRouteWrapper>
           ),
         },

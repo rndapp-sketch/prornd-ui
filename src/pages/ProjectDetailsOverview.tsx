@@ -1454,6 +1454,49 @@ const QuickActions = ({
                     );
                     data = [];
                 }
+            } else if (selectedApplication === "General Indent") {
+                try {
+                    const timestamp = Date.now();
+                    const apiUrl = `/api/resource/Indent%20General%20Form?fields=["name","creation","workflow_state","owner","igf_project_title","igf_project_code","igf_indenter","igf_tender_type","igf_total_estimate","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const fetchResponse = await fetch(apiUrl, {
+                        method: "GET",
+                        headers: { Accept: "application/json" },
+                        credentials: "include",
+                    });
+                    if (!fetchResponse.ok)
+                        throw new Error(
+                            `HTTP error! status: ${fetchResponse.status}`,
+                        );
+                    const result = await fetchResponse.json();
+                    const allItems = result?.data || [];
+
+                    data = allItems
+                        .filter((item: any) => {
+                            const matchesProject =
+                                item.igf_project_title === projectName ||
+                                item.igf_project_code === projectNo ||
+                                item.igf_project_code === projectName;
+                            return matchesProject;
+                        })
+                        .map((item: any) => ({
+                            ...item,
+                            workflow_state:
+                                item.workflow_state ||
+                                (item.docstatus === 1
+                                    ? "Submitted"
+                                    : item.docstatus === 2
+                                      ? "Cancelled"
+                                      : "Draft"),
+                            applicant_webmail:
+                                item.igf_indenter || item.owner,
+                        }));
+                } catch (fetchError) {
+                    console.error(
+                        "General Indent fetch error:",
+                        fetchError,
+                    );
+                    data = [];
+                }
             }
             setApplicationData(data);
         } catch (error) {
@@ -1597,6 +1640,11 @@ const QuickActions = ({
             case "Indent cum Sanction":
                 onNavigate(
                     `/indent-cum-sanction-sheet?project=${projectParam}`,
+                );
+                break;
+            case "General Indent":
+                onNavigate(
+                    `/general-indent?project=${projectParam}`,
                 );
                 break;
             default:
@@ -1811,6 +1859,11 @@ const QuickActions = ({
                                                                 case "Direct Purchase":
                                                                     onNavigate(
                                                                         `/direct-purchase/${item.name}`,
+                                                                    );
+                                                                    break;
+                                                                case "General Indent":
+                                                                    onNavigate(
+                                                                        `/general-indent/${item.name}`,
                                                                     );
                                                                     break;
                                                                 case "Adhoc/Contractual":

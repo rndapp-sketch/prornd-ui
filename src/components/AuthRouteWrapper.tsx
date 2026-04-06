@@ -14,6 +14,7 @@ type AllowedRole =
   | 'staff, RnD'
   | 'project staff'
   | 'Independent Researcher'
+  | 'Inspired Faculty'
   | 'IF - Inspired Faculty'
   | 'Permanent Employee'
   | 'All_ProRnd_User'
