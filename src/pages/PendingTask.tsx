@@ -5,7 +5,7 @@
 import React, { useState, useRef } from 'react';
 import { FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
-import { AppSidebar } from '@/components/RndSidebar';
+
 import { useNavigate } from 'react-router-dom';
 import { useFrappeGetCall, useFrappeAuth, useFrappeGetDocList } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
@@ -279,7 +279,7 @@ const PendingTask: React.FC = () => {
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen font-sans text-zinc-900 dark:text-zinc-100">
             <GlobalLoader isLoading={isLoading} />
-            <AppSidebar />
+
 
             <main className="flex-1 p-6 md:p-12 w-full overflow-hidden">
                 {/* Header */}

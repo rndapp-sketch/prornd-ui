@@ -21,7 +21,7 @@ import AddFundSanction from "./pages/AddFundSanction.tsx";
 // import { UserCreation } from './pages/UserCreation.tsx'; // This one was correct as named
 // import UserList from './pages/UserList.tsx';
 import ProjectsView from "./pages/ProjectsView.tsx";
-import ProjectDetails from "./pages/ProjectDetails.tsx"; // Import ProjectDetails
+import ProjectDetails from "./pages/ProjectDetails.tsx";
 import ProjectDetailsOverview from "./pages/ProjectDetailsOverview.tsx";
 import ProjectLedgerFull from "./pages/ProjectLedgerFull.tsx";
 import HRPortal from "./pages/HRPortal.tsx";
@@ -36,7 +36,7 @@ import { AdoRndDashboard } from "./pages/dashboards/AdoRndDashboard.tsx";
 import Reimbursement from "./pages/reimbursement/Reimbursement.tsx";
 import PendingTask from "./pages/PendingTask.tsx";
 import PendingTaskDetails from "./pages/PendingTaskDetails.tsx";
-import DynamicFormPage from "./pages/DynamicFormPage.tsx"; // Import DynamicFormPage
+import DynamicFormPage from "./pages/DynamicFormPage.tsx";
 import FundReceivedDetails from "./pages/FundReceivedDetails.tsx";
 import ProjectProposalDetails from "./pages/ProjectProposalDetails.tsx";
 import EndorsementCertificateView from "./pages/EndorsementCertificateView.tsx";
@@ -66,10 +66,13 @@ import DirectPurchaseDetails from "./pages/application/DirectPurchaseDetails.tsx
 import P11Form from "./pages/application/P11Form.tsx";
 import SanctionSheetForm from "./pages/application/SanctionSheetForm.tsx";
 import RecruitmentAdhocContractualForm from "./pages/application/RecruitmentAdhocContractualForm.tsx";
+import CandidateApplications from "./pages/application/CandidateApplications.tsx";
+import CandidateDetails from "./pages/application/CandidateDetails.tsx";
 import IndentCumSanctionSheetForm from "./pages/application/IndentCumSanctionSheetForm.tsx";
 import GeneralIndentForm from "./pages/application/GeneralIndentForm.tsx";
 import UniversalRegistrationForm from "./pages/application/UniversalRegistrationForm.tsx";
 import UniversalUserForm from "./pages/application/UniversalUserForm.tsx";
+import SelectionCommitteeReportForm from "./pages/application/SelectionCommitteeReportForm.tsx";
 import DepartmentProjects from "./pages/DepartmentProjects.tsx";
 import AdminLogin from "./pages/AdminLogin.tsx";
 import LeaveModule from "./pages/LeaveModule.tsx";
@@ -138,8 +141,22 @@ const router = createBrowserRouter(
           path: "project-registration",
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
-              {" "}
-              {/* Adjust role as needed */}
+              <ProjectRegistration />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "project-registration/new/:tempId",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <ProjectRegistration />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "project-registration/:docname",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <ProjectRegistration />
             </AuthRouteWrapper>
           ),
@@ -279,14 +296,7 @@ const router = createBrowserRouter(
         {
           path: "director-dashboard",
           element: (
-            <AuthRouteWrapper
-              allowedRole={[
-                "Director",
-                "Dean, RnD",
-                "Ado_RnD",
-                "Hos, RnD (Head of Section, RnD)",
-              ]}
-            >
+            <AuthRouteWrapper allowedRole={["Director", "Dean, RnD", "Ado_RnD", "Hos, RnD (Head of Section, RnD)"]}>
               <DirectorDashboard />
             </AuthRouteWrapper>
           ),
@@ -637,6 +647,30 @@ const router = createBrowserRouter(
               <RecruitmentAdhocContractualForm />
             </AuthRouteWrapper>
           ),
+        },
+        {
+          path: "selection-committee-report/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <SelectionCommitteeReportForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "candidate-applications",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <CandidateApplications />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "candidate-details/:candidateId",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <CandidateDetails />
+            </AuthRouteWrapper>
+          )
         },
         {
           path: "indent-cum-sanction-sheet/:id?",

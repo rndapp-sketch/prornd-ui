@@ -61,8 +61,8 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
     const searchStr = debouncedValue.toLowerCase();
     const filtered = searchStr
       ? options.filter(opt =>
-          opt.label.toLowerCase().includes(searchStr) || opt.value.toLowerCase().includes(searchStr)
-        )
+        opt.label.toLowerCase().includes(searchStr) || opt.value.toLowerCase().includes(searchStr)
+      )
       : options;
     return filtered.sort((a, b) =>
       (searchByLabel ? a.label : a.value).localeCompare(searchByLabel ? b.label : b.value)
