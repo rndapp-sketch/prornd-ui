@@ -1,0 +1,62 @@
+
+// // production proxy options
+// // const common_site_config = require('../../../sites/common_site_config.json');
+
+// // development proxy options
+// const common_site_config = require('./common_site_config.json');
+
+
+// const { webserver_port } = common_site_config;
+
+// export default {
+// 	'^/(app|api|assets|files|private)': {
+// 		target: `http://172.16.117.39:${webserver_port}`,
+// 		ws: true,
+// 		router: function (req) {
+// 			// Always use the correct server IP
+// 			return `http://172.16.117.39:${webserver_port}`;
+// 		}
+// 	},
+// 	// Proxy for external Ledger API to avoid CORS
+// 	'/ledger-api': {
+// 		target: 'http://172.16.117.39:18083',
+// 		changeOrigin: true,
+// 		rewrite: (path: string) => path.replace(/^\/ledger-api/, '/api'),
+// 	}
+// };
+
+
+
+// production proxy options
+// const common_site_config = require('../../../sites/common_site_config.json');
+
+// development proxy options
+const common_site_config = require('./common_site_config.json');
+
+const { webserver_port, socketio_port } = common_site_config;
+
+export default {
+	'^/(app|api|assets|files|private|socket\\.io)': {
+		target: `http://172.16.117.39:${webserver_port}`,
+
+		ws: true,
+		changeOrigin: true,
+		secure: false,
+		timeout: 60000,
+		proxyTimeout: 60000,
+
+		router: function (req: any) {
+			if (typeof req === 'object' && req.url && req.url.includes('socket.io')) {
+				return `http://172.16.117.39:${socketio_port || 9000}`;
+
+			}
+			return `http://172.16.117.39:${webserver_port}`;
+		}
+	},
+	// Proxy for external Ledger API to avoid CORS
+	'/ledger-api': {
+		target: 'http://172.16.117.39:18083',
+		changeOrigin: true,
+		rewrite: (path: string) => path.replace(/^\/ledger-api/, '/api'),
+	}
+};

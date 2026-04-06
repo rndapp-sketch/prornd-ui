@@ -2246,6 +2246,17 @@ const PendingTaskDetails: React.FC = () => {
                                         doctype={doctype}
                                     />
                                 )}
+                            {/* Setup for Recruitment Adhoc Contractual */}
+                            {doctype === "Recruitment Adhoc Contractual" &&
+                                isRnDStaff &&
+                                (data?.upfa_project_code || data?.project || data?.project_no) && (
+                                    <BudgetActionsSidebar
+                                        projectName={data?.upfa_project_code || data?.project || data?.project_no}
+                                        isStaff={true}
+                                        docName={name}
+                                        doctype={doctype}
+                                    />
+                                )}
 
                             {/* <ActivityStream doctype={doctype || ""} docname={name || ""} /> */}
                         </div>
