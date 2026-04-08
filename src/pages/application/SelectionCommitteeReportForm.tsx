@@ -9,7 +9,7 @@ import {
     selectionCommitteeReportAPI,
     prepareFormDataForApi,
 } from "@/services/apiService";
-import { Loader2, ArrowLeft, Save, Send, CheckCircle2 } from "lucide-react";
+import { Loader2, ArrowLeft, Save, Send, UserCheck, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -82,6 +82,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
     const projectParam = searchParams.get("project");
     const projectNoParam = searchParams.get("projectNo"); // Often used as well for the filter
     const interviewIdParam = searchParams.get("interview_id");
+    const candidateIdParam = searchParams.get("candidate_id");
     const { currentUser } = useFrappeAuth();
 
     // Role-based access
@@ -334,6 +335,77 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     initialData.committee_members = JSON.stringify(committeeData);
                                 }
 
+                                // --- START: Fetch and Map Candidates Called for Interview ---
+                                try {
+                                    const appUrl = `http://172.16.134.191:3000/api/applications?refNumParent=${interviewIdParam}`;
+                                    const appResponse = await fetch(appUrl);
+                                    if (appResponse.ok) {
+                                        const appResult = await appResponse.json();
+                                        const appsList = Array.isArray(appResult) ? appResult : (appResult.data || []);
+                                        
+                                        // Filter for Shortlisted or Appeared candidates
+                                        let interviewCandidates = appsList.filter((app: any) => 
+                                            app.status?.toLowerCase() === "shortlisted" || 
+                                            app.status?.toLowerCase() === "appeared"
+                                         );
+                                        
+                                        // Option 2: If candidate_id is provided, show only that specific candidate
+                                        console.log("Filtering candidates. URL candidate_id:", candidateIdParam);
+                                        if (candidateIdParam) {
+                                            interviewCandidates = interviewCandidates.filter((app: any) => {
+                                                const matches = String(app.application_id) === candidateIdParam || 
+                                                                String(app.id) === candidateIdParam;
+                                                return matches;
+                                            });
+                                            console.log("Candidates after filtering:", interviewCandidates.map(c => c.first_name));
+                                        }
+                                        
+                                        if (interviewCandidates.length > 0) {
+                                            console.log("Found interview candidates:", interviewCandidates);
+                                            
+                                            // THE FIELD IS named "candidates" and is a JSON string as per browser inspection.
+                                            const candidatesFieldName = "candidates";
+                                            
+                                            // Only pre-fill if the table is currently empty
+                                            if (!initialData[candidatesFieldName] || initialData[candidatesFieldName].length === 0) {
+                                                    const mappedCandidates = interviewCandidates.map((app: any) => {
+                                                        // Find the corresponding post in recruitment doc
+                                                        // Use String conversion to ensure matching even if types differ
+                                                        const post = rec.upfa_post_details?.find((p: any) => 
+                                                            String(p.name) === String(app.recruitment_post_id) || 
+                                                            String(p.idx) === String(app.recruitment_post_id)
+                                                        ) || {};
+
+                                                        // Auto-calculate total for the initial map
+                                                        const basic = parseFloat(post.upfa_basic_pay) || 0;
+                                                        const hraStr = String(post.upfa_hra_percent || "0").replace('%', '');
+                                                        const hraPercent = parseFloat(hraStr) || 0;
+                                                        const medical = parseFloat(post.upfa_medical_required) || 0;
+                                                        const calculatedTotal = basic + (basic * hraPercent / 100) + medical;
+
+                                                        return {
+                                                            sl_no: 0, 
+                                                            candidate_name: `${app.first_name || ""} ${app.last_name || ""}`.trim(),
+                                                            applied_for_position: post.upfa_designation || "",
+                                                            upfa_basic_pay: basic,
+                                                            upfa_hra_percent: post.upfa_hra_percent || "0%",
+                                                            upfa_medical_required: medical,
+                                                            upfa_total_amount: post.upfa_total_amount || calculatedTotal,
+                                                            upfa_duration_months: post.upfa_duration_months || 0,
+                                                            upfa_selection_status: "", 
+                                                            upfa_justification: "", 
+                                                        };
+                                                    }).map((c: any, i: number) => ({ ...c, sl_no: i + 1 }));
+
+                                                    initialData[candidatesFieldName] = JSON.stringify(mappedCandidates);
+                                                }
+                                        }
+                                    }
+                                } catch (appError) {
+                                    console.error("Failed to fetch candidate applications:", appError);
+                                }
+                                // --- END: Fetch and Map Candidates Called for Interview ---
+
                             }
                         } catch (e) {
                             console.error(
@@ -549,6 +621,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
             fetchFrappeValue,
             linkOptions,
             resolveChairpersonFromDepartment,
+            candidateIdParam,
         ],
     );
 
@@ -559,42 +632,43 @@ const SelectionCommitteeReportForm: React.FC = () => {
         [],
     );
 
+    // Handler for table row changes (standard tables)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleTableRowChange = useCallback(
         (tableName: string, rowIndex: number, fieldname: string, value: any) => {
-            setFormData((prev) => {
+            setFormData((prev: any) => {
                 const tableData = [...(prev[tableName] || [])];
                 if (tableData[rowIndex]) {
                     const updatedRow = { ...tableData[rowIndex], [fieldname]: value };
 
-                    // Auto Calculation Logic for Project Staff Designation
+                    // Auto-calculation logic for basic, hra, medical -> total
                     const keys = Object.keys(updatedRow);
-                    const basicPayKey = keys.find(k => k.includes('basic_pay'));
-                    const hraKey = keys.find(k => k.includes('hra'));
-                    const medicalKey = keys.find(k => k.includes('medical'));
-                    const totalKey = keys.find(k => k.includes('total'));
+                    const bKey = keys.find(k => k.includes('basic_pay'));
+                    const hKey = keys.find(k => k.includes('hra'));
+                    const mKey = keys.find(k => k.includes('medical'));
+                    const tKey = keys.find(k => k.includes('total'));
 
-                    if ((fieldname === basicPayKey || fieldname === hraKey || fieldname === medicalKey) && totalKey) {
-                        const basic = parseFloat(updatedRow[basicPayKey as string]) || 0;
-                        const hraStr = String(updatedRow[hraKey as string] || "0").replace('%', '');
+                    if ((fieldname === bKey || fieldname === hKey || fieldname === mKey) && tKey) {
+                        const basic = parseFloat(updatedRow[bKey as string]) || 0;
+                        const hraStr = String(updatedRow[hKey as string] || "0").replace('%', '');
                         const hraPercent = parseFloat(hraStr) || 0;
                         const hraAmount = (basic * hraPercent) / 100;
 
                         let medicalAmount = 0;
-                        if (medicalKey) {
-                            const medicalVal = updatedRow[medicalKey];
+                        if (mKey) {
+                            const medicalVal = updatedRow[mKey];
                             if (medicalVal === 1 || medicalVal === '1' || medicalVal === true || String(medicalVal).toLowerCase() === 'yes') {
                                 medicalAmount = 1250;
                             } else if (medicalVal) {
                                 const parsedStr = String(medicalVal).replace(/[^0-9.-]+/g, "");
                                 const parsed = parseFloat(parsedStr);
                                 if (!isNaN(parsed) && parsed > 0) {
-                                    medicalAmount = parsed === 1 ? 1250 : parsed;
+                                    medicalAmount = (parsed === 1) ? 1250 : parsed;
                                 }
                             }
                         }
 
-                        updatedRow[totalKey] = basic + hraAmount + medicalAmount;
+                        updatedRow[tKey] = basic + hraAmount + medicalAmount;
                     }
 
                     tableData[rowIndex] = updatedRow;
@@ -610,17 +684,19 @@ const SelectionCommitteeReportForm: React.FC = () => {
                     fieldname: "full_name",
                 }).then((res) => {
                     if (res?.message?.full_name) {
-                        setFormData((prev) => {
+                        setFormData((prev: any) => {
                             const tData = [...(prev[tableName] || [])];
                             if (tData[rowIndex]) {
-                                // Find the fieldname corresponding to "Name" in the current table schema
                                 const tableField = fields.find(f => f.fieldname === tableName);
-                                let nameKey = "name_of_the_committee_member"; // default guess
+                                let nameKey = "name_of_the_committee_member";
                                 if (tableField && tableField.child_fields) {
-                                    const nameField = tableField.child_fields.find(cf => cf.label?.toLowerCase().includes("name") && !cf.label?.toLowerCase().includes("email") && !cf.label?.toLowerCase().includes("webmail") && !cf.label?.toLowerCase().includes("designation") && !cf.label?.toLowerCase().includes("department"));
+                                    const nameField = tableField.child_fields.find(cf => 
+                                        cf.label?.toLowerCase().includes("name") && 
+                                        !cf.label?.toLowerCase().includes("email") && 
+                                        !cf.label?.toLowerCase().includes("webmail")
+                                    );
                                     if (nameField) nameKey = nameField.fieldname;
                                 }
-                                
                                 tData[rowIndex] = { ...tData[rowIndex], [nameKey]: res.message.full_name };
                             }
                             return { ...prev, [tableName]: tData };
@@ -632,14 +708,10 @@ const SelectionCommitteeReportForm: React.FC = () => {
         [fetchFrappeValue, fields],
     );
 
+    // Handler for table file changes
     const handleTableFileChange = useCallback(
-        (
-            tableName: string,
-            rowIndex: number,
-            fieldname: string,
-            file: File | null,
-        ) => {
-            setFormData((prev) => {
+        (tableName: string, rowIndex: number, fieldname: string, file: File | null) => {
+            setFormData((prev: any) => {
                 const tableData = [...(prev[tableName] || [])];
                 if (tableData[rowIndex]) {
                     tableData[rowIndex] = { ...tableData[rowIndex], [fieldname]: file };
@@ -649,6 +721,37 @@ const SelectionCommitteeReportForm: React.FC = () => {
         },
         [],
     );
+
+    // Handler for the custom Candidates selection table (JSON text field storage)
+    const handleCandidateRowChange = useCallback((idx: number, field: string, value: any) => {
+        setFormData((prev: any) => {
+            let candidatesList: any[] = [];
+            try {
+                if (prev.candidates) {
+                    candidatesList = typeof prev.candidates === 'string'
+                        ? JSON.parse(prev.candidates)
+                        : prev.candidates;
+                }
+            } catch (e) {
+                console.error("Parse error in candidates", e);
+            }
+
+            if (candidatesList[idx]) {
+                candidatesList[idx] = { ...candidatesList[idx], [field]: value };
+                
+                // Auto-calculation for Candidates if values change
+                if (field === 'upfa_basic_pay' || field === 'upfa_hra_percent' || field === 'upfa_medical_required') {
+                    const basic = parseFloat(candidatesList[idx].upfa_basic_pay) || 0;
+                    const hraStr = String(candidatesList[idx].upfa_hra_percent || "0").replace('%', '');
+                    const hraPercent = parseFloat(hraStr) || 0;
+                    const medical = parseFloat(candidatesList[idx].upfa_medical_required) || 0;
+                    candidatesList[idx].upfa_total_amount = basic + (basic * hraPercent / 100) + medical;
+                }
+            }
+
+            return { ...prev, candidates: JSON.stringify(candidatesList) };
+        });
+    }, []);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleAddTableRow = useCallback(
@@ -837,8 +940,13 @@ const SelectionCommitteeReportForm: React.FC = () => {
                             <div className="p-8">
                                 <DynamicFormRenderer
                                     fields={(() => {
+                                        const INTERNAL_FIELDS = ["candidates"]; // Fields to hide as they have custom renderers
                                         const DEAN_ONLY_FIELDS = ["chairperson_webmail_id", "chairperson_name"];
+                                        
                                         let visibleFields = isDoRnd ? fields : fields.filter(f => !DEAN_ONLY_FIELDS.includes(f.fieldname));
+                                        
+                                        // Filter out hidden internal fields
+                                        visibleFields = visibleFields.filter(f => !INTERNAL_FIELDS.includes(f.fieldname));
 
                                         // For Dean in non-Draft states: mark all fields except chairperson as read_only
                                         if (deanOverrideReadOnly) {
@@ -864,6 +972,86 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     }
                                     readOnly={deanOverrideReadOnly ? false : isReadOnly}
                                 />
+
+                                {/* Custom Candidates Selection Table */}
+                                {(() => {
+                                    let candidateRows: any[] = [];
+                                    try {
+                                        if (formData.candidates) {
+                                            candidateRows = typeof formData.candidates === 'string'
+                                                ? JSON.parse(formData.candidates)
+                                                : formData.candidates;
+                                        }
+                                    } catch (e) {
+                                        console.error('Failed to parse candidates data', e);
+                                    }
+
+                                    if (!Array.isArray(candidateRows) || candidateRows.length === 0) return null;
+
+                                    return (
+                                        <div className="mt-8 pt-8 border-t border-zinc-200 dark:border-zinc-800">
+                                            <h3 className="text-xl font-serif font-medium text-zinc-900 dark:text-zinc-100 mb-6 flex items-center gap-3">
+                                                <UserCheck className="w-6 h-6 text-[#D97757]" />
+                                                Candidates Called for Interview
+                                            </h3>
+                                            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-md bg-white dark:bg-zinc-900">
+                                                <table className="w-full text-sm">
+                                                    <thead>
+                                                        <tr className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
+                                                            <th className="px-4 py-4 text-left font-bold text-zinc-700 dark:text-zinc-300 w-12">#</th>
+                                                            <th className="px-4 py-4 text-left font-bold text-zinc-700 dark:text-zinc-300">Candidate Name</th>
+                                                            <th className="px-4 py-4 text-left font-bold text-zinc-700 dark:text-zinc-300">Applied Position</th>
+                                                            <th className="px-4 py-4 text-left font-bold text-zinc-700 dark:text-zinc-300 w-24">Basic Pay</th>
+                                                            <th className="px-4 py-4 text-left font-bold text-zinc-700 dark:text-zinc-300 w-20">HRA %</th>
+                                                            <th className="px-4 py-4 text-left font-bold text-zinc-700 dark:text-zinc-300 w-20">Medical</th>
+                                                            <th className="px-4 py-4 text-left font-bold text-zinc-700 dark:text-zinc-300">Total Amount</th>
+                                                            <th className="px-4 py-4 text-left font-bold text-zinc-700 dark:text-zinc-300 w-32 text-center">Selection Status</th>
+                                                            <th className="px-4 py-4 text-left font-bold text-zinc-700 dark:text-zinc-300 min-w-[200px]">Justification</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                                        {candidateRows.map((row: any, idx: number) => (
+                                                            <tr key={idx} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                                                                <td className="px-4 py-4 text-zinc-500 font-medium">{idx + 1}</td>
+                                                                <td className="px-4 py-4 font-semibold text-zinc-800 dark:text-zinc-200">{row.candidate_name}</td>
+                                                                <td className="px-4 py-4 text-zinc-600 dark:text-zinc-400">{row.applied_for_position}</td>
+                                                                <td className="px-4 py-4 text-zinc-800 dark:text-zinc-200">{row.upfa_basic_pay}</td>
+                                                                <td className="px-4 py-4 text-zinc-800 dark:text-zinc-200">{row.upfa_hra_percent}</td>
+                                                                <td className="px-4 py-4 text-zinc-800 dark:text-zinc-200">{row.upfa_medical_required}</td>
+                                                                <td className="px-4 py-4 font-bold text-emerald-600 dark:text-emerald-400">
+                                                                    ₹{parseFloat(row.upfa_total_amount).toLocaleString('en-IN')}
+                                                                </td>
+                                                                <td className="px-2 py-4">
+                                                                    <select
+                                                                        value={row.upfa_selection_status || ''}
+                                                                        onChange={(e) => handleCandidateRowChange(idx, 'upfa_selection_status', e.target.value)}
+                                                                        disabled={isReadOnly}
+                                                                        className="w-full bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-md py-1.5 px-2 text-sm focus:ring-2 focus:ring-[#D97757] outline-none"
+                                                                    >
+                                                                        <option value="">Select</option>
+                                                                        <option value="Recommended">Recommended</option>
+                                                                        <option value="Waiting">Waiting</option>
+                                                                        <option value="Not Recommended">Not Recommended</option>
+                                                                    </select>
+                                                                </td>
+                                                                <td className="px-2 py-4">
+                                                                    <textarea
+                                                                        value={row.upfa_justification || ''}
+                                                                        onChange={(e) => handleCandidateRowChange(idx, 'upfa_justification', e.target.value)}
+                                                                        disabled={isReadOnly}
+                                                                        placeholder="Enter justification..."
+                                                                        rows={1}
+                                                                        className="w-full bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-md py-1.5 px-2 text-sm focus:ring-2 focus:ring-[#D97757] outline-none resize-none"
+                                                                    />
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
                                 {/* Custom Committee Members Table */}
                                 {(() => {

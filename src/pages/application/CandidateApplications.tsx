@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 // --- Types ---
 interface CandidateApplication {
+    id?: number;
     application_id: number;
     application_number: string;
     status: string;
@@ -71,7 +72,6 @@ const CandidateApplications: React.FC = () => {
 
     const [applications, setApplications] = useState<CandidateApplication[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [updatingIds, setUpdatingIds] = useState<Record<string, boolean>>({});
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<string>("all");
 
@@ -105,32 +105,11 @@ const CandidateApplications: React.FC = () => {
         }
     }, [refNum]);
 
-    const handleAppearedClick = async (applicationId: number) => {
-        if (!confirm("Are you sure the candidate appeared?")) return;
-        setUpdatingIds((prev) => ({ ...prev, [applicationId]: true }));
-        try {
-            const response = await fetch(
-                `http://172.16.134.191:3000/api/applications/${applicationId}/review`,
-                {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Accept: "application/json",
-                    },
-                    body: JSON.stringify({
-                        status: "Appeared",
-                        justification: "Marked as appeared in list view",
-                    }),
-                }
-            );
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            fetchApplications(); // Refresh the list
-        } catch (err: any) {
-            console.error("Error updating status:", err);
-            alert(`Failed to update status: ${err.message}`);
-        } finally {
-            setUpdatingIds((prev) => ({ ...prev, [applicationId]: false }));
-        }
+    const handleAppearedClick = (applicationId: number) => {
+        // As per user clarification, "Appeared" is just a button to view/manage the candidate in the SCR form.
+        // No backend status update is needed.
+        // Option 2: Show only the specific candidate where "Appeared" was clicked.
+        navigate(`/selection-committee-report?interview_id=${refNum}&candidate_id=${applicationId}`);
     };
 
     useEffect(() => {
@@ -255,18 +234,12 @@ const CandidateApplications: React.FC = () => {
                                                     {app.status?.toLowerCase() === "shortlisted" && (
                                                         <button
                                                             onClick={() => handleAppearedClick(app.application_id)}
-                                                            disabled={updatingIds[app.application_id]}
                                                             className={cn(
                                                                 "inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition-all",
-                                                                "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm",
-                                                                "disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
                                                             )}
                                                         >
-                                                            {updatingIds[app.application_id] ? (
-                                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                            ) : (
-                                                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                                            )}
+                                                            <CheckCircle2 className="w-3.5 h-3.5" />
                                                             Appeared
                                                         </button>
                                                     )}

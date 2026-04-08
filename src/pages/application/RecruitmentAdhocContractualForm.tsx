@@ -116,6 +116,8 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     const { call: performActionCall } = useFrappePostCall(
         recruitmentAdhocContractualAPI.performAction,
     );
+    // Hook to fetch account heads list for dropdown
+    const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
     // Hook to fetch piheadmentor_user_id from User doctype (client script logic)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>(
@@ -208,11 +210,32 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                             })
                         };
                     }
+                    if (f.fieldname === "account_head") {
+                        return { ...f, fieldtype: "Link", options: "Budget Head" };
+                    }
                     return f;
                 });
 
+                // Fetch Account Heads from 'Budget Head' doctype to populate dropdown
+                let baseLinkOptions = link_options || {};
+                try {
+                    const headsRes = await fetchAccountHeads({
+                        doctype: 'Budget Head',
+                        fields: ['name', 'budget_head'],
+                        limit_page_length: 0
+                    });
+                    if (headsRes?.message) {
+                        baseLinkOptions['account_head'] = headsRes.message.map((head: any) => ({
+                            value: head.name,
+                            label: head.budget_head || head.name
+                        }));
+                    }
+                } catch (err) {
+                    console.error('Error fetching account heads:', err);
+                }
+
                 setFields(processedFields);
-                setLinkOptions(link_options || {});
+                setLinkOptions(baseLinkOptions);
 
                 // Initialize Form Data
                 if (currentDocName && prefill_data) {
