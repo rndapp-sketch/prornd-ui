@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
-import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useUserRoles } from '@/components/UserRole';
 import { cn } from '@/lib/utils';
 import {
     CalendarIcon, EditIcon, Send, ChevronRight,
@@ -334,6 +335,10 @@ const LoanRequestDetails: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [bmrValues, setBmrValues] = useState({ bmr: '', bmr_date: '' });
 
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser || null);
+    const isRndStaff = roles.includes('staff, RnD');
+
     const { call: fetchFormData, result: formDataResult, error: formDataError } =
         useFrappePostCall<FormDataResponse>(loanRequestAPI.getFields);
     const { call: fetchDocument } = useFrappePostCall<{ message: any }>('frappe.client.get');
@@ -465,8 +470,8 @@ const LoanRequestDetails: React.FC = () => {
                     <WorkflowTimeline currentState={workflowState} />
                 </div>
 
-                {/* BMR Fields — only at Pending @ Staff (Deposit Loan) */}
-                {workflowState === 'Pending @ Staff (Deposit Loan)' && (
+                {/* BMR Fields — only at Pending @ Staff (Deposit Loan) for staff, RnD */}
+                {workflowState === 'Pending @ Staff (Deposit Loan)' && isRndStaff && (
                     <div className="mt-4 p-5 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl shadow-sm">
                         <div className="flex items-center gap-2 mb-4">
                             <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
