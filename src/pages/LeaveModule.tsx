@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useFrappeAuth, useFrappeGetCall } from "frappe-react-sdk";
 import { useNavigate } from "react-router-dom";
-import { Plus, FileText, Clock, CheckCircle, XCircle, CalendarDays, UserX } from "lucide-react";
+import { Plus, FileText, Clock, CheckCircle, XCircle, CalendarDays, UserX, AlertTriangle, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { leaveModuleAPI } from "@/services/apiService";
@@ -25,6 +25,35 @@ const LeaveModule = () => {
   );
 
   const leaveBalance = leaveBalanceData?.message;
+
+  // --- Compute actual CL and EL after deducting absents ---
+  // Absents are deducted from CL first; if CL is exhausted, remainder is deducted from EL
+  const { actualCL, actualEL, canApplyLeave } = useMemo(() => {
+    const rawCL = leaveBalance?.cl ?? 0;
+    const rawEL = leaveBalance?.el ?? 0;
+    const absents = totalAbsents ?? 0;
+
+    let remainingAbsents = absents;
+    let computedCL = rawCL;
+    let computedEL = rawEL;
+
+    // Step 1: Deduct absents from CL first
+    if (remainingAbsents > 0) {
+      const clDeduction = Math.min(remainingAbsents, rawCL);
+      computedCL = rawCL - clDeduction;
+      remainingAbsents -= clDeduction;
+    }
+
+    // Step 2: If absents still remain, deduct from EL
+    if (remainingAbsents > 0) {
+      computedEL = rawEL - Math.ceil(remainingAbsents);
+    }
+
+    // Can only apply leave if both actual balances are > 0
+    const allowed = computedCL > 0 || computedEL > 0;
+
+    return { actualCL: computedCL, actualEL: computedEL, canApplyLeave: allowed };
+  }, [leaveBalance, totalAbsents]);
 
   // Fetch total absents from attendance API
   useEffect(() => {
@@ -88,7 +117,7 @@ const LeaveModule = () => {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -101,16 +130,28 @@ const LeaveModule = () => {
         </div>
         <Button
           onClick={() => navigate("/leave-module/new")}
-          className="bg-teal-600 hover:bg-teal-700 text-white"
+          disabled={!canApplyLeave && leaveBalance !== undefined && totalAbsents !== null}
+          className="bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          title={!canApplyLeave && leaveBalance !== undefined && totalAbsents !== null ? "Cannot apply — your actual leave balance is exhausted" : ""}
         >
           <Plus className="w-4 h-4 mr-2" />
           New Leave Application
         </Button>
       </div>
 
-      {/* Leave Balance Cards */}
+      {/* Warning banner when leave is exhausted */}
+      {!canApplyLeave && leaveBalance !== undefined && totalAbsents !== null && (
+        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+          <p className="text-sm text-red-700 dark:text-red-300">
+            <strong>Leave application disabled.</strong> Your actual leave balance (after deducting absents) is exhausted. Please contact your PI or Admin.
+          </p>
+        </div>
+      )}
+
+      {/* Leave Balance Cards — single row */}
       {(leaveBalance || totalAbsents !== null) && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
           {leaveBalance && (
             <>
               <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 flex items-center gap-4">
@@ -143,6 +184,69 @@ const LeaveModule = () => {
                 <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{totalAbsents}</p>
               </div>
             </div>
+          )}
+          {leaveBalance && totalAbsents !== null && totalAbsents > 0 && (
+            <>
+              <div className={`border rounded-xl p-4 flex items-center gap-4 ${
+                actualCL <= 0
+                  ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+                  : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800'
+              }`}>
+                <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                  actualCL <= 0
+                    ? 'bg-red-100 dark:bg-red-900/30'
+                    : 'bg-emerald-100 dark:bg-emerald-900/30'
+                }`}>
+                  <ShieldCheck className={`h-5 w-5 ${
+                    actualCL <= 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-emerald-600 dark:text-emerald-400'
+                  }`} />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Actual CL Available</p>
+                  <p className={`text-2xl font-bold ${
+                    actualCL <= 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-emerald-700 dark:text-emerald-300'
+                  }`}>{actualCL}</p>
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">
+                    {leaveBalance.cl ?? 0} CL − {Math.min(totalAbsents, leaveBalance.cl ?? 0)} absents
+                  </p>
+                </div>
+              </div>
+
+              <div className={`border rounded-xl p-4 flex items-center gap-4 ${
+                actualEL <= 0
+                  ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+                  : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800'
+              }`}>
+                <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                  actualEL <= 0
+                    ? 'bg-red-100 dark:bg-red-900/30'
+                    : 'bg-emerald-100 dark:bg-emerald-900/30'
+                }`}>
+                  <ShieldCheck className={`h-5 w-5 ${
+                    actualEL <= 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-emerald-600 dark:text-emerald-400'
+                  }`} />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Actual EL Available</p>
+                  <p className={`text-2xl font-bold ${
+                    actualEL <= 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-emerald-700 dark:text-emerald-300'
+                  }`}>{actualEL}</p>
+                  {Math.ceil(Math.max(0, (totalAbsents) - (leaveBalance.cl ?? 0))) > 0 && (
+                    <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">
+                      {leaveBalance.el ?? 0} EL − {Math.ceil(Math.max(0, totalAbsents - (leaveBalance.cl ?? 0)))} overflow absents
+                    </p>
+                  )}
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}

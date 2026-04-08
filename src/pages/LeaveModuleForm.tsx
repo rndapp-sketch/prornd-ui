@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useFrappePostCall } from 'frappe-react-sdk';
-import { AlertCircle } from 'lucide-react';
+import { useFrappeAuth, useFrappeGetCall, useFrappePostCall } from 'frappe-react-sdk';
+import { AlertCircle, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppSidebar } from '@/components/RndSidebar';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -85,6 +85,62 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 
 const LeaveModuleForm = () => {
     const navigate = useNavigate();
+    const { currentUser } = useFrappeAuth();
+
+    // --- LEAVE BALANCE GUARD ---
+    const [totalAbsents, setTotalAbsents] = useState<number | null>(null);
+
+    const { data: leaveBalanceData } = useFrappeGetCall<{
+        message: { el: number; cl: number } | null;
+    }>(
+        leaveModuleAPI.getLeaveBalance,
+        {},
+        {
+            enabled: !!currentUser,
+            revalidateOnFocus: false,
+            revalidateOnReconnect: false,
+        }
+    );
+
+    useEffect(() => {
+        if (!currentUser) return;
+        const username = currentUser.split('@')[0];
+        fetch(`/attendance-api/attendance/absents/${username}`)
+            .then((res) => res.json())
+            .then((result) => {
+                if (result.success && result.data) {
+                    setTotalAbsents(result.data.totalAbsents);
+                }
+            })
+            .catch(() => {});
+    }, [currentUser]);
+
+    const leaveBalance = leaveBalanceData?.message;
+
+    const { actualCL, actualEL, canApplyLeave, balanceLoaded } = useMemo(() => {
+        const loaded = leaveBalance !== undefined && totalAbsents !== null;
+        if (!loaded) return { actualCL: 0, actualEL: 0, canApplyLeave: true, balanceLoaded: false };
+
+        const rawCL = leaveBalance?.cl ?? 0;
+        const rawEL = leaveBalance?.el ?? 0;
+        const absents = totalAbsents ?? 0;
+
+        let remainingAbsents = absents;
+        let computedCL = rawCL;
+        let computedEL = rawEL;
+
+        if (remainingAbsents > 0) {
+            const clDeduction = Math.min(remainingAbsents, rawCL);
+            computedCL = rawCL - clDeduction;
+            remainingAbsents -= clDeduction;
+        }
+        if (remainingAbsents > 0) {
+            computedEL = rawEL - Math.ceil(remainingAbsents);
+        }
+
+        const allowed = computedCL > 0 || computedEL > 0;
+        return { actualCL: computedCL, actualEL: computedEL, canApplyLeave: allowed, balanceLoaded: true };
+    }, [leaveBalance, totalAbsents]);
 
     // --- STATE ---
     const [fields, setFields] = useState<FormField[]>([]);
@@ -150,8 +206,18 @@ const LeaveModuleForm = () => {
 
         // CL validation
         if (formData.leave_type === 'CL') {
+            if (balanceLoaded && actualCL <= 0) {
+                errors.push("Cannot apply for CL — your actual Casual Leave balance is 0 or exhausted.");
+            }
             if (!formData.cl_dates_table || formData.cl_dates_table.length === 0) {
                 errors.push("Please select at least one CL date.");
+            }
+        }
+
+        // EL balance check
+        if (formData.leave_type === 'EL') {
+            if (balanceLoaded && actualEL <= 0) {
+                errors.push("Cannot apply for EL — your actual Earned Leave balance is 0 or exhausted.");
             }
         }
 
@@ -301,7 +367,51 @@ const LeaveModuleForm = () => {
         return fields.map(field => ({ ...field }));
     }, [fields, formData]);
 
-    // --- RENDER ---
+    // --- BLOCKED SCREEN (leave balance exhausted) ---
+    if (balanceLoaded && !canApplyLeave) {
+        return (
+            <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+                <AppSidebar />
+                <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+                    <PageHeader title="New Leave Application" />
+                    <div className="max-w-xl mx-auto mt-16 text-center">
+                        <div className="bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-800 rounded-2xl p-8 shadow-sm">
+                            <div className="mx-auto w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-5">
+                                <ShieldAlert className="h-8 w-8 text-red-600 dark:text-red-400" />
+                            </div>
+                            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
+                                Leave Application Not Allowed
+                            </h2>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                                Your actual leave balance is exhausted after deducting absences.
+                            </p>
+                            <div className="grid grid-cols-2 gap-3 mb-6">
+                                <div className="bg-red-50 dark:bg-red-900/10 rounded-lg p-3">
+                                    <p className="text-xs text-zinc-500 uppercase">Actual CL</p>
+                                    <p className={`text-lg font-bold ${actualCL <= 0 ? 'text-red-600' : 'text-emerald-600'}`}>{actualCL}</p>
+                                </div>
+                                <div className="bg-red-50 dark:bg-red-900/10 rounded-lg p-3">
+                                    <p className="text-xs text-zinc-500 uppercase">Actual EL</p>
+                                    <p className={`text-lg font-bold ${actualEL <= 0 ? 'text-red-600' : 'text-emerald-600'}`}>{actualEL}</p>
+                                </div>
+                            </div>
+                            <p className="text-xs text-zinc-400 mb-6">
+                                Absents ({totalAbsents}) are first deducted from CL, then from EL. Please contact your PI or Admin for assistance.
+                            </p>
+                            <button
+                                onClick={() => navigate('/leave-module')}
+                                className="inline-flex items-center px-5 py-2.5 rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors"
+                            >
+                                ← Back to Leave Applications
+                            </button>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        );
+    }
+
+    // --- LOADING STATE ---
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
