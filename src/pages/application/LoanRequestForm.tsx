@@ -161,7 +161,18 @@ const LoanRequestForm: React.FC = () => {
                     setLinkOptions(link_options || {});
 
                     const prefill: Record<string, any> = { ...(prefill_data || {}) };
-                    if (projectParam) prefill.project_number = projectParam;
+                    prefill.self_other = 'Self';
+                    if (projectParam) {
+                        prefill.project_number = projectParam;
+                        // Resolve project_name (doc name) from link_options using project_no
+                        const projectOptions = (link_options || {})['project_name'] || [];
+                        const match = projectOptions.find(
+                            (p: any) => p.project_no === projectParam || p.value === projectParam
+                        );
+                        if (match) {
+                            prefill.project_name = match.value;
+                        }
+                    }
                     if (!prefill.applicant_webmail || prefill.applicant_webmail === '-') {
                         prefill.applicant_webmail = currentUser;
                     }
@@ -253,6 +264,10 @@ const LoanRequestForm: React.FC = () => {
     };
 
     const handleSubmit = async () => {
+        if (!formData.agreement_no_1 || !formData.agreement_no_2) {
+            alert('Both Loan Agreement checkboxes must be checked before submitting.');
+            return;
+        }
         setIsSubmitting(true);
         try {
             const data = await prepareFormDataForApi(formData);
@@ -278,7 +293,11 @@ const LoanRequestForm: React.FC = () => {
     };
 
     // Split fields into groups
-    const groupA = useMemo(() => fields.filter(f => GROUP_A_FIELDS.has(f.fieldname)), [fields]);
+    const READ_ONLY_A = new Set(['self_other', 'project_name', 'project_number']);
+    const groupA = useMemo(() =>
+        fields.filter(f => GROUP_A_FIELDS.has(f.fieldname))
+              .map(f => READ_ONLY_A.has(f.fieldname) ? { ...f, read_only: 1 } : f),
+    [fields]);
     const groupB = useMemo(() => {
         const base = fields.filter(f => GROUP_B_FIELDS.has(f.fieldname));
         // Make loan_amount read-only (auto-calculated from table)
@@ -320,7 +339,7 @@ const LoanRequestForm: React.FC = () => {
                     </FrappeButton>
                     <FrappeButton
                         onClick={handleSubmit}
-                        disabled={isSaving || isSubmitting}
+                        disabled={isSaving || isSubmitting || !formData.agreement_no_1 || !formData.agreement_no_2}
                         className="bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm"
                     >
                         <Send className="w-4 h-4" />

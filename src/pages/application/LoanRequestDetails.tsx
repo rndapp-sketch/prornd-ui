@@ -381,6 +381,10 @@ const LoanRequestDetails: React.FC = () => {
 
     const handleSubmitDraft = async () => {
         if (!id || isSubmitting) return;
+        if (!formData.agreement_no_1 || !formData.agreement_no_2) {
+            alert('Both Loan Agreement checkboxes must be checked before submitting.');
+            return;
+        }
         setIsSubmitting(true);
         try {
             const data = await prepareFormDataForApi({ ...formData, name: id });
@@ -446,8 +450,8 @@ const LoanRequestDetails: React.FC = () => {
                             </button>
                             <button
                                 onClick={handleSubmitDraft}
-                                disabled={isSubmitting}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50"
+                                disabled={isSubmitting || !formData.agreement_no_1 || !formData.agreement_no_2}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <Send className="w-4 h-4" />
                                 {isSubmitting ? 'Submitting...' : 'Submit Application'}
