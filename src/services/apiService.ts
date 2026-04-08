@@ -113,6 +113,16 @@ export const recruitmentAdhocContractualAPI = {
     submit: `${API_BASE}.recruitment_adhoc_contractual.recruitment_adhoc_contractual.submit_recruitment_adhoc_contractual`,
 };
 
+// Selection Committee Report API endpoints
+export const selectionCommitteeReportAPI = {
+    getFields: `${API_BASE}.selection_committee_report.selection_committee_report.get_selection_committee_report_fields`,
+    save: `${API_BASE}.selection_committee_report.selection_committee_report.save_selection_committee_report_data`,
+    submit: `${API_BASE}.selection_committee_report.selection_committee_report.submit_selection_committee_report`,
+    getWorkflowActions: `${API_BASE}.selection_committee_report.selection_committee_report.get_selection_committee_report_workflow_actions`,
+    performAction: `${API_BASE}.selection_committee_report.selection_committee_report.perform_selection_committee_report_action`,
+    getByWebmail: `${API_BASE}.selection_committee_report.selection_committee_report.get_selection_committee_report_by_webmail`,
+};
+
 // Indent Cum Sanction Sheet API endpoints
 export const icssAPI = {
     getIndentTypes: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_indent_types`,

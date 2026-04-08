@@ -438,40 +438,7 @@ export function AdoRndDashboard() {
             </div>
           </header>
 
-          {/* ==================== ERROR BANNERS ==================== */}
-          {permissionError && (
-            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-amber-900 dark:text-amber-300">
-                  Limited Access Mode
-                </p>
-                <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                  Unable to load full permissions. Some features may be restricted. Contact system administrator if this persists.
-                </p>
-              </div>
-            </div>
-          )}
 
-          {dashboardError && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-red-900 dark:text-red-300">
-                  Dashboard Data Unavailable
-                </p>
-                <p className="text-xs text-red-700 dark:text-red-400 mt-1">
-                  Some statistics may not be available. The system will continue to function normally.
-                </p>
-              </div>
-              <button
-                onClick={() => window.location.reload()}
-                className="px-3 py-1.5 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-700 dark:text-red-400 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
-              >
-                <RefreshCw className="h-3 w-3" /> Retry
-              </button>
-            </div>
-          )}
 
           {/* ==================== QUICK ACTION CARDS ==================== */}
           <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
