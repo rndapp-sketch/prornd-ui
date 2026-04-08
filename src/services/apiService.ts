@@ -179,6 +179,15 @@ export const universalUserAPI = {
     save: `${API_BASE}.universal_user__.universal_user__.save_universal_user___data`,
 };
 
+// Loan Request API endpoints
+export const loanRequestAPI = {
+    getFields: `${API_BASE}.loan_request.loan_request.get_loan_request_fields`,
+    save: `${API_BASE}.loan_request.loan_request.save_loan_request`,
+    submit: `${API_BASE}.loan_request.loan_request.submit_loan_request`,
+    getWorkflowActions: `${API_BASE}.loan_request.loan_request.get_loan_request_workflow_actions`,
+    performAction: `${API_BASE}.loan_request.loan_request.perform_loan_request_action`,
+};
+
 // Common utility to get user details
 export const commonAPI = {
     getUserDetails: `${API_BASE}.project_registration.project_registration.get_user_details_for_pi`,

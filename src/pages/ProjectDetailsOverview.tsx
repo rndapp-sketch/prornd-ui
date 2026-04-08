@@ -870,6 +870,7 @@ const QuickActions = ({
       ],
     },
     { title: "Travel", icon: Plane, items: ["Travel"] },
+    { title: "Loan", icon: CreditCardIcon, items: ["Loan Request"] },
     {
       title: "Utilities",
       icon: Settings,
@@ -1342,6 +1343,42 @@ const QuickActions = ({
           console.error("Indent cum Sanction fetch error:", fetchError);
           data = [];
         }
+      } else if (selectedApplication === "Loan Request") {
+        try {
+          const timestamp = Date.now();
+          const apiUrl = `/api/v2/document/Loan%20Request?fields=["name","creation","workflow_state","docstatus","owner","project_name","project_number","applicant_webmail","loan_account_type","loan_amount"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          const fetchResponse = await fetch(apiUrl, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            credentials: "include",
+          });
+          if (!fetchResponse.ok)
+            throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+          const result = await fetchResponse.json();
+          const allItems = result?.data || [];
+          data = allItems
+            .filter((item: any) => {
+              return (
+                item.project_name === projectName ||
+                item.project_name === projectNo ||
+                item.project_number === projectNo ||
+                item.project_number === projectName
+              );
+            })
+            .map((item: any) => ({
+              ...item,
+              workflow_state:
+                item.workflow_state ||
+                (item.docstatus === 1
+                  ? "Submitted"
+                  : item.docstatus === 2
+                    ? "Cancelled"
+                    : "Draft"),
+            }));
+        } catch (fetchError) {
+          console.error("Loan Request fetch error:", fetchError);
+          data = [];
+        }
       }
       setApplicationData(data);
     } catch (error) {
@@ -1460,6 +1497,9 @@ const QuickActions = ({
         break;
       case "TA DA Settlement":
         onNavigate(`/ta-da-settlement?project=${projectParam}`);
+        break;
+      case "Loan Request":
+        onNavigate(`/loan-request?project=${projectParam}&projectTitle=${encodeURIComponent(projectTitle || "")}`);
         break;
       case "Project Staff Resignation":
         onNavigate(`/project-staff-resignation?project=${projectParam}`);
@@ -1697,6 +1737,9 @@ const QuickActions = ({
                                 onNavigate(
                                   `/recruitment-adhoc-contractual?edit=${item.name}`,
                                 );
+                                break;
+                              case "Loan Request":
+                                onNavigate(`/loan-request/${item.name}`);
                                 break;
                               default:
                                 // Check item.type for Travel consolidated view

@@ -61,6 +61,8 @@ import DisbursalOfHonorariumDetails from './pages/application/DisbursalOfHonorar
 import DisbursalOfConsultancy from './pages/application/DisbursalOfConsultancy.tsx';
 import DisbursalOfConsultancyForm from './pages/application/DisbursalOfConsultancyForm.tsx';
 import DisbursalOfConsultancyDetails from './pages/application/DisbursalOfConsultancyDetails.tsx';
+import LoanRequestForm from './pages/application/LoanRequestForm.tsx';
+import LoanRequestDetails from './pages/application/LoanRequestDetails.tsx';
 import DirectPurchase from './pages/DirectPurchase.tsx';
 import DirectPurchaseDetails from './pages/application/DirectPurchaseDetails.tsx';
 import P11Form from './pages/application/P11Form.tsx';
@@ -464,6 +466,22 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <DisbursalOfConsultancyDetails />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "loan-request",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <LoanRequestForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "loan-request/:id",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <LoanRequestDetails />
             </AuthRouteWrapper>
           )
         },
