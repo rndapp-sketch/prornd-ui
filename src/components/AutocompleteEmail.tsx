@@ -18,6 +18,8 @@ interface AutocompleteEmailProps extends Omit<React.InputHTMLAttributes<HTMLInpu
   showAllOnFocus?: boolean;
   /** Show only the label in dropdown items, without the value in parentheses */
   displayOnlyLabel?: boolean;
+  /** Optional message shown at the bottom of the dropdown list */
+  footerMessage?: string;
 }
 
 export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
@@ -29,6 +31,7 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   searchByLabel = false,
   showAllOnFocus = false,
   displayOnlyLabel = false,
+  footerMessage,
   ...rest
 }) => {
   const [inputValue, setInputValue] = useState(value);
@@ -38,8 +41,13 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
 
   // Update internal input value if external value changes (e.g. reset/cleared)
   useEffect(() => {
-    setInputValue(value);
-  }, [value]);
+    if (searchByLabel && value) {
+      const matched = options.find(opt => opt.value === value);
+      setInputValue(matched ? matched.label : value);
+    } else {
+      setInputValue(value);
+    }
+  }, [value, options, searchByLabel]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -56,8 +64,8 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
     const searchStr = debouncedValue.toLowerCase();
     const filtered = searchStr
       ? options.filter(opt =>
-          opt.label.toLowerCase().includes(searchStr) || opt.value.toLowerCase().includes(searchStr)
-        )
+        opt.label.toLowerCase().includes(searchStr) || opt.value.toLowerCase().includes(searchStr)
+      )
       : options;
     return filtered.sort((a, b) =>
       (searchByLabel ? a.label : a.value).localeCompare(searchByLabel ? b.label : b.value)
@@ -81,7 +89,7 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
         autoComplete="off"
         {...rest}
       />
-      {isOpen && filteredOptions.length > 0 && (
+      {isOpen && (filteredOptions.length > 0 || footerMessage) && (
         <ul className="absolute z-[9999] w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 min-w-[200px]">
           {filteredOptions.map((opt, index) => (
             <li
@@ -102,6 +110,11 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
                   : `${opt.value} (${opt.label})`}
             </li>
           ))}
+          {footerMessage && (
+            <li className="px-4 py-2 text-xs text-zinc-400 dark:text-zinc-500 italic border-t border-zinc-100 dark:border-zinc-800 select-none">
+              {footerMessage}
+            </li>
+          )}
         </ul>
       )}
     </div>
