@@ -305,8 +305,7 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
 
         <div class="signature">
             <div class="label">Signature of the Dean (R&D)</div>
-            
-            
+            <img src="http://172.16.117.39:8000/files/rohit_fake_sign.png" alt="Signature"/>
         </div>
     </div>
 </body>

@@ -72,7 +72,14 @@ export const ChildTableComponent = memo(({
     onLinkChange,
 }: ChildTableProps) => {
     // Filter visible columns - exclude hidden columns AND columns without labels
-    const visibleColumns = columns.filter(col => !col.hidden && col.label && col.label.trim() !== '');
+    const visibleColumns = columns.filter(col =>
+        !col.hidden &&
+        col.label &&
+        col.label.trim() !== '' &&
+        col.fieldname !== 'row_total' &&   // Frappe auto-field on submittable child tables
+        col.fieldname !== 'idx' &&          // internal row index
+        col.fieldname !== 'docstatus',      // internal status
+    );
 
     // Create a new row template
     const createNewRow = useCallback(() => {
@@ -327,22 +334,25 @@ export const ChildTableComponent = memo(({
                         )}
                     </tbody>
                     {hasNumericColumns && tableData.length > 0 && (
-                        <tfoot className="bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-800">
+                        <tfoot className="bg-[#D97757]/5 dark:bg-[#D97757]/10 border-t-2 border-[#D97757]/30 dark:border-[#D97757]/40">
                             <tr className="divide-x divide-zinc-100 dark:divide-zinc-800">
-                                <td className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm" colSpan={1}>
-                                    Total
-                                </td>
-                                {visibleColumns.map(col => (
-                                    <td key={col.fieldname} className="p-3 font-semibold text-zinc-900 dark:text-zinc-100 text-sm">
-                                        {totals[col.fieldname] !== undefined
-                                            ? col.fieldtype === 'Currency'
-                                                ? totals[col.fieldname].toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
-                                                : totals[col.fieldname].toLocaleString('en-IN')
-                                            : ''
-                                        }
+                                <td className="p-3 text-center text-xs text-zinc-400" />
+                                {visibleColumns.map((col, i) => (
+                                    <td key={col.fieldname} className="p-3">
+                                        {i === 0 ? (
+                                            <span className="font-bold text-sm text-zinc-700 dark:text-zinc-200 uppercase tracking-wide">
+                                                Grand Total
+                                            </span>
+                                        ) : totals[col.fieldname] !== undefined ? (
+                                            <span className="font-extrabold text-base text-[#D97757]">
+                                                {col.fieldtype === 'Currency'
+                                                    ? totals[col.fieldname].toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
+                                                    : totals[col.fieldname].toLocaleString('en-IN')}
+                                            </span>
+                                        ) : null}
                                     </td>
                                 ))}
-                                {!readOnly && <td></td>}
+                                {!readOnly && <td />}
                             </tr>
                         </tfoot>
                     )}

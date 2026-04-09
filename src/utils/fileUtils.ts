@@ -19,6 +19,11 @@ export function getFileUrl(path: string | null | undefined): string {
         return path;
     }
 
+    // MinIO path served via /rnd-files proxy — use as-is
+    if (path.startsWith("/prod-rnd-files/")) {
+        return path;
+    }
+
     // Frappe stores paths starting with "/" -- avoid double slash
     if (path.startsWith("/")) {
         return `/files${path}`;

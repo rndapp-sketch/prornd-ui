@@ -11,13 +11,19 @@ interface BudgetActionsSidebarProps {
     docName?: string;
     doctype?: string;
     isStaff?: boolean;
+    /** ID of the parent application whose committed TID should be passed as refDetails (e.g. Travel app for TA DA Settlement) */
+    parentAppId?: string;
+    /** Pre-fill the commit amount with this value (e.g. net_claimed from TA DA Settlement) */
+    billAmount?: number;
 }
 
 export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     projectName,
     isStaff = true,
     docName,
-    doctype = "Travel"
+    doctype = "Travel",
+    parentAppId,
+    billAmount,
 }) => {
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -88,6 +94,34 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
         }
     }, [budgetHeadList]);
 
+    // Pre-fill commitAmount: billAmount prop takes priority, then fall back to ledger lookup
+    useEffect(() => {
+        if (billAmount != null && billAmount > 0) {
+            setCommitAmount(String(billAmount));
+            return;
+        }
+
+        if (!parentAppId || !projectName || budgetHeadList.length === 0) return;
+
+        const fetchParentCommitAmount = async () => {
+            try {
+                const headEntry = budgetHeadList[0];
+                const accountHeadId = headEntry?.id || headEntry?.name;
+                const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(String(accountHeadId))}`;
+                const res = await fetch(ledgerUrl);
+                if (!res.ok) return;
+                const entries: any[] = await res.json().then(d => Array.isArray(d) ? d : []);
+                const parentEntry = entries.find((e: any) => e.frapAppId === parentAppId);
+                if (parentEntry?.committed) {
+                    setCommitAmount(String(parentEntry.committed));
+                }
+            } catch (err) {
+                console.error("Failed to fetch parent committed amount:", err);
+            }
+        };
+
+        fetchParentCommitAmount();
+    }, [billAmount, parentAppId, projectName, budgetHeadList]);
 
     const handleCommit = async () => {
         if (isCommitting || isSubmitting) return;
@@ -105,6 +139,34 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
 
         setIsSubmitting(true);
         try {
+            let refDetails: string | undefined;
+
+            // If a parent app is linked (e.g. Travel for TA DA Settlement),
+            // fetch its committed TID from the ledger and pass as refDetails.
+            if (parentAppId) {
+                try {
+                    const headEntry = budgetHeadList.find(h => h.name === commitHead) || budgetHeadList[0];
+                    const accountHeadId = headEntry?.id || commitHead;
+                    const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(String(accountHeadId))}`;
+                    const ledgerRes = await fetch(ledgerUrl);
+                    if (ledgerRes.ok) {
+                        const entries: any[] = await ledgerRes.json().then(d => Array.isArray(d) ? d : []);
+                        const parentEntry = entries.find((e: any) => e.frapAppId === parentAppId);
+                        if (parentEntry) {
+                            refDetails = String(parentEntry.transactionId);
+                        }
+                    }
+                } catch (ledgerErr) {
+                    console.error("Failed to fetch parent TID from ledger:", ledgerErr);
+                }
+
+                if (!refDetails) {
+                    alert("Could not find the parent Travel application TID in the ledger. Please ensure the Travel application has been committed first.");
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
             await submitCommit({
                 doctype: doctype,
                 frapAppId: docName,
@@ -112,7 +174,8 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                 project_name: projectName,
                 commit_amount: amount,
                 budget_head: commitHead,
-                bmr: "" // Optional
+                bmr: "",
+                ...(refDetails ? { refDetails } : {}),
             });
 
             setCommitSuccess({ amount, head: commitHead });

@@ -88,6 +88,8 @@ const TADASettlementForm: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
+  // Tracks the docname created/returned by a Save Draft action so Submit can reuse it
+  const [savedDocName, setSavedDocName] = useState<string>("");
 
   // --- API HOOKS ---
   const {
@@ -111,6 +113,43 @@ const TADASettlementForm: React.FC = () => {
   const { call: fetchDepartmentDoc } = useFrappePostCall<{
     message: { dept_name: string };
   }>("frappe.client.get");
+  const { call: fetchBudgetHeadList } = useFrappePostCall<{ message: any[] }>(
+    "frappe.client.get_list",
+  );
+
+  // --- LEDGER HELPER: fetch committed amount for a Travel app ---
+  const fetchAdvanceTakenFromLedger = useCallback(
+    async (
+      travelAppId: string,
+      projectCode: string,
+      getBudgetHeads: () => Promise<{ message: any[] }>,
+    ): Promise<number | null> => {
+      if (!travelAppId || !projectCode) return null;
+      try {
+        const headsResult = await getBudgetHeads();
+        const rawHeads: any[] = headsResult?.message || [];
+        for (const h of rawHeads) {
+          const headId = h.id ?? h.uid;
+          if (!headId) continue;
+          try {
+            const url = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectCode)}&accountHeadId=${encodeURIComponent(String(headId))}`;
+            const res = await fetch(url);
+            if (!res.ok) continue;
+            const entries: any[] = await res.json().then((d) => (Array.isArray(d) ? d : []));
+            const match = entries.find((e: any) => e.frapAppId === travelAppId);
+            if (match != null) {
+              const val = match.committed ?? match.commitAmount ?? match.amount;
+              if (val != null) return parseFloat(val);
+            }
+          } catch { /* try next head */ }
+        }
+      } catch (err) {
+        console.error("[AdvanceTaken] Error:", err);
+      }
+      return null;
+    },
+    [],
+  );
 
   // --- DATA FETCHING ---
   useEffect(() => {
@@ -247,6 +286,18 @@ const TADASettlementForm: React.FC = () => {
                 initialData.project_no ||
                 travelDoc.travel_project_number;
 
+              // Populate Advance Taken from the Travel app's committed amount in ledger
+              const resolvedProject =
+                initialData.project_no || travelDoc.travel_project_number || "";
+              const advanceTaken = await fetchAdvanceTakenFromLedger(
+                travelRef,
+                resolvedProject,
+                () => fetchBudgetHeadList({ doctype: "Budget Head", fields: ["name", "id", "uid"], limit_page_length: 50 }),
+              );
+              if (advanceTaken != null) {
+                initialData.ta_da_advance_taken = advanceTaken;
+              }
+
               if (travelDoc.webmail_id_travel) {
                 // Full fetch for user fields
                 const userMapped = await fetchAndMapUserDetails(
@@ -330,17 +381,17 @@ const TADASettlementForm: React.FC = () => {
   // --- CALCULATE TOTALS ---
   useEffect(() => {
     // Calculate net claimed amount
-    const totalClaimed = parseFloat(formData.total_claimed || 0);
-    const advanceTaken = parseFloat(formData.advance_taken || 0);
+    const totalClaimed = parseFloat(formData.ta_da_total_claimed || 0);
+    const advanceTaken = parseFloat(formData.ta_da_advance_taken || 0);
     const netClaimed = totalClaimed - advanceTaken;
 
-    if (formData.net_claimed !== netClaimed) {
+    if (formData.ta_da_net_claimed !== netClaimed) {
       setFormData((prev) => ({
         ...prev,
-        net_claimed: netClaimed,
+        ta_da_net_claimed: netClaimed,
       }));
     }
-  }, [formData.total_claimed, formData.advance_taken]);
+  }, [formData.ta_da_total_claimed, formData.ta_da_advance_taken]);
 
   // --- EVENT HANDLERS ---
   const handleChange = useCallback((fieldname: string, value: any) => {
@@ -368,6 +419,15 @@ const TADASettlementForm: React.FC = () => {
           if (result?.message) {
             const travelDoc = result.message;
 
+            // Fetch advance taken from ledger for the selected travel app
+            const travelProjectCode =
+              travelDoc.travel_project_number || "";
+            const advanceTaken = await fetchAdvanceTakenFromLedger(
+              value,
+              travelProjectCode,
+              () => fetchBudgetHeadList({ doctype: "Budget Head", fields: ["name", "id", "uid"], limit_page_length: 50 }),
+            );
+
             if (travelDoc.webmail_id_travel) {
               // Use the robust fetcher to get user details + resolved department
               const userMapped = await fetchAndMapUserDetails(
@@ -380,6 +440,7 @@ const TADASettlementForm: React.FC = () => {
                 ...prev,
                 [fieldname]: value,
                 ...userMapped,
+                ...(advanceTaken != null ? { ta_da_advance_taken: advanceTaken } : {}),
               }));
             } else {
               // Fallback: resolve department from Travel doc's department ID
@@ -394,6 +455,7 @@ const TADASettlementForm: React.FC = () => {
                 ta_da_designation: travelDoc.designation_travel || "",
                 ta_da_department_section: deptName,
                 ta_da_project_code: travelDoc.travel_project_number || "",
+                ...(advanceTaken != null ? { ta_da_advance_taken: advanceTaken } : {}),
               }));
             }
           }
@@ -407,6 +469,8 @@ const TADASettlementForm: React.FC = () => {
       fetchTravelDetails,
       fetchAndMapUserDetails,
       resolveDepartmentName,
+      fetchAdvanceTakenFromLedger,
+      fetchBudgetHeadList,
     ],
   );
 
@@ -435,7 +499,7 @@ const TADASettlementForm: React.FC = () => {
           [tableName]: table,
           // Update total claimed if this is the expenses table
           ...(tableName === "ta_da_other_expenses_p"
-            ? { total_claimed: tableTotal }
+            ? { ta_da_total_claimed: tableTotal }
             : {}),
         };
       });
@@ -483,7 +547,7 @@ const TADASettlementForm: React.FC = () => {
             sum + parseFloat(row.total || row.amount || 0),
           0,
         );
-        updates.total_claimed = tableTotal;
+        updates.ta_da_total_claimed = tableTotal;
       }
 
       return { ...prev, ...updates };
@@ -501,6 +565,10 @@ const TADASettlementForm: React.FC = () => {
       const res = await saveForm({ doc_data: JSON.stringify(data) });
 
       if (res?.message?.status === "success") {
+        // Track the returned docname so Submit can reuse the same document
+        if (res.message.docname && !editDocName) {
+          setSavedDocName(res.message.docname);
+        }
         alert(
           editDocName
             ? "TA DA Settlement updated successfully!"
@@ -525,8 +593,12 @@ const TADASettlementForm: React.FC = () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      // 1. Save first
+      // 1. Save first — include existing docname so we don't create a duplicate
+      const effectiveName = editDocName || savedDocName;
       const data = await prepareFormDataForApi(formData);
+      if (effectiveName) {
+        data.name = effectiveName;
+      }
       const saveRes = await saveForm({ doc_data: JSON.stringify(data) });
 
       if (saveRes?.message?.status !== "success") {
@@ -535,7 +607,7 @@ const TADASettlementForm: React.FC = () => {
         );
       }
 
-      const docname = saveRes.message.docname;
+      const docname = saveRes.message.docname || effectiveName;
 
       // 2. Submit
       const submitRes = await submitForm({ docname });

@@ -6,7 +6,7 @@ import {
     type FormField,
 } from "@/components/forms/DynamicFormRenderer";
 import {
-    recruitmentAdhocContractualAPI,
+    selectionCommitteeReportAPI,
     prepareFormDataForApi,
 } from "@/services/apiService";
 import { Loader2, ArrowLeft, Save, Send, CheckCircle2 } from "lucide-react";
@@ -74,13 +74,14 @@ const FrappeButton = ({
     </Button>
 );
 
-const RecruitmentAdhocContractualForm: React.FC = () => {
+const SelectionCommitteeReportForm: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const editDocName = id || searchParams.get("edit");
     const projectParam = searchParams.get("project");
     const projectNoParam = searchParams.get("projectNo"); // Often used as well for the filter
+    const interviewIdParam = searchParams.get("interview_id");
     const { currentUser } = useFrappeAuth();
 
     // Role-based access
@@ -105,21 +106,26 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
 
     // API Hooks
     const { call: getFieldsCall } = useFrappePostCall(
-        recruitmentAdhocContractualAPI.getFields,
+        selectionCommitteeReportAPI.getFields,
     );
     const { call: saveCall } = useFrappePostCall(
-        recruitmentAdhocContractualAPI.save,
+        selectionCommitteeReportAPI.save,
     );
     const { call: getActionsCall } = useFrappePostCall(
-        recruitmentAdhocContractualAPI.getWorkflowActions,
+        selectionCommitteeReportAPI.getWorkflowActions,
     );
     const { call: performActionCall } = useFrappePostCall(
-        recruitmentAdhocContractualAPI.performAction,
+        selectionCommitteeReportAPI.performAction,
     );
     // Hook to fetch piheadmentor_user_id from User doctype (client script logic)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>(
         "frappe.client.get_value",
+    );
+    // Hook to fetch full document (including child tables)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { call: fetchFrappeDoc } = useFrappePostCall<{ message: any }>(
+        "frappe.client.get",
     );
 
     const resolveChairpersonFromDepartment = useCallback(
@@ -180,6 +186,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     "section_break_e3vp",
                     "column_break_mlei",
                     "workflow_state",
+                    "committee_members",
                 ];
                 const filteredFields = (fetchedFields || []).filter(
                     (f: any) => !HIDDEN_FIELDS.includes(f.fieldname),
@@ -234,50 +241,21 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                         );
                     }
 
-                    // Fallback: if chairperson_webmail_id was never saved, try to fetch from applicant's HOD (piheadmentor_user_id)
+                    // Final fallback: if chairperson_webmail_id was never saved, seed from webmail_id.
                     if (
-                        existingData.webmail_id &&
+                        prefill_data.webmail_id &&
                         !existingData.chairperson_webmail_id
                     ) {
-                        try {
-                            const headRes = await fetchFrappeValue({
-                                doctype: "User",
-                                filters: { name: existingData.webmail_id },
-                                fieldname: "piheadmentor_user_id",
-                            });
-                            if (headRes?.message?.piheadmentor_user_id) {
-                                existingData.chairperson_webmail_id = headRes.message.piheadmentor_user_id;
-                            }
-                        } catch (e) {
-                            console.error("Failed to fetch HOD for auto-fill on existing doc:", e);
-                        }
+                        existingData.chairperson_webmail_id = prefill_data.webmail_id;
                     }
 
-                    // Always re-derive chairperson_name (ignore any stale saved value)
+                    // Always re-derive chairperson_name from link_options (ignore any stale saved value)
                     if (existingData.chairperson_webmail_id) {
-                        const labelFromOptions = getChairpersonLabel(
-                            existingData.chairperson_webmail_id,
-                            link_options || {},
-                        );
-                        
-                        if (labelFromOptions) {
-                            existingData.chairperson_name = labelFromOptions;
-                        } else {
-                            // Fetch full_name manually if not in link_options
-                            try {
-                                const headNameRes = await fetchFrappeValue({
-                                    doctype: "User",
-                                    filters: { name: existingData.chairperson_webmail_id },
-                                    fieldname: "full_name",
-                                });
-                                if (headNameRes?.message?.full_name) {
-                                    existingData.chairperson_name = headNameRes.message.full_name;
-                                }
-                            } catch (e) {
-                                console.error("Failed to fetch chairperson full_name:", e);
-                                existingData.chairperson_name = existingData.chairperson_name || "";
-                            }
-                        }
+                        existingData.chairperson_name =
+                            getChairpersonLabel(
+                                existingData.chairperson_webmail_id,
+                                link_options || {},
+                            ) || existingData.chairperson_name || "";
                     }
 
                     setFormData(existingData);
@@ -287,12 +265,91 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const initialData: Record<string, any> = { ...prefill_data };
 
+                    if (interviewIdParam && !initialData.interview_id) {
+                        initialData.interview_id = interviewIdParam;
+                    }
+
+                    // Auto-fill fields from the linked Recruitment Adhoc Contractual document
+                    if (interviewIdParam) {
+                        try {
+                            const recruitmentRes = await fetchFrappeDoc({
+                                doctype: "Recruitment Adhoc Contractual",
+                                name: interviewIdParam,
+                            });
+
+                            if (recruitmentRes?.message) {
+                                const rec = recruitmentRes.message;
+
+                                if (rec.upfa_appointment_type && !initialData.recruitment_type) {
+                                    initialData.recruitment_type = rec.upfa_appointment_type;
+                                }
+                                if (rec.upfa_project_code && !initialData.project_number) {
+                                    initialData.project_number = rec.upfa_project_code;
+                                }
+                                if (rec.upfa_department && !initialData.upfa_department) {
+                                    initialData.upfa_department = rec.upfa_department;
+                                }
+                                if (rec.owner && !initialData.principal_investigator) {
+                                    initialData.principal_investigator = rec.owner;
+                                }
+                                if (rec.upfa_project_title && !initialData.project_name) {
+                                    initialData.project_name = rec.upfa_project_title;
+                                }
+                                if (rec.upfa_interview_date && !initialData.date_of_interview) {
+                                    initialData.date_of_interview = rec.upfa_interview_date;
+                                }
+
+                                // Auto-fill Post Details child table
+                                if (rec.upfa_post_details && Array.isArray(rec.upfa_post_details) && rec.upfa_post_details.length > 0 && (!initialData.post_details || initialData.post_details.length === 0)) {
+                                    initialData.post_details = rec.upfa_post_details.map((row: any) => ({
+                                        upfa_designation: row.upfa_designation || "",
+                                        upfa_vacancies: row.upfa_vacancies || 0,
+                                        upfa_basic_pay: row.upfa_basic_pay || 0,
+                                        upfa_hra_percent: row.upfa_hra_percent || "",
+                                        upfa_medical_required: row.upfa_medical_required || 0,
+                                        upfa_total_amount: row.upfa_total_amount || 0,
+                                        month_days: row.month_days || "",
+                                        upfa_duration_months: row.upfa_duration_months || 0,
+                                        upfa_qualification: row.upfa_qualification || "",
+                                        upfa_justification: row.upfa_justification || "",
+                                    }));
+
+                                    // Auto-fill Total Posts from sum of vacancies
+                                    if (!initialData.total_posts) {
+                                        initialData.total_posts = initialData.post_details.reduce(
+                                            (sum: number, row: any) => sum + (parseInt(row.upfa_vacancies) || 0),
+                                            0,
+                                        );
+                                    }
+                                }
+
+                                // Auto-fill Committee Members (JSON field rendered as table)
+                                if (rec.upfa_selection_committee && Array.isArray(rec.upfa_selection_committee) && rec.upfa_selection_committee.length > 0 && !initialData.committee_members) {
+                                    const committeeData = rec.upfa_selection_committee.map((row: any, idx: number) => ({
+                                        sl_no: idx + 1,
+                                        email: row.webmail_id__email || "",
+                                        name: row.upfa_member_name || "",
+                                        designation: row.upfa_member_designation || "",
+                                    }));
+                                    initialData.committee_members = JSON.stringify(committeeData);
+                                }
+
+                            }
+                        } catch (e) {
+                            console.error(
+                                "Failed to fetch Recruitment Adhoc Contractual data for interview_id:",
+                                interviewIdParam,
+                                e,
+                            );
+                        }
+                    }
+
                     // Client Script Logic: Auto-set webmail_id to current logged-in user
                     if (currentUser && !initialData.webmail_id) {
                         initialData.webmail_id = currentUser;
                     }
 
-                    // Client Script Logic: Fetch piheadmentor_user_id for head field and chairperson fields
+                    // Client Script Logic: Fetch piheadmentor_user_id for head field
                     if (
                         initialData.webmail_id &&
                         !["Administrator", "Guest"].includes(initialData.webmail_id)
@@ -304,23 +361,26 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                 fieldname: "piheadmentor_user_id",
                             });
                             if (headRes?.message?.piheadmentor_user_id) {
-                                const hodEmail = headRes.message.piheadmentor_user_id;
-                                initialData.head = hodEmail;
-                                initialData.chairperson_webmail_id = hodEmail;
-
-                                // Fetch HOD's full name
-                                const headNameRes = await fetchFrappeValue({
-                                    doctype: "User",
-                                    filters: { name: hodEmail },
-                                    fieldname: "full_name",
-                                });
-                                if (headNameRes?.message?.full_name) {
-                                    initialData.chairperson_name = headNameRes.message.full_name;
-                                }
+                                initialData.head = headRes.message.piheadmentor_user_id;
                             }
                         } catch (e) {
-                            console.error("Failed to fetch HOD details for new form", e);
+                            console.error("Failed to fetch head (piheadmentor_user_id)", e);
                         }
+                    }
+
+                    // Always set chairperson_webmail_id from prefill_data.webmail_id for new forms
+                    if (prefill_data?.webmail_id) {
+                        initialData.chairperson_webmail_id = prefill_data.webmail_id;
+                    }
+
+                    // Always derive chairperson_name from link_options (never rely on prefill_data value)
+                    const chairpersonEmail = initialData.chairperson_webmail_id;
+                    if (chairpersonEmail) {
+                        initialData.chairperson_name =
+                            getChairpersonLabel(
+                                chairpersonEmail,
+                                link_options || {},
+                            ) || initialData.chairperson_name || "";
                     }
 
                     // Attempt to prefill project fields from URL param
@@ -380,8 +440,10 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         currentUser,
         isDoRnd,
         fetchFrappeValue,
+        fetchFrappeDoc,
         projectParam,
         projectNoParam,
+        interviewIdParam,
         resolveChairpersonFromDepartment,
     ]);
 
@@ -622,7 +684,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                 name: savedDocName || editDocName, // Include name if updating
             });
 
-            console.log("Saving Recruitment Adhoc Contractual:", preparedData);
+            console.log("Saving Selection Committee Report:", preparedData);
             const response = await saveCall({ data: preparedData });
 
             if (response && response.message?.status === "success") {
@@ -631,7 +693,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
 
                 if (!savedDocName && !editDocName) {
                     setSavedDocName(newDocName);
-                    navigate(`/recruitment-adhoc-contractual/${newDocName}`, {
+                    navigate(`/selection-committee-report/${newDocName}`, {
                         replace: true,
                     });
                 }
@@ -744,7 +806,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     </button>
                     <div>
                         <h1 className="text-2xl font-serif font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
-                            Recruitment Adhoc Contractual
+                            Selection Committee Report
                             {(editDocName || savedDocName) && (
                                 <span
                                     className={cn(
@@ -802,6 +864,51 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                     }
                                     readOnly={deanOverrideReadOnly ? false : isReadOnly}
                                 />
+
+                                {/* Custom Committee Members Table */}
+                                {(() => {
+                                    let committeeRows: any[] = [];
+                                    try {
+                                        if (formData.committee_members) {
+                                            const parsed = typeof formData.committee_members === 'string'
+                                                ? JSON.parse(formData.committee_members)
+                                                : formData.committee_members;
+                                            if (Array.isArray(parsed)) committeeRows = parsed;
+                                        }
+                                    } catch (e) {
+                                        console.error('Failed to parse committee_members', e);
+                                    }
+
+                                    if (committeeRows.length === 0) return null;
+
+                                    return (
+                                        <div className="mt-8">
+                                            <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-4">Committee Members:</h3>
+                                            <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
+                                                <table className="w-full text-sm">
+                                                    <thead>
+                                                        <tr className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-300 dark:border-zinc-700">
+                                                            <th className="px-4 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 w-16">Sl No.</th>
+                                                            <th className="px-4 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300">Email</th>
+                                                            <th className="px-4 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300">Name</th>
+                                                            <th className="px-4 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300">Designation</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {committeeRows.map((row: any, idx: number) => (
+                                                            <tr key={idx} className="border-b border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                                                                <td className="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{row.sl_no || idx + 1}</td>
+                                                                <td className="px-4 py-2.5 text-zinc-800 dark:text-zinc-200">{row.email || ''}</td>
+                                                                <td className="px-4 py-2.5 text-zinc-800 dark:text-zinc-200">{row.name || ''}</td>
+                                                                <td className="px-4 py-2.5 text-zinc-800 dark:text-zinc-200">{row.designation || ''}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             {/* Action Bar */}
@@ -893,4 +1000,4 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     );
 };
 
-export default RecruitmentAdhocContractualForm;
+export default SelectionCommitteeReportForm;

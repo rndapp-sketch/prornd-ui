@@ -5,12 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle, ArrowRightCircle } from 'lucide-react';
 import { getActionButtonStyle } from '@/utils/workflowUtils';
 
+interface BlockedAction {
+    action: string;
+    reason: string;
+}
+
 interface TravelActionButtonsProps {
     docName: string;
     onActionComplete?: () => void;
+    blockedActions?: BlockedAction[];
 }
 
-const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({ docName, onActionComplete }) => {
+const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({ docName, onActionComplete, blockedActions = [] }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [selectedAction, setSelectedAction] = useState<string | null>(null);
 
@@ -82,21 +88,41 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({ docName, onAc
 
     return (
         <div className="flex flex-wrap gap-3">
-            {actions.map((action) => (
-                <Button
-                    key={action}
-                    onClick={() => handleActionClick(action)}
-                    className={getActionButtonStyle(action)}
-                    disabled={actionLoading}
-                >
-                    {actionLoading && selectedAction === action ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                        getActionIcon(action)
-                    )}
-                    {action}
-                </Button>
-            ))}
+            {actions.map((action) => {
+                const blocked = blockedActions.find(
+                    (b) => b.action.toLowerCase() === action.toLowerCase(),
+                );
+                return blocked ? (
+                    <div key={action} className="flex flex-col gap-1">
+                        <Button
+                            key={action}
+                            disabled
+                            className={getActionButtonStyle(action) + " opacity-50 cursor-not-allowed"}
+                            title={blocked.reason}
+                        >
+                            {getActionIcon(action)}
+                            {action}
+                        </Button>
+                        <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                            {blocked.reason}
+                        </p>
+                    </div>
+                ) : (
+                    <Button
+                        key={action}
+                        onClick={() => handleActionClick(action)}
+                        className={getActionButtonStyle(action)}
+                        disabled={actionLoading}
+                    >
+                        {actionLoading && selectedAction === action ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                            getActionIcon(action)
+                        )}
+                        {action}
+                    </Button>
+                );
+            })}
         </div>
     );
 };

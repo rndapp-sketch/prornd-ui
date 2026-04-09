@@ -8,6 +8,7 @@ import {
 } from "@/utils/evalExpression";
 import { ChildTableComponent, type ChildField } from "./ChildTableComponent";
 import { DepartmentName } from "@/components/DepartmentName";
+import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { getFileUrl } from "@/utils/fileUtils";
 
@@ -174,12 +175,13 @@ const MemoizedFormField = memo(
                     {...commonProps}
                     className={cn(
                       commonProps.className || "",
-                      (field.fieldname === "department" ||
+                      ((field.fieldname === "department" ||
                         field.fieldname === "department_for" ||
                         field.fieldname === "upfa_department" ||
                         field.fieldname === "implementation_department" ||
-                        field.fieldname === "applicant_department") &&
-                        value
+                        field.fieldname === "applicant_department" ||
+                        field.fieldname === "account_head") &&
+                        value)
                         ? "text-transparent focus:text-zinc-900 dark:focus:text-zinc-100 disabled:text-transparent dark:disabled:text-transparent bg-transparent relative z-10"
                         : "",
                     )}
@@ -201,6 +203,11 @@ const MemoizedFormField = memo(
                         <DepartmentName name={value} />
                       </div>
                     )}
+                  {field.fieldname === "account_head" && value && (
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-sm text-zinc-900 dark:text-zinc-100 truncate max-w-[calc(100%-2.5rem)] pointer-events-none z-20">
+                      <BudgetHeadName id={value} />
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -215,12 +222,13 @@ const MemoizedFormField = memo(
                   {...commonProps}
                   className={cn(
                     inputClasses,
-                    (field.fieldname === "department" ||
+                    ((field.fieldname === "department" ||
                       field.fieldname === "department_for" ||
                       field.fieldname === "upfa_department" ||
                       field.fieldname === "implementation_department" ||
-                      field.fieldname === "applicant_department") &&
-                      value
+                      field.fieldname === "applicant_department" ||
+                      field.fieldname === "account_head") &&
+                      value)
                       ? "text-transparent focus:text-zinc-900 dark:focus:text-zinc-100 placeholder:text-transparent focus:placeholder:text-zinc-400 disabled:text-transparent dark:disabled:text-transparent relative z-10"
                       : "",
                     "pr-10",
@@ -230,7 +238,11 @@ const MemoizedFormField = memo(
                   }
                 />
 
-                {(field.fieldname === "department" ||
+                {field.fieldname === "account_head" && value ? (
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-sm text-zinc-900 dark:text-zinc-100 truncate max-w-[calc(100%-2.5rem)] pointer-events-none z-20">
+                    <BudgetHeadName id={value} />
+                  </div>
+                ) : (field.fieldname === "department" ||
                   field.fieldname === "department_for" ||
                   field.fieldname === "upfa_department" ||
                   field.fieldname === "implementation_department" ||

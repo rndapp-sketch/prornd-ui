@@ -390,6 +390,9 @@ const TaskRegistryDetails: React.FC = () => {
         if (doctype === 'Disbursal of Consultancy' && name) {
             navigate(`/disbursal-of-consultancy/${name}`, { replace: true });
         }
+        if (doctype === 'Travel' && name) {
+            navigate(`/travel/${name}`, { replace: true });
+        }
     }, [doctype, name]);
 
     useEffect(() => {

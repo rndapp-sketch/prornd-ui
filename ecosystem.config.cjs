@@ -13,23 +13,3 @@ module.exports = {
     }
   ]
 };
-
-
-
-
-
-// module.exports = {
-//   apps: [
-//     {
-//       name: "prornd-ui",
-//       script: "npm",
-//       args: "run dev",
-//       cwd: "/home/prornd/Projects/prornd-ui-05-04-2026/prornd-ui",
-//       interpreter: "none",
-//       env: {
-//         NODE_ENV: "development",
-//         PORT: 8081
-//       }
-//     }
-//   ]
-// };
