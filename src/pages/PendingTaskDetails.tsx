@@ -1227,6 +1227,12 @@ const PendingTaskDetails: React.FC = () => {
         if (doctype === "Disbursal of Consultancy" && name) {
             navigate(`/disbursal-of-consultancy/${name}`, { replace: true });
         }
+        if (doctype === "Travel" && name) {
+            navigate(`/travel/${name}`, { replace: true });
+        }
+        if (doctype === "Loan Request" && name) {
+            navigate(`/loan-request/${name}`, { replace: true });
+        }
     }, [doctype, name]);
 
     // Additional state for Travel Dynamic Form
@@ -2229,6 +2235,8 @@ const PendingTaskDetails: React.FC = () => {
                                         isStaff={true}
                                         docName={name}
                                         doctype={doctype}
+                                        parentAppId={data?.ta_da_travel_application || undefined}
+                                        billAmount={data?.net_claimed ?? data?.ta_da_net_claimed ?? undefined}
                                     />
                                 )}
                             {/* Setup for Direct Purchase */}

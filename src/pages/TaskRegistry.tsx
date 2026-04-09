@@ -802,6 +802,8 @@ const TaskRegistry: React.FC = () => {
                                                     navigate(`/reimbursement/${task.id}`);
                                                 } else if (task.doctype === "Disbursal of Consultancy") {
                                                     navigate(`/disbursal-of-consultancy/${task.id}`);
+                                                } else if (task.doctype === "Travel") {
+                                                    navigate(`/travel/${task.id}`);
                                                 } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
                                                     navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
                                                 } else {
@@ -844,6 +846,8 @@ const TaskRegistry: React.FC = () => {
                                                             navigate(`/reimbursement/${task.id}`);
                                                         } else if (task.doctype === "Disbursal of Consultancy") {
                                                             navigate(`/disbursal-of-consultancy/${task.id}`);
+                                                        } else if (task.doctype === "Travel") {
+                                                            navigate(`/travel/${task.id}`);
                                                         } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
                                                             navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
                                                         } else {

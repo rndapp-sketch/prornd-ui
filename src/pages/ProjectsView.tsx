@@ -1110,22 +1110,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     return result;
   };
 
-  // --- Fetch all Funding Agencies for name lookup ---
-  const { data: allFundingAgencies } = useFrappeGetDocList("fundingagency_", {
-    fields: ["name", "funding_agency_name"],
-    limit: 0,
-  } as any);
-
-  const fundingAgencyNameMap = React.useMemo(() => {
-    const map = new Map<string, string>();
-    (allFundingAgencies ?? []).forEach((agency: any) => {
-      if (agency.name && agency.funding_agency_name) {
-        map.set(agency.name, agency.funding_agency_name);
-      }
-    });
-    return map;
-  }, [allFundingAgencies]);
-
   // --- Fetch Project Proposals ---
   const { data: projectProposals, isLoading: proposalsLoading } =
     useFrappeGetDocList("Project Registration", {
@@ -1142,6 +1126,22 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         : [["name", "=", "NON_EXISTENT_DOC"]],
       limit: 100,
     });
+
+  // --- Fetch all Funding Agencies for name lookup ---
+  const { data: allFundingAgencies } = useFrappeGetDocList("fundingagency_", {
+    fields: ["name", "funding_agency_name"],
+    limit: 0,
+  } as any);
+
+  const fundingAgencyNameMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    (allFundingAgencies ?? []).forEach((agency: any) => {
+      if (agency.name && agency.funding_agency_name) {
+        map.set(agency.name, agency.funding_agency_name);
+      }
+    });
+    return map;
+  }, [allFundingAgencies]);
 
   const allPendingTasks: Record<string, Task[]> = React.useMemo(() => {
     const proposals: Task[] = (projectProposals || []).map((p: any) => ({

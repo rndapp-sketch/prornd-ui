@@ -1976,6 +1976,7 @@ const ProjectRegistration: React.FC = () => {
                 0,
             );
 
+
             const isConsultancy = formData.project_type === "Consultancy";
 
             const savedBodyHtml = isConsultancy

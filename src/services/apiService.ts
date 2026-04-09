@@ -44,6 +44,7 @@ export const tadaAPI = {
     submit: `${API_BASE}.ta_da_settlement.ta_da_settlement.submit_ta_da_settlement`,
     getWorkflowActions: `${API_BASE}.ta_da_settlement.ta_da_settlement.get_ta_da_settlement_workflow_actions`,
     performAction: `${API_BASE}.ta_da_settlement.ta_da_settlement.perform_ta_da_settlement_action`,
+    getCommitDetails: `${API_BASE}.ta_da_settlement.ta_da_settlement.get_ta_da_settlement_commit_details`,
 };
 
 // Project Staff Resignation API endpoints
@@ -112,6 +113,16 @@ export const recruitmentAdhocContractualAPI = {
     submit: `${API_BASE}.recruitment_adhoc_contractual.recruitment_adhoc_contractual.submit_recruitment_adhoc_contractual`,
 };
 
+// Selection Committee Report API endpoints
+export const selectionCommitteeReportAPI = {
+    getFields: `${API_BASE}.selection_committee_report.selection_committee_report.get_selection_committee_report_fields`,
+    save: `${API_BASE}.selection_committee_report.selection_committee_report.save_selection_committee_report_data`,
+    submit: `${API_BASE}.selection_committee_report.selection_committee_report.submit_selection_committee_report`,
+    getWorkflowActions: `${API_BASE}.selection_committee_report.selection_committee_report.get_selection_committee_report_workflow_actions`,
+    performAction: `${API_BASE}.selection_committee_report.selection_committee_report.perform_selection_committee_report_action`,
+    getByWebmail: `${API_BASE}.selection_committee_report.selection_committee_report.get_selection_committee_report_by_webmail`,
+};
+
 // Indent Cum Sanction Sheet API endpoints
 export const icssAPI = {
     getIndentTypes: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_indent_types`,
@@ -176,6 +187,15 @@ submit: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.submit_disb
 export const universalUserAPI = {
     getFields: `${API_BASE}.universal_user__.universal_user__.get_universal_user___fields`,
     save: `${API_BASE}.universal_user__.universal_user__.save_universal_user___data`,
+};
+
+// Loan Request API endpoints
+export const loanRequestAPI = {
+    getFields: `${API_BASE}.loan_request.loan_request.get_loan_request_fields`,
+    save: `${API_BASE}.loan_request.loan_request.save_loan_request`,
+    submit: `${API_BASE}.loan_request.loan_request.submit_loan_request`,
+    getWorkflowActions: `${API_BASE}.loan_request.loan_request.get_loan_request_workflow_actions`,
+    performAction: `${API_BASE}.loan_request.loan_request.perform_loan_request_action`,
 };
 
 // Common utility to get user details

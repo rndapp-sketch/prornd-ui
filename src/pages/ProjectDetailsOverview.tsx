@@ -3006,8 +3006,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     <PlusIcon className="h-3.5 w-3.5" /> Add Funds
                   </FrappeButton>
                   {/* Only show Add Sanction button if no sanction exists */}
-                  {(!sanctionData?.message ||
-                    sanctionData.message.length === 0) && (
+                  {normalizeResponse(sanctionData).length === 0 && (
                       <FrappeButton
                         onClick={handleAddSanctionDetails}
                         variant="outline"
@@ -3049,9 +3048,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     <tab.icon className="h-3.5 w-3.5" /> {tab.label}
                     {tab.id === "sanction-details" &&
                       (() => {
-                        const draftSanctions = (
-                          sanctionData?.message || []
-                        ).filter(
+                        const draftSanctions = normalizeResponse(sanctionData).filter(
                           (s: any) =>
                             (s.sanction_workflow_status || "").toLowerCase() ===
                             "draft",
@@ -3671,7 +3668,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                 </div>
               )}
 
-              {activeTab === "sanction-details" && (
+              {activeTab === "sanction-details" && (() => {
+                const sanctions = normalizeResponse(sanctionData);
+                return (
                 <div className="space-y-5">
                   {/* ... existing sanction details content ... */}
                   {sanctionIsLoading && <p>Loading Sanction Details...</p>}
@@ -3681,10 +3680,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     </p>
                   )}
 
-                  {sanctionData?.message && sanctionData.message.length > 0 ? (
+                  {sanctions.length > 0 ? (
                     <>
                       {/* Sanction Selector - only show if more than 1 sanction */}
-                      {sanctionData.message.length > 1 && (
+                      {sanctions.length > 1 && (
                         <div className="flex items-center gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
                           <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                             Select Sanction:
@@ -3696,7 +3695,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             }
                             className="flex-1 max-w-md px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                           >
-                            {sanctionData.message.map(
+                            {sanctions.map(
                               (sanction: any, index: number) => (
                                 <option key={sanction.name} value={index}>
                                   {sanction.name} -{" "}
@@ -3720,7 +3719,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       {/* Selected Sanction Details */}
                       {(() => {
                         const sanction =
-                          sanctionData.message[selectedSanctionIndex];
+                          sanctions[selectedSanctionIndex];
                         if (!sanction) return null;
 
                         const budgetColumnsAll = [
@@ -3989,7 +3988,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         <FundDetails
                           project_title={projectName || ""}
                           sanction_ref_no={
-                            sanctionData.message[selectedSanctionIndex]?.name
+                            sanctions[selectedSanctionIndex]?.name
                           }
                         />
                       </div>
@@ -4006,7 +4005,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     </div>
                   )}
                 </div>
-              )}
+              );
+              })()}
 
               {/* Disbursal Tab Removed */}
 

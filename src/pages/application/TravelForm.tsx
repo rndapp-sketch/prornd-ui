@@ -218,6 +218,7 @@ const TravelForm: React.FC = () => {
     const { call: saveForm, error: saveError } = useFrappePostCall(travelAPI.save);
     const { call: submitForm, error: submitError } = useFrappePostCall(travelAPI.submit);
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
+    const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
 
     const { call: fetchUserDetailsByEmail } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
 
@@ -257,7 +258,25 @@ const TravelForm: React.FC = () => {
             if (formDataResult?.message && !dataLoaded) {
                 const { fields: apiFields, prefill_data, link_options } = formDataResult.message;
                 setFields(apiFields || []);
-                setLinkOptions(link_options || {});
+
+                // Fetch Budget Heads and inject into linkOptions for account_head
+                let baseLinkOptions = { ...(link_options || {}) };
+                try {
+                    const headsRes = await fetchAccountHeads({
+                        doctype: 'Budget Head',
+                        fields: ['name', 'budget_head'],
+                        limit_page_length: 0,
+                    });
+                    if (headsRes?.message) {
+                        baseLinkOptions['account_head'] = headsRes.message.map((h: any) => ({
+                            value: h.name,
+                            label: h.budget_head || h.name,
+                        }));
+                    }
+                } catch (err) {
+                    console.error('Error fetching account heads:', err);
+                }
+                setLinkOptions(baseLinkOptions);
 
                 let initialData = { ...prefill_data };
 
@@ -492,15 +511,17 @@ const TravelForm: React.FC = () => {
 
         setIsSubmitting(true);
         try {
-            // 1. Save first
+            // 1. Save first — reuse draft docname to avoid creating a duplicate
+            const effectiveName = savedDocName || editDocName;
             const data = await prepareFormDataForApi(formData);
+            if (effectiveName) data.name = effectiveName;
             const saveRes = await saveForm({ doc_data: JSON.stringify(data) });
 
             if (saveRes?.message?.status !== 'success') {
                 throw new Error(saveRes?.message?.message || "Save failed during submission");
             }
 
-            const docname = saveRes.message.docname;
+            const docname = saveRes.message.docname || effectiveName;
 
             // 2. Submit
             const submitRes = await submitForm({ docname });
@@ -542,6 +563,16 @@ const TravelForm: React.FC = () => {
             // Override specific fields to be Radio buttons for better UX
             if (['nature_of_travel', 'travel_financial_assistance', 'travel_mode_of_travel'].includes(f.fieldname)) {
                 f.fieldtype = 'Radio';
+            }
+
+            // Hide old checkbox-based account head fields — replaced by account_head dropdown
+            if (['travel_head', 'contingency_head', 'other_acc_head', 'specify_other_acc_head'].includes(f.fieldname)) {
+                f.hidden = 1;
+            }
+
+            // Override account_head to Link so DynamicFormRenderer renders it as a dropdown
+            if (f.fieldname === 'account_head') {
+                f.fieldtype = 'Link';
             }
 
             return f;
