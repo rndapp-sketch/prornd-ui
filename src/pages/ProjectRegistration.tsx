@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, memo, useMemo } from "react";
+import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from "react";
 import { AppSidebar } from "../components/RndSidebar";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import {
     useFrappePostCall,
@@ -21,6 +21,7 @@ import {
 import {
     EndorsementCertificate,
     getEndorsementHtml,
+    getEndorsementDraft,
 } from "../components/EndorsementCertificate";
 import { commonAPI } from "@/services/apiService";
 import { AutocompleteEmail } from "../components/AutocompleteEmail";
@@ -197,6 +198,7 @@ const MemoizedFormField = memo(
                                 searchByLabel
                                 showAllOnFocus
                                 displayOnlyLabel
+                                footerMessage="Not in the list? Select Other Funding Agency"
                             />
                         );
                     }
@@ -447,9 +449,9 @@ const MemoizedGenericTable = memo(
                                                 const value =
                                                     col.key === "salary"
                                                         ? e.target.value.replace(
-                                                              /[^0-9]/g,
-                                                              "",
-                                                          )
+                                                            /[^0-9]/g,
+                                                            "",
+                                                        )
                                                         : e.target.value;
                                                 onRowChange(
                                                     tableName,
@@ -461,9 +463,9 @@ const MemoizedGenericTable = memo(
                                             onWheel={
                                                 col.type === "number"
                                                     ? (e) =>
-                                                          (
-                                                              e.target as HTMLInputElement
-                                                          ).blur()
+                                                        (
+                                                            e.target as HTMLInputElement
+                                                        ).blur()
                                                     : undefined
                                             }
                                         />
@@ -512,6 +514,7 @@ const MemoizedCollaboratorTable = memo(
             [`${prefix}_name`]: "",
             [`${prefix}_email`]: "",
             [`${prefix}_designation`]: "",
+            [`${prefix}_department`]: "",
             [`${prefix}_address`]: "",
             [`${prefix}_contact`]: "",
         };
@@ -527,9 +530,10 @@ const MemoizedCollaboratorTable = memo(
                                 {[
                                     "Name*",
                                     "Email ID*",
-                                    "Designation*",
-                                    "Address*",
-                                    "Contact*",
+                                    "Designation",
+                                    "Department",
+                                    "Institute / Address",
+                                    "Contact",
                                     "Actions",
                                 ].map((h) => (
                                     <th
@@ -578,6 +582,17 @@ const MemoizedCollaboratorTable = memo(
                                             className={`${inputClasses} !h-8 bg-zinc-50/50 !border-zinc-100 text-zinc-600 font-medium text-xs`}
                                             value={
                                                 row[`${prefix}_designation`] ||
+                                                ""
+                                            }
+                                        />
+                                    </td>
+                                    <td className="px-4 py-2.5">
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            className={`${inputClasses} !h-8 bg-zinc-50/50 !border-zinc-100 text-zinc-600 font-medium text-xs`}
+                                            value={
+                                                row[`${prefix}_department`] ||
                                                 ""
                                             }
                                         />
@@ -862,18 +877,36 @@ const ProjectRegistration: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
+    const [isFetchingPiDetails, setIsFetchingPiDetails] = useState(false);
     const location = useLocation();
+    const navigate = useNavigate();
+    const { docname: pathDocname, tempId: pathTempId } = useParams<{ docname?: string; tempId?: string }>();
     const [docname, setDocname] = useState<string | null>(() => {
+        if (pathDocname) return decodeURIComponent(pathDocname);
         const params = new URLSearchParams(location.search);
         return params.get("docname");
     });
+
+    // If landed on bare /project-registration, redirect to /project-registration/new/<tempId>
+    useEffect(() => {
+        if (!pathDocname && !pathTempId) {
+            const newId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            navigate(`/project-registration/new/${newId}`, { replace: true });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Stable IndexedDB key: tempId from URL for new forms, real docname for existing
+    const endorsementSessionId = pathTempId || docname || "";
+
     const isApprovedEndorsement = useMemo(() => {
         const params = new URLSearchParams(location.search);
         return params.get("isApprovedEndorsement") === "true";
     }, [location.search]);
     const [budgetYears, setBudgetYears] = useState([1]);
     const [showEndorsementModal, setShowEndorsementModal] = useState(false);
-    const [endorsementHtml, setEndorsementHtml] = useState<string>("");
+    const endorsementCertRef = React.useRef<HTMLDivElement>(null);
+    const [showSubmitInsteadModal, setShowSubmitInsteadModal] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     // Edit mode: new forms start editable; existing docs start read-only
     const [isEditMode, setIsEditMode] = useState<boolean>(() => {
@@ -900,17 +933,37 @@ const ProjectRegistration: React.FC = () => {
         const hasPiEmployeeId = !!formData.pi_employee_id?.trim();
         const hasPiDepartment = !!formData.applicant_department;
 
+        const hasFundingAgency = !!formData.funding_agen;
+
         return (
             hasProjectTitle &&
             hasProjectType &&
             hasDepartment &&
             hasDuration &&
+            hasFundingAgency &&
             hasPiWebmail &&
             hasPiName &&
             hasPiDesignation &&
             hasPiEmployeeId &&
             hasPiDepartment
         );
+    }, [formData]);
+
+    // Build list of missing endorsement fields for user feedback
+    const missingEndorsementFields = useMemo(() => {
+        const missing: string[] = [];
+        if (!formData.project_title?.trim()) missing.push("Project Title");
+        if (!formData.project_type) missing.push("Project Type");
+        if (!formData.implementation_department) missing.push("Department/Centre");
+        const hasDuration =
+            formData.project_type === "Consultancy"
+                ? !!formData.project_duration_days
+                : !!formData.project_duration_months;
+        if (!hasDuration) missing.push("Duration of the Project");
+        if (!formData.funding_agen) missing.push("Funding Agency");
+        if (!formData.pi_webmail || !formData.principal_investigator_name?.trim())
+            missing.push("Principal Investigator (PI)");
+        return missing;
     }, [formData]);
 
     const {
@@ -951,15 +1004,33 @@ const ProjectRegistration: React.FC = () => {
     const { call: fetchPiDetails } = useFrappePostCall(
         commonAPI.getUserDetailsByEmail,
     );
-    const { call: fetchAgencyDetails, result: agencyDetailsResult } =
-        useFrappePostCall(
-            "rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_funding_agency_details",
-        );
-    const { data: allFundingAgencies } = useFrappeGetDocList("Funding Agency", {
-        fields: ["name", "funding_agency_name"],
+    const { data: allFundingAgencies } = useFrappeGetDocList("fundingagency_", {
+        fields: [
+            "name",
+            "funding_agency_name",
+            "funding_agency_initials",
+            "funding_agency_type_1",
+            "origin_of_funding_agency",
+            "ministry_funding_agency",
+            "fundingagency_address",
+            "fundingagency_state",
+            "fundingagency_postalcode",
+            "fundingagency_country",
+            "funding_agency_email",
+            "funding_agency_contact_no",
+            "gstin_of_funding_agency",
+            "funding_agency_overhead",
+            "funding_agency_id",
+        ],
         limit: 0,
         revalidateOnFocus: false,
     } as any);
+
+    // Keep a ref to allFundingAgencies so callbacks always see the latest data
+    const allFundingAgenciesRef = useRef(allFundingAgencies);
+    useEffect(() => {
+        allFundingAgenciesRef.current = allFundingAgencies;
+    }, [allFundingAgencies]);
     const { call: fetchBudgetHeads, result: budgetHeadsResult } =
         useFrappePostCall(
             "rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head",
@@ -1126,12 +1197,12 @@ const ProjectRegistration: React.FC = () => {
                 durationMonths <= 12
                     ? 1
                     : durationMonths <= 24
-                      ? 2
-                      : durationMonths <= 36
-                        ? 3
-                        : durationMonths <= 48
-                          ? 4
-                          : 5;
+                        ? 2
+                        : durationMonths <= 36
+                            ? 3
+                            : durationMonths <= 48
+                                ? 4
+                                : 5;
             // Update fields visibility state
             setFields((prevFields) =>
                 prevFields.map((field) => {
@@ -1208,6 +1279,7 @@ const ProjectRegistration: React.FC = () => {
             // 2. Run Side Effects based on fieldname
             if (fieldname === "pi_webmail") {
                 if (value) {
+                    setIsFetchingPiDetails(true);
                     try {
                         const result = await fetchPiDetails({
                             user_email: value,
@@ -1264,6 +1336,8 @@ const ProjectRegistration: React.FC = () => {
                         }
                     } catch (err) {
                         console.error("Failed to fetch main PI details:", err);
+                    } finally {
+                        setIsFetchingPiDetails(false);
                     }
                 } else {
                     updatedData = {
@@ -1278,12 +1352,33 @@ const ProjectRegistration: React.FC = () => {
             }
 
             if (fieldname === "funding_agen") {
-                if (value) {
-                    fetchAgencyDetails({ agency_name: value });
-                } else {
-                    // Clear agency details if cleared
+                const agencies = allFundingAgenciesRef.current;
+                if (value && agencies?.length) {
+                    // Auto-fill from the selected Funding Agency immediately
+                    const agency = (agencies as any[]).find(
+                        (a: any) =>
+                            String(a.name) === String(value) ||
+                            a.funding_agency_name === value,
+                    );
+                    if (agency) {
+                        updatedData = {
+                            ...updatedData,
+                            fund_agen_initials: agency.funding_agency_initials || "",
+                            funding_agency_type: agency.funding_agency_type_1 || "",
+                            origin_of_funding_agency: agency.origin_of_funding_agency || "",
+                            address_country: agency.fundingagency_country || "",
+                            address_state: agency.fundingagency_state || "",
+                            address_street_village_locality: agency.fundingagency_address || "",
+                            address_postal_code: agency.fundingagency_postalcode || "",
+                            gstin_number: agency.gstin_of_funding_agency || "",
+                            funding_agency_id: agency.funding_agency_id || "",
+                        };
+                    }
+                } else if (!value) {
+                    // Funding agency cleared — reset all dependent fields
                     updatedData = {
                         ...updatedData,
+                        fund_agen_initials: "",
                         funding_agency_type: "",
                         origin_of_funding_agency: "",
                         funding_agency_ministry: "",
@@ -1292,6 +1387,8 @@ const ProjectRegistration: React.FC = () => {
                         address_state: "",
                         address_postal_code: "",
                         address_country: "",
+                        gstin_number: "",
+                        funding_agency_id: "",
                     };
                 }
             }
@@ -1352,8 +1449,8 @@ const ProjectRegistration: React.FC = () => {
         [
             formData,
             fetchPiDetails,
-            fetchAgencyDetails,
             linkOptions,
+
             calculateConsultancy,
             updateApproverAndHead,
             calculateEndDate,
@@ -1451,6 +1548,7 @@ const ProjectRegistration: React.FC = () => {
             const prefix =
                 tableName === "co_investigator_table" ? "copi" : "pi";
             let designation = user?.designation || "";
+            let department = "";
             let address = "";
             let contact = "";
             if (selectedUserEmail) {
@@ -1465,12 +1563,14 @@ const ProjectRegistration: React.FC = () => {
                             details?.designation ||
                             "";
                     }
+                    department =
+                        details?.department_name ||
+                        details?.applicant_department ||
+                        "";
                     address =
                         details?.inst_name_address ||
                         details?.copi_address ||
                         details?.address ||
-                        details?.department_name ||
-                        details?.applicant_department ||
                         "";
                     contact =
                         details?.mobile_no ||
@@ -1489,6 +1589,7 @@ const ProjectRegistration: React.FC = () => {
                     [`${prefix}_name`]: user?.label || "",
                     [`${prefix}_email`]: user?.value || "",
                     [`${prefix}_designation`]: designation,
+                    [`${prefix}_department`]: department,
                     [`${prefix}_address`]: address,
                     [`${prefix}_contact`]: contact,
                 };
@@ -1567,7 +1668,7 @@ const ProjectRegistration: React.FC = () => {
     const ALWAYS_HIDDEN_FIELDS = ["department_head", "head_approver"];
 
     const renderField = useCallback(
-        (fieldname: string) => {
+        (fieldname: string, labelOverride?: string) => {
             const field = fields.find((f) => f.fieldname === fieldname);
             if (!field) {
                 if (!ALWAYS_HIDDEN_FIELDS.includes(fieldname)) {
@@ -1616,10 +1717,16 @@ const ProjectRegistration: React.FC = () => {
             // If form is in view mode, all fields are read-only
             if (!isEditMode) isReadOnly = true;
 
+            // Fields auto-filled from selected Funding Agency are always read-only
+            if (AGENCY_READONLY_FIELDS.has(fieldname) && formData.funding_agen) {
+                isReadOnly = true;
+            }
+
             const effectiveField = {
                 ...field,
                 mandatory: isMandatory,
                 read_only: isReadOnly,
+                ...(labelOverride ? { label: labelOverride } : {}),
             };
             const options =
                 linkOptions[field.options as string] || linkOptions[fieldname];
@@ -1719,18 +1826,14 @@ const ProjectRegistration: React.FC = () => {
             if (isEmpty) errors.push(field.label || field.fieldname);
         }
 
-        // --- Budget breakup: every row must have a budget head ---
+        // --- Budget breakup: validate rows only if any rows exist ---
         const budgetRows: any[] = formData.proposed_budget_breakup || [];
-        if (budgetRows.length === 0) {
-            errors.push("Budget Breakup (at least one row required)");
-        } else {
-            budgetRows.forEach((row, i) => {
-                if (!row.head)
-                    errors.push(
-                        `Budget Breakup Row ${i + 1}: Budget Head is required`,
-                    );
-            });
-        }
+        budgetRows.forEach((row, i) => {
+            if (!row.head)
+                errors.push(
+                    `Budget Breakup Row ${i + 1}: Budget Head is required`,
+                );
+        });
 
         // --- Additional PI table (only when toggle is "Yes") ---
         if (formData.is_additional_pi === "Yes") {
@@ -1763,7 +1866,7 @@ const ProjectRegistration: React.FC = () => {
         // --- Equipment details (only when checkbox is on) ---
         const equipOn =
             formData.equipment_checkbox === true ||
-            formData.equipment_checkbox === 0 ||
+            formData.equipment_checkbox === 1 ||
             formData.equipment_checkbox === "1";
         if (equipOn) {
             const rows: any[] = formData.proposed_equipment_details || [];
@@ -1819,6 +1922,27 @@ const ProjectRegistration: React.FC = () => {
         }
     };
 
+    const savePageHtmlToIndexedDB = (key: string, html: string): Promise<void> => {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open("ProjectDraftDB", 1);
+            request.onupgradeneeded = (event) => {
+                const db = (event.target as IDBOpenDBRequest).result;
+                if (!db.objectStoreNames.contains("pageHtml")) {
+                    db.createObjectStore("pageHtml", { keyPath: "docname" });
+                }
+            };
+            request.onsuccess = (event) => {
+                const db = (event.target as IDBOpenDBRequest).result;
+                const tx = db.transaction("pageHtml", "readwrite");
+                const store = tx.objectStore("pageHtml");
+                store.put({ docname: key, html, savedAt: new Date().toISOString() });
+                tx.oncomplete = () => { db.close(); resolve(); };
+                tx.onerror = () => { db.close(); reject(tx.error); };
+            };
+            request.onerror = () => reject(request.error);
+        });
+    };
+
     const handleSaveDraft = async () => {
         console.log(
             ">>> handleSaveDraft called! isSavingDraft:",
@@ -1841,7 +1965,7 @@ const ProjectRegistration: React.FC = () => {
         try {
             const { doc_data, files } = await prepareDataWithFiles();
 
-            // Generate endorsement HTML content
+            // Generate endorsement HTML content (same as save_endorsement_draft)
             const budgetTotal = (formData.proposed_budget_breakup || []).reduce(
                 (acc: number, row: any) =>
                     acc +
@@ -1852,8 +1976,19 @@ const ProjectRegistration: React.FC = () => {
                 0,
             );
 
-            const endorsementHtml = getEndorsementHtml({
-                proposalId: docname || "IITG/RND/NEW",
+            const isConsultancy = formData.project_type === "Consultancy";
+
+            const savedBodyHtml = isConsultancy
+                ? null
+                : await getEndorsementDraft(
+                    endorsementSessionId,
+                    currentUser || "guest",
+                );
+
+            // Endorsement is optional for now — allow saving even if endorsement body is empty
+
+            const endorsementHtml = (isConsultancy || !savedBodyHtml || savedBodyHtml.trim() === "") ? null : getEndorsementHtml({
+                proposalId: docname || "IITG-",
                 piName: formData.principal_investigator_name,
                 piDesignation: formData.designation,
                 piDepartment: formData.applicant_department,
@@ -1869,6 +2004,7 @@ const ProjectRegistration: React.FC = () => {
                         ? `${formData.project_duration_days} days`
                         : `${formData.project_duration_months} months`,
                 totalCost: String(budgetTotal),
+                bodyHtml: savedBodyHtml || undefined,
             });
 
             // Debug logging
@@ -1896,10 +2032,34 @@ const ProjectRegistration: React.FC = () => {
             );
 
             await saveDraft(payload);
+
+            // Save full page HTML to IndexedDB
+            await savePageHtmlToIndexedDB(
+                docname || "new",
+                document.documentElement.outerHTML,
+            );
         } catch (err) {
             console.error("Save draft error:", err);
             alert("File processing error.");
             setIsSavingDraft(false);
+        }
+    };
+
+    const handleConfirmSubmitInstead = async () => {
+        setShowSubmitInsteadModal(false);
+        if (isSubmitting || isSavingDraft) return;
+        const errors = validateMandatoryFields();
+        if (errors.length > 0) {
+            setValidationErrors(errors);
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            const { doc_data, files } = await prepareDataWithFiles();
+            await submitForm({ doc: doc_data, files });
+        } catch (err) {
+            alert("File processing error.");
+            setIsSubmitting(false);
         }
     };
 
@@ -1936,6 +2096,17 @@ const ProjectRegistration: React.FC = () => {
                 }
             });
 
+            // Make Equipment and Manpower default unselect as requested
+            initialFormData.equipment_checkbox = 0;
+            initialFormData.manpower_checkbox = 0;
+
+            // Explicitly unset select defaults to prevent auto-expanding sections
+            if (!initialFormData.name) {
+                initialFormData.needs_committee_clearance = "";
+                initialFormData.is_additional_pi = "";
+                initialFormData.has_co_pi = "";
+            }
+
             // Merge: prefill_data provides defaults, but any data already set by
             // existingDoc useEffect takes priority (prev wins over initialFormData)
             setFormData((prev) => ({ ...initialFormData, ...prev }));
@@ -1970,15 +2141,57 @@ const ProjectRegistration: React.FC = () => {
                 value: a.name,
                 label: a.funding_agency_name || a.name,
             }));
-            // Store under both the doctype key ("Funding Agency") and the fieldname key
+            // Store under both the doctype key ("fundingagency_") and the fieldname key
             // so the renderField lookup (linkOptions[field.options] || linkOptions[fieldname]) finds it
             setLinkOptions((prev) => ({
                 ...prev,
-                "Funding Agency": agencyOptions,
+                "fundingagency_": agencyOptions,
                 funding_agen: agencyOptions,
             }));
         }
     }, [allFundingAgencies]);
+
+    // Fields that are auto-filled from the selected Funding Agency (kept read-only)
+    const AGENCY_READONLY_FIELDS = new Set([
+        "fund_agen_initials",
+        "funding_agency_type",
+        "origin_of_funding_agency",
+        "address_country",
+        "address_state",
+        "address_street_village_locality",
+        "address_postal_code",
+        "gstin_number",
+        "funding_agency_id",
+    ]);
+
+    // Auto-fill agency fields whenever funding_agen or the agencies list changes
+    // (fallback for existing docs that load with a pre-set agency)
+    useEffect(() => {
+        const agencyId = formData.funding_agen;
+        if (!agencyId || !allFundingAgencies?.length) return;
+
+        const agency = (allFundingAgencies as any[]).find(
+            (a: any) =>
+                String(a.name) === String(agencyId) ||
+                a.funding_agency_name === agencyId,
+        );
+
+        if (!agency) return;
+
+        setFormData((prev) => ({
+            ...prev,
+            fund_agen_initials: agency.funding_agency_initials || "",
+            funding_agency_type: agency.funding_agency_type_1 || "",
+            origin_of_funding_agency: agency.origin_of_funding_agency || "",
+            address_country: agency.fundingagency_country || "",
+            address_state: agency.fundingagency_state || "",
+            address_street_village_locality: agency.fundingagency_address || "",
+            address_postal_code: agency.fundingagency_postalcode || "",
+            gstin_number: agency.gstin_of_funding_agency || "",
+            funding_agency_id: agency.funding_agency_id || "",
+        }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formData.funding_agen, allFundingAgencies]);
 
     // --- SIDE EFFECTS for dependent API calls ---
     useEffect(() => {
@@ -2076,12 +2289,12 @@ const ProjectRegistration: React.FC = () => {
                     ? durationMonthsToParse <= 12
                         ? 1
                         : durationMonthsToParse <= 24
-                          ? 2
-                          : durationMonthsToParse <= 36
-                            ? 3
-                            : durationMonthsToParse <= 48
-                              ? 4
-                              : 5
+                            ? 2
+                            : durationMonthsToParse <= 36
+                                ? 3
+                                : durationMonthsToParse <= 48
+                                    ? 4
+                                    : 5
                     : 0;
 
             // Fallback: derive from how many year columns have data in the rows
@@ -2127,35 +2340,21 @@ const ProjectRegistration: React.FC = () => {
         }
     }, [existingDoc]);
 
-    useEffect(() => {
-        if (agencyDetailsResult?.message?.all) {
-            const d = agencyDetailsResult.message.all;
-            setFormData((prev) => ({
-                ...prev,
-                funding_agency_type: d.funding_agency_type_1,
-                origin_of_funding_agency: d.origin_of_funding_agency,
-                funding_agency_ministry: d.ministry_funding_agency,
-                funding_agency_schemes: d.funding_agency_schemes,
-                address_street_village_locality: d.fundingagency_address,
-                address_state: d.fundingagency_state,
-                address_postal_code: d.fundingagency_postalcode,
-                address_country: d.fundingagency_country,
-            }));
-        }
-    }, [agencyDetailsResult]);
 
     useEffect(() => {
         if (submitResult) {
-            alert(`Project registered: ${submitResult.message.docname}`);
-            setDocname(submitResult.message.docname);
+            const savedDocname = submitResult.message.docname;
+            setDocname(savedDocname);
+            navigate(`/project-details/${savedDocname}`);
         }
         if (submitError) alert(`Submission error: ${submitError.message}`);
         setIsSubmitting(false);
     }, [submitResult, submitError]);
     useEffect(() => {
         if (saveResult) {
-            alert(`Draft saved: ${saveResult.message.docname}`);
-            setDocname(saveResult.message.docname);
+            const savedDocname = saveResult.message.docname;
+            setDocname(savedDocname);
+            navigate(`/project-details/${savedDocname}`);
         }
         if (saveError) alert(`Draft save error: ${saveError.message}`);
         setIsSavingDraft(false);
@@ -2172,12 +2371,51 @@ const ProjectRegistration: React.FC = () => {
     // --- RENDER LOGIC ---
     if (loading)
         return (
-            <div className="flex items-center justify-center min-h-screen bg-zinc-100 dark:bg-zinc-800">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-black border-t-[#90A4AE] mx-auto"></div>
-                    <p className="mt-4 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                        LOADING FORM...
-                    </p>
+            <div className="min-h-screen bg-zinc-100 dark:bg-zinc-800 p-4 sm:p-6">
+                {/* Skeleton header bar */}
+                <div className="max-w-5xl mx-auto mb-4 flex items-center justify-between">
+                    <div className="h-6 w-48 rounded-lg bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+                    <div className="h-8 w-28 rounded-lg bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+                </div>
+
+                {/* Skeleton tab bar */}
+                <div className="max-w-5xl mx-auto mb-4 flex gap-2">
+                    {[100, 80, 120, 90, 110].map((w, i) => (
+                        <div
+                            key={i}
+                            className="h-7 rounded-lg bg-zinc-200 dark:bg-zinc-700 animate-pulse"
+                            style={{ width: w }}
+                        />
+                    ))}
+                </div>
+
+                {/* Skeleton form card */}
+                <div className="max-w-5xl mx-auto space-y-4">
+                    {[1, 2, 3].map((card) => (
+                        <div
+                            key={card}
+                            className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4"
+                        >
+                            {/* Section title */}
+                            <div className="h-4 w-36 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {[1, 2, 3, 4].map((field) => (
+                                    <div key={field} className="space-y-1.5">
+                                        <div className="h-3 w-24 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+                                        <div className="h-9 w-full rounded-lg bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+
+                    {/* Spinner + label at bottom */}
+                    <div className="flex items-center justify-center gap-3 py-4">
+                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#D97757] border-t-transparent" />
+                        <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                            Fetching form data…
+                        </span>
+                    </div>
                 </div>
             </div>
         );
@@ -2308,7 +2546,7 @@ const ProjectRegistration: React.FC = () => {
                             <div className="flex-shrink-0 w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                                 <X className="w-4 h-4 text-red-600 dark:text-red-400" />
                             </div>
-                            <div>
+                            <div className="flex-1">
                                 <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                                     Required Fields Missing
                                 </h3>
@@ -2317,6 +2555,13 @@ const ProjectRegistration: React.FC = () => {
                                     proceeding.
                                 </p>
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => setValidationErrors([])}
+                                className="flex-shrink-0 p-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                            >
+                                <X className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+                            </button>
                         </div>
                         <ul className="px-6 py-4 space-y-1.5 max-h-60 overflow-y-auto">
                             {validationErrors.map((err, i) => (
@@ -2374,7 +2619,7 @@ const ProjectRegistration: React.FC = () => {
                                     type="button"
                                     onClick={() => setActiveTab(index)}
                                     className={cn(
-                                        "flex-shrink-0 flex items-center gap-2 py-2 px-3 font-medium text-xs rounded-md border border-transparent transition-all",
+                                        "flex-shrink-0 flex items-center gap-2 py-2 px-3 font-bold text-xs rounded-md border border-transparent transition-all",
                                         activeTab === index
                                             ? "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100"
                                             : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800",
@@ -2384,80 +2629,67 @@ const ProjectRegistration: React.FC = () => {
                                 </button>
                             ))}
                             {/* Endorsement Button */}
-                            {!isApprovedEndorsement && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const budgetTotal = (
-                                            formData.proposed_budget_breakup ||
-                                            []
-                                        ).reduce(
-                                            (acc: number, row: any) =>
-                                                acc +
-                                                (row.years || []).reduce(
-                                                    (sum: number, val: any) =>
-                                                        sum + Number(val || 0),
-                                                    0,
-                                                ),
-                                            0,
-                                        );
-                                        const initialHtml = getEndorsementHtml({
-                                            proposalId:
-                                                docname || "IITG/RND/NEW",
-                                            piName: formData.principal_investigator_name,
-                                            piDesignation: formData.designation,
-                                            piDepartment:
-                                                formData.applicant_department,
-                                            coPiName:
-                                                formData
-                                                    .co_investigator_table?.[0]
-                                                    ?.copi_name || "",
-                                            coPiDesignation:
-                                                formData
-                                                    .co_investigator_table?.[0]
-                                                    ?.copi_designation || "",
-                                            coPiDepartment:
-                                                formData
-                                                    .co_investigator_table?.[0]
-                                                    ?.copi_department || "",
-                                            projectTitle:
-                                                formData.project_title,
-                                            fundingAgency:
-                                                formData.funding_agen,
-                                            duration:
-                                                formData.project_type ===
-                                                "Consultancy"
-                                                    ? `${formData.project_duration_days} days`
-                                                    : `${formData.project_duration_months} months`,
-                                            totalCost: String(budgetTotal),
-                                        });
-                                        setEndorsementHtml(initialHtml);
-                                        setShowEndorsementModal(true);
-                                    }}
-                                    disabled={!isEndorsementEnabled}
-                                    className={cn(
-                                        "flex-shrink-0 flex items-center gap-2 py-2 px-3 font-medium text-xs rounded-md border transition-all ml-auto",
-                                        isEndorsementEnabled
-                                            ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 cursor-pointer"
-                                            : "bg-zinc-50 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 border-zinc-200 dark:border-zinc-800 cursor-not-allowed",
+                            {!isApprovedEndorsement && formData.project_type !== "Consultancy" && (
+                                <div className="ml-auto flex flex-col items-end gap-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowEndorsementModal(true)}
+                                        disabled={!isEndorsementEnabled}
+                                        className={cn(
+                                            "flex-shrink-0 flex items-center gap-2 py-2 px-3 font-medium text-xs rounded-md border transition-all",
+                                            isEndorsementEnabled
+                                                ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 cursor-pointer"
+                                                : "bg-zinc-50 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 border-zinc-200 dark:border-zinc-800 cursor-not-allowed",
+                                        )}
+                                        title={
+                                            isEndorsementEnabled
+                                                ? "Generate Endorsement Certificate"
+                                                : "Fill all required Project Details and PI Details to enable"
+                                        }
+                                    >
+                                        <FileBadge className="h-4 w-4" />
+                                        Endorsement
+                                    </button>
+                                    {!isEndorsementEnabled && missingEndorsementFields.length > 0 && (
+                                        <span className="text-[10px] text-red-500 dark:text-red-400 max-w-[220px] text-right leading-tight">
+                                            Required: {missingEndorsementFields.join(", ")}
+                                        </span>
                                     )}
-                                    title={
-                                        isEndorsementEnabled
-                                            ? "Generate Endorsement Certificate"
-                                            : "Fill all required Project Details and PI Details to enable"
-                                    }
-                                >
-                                    <FileBadge className="h-4 w-4" /> Generate
-                                    Endorsement
-                                </button>
+                                </div>
                             )}
                         </nav>
                     </div>
 
                     <div className="bg-zinc-100 dark:bg-zinc-800 p-4 md:p-6">
+                        {/* Form loading skeleton — shown until fields arrive */}
+                        {(loading || fields.length === 0) && (
+                            <div className="space-y-4">
+                                {[1, 2, 3].map((card) => (
+                                    <div
+                                        key={card}
+                                        className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4"
+                                    >
+                                        <div className="h-4 w-40 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {[1, 2, 3, 4].map((f) => (
+                                                <div key={f} className="space-y-1.5">
+                                                    <div className="h-3 w-24 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+                                                    <div className="h-9 w-full rounded-lg bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                                <div className="flex items-center justify-center gap-2 py-3">
+                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#D97757] border-t-transparent" />
+                                    <span className="text-xs text-zinc-500 dark:text-zinc-400">Fetching form fields…</span>
+                                </div>
+                            </div>
+                        )}
                         <form
                             id="project-registration-form"
                             onSubmit={handleSubmit}
+                            className={loading || fields.length === 0 ? "hidden" : ""}
                         >
                             {fields.length > 0 && (
                                 <>
@@ -2475,9 +2707,9 @@ const ProjectRegistration: React.FC = () => {
                                             {renderField("project_type")}
                                             {formData.project_type ===
                                                 "Research" && (
-                                                <div className="space-y-8">
-                                                    <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                        {/* <div className="flex items-center justify-between flex-wrap gap-4">
+                                                    <div className="space-y-8">
+                                                        <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                            {/* <div className="flex items-center justify-between flex-wrap gap-4">
                                                         <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
                                                         <button
                                                             type="button"
@@ -2490,128 +2722,134 @@ const ProjectRegistration: React.FC = () => {
                                                             Add Funding Agency
                                                         </button>
                                                     </div> */}
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                            {renderFields(
-                                                                tabFieldGroups.fundingDetails,
-                                                            )}
-                                                        </div>
-                                                    </FrappeCard>
-                                                    <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                        <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
-                                                            Agency Address
-                                                        </h3>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                            {renderFields(
-                                                                tabFieldGroups.agencyAddress,
-                                                            )}
-                                                        </div>
-                                                    </FrappeCard>
-                                                </div>
-                                            )}
-                                            {formData.project_type ===
-                                                "Consultancy" && (
-                                                <div className="space-y-8">
-                                                    <div className="space-y-4">
-                                                        {renderField(
-                                                            "consultancy_category",
-                                                        )}
-                                                        {renderField(
-                                                            "consultancy_gstin",
-                                                        )}
-                                                        {renderField(
-                                                            "consultancy_gst_rate",
-                                                        )}
-                                                        {renderField(
-                                                            "involves_international_travel",
-                                                        )}
-
-                                                        {/* Category D Fields */}
-                                                        {formData.consultancy_category?.startsWith(
-                                                            "Category D",
-                                                        ) && (
-                                                            <div className="space-y-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
-                                                                <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
-                                                                    Category D
-                                                                    Details
-                                                                </h4>
-                                                                {renderField(
-                                                                    "category_d_note",
-                                                                )}
-                                                                {renderField(
-                                                                    "cat_d_grand_total_input",
-                                                                )}
-                                                                {renderField(
-                                                                    "cat_d_project_cost_excl_gst",
-                                                                )}
-                                                                {renderField(
-                                                                    "cat_d_consultancy_fee_input",
-                                                                )}
-                                                                {renderField(
-                                                                    "operational_expense_input_inc_10_oh",
-                                                                )}
-                                                                {renderField(
-                                                                    "cat_d_cf_base",
-                                                                )}
-                                                                {renderField(
-                                                                    "cat_d_oe_base",
-                                                                )}
-                                                                {renderField(
-                                                                    "cat_d_total_overhead",
-                                                                )}
-                                                                {renderField(
-                                                                    "cat_d_institute_share",
-                                                                )}
-                                                                {renderField(
-                                                                    "cat_d_gst_amt",
-                                                                )}
-                                                                {renderField(
-                                                                    "cat_d_grand_total_calc",
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                                {renderFields(
+                                                                    tabFieldGroups.fundingDetails,
                                                                 )}
                                                             </div>
-                                                        )}
-
-                                                        {/* Category T & E Fields */}
-                                                        {!formData.consultancy_category?.startsWith(
-                                                            "Category D",
-                                                        ) &&
-                                                            formData.consultancy_category && (
-                                                                <div className="space-y-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
-                                                                    <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
-                                                                        {formData.consultancy_category?.includes(
-                                                                            "Routine",
-                                                                        ) &&
-                                                                        !formData.consultancy_category?.includes(
-                                                                            "Non-Routine",
-                                                                        )
-                                                                            ? "Category T Details"
-                                                                            : "Category E Details"}
-                                                                    </h4>
-                                                                    {renderField(
-                                                                        "category_e_note",
-                                                                    )}
-                                                                    {renderField(
-                                                                        "category_t_note",
-                                                                    )}
-                                                                    {renderField(
-                                                                        "cat_ef_total_amount",
-                                                                    )}
-                                                                    {renderField(
-                                                                        "cat_ef_honorarium",
-                                                                    )}
-                                                                    {renderField(
-                                                                        "cat_ef_institute_share",
-                                                                    )}
-                                                                    {renderField(
-                                                                        "cat_ef_gst",
-                                                                    )}
-                                                                    {renderField(
-                                                                        "cat_ef_grand_total",
-                                                                    )}
-                                                                </div>
-                                                            )}
+                                                        </FrappeCard>
+                                                        <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                            <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                                                Agency Address
+                                                            </h3>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                                {renderFields(
+                                                                    tabFieldGroups.agencyAddress,
+                                                                )}
+                                                            </div>
+                                                        </FrappeCard>
                                                     </div>
-                                                    <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                        {/* <div className="flex items-center justify-between flex-wrap gap-4">
+                                                )}
+                                            {formData.project_type ===
+                                                "Consultancy" && (
+                                                    <div className="space-y-8">
+                                                        <div className="space-y-4">
+                                                            {renderField(
+                                                                "consultancy_category",
+                                                            )}
+                                                            {renderField(
+                                                                "consultancy_gstin",
+                                                            )}
+                                                            {renderField(
+                                                                "consultancy_gst_rate",
+                                                            )}
+                                                            {renderField(
+                                                                "involves_international_travel",
+                                                            )}
+
+                                                            {/* Category D Fields */}
+                                                            {formData.consultancy_category?.startsWith(
+                                                                "Category D",
+                                                            ) && (
+                                                                    <div className="space-y-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
+                                                                        <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
+                                                                            Category D
+                                                                            Details
+                                                                        </h4>
+                                                                        {renderField(
+                                                                            "category_d_note",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_d_grand_total_input",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_d_project_cost_excl_gst",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_d_consultancy_fee_input",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "operational_expense_input_inc_10_oh",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_d_cf_base",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_d_oe_base",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_d_total_overhead",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_d_institute_share",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_d_gst_amt",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_d_grand_total_calc",
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                            {/* Category T & E Fields */}
+                                                            {!formData.consultancy_category?.startsWith(
+                                                                "Category D",
+                                                            ) &&
+                                                                formData.consultancy_category && (
+                                                                    <div className="space-y-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
+                                                                        <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
+                                                                            {formData.consultancy_category?.includes(
+                                                                                "Routine",
+                                                                            ) &&
+                                                                                !formData.consultancy_category?.includes(
+                                                                                    "Non-Routine",
+                                                                                )
+                                                                                ? "Category T Details"
+                                                                                : "Category E Details"}
+                                                                        </h4>
+                                                                        {renderField(
+                                                                            "category_e_note",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "category_t_note",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_ef_total_amount",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_ef_honorarium",
+                                                                            formData.consultancy_category?.includes("Non-Routine")
+                                                                                ? "Honorarium and other expenses (0.7 * TE)"
+                                                                                : "Honorarium and other expenses (0.3 * TE)",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_ef_institute_share",
+                                                                            formData.consultancy_category?.includes("Non-Routine")
+                                                                                ? "Institute Overhead/Share (0.3 * TE)"
+                                                                                : "Institute Overhead/Share (0.7 * TE)",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_ef_gst",
+                                                                        )}
+                                                                        {renderField(
+                                                                            "cat_ef_grand_total",
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                        </div>
+                                                        <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                            {/* <div className="flex items-center justify-between flex-wrap gap-4">
                                                         <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
                                                         <button
                                                             type="button"
@@ -2624,24 +2862,24 @@ const ProjectRegistration: React.FC = () => {
                                                             Add Funding Agency
                                                         </button>
                                                     </div> */}
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                            {renderFields(
-                                                                tabFieldGroups.fundingDetails,
-                                                            )}
-                                                        </div>
-                                                    </FrappeCard>
-                                                    <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                        <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
-                                                            Agency Address
-                                                        </h3>
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                            {renderFields(
-                                                                tabFieldGroups.agencyAddress,
-                                                            )}
-                                                        </div>
-                                                    </FrappeCard>
-                                                </div>
-                                            )}
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                                {renderFields(
+                                                                    tabFieldGroups.fundingDetails,
+                                                                )}
+                                                            </div>
+                                                        </FrappeCard>
+                                                        <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                            <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                                                Agency Address
+                                                            </h3>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                                {renderFields(
+                                                                    tabFieldGroups.agencyAddress,
+                                                                )}
+                                                            </div>
+                                                        </FrappeCard>
+                                                    </div>
+                                                )}
                                             {formData.project_type ===
                                                 "Other" &&
                                                 renderField(
@@ -2654,18 +2892,20 @@ const ProjectRegistration: React.FC = () => {
                                             {renderField(
                                                 "project_deliverables",
                                             )}
-                                            {renderField("executive_summary")}
+                                            {formData.project_type === "Consultancy"
+                                                ? renderField("executive_summary", "Executive Summary (If Applicable)")
+                                                : renderField("executive_summary")}
                                             {renderField("upload_proj_prop")}
                                             {renderField("my_projects")}
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {formData.project_type !==
-                                                "Consultancy"
+                                                    "Consultancy"
                                                     ? renderField(
-                                                          "project_duration_months",
-                                                      )
+                                                        "project_duration_months",
+                                                    )
                                                     : renderField(
-                                                          "project_duration_days",
-                                                      )}
+                                                        "project_duration_days",
+                                                    )}
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {renderField("prj_start_date")}
@@ -2681,26 +2921,26 @@ const ProjectRegistration: React.FC = () => {
                                                     )}
                                                     {formData.is_the_account_type_pfms ===
                                                         "Yes" && (
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                            {renderField(
-                                                                "scheme_name",
-                                                            )}
-                                                            {renderField(
-                                                                "enter_scheme_number",
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                                {renderField(
+                                                                    "scheme_name",
+                                                                )}
+                                                                {renderField(
+                                                                    "enter_scheme_number",
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     {formData.is_the_account_type_pfms ===
                                                         "No" && (
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                            {renderField(
-                                                                "account_number",
-                                                            )}
-                                                            {renderField(
-                                                                "bank_name",
-                                                            )}
-                                                        </div>
-                                                    )}
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                                {renderField(
+                                                                    "account_number",
+                                                                )}
+                                                                {renderField(
+                                                                    "bank_name",
+                                                                )}
+                                                            </div>
+                                                        )}
                                                     {docname && (
                                                         <div className="flex justify-end pt-2">
                                                             <FrappeButton
@@ -2744,8 +2984,8 @@ const ProjectRegistration: React.FC = () => {
                                                                     } catch (e: any) {
                                                                         alert(
                                                                             "Failed to save account details: " +
-                                                                                (e?.message ||
-                                                                                    "Unknown error"),
+                                                                            (e?.message ||
+                                                                                "Unknown error"),
                                                                         );
                                                                     } finally {
                                                                         setIsSavingPfms(
@@ -2776,9 +3016,17 @@ const ProjectRegistration: React.FC = () => {
                                                 2. Investigators & Collaborators
                                             </h2>
                                             <div className="p-5 space-y-5 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm bg-white dark:bg-zinc-900">
-                                                <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
-                                                    Principal Investigator (PI)
-                                                </h3>
+                                                <div className="flex items-center gap-3">
+                                                    <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                                        Principal Investigator (PI)
+                                                    </h3>
+                                                    {isFetchingPiDetails && (
+                                                        <span className="inline-flex items-center gap-1.5 text-xs text-primary font-medium animate-pulse">
+                                                            <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>
+                                                            Fetching PI details…
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="space-y-8">
                                                     {renderField("pi_webmail")}
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-dashed border-zinc-400 dark:border-zinc-600">
@@ -2807,39 +3055,39 @@ const ProjectRegistration: React.FC = () => {
                                             </div>
                                             {formData.is_additional_pi ===
                                                 "Yes" && (
-                                                <MemoizedCollaboratorTable
-                                                    tableName="additional_pi_table"
-                                                    title="Details of Additional PI(s)"
-                                                    tableData={
-                                                        formData.additional_pi_table
-                                                    }
-                                                    piOptions={
-                                                        linkOptions[
+                                                    <MemoizedCollaboratorTable
+                                                        tableName="additional_pi_table"
+                                                        title="Details of Additional PI(s)"
+                                                        tableData={
+                                                            formData.additional_pi_table
+                                                        }
+                                                        piOptions={
+                                                            linkOptions[
                                                             "pi_webmail"
-                                                        ]
-                                                    }
-                                                    onCollaboratorChange={
-                                                        isEditMode
-                                                            ? handleCollaboratorChange
-                                                            : () => {}
-                                                    }
-                                                    onRowChange={
-                                                        isEditMode
-                                                            ? handleTableRowChange
-                                                            : () => {}
-                                                    }
-                                                    onAddRow={
-                                                        isEditMode
-                                                            ? addTableRow
-                                                            : () => {}
-                                                    }
-                                                    onDeleteRow={
-                                                        isEditMode
-                                                            ? deleteTableRow
-                                                            : () => {}
-                                                    }
-                                                />
-                                            )}
+                                                            ]
+                                                        }
+                                                        onCollaboratorChange={
+                                                            isEditMode
+                                                                ? handleCollaboratorChange
+                                                                : () => { }
+                                                        }
+                                                        onRowChange={
+                                                            isEditMode
+                                                                ? handleTableRowChange
+                                                                : () => { }
+                                                        }
+                                                        onAddRow={
+                                                            isEditMode
+                                                                ? addTableRow
+                                                                : () => { }
+                                                        }
+                                                        onDeleteRow={
+                                                            isEditMode
+                                                                ? deleteTableRow
+                                                                : () => { }
+                                                        }
+                                                    />
+                                                )}
                                             {formData.has_co_pi === "Yes" && (
                                                 <MemoizedCollaboratorTable
                                                     tableName="co_investigator_table"
@@ -2849,28 +3097,28 @@ const ProjectRegistration: React.FC = () => {
                                                     }
                                                     piOptions={
                                                         linkOptions[
-                                                            "pi_webmail"
+                                                        "pi_webmail"
                                                         ]
                                                     }
                                                     onCollaboratorChange={
                                                         isEditMode
                                                             ? handleCollaboratorChange
-                                                            : () => {}
+                                                            : () => { }
                                                     }
                                                     onRowChange={
                                                         isEditMode
                                                             ? handleTableRowChange
-                                                            : () => {}
+                                                            : () => { }
                                                     }
                                                     onAddRow={
                                                         isEditMode
                                                             ? addTableRow
-                                                            : () => {}
+                                                            : () => { }
                                                     }
                                                     onDeleteRow={
                                                         isEditMode
                                                             ? deleteTableRow
-                                                            : () => {}
+                                                            : () => { }
                                                     }
                                                 />
                                             )}
@@ -2887,6 +3135,12 @@ const ProjectRegistration: React.FC = () => {
                                             <h2 className="text-xl font-bold uppercase text-zinc-900 dark:text-zinc-100">
                                                 3. Proposed Budget
                                             </h2>
+                                            {formData.project_type?.toLowerCase() === "consultancy" && (
+                                                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-xs font-medium">
+                                                    <span>⚠️</span>
+                                                    <span>Ignore if this is a consultancy project</span>
+                                                </div>
+                                            )}
                                             <p className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">
                                                 Provide a detailed year-wise
                                                 breakup of the proposed budget.
@@ -2900,27 +3154,27 @@ const ProjectRegistration: React.FC = () => {
                                                 onRowChange={
                                                     isEditMode
                                                         ? handleBudgetRowChange
-                                                        : () => {}
+                                                        : () => { }
                                                 }
                                                 onAddRow={
                                                     isEditMode
                                                         ? addBudgetRow
-                                                        : () => {}
+                                                        : () => { }
                                                 }
                                                 onDeleteRow={
                                                     isEditMode
                                                         ? deleteTableRow
-                                                        : () => {}
+                                                        : () => { }
                                                 }
                                                 onAddYear={
                                                     isEditMode
                                                         ? addBudgetYear
-                                                        : () => {}
+                                                        : () => { }
                                                 }
                                                 onDeleteYear={
                                                     isEditMode
                                                         ? deleteLastBudgetYear
-                                                        : () => {}
+                                                        : () => { }
                                                 }
                                                 getYearTotal={getYearTotal}
                                                 totalBudgetAmount={
@@ -2928,146 +3182,149 @@ const ProjectRegistration: React.FC = () => {
                                                 }
                                             />
                                             <div className="space-y-6 border-t border-zinc-300 dark:border-zinc-700 pt-8">
+                                                <p className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">
+                                                    Enter the details of Equipment and Manpower (Optional)
+                                                </p>
                                                 {renderField(
                                                     "equipment_checkbox",
                                                 )}
                                                 {(formData.equipment_checkbox ===
                                                     true ||
                                                     formData.equipment_checkbox ===
-                                                        1 ||
+                                                    1 ||
                                                     formData.equipment_checkbox ===
-                                                        "1") && (
-                                                    <MemoizedGenericTable
-                                                        tableName={
-                                                            "proposed_equipment_details"
-                                                        }
-                                                        columns={[
-                                                            {
-                                                                key: "item_name",
-                                                                label: "Item Name*",
-                                                                type: "text",
-                                                            },
-                                                            {
-                                                                key: "item_description",
-                                                                label: "Description",
-                                                                type: "text",
-                                                            },
-                                                            {
-                                                                key: "item_quantity",
-                                                                label: "Quantity",
-                                                                type: "number",
-                                                            },
-                                                            {
-                                                                key: "equip_unit_cost",
-                                                                label: "Unit Cost (₹)",
-                                                                type: "number",
-                                                            },
-                                                            {
-                                                                key: "equip_total_unit_cost",
-                                                                label: "Total Cost (₹)",
-                                                                type: "number",
-                                                                readOnly: true,
-                                                            },
-                                                        ]}
-                                                        newRow={{
-                                                            item_name: "",
-                                                            item_description:
-                                                                "",
-                                                            item_quantity: "",
-                                                            equip_unit_cost: "",
-                                                            equip_total_unit_cost:
-                                                                "",
-                                                        }}
-                                                        tableData={
-                                                            formData.proposed_equipment_details
-                                                        }
-                                                        onRowChange={
-                                                            isEditMode
-                                                                ? handleEquipmentRowChange
-                                                                : () => {}
-                                                        }
-                                                        onFileChange={
-                                                            isEditMode
-                                                                ? handleTableFileChange
-                                                                : () => {}
-                                                        }
-                                                        onAddRow={
-                                                            isEditMode
-                                                                ? addTableRow
-                                                                : () => {}
-                                                        }
-                                                        onDeleteRow={
-                                                            isEditMode
-                                                                ? deleteTableRow
-                                                                : () => {}
-                                                        }
-                                                    />
-                                                )}
+                                                    "1") && (
+                                                        <MemoizedGenericTable
+                                                            tableName={
+                                                                "proposed_equipment_details"
+                                                            }
+                                                            columns={[
+                                                                {
+                                                                    key: "item_name",
+                                                                    label: "Item Name*",
+                                                                    type: "text",
+                                                                },
+                                                                {
+                                                                    key: "item_description",
+                                                                    label: "Description",
+                                                                    type: "text",
+                                                                },
+                                                                {
+                                                                    key: "item_quantity",
+                                                                    label: "Quantity",
+                                                                    type: "number",
+                                                                },
+                                                                {
+                                                                    key: "equip_unit_cost",
+                                                                    label: "Unit Cost (₹)",
+                                                                    type: "number",
+                                                                },
+                                                                {
+                                                                    key: "equip_total_unit_cost",
+                                                                    label: "Total Cost (₹)",
+                                                                    type: "number",
+                                                                    readOnly: true,
+                                                                },
+                                                            ]}
+                                                            newRow={{
+                                                                item_name: "",
+                                                                item_description:
+                                                                    "",
+                                                                item_quantity: "",
+                                                                equip_unit_cost: "",
+                                                                equip_total_unit_cost:
+                                                                    "",
+                                                            }}
+                                                            tableData={
+                                                                formData.proposed_equipment_details
+                                                            }
+                                                            onRowChange={
+                                                                isEditMode
+                                                                    ? handleEquipmentRowChange
+                                                                    : () => { }
+                                                            }
+                                                            onFileChange={
+                                                                isEditMode
+                                                                    ? handleTableFileChange
+                                                                    : () => { }
+                                                            }
+                                                            onAddRow={
+                                                                isEditMode
+                                                                    ? addTableRow
+                                                                    : () => { }
+                                                            }
+                                                            onDeleteRow={
+                                                                isEditMode
+                                                                    ? deleteTableRow
+                                                                    : () => { }
+                                                            }
+                                                        />
+                                                    )}
                                                 {renderField(
                                                     "manpower_checkbox",
                                                 )}
                                                 {(formData.manpower_checkbox ===
                                                     true ||
                                                     formData.manpower_checkbox ===
-                                                        1 ||
+                                                    1 ||
                                                     formData.manpower_checkbox ===
-                                                        "1") && (
-                                                    <MemoizedGenericTable
-                                                        tableName={
-                                                            "proposed_manpower_details"
-                                                        }
-                                                        columns={[
-                                                            {
-                                                                key: "designation_name",
-                                                                label: "Position*",
-                                                                type: "select",
-                                                                options:
-                                                                    linkOptions[
+                                                    "1") && (
+                                                        <MemoizedGenericTable
+                                                            tableName={
+                                                                "proposed_manpower_details"
+                                                            }
+                                                            columns={[
+                                                                {
+                                                                    key: "designation_name",
+                                                                    label: "Position*",
+                                                                    type: "select",
+                                                                    options:
+                                                                        linkOptions[
                                                                         "designation_name"
-                                                                    ] || [],
-                                                            },
-                                                            {
-                                                                key: "vacancies",
-                                                                label: "Number of Posts",
-                                                                type: "number",
-                                                            },
-                                                            {
-                                                                key: "manpower_salary",
-                                                                label: "Salary (₹)",
-                                                                type: "number",
-                                                            },
-                                                        ]}
-                                                        newRow={{
-                                                            designation_name:
-                                                                "",
-                                                            vacancies: "",
-                                                            manpower_salary: 0,
-                                                        }}
-                                                        tableData={
-                                                            formData.proposed_manpower_details
-                                                        }
-                                                        onRowChange={
-                                                            isEditMode
-                                                                ? handleTableRowChange
-                                                                : () => {}
-                                                        }
-                                                        onFileChange={
-                                                            isEditMode
-                                                                ? handleTableFileChange
-                                                                : () => {}
-                                                        }
-                                                        onAddRow={
-                                                            isEditMode
-                                                                ? addTableRow
-                                                                : () => {}
-                                                        }
-                                                        onDeleteRow={
-                                                            isEditMode
-                                                                ? deleteTableRow
-                                                                : () => {}
-                                                        }
-                                                    />
-                                                )}
+                                                                        ] || [],
+                                                                },
+                                                                {
+                                                                    key: "vacancies",
+                                                                    label: "Number of Posts",
+                                                                    type: "number",
+                                                                },
+                                                                {
+                                                                    key: "manpower_salary",
+                                                                    label: "Salary (₹)",
+                                                                    type: "number",
+                                                                },
+                                                            ]}
+                                                            newRow={{
+                                                                designation_name:
+                                                                    "",
+                                                                vacancies: "",
+                                                                manpower_salary: 0,
+                                                            }}
+                                                            tableData={
+                                                                formData.proposed_manpower_details
+                                                            }
+                                                            onRowChange={
+                                                                isEditMode
+                                                                    ? handleTableRowChange
+                                                                    : () => { }
+                                                            }
+                                                            onFileChange={
+                                                                isEditMode
+                                                                    ? handleTableFileChange
+                                                                    : () => { }
+                                                            }
+                                                            onAddRow={
+                                                                isEditMode
+                                                                    ? addTableRow
+                                                                    : () => { }
+                                                            }
+                                                            onDeleteRow={
+                                                                isEditMode
+                                                                    ? deleteTableRow
+                                                                    : () => { }
+                                                            }
+                                                        />
+                                                    )}
                                             </div>
                                         </FrappeCard>
                                         {renderNextPrevButtons(true, true)}
@@ -3086,37 +3343,37 @@ const ProjectRegistration: React.FC = () => {
                                             )}
                                             {formData.needs_committee_clearance ===
                                                 "Yes" && (
-                                                <div className="space-y-8 pt-8 mt-8 border-t-2 border-dashed border-zinc-400 dark:border-zinc-600">
-                                                    {renderField("committees")}
-                                                    {formData.committees ===
-                                                        "Other" &&
-                                                        renderField(
-                                                            "other_committee_specify",
-                                                        )}
-                                                    {formData.committees ===
-                                                        "Ethics Committee" && (
-                                                        <>
-                                                            {renderField(
-                                                                "ethics_committee_details",
+                                                    <div className="space-y-8 pt-8 mt-8 border-t-2 border-dashed border-zinc-400 dark:border-zinc-600">
+                                                        {renderField("committees")}
+                                                        {formData.committees ===
+                                                            "Other" &&
+                                                            renderField(
+                                                                "other_committee_specify",
                                                             )}
-                                                            {renderField(
-                                                                "ethics_other_details",
+                                                        {formData.committees ===
+                                                            "Ethics Committee" && (
+                                                                <>
+                                                                    {renderField(
+                                                                        "ethics_committee_details",
+                                                                    )}
+                                                                    {renderField(
+                                                                        "ethics_other_details",
+                                                                    )}
+                                                                </>
                                                             )}
-                                                        </>
-                                                    )}
-                                                    {formData.committees ===
-                                                        "Biosafety Committee" && (
-                                                        <>
-                                                            {renderField(
-                                                                "biosafety_category",
+                                                        {formData.committees ===
+                                                            "Biosafety Committee" && (
+                                                                <>
+                                                                    {renderField(
+                                                                        "biosafety_category",
+                                                                    )}
+                                                                    {renderField(
+                                                                        "declaration_html",
+                                                                    )}
+                                                                </>
                                                             )}
-                                                            {renderField(
-                                                                "declaration_html",
-                                                            )}
-                                                        </>
-                                                    )}
-                                                </div>
-                                            )}
+                                                    </div>
+                                                )}
                                         </FrappeCard>
                                         {renderNextPrevButtons(true, true)}
                                     </div>
@@ -3133,90 +3390,90 @@ const ProjectRegistration: React.FC = () => {
 
                                                 {formData.have_sanction_details ===
                                                     "Yes" && (
-                                                    <FrappeCard className="space-y-6 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                        <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
-                                                            Sanction Details
-                                                        </h3>
+                                                        <FrappeCard className="space-y-6 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                            <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                                                Sanction Details
+                                                            </h3>
 
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                            {renderFields(
-                                                                tabFieldGroups.sanction,
-                                                            )}
-                                                        </div>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                                {renderFields(
+                                                                    tabFieldGroups.sanction,
+                                                                )}
+                                                            </div>
 
-                                                        <div className="space-y-4">
-                                                            <MemoizedGenericTable
-                                                                tableName={
-                                                                    "sanctioned_budget_breakup"
-                                                                }
-                                                                columns={[
-                                                                    {
-                                                                        key: "head",
-                                                                        label: "Budget Head",
-                                                                        type: "text",
-                                                                    },
-                                                                    {
-                                                                        key: "amount",
-                                                                        label: "Amount (₹)",
-                                                                        type: "number",
-                                                                    },
-                                                                ]}
-                                                                newRow={{
-                                                                    head: "",
-                                                                    amount: 0,
-                                                                }}
-                                                                tableData={
-                                                                    formData.sanctioned_budget_breakup
-                                                                }
-                                                                onRowChange={
-                                                                    handleTableRowChange
-                                                                }
-                                                                onFileChange={
-                                                                    handleTableFileChange
-                                                                }
-                                                                onAddRow={
-                                                                    addTableRow
-                                                                }
-                                                                onDeleteRow={
-                                                                    deleteTableRow
-                                                                }
-                                                            />
-                                                        </div>
+                                                            <div className="space-y-4">
+                                                                <MemoizedGenericTable
+                                                                    tableName={
+                                                                        "sanctioned_budget_breakup"
+                                                                    }
+                                                                    columns={[
+                                                                        {
+                                                                            key: "head",
+                                                                            label: "Budget Head",
+                                                                            type: "text",
+                                                                        },
+                                                                        {
+                                                                            key: "amount",
+                                                                            label: "Amount (₹)",
+                                                                            type: "number",
+                                                                        },
+                                                                    ]}
+                                                                    newRow={{
+                                                                        head: "",
+                                                                        amount: 0,
+                                                                    }}
+                                                                    tableData={
+                                                                        formData.sanctioned_budget_breakup
+                                                                    }
+                                                                    onRowChange={
+                                                                        handleTableRowChange
+                                                                    }
+                                                                    onFileChange={
+                                                                        handleTableFileChange
+                                                                    }
+                                                                    onAddRow={
+                                                                        addTableRow
+                                                                    }
+                                                                    onDeleteRow={
+                                                                        deleteTableRow
+                                                                    }
+                                                                />
+                                                            </div>
 
-                                                        <div className="space-y-4">
-                                                            <MemoizedGenericTable
-                                                                tableName={
-                                                                    "sanction_related_files"
-                                                                }
-                                                                columns={[
-                                                                    {
-                                                                        key: "file",
-                                                                        label: "File",
-                                                                        type: "file",
-                                                                    },
-                                                                ]}
-                                                                newRow={{
-                                                                    file: null,
-                                                                }}
-                                                                tableData={
-                                                                    formData.sanction_related_files
-                                                                }
-                                                                onRowChange={
-                                                                    handleTableRowChange
-                                                                }
-                                                                onFileChange={
-                                                                    handleTableFileChange
-                                                                }
-                                                                onAddRow={
-                                                                    addTableRow
-                                                                }
-                                                                onDeleteRow={
-                                                                    deleteTableRow
-                                                                }
-                                                            />
-                                                        </div>
-                                                    </FrappeCard>
-                                                )}
+                                                            <div className="space-y-4">
+                                                                <MemoizedGenericTable
+                                                                    tableName={
+                                                                        "sanction_related_files"
+                                                                    }
+                                                                    columns={[
+                                                                        {
+                                                                            key: "file",
+                                                                            label: "File",
+                                                                            type: "file",
+                                                                        },
+                                                                    ]}
+                                                                    newRow={{
+                                                                        file: null,
+                                                                    }}
+                                                                    tableData={
+                                                                        formData.sanction_related_files
+                                                                    }
+                                                                    onRowChange={
+                                                                        handleTableRowChange
+                                                                    }
+                                                                    onFileChange={
+                                                                        handleTableFileChange
+                                                                    }
+                                                                    onAddRow={
+                                                                        addTableRow
+                                                                    }
+                                                                    onDeleteRow={
+                                                                        deleteTableRow
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        </FrappeCard>
+                                                    )}
                                             </div>
 
                                             <div className="space-y-6">
@@ -3226,65 +3483,65 @@ const ProjectRegistration: React.FC = () => {
 
                                                 {formData.have_fund_details ===
                                                     "Yes" && (
-                                                    <FrappeCard className="space-y-6 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                        <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
-                                                            Fund Details
-                                                        </h3>
+                                                        <FrappeCard className="space-y-6 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                            <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                                                Fund Details
+                                                            </h3>
 
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                            {renderFields(
-                                                                tabFieldGroups.funds,
-                                                            )}
-                                                        </div>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                                {renderFields(
+                                                                    tabFieldGroups.funds,
+                                                                )}
+                                                            </div>
 
-                                                        <div className="space-y-4">
-                                                            <MemoizedGenericTable
-                                                                tableName={
-                                                                    "fund_transactions"
-                                                                }
-                                                                columns={[
-                                                                    {
-                                                                        key: "installmentNo",
-                                                                        label: "Installment No.",
-                                                                        type: "text",
-                                                                    },
-                                                                    {
-                                                                        key: "dateReceived",
-                                                                        label: "Date Received",
-                                                                        type: "date",
-                                                                    },
-                                                                    {
-                                                                        key: "amount",
-                                                                        label: "Amount (₹)",
-                                                                        type: "number",
-                                                                    },
-                                                                ]}
-                                                                newRow={{
-                                                                    installmentNo:
-                                                                        "",
-                                                                    dateReceived:
-                                                                        "",
-                                                                    amount: 0,
-                                                                }}
-                                                                tableData={
-                                                                    formData.fund_transactions
-                                                                }
-                                                                onRowChange={
-                                                                    handleTableRowChange
-                                                                }
-                                                                onFileChange={
-                                                                    handleTableFileChange
-                                                                }
-                                                                onAddRow={
-                                                                    addTableRow
-                                                                }
-                                                                onDeleteRow={
-                                                                    deleteTableRow
-                                                                }
-                                                            />
-                                                        </div>
-                                                    </FrappeCard>
-                                                )}
+                                                            <div className="space-y-4">
+                                                                <MemoizedGenericTable
+                                                                    tableName={
+                                                                        "fund_transactions"
+                                                                    }
+                                                                    columns={[
+                                                                        {
+                                                                            key: "installmentNo",
+                                                                            label: "Installment No.",
+                                                                            type: "text",
+                                                                        },
+                                                                        {
+                                                                            key: "dateReceived",
+                                                                            label: "Date Received",
+                                                                            type: "date",
+                                                                        },
+                                                                        {
+                                                                            key: "amount",
+                                                                            label: "Amount (₹)",
+                                                                            type: "number",
+                                                                        },
+                                                                    ]}
+                                                                    newRow={{
+                                                                        installmentNo:
+                                                                            "",
+                                                                        dateReceived:
+                                                                            "",
+                                                                        amount: 0,
+                                                                    }}
+                                                                    tableData={
+                                                                        formData.fund_transactions
+                                                                    }
+                                                                    onRowChange={
+                                                                        handleTableRowChange
+                                                                    }
+                                                                    onFileChange={
+                                                                        handleTableFileChange
+                                                                    }
+                                                                    onAddRow={
+                                                                        addTableRow
+                                                                    }
+                                                                    onDeleteRow={
+                                                                        deleteTableRow
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        </FrappeCard>
+                                                    )}
                                             </div>
 
                                             {/* 🟢 Instruction after saving */}
@@ -3312,6 +3569,44 @@ const ProjectRegistration: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Endorsement Required Modal */}
+                {showSubmitInsteadModal && (
+                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+                        <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-2xl max-w-md w-full mx-4 border border-zinc-300 dark:border-zinc-700">
+                            <div className="px-6 py-5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-3">
+                                <span className="text-red-500 text-xl">⚠️</span>
+                                <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                                    Endorsement Certificate Required
+                                </h2>
+                            </div>
+                            <div className="px-6 py-5">
+                                <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                                    The endorsement certificate <strong>must</strong> be filled in before you can submit the project. Please complete the endorsement certificate and try again.
+                                </p>
+                            </div>
+                            <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSubmitInsteadModal(false)}
+                                    className="px-4 py-2 rounded-md text-sm font-medium border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowSubmitInsteadModal(false);
+                                        endorsementCertRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    }}
+                                    className="px-4 py-2 rounded-md text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                                >
+                                    Go to Endorsement
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Endorsement Certificate Modal */}
                 {showEndorsementModal && (
                     <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center overflow-y-auto py-8">
@@ -3331,10 +3626,19 @@ const ProjectRegistration: React.FC = () => {
                                     <X className="h-6 w-6 text-zinc-900 dark:text-zinc-100" />
                                 </button>
                             </div>
+                            {/* Guidance message */}
+                            <div className="flex gap-3 px-6 py-3 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs leading-relaxed">
+                                <span className="text-base leading-none mt-0.5">💡</span>
+                                <div className="space-y-1">
+                                    <p><span className="font-semibold">Submitting endorsement only?</span> Fill the endorsement and click the <span className="font-semibold">Submit</span> button below.</p>
+                                    <p><span className="font-semibold">Registering a full project?</span> Fill the endorsement here, then <span className="font-semibold">close this panel</span> and use the main <span className="font-semibold">Submit Project</span> button — do not submit from here.</p>
+                                </div>
+                            </div>
                             {/* Modal Body */}
-                            <div className="p-0">
+                            <div className="p-0" ref={endorsementCertRef}>
                                 <EndorsementCertificate
-                                    proposalId={docname || "IITG/RND/NEW"}
+                                    proposalId={docname || "IITG-"}
+                                    sessionId={endorsementSessionId}
                                     piName={
                                         formData.principal_investigator_name
                                     }
@@ -3371,114 +3675,72 @@ const ProjectRegistration: React.FC = () => {
                                             0,
                                         ),
                                     )}
-                                    onHtmlChange={setEndorsementHtml}
                                 />
                             </div>
                             {/* Modal Footer */}
-                            <div className="bg-white dark:bg-zinc-900 border-t border-zinc-300 dark:border-zinc-700 px-6 py-4 flex items-center justify-end rounded-b-lg">
-                                <button
-                                    type="button"
-                                    disabled={isSubmitting}
-                                    onClick={async () => {
-                                        setIsSubmitting(true);
-                                        try {
-                                            const { doc_data, files } =
-                                                await prepareDataWithFiles();
-                                            // Generate fresh full HTML using the standalone function
-                                            // (avoids DOM innerHTML stripping structural tags)
-                                            const budgetTotal = (
-                                                formData.proposed_budget_breakup ||
-                                                []
-                                            ).reduce(
-                                                (acc: number, row: any) =>
-                                                    acc +
-                                                    (row.years || []).reduce(
-                                                        (
-                                                            sum: number,
-                                                            val: any,
-                                                        ) =>
-                                                            sum +
-                                                            Number(val || 0),
-                                                        0,
-                                                    ),
-                                                0,
-                                            );
-                                            const fullHtml = getEndorsementHtml(
-                                                {
-                                                    proposalId:
-                                                        docname ||
-                                                        "IITG/RND/NEW",
+                            <div className="bg-white dark:bg-zinc-900 border-t border-zinc-300 dark:border-zinc-700 px-6 py-4 rounded-b-lg">
+                                <div className="flex items-center justify-end">
+                                    <button
+                                        type="button"
+                                        disabled={isSubmitting}
+                                        onClick={async () => {
+                                            setIsSubmitting(true);
+                                            try {
+                                                const { doc_data, files } =
+                                                    await prepareDataWithFiles();
+
+                                                const savedBodyHtml = await getEndorsementDraft(
+                                                    endorsementSessionId,
+                                                    currentUser || "guest",
+                                                );
+
+                                                const budgetTotal = (formData.proposed_budget_breakup || []).reduce(
+                                                    (acc: number, row: any) =>
+                                                        acc + (row.years || []).reduce(
+                                                            (sum: number, val: any) => sum + Number(val || 0), 0,
+                                                        ),
+                                                    0,
+                                                );
+
+                                                const html_content = getEndorsementHtml({
+                                                    proposalId: docname || "IITG-",
                                                     piName: formData.principal_investigator_name,
-                                                    piDesignation:
-                                                        formData.designation,
-                                                    piDepartment:
-                                                        formData.applicant_department,
-                                                    coPiName:
-                                                        formData
-                                                            .co_investigator_table?.[0]
-                                                            ?.copi_name || "",
-                                                    coPiDesignation:
-                                                        formData
-                                                            .co_investigator_table?.[0]
-                                                            ?.copi_designation ||
-                                                        "",
-                                                    coPiDepartment:
-                                                        formData
-                                                            .co_investigator_table?.[0]
-                                                            ?.copi_department ||
-                                                        "",
-                                                    projectTitle:
-                                                        formData.project_title,
-                                                    fundingAgency:
-                                                        formData.funding_agen,
+                                                    piDesignation: formData.designation,
+                                                    piDepartment: formData.applicant_department,
+                                                    coPiName: formData.co_investigator_table?.[0]?.copi_name || "",
+                                                    coPiDesignation: formData.co_investigator_table?.[0]?.copi_designation || "",
+                                                    coPiDepartment: formData.co_investigator_table?.[0]?.copi_department || "",
+                                                    projectTitle: formData.project_title,
+                                                    fundingAgency: formData.funding_agen,
                                                     duration:
-                                                        formData.project_type ===
-                                                        "Consultancy"
+                                                        formData.project_type === "Consultancy"
                                                             ? `${formData.project_duration_days} days`
                                                             : `${formData.project_duration_months} months`,
-                                                    totalCost:
-                                                        String(budgetTotal),
-                                                    bodyHtml:
-                                                        endorsementHtml ||
-                                                        undefined, // inject edited body content
-                                                },
-                                            );
-                                            console.log(
-                                                "=== ENDORSEMENT SUBMIT DEBUG ===",
-                                            );
-                                            console.log(
-                                                "Full HTML length:",
-                                                fullHtml.length,
-                                            );
-                                            console.log(
-                                                "Starts with DOCTYPE:",
-                                                fullHtml
-                                                    .trimStart()
-                                                    .startsWith("<!DOCTYPE"),
-                                            );
-                                            await saveEndorsementDraft({
-                                                doc_data:
-                                                    JSON.stringify(doc_data),
-                                                html_content: fullHtml,
-                                                files:
-                                                    files.length > 0
-                                                        ? files
-                                                        : null,
-                                                endorsement: 1,
-                                            });
-                                            setShowEndorsementModal(false);
-                                        } catch (err) {
-                                            alert(
-                                                "Error processing endorsement.",
-                                            );
-                                        } finally {
-                                            setIsSubmitting(false);
-                                        }
-                                    }}
-                                    className="px-6 py-3 rounded-md font-bold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {isSubmitting ? "Submitting..." : "Submit"}
-                                </button>
+                                                    totalCost: String(budgetTotal),
+                                                    bodyHtml: savedBodyHtml || undefined,
+                                                });
+
+                                                await saveEndorsementDraft({
+                                                    doc_data: JSON.stringify(doc_data),
+                                                    html_content,
+                                                    files: files.length > 0 ? files : null,
+                                                    endorsement: 1,
+                                                });
+                                                setShowEndorsementModal(false);
+                                                navigate("/projects-view");
+                                            } catch (err) {
+                                                alert(
+                                                    "Error processing endorsement.",
+                                                );
+                                            } finally {
+                                                setIsSubmitting(false);
+                                            }
+                                        }}
+                                        className="px-6 py-3 rounded-md font-bold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isSubmitting ? "Submitting..." : "Submit"}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

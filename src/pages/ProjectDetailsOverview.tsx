@@ -221,7 +221,7 @@ const TableDisplay = ({
 }: {
   label: string;
   data: any[] | undefined;
-  columns: { fieldname: string; label: string }[];
+  columns: { fieldname: string; label: string; render?: (value: any) => React.ReactNode }[];
   icon?: any;
 }) => {
   if (!data || data.length === 0) return null;
@@ -252,7 +252,7 @@ const TableDisplay = ({
                     key={col.fieldname}
                     className="px-4 py-2 text-xs text-zinc-700 dark:text-zinc-300"
                   >
-                    {row[col.fieldname]}
+                    {col.render ? col.render(row[col.fieldname]) : row[col.fieldname]}
                   </TableCell>
                 ))}
               </TableRow>
@@ -286,7 +286,7 @@ const FrappeButton = ({
       className,
       variant === "primary" && "bg-[#D97757] hover:bg-[#D97757] text-white",
       variant === "outline" &&
-        "border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
+      "border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
     )}
     {...props}
   >
@@ -394,13 +394,12 @@ const AdvanceSettlementModal = ({
               </div>
               <div className="flex items-center gap-2">
                 <span
-                  className={`text-xs px-2 py-1 rounded-full border ${
-                    settlement.workflow_state === "Approved"
-                      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                      : settlement.workflow_state === "Submitted"
-                        ? "bg-blue-100 text-blue-800 border-blue-200"
-                        : "bg-zinc-100 text-zinc-800 border-zinc-200"
-                  }`}
+                  className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
+                    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                    : settlement.workflow_state === "Submitted"
+                      ? "bg-blue-100 text-blue-800 border-blue-200"
+                      : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                    }`}
                 >
                   {settlement.workflow_state || "Draft"}
                 </span>
@@ -487,13 +486,12 @@ const TADASettlementModal = ({
               </div>
               <div className="flex items-center gap-2">
                 <span
-                  className={`text-xs px-2 py-1 rounded-full border ${
-                    settlement.workflow_state === "Approved"
-                      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                      : settlement.workflow_state === "Submitted"
-                        ? "bg-blue-100 text-blue-800 border-blue-200"
-                        : "bg-zinc-100 text-zinc-800 border-zinc-200"
-                  }`}
+                  className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
+                    ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                    : settlement.workflow_state === "Submitted"
+                      ? "bg-blue-100 text-blue-800 border-blue-200"
+                      : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                    }`}
                 >
                   {settlement.workflow_state || "Draft"}
                 </span>
@@ -577,13 +575,12 @@ const P11FormModal = ({
                   </div>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`text-xs px-2 py-1 rounded-full border ${
-                        form.workflow_state === "Approved"
-                          ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                          : form.workflow_state === "Submitted"
-                            ? "bg-blue-100 text-blue-800 border-blue-200"
-                            : "bg-zinc-100 text-zinc-800 border-zinc-200"
-                      }`}
+                      className={`text-xs px-2 py-1 rounded-full border ${form.workflow_state === "Approved"
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                        : form.workflow_state === "Submitted"
+                          ? "bg-blue-100 text-blue-800 border-blue-200"
+                          : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                        }`}
                     >
                       {form.workflow_state || "Draft"}
                     </span>
@@ -870,6 +867,7 @@ const QuickActions = ({
       ],
     },
     { title: "Travel", icon: Plane, items: ["Travel"] },
+    { title: "Loan", icon: CreditCardIcon, items: ["Loan Request"] },
     {
       title: "Utilities",
       icon: Settings,
@@ -1342,6 +1340,42 @@ const QuickActions = ({
           console.error("Indent cum Sanction fetch error:", fetchError);
           data = [];
         }
+      } else if (selectedApplication === "Loan Request") {
+        try {
+          const timestamp = Date.now();
+          const apiUrl = `/api/v2/document/Loan%20Request?fields=["name","creation","workflow_state","docstatus","owner","project_name","project_number","applicant_webmail","loan_account_type","loan_amount"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          const fetchResponse = await fetch(apiUrl, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            credentials: "include",
+          });
+          if (!fetchResponse.ok)
+            throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+          const result = await fetchResponse.json();
+          const allItems = result?.data || [];
+          data = allItems
+            .filter((item: any) => {
+              return (
+                item.project_name === projectName ||
+                item.project_name === projectNo ||
+                item.project_number === projectNo ||
+                item.project_number === projectName
+              );
+            })
+            .map((item: any) => ({
+              ...item,
+              workflow_state:
+                item.workflow_state ||
+                (item.docstatus === 1
+                  ? "Submitted"
+                  : item.docstatus === 2
+                    ? "Cancelled"
+                    : "Draft"),
+            }));
+        } catch (fetchError) {
+          console.error("Loan Request fetch error:", fetchError);
+          data = [];
+        }
       }
       setApplicationData(data);
     } catch (error) {
@@ -1460,6 +1494,9 @@ const QuickActions = ({
         break;
       case "TA DA Settlement":
         onNavigate(`/ta-da-settlement?project=${projectParam}`);
+        break;
+      case "Loan Request":
+        onNavigate(`/loan-request?project=${projectParam}&projectTitle=${encodeURIComponent(projectTitle || "")}`);
         break;
       case "Project Staff Resignation":
         onNavigate(`/project-staff-resignation?project=${projectParam}`);
@@ -1596,28 +1633,60 @@ const QuickActions = ({
                       {item.applicant_webmail || item.owner}
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={cn(
-                          "inline-flex px-2 py-1 text-xs font-medium rounded-full",
-                          item.workflow_state === "Approved" &&
-                            "bg-green-100 text-green-700",
-                          item.workflow_state === "Pending" &&
-                            "bg-yellow-100 text-yellow-700",
-                          item.workflow_state === "Rejected" &&
-                            "bg-red-100 text-red-700",
-                          item.workflow_state === "Draft" &&
-                            "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
-                          ![
-                            "Approved",
-                            "Pending",
-                            "Rejected",
-                            "Draft",
-                          ].includes(item.workflow_state) &&
-                            "bg-blue-100 text-blue-700",
-                        )}
-                      >
-                        {item.workflow_state || "Draft"}
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span
+                          className={cn(
+                            "inline-flex px-2 py-1 text-xs font-medium rounded-full",
+                            item.workflow_state === "Approved" &&
+                              "bg-green-100 text-green-700",
+                            item.workflow_state === "Pending" &&
+                              "bg-yellow-100 text-yellow-700",
+                            item.workflow_state === "Rejected" &&
+                              "bg-red-100 text-red-700",
+                            item.workflow_state === "Draft" &&
+                              "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
+                            ![
+                              "Approved",
+                              "Pending",
+                              "Rejected",
+                              "Draft",
+                            ].includes(item.workflow_state) &&
+                              "bg-blue-100 text-blue-700",
+                          )}
+                        >
+                          {item.workflow_state || "Draft"}
+                        </span>
+                        {/* Show linked TA/DA Settlement status for Travel Apply rows */}
+                        {selectedApplication === "Travel" &&
+                          item.type === "Travel Apply" &&
+                          applicationData
+                            .filter(
+                              (s: any) =>
+                                s.type === "TA DA Settlement" &&
+                                s.ta_da_travel_application === item.name,
+                            )
+                            .slice(0, 1)
+                            .map((settlement: any) => (
+                              <span
+                                key={settlement.name}
+                                className={cn(
+                                  "inline-flex px-2 py-1 text-xs font-medium rounded-full",
+                                  settlement.workflow_state === "Approved" &&
+                                    "bg-green-100 text-green-700",
+                                  settlement.workflow_state === "Rejected" &&
+                                    "bg-red-100 text-red-700",
+                                  settlement.workflow_state === "Draft" &&
+                                    "bg-zinc-100 text-zinc-700",
+                                  !["Approved", "Rejected", "Draft"].includes(
+                                    settlement.workflow_state,
+                                  ) && "bg-blue-100 text-blue-700",
+                                )}
+                                title={`Settlement: ${settlement.name}`}
+                              >
+                                Settled: {settlement.workflow_state}
+                              </span>
+                            ))}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-3">
@@ -1666,6 +1735,9 @@ const QuickActions = ({
                                   `/recruitment-adhoc-contractual?edit=${item.name}`,
                                 );
                                 break;
+                              case "Loan Request":
+                                onNavigate(`/loan-request/${item.name}`);
+                                break;
                               default:
                                 // Check item.type for Travel consolidated view
                                 if (item.type === "Travel Apply") {
@@ -1688,6 +1760,31 @@ const QuickActions = ({
                         >
                           View
                         </button>
+                        {selectedApplication === "Adhoc/Contractual" &&
+                          item.workflow_state === "Approved" && (
+                            <>
+                                <button
+                                  onClick={() =>
+                                    onNavigate(
+                                      `/candidate-applications?refNum=${item.name}`,
+                                    )
+                                  }
+                                  className="text-sm text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:underline whitespace-nowrap"
+                                >
+                                  Add
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    onNavigate(
+                                      `/selection-committee-report?interview_id=${item.name}`,
+                                    )
+                                  }
+                                  className="text-sm text-green-600 hover:text-green-800 dark:text-green-500 hover:underline whitespace-nowrap"
+                                >
+                                  SCR
+                                </button>
+                            </>
+                          )}
                         {selectedApplication === "Direct Purchase" &&
                           item.workflow_state === "Approved" && (
                             <button
@@ -2012,6 +2109,31 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
       dedupingInterval: 60000, // Cache for 60 seconds
     },
   );
+  const { data: fundingAgencyResult } = useFrappeGetCall<{ message: Record<string, any> }>(
+    "frappe.client.get_value",
+    data?.funding_agen
+      ? {
+          doctype: "fundingagency_",
+          filters: data.funding_agen,
+          fieldname: JSON.stringify([
+            "funding_agency_id",
+            "funding_agency_name",
+            "funding_agency_initials",
+            "funding_agency_type_1",
+            "origin_of_funding_agency",
+            "gstin_of_funding_agency",
+            "ministry_funding_agency",
+            "fundingagency_address",
+            "fundingagency_country",
+            "fundingagency_state",
+            "fundingagency_postalcode",
+          ]),
+        }
+      : undefined,
+    data?.funding_agen ? `funding-agency-${data.funding_agen}` : null,
+    { revalidateOnFocus: false, revalidateOnReconnect: false, refreshInterval: 0, dedupingInterval: 60000 },
+  );
+  const fundingAgencyData = fundingAgencyResult?.message;
   const { call: triggerWorkflowAction, loading: isActionLoading } =
     useFrappePostCall("rndopsapp.rndopsapp.api.handle_workflow_action");
   const { call: submitProjectRegistration } = useFrappePostCall(
@@ -2677,10 +2799,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
         action.toLowerCase() === "submit"
           ? submitProjectRegistration({ doc_data: projectName })
           : triggerWorkflowAction({
-              doctype: "Project Registration",
-              docname: projectName,
-              action: action,
-            });
+            doctype: "Project Registration",
+            docname: projectName,
+            action: action,
+          });
       apiCall
         .then(() => {
           mutate();
@@ -2886,14 +3008,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                   {/* Only show Add Sanction button if no sanction exists */}
                   {(!sanctionData?.message ||
                     sanctionData.message.length === 0) && (
-                    <FrappeButton
-                      onClick={handleAddSanctionDetails}
-                      variant="outline"
-                      aria-label="Add sanction details"
-                    >
-                      <FilePlusIcon className="h-3.5 w-3.5" /> Add Sanction
-                    </FrappeButton>
-                  )}
+                      <FrappeButton
+                        onClick={handleAddSanctionDetails}
+                        variant="outline"
+                        aria-label="Add sanction details"
+                      >
+                        <FilePlusIcon className="h-3.5 w-3.5" /> Add Sanction
+                      </FrappeButton>
+                    )}
                 </div>
               )}
               <WorkflowActions
@@ -2921,7 +3043,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     className={cn(
                       "frappe-tab flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-bold",
                       activeTab === tab.id &&
-                        "active bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757] dark:bg-[#D97757]/20",
+                      "active bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757] dark:bg-[#D97757]/20",
                     )}
                   >
                     <tab.icon className="h-3.5 w-3.5" /> {tab.label}
@@ -3015,7 +3137,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             </p>
                           </div>
                           <a
-                            href={`http://172.16.135.118:9000/rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
+                            href={`http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-sm font-medium text-[#D97757] hover:underline flex items-center gap-1"
@@ -3054,49 +3176,49 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         {data?.consultancy_category?.startsWith(
                           "Category D",
                         ) && (
-                          <>
-                            <FieldDisplay
-                              label="Category D Note"
-                              value={data?.category_d_note}
-                              icon={FileTextIcon}
-                            />
-                            <FieldDisplay
-                              label="Total Cost (Excl. GST)"
-                              value={data?.cat_d_project_cost_excl_gst}
-                              icon={IndianRupeeIcon}
-                            />
-                            <FieldDisplay
-                              label="Consultancy Fee"
-                              value={data?.cat_d_consultancy_fee_input}
-                              icon={IndianRupeeIcon}
-                            />
-                            <FieldDisplay
-                              label="Operational Expense (+OH)"
-                              value={data?.operational_expense_input_inc_10_oh}
-                              icon={IndianRupeeIcon}
-                            />
-                            <FieldDisplay
-                              label="Institute Share"
-                              value={data?.cat_d_institute_share}
-                              icon={IndianRupeeIcon}
-                            />
-                            <FieldDisplay
-                              label="Total Overhead"
-                              value={data?.cat_d_total_overhead}
-                              icon={IndianRupeeIcon}
-                            />
-                            <FieldDisplay
-                              label="GST Amount"
-                              value={data?.cat_d_gst_amt}
-                              icon={IndianRupeeIcon}
-                            />
-                            <FieldDisplay
-                              label="Grand Total"
-                              value={data?.cat_d_grand_total_calc}
-                              icon={IndianRupeeIcon}
-                            />
-                          </>
-                        )}
+                            <>
+                              <FieldDisplay
+                                label="Category D Note"
+                                value={data?.category_d_note}
+                                icon={FileTextIcon}
+                              />
+                              <FieldDisplay
+                                label="Total Cost (Excl. GST)"
+                                value={data?.cat_d_project_cost_excl_gst}
+                                icon={IndianRupeeIcon}
+                              />
+                              <FieldDisplay
+                                label="Consultancy Fee"
+                                value={data?.cat_d_consultancy_fee_input}
+                                icon={IndianRupeeIcon}
+                              />
+                              <FieldDisplay
+                                label="Operational Expense (+OH)"
+                                value={data?.operational_expense_input_inc_10_oh}
+                                icon={IndianRupeeIcon}
+                              />
+                              <FieldDisplay
+                                label="Institute Share"
+                                value={data?.cat_d_institute_share}
+                                icon={IndianRupeeIcon}
+                              />
+                              <FieldDisplay
+                                label="Total Overhead"
+                                value={data?.cat_d_total_overhead}
+                                icon={IndianRupeeIcon}
+                              />
+                              <FieldDisplay
+                                label="GST Amount"
+                                value={data?.cat_d_gst_amt}
+                                icon={IndianRupeeIcon}
+                              />
+                              <FieldDisplay
+                                label="Grand Total"
+                                value={data?.cat_d_grand_total_calc}
+                                icon={IndianRupeeIcon}
+                              />
+                            </>
+                          )}
 
                         {!data?.consultancy_category?.startsWith(
                           "Category D",
@@ -3161,22 +3283,37 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2 divide-y md:divide-y-0">
                       <FieldDisplay
                         label="Agency Name"
-                        value={data?.funding_agen}
+                        value={fundingAgencyData?.funding_agency_name}
                         icon={BuildingIcon}
                       />
                       <FieldDisplay
+                        label="Agency ID"
+                        value={fundingAgencyData?.funding_agency_id}
+                        icon={BuildingIcon}
+                      />
+                      <FieldDisplay
+                        label="Initials"
+                        value={fundingAgencyData?.funding_agency_initials}
+                        icon={FileTextIcon}
+                      />
+                      <FieldDisplay
                         label="Agency Type"
-                        value={data?.funding_agency_type}
+                        value={fundingAgencyData?.funding_agency_type_1 ?? data?.funding_agency_type}
                         icon={UsersIcon}
                       />
                       <FieldDisplay
                         label="Origin"
-                        value={data?.origin_of_funding_agency}
+                        value={fundingAgencyData?.origin_of_funding_agency ?? data?.origin_of_funding_agency}
                         icon={GlobeIcon}
                       />
                       <FieldDisplay
+                        label="GSTIN"
+                        value={fundingAgencyData?.gstin_of_funding_agency}
+                        icon={CreditCardIcon}
+                      />
+                      <FieldDisplay
                         label="Ministry"
-                        value={data?.funding_agency_ministry}
+                        value={fundingAgencyData?.ministry_funding_agency ?? data?.funding_agency_ministry}
                         icon={BuildingIcon}
                       />
                       <FieldDisplay
@@ -3186,7 +3323,12 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       />
                       <FieldDisplay
                         label="Address"
-                        value={`${data?.address_street_village_locality}, ${data?.address_state}, ${data?.address_country} - ${data?.address_postal_code}`}
+                        value={[
+                          fundingAgencyData?.fundingagency_address ?? data?.address_street_village_locality,
+                          fundingAgencyData?.fundingagency_state ?? data?.address_state,
+                          fundingAgencyData?.fundingagency_country ?? data?.address_country,
+                          fundingAgencyData?.fundingagency_postalcode ?? data?.address_postal_code,
+                        ].filter(Boolean).join(", ")}
                         icon={MapPinIcon}
                       />
                     </div>
@@ -3235,7 +3377,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       columns={[
                         { fieldname: "pi_name", label: "Name" },
                         { fieldname: "pi_designation", label: "Designation" },
+                        { fieldname: "pi_department", label: "Department", render: (v) => <DepartmentName name={v} /> },
                         { fieldname: "pi_email", label: "Email" },
+                        { fieldname: "pi_address", label: "Address" },
+                        { fieldname: "pi_contact", label: "Contact" },
                       ]}
                       icon={UsersIcon}
                     />
@@ -3247,7 +3392,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       columns={[
                         { fieldname: "copi_name", label: "Name" },
                         { fieldname: "copi_designation", label: "Designation" },
+                        { fieldname: "copi_department", label: "Department", render: (v) => <DepartmentName name={v} /> },
                         { fieldname: "copi_email", label: "Email" },
+                        { fieldname: "copi_address", label: "Address" },
+                        { fieldname: "copi_contact", label: "Contact" },
                       ]}
                       icon={UsersIcon}
                     />
@@ -3752,10 +3900,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                                 {c.fieldname === "account_head"
                                                   ? row[c.fieldname]
                                                   : (
-                                                      parseFloat(
-                                                        row[c.fieldname],
-                                                      ) || 0
-                                                    ).toLocaleString("en-IN")}
+                                                    parseFloat(
+                                                      row[c.fieldname],
+                                                    ) || 0
+                                                  ).toLocaleString("en-IN")}
                                               </td>
                                             ))}
                                             <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
@@ -4006,8 +4154,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                 <td className="px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                                   {txn.transactionDate
                                     ? new Date(
-                                        txn.transactionDate,
-                                      ).toLocaleDateString("en-IN")
+                                      txn.transactionDate,
+                                    ).toLocaleDateString("en-IN")
                                     : "-"}
                                 </td>
                                 <td className="px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100">
@@ -4275,11 +4423,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         tab === "All"
                           ? budgetData
                           : budgetData.filter(
-                              (e: any) =>
-                                (e.head || e.accountHead || "")
-                                  .trim()
-                                  .toLowerCase() === tab.trim().toLowerCase(),
-                            );
+                            (e: any) =>
+                              (e.head || e.accountHead || "")
+                                .trim()
+                                .toLowerCase() === tab.trim().toLowerCase(),
+                          );
                       // Use the last entry's commitableBalance for that head (running total already calculated)
                       const lastEntryForHead =
                         tabEntries.length > 0
@@ -4288,13 +4436,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       const tabBalance =
                         tab === "All"
                           ? tabEntries.reduce(
-                              (acc, e) =>
-                                acc +
-                                (e.received || 0) -
-                                (e.committed || 0) -
-                                (e.payment || 0),
-                              0,
-                            )
+                            (acc, e) =>
+                              acc +
+                              (e.received || 0) -
+                              (e.committed || 0) -
+                              (e.payment || 0),
+                            0,
+                          )
                           : lastEntryForHead?.commitableBalance || 0;
                       return (
                         <button
@@ -4459,8 +4607,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                               {activeLedgerTab === "All"
                                 ? row.actualBalance?.toLocaleString("en-IN")
                                 : (
-                                    row as any
-                                  ).headActualBalance?.toLocaleString("en-IN")}
+                                  row as any
+                                ).headActualBalance?.toLocaleString("en-IN")}
                             </td>
                             <td>
                               <span
@@ -4577,7 +4725,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
 
                       {/* Select for Select/Link fieldtypes */}
                       {field.fieldtype === "Select" ||
-                      field.fieldtype === "Link" ? (
+                        field.fieldtype === "Link" ? (
                         <select
                           className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                           value={value}

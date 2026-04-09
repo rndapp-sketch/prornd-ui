@@ -84,6 +84,110 @@ interface ProjectDetailsProps {
     backLabel?: string;
 }
 
+const EndorsementModal = ({
+    isOpen,
+    onClose,
+    html,
+    isLoading,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    html: string | null;
+    isLoading: boolean;
+}) => {
+    const iframeRef = React.useRef<HTMLIFrameElement>(null);
+
+    if (!isOpen) return null;
+
+    const srcDoc = html
+        ? `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>body{margin:0;padding:16px;}@media print{@page{margin:10mm;}}</style></head><body>${html}</body></html>`
+        : "";
+
+    const handlePrint = () => {
+        iframeRef.current?.contentWindow?.print();
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8">
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                onClick={onClose}
+            />
+
+            {/* Modal */}
+            <div
+                className="relative z-10 w-full max-w-3xl bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden flex flex-col"
+                style={{ height: "88vh" }}
+            >
+                {/* Header */}
+                <div className="flex-none flex items-center justify-between px-4 py-2.5 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800">
+                    <div className="flex items-center gap-2">
+                        <FileBadge className="h-4 w-4 text-[#D97757]" />
+                        <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                            Endorsement Certificate
+                        </span>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        aria-label="Close"
+                        className="flex items-center justify-center w-7 h-7 rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                    >
+                        <XCircleIcon className="h-4 w-4" />
+                    </button>
+                </div>
+
+                {/* Body — iframe renders HTML with full style isolation */}
+                <div className="flex-1 min-h-0 bg-white">
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center h-full gap-3">
+                            <div className="animate-spin rounded-full h-7 w-7 border-2 border-[#D97757] border-t-transparent" />
+                            <p className="text-xs text-zinc-500">Loading endorsement…</p>
+                        </div>
+                    ) : html ? (
+                        <iframe
+                            ref={iframeRef}
+                            srcDoc={srcDoc}
+                            title="Endorsement Certificate"
+                            className="w-full h-full border-0"
+                            sandbox="allow-same-origin allow-modals"
+                        />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full gap-3">
+                            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800">
+                                <FileBadge className="h-6 w-6 text-zinc-400" />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-sm font-medium text-zinc-500">No endorsement found</p>
+                                <p className="text-xs text-zinc-400 mt-1">No endorsement data is linked to this project.</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex-none flex items-center justify-end gap-2 px-4 py-2.5 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800">
+                    <button
+                        onClick={onClose}
+                        className="px-3 py-1.5 text-xs font-medium rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-600 transition-colors"
+                    >
+                        Close
+                    </button>
+                    {html && (
+                        <button
+                            onClick={handlePrint}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-[#D97757] hover:bg-[#c4673e] text-white transition-colors"
+                        >
+                            <ExternalLinkIcon className="h-3 w-3" />
+                            Print
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const CommentModal = ({
     isOpen,
     onClose,
@@ -204,7 +308,7 @@ const TableDisplay = ({
 }: {
     label: string;
     data: any[] | undefined;
-    columns: { fieldname: string; label: string }[];
+    columns: { fieldname: string; label: string; render?: (value: any) => React.ReactNode }[];
     icon?: any;
     budgetHeadList?: { name: string; id: number }[];
 }) => {
@@ -258,9 +362,9 @@ const TableDisplay = ({
     // Calculate grand total
     const grandTotal = isBudgetTable
         ? data.reduce((sum, row) => {
-              const rowTotal = getRowTotal(row);
-              return sum + (rowTotal || 0);
-          }, 0)
+            const rowTotal = getRowTotal(row);
+            return sum + (rowTotal || 0);
+        }, 0)
         : null;
 
     return (
@@ -314,21 +418,23 @@ const TableDisplay = ({
                                                 col.fieldname === "account_head"
                                                     ? "text-zinc-900 dark:text-zinc-100 font-medium text-left font-mono"
                                                     : isBudgetTable
-                                                      ? "text-zinc-600 dark:text-zinc-300 text-right tabular-nums"
-                                                      : "text-zinc-700 dark:text-zinc-300 text-left",
+                                                        ? "text-zinc-600 dark:text-zinc-300 text-right tabular-nums"
+                                                        : "text-zinc-700 dark:text-zinc-300 text-left",
                                             )}
                                         >
                                             {col.fieldname === "account_head"
                                                 ? getBudgetHeadName(
-                                                      row[col.fieldname],
-                                                  )
+                                                    row[col.fieldname],
+                                                )
                                                 : isBudgetTable
-                                                  ? (
+                                                    ? (
                                                         parseFloat(
                                                             row[col.fieldname],
                                                         ) || 0
                                                     ).toLocaleString("en-IN")
-                                                  : row[col.fieldname]}
+                                                    : col.render
+                                                        ? col.render(row[col.fieldname])
+                                                        : row[col.fieldname]}
                                         </TableCell>
                                     ))}
                                     {isBudgetTable && rowTotal !== null && (
@@ -362,8 +468,8 @@ const TableDisplay = ({
                                             >
                                                 {colTotal !== null
                                                     ? colTotal.toLocaleString(
-                                                          "en-IN",
-                                                      )
+                                                        "en-IN",
+                                                    )
                                                     : "-"}
                                             </td>
                                         );
@@ -612,49 +718,49 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                     )}
                     {activityData?.message && activityData.message.length > 0
                         ? activityData.message.map((item, index) => (
-                              <div
-                                  key={`${item.creation}-${index}`}
-                                  className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm"
-                              >
-                                  <div className="flex-shrink-0 h-10 w-10 rounded-full bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-sm">
-                                      {item.owner?.charAt(0).toUpperCase() ||
-                                          "U"}
-                                  </div>
-                                  <div className="flex-1">
-                                      <div className="flex justify-between items-center mb-1">
-                                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                                              {item.owner || "Unknown User"}
-                                          </p>
-                                          <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-                                              <ClockIcon className="h-3 w-3" />
-                                              {item.creation
-                                                  ? new Date(
-                                                        item.creation,
-                                                    ).toLocaleString()
-                                                  : "N/A"}
-                                          </p>
-                                      </div>
-                                      <div
-                                          className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed"
-                                          dangerouslySetInnerHTML={{
-                                              __html:
-                                                  item.content || "No content",
-                                          }}
-                                      />
-                                  </div>
-                              </div>
-                          ))
+                            <div
+                                key={`${item.creation}-${index}`}
+                                className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm"
+                            >
+                                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-sm">
+                                    {item.owner?.charAt(0).toUpperCase() ||
+                                        "U"}
+                                </div>
+                                <div className="flex-1">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                            {item.owner || "Unknown User"}
+                                        </p>
+                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
+                                            <ClockIcon className="h-3 w-3" />
+                                            {item.creation
+                                                ? new Date(
+                                                    item.creation,
+                                                ).toLocaleString()
+                                                : "N/A"}
+                                        </p>
+                                    </div>
+                                    <div
+                                        className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed"
+                                        dangerouslySetInnerHTML={{
+                                            __html:
+                                                item.content || "No content",
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        ))
                         : !isActivityLoading && (
-                              <div className="text-center py-12 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900">
-                                  <MessageSquareIcon className="h-12 w-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
-                                  <p className="font-medium text-zinc-600 dark:text-zinc-400">
-                                      No activity yet.
-                                  </p>
-                                  <p className="text-sm mt-1">
-                                      Be the first to add a comment.
-                                  </p>
-                              </div>
-                          )}
+                            <div className="text-center py-12 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900">
+                                <MessageSquareIcon className="h-12 w-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
+                                <p className="font-medium text-zinc-600 dark:text-zinc-400">
+                                    No activity yet.
+                                </p>
+                                <p className="text-sm mt-1">
+                                    Be the first to add a comment.
+                                </p>
+                            </div>
+                        )}
                 </div>
             </div>
         );
@@ -698,11 +804,11 @@ const WorkflowActions = ({
                     onClick={() => onAction(actionString)}
                     variant={
                         actionString.toLowerCase().includes("approve") ||
-                        actionString.toLowerCase().includes("submit")
+                            actionString.toLowerCase().includes("submit")
                             ? "default"
                             : actionString.toLowerCase().includes("reject")
-                              ? "destructive"
-                              : "secondary"
+                                ? "destructive"
+                                : "secondary"
                     }
                     className={cn(
                         "flex items-center gap-2 h-9 px-4 text-xs font-medium rounded-lg shadow-sm transition-all",
@@ -748,7 +854,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const projectName = propProjectName || paramProjectName;
 
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState("overview"); // Default to overview
+    const [activeTab, setActiveTab] = useState("overview");
     const activityStreamRef = useRef<ActivityStreamHandle>(null);
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -759,6 +865,13 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
         projectName ?? "",
         { enabled: !!projectName, cacheTime: 0 },
     );
+
+    // Auto-switch to endorsement tab when status is "Endorsement Pending at Dean"
+    React.useEffect(() => {
+        if (data?.workflow_state === "Endorsement Pending at Dean") {
+            setActiveTab("endorsement");
+        }
+    }, [data?.workflow_state]);
 
     // Fetch Budget Heads for mapping
     const [budgetHeadList, setBudgetHeadList] = React.useState<
@@ -786,6 +899,33 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
         fetchBudgetHeads();
     }, []);
 
+    // Fetch Funding Agency master details
+    const { data: fundingAgencyResult } = useFrappeGetCall<{ message: Record<string, any> }>(
+        "frappe.client.get_value",
+        data?.funding_agen
+            ? {
+                doctype: "fundingagency_",
+                filters: data.funding_agen,
+                fieldname: JSON.stringify([
+                    "funding_agency_id",
+                    "funding_agency_name",
+                    "funding_agency_initials",
+                    "funding_agency_type_1",
+                    "origin_of_funding_agency",
+                    "gstin_of_funding_agency",
+                    "ministry_funding_agency",
+                    "fundingagency_address",
+                    "fundingagency_country",
+                    "fundingagency_state",
+                    "fundingagency_postalcode",
+                ]),
+            }
+            : undefined,
+        data?.funding_agen ? `funding-agency-${data.funding_agen}` : null,
+        { revalidateOnFocus: false, revalidateOnReconnect: false, refreshInterval: 0, dedupingInterval: 60000 },
+    );
+    const fundingAgencyData = fundingAgencyResult?.message;
+
     const { call: triggerWorkflowAction, loading: isActionLoading } =
         useFrappePostCall(
             "rndopsapp.rndopsapp.doctype.project_registration.project_registration.handle_dynamic_workflow_action",
@@ -794,10 +934,12 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
         "rndopsapp.rndopsapp.doctype.project_registration.project_registration.submit_project_registration",
     );
 
-    const { call: viewEndorsementFile, loading: isViewingEndorsement } =
-        useFrappePostCall(
-            "rndopsapp.rndopsapp.doctype.project_registration.project_registration.view_endorsement_file",
-        );
+    // const { call: viewEndorsementFile, loading: isViewingEndorsement } =
+    //     useFrappePostCall(
+    //         "rndopsapp.rndopsapp.doctype.project_registration.project_registration.view_endorsement_file",
+    //     );
+    const { call: fetchEndorsementData, loading: isFetchingEndorsementHtml } =
+        useFrappePostCall("frappe.client.get_list");
     const { call: updatePfmsFields } = useFrappePostCall('rndopsapp.rndopsapp.doctype.project_registration.project_registration.update_project_fields');
     const [pfmsForm, setPfmsForm] = useState({
         is_the_account_type_pfms: "",
@@ -844,6 +986,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
 
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
+    const [endorsementModalOpen, setEndorsementModalOpen] = useState(false);
+    const [endorsementHtml, setEndorsementHtml] = useState<string | null>(null);
 
     const handleWorkflowAction = useCallback((action: string) => {
         setSelectedAction(action);
@@ -857,11 +1001,11 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                 action.toLowerCase() === "submit"
                     ? submitProjectRegistration({ docname: projectName }) // Submit might not need comment, or backend might not support it yet. But generic workflow usually does.
                     : triggerWorkflowAction({
-                          doctype: "Project Registration",
-                          docname: projectName,
-                          action: action,
-                          comment: comment, // Passing comment here
-                      });
+                        doctype: "Project Registration",
+                        docname: projectName,
+                        action: action,
+                        comment: comment, // Passing comment here
+                    });
             apiCall
                 .then(() => {
                     setModalOpen(false);
@@ -995,6 +1139,12 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     action={selectedAction}
                     isLoading={isActionLoading}
                 />
+                <EndorsementModal
+                    isOpen={endorsementModalOpen}
+                    onClose={() => setEndorsementModalOpen(false)}
+                    html={endorsementHtml}
+                    isLoading={isFetchingEndorsementHtml}
+                />
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
                     <div className="border-b border-zinc-200 dark:border-zinc-800">
                         <nav className="flex space-x-1 p-1 overflow-x-auto">
@@ -1060,10 +1210,9 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                 />
                                                 <FieldDisplay
                                                     label="Project Duration"
-                                                    value={`${data?.project_duration_months}m ${
-                                                        data?.project_duration_days ||
+                                                    value={`${data?.project_duration_months}m ${data?.project_duration_days ||
                                                         0
-                                                    }d`}
+                                                        }d`}
                                                     icon={CalendarIcon}
                                                 />
                                                 <FieldDisplay
@@ -1092,7 +1241,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                             </p>
                                                         </div>
                                                         <a
-                                                            href={`http://172.16.135.118:9000/rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
+                                                            href={`http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments/${data.upload_proj_prop.split("/").pop()}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="text-sm font-medium text-[#D97757] hover:underline flex items-center gap-1"
@@ -1152,177 +1301,177 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                         {/* Consultancy Details */}
                                         {data?.project_type ===
                                             "Consultancy" && (
-                                            <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
-                                                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
-                                                    Consultancy Details
-                                                </h3>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
-                                                    <FieldDisplay
-                                                        label="Consultancy Category"
-                                                        value={
-                                                            data?.consultancy_category
-                                                        }
-                                                        icon={FileTextIcon}
-                                                    />
-                                                    <FieldDisplay
-                                                        label="GSTIN"
-                                                        value={
-                                                            data?.consultancy_gstin
-                                                        }
-                                                        icon={FileTextIcon}
-                                                    />
-                                                    <FieldDisplay
-                                                        label="GST Rate"
-                                                        value={
-                                                            data?.consultancy_gst_rate
-                                                        }
-                                                        icon={IndianRupeeIcon}
-                                                    />
+                                                <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
+                                                    <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
+                                                        Consultancy Details
+                                                    </h3>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
+                                                        <FieldDisplay
+                                                            label="Consultancy Category"
+                                                            value={
+                                                                data?.consultancy_category
+                                                            }
+                                                            icon={FileTextIcon}
+                                                        />
+                                                        <FieldDisplay
+                                                            label="GSTIN"
+                                                            value={
+                                                                data?.consultancy_gstin
+                                                            }
+                                                            icon={FileTextIcon}
+                                                        />
+                                                        <FieldDisplay
+                                                            label="GST Rate"
+                                                            value={
+                                                                data?.consultancy_gst_rate
+                                                            }
+                                                            icon={IndianRupeeIcon}
+                                                        />
 
-                                                    {data?.consultancy_category?.startsWith(
-                                                        "Category D",
-                                                    ) && (
-                                                        <>
-                                                            <FieldDisplay
-                                                                label="Category D Note"
-                                                                value={
-                                                                    data?.category_d_note
-                                                                }
-                                                                icon={
-                                                                    FileTextIcon
-                                                                }
-                                                            />
-                                                            <FieldDisplay
-                                                                label="Total Cost (Excl. GST)"
-                                                                value={
-                                                                    data?.cat_d_project_cost_excl_gst
-                                                                }
-                                                                icon={
-                                                                    IndianRupeeIcon
-                                                                }
-                                                            />
-                                                            <FieldDisplay
-                                                                label="Consultancy Fee"
-                                                                value={
-                                                                    data?.cat_d_consultancy_fee_input
-                                                                }
-                                                                icon={
-                                                                    IndianRupeeIcon
-                                                                }
-                                                            />
-                                                            <FieldDisplay
-                                                                label="Operational Expense (+OH)"
-                                                                value={
-                                                                    data?.operational_expense_input_inc_10_oh
-                                                                }
-                                                                icon={
-                                                                    IndianRupeeIcon
-                                                                }
-                                                            />
-                                                            <FieldDisplay
-                                                                label="Institute Share"
-                                                                value={
-                                                                    data?.cat_d_institute_share
-                                                                }
-                                                                icon={
-                                                                    IndianRupeeIcon
-                                                                }
-                                                            />
-                                                            <FieldDisplay
-                                                                label="Total Overhead"
-                                                                value={
-                                                                    data?.cat_d_total_overhead
-                                                                }
-                                                                icon={
-                                                                    IndianRupeeIcon
-                                                                }
-                                                            />
-                                                            <FieldDisplay
-                                                                label="GST Amount"
-                                                                value={
-                                                                    data?.cat_d_gst_amt
-                                                                }
-                                                                icon={
-                                                                    IndianRupeeIcon
-                                                                }
-                                                            />
-                                                            <FieldDisplay
-                                                                label="Grand Total"
-                                                                value={
-                                                                    data?.cat_d_grand_total_calc
-                                                                }
-                                                                icon={
-                                                                    IndianRupeeIcon
-                                                                }
-                                                            />
-                                                        </>
-                                                    )}
+                                                        {data?.consultancy_category?.startsWith(
+                                                            "Category D",
+                                                        ) && (
+                                                                <>
+                                                                    <FieldDisplay
+                                                                        label="Category D Note"
+                                                                        value={
+                                                                            data?.category_d_note
+                                                                        }
+                                                                        icon={
+                                                                            FileTextIcon
+                                                                        }
+                                                                    />
+                                                                    <FieldDisplay
+                                                                        label="Total Cost (Excl. GST)"
+                                                                        value={
+                                                                            data?.cat_d_project_cost_excl_gst
+                                                                        }
+                                                                        icon={
+                                                                            IndianRupeeIcon
+                                                                        }
+                                                                    />
+                                                                    <FieldDisplay
+                                                                        label="Consultancy Fee"
+                                                                        value={
+                                                                            data?.cat_d_consultancy_fee_input
+                                                                        }
+                                                                        icon={
+                                                                            IndianRupeeIcon
+                                                                        }
+                                                                    />
+                                                                    <FieldDisplay
+                                                                        label="Operational Expense (+OH)"
+                                                                        value={
+                                                                            data?.operational_expense_input_inc_10_oh
+                                                                        }
+                                                                        icon={
+                                                                            IndianRupeeIcon
+                                                                        }
+                                                                    />
+                                                                    <FieldDisplay
+                                                                        label="Institute Share"
+                                                                        value={
+                                                                            data?.cat_d_institute_share
+                                                                        }
+                                                                        icon={
+                                                                            IndianRupeeIcon
+                                                                        }
+                                                                    />
+                                                                    <FieldDisplay
+                                                                        label="Total Overhead"
+                                                                        value={
+                                                                            data?.cat_d_total_overhead
+                                                                        }
+                                                                        icon={
+                                                                            IndianRupeeIcon
+                                                                        }
+                                                                    />
+                                                                    <FieldDisplay
+                                                                        label="GST Amount"
+                                                                        value={
+                                                                            data?.cat_d_gst_amt
+                                                                        }
+                                                                        icon={
+                                                                            IndianRupeeIcon
+                                                                        }
+                                                                    />
+                                                                    <FieldDisplay
+                                                                        label="Grand Total"
+                                                                        value={
+                                                                            data?.cat_d_grand_total_calc
+                                                                        }
+                                                                        icon={
+                                                                            IndianRupeeIcon
+                                                                        }
+                                                                    />
+                                                                </>
+                                                            )}
 
-                                                    {!data?.consultancy_category?.startsWith(
-                                                        "Category D",
-                                                    ) &&
-                                                        data?.consultancy_category && (
-                                                            <>
-                                                                <FieldDisplay
-                                                                    label="Category Note"
-                                                                    value={
-                                                                        data?.category_e_note ||
-                                                                        data?.category_t_note
-                                                                    }
-                                                                    icon={
-                                                                        FileTextIcon
-                                                                    }
-                                                                />
-                                                                <FieldDisplay
-                                                                    label="Total Amount"
-                                                                    value={
-                                                                        data?.cat_ef_total_amount
-                                                                    }
-                                                                    icon={
-                                                                        IndianRupeeIcon
-                                                                    }
-                                                                />
-                                                                <FieldDisplay
-                                                                    label="Honorarium"
-                                                                    value={
-                                                                        data?.cat_ef_honorarium
-                                                                    }
-                                                                    icon={
-                                                                        IndianRupeeIcon
-                                                                    }
-                                                                />
-                                                                <FieldDisplay
-                                                                    label="Institute Share"
-                                                                    value={
-                                                                        data?.cat_ef_institute_share
-                                                                    }
-                                                                    icon={
-                                                                        IndianRupeeIcon
-                                                                    }
-                                                                />
-                                                                <FieldDisplay
-                                                                    label="GST"
-                                                                    value={
-                                                                        data?.cat_ef_gst
-                                                                    }
-                                                                    icon={
-                                                                        IndianRupeeIcon
-                                                                    }
-                                                                />
-                                                                <FieldDisplay
-                                                                    label="Grand Total"
-                                                                    value={
-                                                                        data?.cat_ef_grand_total
-                                                                    }
-                                                                    icon={
-                                                                        IndianRupeeIcon
-                                                                    }
-                                                                />
-                                                            </>
-                                                        )}
+                                                        {!data?.consultancy_category?.startsWith(
+                                                            "Category D",
+                                                        ) &&
+                                                            data?.consultancy_category && (
+                                                                <>
+                                                                    <FieldDisplay
+                                                                        label="Category Note"
+                                                                        value={
+                                                                            data?.category_e_note ||
+                                                                            data?.category_t_note
+                                                                        }
+                                                                        icon={
+                                                                            FileTextIcon
+                                                                        }
+                                                                    />
+                                                                    <FieldDisplay
+                                                                        label="Total Amount"
+                                                                        value={
+                                                                            data?.cat_ef_total_amount
+                                                                        }
+                                                                        icon={
+                                                                            IndianRupeeIcon
+                                                                        }
+                                                                    />
+                                                                    <FieldDisplay
+                                                                        label="Honorarium"
+                                                                        value={
+                                                                            data?.cat_ef_honorarium
+                                                                        }
+                                                                        icon={
+                                                                            IndianRupeeIcon
+                                                                        }
+                                                                    />
+                                                                    <FieldDisplay
+                                                                        label="Institute Share"
+                                                                        value={
+                                                                            data?.cat_ef_institute_share
+                                                                        }
+                                                                        icon={
+                                                                            IndianRupeeIcon
+                                                                        }
+                                                                    />
+                                                                    <FieldDisplay
+                                                                        label="GST"
+                                                                        value={
+                                                                            data?.cat_ef_gst
+                                                                        }
+                                                                        icon={
+                                                                            IndianRupeeIcon
+                                                                        }
+                                                                    />
+                                                                    <FieldDisplay
+                                                                        label="Grand Total"
+                                                                        value={
+                                                                            data?.cat_ef_grand_total
+                                                                        }
+                                                                        icon={
+                                                                            IndianRupeeIcon
+                                                                        }
+                                                                    />
+                                                                </>
+                                                            )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
+                                            )}
                                         {/* Other Project Type */}
                                         {data?.project_type === "Other" && (
                                             <div className="p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
@@ -1344,40 +1493,52 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
                                                 <FieldDisplay
                                                     label="Agency Name"
-                                                    value={data?.funding_agen}
+                                                    value={fundingAgencyData?.funding_agency_name}
                                                     icon={BuildingIcon}
                                                 />
                                                 <FieldDisplay
+                                                    label="Agency ID"
+                                                    value={fundingAgencyData?.funding_agency_id}
+                                                    icon={BuildingIcon}
+                                                />
+                                                <FieldDisplay
+                                                    label="Initials"
+                                                    value={fundingAgencyData?.funding_agency_initials}
+                                                    icon={FileTextIcon}
+                                                />
+                                                <FieldDisplay
                                                     label="Agency Type"
-                                                    value={
-                                                        data?.funding_agency_type
-                                                    }
+                                                    value={fundingAgencyData?.funding_agency_type_1 ?? data?.funding_agency_type}
                                                     icon={UsersIcon}
                                                 />
                                                 <FieldDisplay
                                                     label="Origin"
-                                                    value={
-                                                        data?.origin_of_funding_agency
-                                                    }
+                                                    value={fundingAgencyData?.origin_of_funding_agency ?? data?.origin_of_funding_agency}
                                                     icon={GlobeIcon}
                                                 />
                                                 <FieldDisplay
+                                                    label="GSTIN"
+                                                    value={fundingAgencyData?.gstin_of_funding_agency}
+                                                    icon={CreditCardIcon}
+                                                />
+                                                <FieldDisplay
                                                     label="Ministry"
-                                                    value={
-                                                        data?.funding_agency_ministry
-                                                    }
+                                                    value={fundingAgencyData?.ministry_funding_agency ?? data?.funding_agency_ministry}
                                                     icon={BuildingIcon}
                                                 />
                                                 <FieldDisplay
                                                     label="Scheme"
-                                                    value={
-                                                        data?.funding_agency_schemes
-                                                    }
+                                                    value={data?.funding_agency_schemes}
                                                     icon={FileTextIcon}
                                                 />
                                                 <FieldDisplay
                                                     label="Address"
-                                                    value={`${data?.address_street_village_locality}, ${data?.address_state}, ${data?.address_country} - ${data?.address_postal_code}`}
+                                                    value={[
+                                                        fundingAgencyData?.fundingagency_address ?? data?.address_street_village_locality,
+                                                        fundingAgencyData?.fundingagency_state ?? data?.address_state,
+                                                        fundingAgencyData?.fundingagency_country ?? data?.address_country,
+                                                        fundingAgencyData?.fundingagency_postalcode ?? data?.address_postal_code,
+                                                    ].filter(Boolean).join(", ")}
                                                     icon={MapPinIcon}
                                                 />
                                             </div>
@@ -1412,6 +1573,11 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                     label: "Designation",
                                                 },
                                                 {
+                                                    fieldname: "pi_department",
+                                                    label: "Department",
+                                                    render: (v) => <DepartmentName name={v} />,
+                                                },
+                                                {
                                                     fieldname: "pi_email",
                                                     label: "Email",
                                                 },
@@ -1438,6 +1604,11 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                     fieldname:
                                                         "copi_designation",
                                                     label: "Designation",
+                                                },
+                                                {
+                                                    fieldname: "copi_department",
+                                                    label: "Department",
+                                                    render: (v) => <DepartmentName name={v} />,
                                                 },
                                                 {
                                                     fieldname: "copi_email",
@@ -1513,6 +1684,11 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                     label: "Designation",
                                                 },
                                                 {
+                                                    fieldname: "pi_department",
+                                                    label: "Department",
+                                                    render: (v) => <DepartmentName name={v} />,
+                                                },
+                                                {
                                                     fieldname: "pi_email",
                                                     label: "Email",
                                                 },
@@ -1539,6 +1715,11 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                     fieldname:
                                                         "copi_designation",
                                                     label: "Designation",
+                                                },
+                                                {
+                                                    fieldname: "copi_department",
+                                                    label: "Department",
+                                                    render: (v) => <DepartmentName name={v} />,
                                                 },
                                                 {
                                                     fieldname: "copi_email",
@@ -1586,12 +1767,12 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                     totalMonths <= 12
                                                         ? 1
                                                         : totalMonths <= 24
-                                                          ? 2
-                                                          : totalMonths <= 36
-                                                            ? 3
-                                                            : totalMonths <= 48
-                                                              ? 4
-                                                              : 5;
+                                                            ? 2
+                                                            : totalMonths <= 36
+                                                                ? 3
+                                                                : totalMonths <= 48
+                                                                    ? 4
+                                                                    : 5;
 
                                                 // Also check actual data for non-zero values in higher years
                                                 const yearFields = [
@@ -1634,8 +1815,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                                     if (
                                                                         parseFloat(
                                                                             row[
-                                                                                yf
-                                                                                    .fieldname
+                                                                            yf
+                                                                                .fieldname
                                                                             ],
                                                                         ) > 0
                                                                     ) {
@@ -1643,7 +1824,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                                             Math.max(
                                                                                 dataBasedCount,
                                                                                 idx +
-                                                                                    1,
+                                                                                1,
                                                                             );
                                                                     }
                                                                 },
@@ -1817,7 +1998,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                 />
                                                 <FieldDisplay
                                                     label="Funding Agency"
-                                                    value={data?.funding_agen}
+                                                    value={fundingAgencyData?.funding_agency_name || data?.funding_agen}
                                                     icon={BuildingIcon}
                                                 />
                                             </div>
@@ -1825,110 +2006,30 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                 <div className="flex items-center gap-3 flex-wrap">
                                                     <button
                                                         onClick={async () => {
+                                                            setEndorsementHtml(null);
+                                                            setEndorsementModalOpen(true);
                                                             try {
-                                                                const res =
-                                                                    await viewEndorsementFile(
-                                                                        {
-                                                                            docname:
-                                                                                projectName,
-                                                                        },
-                                                                    );
-                                                                if (
-                                                                    res.message
-                                                                ) {
-                                                                    const {
-                                                                        pdf_file_url,
-                                                                        html_file_url,
-                                                                    } =
-                                                                        res.message;
-
-                                                                    const getFullUrl =
-                                                                        (
-                                                                            url: string,
-                                                                        ) => {
-                                                                            if (
-                                                                                !url
-                                                                            )
-                                                                                return "";
-                                                                            if (
-                                                                                url.startsWith(
-                                                                                    "http",
-                                                                                )
-                                                                            )
-                                                                                return url;
-
-                                                                            // Get base URL from env or current window origin
-                                                                            let baseUrl =
-                                                                                import.meta
-                                                                                    .env
-                                                                                    .VITE_FRAPPE_URL;
-                                                                            if (
-                                                                                !baseUrl
-                                                                            ) {
-                                                                                // If VITE_FRAPPE_URL is not set, use current origin
-                                                                                baseUrl =
-                                                                                    window
-                                                                                        .location
-                                                                                        .origin;
-                                                                            } else if (
-                                                                                baseUrl.startsWith(
-                                                                                    "/",
-                                                                                )
-                                                                            ) {
-                                                                                // If VITE_FRAPPE_URL is relative, append to origin
-                                                                                baseUrl = `${window.location.origin}${baseUrl}`;
-                                                                            }
-
-                                                                            return `${baseUrl.replace(/\/$/, "")}/${url.replace(/^\//, "")}`;
-                                                                        };
-
-                                                                    if (
-                                                                        pdf_file_url
-                                                                    ) {
-                                                                        window.open(
-                                                                            getFullUrl(
-                                                                                pdf_file_url,
-                                                                            ),
-                                                                            "_blank",
-                                                                        );
-                                                                    } else if (
-                                                                        html_file_url
-                                                                    ) {
-                                                                        window.open(
-                                                                            getFullUrl(
-                                                                                html_file_url,
-                                                                            ),
-                                                                            "_blank",
-                                                                        );
-                                                                    } else {
-                                                                        alert(
-                                                                            "No endorsement file found.",
-                                                                        );
-                                                                    }
+                                                                const res = await fetchEndorsementData({
+                                                                    doctype: "Endorsement Data",
+                                                                    filters: JSON.stringify([
+                                                                        ["project_ref_num", "=", projectName],
+                                                                    ]),
+                                                                    fields: JSON.stringify(["endorsement_html"]),
+                                                                    limit_page_length: 1,
+                                                                });
+                                                                const records = res?.message;
+                                                                if (records?.length > 0 && records[0].endorsement_html) {
+                                                                    setEndorsementHtml(records[0].endorsement_html);
                                                                 }
                                                             } catch (e: any) {
-                                                                console.error(
-                                                                    "View endorsement error:",
-                                                                    e,
-                                                                );
-                                                                alert(
-                                                                    "Error viewing endorsement: " +
-                                                                        (e
-                                                                            .messages?.[0] ||
-                                                                            e.message),
-                                                                );
+                                                                console.error("Fetch endorsement error:", e);
                                                             }
                                                         }}
-                                                        disabled={
-                                                            isViewingEndorsement ||
-                                                            !data?.endorsement_status
-                                                        }
+                                                        disabled={isFetchingEndorsementHtml}
                                                         className="flex items-center gap-2 px-4 py-2.5 bg-[#D97757] hover:bg-[#D97757] text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
                                                         <ExternalLinkIcon className="h-4 w-4" />
-                                                        {isViewingEndorsement
-                                                            ? "Opening..."
-                                                            : "View Endorsement"}
+                                                        {isFetchingEndorsementHtml ? "Loading..." : "View Endorsement"}
                                                     </button>
                                                     <button
                                                         onClick={() => {
@@ -1977,7 +2078,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                 </h3>
                                             </div>
                                             {(() => {
-                                                const minioBase = `http://172.16.135.118:9000/rnd-files/Project_Registration/${projectName}/attachments`;
+                                                const minioBase = `http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments`;
                                                 const allFiles: { name: string; url: string; label?: string }[] = [];
                                                 if (data?.upload_proj_prop) {
                                                     const fname = data.upload_proj_prop.split('/').pop();
@@ -2000,8 +2101,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                     });
                                                 }
                                                 return allFiles.length > 0 ? (
-                                                <div className="space-y-3">
-                                                    {allFiles.map((file, index) => (
+                                                    <div className="space-y-3">
+                                                        {allFiles.map((file, index) => (
                                                             <div
                                                                 key={index}
                                                                 className="flex items-center justify-between p-3 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:bg-zinc-800 transition-colors"
@@ -2028,19 +2129,19 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                                 </a>
                                                             </div>
                                                         ))}
-                                                </div>
+                                                    </div>
                                                 ) : (
-                                                <div className="text-center py-12 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl">
-                                                    <FolderOpenIcon className="h-12 w-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
-                                                    <p className="font-medium text-zinc-600 dark:text-zinc-400">
-                                                        No files attached yet.
-                                                    </p>
-                                                    <p className="text-sm mt-1">
-                                                        Files related to this
-                                                        project will appear
-                                                        here.
-                                                    </p>
-                                                </div>
+                                                    <div className="text-center py-12 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl">
+                                                        <FolderOpenIcon className="h-12 w-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
+                                                        <p className="font-medium text-zinc-600 dark:text-zinc-400">
+                                                            No files attached yet.
+                                                        </p>
+                                                        <p className="text-sm mt-1">
+                                                            Files related to this
+                                                            project will appear
+                                                            here.
+                                                        </p>
+                                                    </div>
                                                 );
                                             })()}
                                         </div>
@@ -2160,3 +2261,4 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
 };
 
 export default ProjectDetailsView;
+

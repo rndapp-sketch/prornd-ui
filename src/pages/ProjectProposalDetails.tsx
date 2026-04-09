@@ -292,7 +292,7 @@ const ProjectProposalDetails: React.FC = () => {
                                 className="bg-blue-600 text-white hover:bg-blue-700 border-blue-800 flex items-center gap-2"
                             >
                                 <FileTextIcon className="h-5 w-5" />
-                                Generate Endorsement
+                                Endorsement
                             </FrappeButton>
                             {isDraft && isOwner && (
                                 <FrappeButton

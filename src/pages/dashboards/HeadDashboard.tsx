@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
+import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall, useFrappeGetDocList } from "frappe-react-sdk";
+import { useUserRoles } from "../../components/UserRole";
 // import { AppSidebar } from "../../components/RndSidebar";
 import { AnalyticsCard, CurrentTime } from "../../components/DashboardCards";
 import { cn } from "@/lib/utils";
@@ -102,6 +103,21 @@ export function HeadDashboard() {
     { page_name: "task-registry" }
   );
 
+  const { roles } = useUserRoles(currentUser ?? null);
+  const isHeadApprover = roles?.includes("head_approver_1") ?? false;
+
+  // Fetch projects where current user is the head_approver (same filter as PendingTask.tsx)
+  const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
+    filters: [["head_approver", "=", currentUser ?? ""]],
+    fields: ["name"],
+    limit: 500,
+  }, isHeadApprover && !!currentUser ? undefined : null);
+
+  const allowedProjectNames = React.useMemo(() => {
+    if (!isHeadApprover || !headApproverProjects) return null;
+    return new Set(headApproverProjects.map((p: { name: string }) => p.name));
+  }, [isHeadApprover, headApproverProjects]);
+
   const fullName = userData?.full_name || currentUser || "Guest";
   const isLoading = pendingLoading || registryLoading;
 
@@ -112,12 +128,15 @@ export function HeadDashboard() {
     pendingData.message.results.forEach((group) => {
       if (group.mod_vis || group.doctype === "Advance Settlement") {
         group.records.forEach((record) => {
+          if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
+            return;
+          }
           tasks.push({ ...record, doctype: group.doctype });
         });
       }
     });
     return tasks.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
-  }, [pendingData]);
+  }, [pendingData, isHeadApprover, allowedProjectNames]);
 
   const registryTasks = React.useMemo(() => {
     if (!registryData?.message?.results) return [];
@@ -125,12 +144,15 @@ export function HeadDashboard() {
     registryData.message.results.forEach((group) => {
       if (group.records && Array.isArray(group.records)) {
         group.records.forEach((record) => {
+          if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
+            return;
+          }
           tasks.push({ ...record, doctype: group.doctype });
         });
       }
     });
     return tasks.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
-  }, [registryData]);
+  }, [registryData, isHeadApprover, allowedProjectNames]);
 
   // Stats
   const totalPending = pendingTasks.length;

@@ -1,14 +1,22 @@
 import { FrappeProvider, useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/RndSidebar";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
-import { MenuIcon, UserIcon, SearchIcon, MoonIcon, SunIcon } from "lucide-react";
+import { MenuIcon, UserIcon, SearchIcon, MoonIcon, SunIcon, LogOutIcon } from "lucide-react";
 import { GlobalLoader } from "@/components/ui/global-loader";
-import { SWRConfig } from "swr";
+import { SWRConfig, useSWRConfig } from "swr";
 import { useRef, useEffect, useState } from "react";
 import CommandPalette, { useCommandPalette } from "@/components/CommandPalette";
 import { ThemeProvider, useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -28,14 +36,30 @@ function ThemeToggle() {
 }
 
 function AppContent() {
-  const { currentUser } = useFrappeAuth();
+  const { currentUser, logout } = useFrappeAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const isPublicPage = location.pathname === "/" || location.pathname === "/login";
   const { isOpen: isCommandPaletteOpen, openPalette, closePalette } = useCommandPalette();
+  const { mutate } = useSWRConfig();
 
   // Track route changes to show loader only on navigation
   const previousPathRef = useRef(location.pathname);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      await mutate(() => true, undefined, { revalidate: false });
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   // Show loader only when route changes (sidebar menu navigation)
   useEffect(() => {
@@ -59,7 +83,7 @@ function AppContent() {
   });
 
   // Only show loader when navigating between pages, not on revalidation
-  const showGlobalLoader = !isPublicPage && isNavigating;
+  const showGlobalLoader = (!isPublicPage && isNavigating) || isLoggingOut;
 
   // Process user data to get the actual user information
   let actualUserData = null;
@@ -138,24 +162,41 @@ function AppContent() {
                           <div className="h-8 w-8 rounded-full bg-zinc-200 animate-pulse dark:bg-zinc-800"></div>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-3 pl-3">
-                          {userImageUrl ? (
-                            <img
-                              src={userImageUrl}
-                              alt="User Profile"
-                              className="h-8 w-8 rounded-full object-cover border border-zinc-200 shadow-sm dark:border-zinc-700"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.onerror = null;
-                                target.src = 'https://placehold.co/36x36/E4E4E7/3F3F46?text=U';
-                              }}
-                            />
-                          ) : (
-                            <div className="h-8 w-8 rounded-full bg-zinc-100 flex items-center justify-center border border-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400">
-                              <UserIcon className="h-4 w-4" />
-                            </div>
-                          )}
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="flex items-center gap-3 pl-3 outline-none group cursor-pointer focus:outline-none">
+                              {userImageUrl ? (
+                                <img
+                                  src={userImageUrl}
+                                  alt="User Profile"
+                                  className="h-8 w-8 rounded-full object-cover border border-zinc-200 shadow-sm transition-opacity group-hover:opacity-80 dark:border-zinc-700"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.onerror = null;
+                                    target.src = 'https://placehold.co/36x36/E4E4E7/3F3F46?text=U';
+                                  }}
+                                />
+                              ) : (
+                                <div className="h-8 w-8 rounded-full bg-zinc-100 flex items-center justify-center border border-zinc-200 text-zinc-600 transition-colors group-hover:bg-zinc-200 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400 dark:group-hover:bg-zinc-700">
+                                  <UserIcon className="h-4 w-4" />
+                                </div>
+                              )}
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuLabel>
+                              <div className="flex flex-col space-y-1">
+                                <p className="text-sm font-medium leading-none">{actualUserData?.full_name || "User"}</p>
+                                <p className="text-xs leading-none text-muted-foreground">{currentUser}</p>
+                              </div>
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-400 dark:focus:text-red-400 dark:focus:bg-red-400/10 cursor-pointer">
+                              <LogOutIcon className="mr-2 h-4 w-4" />
+                              <span>Log out</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </div>
                   )}
