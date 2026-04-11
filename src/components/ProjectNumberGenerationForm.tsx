@@ -90,13 +90,22 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
         }
     );
 
-    // Fetch backend-computed prefill values
-    const { data: prefillResponse } = useFrappeGetCall<{ message: any }>(
+    // Use a custom cache key containing the modified timestamp so it fetches absolutely fresh data
+    const refreshKey = projectData?.name ? `project_number_gen_${projectData.name}_${projectData.modified || ''}` : null;
+    const { data: prefillResponse, mutate: refreshPrefill } = useFrappeGetCall<{ message: any }>(
         'rndopsapp.rndopsapp.doctype.project_number_generation.project_number_generation.get_project_number_generation_fields',
         projectData?.name ? { doc_name: projectData.name } : undefined,
-        projectData?.name ? undefined : null
+        refreshKey
     );
+    console.log("prefillResponse", prefillResponse);
 
+    // Reset prefill flag any time the project modified timestamp changes to allow fresh backend data
+    useEffect(() => {
+        if (projectData?.name) {
+            setPrefillApplied(false);
+            refreshPrefill(); // Force network refetch whenever the component mounts for this project
+        }
+    }, [projectData?.name, projectData?.modified, refreshPrefill]);
     // Check if project number is already generated
     const alreadyGenerated = useMemo(() => {
         if (!projectData) return false;
