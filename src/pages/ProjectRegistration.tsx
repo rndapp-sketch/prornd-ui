@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from "react";
 import { AppSidebar } from "../components/RndSidebar";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import ProjectDetailsView from "./ProjectDetails";
 
 import {
     useFrappePostCall,
@@ -305,15 +306,13 @@ const MemoizedFormField = memo(
                 default:
                     return (
                         <input
-                            type={
-                                [
-                                    "Int",
-                                    "Currency",
-                                    "Float",
-                                    "Percent",
-                                ].includes(field.fieldtype)
-                                    ? "number"
-                                    : "text"
+                            type="text"
+                            inputMode={
+                                ["Int"].includes(field.fieldtype)
+                                    ? "numeric"
+                                    : ["Currency", "Float", "Percent"].includes(field.fieldtype)
+                                        ? "decimal"
+                                        : "text"
                             }
                             {...commonProps}
                             value={value || ""}
@@ -908,6 +907,13 @@ const ProjectRegistration: React.FC = () => {
     const endorsementCertRef = React.useRef<HTMLDivElement>(null);
     const [showSubmitInsteadModal, setShowSubmitInsteadModal] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
+    const [showPreviewAfterSave, setShowPreviewAfterSave] = useState(false);
+    
+    // Comment modal state for final submission
+    const [showSubmitCommentModal, setShowSubmitCommentModal] = useState(false);
+    const [isFinalSubmitting, setIsFinalSubmitting] = useState(false);
+
     // Edit mode: new forms start editable; existing docs start read-only
     const [isEditMode, setIsEditMode] = useState<boolean>(() => {
         const params = new URLSearchParams(location.search);
@@ -987,6 +993,9 @@ const ProjectRegistration: React.FC = () => {
     } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.project_registration.project_registration.save_project_data",
     );
+    const { call: submitProjectRegistration } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.project_registration.project_registration.submit_project_registration"
+    );
     const {
         call: saveDraft,
         result: saveResult,
@@ -1061,49 +1070,49 @@ const ProjectRegistration: React.FC = () => {
 
         // --- LOGIC FOR CATEGORY D (Technology Transfer) ---
         if (category.startsWith("Category D")) {
-            const grandTotal =
-                parseFloat(currentData.cat_d_grand_total_input) || 0;
-            const cfInput =
-                parseFloat(currentData.cat_d_consultancy_fee_input) || 0; // Gross CF
-            const oeInput =
-                parseFloat(currentData.operational_expense_input_inc_10_oh) ||
-                0; // Gross OE
+            // r2: round to 2dp for user-facing decimal fields (net CF, net OE)
+            const r2 = (v: number) => Math.round(v * 100) / 100;
 
-            // 1. Calculate Total Project Cost (Back calculate from Grand Total)
-            const totalProjectCost = Math.round(
-                grandTotal / (1 + gstRate / 100),
-            );
-            const gstAmt = grandTotal - totalProjectCost;
+            // User inputs — keep as entered (may have decimals)
+            const grandTotal = parseFloat(currentData.cat_d_grand_total_input) || 0;
+            const cfInput = parseFloat(currentData.cat_d_consultancy_fee_input) || 0;
 
-            // 2. Breakdown Calculations
-            // Institute Share = 20% of Gross CF Input
-            const instShare = Math.round(cfInput * 0.2);
+            // 1. project_cost_excl_gst = round(grand_total / (1 + gst_rate/100))  → integer
+            const projectCostExclGst = Math.round(grandTotal / (1 + gstRate / 100));
 
-            // Overhead = 10% of Gross CF + 10% of Gross OE
-            const overheadCf = cfInput * 0.1;
-            const overheadOe = oeInput * 0.1;
-            const totalOverhead = Math.round(overheadCf + overheadOe);
+            // 2. operational_expense = round(project_cost - consultancy_fee)  → integer, >= 0
+            const operationalExpense = Math.max(0, Math.round(projectCostExclGst - cfInput));
 
-            // Net CF (Base) = Input - Inst Share - Overhead on CF
-            const netCf = Math.round(cfInput - instShare - overheadCf);
+            // 3. institute_share = round(consultancy_fee × 0.20)  → integer
+            const instituteShare = Math.round(cfInput * 0.2);
 
-            // Net OE (Base) = Input - Overhead on OE
-            const netOe = Math.round(oeInput - overheadOe);
+            // 4. overhead_on_cf = round(consultancy_fee × 0.10)  → integer
+            const overheadOnCf = Math.round(cfInput * 0.1);
 
-            // 3. Validation: CF Check (Consultancy fee should be less than 30% of total project cost)
-            const limit = totalProjectCost * 0.3;
-            if (totalProjectCost > 0 && cfInput > limit) {
-                // We use alert here as we don't have a toast library connected in this context yet
-                // console.warn(`Consultancy Fee Input (${cfInput}) exceeds 30% of Total Project Cost (${Math.round(limit)})`);
-            }
+            // 5. overhead_on_oe = round(operational_expense × 0.10)  → integer
+            const overheadOnOe = Math.round(operationalExpense * 0.1);
 
-            // 4. Set Values
-            updates.cat_d_project_cost_excl_gst = totalProjectCost;
-            updates.cat_d_cf_base = netCf;
-            updates.cat_d_oe_base = netOe;
+            // 6. total_overhead = overhead_on_cf + overhead_on_oe  (both already integers)
+            const totalOverhead = overheadOnCf + overheadOnOe;
+
+            // 7. net_consultancy_fee = consultancy_fee - institute_share - overhead_on_cf
+            //    IS and OH are integers so subtraction is clean; r2 kills any float dust
+            const netConsultancyFee = r2(Math.max(0, cfInput - instituteShare - overheadOnCf));
+
+            // 8. net_operational_expense = operational_expense - overhead_on_oe
+            //    OE and OH are integers so result is clean
+            const netOperationalExpense = Math.max(0, operationalExpense - overheadOnOe);
+
+            // 9. gst_amount = round(grand_total - project_cost_excl_gst)  → integer, >= 0
+            const gstAmount = Math.max(0, Math.round(grandTotal - projectCostExclGst));
+
+            updates.cat_d_project_cost_excl_gst = projectCostExclGst;
+            updates.operational_expense_input_inc_10_oh = operationalExpense;
+            updates.cat_d_institute_share = instituteShare;
             updates.cat_d_total_overhead = totalOverhead;
-            updates.cat_d_institute_share = instShare;
-            updates.cat_d_gst_amt = gstAmt;
+            updates.cat_d_cf_base = netConsultancyFee;
+            updates.cat_d_oe_base = netOperationalExpense;
+            updates.cat_d_gst_amt = gstAmount;
             updates.cat_d_grand_total_calc = grandTotal;
         }
         // --- LOGIC FOR CATEGORY T (Routine) & E (Non-Routine) ---
@@ -1180,14 +1189,19 @@ const ProjectRegistration: React.FC = () => {
         if (!startDate) return null;
 
         const date = new Date(startDate);
+        let valid = false;
+
         if (durationMonths > 0) {
             date.setMonth(date.getMonth() + durationMonths);
             date.setDate(date.getDate() - 1); // Subtract 1 day
-        } else if (durationDays > 0) {
-            date.setDate(date.getDate() + durationDays);
-        } else {
-            return null;
+            valid = true;
         }
+        if (durationDays > 0) {
+            date.setDate(date.getDate() + durationDays);
+            valid = true;
+        }
+
+        if (!valid) return null;
         return date.toISOString().split("T")[0];
     }, []);
 
@@ -1406,10 +1420,29 @@ const ProjectRegistration: React.FC = () => {
                     "consultancy_gst_rate",
                     "cat_d_grand_total_input",
                     "cat_d_consultancy_fee_input",
-                    "operational_expense_input_inc_10_oh",
                     "cat_ef_total_amount",
                 ].includes(fieldname)
             ) {
+                // Validate CF input does not exceed 29.99% of project cost excl. GST
+                if (
+                    updatedData.consultancy_category?.startsWith("Category D") &&
+                    fieldname === "cat_d_consultancy_fee_input"
+                ) {
+                    const gstR = parseFloat(updatedData.consultancy_gst_rate) || 18;
+                    const gt = parseFloat(updatedData.cat_d_grand_total_input) || 0;
+                    const projectCost = Math.round(gt / (1 + gstR / 100));
+                    const maxCf = Math.floor(projectCost * 0.2999 * 100) / 100;
+                    const enteredCf = parseFloat(updatedData.cat_d_consultancy_fee_input) || 0;
+                    if (projectCost > 0 && enteredCf > maxCf) {
+                        alert(
+                            `Consultancy Fee cannot exceed 29.99% of Total Project Cost.\n\nMax allowed: ${maxCf.toLocaleString()} (29.99% of ${projectCost.toLocaleString()})`,
+                        );
+                        // Revert to previous valid value
+                        updatedData = { ...updatedData, cat_d_consultancy_fee_input: formData.cat_d_consultancy_fee_input ?? "" };
+                        setFormData(updatedData);
+                        return;
+                    }
+                }
                 const consultancyUpdates = calculateConsultancy(updatedData);
                 updatedData = { ...updatedData, ...consultancyUpdates };
             }
@@ -1424,7 +1457,7 @@ const ProjectRegistration: React.FC = () => {
                 ].includes(fieldname)
             ) {
                 const newEndDate = calculateEndDate(updatedData);
-                if (newEndDate) updatedData.prj_end_date = newEndDate;
+                updatedData.prj_end_date = newEndDate || "";
 
                 if (
                     updatedData.project_type === "Research" &&
@@ -1434,8 +1467,13 @@ const ProjectRegistration: React.FC = () => {
                         parseInt(updatedData.project_duration_months) || 0,
                     );
                 } else if (
-                    (updatedData.project_type === "Consultancy" ||
-                        updatedData.project_type === "Testing") &&
+                    updatedData.project_type === "Consultancy"
+                ) {
+                    const m = parseInt(updatedData.project_duration_months) || 0;
+                    const d = parseInt(updatedData.project_duration_days) || 0;
+                    controlYearFieldsVisibility(Math.ceil((m * 30 + d) / 30));
+                } else if (
+                    updatedData.project_type === "Testing" &&
                     updatedData.project_duration_days
                 ) {
                     const days =
@@ -1667,6 +1705,17 @@ const ProjectRegistration: React.FC = () => {
 
     const ALWAYS_HIDDEN_FIELDS = ["department_head", "head_approver"];
 
+    const CONSULTANCY_CALCULATED_FIELDS = new Set([
+        "cat_d_project_cost_excl_gst",
+        "operational_expense_input_inc_10_oh",
+        "cat_d_cf_base",
+        "cat_d_oe_base",
+        "cat_d_total_overhead",
+        "cat_d_institute_share",
+        "cat_d_gst_amt",
+        "cat_d_grand_total_calc",
+    ]);
+
     const renderField = useCallback(
         (fieldname: string, labelOverride?: string) => {
             const field = fields.find((f) => f.fieldname === fieldname);
@@ -1722,6 +1771,11 @@ const ProjectRegistration: React.FC = () => {
                 isReadOnly = true;
             }
 
+            // Consultancy calculated fields are always read-only
+            if (CONSULTANCY_CALCULATED_FIELDS.has(fieldname)) {
+                isReadOnly = true;
+            }
+
             const effectiveField = {
                 ...field,
                 mandatory: isMandatory,
@@ -1774,10 +1828,21 @@ const ProjectRegistration: React.FC = () => {
         doc_data: Record<string, any>;
         files: { filename: string; content: string }[];
     }> => {
-        const data: Record<string, any> = JSON.parse(JSON.stringify(formData));
+        // Re-run consultancy calculations so saved values are always up-to-date
+        const recalculated = calculateConsultancy(formData);
+        const data: Record<string, any> = JSON.parse(
+            JSON.stringify({ ...formData, ...recalculated }),
+        );
         const filesArray: { filename: string; content: string }[] = [];
 
         if (docname) data.name = docname;
+
+        // Remove frappe standard fields that cause "Document modified" conflicts
+        delete data.modified;
+        delete data.creation;
+        delete data.modified_by;
+        delete data.owner;
+        delete data.docstatus;
 
         for (const k in formData) {
             const v = formData[k];
@@ -1824,6 +1889,18 @@ const ProjectRegistration: React.FC = () => {
             const isEmpty =
                 value === null || value === undefined || value === "";
             if (isEmpty) errors.push(field.label || field.fieldname);
+        }
+
+        // --- Consultancy Category D: CF gross must be <= 30% of project cost excl. GST ---
+        if (formData.consultancy_category?.startsWith("Category D")) {
+            const cfInput = parseFloat(formData.cat_d_consultancy_fee_input) || 0;
+            const projectCost = parseFloat(formData.cat_d_project_cost_excl_gst) || 0;
+            const limit = Math.round(projectCost * 0.3);
+            if (projectCost > 0 && cfInput > limit) {
+                errors.push(
+                    `Consultancy Fee (₹${cfInput.toLocaleString()}) exceeds 30% of Project Cost Excl. GST — max allowed: ₹${limit.toLocaleString()}`,
+                );
+            }
         }
 
         // --- Budget breakup: validate rows only if any rows exist ---
@@ -1904,8 +1981,8 @@ const ProjectRegistration: React.FC = () => {
         return errors;
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (isSubmitting || isSavingDraft) return;
         const errors = validateMandatoryFields();
         if (errors.length > 0) {
@@ -1915,7 +1992,7 @@ const ProjectRegistration: React.FC = () => {
         setIsSubmitting(true);
         try {
             const { doc_data, files } = await prepareDataWithFiles();
-            await submitForm({ doc: doc_data, files });
+            await submitForm({ docname, doc: doc_data, files });
         } catch (err) {
             alert("File processing error.");
             setIsSubmitting(false);
@@ -2019,6 +2096,7 @@ const ProjectRegistration: React.FC = () => {
             );
 
             const payload = {
+                docname,
                 doc_data: JSON.stringify(doc_data),
                 files: files.length > 0 ? files : null,
                 html_content: endorsementHtml,
@@ -2087,7 +2165,26 @@ const ProjectRegistration: React.FC = () => {
                 link_options,
                 prefill_data,
             } = formDataResult.message;
-            setFields(apiFields);
+
+            const modifiedFields = apiFields.map((field: Field) => {
+                if (
+                    field.fieldname === "involves_international_travel" ||
+                    field.fieldname === "project_duration_months" ||
+                    field.fieldname === "project_duration_days"
+                ) {
+                    return {
+                        ...field,
+                        mandatory: false,
+                        mandatory_depends_on: "",
+                        mandatory_depends_on_eval: "",
+                        depends_on: "",
+                        depends_on_eval: ""
+                    };
+                }
+                return field;
+            });
+
+            setFields(modifiedFields);
             setLinkOptions(link_options || {});
 
             const initialFormData: Record<string, any> = { ...prefill_data };
@@ -2355,7 +2452,7 @@ const ProjectRegistration: React.FC = () => {
         if (saveResult) {
             const savedDocname = saveResult.message.docname;
             setDocname(savedDocname);
-            navigate(`/project-details/${savedDocname}`);
+            setShowPreviewModal(true);
         }
         if (saveError) alert(`Draft save error: ${saveError.message}`);
         setIsSavingDraft(false);
@@ -2398,7 +2495,7 @@ const ProjectRegistration: React.FC = () => {
                             className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4"
                         >
                             {/* Section title */}
-                            <div className="h-4 w-36 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+                            <div className="h-4 w-36 rounded bƒg-zinc-200 dark:bg-zinc-700 animate-pulse" />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {[1, 2, 3, 4].map((field) => (
                                     <div key={field} className="space-y-1.5">
@@ -2709,6 +2806,7 @@ const ProjectRegistration: React.FC = () => {
                                             {formData.project_type ===
                                                 "Research" && (
                                                     <div className="space-y-8">
+                                                        {renderField("involves_international_travel")}
                                                         <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
                                                             {/* <div className="flex items-center justify-between flex-wrap gap-4">
                                                         <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
@@ -2754,52 +2852,128 @@ const ProjectRegistration: React.FC = () => {
                                                             {renderField(
                                                                 "consultancy_gst_rate",
                                                             )}
-                                                            {renderField(
-                                                                "involves_international_travel",
-                                                            )}
 
                                                             {/* Category D Fields */}
                                                             {formData.consultancy_category?.startsWith(
                                                                 "Category D",
                                                             ) && (
-                                                                    <div className="space-y-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
-                                                                        <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
-                                                                            Category D
-                                                                            Details
-                                                                        </h4>
-                                                                        {renderField(
-                                                                            "category_d_note",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_grand_total_input",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_project_cost_excl_gst",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_consultancy_fee_input",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "operational_expense_input_inc_10_oh",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_cf_base",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_oe_base",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_total_overhead",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_institute_share",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_gst_amt",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_grand_total_calc",
-                                                                        )}
+                                                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
+                                                                        <div className="space-y-4">
+                                                                            <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
+                                                                                Category D Details
+                                                                            </h4>
+                                                                            {renderField("category_d_note")}
+                                                                            {renderField("cat_d_grand_total_input")}
+                                                                            {renderField("cat_d_project_cost_excl_gst")}
+                                                                            <div className="space-y-1">
+                                                                                {renderField("cat_d_consultancy_fee_input")}
+                                                                                {(() => {
+                                                                                    const gt = parseFloat(formData.cat_d_grand_total_input) || 0;
+                                                                                    const gstRate = parseFloat(formData.consultancy_gst_rate) || 18;
+                                                                                    const pjCost = Math.round(gt / (1 + gstRate / 100));
+                                                                                    if (pjCost > 0) {
+                                                                                        const maxCf = Math.floor(pjCost * 0.2999 * 100) / 100;
+                                                                                        return (
+                                                                                            <p className="text-xs text-red-500 font-medium px-1">
+                                                                                                * Max allowed limit: ₹{maxCf.toLocaleString('en-IN', {
+                                                                                                    minimumFractionDigits: 2,
+                                                                                                    maximumFractionDigits: 2
+                                                                                                })} (must be less than 30% of the Total Project Cost)
+                                                                                            </p>
+                                                                                        );
+                                                                                    }
+                                                                                    return null;
+                                                                                })()}
+                                                                            </div>
+                                                                            {renderField("operational_expense_input_inc_10_oh")}
+                                                                            {renderField("cat_d_cf_base")}
+                                                                            {renderField("cat_d_oe_base")}
+                                                                            {renderField("cat_d_total_overhead")}
+                                                                            {renderField("cat_d_institute_share")}
+                                                                            {renderField("cat_d_gst_amt")}
+                                                                            {renderField("cat_d_grand_total_calc")}
+                                                                        </div>
+                                                                        <div className="space-y-4">
+                                                                            <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
+                                                                                Calculation Breakdown
+                                                                            </h4>
+                                                                            {(() => {
+                                                                                const gt = parseFloat(formData.cat_d_grand_total_input) || 0;
+                                                                                const cf = parseFloat(formData.cat_d_consultancy_fee_input) || 0;
+                                                                                const gstRate = parseFloat(formData.consultancy_gst_rate) || 18;
+
+                                                                                const projectCostExclGst = Math.round(gt / (1 + gstRate / 100));
+                                                                                const oe = Math.max(0, Math.round(projectCostExclGst - cf));
+                                                                                const instShare = Math.round(cf * 0.2);
+                                                                                const ohCf = Math.round(cf * 0.1);
+                                                                                const ohOe = Math.round(oe * 0.1);
+                                                                                const totalOh = ohCf + ohOe;
+                                                                                const netCf = Math.round(Math.max(0, cf - instShare - ohCf) * 100) / 100;
+                                                                                const netOe = Math.max(0, oe - ohOe);
+                                                                                const gstAmt = Math.max(0, Math.round(gt - projectCostExclGst));
+
+                                                                                return (
+                                                                                    <div className="overflow-hidden shadow ring-1 ring-zinc-200 dark:ring-zinc-700 sm:rounded-lg">
+                                                                                        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700 text-sm">
+                                                                                            <thead className="bg-zinc-100 dark:bg-zinc-800">
+                                                                                                <tr>
+                                                                                                    <th scope="col" className="px-3 py-2 text-left font-semibold text-zinc-900 dark:text-zinc-100">Step</th>
+                                                                                                    <th scope="col" className="px-3 py-2 text-left font-semibold text-zinc-900 dark:text-zinc-100">Formula</th>
+                                                                                                    <th scope="col" className="px-3 py-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">Result</th>
+                                                                                                </tr>
+                                                                                            </thead>
+                                                                                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700 bg-white dark:bg-zinc-900">
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Project Cost Excl GST</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({gt.toLocaleString('en-IN', { maximumFractionDigits: 2 })} / (1 + {gstRate}/100))</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{projectCostExclGst.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Operational Expense</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({projectCostExclGst.toLocaleString('en-IN')} - {cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })})</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{oe.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Institute Share</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })} × 0.20)</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{instShare.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Overhead on Consultancy Fee</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })} × 0.10)</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{ohCf.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Overhead on Operational Expense</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({oe.toLocaleString('en-IN')} × 0.10)</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{ohOe.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr className="bg-zinc-50/50 dark:bg-zinc-800/50">
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-semibold text-zinc-900 dark:text-zinc-100">Total Overhead</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">{ohCf.toLocaleString('en-IN')} + {ohOe.toLocaleString('en-IN')}</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">{totalOh.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Net Consultancy Fee</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">r2({cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })} - {instShare.toLocaleString('en-IN')} - {ohCf.toLocaleString('en-IN')})</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{netCf.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Net Operational Expense</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">{oe.toLocaleString('en-IN')} - {ohOe.toLocaleString('en-IN')}</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{netOe.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr className="bg-zinc-50/50 dark:bg-zinc-800/50">
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-semibold text-zinc-900 dark:text-zinc-100">GST Amount</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({gt.toLocaleString('en-IN', { maximumFractionDigits: 2 })} - {projectCostExclGst.toLocaleString('en-IN')}) (@ {gstRate}%)</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">{gstAmt.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                            </tbody>
+                                                                                        </table>
+                                                                                    </div>
+                                                                                );
+                                                                            })()}
+                                                                        </div>
                                                                     </div>
                                                                 )}
 
@@ -2899,14 +3073,16 @@ const ProjectRegistration: React.FC = () => {
                                             {renderField("upload_proj_prop")}
                                             {renderField("my_projects")}
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                {formData.project_type !==
-                                                    "Consultancy"
-                                                    ? renderField(
-                                                        "project_duration_months",
-                                                    )
-                                                    : renderField(
-                                                        "project_duration_days",
-                                                    )}
+                                                {formData.project_type === "Consultancy" ? (
+                                                    <>
+                                                        {renderField("project_duration_months")}
+                                                        {renderField("project_duration_days")}
+                                                    </>
+                                                ) : formData.project_type === "Testing" ? (
+                                                    renderField("project_duration_days")
+                                                ) : (
+                                                    renderField("project_duration_months")
+                                                )}
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {renderField("prj_start_date")}
@@ -3049,80 +3225,83 @@ const ProjectRegistration: React.FC = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="space-y-6">
-                                                {renderFields(
-                                                    tabFieldGroups.collaboratorToggles,
-                                                )}
+                                            <div className="space-y-8">
+                                                <div className="space-y-4">
+                                                    {renderField("is_additional_pi")}
+                                                    {formData.is_additional_pi ===
+                                                        "Yes" && (
+                                                            <MemoizedCollaboratorTable
+                                                                tableName="additional_pi_table"
+                                                                title="Details of Additional PI(s)"
+                                                                tableData={
+                                                                    formData.additional_pi_table
+                                                                }
+                                                                piOptions={
+                                                                    linkOptions[
+                                                                    "pi_webmail"
+                                                                    ]
+                                                                }
+                                                                onCollaboratorChange={
+                                                                    isEditMode
+                                                                        ? handleCollaboratorChange
+                                                                        : () => { }
+                                                                }
+                                                                onRowChange={
+                                                                    isEditMode
+                                                                        ? handleTableRowChange
+                                                                        : () => { }
+                                                                }
+                                                                onAddRow={
+                                                                    isEditMode
+                                                                        ? addTableRow
+                                                                        : () => { }
+                                                                }
+                                                                onDeleteRow={
+                                                                    isEditMode
+                                                                        ? deleteTableRow
+                                                                        : () => { }
+                                                                }
+                                                            />
+                                                        )}
+                                                </div>
+                                                <div className="space-y-4">
+                                                    {renderField("has_co_pi")}
+                                                    {formData.has_co_pi === "Yes" && (
+                                                        <MemoizedCollaboratorTable
+                                                            tableName="co_investigator_table"
+                                                            title="Details of Co-PI(s)"
+                                                            tableData={
+                                                                formData.co_investigator_table
+                                                            }
+                                                            piOptions={
+                                                                linkOptions[
+                                                                "pi_webmail"
+                                                                ]
+                                                            }
+                                                            onCollaboratorChange={
+                                                                isEditMode
+                                                                    ? handleCollaboratorChange
+                                                                    : () => { }
+                                                            }
+                                                            onRowChange={
+                                                                isEditMode
+                                                                    ? handleTableRowChange
+                                                                    : () => { }
+                                                            }
+                                                            onAddRow={
+                                                                isEditMode
+                                                                    ? addTableRow
+                                                                    : () => { }
+                                                            }
+                                                            onDeleteRow={
+                                                                isEditMode
+                                                                    ? deleteTableRow
+                                                                    : () => { }
+                                                            }
+                                                        />
+                                                    )}
+                                                </div>
                                             </div>
-                                            {formData.is_additional_pi ===
-                                                "Yes" && (
-                                                    <MemoizedCollaboratorTable
-                                                        tableName="additional_pi_table"
-                                                        title="Details of Additional PI(s)"
-                                                        tableData={
-                                                            formData.additional_pi_table
-                                                        }
-                                                        piOptions={
-                                                            linkOptions[
-                                                            "pi_webmail"
-                                                            ]
-                                                        }
-                                                        onCollaboratorChange={
-                                                            isEditMode
-                                                                ? handleCollaboratorChange
-                                                                : () => { }
-                                                        }
-                                                        onRowChange={
-                                                            isEditMode
-                                                                ? handleTableRowChange
-                                                                : () => { }
-                                                        }
-                                                        onAddRow={
-                                                            isEditMode
-                                                                ? addTableRow
-                                                                : () => { }
-                                                        }
-                                                        onDeleteRow={
-                                                            isEditMode
-                                                                ? deleteTableRow
-                                                                : () => { }
-                                                        }
-                                                    />
-                                                )}
-                                            {formData.has_co_pi === "Yes" && (
-                                                <MemoizedCollaboratorTable
-                                                    tableName="co_investigator_table"
-                                                    title="Details of Co-PI(s)"
-                                                    tableData={
-                                                        formData.co_investigator_table
-                                                    }
-                                                    piOptions={
-                                                        linkOptions[
-                                                        "pi_webmail"
-                                                        ]
-                                                    }
-                                                    onCollaboratorChange={
-                                                        isEditMode
-                                                            ? handleCollaboratorChange
-                                                            : () => { }
-                                                    }
-                                                    onRowChange={
-                                                        isEditMode
-                                                            ? handleTableRowChange
-                                                            : () => { }
-                                                    }
-                                                    onAddRow={
-                                                        isEditMode
-                                                            ? addTableRow
-                                                            : () => { }
-                                                    }
-                                                    onDeleteRow={
-                                                        isEditMode
-                                                            ? deleteTableRow
-                                                            : () => { }
-                                                    }
-                                                />
-                                            )}
                                         </FrappeCard>
                                         {renderNextPrevButtons(true, true)}
                                     </div>
@@ -3728,7 +3907,7 @@ const ProjectRegistration: React.FC = () => {
                                                     endorsement: 1,
                                                 });
                                                 setShowEndorsementModal(false);
-                                                navigate("/projects-view");
+                                                navigate(`/project-details/${docname}`);
                                             } catch (err) {
                                                 alert(
                                                     "Error processing endorsement.",
@@ -3742,6 +3921,113 @@ const ProjectRegistration: React.FC = () => {
                                         {isSubmitting ? "Submitting..." : "Submit"}
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Preview Modal */}
+                {showPreviewModal && docname && (
+                    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 p-4 sm:p-6 overflow-hidden">
+                        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl flex flex-col w-full max-w-7xl h-full max-h-screen border border-zinc-200 dark:border-zinc-800">
+                            {/* Header */}
+                            <div className="flex justify-between items-center px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm z-10 shrink-0">
+                                <div>
+                                    <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-rose-600">
+                                        Project Preview
+                                    </h2>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Review your draft. Click Submit when you are ready to finalize Registration.</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowPreviewModal(false)}
+                                    className="p-2 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            
+                            {/* Body */}
+                            <div className="flex-1 overflow-y-auto w-full relative bg-zinc-50 dark:bg-zinc-950 project-preview-wrapper">
+                                <style>
+                                    {`
+                                    .project-preview-wrapper header button {
+                                        display: none !important;
+                                    }
+                                    `}
+                                </style>
+                                <div className="w-full min-h-full"> 
+                                    <ProjectDetailsView projectName={docname} backUrl="" backLabel="" />
+                                </div>
+                            </div>
+                            
+                            {/* Footer */}
+                            <div className="flex justify-end gap-3 px-6 py-4 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                                <button
+                                    onClick={() => setShowPreviewModal(false)}
+                                    className="px-6 py-2.5 rounded-md font-bold text-sm bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                >
+                                    Continue Editing
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowSubmitCommentModal(true);
+                                    }}
+                                    disabled={isSubmitting || isFinalSubmitting}
+                                    className="px-8 py-2.5 rounded-md font-bold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isFinalSubmitting ? "Submitting..." : "Submit Project"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Final Submission Comment Modal */}
+                {showSubmitCommentModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999999] p-4">
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md relative">
+                            <h3 className="text-sm font-bold mb-4 capitalize text-zinc-900 dark:text-zinc-100">
+                                Confirm Submit
+                            </h3>
+                            <p className="mb-4 text-zinc-600 dark:text-zinc-400">
+                                Please provide a comment for this action.
+                            </p>
+                            <textarea
+                                id="finalSubmitComment"
+                                placeholder="Enter your comment here..."
+                                className="w-full mb-4 min-h-[100px] border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 p-3 rounded-md"
+                            />
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    className="px-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-md text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors"
+                                    onClick={() => setShowSubmitCommentModal(false)}
+                                    disabled={isFinalSubmitting}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-bold disabled:opacity-50 transition-colors cursor-pointer"
+                                    onClick={async () => {
+                                        const commentEl = document.getElementById("finalSubmitComment") as HTMLTextAreaElement;
+                                        const comment = commentEl ? commentEl.value : "";
+                                        if (!comment.trim()) return;
+                                        
+                                        setIsFinalSubmitting(true);
+                                        try {
+                                            await submitProjectRegistration({ docname: docname, comment: comment });
+                                            setShowSubmitCommentModal(false);
+                                            setShowPreviewModal(false);
+                                            navigate(`/project-details/${docname}`);
+                                        } catch (err: any) {
+                                            alert("Submit failed: " + err.message);
+                                        } finally {
+                                            setIsFinalSubmitting(false);
+                                        }
+                                    }}
+                                    disabled={isFinalSubmitting}
+                                >
+                                    {isFinalSubmitting ? "Submitting..." : "Submit"}
+                                </button>
                             </div>
                         </div>
                     </div>
