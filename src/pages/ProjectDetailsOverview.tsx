@@ -1780,7 +1780,7 @@ const QuickActions = ({
                                 onNavigate(`/loan-request/${item.name}`);
                                 break;
                               case "Indent General Form":
-                                onNavigate(`/indent-general-form/${item.name}`);
+                                onNavigate(`/indent-general-form-details/${item.name}`);
                                 break;
                               default:
                                 // Check item.type for Travel consolidated view
