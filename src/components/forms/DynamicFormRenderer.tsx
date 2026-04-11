@@ -144,7 +144,7 @@ const MemoizedFormField = memo(
                   field.fieldname === "igf_department_centre_section") &&
                 value ? (
                   <DepartmentName name={value} />
-                ) : field.fieldname === "account_head" && value ? (
+                ) : (field.fieldname === "account_head" || field.fieldname === "igf_account_head") && value ? (
                   <BudgetHeadName id={value} />
                 ) : (
                   readOnlyLabel || "-"
