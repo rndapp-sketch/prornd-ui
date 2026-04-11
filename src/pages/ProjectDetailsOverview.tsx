@@ -840,7 +840,7 @@ const QuickActions = ({
       title: "Disbursal",
       icon: Upload,
       items: [
-        "Top Up Fellowship",
+        // "Top Up Fellowship",
         "Disbursal of Honorarium",
         "Disbursal of Consultancy",
       ],
