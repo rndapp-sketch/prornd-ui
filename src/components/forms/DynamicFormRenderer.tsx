@@ -140,7 +140,8 @@ const MemoizedFormField = memo(
                   field.fieldname === "department_for" ||
                   field.fieldname === "upfa_department" ||
                   field.fieldname === "implementation_department" ||
-                  field.fieldname === "applicant_department") &&
+                  field.fieldname === "applicant_department" ||
+                  field.fieldname === "igf_department_centre_section") &&
                 value ? (
                   <DepartmentName name={value} />
                 ) : field.fieldname === "account_head" && value ? (
