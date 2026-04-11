@@ -189,6 +189,14 @@ export const universalUserAPI = {
     save: `${API_BASE}.universal_user__.universal_user__.save_universal_user___data`,
 };
 
+// Indent General Form API endpoints
+export const indentGeneralFormAPI = {
+    getFields: `${API_BASE}.indent_general_form.indent_general_form.get_indent_general_form_fields`,
+    save: `${API_BASE}.indent_general_form.indent_general_form.save_indent_general_form_data`,
+    getWorkflowActions: `${API_BASE}.indent_general_form.indent_general_form.get_indent_general_form_workflow_actions`,
+    performAction: `${API_BASE}.indent_general_form.indent_general_form.perform_indent_general_form_action`,
+};
+
 // Loan Request API endpoints
 export const loanRequestAPI = {
     getFields: `${API_BASE}.loan_request.loan_request.get_loan_request_fields`,

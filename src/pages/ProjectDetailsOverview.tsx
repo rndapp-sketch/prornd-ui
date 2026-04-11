@@ -850,7 +850,7 @@ const QuickActions = ({
       icon: ShoppingCart,
       items: [
         "Direct Purchase",
-        "General Indent",
+        "Indent General Form",
         // "Generate NIQ",
         "Indent cum Sanction",
         // "Rate Contract",
@@ -1304,6 +1304,42 @@ const QuickActions = ({
           console.error("Adhoc/Contractual fetch error:", fetchError);
           data = [];
         }
+      } else if (selectedApplication === "Indent General Form") {
+        try {
+          const timestamp = Date.now();
+          const apiUrl = `/api/resource/Indent%20General%20Form?fields=["name","creation","workflow_state","owner","igf_project_title","igf_webmail_user_id","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          const fetchResponse = await fetch(apiUrl, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            credentials: "include",
+          });
+          if (!fetchResponse.ok)
+            throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+          const result = await fetchResponse.json();
+          const allItems = result?.data || [];
+
+          data = allItems
+            .filter((item: any) => {
+              return (
+                item.igf_project_title === projectName ||
+                item.igf_project_title === projectNo
+              );
+            })
+            .map((item: any) => ({
+              ...item,
+              workflow_state:
+                item.workflow_state ||
+                (item.docstatus === 1
+                  ? "Submitted"
+                  : item.docstatus === 2
+                    ? "Cancelled"
+                    : "Draft"),
+              applicant_webmail: item.igf_webmail_user_id || item.owner,
+            }));
+        } catch (fetchError) {
+          console.error("Indent General Form fetch error:", fetchError);
+          data = [];
+        }
       } else if (selectedApplication === "Indent cum Sanction") {
         try {
           const timestamp = Date.now();
@@ -1506,6 +1542,11 @@ const QuickActions = ({
         break;
       case "Adhoc/Contractual":
         onNavigate(`/recruitment-adhoc-contractual?project=${projectParam}`);
+        break;
+      case "Indent General Form":
+        onNavigate(
+          `/indent-general-form?project_no=${projectParam}&project_name=${projectName}${projectTitle ? `&projectTitle=${encodeURIComponent(projectTitle)}` : ""}`,
+        );
         break;
       case "Indent cum Sanction":
         onNavigate(`/indent-cum-sanction-sheet?project=${projectParam}`);
@@ -1737,6 +1778,9 @@ const QuickActions = ({
                                 break;
                               case "Loan Request":
                                 onNavigate(`/loan-request/${item.name}`);
+                                break;
+                              case "Indent General Form":
+                                onNavigate(`/indent-general-form/${item.name}`);
                                 break;
                               default:
                                 // Check item.type for Travel consolidated view

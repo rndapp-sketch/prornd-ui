@@ -76,6 +76,7 @@ import RecruitmentAdhocContractualForm from './pages/application/RecruitmentAdho
 import CandidateApplications from './pages/application/CandidateApplications.tsx';
 import CandidateDetails from './pages/application/CandidateDetails.tsx';
 import IndentCumSanctionSheetForm from './pages/application/IndentCumSanctionSheetForm.tsx';
+import IndentGeneralForm from './pages/application/IndentGeneralForm.tsx';
 import UniversalRegistrationForm from './pages/application/UniversalRegistrationForm.tsx';
 import UniversalUserForm from './pages/application/UniversalUserForm.tsx';
 import SelectionCommitteeReportForm from './pages/application/SelectionCommitteeReportForm.tsx';
@@ -646,6 +647,14 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <IndentCumSanctionSheetForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "indent-general-form/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <IndentGeneralForm />
             </AuthRouteWrapper>
           )
         },
