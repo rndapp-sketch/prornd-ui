@@ -851,9 +851,9 @@ const QuickActions = ({
       items: [
         "Direct Purchase",
         "General Indent",
-        "Generate NIQ",
+        // "Generate NIQ",
         "Indent cum Sanction",
-        "Rate Contract",
+        // "Rate Contract",
       ],
     },
     {
@@ -861,9 +861,9 @@ const QuickActions = ({
       icon: Users,
       items: [
         "Adhoc/Contractual",
-        "Committee Member Change",
-        "Selection Committee Report",
-        "Project Staff Resignation",
+        // "Committee Member Change",
+        // "Selection Committee Report",
+        // "Project Staff Resignation",
       ],
     },
     { title: "Travel", icon: Plane, items: ["Travel"] },

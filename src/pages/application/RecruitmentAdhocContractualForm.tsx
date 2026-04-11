@@ -142,6 +142,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     chairperson_webmail_id: chairpersonEmail,
                     chairperson_name:
                         getChairpersonLabel(chairpersonEmail, optionsSource) || "",
+                    head: chairpersonEmail,
                 };
             } catch (e) {
                 console.error(
@@ -211,8 +212,23 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     return f;
                 });
 
+                let finalLinkOptions = link_options ? { ...link_options } : {};
+                try {
+                    const desigRes = await fetch("/api/method/rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_project_staff_designations");
+                    const desigJson = await desigRes.json();
+                    const designations = desigJson?.message?.data || desigJson?.data || [];
+                    if (designations.length > 0) {
+                        // Assigning to multiple possible keys to guarantee DynamicFormRenderer picks it up
+                        finalLinkOptions["project_staff_designation"] = designations;
+                        finalLinkOptions["Designation_prornd"] = designations;
+                        finalLinkOptions["designation"] = designations;
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch project staff designations", e);
+                }
+
                 setFields(processedFields);
-                setLinkOptions(link_options || {});
+                setLinkOptions(finalLinkOptions);
 
                 // Initialize Form Data
                 if (currentDocName && prefill_data) {
@@ -259,7 +275,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                             existingData.chairperson_webmail_id,
                             link_options || {},
                         );
-                        
+
                         if (labelFromOptions) {
                             existingData.chairperson_name = labelFromOptions;
                         } else {
@@ -325,29 +341,59 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
 
                     // Attempt to prefill project fields from URL param
                     const projectCode = projectParam || projectNoParam;
-                    if (projectCode && !initialData.upfa_project_code) {
+                    if (projectCode && (!initialData.upfa_project_code || !initialData.project_code)) {
                         initialData.upfa_project_code = projectCode;
+                        initialData.project_code = projectCode;
 
                         // Fetch implementation_department, project_title, and project_duration_months from Project Registration
                         try {
                             const projectRes = await fetchFrappeValue({
                                 doctype: "Project Registration",
                                 filters: { project_no: projectCode },
-                                fieldname: ["implementation_department", "project_title", "project_duration_months"],
+                                fieldname: [
+                                    "implementation_department", 
+                                    "project_title", 
+                                    "project_duration_months", 
+                                    "project_duration_days",
+                                    "prj_start_date",
+                                    "prj_end_date",
+                                    "head_approver"
+                                ],
                             });
-
+                            console.log("Project Res:", projectRes);
                             if (projectRes?.message) {
-                                if (projectRes.message.implementation_department && !initialData.implementation_department) {
+                                if (projectRes.message.head_approver) {
+                                    initialData.head = projectRes.message.head_approver;
+                                }
+                                if (projectRes.message.implementation_department) {
                                     initialData.implementation_department = projectRes.message.implementation_department;
-                                }
-                                if (projectRes.message.implementation_department && !initialData.upfa_department) {
                                     initialData.upfa_department = projectRes.message.implementation_department;
+                                    initialData.department = projectRes.message.implementation_department;
                                 }
-                                if (projectRes.message.project_title && !initialData.upfa_project_title) {
+                                if (projectRes.message.project_title) {
                                     initialData.upfa_project_title = projectRes.message.project_title;
+                                    initialData.project_title = projectRes.message.project_title;
                                 }
-                                if (projectRes.message.project_duration_months && !initialData.upfa_project_duration) {
-                                    initialData.upfa_project_duration = projectRes.message.project_duration_months;
+
+                                const months = projectRes.message.project_duration_months || 0;
+                                const days = projectRes.message.project_duration_days || 0;
+                                const startDate = projectRes.message.prj_start_date;
+                                const endDate = projectRes.message.prj_end_date;
+                                
+                                let durationStr = "";
+                                if (months > 0 || days > 0) {
+                                    const parts = [];
+                                    if (months > 0) parts.push(`${months} month${months > 1 ? 's' : ''}`);
+                                    if (days > 0) parts.push(`${days} day${days > 1 ? 's' : ''}`);
+                                    durationStr = parts.join(", ");
+                                } else if (startDate && endDate) {
+                                    // Fallback to formatting as dates if months/days are zero
+                                    durationStr = `${startDate} to ${endDate}`;
+                                }
+                                
+                                if (durationStr) {
+                                    initialData.upfa_project_duration = durationStr;
+                                    initialData.project_duration = durationStr;
                                 }
 
                                 Object.assign(
@@ -558,7 +604,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                     const nameField = tableField.child_fields.find(cf => cf.label?.toLowerCase().includes("name") && !cf.label?.toLowerCase().includes("email") && !cf.label?.toLowerCase().includes("webmail") && !cf.label?.toLowerCase().includes("designation") && !cf.label?.toLowerCase().includes("department"));
                                     if (nameField) nameKey = nameField.fieldname;
                                 }
-                                
+
                                 tData[rowIndex] = { ...tData[rowIndex], [nameKey]: res.message.full_name };
                             }
                             return { ...prev, [tableName]: tData };
@@ -697,7 +743,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error(`Workflow Action ${action} Error:`, error);
-            
+
             let errMsg = `An error occurred while performing action: ${action}`;
             try {
                 if (error.exc_type === "ValidationError" && error._server_messages) {
