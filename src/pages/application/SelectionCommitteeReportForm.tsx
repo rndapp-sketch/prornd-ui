@@ -165,7 +165,41 @@ const SelectionCommitteeReportForm: React.FC = () => {
     const fetchFormConfiguration = useCallback(async () => {
         setIsLoadingFields(true);
         try {
-            const currentDocName = editDocName || savedDocName;
+            let currentDocName = editDocName || savedDocName;
+
+            // Auto-detect existing SCR when opened via ?interview_id=...
+            // If no doc is loaded yet but we have an interview_id, check if an SCR already exists
+            if (!currentDocName && interviewIdParam) {
+                try {
+                    const scrListRes = await fetch(
+                        `/api/method/frappe.client.get_list`,
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", Accept: "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({
+                                doctype: "Selection Committee Report",
+                                filters: { interview_id: interviewIdParam },
+                                fields: ["name"],
+                                limit_page_length: 1,
+                            }),
+                        }
+                    );
+                    if (scrListRes.ok) {
+                        const scrListData = await scrListRes.json();
+                        const existingSCRs = scrListData?.message || [];
+                        if (existingSCRs.length > 0) {
+                            const existingDocName = existingSCRs[0].name;
+                            console.log("Auto-detected existing SCR:", existingDocName, "for interview_id:", interviewIdParam);
+                            currentDocName = existingDocName;
+                            setSavedDocName(existingDocName);
+                        }
+                    }
+                } catch (detectErr) {
+                    console.error("Failed to auto-detect existing SCR:", detectErr);
+                }
+            }
+
             console.log(
                 "Fetching config for:",
                 currentDocName ? `Doc: ${currentDocName}` : "New Document",
@@ -342,63 +376,63 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     if (appResponse.ok) {
                                         const appResult = await appResponse.json();
                                         const appsList = Array.isArray(appResult) ? appResult : (appResult.data || []);
-                                        
+
                                         // Filter for Shortlisted or Appeared candidates
-                                        let interviewCandidates = appsList.filter((app: any) => 
-                                            app.status?.toLowerCase() === "shortlisted" || 
+                                        let interviewCandidates = appsList.filter((app: any) =>
+                                            app.status?.toLowerCase() === "shortlisted" ||
                                             app.status?.toLowerCase() === "appeared"
-                                         );
-                                        
+                                        );
+
                                         // Option 2: If candidate_id is provided, show only that specific candidate
                                         console.log("Filtering candidates. URL candidate_id:", candidateIdParam);
                                         if (candidateIdParam) {
                                             interviewCandidates = interviewCandidates.filter((app: any) => {
-                                                const matches = String(app.application_id) === candidateIdParam || 
-                                                                String(app.id) === candidateIdParam;
+                                                const matches = String(app.application_id) === candidateIdParam ||
+                                                    String(app.id) === candidateIdParam;
                                                 return matches;
                                             });
-                                            console.log("Candidates after filtering:", interviewCandidates.map(c => c.first_name));
+                                            console.log("Candidates after filtering:", interviewCandidates.map((c: any) => c.first_name));
                                         }
-                                        
+
                                         if (interviewCandidates.length > 0) {
                                             console.log("Found interview candidates:", interviewCandidates);
-                                            
+
                                             // THE FIELD IS named "candidates" and is a JSON string as per browser inspection.
                                             const candidatesFieldName = "candidates";
-                                            
+
                                             // Only pre-fill if the table is currently empty
                                             if (!initialData[candidatesFieldName] || initialData[candidatesFieldName].length === 0) {
-                                                    const mappedCandidates = interviewCandidates.map((app: any) => {
-                                                        // Find the corresponding post in recruitment doc
-                                                        // Use String conversion to ensure matching even if types differ
-                                                        const post = rec.upfa_post_details?.find((p: any) => 
-                                                            String(p.name) === String(app.recruitment_post_id) || 
-                                                            String(p.idx) === String(app.recruitment_post_id)
-                                                        ) || {};
+                                                const mappedCandidates = interviewCandidates.map((app: any) => {
+                                                    // Find the corresponding post in recruitment doc
+                                                    // Use String conversion to ensure matching even if types differ
+                                                    const post = rec.upfa_post_details?.find((p: any) =>
+                                                        String(p.name) === String(app.recruitment_post_id) ||
+                                                        String(p.idx) === String(app.recruitment_post_id)
+                                                    ) || {};
 
-                                                        // Auto-calculate total for the initial map
-                                                        const basic = parseFloat(post.upfa_basic_pay) || 0;
-                                                        const hraStr = String(post.upfa_hra_percent || "0").replace('%', '');
-                                                        const hraPercent = parseFloat(hraStr) || 0;
-                                                        const medical = parseFloat(post.upfa_medical_required) || 0;
-                                                        const calculatedTotal = basic + (basic * hraPercent / 100) + medical;
+                                                    // Auto-calculate total for the initial map
+                                                    const basic = parseFloat(post.upfa_basic_pay) || 0;
+                                                    const hraStr = String(post.upfa_hra_percent || "0").replace('%', '');
+                                                    const hraPercent = parseFloat(hraStr) || 0;
+                                                    const medical = parseFloat(post.upfa_medical_required) || 0;
+                                                    const calculatedTotal = basic + (basic * hraPercent / 100) + medical;
 
-                                                        return {
-                                                            sl_no: 0, 
-                                                            candidate_name: `${app.first_name || ""} ${app.last_name || ""}`.trim(),
-                                                            applied_for_position: post.upfa_designation || "",
-                                                            upfa_basic_pay: basic,
-                                                            upfa_hra_percent: post.upfa_hra_percent || "0%",
-                                                            upfa_medical_required: medical,
-                                                            upfa_total_amount: post.upfa_total_amount || calculatedTotal,
-                                                            upfa_duration_months: post.upfa_duration_months || 0,
-                                                            upfa_selection_status: "", 
-                                                            upfa_justification: "", 
-                                                        };
-                                                    }).map((c: any, i: number) => ({ ...c, sl_no: i + 1 }));
+                                                    return {
+                                                        sl_no: 0,
+                                                        candidate_name: `${app.first_name || ""} ${app.last_name || ""}`.trim(),
+                                                        applied_for_position: post.upfa_designation || "",
+                                                        upfa_basic_pay: basic,
+                                                        upfa_hra_percent: post.upfa_hra_percent || "0%",
+                                                        upfa_medical_required: medical,
+                                                        upfa_total_amount: post.upfa_total_amount || calculatedTotal,
+                                                        upfa_duration_months: post.upfa_duration_months || 0,
+                                                        upfa_selection_status: "",
+                                                        upfa_justification: "",
+                                                    };
+                                                }).map((c: any, i: number) => ({ ...c, sl_no: i + 1 }));
 
-                                                    initialData[candidatesFieldName] = JSON.stringify(mappedCandidates);
-                                                }
+                                                initialData[candidatesFieldName] = JSON.stringify(mappedCandidates);
+                                            }
                                         }
                                     }
                                 } catch (appError) {
@@ -690,9 +724,9 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                 const tableField = fields.find(f => f.fieldname === tableName);
                                 let nameKey = "name_of_the_committee_member";
                                 if (tableField && tableField.child_fields) {
-                                    const nameField = tableField.child_fields.find(cf => 
-                                        cf.label?.toLowerCase().includes("name") && 
-                                        !cf.label?.toLowerCase().includes("email") && 
+                                    const nameField = tableField.child_fields.find(cf =>
+                                        cf.label?.toLowerCase().includes("name") &&
+                                        !cf.label?.toLowerCase().includes("email") &&
                                         !cf.label?.toLowerCase().includes("webmail")
                                     );
                                     if (nameField) nameKey = nameField.fieldname;
@@ -738,7 +772,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
 
             if (candidatesList[idx]) {
                 candidatesList[idx] = { ...candidatesList[idx], [field]: value };
-                
+
                 // Auto-calculation for Candidates if values change
                 if (field === 'upfa_basic_pay' || field === 'upfa_hra_percent' || field === 'upfa_medical_required') {
                     const basic = parseFloat(candidatesList[idx].upfa_basic_pay) || 0;
@@ -862,7 +896,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error(`Workflow Action ${action} Error:`, error);
-            
+
             let errMsg = `An error occurred while performing action: ${action}`;
             try {
                 if (error.exc_type === "ValidationError" && error._server_messages) {
@@ -942,9 +976,9 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     fields={(() => {
                                         const INTERNAL_FIELDS = ["candidates"]; // Fields to hide as they have custom renderers
                                         const DEAN_ONLY_FIELDS = ["chairperson_webmail_id", "chairperson_name"];
-                                        
+
                                         let visibleFields = isDoRnd ? fields : fields.filter(f => !DEAN_ONLY_FIELDS.includes(f.fieldname));
-                                        
+
                                         // Filter out hidden internal fields
                                         visibleFields = visibleFields.filter(f => !INTERNAL_FIELDS.includes(f.fieldname));
 
