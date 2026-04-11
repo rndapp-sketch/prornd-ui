@@ -45,6 +45,10 @@ import {
     DownloadIcon,
     ExternalLinkIcon,
     PencilIcon,
+    ChevronRight,
+    CheckCircle2,
+    XCircle,
+    Clock,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -841,6 +845,171 @@ const WorkflowActions = ({
     );
 };
 
+// --- WORKFLOW TIMELINE ---
+type StageStatus = 'completed' | 'in-progress' | 'pending' | 'rejected' | 'draft';
+
+function buildTimelineStages(currentState: string, mainStages: string[]): { label: string; status: StageStatus }[] {
+    const isApproved = currentState === 'Approved';
+    const isErrorState = currentState === 'Rejected' || currentState === 'Needs Correction';
+    const isPutBack = currentState === 'Put Back';
+    let normalizedState = isPutBack ? 'Pending Staff Approval' : currentState;
+    
+    // Normalize Head/HoD discrepancies between workflow states and document state
+    if (normalizedState === 'Pending Head Approval' && !mainStages.includes('Pending Head Approval') && mainStages.includes('Pending HoD Approval')) {
+        normalizedState = 'Pending HoD Approval';
+    } else if (normalizedState === 'Pending HoD Approval' && !mainStages.includes('Pending HoD Approval') && mainStages.includes('Pending Head Approval')) {
+        normalizedState = 'Pending Head Approval';
+    }
+
+    const currentIdx = mainStages.findIndex(s => s === normalizedState);
+
+    return mainStages.map((stage, idx) => {
+        if (isApproved) return { label: stage, status: 'completed' };
+        if (isErrorState) {
+            if (idx < mainStages.length - 1) return { label: stage, status: idx < currentIdx ? 'completed' : idx === currentIdx ? 'rejected' : 'pending' };
+            return { label: currentState, status: 'rejected' };
+        }
+        if (idx < currentIdx) return { label: stage, status: 'completed' };
+        if (idx === currentIdx) return { label: isPutBack ? `${stage} (Put Back)` : stage, status: 'in-progress' };
+        return { label: stage, status: 'pending' };
+    });
+}
+
+function useProjectWorkflowStages() {
+    const { data: workflowDoc } = useFrappeGetCall<{ message: any[] }>(
+        "frappe.client.get_list",
+        {
+            doctype: "Workflow",
+            filters: { document_type: "Project Registration" },
+            fields: ["name"],
+        }
+    );
+    const workflowName = workflowDoc?.message?.[0]?.name;
+
+    const { data: fullWorkflow, isLoading } = useFrappeGetCall<{ message: any }>(
+        "frappe.client.get",
+        {
+            doctype: "Workflow",
+            name: workflowName
+        },
+        workflowName ? `workflow-doc-${workflowName}` : null
+    );
+
+    const mainStages = React.useMemo(() => {
+        if (!fullWorkflow?.message?.states) return [];
+        const sortedStates = [...fullWorkflow.message.states]
+            .sort((a, b) => (a.idx ?? 0) - (b.idx ?? 0))
+            .map(s => s.state);
+        // Deduplicate in case Frappe states table has repeats
+        return sortedStates.filter((val, index, arr) => arr.indexOf(val) === index);
+    }, [fullWorkflow]);
+
+    return { mainStages, isLoading };
+}
+
+const WorkflowTimeline: React.FC<{ currentState: string, userRoles?: string[] }> = ({ currentState, userRoles = [] }) => {
+    const { mainStages, isLoading } = useProjectWorkflowStages();
+    
+    // Fallback if loading or empty
+    let stagesToUse = mainStages.length > 0 ? mainStages : ['Draft', 'Pending...', 'Approved'];
+    
+    // Map HoD to Head natively to fix timeline naming discrepancies
+    stagesToUse = stagesToUse.map(stage => stage === 'Pending HoD Approval' ? 'Pending Head Approval' : stage);
+
+    // Dedup again since mapping might have created duplicates if both existed
+    stagesToUse = stagesToUse.filter((val, index, arr) => arr.indexOf(val) === index);
+
+    // Filter out error/conditional states if they are not the current state
+    stagesToUse = stagesToUse.filter(stage => {
+        if (stage === 'Pending Mentor Approval') {
+            // Mentor approval is bypassed for PE and project staff based on the transitions sheet
+            if (userRoles.includes('Permanent Employee') || userRoles.includes('project staff')) {
+                return stage === currentState;
+            }
+        }
+        
+        const s = stage.toLowerCase();
+        if (s.includes('rejected') || s.includes('correction') || s.includes('endorsement')) {
+            return stage === currentState;
+        }
+        return true;
+    });
+
+    const stages = buildTimelineStages(currentState, stagesToUse);
+
+    const iconForStatus = (status: StageStatus) => {
+        if (status === 'completed') return <CheckCircle2 className="w-2.5 h-2.5 text-white" />;
+        if (status === 'in-progress') return <Clock className="w-2.5 h-2.5 text-white" />;
+        if (status === 'rejected') return <XCircle className="w-2.5 h-2.5 text-white" />;
+        return <span className="w-1.5 h-1.5 rounded-full bg-white/60" />;
+    };
+
+    const bgForStatus = (status: StageStatus) => {
+        if (status === 'completed') return 'bg-emerald-500';
+        if (status === 'in-progress') return 'bg-[#D97757]';
+        if (status === 'rejected') return 'bg-red-500';
+        return 'bg-zinc-300 dark:bg-zinc-600';
+    };
+
+    const connectorColor = (status: StageStatus) =>
+        status === 'completed' ? 'bg-emerald-400' : 'bg-zinc-200 dark:bg-zinc-700';
+
+    if (isLoading) {
+        return <div className="animate-pulse h-12 bg-zinc-100 dark:bg-zinc-800 rounded-xl" />;
+    }
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm px-4 py-2.5 w-full">
+            <h3 className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2.5">
+                Workflow Progress
+            </h3>
+            <div className="flex items-start overflow-x-auto pb-1 scrollbar-thin">
+                {stages.map((stage, idx) => (
+                    <React.Fragment key={stage.label + idx}>
+                        <div className="flex flex-col items-center min-w-[60px] max-w-[80px]">
+                            <div className={cn(
+                                'w-5 h-5 rounded-full flex items-center justify-center shadow-sm flex-shrink-0 transition-all duration-300',
+                                bgForStatus(stage.status),
+                            )}>
+                                {iconForStatus(stage.status)}
+                            </div>
+                            <p className={cn(
+                                'mt-1.5 text-center text-[9px] leading-tight px-1 transition-all duration-300',
+                                stage.status === 'in-progress' ? 'font-bold text-[#D97757]' : '',
+                                stage.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : '',
+                                stage.status === 'pending' ? 'text-zinc-400 dark:text-zinc-500' : '',
+                                stage.status === 'rejected' ? 'text-red-500 font-bold' : '',
+                            )}>
+                                {stage.label}
+                            </p>
+                            {stage.status === 'in-progress' && (
+                                <span className="mt-1 flex-shrink-0 text-[8px] font-bold text-white bg-[#D97757] px-1.5 py-[2px] rounded-full leading-none">
+                                    Pending
+                                </span>
+                            )}
+                        </div>
+                        {idx < stages.length - 1 && (
+                            <div className="flex-1 flex items-center pt-2 min-w-[16px]">
+                                <div className={cn('h-0.5 w-full rounded transition-all duration-300', connectorColor(stage.status))} />
+                                <ChevronRight className="w-2.5 h-2.5 text-zinc-400 flex-shrink-0 -ml-[2px]" />
+                            </div>
+                        )}
+                    </React.Fragment>
+                ))}
+            </div>
+            {/* Pending at text */}
+            {currentState && currentState !== 'Draft' && currentState !== 'Approved' && currentState !== 'Rejected' && (
+                <div className="mt-2 pt-1.5 border-t border-zinc-100 dark:border-zinc-800">
+                    <p className="text-[9px] text-zinc-500 dark:text-zinc-400 transition-all duration-300">
+                        Currently pending at:{' '}
+                        <span className="font-semibold text-[#D97757]">{currentState}</span>
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // --- Main Component ---
 const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     projectName: propProjectName,
@@ -1145,6 +1314,9 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     html={endorsementHtml}
                     isLoading={isFetchingEndorsementHtml}
                 />
+                <div className="mb-6">
+                    <WorkflowTimeline currentState={data?.workflow_state || 'Draft'} userRoles={roles} />
+                </div>
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
                     <div className="border-b border-zinc-200 dark:border-zinc-800">
                         <nav className="flex space-x-1 p-1 overflow-x-auto">
