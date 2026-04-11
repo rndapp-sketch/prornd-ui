@@ -143,6 +143,8 @@ const MemoizedFormField = memo(
                   field.fieldname === "applicant_department") &&
                 value ? (
                   <DepartmentName name={value} />
+                ) : field.fieldname === "account_head" && value ? (
+                  <BudgetHeadName id={value} />
                 ) : (
                   readOnlyLabel || "-"
                 )}
@@ -532,6 +534,8 @@ const MemoizedFormField = memo(
                 field.fieldname === "applicant_department") &&
               value ? (
                 <DepartmentName name={value} />
+              ) : field.fieldname === "account_head" && value ? (
+                <BudgetHeadName id={value} />
               ) : (
                 readOnlyLabel || "-"
               )}
