@@ -134,6 +134,10 @@ const IndentGeneralForm: React.FC = () => {
                 ) {
                     return { ...f, read_only: 1 };
                 }
+                // Replace hardcoded Select with Budget Head dynamic Link dropdown
+                if (f.fieldname === "igf_account_head") {
+                    return { ...f, fieldtype: "Link", options: "Budget Head" };
+                }
                 // Lock igf_number_of_bids when Open Tender is selected
                 if (f.fieldname === "igf_number_of_bids" && data.igf_tender_type === "Open Tender") {
                     return { ...f, read_only: 1 };
@@ -192,8 +196,21 @@ const IndentGeneralForm: React.FC = () => {
         const load = async () => {
             setLoading(true);
             try {
-                const res = await fetchFields({ doc_name: editDocName || null });
+                // Fetch budget heads and form fields in parallel
+                const [res, budgetHeadRes] = await Promise.all([
+                    fetchFields({ doc_name: editDocName || null }),
+                    fetch('/api/v2/document/Budget%20Head?fields=["name","budget_head"]&order_by=budget_head asc', {
+                        credentials: "include",
+                        headers: { Accept: "application/json" },
+                    }).then((r) => r.json()).catch(() => ({ data: [] })),
+                ]);
+
                 if (!res?.message) return;
+
+                const budgetHeadOptions: LinkOption[] = (budgetHeadRes?.data || []).map((h: any) => ({
+                    value: h.name,
+                    label: h.budget_head || h.name,
+                }));
 
                 const { fields: apiFields, link_options, prefill_data } = res.message;
 
@@ -203,7 +220,10 @@ const IndentGeneralForm: React.FC = () => {
                 );
                 setFields(filtered);
 
-                const mergedLinkOptions: Record<string, any[]> = { ...(link_options || {}) };
+                const mergedLinkOptions: Record<string, any[]> = {
+                    ...(link_options || {}),
+                    igf_account_head: budgetHeadOptions,
+                };
 
                 if (editDocName) {
                     // Editing existing doc
