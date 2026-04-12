@@ -49,7 +49,7 @@ export default {
   },
   // Proxy for external Ledger API to avoid CORS
   "/ledger-api": {
-    target: "http://172.16.134.81:18083",
+    target: "http://172.16.134.81:18080",
     changeOrigin: true,
     rewrite: (path: string) => path.replace(/^\/ledger-api/, "/api"), // Type annotation removed for JS config compatibility
   },
