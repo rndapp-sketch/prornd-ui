@@ -1,5 +1,6 @@
 import React, { memo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import { AutocompleteEmail } from '@/components/AutocompleteEmail';
 
 // --- TYPE DEFINITIONS ---
 export interface ChildField {
@@ -203,8 +204,34 @@ export const ChildTableComponent = memo(({
                     />
                 );
 
-            case 'Link':
-                // Check if we have options for this link field
+            case 'Link': {
+                // For User-linked fields (webmail/email), prefer autocomplete over select
+                const isUserLink =
+                    col.options === 'User' ||
+                    col.fieldname.includes('webmail') ||
+                    col.fieldname.includes('email');
+
+                if (isUserLink) {
+                    // Collect user options from all possible keys the backend may use
+                    const userOpts =
+                        linkOptions[col.fieldname] ||
+                        linkOptions['User'] ||
+                        linkOptions['webmail_id'] ||
+                        linkOptions[col.options as string] ||
+                        [];
+                    return (
+                        <AutocompleteEmail
+                            options={userOpts}
+                            value={value || ''}
+                            onChange={(v) => onRowChange(tableName, rowIndex, col.fieldname, v)}
+                            className={inputClasses}
+                            placeholder={`Enter ${col.label || 'Email'}`}
+                            showAllOnFocus={true}
+                            disabled={isReadOnly}
+                        />
+                    );
+                }
+
                 const linkOpts = linkOptions[col.fieldname] || linkOptions[col.options as string] || [];
                 if (linkOpts.length > 0) {
                     return (
@@ -213,7 +240,6 @@ export const ChildTableComponent = memo(({
                             value={value || ''}
                             onChange={(e) => {
                                 const selectedValue = e.target.value;
-                                // If there's a special link change handler, use it (for auto-fetch functionality)
                                 if (onLinkChange) {
                                     onLinkChange(tableName, rowIndex, col.fieldname, selectedValue);
                                 } else {
@@ -229,7 +255,6 @@ export const ChildTableComponent = memo(({
                         </select>
                     );
                 }
-                // Fall through to default text input if no options available
                 return (
                     <input
                         type="text"
@@ -239,8 +264,28 @@ export const ChildTableComponent = memo(({
                         disabled={isReadOnly}
                     />
                 );
+            }
 
-            default: // Data, etc.
+            default: { // Data, etc.
+                const isEmailField =
+                    col.fieldname.includes('webmail') ||
+                    col.fieldname.includes('email') ||
+                    col.label?.toLowerCase().includes('webmail') ||
+                    col.label?.toLowerCase().includes('email');
+                const userOpts = linkOptions['User'] || linkOptions['webmail_id'] || linkOptions[col.fieldname] || [];
+
+                if (isEmailField && userOpts.length > 0 && !isReadOnly) {
+                    return (
+                        <AutocompleteEmail
+                            options={userOpts}
+                            value={value || ''}
+                            onChange={(v) => onRowChange(tableName, rowIndex, col.fieldname, v)}
+                            className={inputClasses}
+                            placeholder={`Enter ${col.label || 'Email'}`}
+                        />
+                    );
+                }
+
                 return (
                     <input
                         type="text"
@@ -250,6 +295,7 @@ export const ChildTableComponent = memo(({
                         disabled={isReadOnly}
                     />
                 );
+            }
         }
     };
 

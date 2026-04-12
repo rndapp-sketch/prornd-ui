@@ -17,6 +17,7 @@ import {
     type FormField,
     type LinkOption,
 } from "@/components/forms/DynamicFormRenderer";
+import { isFieldVisible } from "@/utils/evalExpression";
 import { indentGeneralFormAPI, fileToBase64, commonAPI } from "@/services/apiService";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { DepartmentName } from "@/components/DepartmentName";
@@ -469,6 +470,8 @@ const IndentGeneralFormDetails: React.FC = () => {
                 const merged: Record<string, LinkOption[]> = {
                     ...(link_options || {}),
                     igf_account_head: budgetHeadOptions,
+                    budget_head: budgetHeadOptions,
+                    "Budget Head": budgetHeadOptions,
                 };
 
                 // Fetch project title label for display
@@ -510,7 +513,7 @@ const IndentGeneralFormDetails: React.FC = () => {
         ) {
             return { ...f, read_only: 1 };
         }
-        if (f.fieldname === "igf_account_head") {
+        if (f.fieldname === "igf_account_head" || f.fieldname === "budget_head") {
             return { ...f, fieldtype: "Link", options: "Budget Head" };
         }
         if (f.fieldname === "igf_number_of_bids" && formData.igf_tender_type === "Open Tender") {
@@ -589,7 +592,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                 <InfoRow label="Project Code" value={formData.igf_project_code} />
                                 <InfoRow
                                     label="Account Head"
-                                    value={formData.igf_account_head}
+                                    value={formData.igf_account_head || formData.budget_head}
                                     isBudgetHead
                                 />
                                 <InfoRow
@@ -623,16 +626,23 @@ const IndentGeneralFormDetails: React.FC = () => {
                             />
                         </GroupCard>
 
-                        {/* Vendors */}
-                        <GroupCard icon={TruckIcon} label="Details of Vendors">
-                            <DynamicFormRenderer
-                                fields={fieldsFor([
-                                    "igf_details_of_vendors",
-                                    "igf_vendors",
-                                ])}
-                                {...rendererProps}
-                            />
-                        </GroupCard>
+                        {/* Vendors — only shown when the table field is actually visible */}
+                        {effectiveFields.some(
+                            (f) =>
+                                ["igf_details_of_vendors", "igf_vendors"].includes(f.fieldname) &&
+                                !f.hidden &&
+                                isFieldVisible(f, formData),
+                        ) && (
+                            <GroupCard icon={TruckIcon} label="Details of Vendors">
+                                <DynamicFormRenderer
+                                    fields={fieldsFor([
+                                        "igf_details_of_vendors",
+                                        "igf_vendors",
+                                    ])}
+                                    {...rendererProps}
+                                />
+                            </GroupCard>
+                        )}
 
                         {/* Purchase Committee */}
                         <GroupCard icon={UsersIcon} label="Purchase Committee">

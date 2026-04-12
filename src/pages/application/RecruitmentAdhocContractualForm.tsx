@@ -202,8 +202,9 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                         return {
                             ...f,
                             child_fields: f.child_fields.map((cf) => {
-                                if (cf.fieldname === "webmail_id" || cf.fieldname === "email" || cf.fieldname === "member_email" || cf.label?.toLowerCase().includes("webmail") || cf.label?.toLowerCase().includes("email")) {
-                                    return { ...cf, fieldtype: "Data" };
+                                // upfa_member_name is auto-filled — make it read-only
+                                if (f.fieldname === "upfa_selection_committee" && cf.fieldname === "upfa_member_name") {
+                                    return { ...cf, read_only: 1 };
                                 }
                                 return cf;
                             })
@@ -213,6 +214,17 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                 });
 
                 let finalLinkOptions = link_options ? { ...link_options } : {};
+
+                // Mirror user options under "User" key so child table AutocompleteEmail can find them.
+                // The backend sends them under "webmail_id" (the main form field name).
+                if (!finalLinkOptions["User"] && finalLinkOptions["webmail_id"]) {
+                    finalLinkOptions["User"] = finalLinkOptions["webmail_id"];
+                }
+                // Also mirror under the child field name so ChildTableComponent Link-fallback works.
+                if (!finalLinkOptions["webmail_id__email"]) {
+                    finalLinkOptions["webmail_id__email"] = finalLinkOptions["webmail_id"] || [];
+                }
+
                 try {
                     const desigRes = await fetch("/api/method/rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_project_staff_designations");
                     const desigJson = await desigRes.json();
@@ -597,12 +609,23 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                         setFormData((prev) => {
                             const tData = [...(prev[tableName] || [])];
                             if (tData[rowIndex]) {
-                                // Find the fieldname corresponding to "Name" in the current table schema
-                                const tableField = fields.find(f => f.fieldname === tableName);
-                                let nameKey = "name_of_the_committee_member"; // default guess
-                                if (tableField && tableField.child_fields) {
-                                    const nameField = tableField.child_fields.find(cf => cf.label?.toLowerCase().includes("name") && !cf.label?.toLowerCase().includes("email") && !cf.label?.toLowerCase().includes("webmail") && !cf.label?.toLowerCase().includes("designation") && !cf.label?.toLowerCase().includes("department"));
-                                    if (nameField) nameKey = nameField.fieldname;
+                                // Precise name key for known tables; fall back to label-based search
+                                let nameKey: string;
+                                if (tableName === "upfa_selection_committee") {
+                                    nameKey = "upfa_member_name";
+                                } else {
+                                    const tableField = fields.find(f => f.fieldname === tableName);
+                                    nameKey = "name_of_the_committee_member"; // default
+                                    if (tableField && tableField.child_fields) {
+                                        const nameField = tableField.child_fields.find(cf =>
+                                            cf.label?.toLowerCase().includes("name") &&
+                                            !cf.label?.toLowerCase().includes("email") &&
+                                            !cf.label?.toLowerCase().includes("webmail") &&
+                                            !cf.label?.toLowerCase().includes("designation") &&
+                                            !cf.label?.toLowerCase().includes("department")
+                                        );
+                                        if (nameField) nameKey = nameField.fieldname;
+                                    }
                                 }
 
                                 tData[rowIndex] = { ...tData[rowIndex], [nameKey]: res.message.full_name };
