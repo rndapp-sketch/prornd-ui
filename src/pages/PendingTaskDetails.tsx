@@ -1195,6 +1195,13 @@ const PendingTaskDetails: React.FC = () => {
         doctype || "",
         name || "",
     );
+    // Fund Sanction: fetch linked Project Registration to get project_no
+    const { data: fsProjectRegData } = useFrappeGetDoc(
+        'Project Registration',
+        data?.project_proposal || '',
+        { revalidateOnFocus: false, isPaused: () => doctype !== 'Fund Sanction' || !data?.project_proposal }
+    );
+
     const { mutate: globalMutate } = useSWRConfig();
     const refreshAll = () => {
         mutate();
@@ -2194,6 +2201,133 @@ const PendingTaskDetails: React.FC = () => {
                                 activeTab={dpActiveTab}
                                 setActiveTab={setDpActiveTab}
                             />
+                        ) : doctype === "Fund Sanction" && data ? (
+                            <div className="space-y-6">
+                                {/* Summary Cards */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+                                        <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Total Sanctioned</p>
+                                        <p className="text-2xl font-bold text-[#D97757]">
+                                            {(data.total_sanctioned_amount || 0).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
+                                        </p>
+                                    </div>
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+                                        <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Letter No</p>
+                                        <p className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{data.sanctioned_letter_no || '—'}</p>
+                                    </div>
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+                                        <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Letter Date</p>
+                                        <p className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{data.sanctioned_letter_date || '—'}</p>
+                                    </div>
+                                </div>
+
+                                {/* Core Details */}
+                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+                                    <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">Sanction Details</h3>
+                                    </div>
+                                    <div className="p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-6">
+                                        {[
+                                            { label: "Project", value: data.project_proposal || data.refnum_prj_num },
+                                            { label: "Project No", value: fsProjectRegData?.project_no },
+                                            { label: "Project Title", value: data.project_title || fsProjectRegData?.project_title },
+                                            { label: "Funding Agency", value: data.funding_agency },
+                                            { label: "Sanctioned Date", value: data.date_of_sanction || data.sanctioned_letter_date },
+                                            { label: "Sanction Order No", value: data.sanction_order_no || data.sanctioned_letter_no },
+                                            { label: "Duration (Months)", value: data.duration_of_project },
+                                            { label: "Start Date", value: data.start_date },
+                                            { label: "End Date", value: data.end_date },
+                                            { label: "Principal Investigator", value: data.principal_investigator || data.pi_name },
+                                            { label: "Department", value: data.department },
+                                            { label: "Remarks", value: data.remarks },
+                                        ].filter(f => f.value != null && f.value !== "").map(({ label, value }) => (
+                                            <div key={label} className="flex flex-col">
+                                                <span className={labelClasses}>{label}</span>
+                                                <span className={valueClasses}>{String(value)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Budget Breakup Table */}
+                                {data.sanctioned_budget_breakup?.length > 0 && (
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+                                        <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">Sanctioned Budget Breakup</h3>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
+                                                <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                                    <tr>
+                                                        <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Account Head</th>
+                                                        <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Year 1</th>
+                                                        <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Year 2</th>
+                                                        <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Year 3</th>
+                                                        <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Year 4</th>
+                                                        <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Year 5</th>
+                                                        <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                                                    {data.sanctioned_budget_breakup.map((row: any, idx: number) => {
+                                                        const rowTotal = ['first_year_budget','second_year_budget','third_year_budget','fourth_year_budget','fifth_year_budget']
+                                                            .reduce((s, k) => s + (parseFloat(row[k]) || 0), 0);
+                                                        return (
+                                                            <tr key={idx} className={cn("hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors", row.is_total_row ? "bg-zinc-50 dark:bg-zinc-800/40 font-semibold" : "")}>
+                                                                <td className="px-5 py-3 text-sm text-zinc-900 dark:text-zinc-100">{row.account_head}</td>
+                                                                {['first_year_budget','second_year_budget','third_year_budget','fourth_year_budget','fifth_year_budget'].map(k => (
+                                                                    <td key={k} className="px-5 py-3 text-sm text-right tabular-nums text-zinc-600 dark:text-zinc-300">
+                                                                        {parseFloat(row[k]) ? Number(row[k]).toLocaleString('en-IN') : '—'}
+                                                                    </td>
+                                                                ))}
+                                                                <td className="px-5 py-3 text-sm text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
+                                                                    {rowTotal ? rowTotal.toLocaleString('en-IN') : '—'}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                                {/* Grand total footer */}
+                                                {(() => {
+                                                    const years = ['first_year_budget','second_year_budget','third_year_budget','fourth_year_budget','fifth_year_budget'];
+                                                    const colTotals = years.map(k => data.sanctioned_budget_breakup.reduce((s: number, r: any) => s + (parseFloat(r[k]) || 0), 0));
+                                                    const grand = colTotals.reduce((a: number, b: number) => a + b, 0);
+                                                    return (
+                                                        <tfoot>
+                                                            <tr className="bg-[#D97757] text-white">
+                                                                <td className="px-5 py-3 text-sm font-bold">Grand Total</td>
+                                                                {colTotals.map((t: number, i: number) => (
+                                                                    <td key={i} className="px-5 py-3 text-sm font-bold text-right tabular-nums">
+                                                                        {t ? t.toLocaleString('en-IN') : '—'}
+                                                                    </td>
+                                                                ))}
+                                                                <td className="px-5 py-3 text-sm font-bold text-right tabular-nums">{grand.toLocaleString('en-IN')}</td>
+                                                            </tr>
+                                                        </tfoot>
+                                                    );
+                                                })()}
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Attached Sanction Letter */}
+                                {data.sanction_letter && (
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+                                        <p className={labelClasses}>Sanction Letter</p>
+                                        <a
+                                            href={data.sanction_letter}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 mt-2 px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm font-medium text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                        >
+                                            <FileIcon className="h-4 w-4" />
+                                            {data.sanction_letter.split('/').pop() || 'View Document'}
+                                            <ExternalLinkIcon className="h-3.5 w-3.5 ml-1 opacity-60" />
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
                         ) : (
                             renderGenericDetails()
                         )}
