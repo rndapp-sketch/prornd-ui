@@ -1953,6 +1953,20 @@ const PendingTaskDetails: React.FC = () => {
                                         {name}
                                     </span>
                                 </h1>
+                                {data?.workflow_state && (
+                                    <span className={cn(
+                                        "mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border",
+                                        data.workflow_state === "Approved"
+                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50"
+                                            : data.workflow_state === "Draft"
+                                                ? "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
+                                                : data.workflow_state === "Rejected"
+                                                    ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:border-red-800/50"
+                                                    : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50",
+                                    )}>
+                                        {data.workflow_state}
+                                    </span>
+                                )}
                             </div>
                         </div>
                         <div className="flex gap-2">
@@ -2248,6 +2262,19 @@ const PendingTaskDetails: React.FC = () => {
                                     <BudgetActionsSidebar
                                         projectName={
                                             data.project_no || data.project_name
+                                        }
+                                        isStaff={true}
+                                        docName={name}
+                                        doctype={doctype}
+                                    />
+                                )}
+                            {/* Setup for Recruitment Adhoc Contractual */}
+                            {doctype === "Recruitment Adhoc Contractual" &&
+                                isRnDStaff &&
+                                (data?.upfa_project_code || data?.project_code) && (
+                                    <BudgetActionsSidebar
+                                        projectName={
+                                            data.upfa_project_code || data.project_code
                                         }
                                         isStaff={true}
                                         docName={name}

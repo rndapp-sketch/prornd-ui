@@ -152,7 +152,12 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         : stagedCommit
           ? { head: stagedCommit.head, committed: stagedCommit.amount }
           : null;
-    const showCommitSection = isRnDStaff && !!currentDocName && workflowState !== "Draft";
+    const activeWorkflowState = formData.workflow_state || workflowState;
+    const showCommitSection =
+        isRnDStaff &&
+        !!currentDocName &&
+        !!activeWorkflowState &&
+        !["Draft", "Rejected", "Cancelled"].includes(activeWorkflowState);
 
     const resolveChairpersonFromDepartment = useCallback(
         async (
