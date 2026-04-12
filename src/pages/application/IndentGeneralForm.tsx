@@ -11,6 +11,7 @@ import {
     type FormField,
     type LinkOption,
 } from "@/components/forms/DynamicFormRenderer";
+import { isFieldVisible } from "@/utils/evalExpression";
 import { indentGeneralFormAPI, fileToBase64, commonAPI } from "@/services/apiService";
 import { GlobalLoader } from "@/components/ui/global-loader";
 
@@ -135,7 +136,7 @@ const IndentGeneralForm: React.FC = () => {
                     return { ...f, read_only: 1 };
                 }
                 // Replace hardcoded Select with Budget Head dynamic Link dropdown
-                if (f.fieldname === "igf_account_head") {
+                if (f.fieldname === "igf_account_head" || f.fieldname === "budget_head") {
                     return { ...f, fieldtype: "Link", options: "Budget Head" };
                 }
                 // Lock igf_number_of_bids when Open Tender is selected
@@ -223,6 +224,8 @@ const IndentGeneralForm: React.FC = () => {
                 const mergedLinkOptions: Record<string, any[]> = {
                     ...(link_options || {}),
                     igf_account_head: budgetHeadOptions,
+                    budget_head: budgetHeadOptions,
+                    "Budget Head": budgetHeadOptions,
                 };
 
                 if (editDocName) {
@@ -508,6 +511,7 @@ const IndentGeneralForm: React.FC = () => {
                                     "igf_project_title",
                                     "igf_project_code",
                                     "igf_account_head",
+                                    "budget_head",
                                     "igf_department_centre_section",
                                 ].includes(f.fieldname),
                             )}
@@ -530,18 +534,25 @@ const IndentGeneralForm: React.FC = () => {
                         />
                     </GroupCard>
 
-                    {/* Vendors Table */}
-                    <GroupCard label="Details of Vendors">
-                        <DynamicFormRenderer
-                            fields={effectiveFields.filter((f) =>
-                                [
-                                    "igf_details_of_vendors",
-                                    "igf_vendors",
-                                ].includes(f.fieldname),
-                            )}
-                            {...commonRendererProps}
-                        />
-                    </GroupCard>
+                    {/* Vendors Table — only shown when the table field is actually visible */}
+                    {effectiveFields.some(
+                        (f) =>
+                            ["igf_details_of_vendors", "igf_vendors"].includes(f.fieldname) &&
+                            !f.hidden &&
+                            isFieldVisible(f, formData),
+                    ) && (
+                        <GroupCard label="Details of Vendors">
+                            <DynamicFormRenderer
+                                fields={effectiveFields.filter((f) =>
+                                    [
+                                        "igf_details_of_vendors",
+                                        "igf_vendors",
+                                    ].includes(f.fieldname),
+                                )}
+                                {...commonRendererProps}
+                            />
+                        </GroupCard>
+                    )}
 
                     {/* Purchase Committee */}
                     <GroupCard label="Purchase Committee (Minimum 3 Members)">
