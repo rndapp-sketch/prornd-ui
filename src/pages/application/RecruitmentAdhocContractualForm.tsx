@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "@/components/UserRole";
+import { useProjectBudget } from '@/hooks/useProjectBudget';
+import { BudgetHeadName } from '@/components/BudgetHeadName';
 
 type LinkOption = {
     value: string;
@@ -86,6 +88,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     // Role-based access
     const { roles } = useUserRoles(currentUser ?? null);
     const isDoRnd = roles.includes(DORND_ROLE);
+    const isRnDStaff = roles.includes("staff, RnD");
 
     // Core States
     const [fields, setFields] = useState<FormField[]>([]);
@@ -103,6 +106,14 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     const [availableActions, setAvailableActions] = useState<string[]>([]);
     const [isActionLoading, setIsActionLoading] = useState(false);
 
+    // Commit / Payment state
+    const [commitHead, setCommitHead] = useState("");
+    const [commitAmount, setCommitAmount] = useState("");
+    const [paymentAmount, setPaymentAmount] = useState("");
+    const [stagedCommit, setStagedCommit] = useState<{ head: string; amount: number } | null>(null);
+    const [allBudgetHeads, setAllBudgetHeads] = useState<{ uid: string; label: string; id: string }[]>([]);
+    const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
+
     // API Hooks
     const { call: getFieldsCall } = useFrappePostCall(
         recruitmentAdhocContractualAPI.getFields,
@@ -116,11 +127,32 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     const { call: performActionCall } = useFrappePostCall(
         recruitmentAdhocContractualAPI.performAction,
     );
+    const { call: submitCommit, loading: isCommitting } = useFrappePostCall(
+        'rndopsapp.rndopsapp.commitPayment.submit_commit_data',
+    );
+    const { call: submitPayment, loading: isPaying } = useFrappePostCall(
+        'rndopsapp.rndopsapp.commitPayment.submit_payment_data',
+    );
     // Hook to fetch piheadmentor_user_id from User doctype (client script logic)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>(
         "frappe.client.get_value",
     );
+
+    // --- PROJECT BUDGET for commit/payment ---
+    const projectCode = formData.upfa_project_code || formData.project_code || "";
+    const { budgetData, actualBalance } = useProjectBudget(projectCode);
+    const currentDocName = editDocName || savedDocName || "";
+    const linkedCommitment = budgetData.find(
+        (e) => (e.ref === currentDocName || e.frapAppId === currentDocName) && e.type === "commitment",
+    );
+    const isCommitted = !!linkedCommitment || !!stagedCommit;
+    const displayCommitment = linkedCommitment
+        ? { head: linkedCommitment.head, committed: linkedCommitment.committed }
+        : stagedCommit
+          ? { head: stagedCommit.head, committed: stagedCommit.amount }
+          : null;
+    const showCommitSection = isRnDStaff && !!currentDocName && workflowState !== "Draft";
 
     const resolveChairpersonFromDepartment = useCallback(
         async (
@@ -681,6 +713,82 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         [],
     );
 
+    // Fetch budget heads when commit section is visible
+    useEffect(() => {
+        if (!showCommitSection) return;
+        const fetchBudgetHeads = async () => {
+            try {
+                const response = await fetch(
+                    '/api/v2/document/Budget%20Head?fields=["name","budget_head","id"]&order_by=id%20asc',
+                    { credentials: "include" },
+                );
+                const result = await response.json();
+                if (result?.data) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const mapped = result.data.map((item: any) => ({
+                        uid: item.name,
+                        label: item.budget_head,
+                        id: item.id,
+                    }));
+                    setAllBudgetHeads(mapped);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    setBudgetHeadList(mapped.map((h: any) => ({ name: h.label, id: h.id })));
+                }
+            } catch (err) {
+                console.error("Failed to fetch Budget Heads:", err);
+            }
+        };
+        fetchBudgetHeads();
+    }, [showCommitSection]);
+
+    // --- COMMIT / PAYMENT HANDLERS ---
+    const handleCommit = async () => {
+        if (!currentDocName) return;
+        const resolvedHead = allBudgetHeads.find(h => h.uid === commitHead)?.label || commitHead;
+        const amount = parseFloat(commitAmount);
+        if (!resolvedHead || !amount) {
+            alert("Please select a budget head and enter an amount.");
+            return;
+        }
+        try {
+            await submitCommit({
+                doctype: "Recruitment Adhoc Contractual",
+                frapAppId: currentDocName,
+                name: currentDocName,
+                project_name: projectCode,
+                commit_amount: amount,
+                budget_head: resolvedHead,
+                bmr: "",
+            });
+            alert("Commitment submitted successfully!");
+            setStagedCommit({ head: resolvedHead, amount });
+        } catch (error: any) {
+            alert(`Commitment failed: ${error.message || "Unknown error"}`);
+        }
+    };
+
+    const handlePayment = async () => {
+        if (!paymentAmount || !commitHead || !currentDocName) {
+            alert("Please select a budget head and enter an amount.");
+            return;
+        }
+        try {
+            await submitPayment({
+                doctype: "Recruitment Adhoc Contractual",
+                name: currentDocName,
+                project_name: projectCode,
+                payment_amount: parseFloat(paymentAmount),
+                budget_head: commitHead,
+                bmr: "",
+            });
+            alert("Payment recorded successfully!");
+            setPaymentAmount("");
+            window.location.reload();
+        } catch (error: any) {
+            alert(`Payment failed: ${error.message || "Unknown error"}`);
+        }
+    };
+
     // --- ACTIONS ---
     const handleSave = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -837,7 +945,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6">
+                <div className={cn("grid gap-6", showCommitSection ? "grid-cols-1 lg:grid-cols-[1fr_360px]" : "grid-cols-1")}>
                     {/* Main Form Content */}
                     <div className="space-y-6">
                         <FrappeCard>
@@ -956,6 +1064,148 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                             </div>
                         </FrappeCard>
                     </div>
+
+                    {/* Commit Payment Sidebar — visible to staff, RnD only */}
+                    {showCommitSection && (
+                        <aside className="space-y-5">
+                            {/* Make a Commitment */}
+                            {!isCommitted && (
+                                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                    <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                                        Make a Commitment
+                                    </h3>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                                Budget Head
+                                            </label>
+                                            <select
+                                                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
+                                                value={commitHead}
+                                                onChange={(e) => setCommitHead(e.target.value)}
+                                            >
+                                                <option value="">Select...</option>
+                                                {allBudgetHeads.map((h) => (
+                                                    <option key={h.uid} value={h.uid}>
+                                                        {h.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <p className="text-xs text-zinc-500 mt-1">
+                                                Available:{" "}
+                                                <span className="font-medium text-[#D97757]">
+                                                    ₹ {actualBalance.toLocaleString("en-IN")}
+                                                </span>
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                                Amount (₹)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
+                                                value={commitAmount}
+                                                onChange={(e) => setCommitAmount(e.target.value)}
+                                                placeholder="e.g., 5000"
+                                            />
+                                        </div>
+                                        <FrappeButton
+                                            className="w-full"
+                                            variant="primary"
+                                            onClick={handleCommit}
+                                            disabled={isCommitting || !commitHead || !commitAmount}
+                                        >
+                                            {isCommitting ? "Submitting..." : "Submit Commitment"}
+                                        </FrappeButton>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Commitment Details */}
+                            {isCommitted && (
+                                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                    <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                                        Commitment Details
+                                    </h3>
+                                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
+                                        <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
+                                            Linked Commitment
+                                        </p>
+                                        <div className="flex justify-between items-end">
+                                            <p className="text-sm font-medium text-blue-900">
+                                                <BudgetHeadName id={displayCommitment?.head || ""} />
+                                            </p>
+                                            <p className="text-lg font-bold text-blue-700">
+                                                ₹ {Number(displayCommitment?.committed || 0).toLocaleString("en-IN")}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Record Payment */}
+                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                                    Record Payment
+                                </h3>
+                                {isCommitted ? (
+                                    <div className="space-y-4">
+                                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
+                                            <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
+                                                Linked Commitment
+                                            </p>
+                                            <div className="flex justify-between items-end">
+                                                <p className="text-sm font-medium text-blue-900">
+                                                    {displayCommitment?.head}
+                                                </p>
+                                                <p className="text-lg font-bold text-blue-700">
+                                                    ₹ {Number(displayCommitment?.committed || 0).toLocaleString("en-IN")}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                                Payment Amount (₹)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
+                                                placeholder="e.g., 5000"
+                                                value={paymentAmount}
+                                                onChange={(e) => setPaymentAmount(e.target.value)}
+                                                max={displayCommitment?.committed}
+                                            />
+                                            <p className="text-xs text-zinc-500 mt-1">
+                                                Max: ₹ {Number(displayCommitment?.committed || 0).toLocaleString("en-IN")}
+                                            </p>
+                                        </div>
+                                        <FrappeButton
+                                            className="w-full"
+                                            variant="outline"
+                                            onClick={handlePayment}
+                                            disabled={
+                                                isPaying ||
+                                                !paymentAmount ||
+                                                parseFloat(paymentAmount) > (displayCommitment?.committed || 0)
+                                            }
+                                        >
+                                            {isPaying ? "Processing..." : "Submit Payment"}
+                                        </FrappeButton>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6 px-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700">
+                                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                            Commitment Required
+                                        </p>
+                                        <p className="text-xs text-zinc-500 mt-1">
+                                            Make a commitment above before recording payment.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </aside>
+                    )}
                 </div>
             </main>
         </div>
