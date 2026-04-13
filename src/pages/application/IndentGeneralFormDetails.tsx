@@ -7,7 +7,7 @@ import {
     EditIcon, Send, ChevronRight, CheckCircle2, XCircle,
     Clock, CalendarIcon, ActivityIcon, MessageSquare,
     UserIcon, ShoppingCartIcon, UsersIcon, FileTextIcon,
-    IndianRupeeIcon, PackageIcon, TruckIcon,
+    TruckIcon,
 } from "lucide-react";
 import { AppSidebar } from "@/components/RndSidebar";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -18,16 +18,17 @@ import {
     type LinkOption,
 } from "@/components/forms/DynamicFormRenderer";
 import { isFieldVisible } from "@/utils/evalExpression";
-import { indentGeneralFormAPI, fileToBase64, commonAPI } from "@/services/apiService";
+import { indentGeneralFormAPI } from "@/services/apiService";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { DepartmentName } from "@/components/DepartmentName";
 
 // ---------------------------------------------------------------------------
 // Workflow pipeline
 // ---------------------------------------------------------------------------
+// Happy-path stages (matches "Indent General Workflow" in Frappe)
 const WORKFLOW_STAGES = [
     "Draft",
-    "Pending PI Approval",
+    "Pending Staff Approval",
     "Pending HoS Approval",
     "Pending Dean Approval",
     "Approved",
@@ -39,15 +40,20 @@ function buildTimeline(currentState: string): { label: string; status: StageStat
     const isApproved = currentState === "Approved";
     const isRejected = currentState === "Rejected";
 
-    // For unknown states, treat as in-progress after Draft
-    let currentIdx = WORKFLOW_STAGES.findIndex((s) => s === currentState);
-    if (currentIdx === -1 && !isRejected) currentIdx = 1;
+    // For rejected state, replace the terminal "Approved" node with "Rejected"
+    const stages = isRejected
+        ? [...WORKFLOW_STAGES.slice(0, -1), "Rejected"]
+        : WORKFLOW_STAGES;
 
-    return WORKFLOW_STAGES.map((stage, idx) => {
+    let currentIdx = stages.findIndex((s) => s === currentState);
+    if (currentIdx === -1) currentIdx = 1; // fallback: treat as in-progress after Draft
+
+    return stages.map((stage, idx) => {
         if (isApproved) return { label: stage, status: "completed" };
         if (isRejected) {
-            if (idx < currentIdx) return { label: stage, status: "completed" };
-            if (idx === currentIdx) return { label: stage, status: "rejected" };
+            // Terminal rejected node
+            if (idx === stages.length - 1) return { label: stage, status: "rejected" };
+            // All prior stages pending (rejection stage not tracked without activity log)
             return { label: stage, status: "pending" };
         }
         if (idx < currentIdx) return { label: stage, status: "completed" };
@@ -345,78 +351,6 @@ const ActivityStream: React.FC<{ docname: string; onRefresh?: () => void }> = ({
 };
 
 // ---------------------------------------------------------------------------
-// Workflow Action Buttons
-// ---------------------------------------------------------------------------
-const WorkflowActions: React.FC<{
-    docname: string;
-    onComplete: () => void;
-}> = ({ docname, onComplete }) => {
-    const [actions, setActions] = useState<string[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [isActing, setIsActing] = useState(false);
-
-    const { call: getActions } = useFrappePostCall<{ message: any }>(
-        indentGeneralFormAPI.getWorkflowActions,
-    );
-    const { call: performAction } = useFrappePostCall<{ message: any }>(
-        indentGeneralFormAPI.performAction,
-    );
-
-    const fetchActions = useCallback(async () => {
-        if (!docname) return;
-        setIsLoading(true);
-        try {
-            const res = await getActions({ docname });
-            if (res?.message?.status === "success") {
-                setActions(res.message.actions || []);
-            }
-        } catch { /* ignore */ } finally {
-            setIsLoading(false);
-        }
-    }, [docname, getActions]);
-
-    useEffect(() => {
-        fetchActions();
-    }, [fetchActions]);
-
-    const handleAction = async (action: string) => {
-        if (!window.confirm(`Perform action "${action}"?`)) return;
-        setIsActing(true);
-        try {
-            const res = await performAction({ docname, action });
-            if (res?.message?.status === "success") {
-                onComplete();
-            } else {
-                throw new Error(res?.message?.message || "Action failed");
-            }
-        } catch (err: any) {
-            alert(`Action failed: ${err.message || "Unknown error"}`);
-        } finally {
-            setIsActing(false);
-        }
-    };
-
-    if (isLoading) return null;
-    if (actions.length === 0) return null;
-
-    return (
-        <div className="mt-4 flex flex-wrap gap-2">
-            {actions.map((action) => (
-                <button
-                    key={action}
-                    onClick={() => handleAction(action)}
-                    disabled={isActing}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <Send className="w-4 h-4" />
-                    {isActing ? "Processing..." : action}
-                </button>
-            ))}
-        </div>
-    );
-};
-
-// ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 const IndentGeneralFormDetails: React.FC = () => {
@@ -429,9 +363,13 @@ const IndentGeneralFormDetails: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
     const [projectTitle, setProjectTitle] = useState("");
+    const [headerActions, setHeaderActions] = useState<string[]>([]);
+    const [isActing, setIsActing] = useState(false);
 
     const { call: fetchFields } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getFields);
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
+    const { call: getActionsCall } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getWorkflowActions);
+    const { call: performActionCall } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.performAction);
 
     const handleRefresh = useCallback(() => {
         setLoading(true);
@@ -495,6 +433,13 @@ const IndentGeneralFormDetails: React.FC = () => {
 
                 setLinkOptions(merged);
                 setFormData(prefill_data || {});
+
+                // Fetch available workflow actions
+                try {
+                    const actRes = await getActionsCall({ docname: id });
+                    const msg = actRes?.message;
+                    setHeaderActions(Array.isArray(msg?.actions) ? msg.actions : []);
+                } catch { setHeaderActions([]); }
             } catch (e) {
                 console.error("Failed to load IGF details:", e);
             } finally {
@@ -504,6 +449,19 @@ const IndentGeneralFormDetails: React.FC = () => {
         load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id, refreshKey]);
+
+    const handleAction = async (action: string) => {
+        if (!id || !window.confirm(`Perform action "${action}"?`)) return;
+        setIsActing(true);
+        try {
+            await performActionCall({ docname: id, action });
+            handleRefresh();
+        } catch (err: any) {
+            alert(`Action failed: ${err.message || "Unknown error"}`);
+        } finally {
+            setIsActing(false);
+        }
+    };
 
     // Read-only field overrides (same as form)
     const effectiveFields = fields.map((f) => {
@@ -565,17 +523,23 @@ const IndentGeneralFormDetails: React.FC = () => {
                             Edit
                         </button>
                     )}
+                    {headerActions.map((action) => (
+                        <button
+                            key={action}
+                            onClick={() => handleAction(action)}
+                            disabled={isActing}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Send className="w-4 h-4" />
+                            {isActing ? "Processing…" : action}
+                        </button>
+                    ))}
                 </PageHeader>
 
                 {/* Workflow Timeline */}
                 <div className="mt-6">
                     <WorkflowTimeline currentState={workflowState} />
                 </div>
-
-                {/* Workflow Actions */}
-                {id && !isDraft && (
-                    <WorkflowActions docname={id} onComplete={handleRefresh} />
-                )}
 
                 {/* Main Content */}
                 <div className="mt-5 grid grid-cols-1 lg:grid-cols-4 gap-5">

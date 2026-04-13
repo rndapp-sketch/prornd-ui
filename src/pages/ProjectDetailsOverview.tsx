@@ -1307,7 +1307,13 @@ const QuickActions = ({
       } else if (selectedApplication === "Indent General Form") {
         try {
           const timestamp = Date.now();
-          const apiUrl = `/api/resource/Indent%20General%20Form?fields=["name","creation","workflow_state","owner","igf_project_title","igf_webmail_user_id","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          const filters = encodeURIComponent(
+            JSON.stringify([
+              ["igf_project_code", "=", projectNo],
+              ["docstatus", "in", [0, 1]],
+            ])
+          );
+          const apiUrl = `/api/resource/Indent%20General%20Form?fields=["name","creation","workflow_state","owner","igf_project_title","igf_project_code","igf_webmail_user_id","docstatus"]&filters=${filters}&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
           const fetchResponse = await fetch(apiUrl, {
             method: "GET",
             headers: { Accept: "application/json" },
@@ -1318,24 +1324,13 @@ const QuickActions = ({
           const result = await fetchResponse.json();
           const allItems = result?.data || [];
 
-          data = allItems
-            .filter((item: any) => {
-              return (
-                item.igf_project_title === projectName ||
-                item.igf_project_title === projectNo
-              );
-            })
-            .map((item: any) => ({
-              ...item,
-              workflow_state:
-                item.workflow_state ||
-                (item.docstatus === 1
-                  ? "Submitted"
-                  : item.docstatus === 2
-                    ? "Cancelled"
-                    : "Draft"),
-              applicant_webmail: item.igf_webmail_user_id || item.owner,
-            }));
+          data = allItems.map((item: any) => ({
+            ...item,
+            workflow_state:
+              item.workflow_state ||
+              (item.docstatus === 1 ? "Submitted" : "Draft"),
+            applicant_webmail: item.igf_webmail_user_id || item.owner,
+          }));
         } catch (fetchError) {
           console.error("Indent General Form fetch error:", fetchError);
           data = [];
