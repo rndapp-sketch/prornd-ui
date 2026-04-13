@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useFrappePostCall, useFrappeGetCall } from "frappe-react-sdk";
+import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import {
     EditIcon, Send, ChevronRight, CheckCircle2, XCircle,
@@ -21,6 +21,8 @@ import { isFieldVisible } from "@/utils/evalExpression";
 import { indentGeneralFormAPI } from "@/services/apiService";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { DepartmentName } from "@/components/DepartmentName";
+import { useUserRoles } from "@/components/UserRole";
+import { useProjectBudget } from "@/hooks/useProjectBudget";
 
 // ---------------------------------------------------------------------------
 // Workflow pipeline
@@ -366,25 +368,113 @@ const IndentGeneralFormDetails: React.FC = () => {
     const [headerActions, setHeaderActions] = useState<string[]>([]);
     const [isActing, setIsActing] = useState(false);
 
+    // Commit Payment state
+    const [commitHead, setCommitHead] = useState("");
+    const [commitAmount, setCommitAmount] = useState("");
+    const [paymentAmount, setPaymentAmount] = useState("");
+
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+    const isStaffRnD = roles.some((r) =>
+        ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r),
+    );
+
     const { call: fetchFields } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getFields);
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
     const { call: getActionsCall } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getWorkflowActions);
     const { call: performActionCall } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.performAction);
+    const { call: submitCommit, loading: isCommitting } = useFrappePostCall<{ message: any }>(
+        "rndopsapp.rndopsapp.commitPayment.submit_commit_data",
+    );
+    const { call: submitPayment, loading: isPaying } = useFrappePostCall<{ message: any }>(
+        "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
+    );
+
+    const projectName = formData.igf_project_title || "";
+    const { budgetData, heads: budgetHeads, actualBalance } = useProjectBudget(projectName);
+
+    const linkedCommitment = budgetData.find(
+        (e: any) => (e.ref === (id || "") || e.frapAppId === (id || "")) && e.type === "commitment",
+    );
+    const isCommitted = !!linkedCommitment;
+
+    useEffect(() => {
+        if (budgetHeads.length > 0 && !commitHead) setCommitHead(budgetHeads[0]);
+    }, [budgetHeads]);
+
+    useEffect(() => {
+        if (linkedCommitment) {
+            setCommitHead(linkedCommitment.head || "");
+            if (!paymentAmount) setPaymentAmount(String(linkedCommitment.committed));
+        }
+    }, [linkedCommitment]);
 
     const handleRefresh = useCallback(() => {
         setLoading(true);
         setRefreshKey((k) => k + 1);
     }, []);
 
+    const handleCommit = async () => {
+        if (!commitAmount || !commitHead || !id) {
+            alert("Please select a budget head and enter an amount.");
+            return;
+        }
+        try {
+            await submitCommit({
+                doctype: "Indent General Form",
+                frapAppId: id,
+                name: id,
+                project_name: projectName,
+                commit_amount: parseFloat(commitAmount),
+                budget_head: commitHead,
+                bmr: "",
+                refDetails: id,
+            });
+            alert("Commitment submitted successfully!");
+            setCommitAmount("");
+            handleRefresh();
+        } catch (error: any) {
+            alert(`Commitment failed: ${error.message || "Unknown error"}`);
+        }
+    };
+
+    const handlePayment = async () => {
+        if (!paymentAmount || !commitHead || !id) {
+            alert("Please select a budget head and enter an amount.");
+            return;
+        }
+        try {
+            await submitPayment({
+                doctype: "Indent General Form",
+                name: id,
+                project_name: projectName,
+                payment_amount: parseFloat(paymentAmount),
+                budget_head: commitHead,
+                bmr: "",
+            });
+            alert("Payment recorded successfully!");
+            setPaymentAmount("");
+            handleRefresh();
+        } catch (error: any) {
+            alert(`Payment failed: ${error.message || "Unknown error"}`);
+        }
+    };
+
     useEffect(() => {
         if (!id) return;
         const load = async () => {
             setLoading(true);
             try {
-                const [res, budgetHeadRes] = await Promise.all([
+                const [res, budgetHeadRes, userRes] = await Promise.all([
                     fetchFields({ doc_name: id }),
                     fetch(
                         '/api/v2/document/Budget%20Head?fields=["name","budget_head"]&order_by=budget_head asc',
+                        { credentials: "include", headers: { Accept: "application/json" } },
+                    )
+                        .then((r) => r.json())
+                        .catch(() => ({ data: [] })),
+                    fetch(
+                        '/api/resource/User?fields=["name","full_name"]&filters=[["enabled","=",1]]&limit_page_length=0',
                         { credentials: "include", headers: { Accept: "application/json" } },
                     )
                         .then((r) => r.json())
@@ -405,11 +495,17 @@ const IndentGeneralFormDetails: React.FC = () => {
                     (h: any) => ({ value: h.name, label: h.budget_head || h.name }),
                 );
 
+                const userOptions: LinkOption[] = (userRes?.data || [])
+                    .filter((u: any) => u.name !== "Administrator" && u.name !== "Guest")
+                    .map((u: any) => ({ value: u.name, label: u.full_name || u.name }));
+
                 const merged: Record<string, LinkOption[]> = {
                     ...(link_options || {}),
                     igf_account_head: budgetHeadOptions,
                     budget_head: budgetHeadOptions,
                     "Budget Head": budgetHeadOptions,
+                    User: userOptions,
+                    webmail_id: userOptions,
                 };
 
                 // Fetch project title label for display
@@ -691,7 +787,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                         <span className="text-zinc-500 dark:text-zinc-400">Created</span>
                                         <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1 text-xs">
                                             <CalendarIcon className="w-3 h-3" />
-                                            {new Date(formData.creation).toLocaleDateString("en-IN")}
+                                            {new Date(formData.creation).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}
                                         </span>
                                     </div>
                                 )}
@@ -700,7 +796,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                         <span className="text-zinc-500 dark:text-zinc-400">Modified</span>
                                         <span className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1 text-xs">
                                             <CalendarIcon className="w-3 h-3" />
-                                            {new Date(formData.modified).toLocaleDateString("en-IN")}
+                                            {new Date(formData.modified).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}
                                         </span>
                                     </div>
                                 )}
@@ -725,6 +821,105 @@ const IndentGeneralFormDetails: React.FC = () => {
                                 )}
                             </div>
                         </div>
+
+                        {/* Commit Payment — Staff RnD only, Pending Staff Approval */}
+                        {isStaffRnD && workflowState === "Pending Staff Approval" && !isCommitted && (
+                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                                    Make a Commitment
+                                </h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                                            Budget Head
+                                        </label>
+                                        <select
+                                            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                            value={commitHead}
+                                            onChange={(e) => setCommitHead(e.target.value)}
+                                        >
+                                            {budgetHeads.length > 0 ? (
+                                                budgetHeads.map((head) => (
+                                                    <option key={head} value={head}>{head}</option>
+                                                ))
+                                            ) : (
+                                                <option value="">No Budget Heads</option>
+                                            )}
+                                        </select>
+                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                                            Available:{" "}
+                                            <span className="font-semibold text-[#D97757]">
+                                                ₹ {actualBalance.toLocaleString("en-IN")}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                                            Amount (₹)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                            placeholder="e.g., 5000"
+                                            value={commitAmount}
+                                            onChange={(e) => setCommitAmount(e.target.value)}
+                                            onWheel={(e) => e.currentTarget.blur()}
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={handleCommit}
+                                        disabled={isCommitting}
+                                        className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold bg-[#D97757] text-white hover:bg-[#c66a4e] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        {isCommitting ? "Submitting…" : "Submit Commitment"}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Committed — show details + record payment */}
+                        {isStaffRnD && workflowState === "Pending Staff Approval" && isCommitted && (
+                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
+                                    Commitment Details
+                                </h3>
+                                <div className="space-y-4">
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
+                                            Commitment Initiated
+                                        </p>
+                                        <div className="flex justify-between items-end">
+                                            <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
+                                                {linkedCommitment?.head}
+                                            </p>
+                                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                                                ₹ {Number(linkedCommitment?.committed || 0).toLocaleString("en-IN")}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                                            Payment Amount (₹)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                            placeholder="Enter payment amount"
+                                            value={paymentAmount}
+                                            onChange={(e) => setPaymentAmount(e.target.value)}
+                                            onWheel={(e) => e.currentTarget.blur()}
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={handlePayment}
+                                        disabled={isPaying}
+                                        className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold bg-[#D97757] text-white hover:bg-[#c66a4e] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        {isPaying ? "Recording…" : "Record Payment"}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Activity */}
                         <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
