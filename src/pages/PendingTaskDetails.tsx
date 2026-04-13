@@ -1240,6 +1240,9 @@ const PendingTaskDetails: React.FC = () => {
         if (doctype === "Loan Request" && name) {
             navigate(`/loan-request/${name}`, { replace: true });
         }
+        if (doctype === "Indent General Form" && name) {
+            navigate(`/indent-general-form-details/${name}`, { replace: true });
+        }
     }, [doctype, name]);
 
     // Additional state for Travel Dynamic Form

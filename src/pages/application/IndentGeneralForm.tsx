@@ -239,10 +239,14 @@ const IndentGeneralForm: React.FC = () => {
         const load = async () => {
             setLoading(true);
             try {
-                // Fetch budget heads and form fields in parallel
-                const [res, budgetHeadRes] = await Promise.all([
+                // Fetch budget heads, form fields, and user list in parallel
+                const [res, budgetHeadRes, userRes] = await Promise.all([
                     fetchFields({ doc_name: editDocName || null }),
                     fetch('/api/v2/document/Budget%20Head?fields=["name","budget_head"]&order_by=budget_head asc', {
+                        credentials: "include",
+                        headers: { Accept: "application/json" },
+                    }).then((r) => r.json()).catch(() => ({ data: [] })),
+                    fetch('/api/resource/User?fields=["name","full_name"]&filters=[["enabled","=",1]]&limit_page_length=0', {
                         credentials: "include",
                         headers: { Accept: "application/json" },
                     }).then((r) => r.json()).catch(() => ({ data: [] })),
@@ -254,6 +258,11 @@ const IndentGeneralForm: React.FC = () => {
                     value: h.budget_head || h.name,
                     label: h.budget_head || h.name,
                 }));
+
+                // User options for committee member webmail autocomplete
+                const userOptions: LinkOption[] = (userRes?.data || [])
+                    .filter((u: any) => u.name !== "Administrator" && u.name !== "Guest")
+                    .map((u: any) => ({ value: u.name, label: u.full_name || u.name }));
 
                 const { fields: apiFields, link_options, prefill_data } = res.message;
 
@@ -268,6 +277,9 @@ const IndentGeneralForm: React.FC = () => {
                     igf_account_head: budgetHeadOptions,
                     budget_head: budgetHeadOptions,
                     "Budget Head": budgetHeadOptions,
+                    // Keys ChildTableComponent looks up for email/webmail autocomplete
+                    User: userOptions,
+                    webmail_id: userOptions,
                 };
 
                 if (editDocName) {
@@ -379,13 +391,56 @@ const IndentGeneralForm: React.FC = () => {
 
     const handleTableRowChange = useCallback(
         (tableName: string, rowIndex: number, fieldname: string, value: any) => {
+            // Auto-fill name + designation when committee member webmail is selected
+            if (tableName === "igf_committee_members" && fieldname === "igf_webmail_id" && value) {
+                const emailValue = value.includes("@") ? value : `${value}@iitg.ac.in`;
+
+                // Sync: fill name immediately from cached user list
+                const userOpt = linkOptions["User"]?.find(
+                    (o) => o.value === value || o.value === emailValue,
+                );
+                setFormData((prev) => {
+                    const tableData = Array.isArray(prev[tableName]) ? [...prev[tableName]] : [];
+                    tableData[rowIndex] = {
+                        ...tableData[rowIndex],
+                        igf_webmail_id: value,
+                        ...(userOpt ? { igf_member_name: userOpt.label } : {}),
+                    };
+                    return applyClientScript({ ...prev, [tableName]: tableData });
+                });
+
+                // Async: fetch full name + designation from employee record
+                fetchUserDetails({ user_email: emailValue })
+                    .then((res: any) => {
+                        if (res?.message) {
+                            setFormData((prev) => {
+                                const tableData = Array.isArray(prev[tableName])
+                                    ? [...prev[tableName]]
+                                    : [];
+                                tableData[rowIndex] = {
+                                    ...tableData[rowIndex],
+                                    ...(res.message.full_name
+                                        ? { igf_member_name: res.message.full_name }
+                                        : {}),
+                                    ...(res.message.designation_name
+                                        ? { igf_designation: res.message.designation_name }
+                                        : {}),
+                                };
+                                return applyClientScript({ ...prev, [tableName]: tableData });
+                            });
+                        }
+                    })
+                    .catch(() => {/* ignore */});
+                return;
+            }
+
             setFormData((prev) => {
                 const tableData = Array.isArray(prev[tableName]) ? [...prev[tableName]] : [];
                 tableData[rowIndex] = { ...tableData[rowIndex], [fieldname]: value };
                 return applyClientScript({ ...prev, [tableName]: tableData });
             });
         },
-        [applyClientScript],
+        [applyClientScript, linkOptions, fetchUserDetails],
     );
 
     const handleAddTableRow = useCallback(
