@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
 import {
@@ -97,9 +97,11 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     const [linkOptions, setLinkOptions] = useState<LinkOptionsMap>({});
     const [isLoadingFields, setIsLoadingFields] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const isSavingRef = useRef(false);
     const [savedDocName, setSavedDocName] = useState<string | null>(
         editDocName || null,
     );
+    const savedDocNameRef = useRef<string | null>(editDocName || null);
 
     // Workflow States
     const [workflowState, setWorkflowState] = useState<string>("Draft");
@@ -133,6 +135,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     const { call: submitPayment, loading: isPaying } = useFrappePostCall(
         'rndopsapp.rndopsapp.commitPayment.submit_payment_data',
     );
+    const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
     // Hook to fetch piheadmentor_user_id from User doctype (client script logic)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>(
@@ -167,23 +170,45 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
             if (!departmentId) return {};
 
             try {
+                console.log("[dept→chairperson] fetching dept_head for department:", departmentId);
                 const departmentRes = await fetchFrappeValue({
                     doctype: "Department_prornd",
                     name: departmentId,
                     fieldname: ["dept_head"],
                 });
+                console.log("[dept→chairperson] Department_prornd response:", departmentRes);
                 const chairpersonEmail = departmentRes?.message?.dept_head;
-                if (!chairpersonEmail) return {};
+                if (!chairpersonEmail) {
+                    console.warn("[dept→chairperson] dept_head is empty for department:", departmentId);
+                    return {};
+                }
+
+                console.log("[dept→chairperson] found dept_head email:", chairpersonEmail);
+                let chairpersonName = getChairpersonLabel(chairpersonEmail, optionsSource) || "";
+
+                if (!chairpersonName) {
+                    // Fallback: fetch full_name from User doctype
+                    try {
+                        const nameRes = await fetchFrappeValue({
+                            doctype: "User",
+                            filters: { name: chairpersonEmail },
+                            fieldname: "full_name",
+                        });
+                        chairpersonName = nameRes?.message?.full_name || "";
+                        console.log("[dept→chairperson] fetched full_name from User:", chairpersonName);
+                    } catch (e) {
+                        console.error("[dept→chairperson] failed to fetch full_name", e);
+                    }
+                }
 
                 return {
                     chairperson_webmail_id: chairpersonEmail,
-                    chairperson_name:
-                        getChairpersonLabel(chairpersonEmail, optionsSource) || "",
+                    chairperson_name: chairpersonName,
                     head: chairpersonEmail,
                 };
             } catch (e) {
                 console.error(
-                    "Failed to fetch department head for chairperson autofill",
+                    "[dept→chairperson] Failed to fetch department head for chairperson autofill",
                     e,
                 );
                 return {};
@@ -274,6 +299,22 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     }
                 } catch (e) {
                     console.error("Failed to fetch project staff designations", e);
+                }
+
+                try {
+                    const headsRes = await fetchAccountHeads({
+                        doctype: 'Budget Head',
+                        fields: ['name', 'budget_head'],
+                        limit_page_length: 0,
+                    });
+                    if (headsRes?.message) {
+                        finalLinkOptions['account_head'] = headsRes.message.map((head: any) => ({
+                            value: head.name,
+                            label: head.budget_head || head.name,
+                        }));
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch account heads", e);
                 }
 
                 setFields(processedFields);
@@ -475,6 +516,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         currentUser,
         isDoRnd,
         fetchFrappeValue,
+        fetchAccountHeads,
         projectParam,
         projectNoParam,
         resolveChairpersonFromDepartment,
@@ -529,33 +571,76 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                             fieldname: "piheadmentor_user_id",
                         });
                         if (headRes?.message?.piheadmentor_user_id) {
+                            const hodEmail = headRes.message.piheadmentor_user_id;
                             setFormData((prev) => ({
                                 ...prev,
-                                head: headRes.message.piheadmentor_user_id,
+                                head: hodEmail,
+                                chairperson_webmail_id: hodEmail,
                             }));
+                            // Fetch HOD full name for chairperson_name
+                            try {
+                                const nameRes = await fetchFrappeValue({
+                                    doctype: "User",
+                                    filters: { name: hodEmail },
+                                    fieldname: "full_name",
+                                });
+                                if (nameRes?.message?.full_name) {
+                                    setFormData((prev) => ({
+                                        ...prev,
+                                        chairperson_name: nameRes.message.full_name,
+                                    }));
+                                }
+                            } catch (e) {
+                                console.error("Failed to fetch HOD full_name for chairperson", e);
+                            }
                         }
                     } catch (e) {
                         console.error("Failed to fetch head for webmail_id change", e);
                     }
                 } else {
-                    // Clear head if webmail_id is cleared or set to system user
-                    setFormData((prev) => ({ ...prev, head: "" }));
+                    // Clear head and chairperson if webmail_id is cleared or set to system user
+                    setFormData((prev) => ({ ...prev, head: "", chairperson_webmail_id: "", chairperson_name: "" }));
                 }
             }
 
             // Side-effect: when chairperson_webmail_id changes, auto-fill chairperson_name from linkOptions
             if (fieldname === "chairperson_webmail_id") {
+                console.log("[chairperson] webmail changed →", value);
                 if (value) {
                     const opts =
                         linkOptions["chairperson_webmail_id"] ||
                         linkOptions["User"] ||
                         [];
+                    console.log("[chairperson] linkOptions available:", opts);
                     const match = opts.find((o) => o.value === value);
-                    setFormData((prev) => ({
-                        ...prev,
-                        chairperson_name: match?.label || "",
-                    }));
+                    console.log("[chairperson] match from linkOptions:", match);
+                    if (match?.label) {
+                        console.log("[chairperson] filling name from cache →", match.label);
+                        setFormData((prev) => ({
+                            ...prev,
+                            chairperson_name: match.label,
+                        }));
+                    } else {
+                        // Fallback: fetch full_name from User doctype if not in cached linkOptions
+                        console.log("[chairperson] not in cache, fetching full_name from API...");
+                        try {
+                            const nameRes = await fetchFrappeValue({
+                                doctype: "User",
+                                filters: { name: value },
+                                fieldname: "full_name",
+                            });
+                            console.log("[chairperson] API response:", nameRes);
+                            setFormData((prev) => ({
+                                ...prev,
+                                chairperson_name: nameRes?.message?.full_name || "",
+                            }));
+                        } catch (e) {
+                            console.error("Failed to fetch chairperson full_name", e);
+                            setFormData((prev) => ({ ...prev, chairperson_name: "" }));
+                        }
+                    }
                 } else {
+                    console.log("[chairperson] cleared");
                     // Clear chairperson_name if email is cleared
                     setFormData((prev) => ({ ...prev, chairperson_name: "" }));
                 }
@@ -797,29 +882,52 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     // --- ACTIONS ---
     const handleSave = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
+        if (isSavingRef.current) {
+            console.warn("[SAVE] BLOCKED — save already in progress");
+            return;
+        }
+        isSavingRef.current = true;
         setIsSubmitting(true);
+
+        const saveId = Date.now();
+        console.log(`[SAVE #${saveId}] handleSave ENTERED`, {
+            savedDocNameRef: savedDocNameRef.current,
+            editDocName,
+            savedDocName,
+            isSavingRef: isSavingRef.current,
+        });
+
         try {
+            // Use ref for immediate read — state update may not have applied yet after first save + navigate
+            const currentDocName = savedDocNameRef.current || editDocName;
+
             const preparedData = await prepareFormDataForApi({
                 ...formData,
-                name: savedDocName || editDocName, // Include name if updating
+                name: currentDocName,
             });
 
-            console.log("Saving Recruitment Adhoc Contractual:", preparedData);
+            console.log(`[SAVE #${saveId}] calling saveCall with name:`, currentDocName);
             const response = await saveCall({ data: preparedData });
+
+            console.log(`[SAVE #${saveId}] response:`, response);
 
             if (response && response.message?.status === "success") {
                 const newDocName = response.message.docname;
+                console.log(`[SAVE #${saveId}] SUCCESS — created/updated docname:`, newDocName, "was currentDocName:", currentDocName);
+                // Update ref IMMEDIATELY so any subsequent save knows the doc already exists
+                if (newDocName) {
+                    savedDocNameRef.current = newDocName;
+                    setSavedDocName(newDocName);
+                }
                 alert("Draft saved successfully");
 
-                if (!savedDocName && !editDocName) {
-                    setSavedDocName(newDocName);
+                if (!currentDocName) {
                     navigate(`/recruitment-adhoc-contractual/${newDocName}`, {
                         replace: true,
                     });
+                } else {
+                    fetchFormConfiguration();
                 }
-
-                // Refresh config locally
-                fetchFormConfiguration();
             } else {
                 alert(response.message?.message || "Failed to save draft");
             }
@@ -834,6 +942,8 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     : "An error occurred while saving";
             alert(errMsg);
         } finally {
+            console.log(`[SAVE #${saveId}] FINALLY — releasing lock`);
+            isSavingRef.current = false;
             setIsSubmitting(false);
         }
     };

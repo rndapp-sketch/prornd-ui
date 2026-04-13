@@ -652,7 +652,7 @@ const router = createBrowserRouter(
           )
         },
         {
-          path: "indent-general-form/:id?",
+          path: "indent-general-form",
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <IndentGeneralForm />

@@ -868,16 +868,16 @@ const QuickActions = ({
     },
     { title: "Travel", icon: Plane, items: ["Travel"] },
     { title: "Loan", icon: CreditCardIcon, items: ["Loan Request"] },
-    {
-      title: "Utilities",
-      icon: Settings,
-      items: [
-        "Add New User",
-        "Application History",
-        "Form Tracking",
-        "Incharge Assignment",
-      ],
-    },
+    // {
+    //   title: "Utilities",
+    //   icon: Settings,
+    //   items: [
+    //     "Add New User",
+    //     "Application History",
+    //     "Form Tracking",
+    //     "Incharge Assignment",
+    //   ],
+    // },
   ];
 
   // Frappe SDK hooks for fetching data
