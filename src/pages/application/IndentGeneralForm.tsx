@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,7 @@ import {
     type LinkOption,
 } from "@/components/forms/DynamicFormRenderer";
 import { isFieldVisible } from "@/utils/evalExpression";
-import { indentGeneralFormAPI, fileToBase64, commonAPI } from "@/services/apiService";
+import { indentGeneralFormAPI, fileToBase64, commonAPI, prepareFormDataForApi } from "@/services/apiService";
 import { GlobalLoader } from "@/components/ui/global-loader";
 
 // --- UI Helpers ---
@@ -85,7 +85,9 @@ const IndentGeneralForm: React.FC = () => {
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const isSavingRef = useRef(false);
     const [savedDocName, setSavedDocName] = useState<string | null>(editDocName);
+    const savedDocNameRef = useRef<string | null>(editDocName);
     const [workflowState, setWorkflowState] = useState<string>("Draft");
     const [availableActions, setAvailableActions] = useState<string[]>([]);
     const [isActionLoading, setIsActionLoading] = useState(false);
@@ -209,7 +211,7 @@ const IndentGeneralForm: React.FC = () => {
                 if (!res?.message) return;
 
                 const budgetHeadOptions: LinkOption[] = (budgetHeadRes?.data || []).map((h: any) => ({
-                    value: h.name,
+                    value: h.budget_head || h.name,
                     label: h.budget_head || h.name,
                 }));
 
@@ -367,50 +369,81 @@ const IndentGeneralForm: React.FC = () => {
         [applyClientScript],
     );
 
-    const handleSave = async () => {
+    const handleSave = useCallback(async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        
+        if (isSavingRef.current) {
+            console.warn("[SAVE] BLOCKED — save already in progress");
+            return;
+        }
+
+        const saveId = Date.now();
+        console.log(`[SAVE #${saveId}] handleSave ENTERED`, {
+            savedDocNameRef: savedDocNameRef.current,
+            editDocName,
+            savedDocName,
+            isSavingRef: isSavingRef.current,
+        });
+
+        isSavingRef.current = true;
         setIsSaving(true);
         try {
-            // Attach fields that must be sent separately as base64
-            const FILE_FIELDS = ["igf_upload_detailed_specification", "igf_upload_vendor_list"] as const;
+            // Read from ref — always current even before React re-renders with new state
+            // The document name mechanism (fallback from ref -> URL edit parameter -> state)
+            const currentDocName = savedDocNameRef.current || editDocName || savedDocName;
 
-            // Build clean data payload – replace File objects with null (backend resolves via separate args)
+            // Restore the specific legacy payload generator designed for this form's endpoint
+            const FILE_FIELDS = ["igf_upload_detailed_specification", "igf_upload_vendor_list"] as const;
             const cleanData: Record<string, any> = { ...formData };
-            if (savedDocName) cleanData.name = savedDocName;
+            if (currentDocName) cleanData.name = currentDocName;
 
             const fileArgs: Record<string, string> = {};
-
             for (const fieldname of FILE_FIELDS) {
                 const val = formData[fieldname];
                 if (val instanceof File) {
                     const b64 = await fileToBase64(val);
                     fileArgs[fieldname] = JSON.stringify(b64);
-                    // Remove the File object from the data payload
                     delete cleanData[fieldname];
                 }
             }
 
-            const saveArgs: Record<string, any> = {
+            console.log(`[SAVE #${saveId}] calling saveForm with doc name:`, currentDocName);
+            const res = await saveForm({
                 data: JSON.stringify(cleanData),
-                ...fileArgs,
-            };
+                file: fileArgs["igf_upload_detailed_specification"] || fileArgs["igf_upload_vendor_list"] || undefined, // Map one of the uploads to the backend's `file=None` parameter
+                ...fileArgs
+            });
+            console.log(`[SAVE #${saveId}] response:`, res);
 
-            const res = await saveForm(saveArgs);
             if (res?.message?.status === "success") {
-                const docname = res.message.docname || savedDocName;
-                if (docname && !savedDocName) {
+                const docname = res.message.docname || currentDocName;
+                // Update ref IMMEDIATELY before any alert/navigate so any retry uses the correct name
+                if (docname) {
+                    savedDocNameRef.current = docname;
                     setSavedDocName(docname);
-                    await fetchWorkflowActions(docname);
                 }
                 alert("Draft saved successfully!");
+                if (docname && !currentDocName) {
+                    navigate(`/indent-general-form?edit=${docname}`, { replace: true });
+                } else if (docname) {
+                    await fetchWorkflowActions(docname);
+                }
             } else {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            alert(`Save failed: ${err.message || "Unknown error"}`);
+            console.error(`[SAVE #${saveId}] Error:`, err);
+            const errMsg = err.exc_type === "ValidationError" 
+                ? JSON.parse(err._server_messages || "[]").map((m: string) => JSON.parse(m).message).join(", ")
+                : err.message || "Unknown error";
+            alert(`Save failed: ${errMsg}`);
         } finally {
+            console.log(`[SAVE #${saveId}] FINALLY — releasing lock`);
+            isSavingRef.current = false;
             setIsSaving(false);
         }
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formData, editDocName, savedDocName, saveForm, fetchWorkflowActions, navigate]);
 
     const handlePerformAction = async (action: string) => {
         const docname = savedDocName;
@@ -456,6 +489,9 @@ const IndentGeneralForm: React.FC = () => {
 
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+            {/* Full-page blocking overlay during save — prevents any pointer event from reaching buttons */}
+            {isSaving && <div className="fixed inset-0 z-[99] cursor-wait" aria-hidden="true" />}
+            <GlobalLoader isLoading={isSaving} />
             <AppSidebar />
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 <PageHeader
