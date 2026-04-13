@@ -12,7 +12,47 @@ import {
     type LinkOption,
 } from "@/components/forms/DynamicFormRenderer";
 import { isFieldVisible } from "@/utils/evalExpression";
-import { indentGeneralFormAPI, fileToBase64, commonAPI, prepareFormDataForApi } from "@/services/apiService";
+import { indentGeneralFormAPI, commonAPI, prepareFormDataForApi } from "@/services/apiService";
+
+// ---------------------------------------------------------------------------
+// Submit-confirmation modal shown after a successful save
+// ---------------------------------------------------------------------------
+const SubmitConfirmModal: React.FC<{
+    onSubmit: () => void;
+    onDismiss: () => void;
+    isLoading: boolean;
+}> = ({ onSubmit, onDismiss, isLoading }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center gap-3 mb-3">
+                <CheckCircle2 className="w-6 h-6 text-emerald-500 flex-shrink-0" />
+                <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                    Draft Saved Successfully
+                </h2>
+            </div>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-5">
+                Would you like to submit this form for approval now?
+            </p>
+            <div className="flex gap-3 justify-end">
+                <button
+                    onClick={onDismiss}
+                    disabled={isLoading}
+                    className="px-4 py-2 rounded-lg text-sm font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-all"
+                >
+                    Not Now
+                </button>
+                <button
+                    onClick={onSubmit}
+                    disabled={isLoading}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] text-white hover:bg-[#c66a4e] disabled:opacity-50 transition-all"
+                >
+                    <Send className="w-4 h-4" />
+                    {isLoading ? "Submitting…" : "Submit"}
+                </button>
+            </div>
+        </div>
+    </div>
+);
 import { GlobalLoader } from "@/components/ui/global-loader";
 
 // --- UI Helpers ---
@@ -92,6 +132,7 @@ const IndentGeneralForm: React.FC = () => {
     const [availableActions, setAvailableActions] = useState<string[]>([]);
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [docStatus, setDocStatus] = useState<number>(0);
+    const [showSubmitModal, setShowSubmitModal] = useState(false);
 
     const { call: fetchFields } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getFields);
     const { call: saveForm } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.save);
@@ -162,9 +203,8 @@ const IndentGeneralForm: React.FC = () => {
     const fetchWorkflowActions = useCallback(async (docname: string) => {
         try {
             const res = await getActionsCall({ docname });
-            if (res?.message?.status === "success") {
-                setAvailableActions(res.message.actions || []);
-            }
+            const msg = res?.message;
+            setAvailableActions(Array.isArray(msg?.actions) ? msg.actions : []);
         } catch (e) {
             console.error("Error fetching workflow actions:", e);
         }
@@ -388,57 +428,36 @@ const IndentGeneralForm: React.FC = () => {
         isSavingRef.current = true;
         setIsSaving(true);
         try {
-            // Read from ref — always current even before React re-renders with new state
-            // The document name mechanism (fallback from ref -> URL edit parameter -> state)
             const currentDocName = savedDocNameRef.current || editDocName || savedDocName;
 
-            // Restore the specific legacy payload generator designed for this form's endpoint
-            const FILE_FIELDS = ["igf_upload_detailed_specification", "igf_upload_vendor_list"] as const;
-            const cleanData: Record<string, any> = { ...formData };
+            // Use prepareFormDataForApi — converts all File objects (including table rows) to base64 in-place
+            const cleanData = await prepareFormDataForApi({ ...formData });
             if (currentDocName) cleanData.name = currentDocName;
 
-            const fileArgs: Record<string, string> = {};
-            for (const fieldname of FILE_FIELDS) {
-                const val = formData[fieldname];
-                if (val instanceof File) {
-                    const b64 = await fileToBase64(val);
-                    fileArgs[fieldname] = JSON.stringify(b64);
-                    delete cleanData[fieldname];
-                }
-            }
-
-            console.log(`[SAVE #${saveId}] calling saveForm with doc name:`, currentDocName);
-            const res = await saveForm({
-                data: JSON.stringify(cleanData),
-                file: fileArgs["igf_upload_detailed_specification"] || fileArgs["igf_upload_vendor_list"] || undefined, // Map one of the uploads to the backend's `file=None` parameter
-                ...fileArgs
-            });
-            console.log(`[SAVE #${saveId}] response:`, res);
+            const res = await saveForm({ data: JSON.stringify(cleanData) });
 
             if (res?.message?.status === "success") {
                 const docname = res.message.docname || currentDocName;
-                // Update ref IMMEDIATELY before any alert/navigate so any retry uses the correct name
                 if (docname) {
                     savedDocNameRef.current = docname;
                     setSavedDocName(docname);
                 }
-                alert("Draft saved successfully!");
                 if (docname && !currentDocName) {
-                    navigate(`/indent-general-form?edit=${docname}`, { replace: true });
+                    navigate(`/indent-general-form/${docname}`, { replace: true });
                 } else if (docname) {
                     await fetchWorkflowActions(docname);
                 }
+                // Show submit confirmation modal instead of alert
+                setShowSubmitModal(true);
             } else {
                 throw new Error(res?.message?.message || "Save failed");
             }
         } catch (err: any) {
-            console.error(`[SAVE #${saveId}] Error:`, err);
-            const errMsg = err.exc_type === "ValidationError" 
+            const errMsg = err.exc_type === "ValidationError"
                 ? JSON.parse(err._server_messages || "[]").map((m: string) => JSON.parse(m).message).join(", ")
                 : err.message || "Unknown error";
             alert(`Save failed: ${errMsg}`);
         } finally {
-            console.log(`[SAVE #${saveId}] FINALLY — releasing lock`);
             isSavingRef.current = false;
             setIsSaving(false);
         }
@@ -446,24 +465,16 @@ const IndentGeneralForm: React.FC = () => {
     }, [formData, editDocName, savedDocName, saveForm, fetchWorkflowActions, navigate]);
 
     const handlePerformAction = async (action: string) => {
-        const docname = savedDocName;
+        const docname = savedDocNameRef.current || savedDocName;
         if (!docname) {
             alert("Please save the form first before performing workflow actions.");
             return;
         }
+        setShowSubmitModal(false);
         setIsActionLoading(true);
         try {
-            const res = await performActionCall({ docname, action });
-            if (res?.message?.status === "success") {
-                const newState = res.message.workflow_state || workflowState;
-                setWorkflowState(newState);
-                setDocStatus(res.message.docstatus ?? docStatus);
-                setAvailableActions(res.message.next_actions || []);
-                alert(`Action "${action}" completed successfully!`);
-                navigate(`/indent-general-form/${docname}`);
-            } else {
-                throw new Error(res?.message?.message || "Action failed");
-            }
+            await performActionCall({ docname, action });
+            navigate(`/indent-general-form-details/${docname}`);
         } catch (err: any) {
             alert(`Action failed: ${err.message || "Unknown error"}`);
         } finally {
@@ -528,6 +539,15 @@ const IndentGeneralForm: React.FC = () => {
                         </span>
                     )}
                 </PageHeader>
+
+                {/* Submit confirmation modal — shown after a successful save */}
+                {showSubmitModal && (
+                    <SubmitConfirmModal
+                        onSubmit={() => handlePerformAction("Approve")}
+                        onDismiss={() => setShowSubmitModal(false)}
+                        isLoading={isActionLoading}
+                    />
+                )}
 
                 <div className="mt-6 space-y-5">
                     {/* Indenter & Project Details */}
