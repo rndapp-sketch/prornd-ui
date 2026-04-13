@@ -466,7 +466,22 @@ const IndentGeneralForm: React.FC = () => {
 
     const handleSave = useCallback(async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        
+
+        // ── Declaration validation ───────────────────────────────────────
+        const decl1 = formData.igf_declaration_text;
+        const decl2 = formData.igf_decl_inr_confirmation;
+        if (!decl1 || !decl2) {
+            // Scroll declaration section into view
+            const declSection = document.getElementById('igf-declaration-section');
+            declSection?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            alert(
+                'Please accept both declarations before saving:\n\n' +
+                (!decl1 ? '• Declaration text must be acknowledged\n' : '') +
+                (!decl2 ? '• INR confirmation must be acknowledged' : '')
+            );
+            return;
+        }
+
         if (isSavingRef.current) {
             console.warn("[SAVE] BLOCKED — save already in progress");
             return;
@@ -576,7 +591,8 @@ const IndentGeneralForm: React.FC = () => {
                             {isSaving ? "Saving..." : "Save Draft"}
                         </FrappeButton>
                     )}
-                    {availableActions.map((action) => (
+                    {/* Submit actions only available after the doc has been saved */}
+                    {savedDocName && availableActions.map((action) => (
                         <FrappeButton
                             key={action}
                             onClick={() => handlePerformAction(action)}
@@ -712,6 +728,7 @@ const IndentGeneralForm: React.FC = () => {
                     </GroupCard>
 
                     {/* Declaration */}
+                    <div id="igf-declaration-section">
                     <GroupCard label="Declaration">
                         <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                             <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
@@ -730,6 +747,8 @@ const IndentGeneralForm: React.FC = () => {
                             {...commonRendererProps}
                         />
                     </GroupCard>
+                    </div>
+
                 </div>
 
                 {/* Bottom action bar */}
@@ -750,7 +769,8 @@ const IndentGeneralForm: React.FC = () => {
                             <Save className="w-4 h-4" />
                             {isSaving ? "Saving..." : "Save Draft"}
                         </FrappeButton>
-                        {availableActions.map((action) => (
+                        {/* Submit actions only available after the doc has been saved */}
+                        {savedDocName && availableActions.map((action) => (
                             <FrappeButton
                                 key={action}
                                 onClick={() => handlePerformAction(action)}

@@ -1313,7 +1313,7 @@ const QuickActions = ({
               ["docstatus", "in", [0, 1]],
             ])
           );
-          const apiUrl = `/api/resource/Indent%20General%20Form?fields=["name","creation","workflow_state","owner","igf_project_title","igf_project_code","igf_webmail_user_id","docstatus"]&filters=${filters}&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          const apiUrl = `/api/resource/Indent%20General%20Form?fields=["name","creation","workflow_state","owner","igf_project_title","igf_project_code","igf_webmail_user_id","docstatus","igf_total_estimate","igf_tender_type"]&filters=${filters}&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
           const fetchResponse = await fetch(apiUrl, {
             method: "GET",
             headers: { Accept: "application/json" },
@@ -1799,6 +1799,19 @@ const QuickActions = ({
                         >
                           View
                         </button>
+                        {/* NIQ Form — Indent General Form, Approved, Limited Tender, below ₹50 lakh */}
+                        {selectedApplication === "Indent General Form" &&
+                          item.workflow_state === "Approved" &&
+                          Number(item.igf_total_estimate) < 5000000 &&
+                          item.igf_tender_type === "Limited Tender" && (
+                            <button
+                              onClick={() => onNavigate(`/niq-form/${item.name}`)}
+                              className="text-sm text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 hover:underline whitespace-nowrap font-medium"
+                              title="Generate NIQ Form"
+                            >
+                              NIQ
+                            </button>
+                          )}
                         {selectedApplication === "Adhoc/Contractual" &&
                           item.workflow_state === "Approved" && (
                             <>

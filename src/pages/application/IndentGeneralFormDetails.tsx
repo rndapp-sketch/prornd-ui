@@ -7,7 +7,7 @@ import {
     EditIcon, Send, ChevronRight, CheckCircle2, XCircle,
     Clock, CalendarIcon, ActivityIcon, MessageSquare,
     UserIcon, ShoppingCartIcon, UsersIcon, FileTextIcon,
-    TruckIcon,
+    TruckIcon, FileSearch2,
 } from "lucide-react";
 import { AppSidebar } from "@/components/RndSidebar";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -610,6 +610,20 @@ const IndentGeneralFormDetails: React.FC = () => {
                     projectName={projectTitle || formData.igf_project_code}
                     projectNumber={formData.igf_project_code}
                 >
+                    {/* NIQ Form button — Approved, Limited Tender, below ₹50 lakh */}
+                    {workflowState === "Approved" &&
+                        Number(formData.igf_total_estimate) < 5000000 &&
+                        formData.igf_tender_type === "Limited Tender" &&
+                        id && (
+                        <button
+                            onClick={() => navigate(`/niq-form/${id}`)}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-all"
+                            title="Generate NIQ Form for this indent"
+                        >
+                            <FileSearch2 className="w-4 h-4" />
+                            NIQ Form
+                        </button>
+                    )}
                     {isDraft && id && (
                         <button
                             onClick={() => navigate(`/indent-general-form/${id}`)}
