@@ -500,11 +500,45 @@ const IndentGeneralForm: React.FC = () => {
         try {
             const currentDocName = savedDocNameRef.current || editDocName || savedDocName;
 
+            // Log raw formData file fields before conversion
+            const rawFileFields = Object.entries(formData).filter(([, v]) => v instanceof File);
+            console.log(`[SAVE #${saveId}] Raw File fields in formData:`, rawFileFields.map(([k, v]) => ({ field: k, name: (v as File).name, size: (v as File).size, type: (v as File).type })));
+
             // Use prepareFormDataForApi — converts all File objects (including table rows) to base64 in-place
             const cleanData = await prepareFormDataForApi({ ...formData });
             if (currentDocName) cleanData.name = currentDocName;
 
-            const res = await saveForm({ data: JSON.stringify(cleanData) });
+            // Extract top-level file fields into a separate `files` array for the new backend API.
+            // Any field whose value is { file_name, file_data } was a File upload — pull it out
+            // and strip it from cleanData so the backend receives files via the dedicated parameter.
+            const filesArray: Array<{ file_name: string; file_data: string }> = [];
+            for (const key of Object.keys(cleanData)) {
+                const val = cleanData[key];
+                if (
+                    val &&
+                    typeof val === "object" &&
+                    !Array.isArray(val) &&
+                    typeof val.file_name === "string" &&
+                    typeof val.file_data === "string"
+                ) {
+                    console.log(`[SAVE #${saveId}] Extracted file from field "${key}":`, { file_name: val.file_name, file_data_length: val.file_data.length, file_data_prefix: val.file_data.slice(0, 50) });
+                    filesArray.push(val);
+                    delete cleanData[key];
+                }
+            }
+
+            console.log(`[SAVE #${saveId}] filesArray built:`, filesArray.map((f) => ({ file_name: f.file_name, file_data_length: f.file_data.length })));
+            console.log(`[SAVE #${saveId}] cleanData keys:`, Object.keys(cleanData));
+
+            const callArgs: Record<string, string> = { data: JSON.stringify(cleanData) };
+            if (filesArray.length > 0) {
+                callArgs.files = JSON.stringify(filesArray);
+            }
+
+            console.log(`[SAVE #${saveId}] Calling saveForm with args:`, { data_length: callArgs.data.length, files: callArgs.files ? `${filesArray.length} file(s)` : "none" });
+
+            const res = await saveForm(callArgs);
+            console.log(`[SAVE #${saveId}] saveForm response:`, res);
 
             if (res?.message?.status === "success") {
                 const docname = res.message.docname || currentDocName;
@@ -614,7 +648,7 @@ const IndentGeneralForm: React.FC = () => {
                 {/* Submit confirmation modal — shown after a successful save */}
                 {showSubmitModal && (
                     <SubmitConfirmModal
-                        onSubmit={() => handlePerformAction("Approve")}
+                        onSubmit={() => handlePerformAction("Submit")}
                         onDismiss={() => setShowSubmitModal(false)}
                         isLoading={isActionLoading}
                     />
