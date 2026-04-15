@@ -20,8 +20,6 @@ export default defineConfig({
 		}
 	},
 	build: {
-		outDir: '../rndopsapp/public/frontend',
-		emptyOutDir: true,
 		target: 'es2015',
 	},
 });
