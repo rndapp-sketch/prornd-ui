@@ -136,6 +136,9 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         'rndopsapp.rndopsapp.commitPayment.submit_payment_data',
     );
     const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
+    const { call: updateChairpersonCall, loading: isUpdatingChairperson } = useFrappePostCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.update_chairperson_fields",
+    );
     // Hook to fetch piheadmentor_user_id from User doctype (client script logic)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>(
@@ -1008,6 +1011,29 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         }
     };
 
+    const handleUpdateChairperson = async () => {
+        const docNameToUse = savedDocName || editDocName;
+        if (!docNameToUse) {
+            alert("Please save the document first.");
+            return;
+        }
+        try {
+            const response = await updateChairpersonCall({
+                docname: docNameToUse,
+                chairperson_webmail_id: formData.chairperson_webmail_id || "",
+                chairperson_name: formData.chairperson_name || "",
+            });
+            if (response?.message?.status === "success") {
+                alert("Chairperson fields updated successfully.");
+            } else {
+                alert(response?.message?.message || "Failed to update chairperson fields.");
+            }
+        } catch (error: any) {
+            console.error("Update chairperson error:", error);
+            alert(error?.message || "An error occurred while updating chairperson fields.");
+        }
+    };
+
     // --- RENDER HELPERS ---
     const isFormReadOnly = workflowState !== "Draft" && workflowState !== "Pending";
     const isReadOnly = isFormReadOnly;
@@ -1103,6 +1129,22 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                         `Last updated: ${new Date().toLocaleTimeString()}`}
                                 </div>
                                 <div className="flex gap-3">
+                                    {/* DoRnD-only: update chairperson fields directly via dedicated API */}
+                                    {isDoRnd && (savedDocName || editDocName) && (
+                                        <FrappeButton
+                                            variant="outline"
+                                            onClick={handleUpdateChairperson}
+                                            disabled={isUpdatingChairperson}
+                                            className="bg-white dark:bg-zinc-800 shadow-sm"
+                                        >
+                                            {isUpdatingChairperson ? (
+                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            ) : (
+                                                <Save className="w-4 h-4 mr-2" />
+                                            )}
+                                            Update Chairperson
+                                        </FrappeButton>
+                                    )}
                                     {workflowState === "Draft" ? (
                                         <>
                                             <FrappeButton
