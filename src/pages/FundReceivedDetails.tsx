@@ -26,6 +26,7 @@ import { useFrappeClientScript } from "../hooks/useFrappeClientScript";
 import { useDepositSlipCalculations } from "../hooks/useDepositSlipCalculations";
 import { useFrappeFetchFrom } from "../hooks/useFrappeFetchFrom";
 import { HoSApprovalView } from "./HoSApprovalView";
+import { BudgetHeadName } from "@/components/BudgetHeadName";
 
 // Component to fetch and display attachment for a transaction
 const TransactionAttachment = ({
@@ -689,10 +690,6 @@ const FundReceivedDetails = () => {
     const [childTableMeta, setChildTableMeta] = useState<Record<string, any>>(
         {},
     );
-    const [resolvedHeadNames, setResolvedHeadNames] = useState<
-        Record<string, string>
-    >({});
-
     // Fetch the full document first (always available from URL param)
     const {
         data: docData,
@@ -756,67 +753,6 @@ const FundReceivedDetails = () => {
     const isLoading =
         docLoading || (effectivePrjregTitle ? listLoading : false);
     const error = docError || (effectivePrjregTitle ? listError : null);
-
-    // Stable key: sorted account_head IDs from the breakup rows
-    const receivedAmtBreakupKey = React.useMemo(() => {
-        const heads = (fundData?.received_amt_breakup ?? [])
-            .map((row: any) => row.account_head)
-            .filter(Boolean)
-            .sort();
-        return heads.join(",");
-    }, [fundData?.received_amt_breakup]);
-
-    // Resolve budget head names — only re-runs when the set of account heads changes
-    React.useEffect(() => {
-        if (!receivedAmtBreakupKey) return;
-
-        const resolveBudgetHeadNames = async () => {
-            const breakup = fundData?.received_amt_breakup ?? [];
-            const uniqueHeadIds = [
-                ...new Set(
-                    breakup.map((row: any) => row.account_head).filter(Boolean),
-                ),
-            ] as string[];
-
-            const nameMap: Record<string, string> = {};
-
-            for (const headId of uniqueHeadIds) {
-                try {
-                    const response = await fetch(
-                        "/api/method/frappe.client.get_list",
-                        {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            credentials: "include",
-                            body: JSON.stringify({
-                                doctype: "Budget Head",
-                                filters: { name: headId },
-                                fields: ["name", "budget_head", "id"],
-                                limit_page_length: 1,
-                            }),
-                        },
-                    );
-
-                    if (response.ok) {
-                        const result = await response.json();
-                        const list = result.message;
-                        if (list && list.length > 0) {
-                            const d = list[0];
-                            nameMap[headId] = d.budget_head || d.name;
-                        }
-                    }
-                } catch (err) {
-                    console.error(
-                        `Failed to resolve budget head: ${headId}`,
-                        err,
-                    );
-                }
-            }
-            setResolvedHeadNames(nameMap);
-        };
-        resolveBudgetHeadNames();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [receivedAmtBreakupKey]);
 
     const showDepositSlip =
         isRndMiscellaneous &&
@@ -1516,9 +1452,7 @@ const FundReceivedDetails = () => {
                                         className="divide-x divide-gray-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                                     >
                                         <td className="px-3 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                            {resolvedHeadNames[
-                                                item.account_head
-                                            ] || item.account_head}
+                                            <BudgetHeadName id={item.account_head} />
                                         </td>
                                         <td className="px-3 py-2 text-sm text-right font-bold text-[#D97757]">
                                             {item.amount_received?.toLocaleString(
