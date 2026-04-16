@@ -1,20 +1,25 @@
 import { useFrappeGetCall } from "frappe-react-sdk";
 
 interface BudgetHeadNameProps {
-    /** account_head value — numeric string/number uses id filter, hash string uses name filter */
-    value: string | number | undefined | null;
+    /** Preferred: any account_head value — numeric uses id filter, hash string uses name filter */
+    value?: string | number | null;
+    /** Legacy alias for value (string name) */
+    ID?: string;
+    /** Legacy alias for value (any) */
+    id?: string | number;
 }
 
 const isNumericId = (v: string | number) =>
     typeof v === "number" || (typeof v === "string" && /^\d+$/.test(v.trim()));
 
-export const BudgetHeadName = ({ value }: BudgetHeadNameProps) => {
-    const hasValue = value != null && value !== "";
-    const numeric = hasValue && isNumericId(value!);
+export const BudgetHeadName = ({ value, ID, id }: BudgetHeadNameProps) => {
+    const resolved = value ?? ID ?? id;
+    const hasValue = resolved != null && resolved !== "";
+    const numeric = hasValue && isNumericId(resolved!);
     const filters = numeric
-        ? [["id", "=", Number(value)]]
-        : [["name", "=", value]];
-    const fallback = String(value ?? "");
+        ? [["id", "=", Number(resolved)]]
+        : [["name", "=", resolved]];
+    const fallback = String(resolved ?? "");
 
     const { data, isLoading, error } = useFrappeGetCall<{ message: { budget_head: string }[] }>(
         "frappe.client.get_list",
