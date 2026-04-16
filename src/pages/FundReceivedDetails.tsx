@@ -1452,7 +1452,7 @@ const FundReceivedDetails = () => {
                                         className="divide-x divide-gray-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                                     >
                                         <td className="px-3 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                            <BudgetHeadName id={item.account_head} />
+                                            <BudgetHeadName value={item.account_head} />
                                         </td>
                                         <td className="px-3 py-2 text-sm text-right font-bold text-[#D97757]">
                                             {item.amount_received?.toLocaleString(
