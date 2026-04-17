@@ -2265,6 +2265,15 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                         }
                                                     });
                                                 }
+                                                if (data?.upload_supporting_docs?.length) {
+                                                    data.upload_supporting_docs.forEach((row: any) => {
+                                                        const filePath = row.supporting_file || '';
+                                                        if (filePath) {
+                                                            const fname = filePath.split('/').pop();
+                                                            allFiles.push({ name: fname, url: `http://172.16.135.118:9000/prod-rnd-files${filePath}`, label: row.doc_description || 'Supporting Doc' });
+                                                        }
+                                                    });
+                                                }
                                                 if (data?.attachments?.length) {
                                                     data.attachments.forEach((file: any) => {
                                                         const fname = file.file_name || file.name || 'Document';
