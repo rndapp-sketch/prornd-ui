@@ -1425,6 +1425,55 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                         </a>
                                                     </div>
                                                 )}
+                                                {data?.upload_supporting_docs?.length > 0 && (
+                                                    <div className="py-3 col-span-full">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <FileTextIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                                                            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                                                                Upload Supporting Docs ( Project Proposal / Invitation Letter)
+                                                            </p>
+                                                        </div>
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                                                                <thead className="bg-zinc-100 dark:bg-zinc-800">
+                                                                    <tr>
+                                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300 w-8">No.</th>
+                                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300">File</th>
+                                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300">Description</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {data.upload_supporting_docs.map((row: any, idx: number) => {
+                                                                        const filePath = row.supporting_file || '';
+                                                                        const fileName = filePath.split('/').pop() || filePath;
+                                                                        const fileUrl = filePath ? `http://172.16.135.118:9000/prod-rnd-files${filePath}` : null;
+                                                                        return (
+                                                                            <tr key={idx} className="border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                                                                                <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">{idx + 1}</td>
+                                                                                <td className="px-3 py-2">
+                                                                                    {fileUrl ? (
+                                                                                        <a
+                                                                                            href={fileUrl}
+                                                                                            target="_blank"
+                                                                                            rel="noopener noreferrer"
+                                                                                            className="text-[#D97757] hover:underline flex items-center gap-1 truncate max-w-xs"
+                                                                                        >
+                                                                                            <ExternalLinkIcon className="h-3 w-3 flex-shrink-0" />
+                                                                                            <span className="truncate">{fileName}</span>
+                                                                                        </a>
+                                                                                    ) : (
+                                                                                        <span className="text-zinc-400">—</span>
+                                                                                    )}
+                                                                                </td>
+                                                                                <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">{row.doc_description || '—'}</td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                         {/* Account Details */}
