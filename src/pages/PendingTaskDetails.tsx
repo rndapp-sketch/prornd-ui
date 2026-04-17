@@ -224,12 +224,17 @@ const FundSanctionWorkflowActions = ({
         }
     };
 
-    if (actionsLoading || !data?.message?.length) return null;
+    // "Add Fund" belongs on the Fund Received page, not the pending-task detail view
+    const visibleActions = (data?.message || []).filter(
+        (action) => action !== "Add Fund",
+    );
+
+    if (actionsLoading || !visibleActions.length) return null;
 
     return (
         <>
             <div className="flex gap-2">
-                {data.message.map((action) => (
+                {visibleActions.map((action) => (
                     <FrappeButton
                         key={action}
                         onClick={() => handleActionClick(action)}
