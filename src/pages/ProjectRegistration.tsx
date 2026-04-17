@@ -65,6 +65,7 @@ interface FormData {
     sanctioned_budget_breakup?: (any & { id?: string })[];
     sanction_related_files?: (any & { id?: string })[];
     fund_transactions?: (any & { id?: string })[];
+    upload_supporting_docs?: (any & { id?: string })[];
 }
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
@@ -3162,6 +3163,51 @@ const ProjectRegistration: React.FC = () => {
                                                 ? renderField("executive_summary", "Executive Summary (If Applicable)")
                                                 : renderField("executive_summary")}
                                             {renderField("upload_proj_prop")}
+                                            <div className="space-y-3">
+                                                <label className="block font-semibold text-sm text-zinc-700 dark:text-zinc-300">
+                                                    Supporting Documents
+                                                </label>
+                                                <MemoizedGenericTable
+                                                    tableName="upload_supporting_docs"
+                                                    columns={[
+                                                        {
+                                                            key: "doc_description",
+                                                            label: "Description",
+                                                            type: "text",
+                                                        },
+                                                        {
+                                                            key: "supporting_file",
+                                                            label: "File",
+                                                            type: "file",
+                                                        },
+                                                    ]}
+                                                    newRow={{
+                                                        doc_description: "",
+                                                        supporting_file: null,
+                                                    }}
+                                                    tableData={formData.upload_supporting_docs}
+                                                    onRowChange={
+                                                        isEditMode
+                                                            ? handleTableRowChange
+                                                            : () => {}
+                                                    }
+                                                    onFileChange={
+                                                        isEditMode
+                                                            ? handleTableFileChange
+                                                            : () => {}
+                                                    }
+                                                    onAddRow={
+                                                        isEditMode
+                                                            ? addTableRow
+                                                            : () => {}
+                                                    }
+                                                    onDeleteRow={
+                                                        isEditMode
+                                                            ? deleteTableRow
+                                                            : () => {}
+                                                    }
+                                                />
+                                            </div>
                                             {renderField("my_projects")}
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {formData.project_type === "Consultancy" ? (
