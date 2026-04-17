@@ -1444,7 +1444,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                                 </thead>
                                                                 <tbody>
                                                                     {data.upload_supporting_docs.map((row: any, idx: number) => {
-                                                                        const filePath = row.supporting_file || '';
+                                                                        const filePath = row.project_file || '';
                                                                         const fileName = filePath.split('/').pop() || filePath;
                                                                         const fileUrl = filePath ? `http://172.16.135.118:9000/prod-rnd-files${filePath}` : null;
                                                                         return (
@@ -1465,7 +1465,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                                                         <span className="text-zinc-400">—</span>
                                                                                     )}
                                                                                 </td>
-                                                                                <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">{row.doc_description || '—'}</td>
+                                                                                <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">{row.file_description || '—'}</td>
                                                                             </tr>
                                                                         );
                                                                     })}
@@ -2316,10 +2316,10 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                 }
                                                 if (data?.upload_supporting_docs?.length) {
                                                     data.upload_supporting_docs.forEach((row: any) => {
-                                                        const filePath = row.supporting_file || '';
+                                                        const filePath = row.project_file || '';
                                                         if (filePath) {
                                                             const fname = filePath.split('/').pop();
-                                                            allFiles.push({ name: fname, url: `http://172.16.135.118:9000/prod-rnd-files${filePath}`, label: row.doc_description || 'Supporting Doc' });
+                                                            allFiles.push({ name: fname, url: `http://172.16.135.118:9000/prod-rnd-files${filePath}`, label: row.file_description || 'Supporting Doc' });
                                                         }
                                                     });
                                                 }
