@@ -3164,20 +3164,20 @@ const ProjectRegistration: React.FC = () => {
                                                 : renderField("executive_summary")}
                                             {renderField("upload_proj_prop")}
                                             <div className="space-y-3">
-                                                <label className="block font-semibold text-sm text-zinc-700 dark:text-zinc-300">
-                                                    Supporting Documents
-                                                </label>
+                                                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                                                    Upload Supporting Documents
+                                                </h3>
                                                 <MemoizedGenericTable
                                                     tableName="upload_supporting_docs"
                                                     columns={[
                                                         {
                                                             key: "doc_description",
-                                                            label: "Description",
+                                                            label: "Document Description",
                                                             type: "text",
                                                         },
                                                         {
                                                             key: "supporting_file",
-                                                            label: "File",
+                                                            label: "Upload File",
                                                             type: "file",
                                                         },
                                                     ]}
