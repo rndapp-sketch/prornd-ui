@@ -29,7 +29,7 @@ const GROUP_B_FIELDS = new Set([
 ]);
 const GROUP_C_FIELDS = new Set(['account_head_fund_breakup']);
 const GROUP_D_FIELDS = new Set([
-    'loan_agreements_section', 'agreement_no_1', 'agreement_no_2',
+    'loan_agreements_section', 'agreement_no_1', 'agreement_no_2', 'project_copi',
     'section_break_fqlm', 'witness_attachment',
 ]);
 
@@ -565,6 +565,38 @@ const LoanRequestDetails: React.FC = () => {
                         {/* GROUP D */}
                         <GroupCard icon={FileTextIcon} label="Agreements & Attachment" badge="D">
                             <DynamicFormRenderer fields={groupD} {...rendererProps} />
+                            {/* Comments + Additional Attachment — side by side */}
+                            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                        Comments, If Any
+                                    </p>
+                                    {formData.comments_if_any ? (
+                                        <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700 min-h-[8rem]">
+                                            {formData.comments_if_any}
+                                        </p>
+                                    ) : (
+                                        <p className="text-sm text-zinc-400 dark:text-zinc-500 italic">No comments</p>
+                                    )}
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                        Add Attachment, If Any
+                                    </p>
+                                    {formData.additional_attachment && typeof formData.additional_attachment === 'string' ? (
+                                        <a
+                                            href={formData.additional_attachment}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-md text-sm font-medium transition-colors"
+                                        >
+                                            {formData.additional_attachment.split('/').pop() || 'File'}
+                                        </a>
+                                    ) : (
+                                        <p className="text-sm text-zinc-400 dark:text-zinc-500 italic">No file uploaded</p>
+                                    )}
+                                </div>
+                            </div>
                         </GroupCard>
                     </div>
 

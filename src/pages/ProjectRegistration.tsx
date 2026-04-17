@@ -368,6 +368,7 @@ const MemoizedGenericTable = memo(
         onFileChange,
         onAddRow,
         onDeleteRow,
+        onOpenQuickEntry, // EDITED BY MKY | 2026-04-14 14:52 IST: Added Quick Entry hook prop
     }: any) => (
         <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-lg">
             <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -416,14 +417,25 @@ const MemoizedGenericTable = memo(
                                         <select
                                             className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary focus:!ring-primary/20`}
                                             value={row[col.key] || ""}
-                                            onChange={(e) =>
-                                                onRowChange(
-                                                    tableName,
-                                                    i,
-                                                    col.key,
-                                                    e.target.value,
-                                                )
-                                            }
+                                            onChange={(e) => {
+                                                // ============================================================
+                                                // EDITED BY MKY | 2026-04-14 14:52 IST
+                                                // START OF EDIT — Intercept "CREATE_NEW" selections
+                                                // Launch the quick entry modal instead of writing the placeholder to state.
+                                                // ============================================================
+                                                if (e.target.value === "CREATE_NEW" && onOpenQuickEntry) {
+                                                    onOpenQuickEntry(tableName, i, col.key);
+                                                } else {
+                                                    onRowChange(
+                                                        tableName,
+                                                        i,
+                                                        col.key,
+                                                        e.target.value,
+                                                    );
+                                                }
+                                                // END OF EDIT — MKY | 2026-04-14 14:52 IST
+                                                // ============================================================
+                                            }}
                                         >
                                             <option value="">Select...</option>
                                             {(col.options || []).map(
@@ -913,6 +925,17 @@ const ProjectRegistration: React.FC = () => {
     // Comment modal state for final submission
     const [showSubmitCommentModal, setShowSubmitCommentModal] = useState(false);
     const [isFinalSubmitting, setIsFinalSubmitting] = useState(false);
+
+    // ============================================================
+    // EDITED BY MKY | 2026-04-14 14:52 IST
+    // START OF EDIT — Quick Entry State & API
+    // ============================================================
+    const [quickEntryState, setQuickEntryState] = useState<{ isOpen: boolean; tableName: string; rowIndex: number; columnKey: string; pendingValue: string; isSubmitting: boolean } | null>(null);
+    const { call: createCustomDesignation } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.project_registration.project_registration.create_custom_designation"
+    );
+    // END OF EDIT — MKY | 2026-04-14 14:52 IST
+    // ============================================================
 
     // Edit mode: new forms start editable; existing docs start read-only
     const [isEditMode, setIsEditMode] = useState<boolean>(() => {
@@ -1495,6 +1518,74 @@ const ProjectRegistration: React.FC = () => {
             controlYearFieldsVisibility,
         ],
     );
+
+    // ============================================================
+    // EDITED BY MKY | 2026-04-14 14:52 IST
+    // START OF EDIT — Quick Entry Handlers
+    // ============================================================
+    const handleOpenQuickEntry = useCallback((tableName: string, rowIndex: number, columnKey: string) => {
+        setQuickEntryState({ isOpen: true, tableName, rowIndex, columnKey, pendingValue: "", isSubmitting: false });
+    }, []);
+
+    const handleQuickEntrySave = async () => {
+        if (!quickEntryState || !quickEntryState.pendingValue.trim()) return;
+
+        setQuickEntryState(prev => prev ? { ...prev, isSubmitting: true } : null);
+
+        // ============================================================
+        // EDITED BY MKY | 2026-04-14 15:35 IST
+        // START OF EDIT — Handle duplicate designation alert + new entry creation
+        // Backend now returns status="duplicate" when the designation already exists.
+        // We alert the user and keep the modal open so they can change their input.
+        // ============================================================
+        try {
+            const apiRes = await createCustomDesignation({
+                designation_name: quickEntryState.pendingValue,
+                designation_type: "Project Staff"
+            });
+
+            const result = apiRes?.message;
+
+            if (result?.status === "duplicate") {
+                // Alert the user and keep the modal open for correction
+                alert(`⚠️ Designation already exists: "${result.message || result.designation_name}". Please choose it from the dropdown or enter a different name.`);
+                setQuickEntryState(prev => prev ? { ...prev, isSubmitting: false } : null);
+                return;
+            }
+
+            if (result?.status === "success") {
+                const finalDesignation = result.designation_name;
+
+                // Optimistically inject into dropdown options so it's immediately selectable
+                setLinkOptions((prev: any) => {
+                    const currentOpts = prev["designation_name"] || [];
+                    if (!currentOpts.find((o: any) => String(o.value) === String(finalDesignation))) {
+                        return {
+                            ...prev,
+                            "designation_name": [...currentOpts, { value: finalDesignation, label: finalDesignation }]
+                        };
+                    }
+                    return prev;
+                });
+
+                // Apply the new designation to the paused table row
+                handleTableRowChange(quickEntryState.tableName, quickEntryState.rowIndex, quickEntryState.columnKey, finalDesignation);
+                setQuickEntryState(null); // Close modal
+            } else {
+                alert(`Error: ${result?.message || 'Failed to create custom designation.'}`);
+                setQuickEntryState(prev => prev ? { ...prev, isSubmitting: false } : null);
+            }
+        } catch (e: any) {
+            console.error("Quick Entry error", e);
+            alert("Failed to create custom designation. Please try again.");
+            setQuickEntryState(prev => prev ? { ...prev, isSubmitting: false } : null);
+        }
+        // END OF EDIT — MKY | 2026-04-14 15:35 IST
+        // ============================================================
+    };
+    // END OF EDIT — MKY | 2026-04-14 14:52 IST
+    // ============================================================
+
 
     const handleTableRowChange = useCallback(
         (
@@ -3503,6 +3594,13 @@ const ProjectRegistration: React.FC = () => {
                                                                     ? deleteTableRow
                                                                     : () => { }
                                                             }
+                                                            // EDITED BY MKY | 2026-04-14 14:52 IST - START: Wire Quick Entry to manpower table
+                                                            onOpenQuickEntry={
+                                                                isEditMode
+                                                                    ? handleOpenQuickEntry
+                                                                    : undefined
+                                                            }
+                                                            // EDITED BY MKY | 2026-04-14 14:52 IST - END
                                                         />
                                                     )}
                                             </div>
@@ -3981,6 +4079,46 @@ const ProjectRegistration: React.FC = () => {
                         </div>
                     </div>
                 )}
+
+                {/* ============================================================ */}
+                {/* EDITED BY MKY | 2026-04-14 14:52 IST                           */}
+                {/* START OF EDIT — Quick Entry Modal                            */}
+                {/* ============================================================ */}
+                {quickEntryState?.isOpen && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999999] p-4">
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-sm relative">
+                            <h3 className="text-sm font-bold mb-4 text-zinc-900 dark:text-zinc-100">
+                                Create New Designation
+                            </h3>
+                            <input
+                                type="text"
+                                autoFocus
+                                placeholder="Enter designation name..."
+                                value={quickEntryState.pendingValue}
+                                onChange={(e) => setQuickEntryState(prev => prev ? { ...prev, pendingValue: e.target.value } : null)}
+                                className={`${inputClasses} w-full mb-4 !h-10 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100`}
+                            />
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    onClick={() => setQuickEntryState(null)}
+                                    disabled={quickEntryState.isSubmitting}
+                                    className="px-4 py-2 rounded-md text-sm font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleQuickEntrySave}
+                                    disabled={quickEntryState.isSubmitting || !quickEntryState.pendingValue.trim()}
+                                    className="px-4 py-2 rounded-md text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                                >
+                                    {quickEntryState.isSubmitting ? "Saving..." : "Save"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* END OF EDIT — MKY | 2026-04-14 14:52 IST */}
+                {/* ============================================================ */}
 
                 {/* Final Submission Comment Modal */}
                 {showSubmitCommentModal && (
