@@ -17,6 +17,9 @@ import {
     ShoppingCartIcon,
     CheckCircle2Icon,
     XCircleIcon,
+    PencilIcon,
+    SaveIcon,
+    XIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 // import { AppSidebar } from '@/components/RndSidebar';
@@ -45,6 +48,7 @@ import TADASettlementActionButtons from "@/components/TADASettlementActionButton
 import { useUserRoles } from "@/components/UserRole";
 import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
+import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 
 // Fields to hide from the overview
 const HIDDEN_FIELDS = [
@@ -1225,6 +1229,7 @@ const PendingTaskDetails: React.FC = () => {
             r === "staff, RnD" ||
             r === "Hos, RnD (Head of Section, RnD)",
     );
+    const isDoRnd = roles.includes("Dean, RnD");
 
     // Redirect dedicated detail pages
     useEffect(() => {
@@ -1283,6 +1288,11 @@ const PendingTaskDetails: React.FC = () => {
         Record<string, LinkOption[]>
     >({});
     const [isRecruitmentLoading, setIsRecruitmentLoading] = useState(false);
+    // Chairperson inline-edit state (DoRnD only)
+    const [chairpersonEditMode, setChairpersonEditMode] = useState(false);
+    const [editChairpersonEmail, setEditChairpersonEmail] = useState("");
+    const [editChairpersonName, setEditChairpersonName] = useState("");
+    const [isSavingChairperson, setIsSavingChairperson] = useState(false);
 
     // Direct Purchase tab state — restore from sessionStorage after reload
     const [dpActiveTab, setDpActiveTab] = useState<DPTabId>(() => {
@@ -1325,6 +1335,12 @@ const PendingTaskDetails: React.FC = () => {
             child_table_meta?: any;
         };
     }>(recruitmentAdhocContractualAPI.getFields);
+    const { call: updateChairpersonFields } = useFrappePostCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.update_chairperson_fields",
+    );
+    const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>(
+        "frappe.client.get_value",
+    );
     // State for display data (to handle ID resolution)
     const [displayData, setDisplayData] = useState<Record<string, any>>({});
 
@@ -2179,23 +2195,170 @@ const PendingTaskDetails: React.FC = () => {
                                         </p>
                                     </div>
                                 </div>
-                            ) : recruitmentFields.length > 0 ? (
-                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
-                                    <DynamicFormRenderer
-                                        fields={recruitmentFields}
-                                        formData={displayData}
-                                        linkOptions={recruitmentLinkOptions}
-                                        onChange={() => {}}
-                                        onFileChange={() => {}}
-                                        onTableRowChange={() => {}}
-                                        onTableFileChange={() => {}}
-                                        onAddTableRow={() => {}}
-                                        onDeleteTableRow={() => {}}
-                                        readOnly={true}
-                                    />
-                                </div>
                             ) : (
-                                renderGenericDetails()
+                                <div className="space-y-4">
+                                    {/* DoRnD: Inline chairperson editor */}
+                                    {isDoRnd && name && (
+                                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                                                    Chairperson Fields
+                                                </h3>
+                                                {!chairpersonEditMode && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditChairpersonEmail(displayData.chairperson_webmail_id || "");
+                                                            setEditChairpersonName(displayData.chairperson_name || "");
+                                                            setChairpersonEditMode(true);
+                                                        }}
+                                                        className="flex items-center gap-1.5 text-xs font-medium text-[#D97757] hover:text-[#c66a4e] transition-colors"
+                                                    >
+                                                        <PencilIcon className="w-3.5 h-3.5" />
+                                                        Edit
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {chairpersonEditMode ? (
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                                                            Chairperson Webmail ID
+                                                        </label>
+                                                        <AutocompleteEmail
+                                                            options={
+                                                                recruitmentLinkOptions["chairperson_webmail_id"] ||
+                                                                recruitmentLinkOptions["User"] ||
+                                                                recruitmentLinkOptions["webmail_id"] ||
+                                                                []
+                                                            }
+                                                            value={editChairpersonEmail}
+                                                            onChange={(val) => {
+                                                                setEditChairpersonEmail(val);
+                                                                // Auto-fill name from matched option label
+                                                                const opts =
+                                                                    recruitmentLinkOptions["chairperson_webmail_id"] ||
+                                                                    recruitmentLinkOptions["User"] ||
+                                                                    recruitmentLinkOptions["webmail_id"] ||
+                                                                    [];
+                                                                const match = opts.find((o) => o.value === val);
+                                                                if (match?.label) {
+                                                                    setEditChairpersonName(match.label);
+                                                                } else {
+                                                                    // Fallback: fetch full_name from backend
+                                                                    fetchFrappeValue({
+                                                                        doctype: "User",
+                                                                        filters: { name: val },
+                                                                        fieldname: "full_name",
+                                                                    })
+                                                                        .then((res) => {
+                                                                            if (res?.message?.full_name) {
+                                                                                setEditChairpersonName(res.message.full_name);
+                                                                            }
+                                                                        })
+                                                                        .catch(() => {});
+                                                                }
+                                                            }}
+                                                            placeholder="Search by name or email..."
+                                                            showAllOnFocus
+                                                            className="px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                                                            Chairperson Name
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm bg-zinc-50 dark:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300"
+                                                            value={editChairpersonName}
+                                                            readOnly
+                                                        />
+                                                    </div>
+                                                    <div className="flex gap-2 pt-1">
+                                                        <button
+                                                            onClick={async () => {
+                                                                setIsSavingChairperson(true);
+                                                                try {
+                                                                    const res = await updateChairpersonFields({
+                                                                        docname: name,
+                                                                        chairperson_webmail_id: editChairpersonEmail,
+                                                                        chairperson_name: editChairpersonName,
+                                                                    });
+                                                                    if (res?.message?.status === "success") {
+                                                                        setDisplayData((prev: any) => ({
+                                                                            ...prev,
+                                                                            chairperson_webmail_id: editChairpersonEmail,
+                                                                            chairperson_name: editChairpersonName,
+                                                                        }));
+                                                                        setChairpersonEditMode(false);
+                                                                    } else {
+                                                                        alert(res?.message?.message || "Failed to update chairperson fields.");
+                                                                    }
+                                                                } catch (err: any) {
+                                                                    alert(err?.message || "An error occurred.");
+                                                                } finally {
+                                                                    setIsSavingChairperson(false);
+                                                                }
+                                                            }}
+                                                            disabled={isSavingChairperson}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#D97757] hover:bg-[#c66a4e] text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-60"
+                                                        >
+                                                            <SaveIcon className="w-3.5 h-3.5" />
+                                                            {isSavingChairperson ? "Saving..." : "Save"}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setChairpersonEditMode(false)}
+                                                            disabled={isSavingChairperson}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-medium rounded-lg transition-colors"
+                                                        >
+                                                            <XIcon className="w-3.5 h-3.5" />
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <span className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                                                            Chairperson Webmail ID
+                                                        </span>
+                                                        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                                            {displayData.chairperson_webmail_id || <span className="text-zinc-400">—</span>}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                                                            Chairperson Name
+                                                        </span>
+                                                        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                                            {displayData.chairperson_name || <span className="text-zinc-400">—</span>}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {recruitmentFields.length > 0 ? (
+                                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+                                            <DynamicFormRenderer
+                                                fields={recruitmentFields}
+                                                formData={displayData}
+                                                linkOptions={recruitmentLinkOptions}
+                                                onChange={() => {}}
+                                                onFileChange={() => {}}
+                                                onTableRowChange={() => {}}
+                                                onTableFileChange={() => {}}
+                                                onAddTableRow={() => {}}
+                                                onDeleteTableRow={() => {}}
+                                                readOnly={true}
+                                            />
+                                        </div>
+                                    ) : (
+                                        renderGenericDetails()
+                                    )}
+                                </div>
                             )
                         ) : doctype === "Direct Purchase" && data && name ? (
                             <DirectPurchaseTabView
