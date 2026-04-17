@@ -178,7 +178,7 @@ const WorkflowTimeline: React.FC<{ currentState: string }> = ({ currentState }) 
                                     "mt-2 text-center text-xs leading-tight px-1",
                                     stage.status === "in-progress" && "font-bold text-[#D97757]",
                                     stage.status === "completed" &&
-                                        "text-emerald-600 dark:text-emerald-400 font-medium",
+                                    "text-emerald-600 dark:text-emerald-400 font-medium",
                                     stage.status === "pending" && "text-zinc-400 dark:text-zinc-500",
                                     stage.status === "rejected" && "text-red-500 font-bold",
                                 )}
@@ -312,41 +312,41 @@ const ActivityStream: React.FC<{ docname: string; onRefresh?: () => void }> = ({
                 )}
                 {items.length > 0
                     ? items.map((item, idx) => (
-                          <div
-                              key={`${item.creation}-${idx}`}
-                              className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg"
-                          >
-                              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-xs">
-                                  {item.owner?.charAt(0).toUpperCase() || "U"}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                  <div className="flex justify-between items-center mb-1">
-                                      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                                          {item.owner || "Unknown"}
-                                      </p>
-                                      <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 flex-shrink-0">
-                                          <Clock className="h-3 w-3" />
-                                          {item.creation
-                                              ? new Date(item.creation).toLocaleString()
-                                              : "N/A"}
-                                      </p>
-                                  </div>
-                                  <div
-                                      className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed"
-                                      dangerouslySetInnerHTML={{
-                                          __html: item.content || "No content",
-                                      }}
-                                  />
-                              </div>
-                          </div>
-                      ))
+                        <div
+                            key={`${item.creation}-${idx}`}
+                            className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg"
+                        >
+                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-xs">
+                                {item.owner?.charAt(0).toUpperCase() || "U"}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex justify-between items-center mb-1">
+                                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                                        {item.owner || "Unknown"}
+                                    </p>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 flex-shrink-0">
+                                        <Clock className="h-3 w-3" />
+                                        {item.creation
+                                            ? new Date(item.creation).toLocaleString()
+                                            : "N/A"}
+                                    </p>
+                                </div>
+                                <div
+                                    className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed"
+                                    dangerouslySetInnerHTML={{
+                                        __html: item.content || "No content",
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    ))
                     : !isLoading && (
-                          <div className="text-center py-6 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900">
-                              <MessageSquare className="h-8 w-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
-                              <p className="text-sm font-medium">No activity yet.</p>
-                              <p className="text-xs mt-1">Be the first to add a comment.</p>
-                          </div>
-                      )}
+                        <div className="text-center py-6 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900">
+                            <MessageSquare className="h-8 w-8 text-zinc-300 dark:text-zinc-600 mx-auto mb-2" />
+                            <p className="text-sm font-medium">No activity yet.</p>
+                            <p className="text-xs mt-1">Be the first to add a comment.</p>
+                        </div>
+                    )}
             </div>
         </div>
     );
@@ -428,7 +428,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                 commit_amount: parseFloat(commitAmount),
                 budget_head: commitHead,
                 bmr: "",
-                refDetails: id,
+                refDetails: null,
             });
             alert("Commitment submitted successfully!");
             setCommitAmount("");
@@ -579,7 +579,7 @@ const IndentGeneralFormDetails: React.FC = () => {
         return f;
     });
 
-    const noOp = () => {};
+    const noOp = () => { };
     const rendererProps = {
         formData,
         linkOptions,
@@ -615,15 +615,15 @@ const IndentGeneralFormDetails: React.FC = () => {
                         Number(formData.igf_total_estimate) < 5000000 &&
                         formData.igf_tender_type === "Limited Tender" &&
                         id && (
-                        <button
-                            onClick={() => navigate(`/niq-form/${id}`)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-all"
-                            title="Generate NIQ Form for this indent"
-                        >
-                            <FileSearch2 className="w-4 h-4" />
-                            NIQ Form
-                        </button>
-                    )}
+                            <button
+                                onClick={() => navigate(`/niq-form/${id}`)}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-all"
+                                title="Generate NIQ Form for this indent"
+                            >
+                                <FileSearch2 className="w-4 h-4" />
+                                NIQ Form
+                            </button>
+                        )}
                     {isDraft && id && (
                         <button
                             onClick={() => navigate(`/indent-general-form/${id}`)}
@@ -707,16 +707,16 @@ const IndentGeneralFormDetails: React.FC = () => {
                                 !f.hidden &&
                                 isFieldVisible(f, formData),
                         ) && (
-                            <GroupCard icon={TruckIcon} label="Details of Vendors">
-                                <DynamicFormRenderer
-                                    fields={fieldsFor([
-                                        "igf_details_of_vendors",
-                                        "igf_vendors",
-                                    ])}
-                                    {...rendererProps}
-                                />
-                            </GroupCard>
-                        )}
+                                <GroupCard icon={TruckIcon} label="Details of Vendors">
+                                    <DynamicFormRenderer
+                                        fields={fieldsFor([
+                                            "igf_details_of_vendors",
+                                            "igf_vendors",
+                                        ])}
+                                        {...rendererProps}
+                                    />
+                                </GroupCard>
+                            )}
 
                         {/* Purchase Committee */}
                         <GroupCard icon={UsersIcon} label="Purchase Committee">

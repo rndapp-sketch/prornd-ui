@@ -142,6 +142,25 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         "frappe.client.get_value",
     );
 
+    // ============================================================
+    // EDITED BY MKY | 2026-04-14 15:57 IST
+    // START OF EDIT — Quick Entry state and API hook
+    // Expanded state to track child table coordinates so "CREATE_NEW" works everywhere.
+    // ============================================================
+    const [racQuickEntry, setRacQuickEntry] = useState<{
+        isOpen: boolean;
+        pendingValue: string;
+        isSubmitting: boolean;
+        fieldName: string;
+        tableName?: string;
+        rowIndex?: number;
+    } | null>(null);
+    const { call: createRacCustomDesignation } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.create_custom_designation"
+    );
+    // END OF EDIT — MKY | 2026-04-14 15:57 IST
+    // ============================================================
+
     // --- PROJECT BUDGET for commit/payment ---
     const projectCode = formData.upfa_project_code || formData.project_code || "";
     const { budgetData, actualBalance } = useProjectBudget(projectCode);
@@ -153,8 +172,8 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     const displayCommitment = linkedCommitment
         ? { head: linkedCommitment.head, committed: linkedCommitment.committed }
         : stagedCommit
-          ? { head: stagedCommit.head, committed: stagedCommit.amount }
-          : null;
+            ? { head: stagedCommit.head, committed: stagedCommit.amount }
+            : null;
     const activeWorkflowState = formData.workflow_state || workflowState;
     const showCommitSection =
         isRnDStaff &&
@@ -248,23 +267,23 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     (f: any) => !HIDDEN_FIELDS.includes(f.fieldname),
                 );
 
-                // chairperson_name is always read-only (auto-derived, never manually typed).
-                // chairperson_webmail_id is editable only for DoRND users.
+                // ============================================================
+                // EDITED BY MKY | 2026-04-14 15:35 IST
+                // START OF EDIT — Removed custom_designation flatMap injection
+                // We now use the Quick Entry Modal natively.
+                // ============================================================
                 const processedFields = filteredFields.map((f: FormField) => {
+                    let transformed: FormField = f;
                     if (f.fieldname === "chairperson_name") {
-                        return { ...f, read_only: 1 };
-                    }
-                    if (f.fieldname === "chairperson_webmail_id" && !isDoRnd) {
-                        return { ...f, read_only: 1 };
-                    }
-                    if (f.fieldname === "webmail_id") {
-                        return { ...f, fieldtype: "Data" };
-                    }
-                    if (f.fieldtype === "Table" && f.child_fields) {
-                        return {
+                        transformed = { ...f, read_only: 1 };
+                    } else if (f.fieldname === "chairperson_webmail_id" && !isDoRnd) {
+                        transformed = { ...f, read_only: 1 };
+                    } else if (f.fieldname === "webmail_id") {
+                        transformed = { ...f, fieldtype: "Data" };
+                    } else if (f.fieldtype === "Table" && f.child_fields) {
+                        transformed = {
                             ...f,
                             child_fields: f.child_fields.map((cf) => {
-                                // upfa_member_name is auto-filled — make it read-only
                                 if (f.fieldname === "upfa_selection_committee" && cf.fieldname === "upfa_member_name") {
                                     return { ...cf, read_only: 1 };
                                 }
@@ -272,8 +291,10 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                             })
                         };
                     }
-                    return f;
+                    return transformed;
                 });
+                // END OF EDIT — MKY | 2026-04-14 15:35 IST
+                // ============================================================
 
                 let finalLinkOptions = link_options ? { ...link_options } : {};
 
@@ -287,19 +308,36 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     finalLinkOptions["webmail_id__email"] = finalLinkOptions["webmail_id"] || [];
                 }
 
+                // ============================================================
+                // EDITED BY MKY | 2026-04-14 12:25 IST
+                // START OF EDIT — Use get_filtered_designations (designation_type-aware)
+                // Previously called get_project_staff_designations which walked
+                // EmployeeClass_prornd → User → Designation_prornd (3 queries).
+                // Now directly queries Designation_prornd filtered by designation_type.
+                // Seeds from prefill_data.designation_type for existing docs, or
+                // defaults to "Project Staff" for new forms.
+                // "Other" is always appended by the backend.
+                // ============================================================
                 try {
-                    const desigRes = await fetch("/api/method/rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_project_staff_designations");
+                    const seedType = encodeURIComponent(
+                        (prefill_data?.designation_type as string) || "Project Staff"
+                    );
+                    const desigRes = await fetch(
+                        `/api/method/rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_filtered_designations?designation_type=${seedType}`
+                    );
                     const desigJson = await desigRes.json();
                     const designations = desigJson?.message?.data || desigJson?.data || [];
                     if (designations.length > 0) {
-                        // Assigning to multiple possible keys to guarantee DynamicFormRenderer picks it up
+                        // Assign to all keys DynamicFormRenderer may look up
                         finalLinkOptions["project_staff_designation"] = designations;
                         finalLinkOptions["Designation_prornd"] = designations;
                         finalLinkOptions["designation"] = designations;
                     }
                 } catch (e) {
-                    console.error("Failed to fetch project staff designations", e);
+                    console.error("Failed to fetch designations by type", e);
                 }
+                // END OF EDIT — MKY | 2026-04-14 12:25 IST
+                // ============================================================
 
                 try {
                     const headsRes = await fetchAccountHeads({
@@ -441,9 +479,9 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                 doctype: "Project Registration",
                                 filters: { project_no: projectCode },
                                 fieldname: [
-                                    "implementation_department", 
-                                    "project_title", 
-                                    "project_duration_months", 
+                                    "implementation_department",
+                                    "project_title",
+                                    "project_duration_months",
                                     "project_duration_days",
                                     "prj_start_date",
                                     "prj_end_date",
@@ -469,7 +507,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                 const days = projectRes.message.project_duration_days || 0;
                                 const startDate = projectRes.message.prj_start_date;
                                 const endDate = projectRes.message.prj_end_date;
-                                
+
                                 let durationStr = "";
                                 if (months > 0 || days > 0) {
                                     const parts = [];
@@ -480,7 +518,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                     // Fallback to formatting as dates if months/days are zero
                                     durationStr = `${startDate} to ${endDate}`;
                                 }
-                                
+
                                 if (durationStr) {
                                     initialData.upfa_project_duration = durationStr;
                                     initialData.project_duration = durationStr;
@@ -550,9 +588,56 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         }
     }, [editDocName, savedDocName, fetchWorkflowActions]);
 
+    // ============================================================
+    // EDITED BY MKY | 2026-04-14 12:25 IST
+    // START OF EDIT — Re-fetch designations when designation_type changes
+    // When the user changes the designation_type field in the form,
+    // this effect fires and pulls a fresh filtered list from the backend
+    // for that type. The designation dropdown updates immediately.
+    // "Other" is always in the returned list (appended server-side).
+    // ============================================================
+    useEffect(() => {
+        if (!formData.designation_type) return;
+        const refetchDesignations = async () => {
+            try {
+                const type = encodeURIComponent(formData.designation_type as string);
+                const res = await fetch(
+                    `/api/method/rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.get_filtered_designations?designation_type=${type}`
+                );
+                const json = await res.json();
+                const designations = json?.message?.data || json?.data || [];
+                if (designations.length > 0) {
+                    setLinkOptions((prev) => ({
+                        ...prev,
+                        project_staff_designation: designations,
+                        Designation_prornd: designations,
+                        designation: designations,
+                    }));
+                }
+            } catch (e) {
+                console.error("[designation_type] Failed to re-fetch designations:", e);
+            }
+        };
+        refetchDesignations();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formData.designation_type]);
+    // END OF EDIT — MKY | 2026-04-14 12:25 IST
+    // ============================================================
+
     // --- FORM HANDLERS ---
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleFieldChange = useCallback((fieldname: string, value: any) => {
+        // ============================================================
+        // EDITED BY MKY | 2026-04-14 15:57 IST
+        // START OF EDIT — Intercept CREATE_NEW at the root handler
+        // ============================================================
+        if (value === "CREATE_NEW") {
+            setRacQuickEntry({ isOpen: true, pendingValue: "", isSubmitting: false, fieldName: fieldname });
+            return;
+        }
+        // END OF EDIT — MKY | 2026-04-14 15:57 IST
+        // ============================================================
+
         setFormData((prev) => ({ ...prev, [fieldname]: value }));
     }, []);
 
@@ -560,6 +645,17 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleFieldChangeWithSideEffects = useCallback(
         async (fieldname: string, value: any) => {
+            // ============================================================
+            // EDITED BY MKY | 2026-04-14 15:57 IST
+            // START OF EDIT — Redirect to root handler interception
+            // ============================================================
+            if (value === "CREATE_NEW") {
+                handleFieldChange(fieldname, value);
+                return;
+            }
+            // END OF EDIT — MKY | 2026-04-14 15:57 IST
+            // ============================================================
+
             handleFieldChange(fieldname, value);
 
             if (fieldname === "webmail_id") {
@@ -680,6 +776,17 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleTableRowChange = useCallback(
         (tableName: string, rowIndex: number, fieldname: string, value: any) => {
+            // ============================================================
+            // EDITED BY MKY | 2026-04-14 15:57 IST
+            // START OF EDIT — Check for CREATE_NEW inside child tables
+            // ============================================================
+            if (value === "CREATE_NEW") {
+                setRacQuickEntry({ isOpen: true, pendingValue: "", isSubmitting: false, fieldName: fieldname, tableName, rowIndex });
+                return;
+            }
+            // END OF EDIT — MKY | 2026-04-14 15:57 IST
+            // ============================================================
+
             setFormData((prev) => {
                 const tableData = [...(prev[tableName] || [])];
                 if (tableData[rowIndex]) {
@@ -803,6 +910,61 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         [],
     );
 
+    // ============================================================
+    // EDITED BY MKY | 2026-04-14 15:57 IST
+    // START OF EDIT — Quick Entry Handlers for Recruitment Adhoc Contractual
+    // Extracted opening logic into the change handlers above.
+    // ============================================================
+    const handleRacQuickEntrySave = async () => {
+        if (!racQuickEntry || !racQuickEntry.pendingValue.trim()) return;
+        setRacQuickEntry(prev => prev ? { ...prev, isSubmitting: true } : null);
+        try {
+            const apiRes = await createRacCustomDesignation({
+                designation_name: racQuickEntry.pendingValue,
+                designation_type: "Project Staff"
+            });
+            const result = apiRes?.message;
+            if (result?.status === "duplicate") {
+                alert(`⚠️ Designation already exists: "${result.message || result.designation_name}". Please choose it from the dropdown or enter a different name.`);
+                setRacQuickEntry(prev => prev ? { ...prev, isSubmitting: false } : null);
+                return;
+            }
+            if (result?.status === "success") {
+                const finalDesignation = result.designation_name;
+                // Inject new designation into dropdown options
+                setLinkOptions(prev => {
+                    const current = prev["Designation_prornd"] || [];
+                    if (!current.find((o: LinkOption) => String(o.value) === String(finalDesignation))) {
+                        const updated = [...current, { value: finalDesignation, label: finalDesignation }];
+                        return {
+                            ...prev,
+                            Designation_prornd: updated,
+                            designation: updated,
+                            project_staff_designation: updated,
+                        };
+                    }
+                    return prev;
+                });
+                // Auto-select the new designation in the form or row
+                if (racQuickEntry.tableName && racQuickEntry.rowIndex !== undefined) {
+                    handleTableRowChange(racQuickEntry.tableName, racQuickEntry.rowIndex, racQuickEntry.fieldName, finalDesignation);
+                } else {
+                    handleFieldChange(racQuickEntry.fieldName, finalDesignation);
+                }
+                setRacQuickEntry(null);
+            } else {
+                alert(`Error: ${result?.message || 'Failed to create custom designation.'}`);
+                setRacQuickEntry(prev => prev ? { ...prev, isSubmitting: false } : null);
+            }
+        } catch (e: any) {
+            console.error("RAC Quick Entry error", e);
+            alert("Failed to create custom designation. Please try again.");
+            setRacQuickEntry(prev => prev ? { ...prev, isSubmitting: false } : null);
+        }
+    };
+    // END OF EDIT — MKY | 2026-04-14 15:35 IST
+    // ============================================================
+
     // Fetch budget heads when commit section is visible
     useEffect(() => {
         if (!showCommitSection) return;
@@ -901,8 +1063,18 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
             // Use ref for immediate read — state update may not have applied yet after first save + navigate
             const currentDocName = savedDocNameRef.current || editDocName;
 
+            // ============================================================
+            // EDITED BY MKY | 2026-04-14 15:35 IST
+            // START OF EDIT — Custom designation logic removed
+            // Endpoints handle "CREATE_NEW" natively via modal now.
+            // ============================================================
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const resolvedFormData: Record<string, any> = { ...formData };
+            // END OF EDIT — MKY | 2026-04-14 15:35 IST
+            // ============================================================
+
             const preparedData = await prepareFormDataForApi({
-                ...formData,
+                ...resolvedFormData,
                 name: currentDocName,
             });
 
@@ -1322,6 +1494,72 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                         </aside>
                     )}
                 </div>
+
+                {/* ============================================================
+                    EDITED BY MKY | 2026-04-14 15:35 IST
+                    START OF EDIT — RacQuickEntryModal JSX
+                    ============================================================ */}
+                {racQuickEntry?.isOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setRacQuickEntry(null)} />
+
+                        <div className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-md p-6 border border-zinc-200 dark:border-zinc-800 animate-in fade-in zoom-in-95 duration-200">
+                            <h2 className="text-xl font-serif font-medium text-zinc-900 dark:text-zinc-100 mb-1">
+                                Add New Designation
+                            </h2>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-5">
+                                Add a new custom project staff designation.
+                            </p>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                                        Designation Title <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        autoFocus
+                                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-transparent focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
+                                        placeholder="e.g. Senior Hardware Architect"
+                                        value={racQuickEntry.pendingValue}
+                                        onChange={(e) => setRacQuickEntry(prev => prev ? { ...prev, pendingValue: e.target.value } : null)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter" && !racQuickEntry.isSubmitting && racQuickEntry.pendingValue.trim()) {
+                                                e.preventDefault();
+                                                handleRacQuickEntrySave();
+                                            }
+                                        }}
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-3 pt-2">
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => setRacQuickEntry(null)}
+                                        disabled={racQuickEntry.isSubmitting}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        variant="default"
+                                        className="bg-[#D97757] hover:opacity-90 text-white shadow-sm"
+                                        onClick={handleRacQuickEntrySave}
+                                        disabled={!racQuickEntry.pendingValue.trim() || racQuickEntry.isSubmitting}
+                                    >
+                                        {racQuickEntry.isSubmitting ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                Saving...
+                                            </>
+                                        ) : "Save Custom"}
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* END OF EDIT — MKY | 2026-04-14 15:35 IST
+                    ============================================================ */}
+
             </main>
         </div>
     );
