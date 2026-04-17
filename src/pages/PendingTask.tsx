@@ -136,6 +136,13 @@ const PendingTask: React.FC = () => {
                     if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
                         return;
                     }
+                    // Already-approved records belong in Task Registry, not pending tasks
+                    if (
+                        record.status === "Endorsement Approved" ||
+                        record.status === "Sanction Approved"
+                    ) {
+                        return;
+                    }
                     tasks.push({
                         id: record.name,
                         title: record.title,
