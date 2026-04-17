@@ -3165,7 +3165,7 @@ const ProjectRegistration: React.FC = () => {
                                             {renderField("upload_proj_prop")}
                                             <div className="space-y-3">
                                                 <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-                                                    Upload Supporting Documents
+                                                    Upload Supporting Docs ( Project Proposal / Invitation Letter)
                                                 </h3>
                                                 <MemoizedGenericTable
                                                     tableName="upload_supporting_docs"
