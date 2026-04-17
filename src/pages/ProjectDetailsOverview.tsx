@@ -1243,7 +1243,8 @@ const QuickActions = ({
       } else if (selectedApplication === "Direct Purchase") {
         try {
           const timestamp = Date.now();
-          const apiUrl = `/api/resource/Direct%20Purchase?fields=["name","creation","workflow_state","owner","project_no","applicant_name","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          const projectFilter = projectNo || projectName;
+          const apiUrl = `/api/resource/Direct%20Purchase?fields=["name","creation","workflow_state","owner","project_no","project_name","applicant_name","docstatus"]&filters=[["project_name","=","${projectFilter}"]]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
           const fetchResponse = await fetch(apiUrl, {
             method: "GET",
             headers: { Accept: "application/json" },
@@ -1254,13 +1255,18 @@ const QuickActions = ({
           const result = await fetchResponse.json();
           const allItems = result?.data || [];
 
-          data = allItems
-            .filter((item: any) => {
-              const matchesProject =
-                item.project_no === projectName ||
-                item.project_no === projectNo;
-              return matchesProject;
-            })
+          // If server-side filter returned nothing, try fallback with projectName
+          let filteredItems = allItems;
+          if (filteredItems.length === 0 && projectNo && projectNo !== projectName) {
+            const fallbackUrl = `/api/resource/Direct%20Purchase?fields=["name","creation","workflow_state","owner","project_no","project_name","applicant_name","docstatus"]&filters=[["project_name","=","${projectName}"]]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+            const fallbackRes = await fetch(fallbackUrl, { method: "GET", headers: { Accept: "application/json" }, credentials: "include" });
+            if (fallbackRes.ok) {
+              const fallbackResult = await fallbackRes.json();
+              filteredItems = fallbackResult?.data || [];
+            }
+          }
+
+          data = filteredItems
             .map((item: any) => ({
               ...item,
               workflow_state:
