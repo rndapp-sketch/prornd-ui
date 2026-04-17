@@ -26,6 +26,7 @@ import { useFrappeClientScript } from "../hooks/useFrappeClientScript";
 import { useDepositSlipCalculations } from "../hooks/useDepositSlipCalculations";
 import { useFrappeFetchFrom } from "../hooks/useFrappeFetchFrom";
 import { HoSApprovalView } from "./HoSApprovalView";
+import { BudgetHeadName } from "@/components/BudgetHeadName";
 
 // Component to fetch and display attachment for a transaction
 const TransactionAttachment = ({
@@ -230,13 +231,13 @@ const FrappeButton = ({
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
             "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
             variant === "primary" &&
-                "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
+            "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
             variant === "ghost" &&
-                "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
+            "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
             variant === "outline" &&
-                "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
+            "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
             variant === "action" &&
-                "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
+            "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
             className,
         )}
@@ -503,9 +504,9 @@ const DetailRow = ({
         >
             {isCurrency && value != null
                 ? value.toLocaleString("en-IN", {
-                      style: "currency",
-                      currency: "INR",
-                  })
+                    style: "currency",
+                    currency: "INR",
+                })
                 : value || "-"}
         </span>
     </div>
@@ -618,47 +619,47 @@ const ActivityStream = ({
                 )}
                 {activityData?.message && activityData.message.length > 0
                     ? activityData.message.map((item, index) => (
-                          <div
-                              key={`${item.creation}-${index}`}
-                              className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg"
-                          >
-                              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-xs">
-                                  {item.owner?.charAt(0).toUpperCase() || "U"}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                  <div className="flex justify-between items-center mb-1">
-                                      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                                          {item.owner || "Unknown User"}
-                                      </p>
-                                      <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 flex-shrink-0">
-                                          <Clock className="h-3 w-3" />
-                                          {item.creation
-                                              ? new Date(
-                                                    item.creation,
-                                                ).toLocaleString()
-                                              : "N/A"}
-                                      </p>
-                                  </div>
-                                  <div
-                                      className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed"
-                                      dangerouslySetInnerHTML={{
-                                          __html: item.content || "No content",
-                                      }}
-                                  />
-                              </div>
-                          </div>
-                      ))
+                        <div
+                            key={`${item.creation}-${index}`}
+                            className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg"
+                        >
+                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-xs">
+                                {item.owner?.charAt(0).toUpperCase() || "U"}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-center mb-1">
+                                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                                        {item.owner || "Unknown User"}
+                                    </p>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 flex-shrink-0">
+                                        <Clock className="h-3 w-3" />
+                                        {item.creation
+                                            ? new Date(
+                                                item.creation,
+                                            ).toLocaleString()
+                                            : "N/A"}
+                                    </p>
+                                </div>
+                                <div
+                                    className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed"
+                                    dangerouslySetInnerHTML={{
+                                        __html: item.content || "No content",
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    ))
                     : !isActivityLoading && (
-                          <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900">
-                              <MessageSquare className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
-                              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                                  No activity yet.
-                              </p>
-                              <p className="text-xs mt-1">
-                                  Be the first to add a comment.
-                              </p>
-                          </div>
-                      )}
+                        <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900">
+                            <MessageSquare className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
+                            <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                                No activity yet.
+                            </p>
+                            <p className="text-xs mt-1">
+                                Be the first to add a comment.
+                            </p>
+                        </div>
+                    )}
             </div>
         </div>
     );
@@ -689,10 +690,6 @@ const FundReceivedDetails = () => {
     const [childTableMeta, setChildTableMeta] = useState<Record<string, any>>(
         {},
     );
-    const [resolvedHeadNames, setResolvedHeadNames] = useState<
-        Record<string, string>
-    >({});
-
     // Fetch the full document first (always available from URL param)
     const {
         data: docData,
@@ -712,8 +709,8 @@ const FundReceivedDetails = () => {
     } = useFrappeGetCall(
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
         effectivePrjregTitle
-            ? { prjreg_title: effectivePrjregTitle, limit: 200, start: 0 }
-            : null,
+            ? { prjreg_title: effectivePrjregTitle, limit: 0, start: 0 }
+            : undefined,
         effectivePrjregTitle || null,
     );
 
@@ -747,85 +744,22 @@ const FundReceivedDetails = () => {
     const fundData = listData
         ? { ...docData, ...listData }
         : docData
-          ? {
+            ? {
                 ...docData,
                 sanction_ref_no: resolvedSanctionRef,
             }
-          : null;
+            : null;
 
     const isLoading =
         docLoading || (effectivePrjregTitle ? listLoading : false);
     const error = docError || (effectivePrjregTitle ? listError : null);
-
-    // Resolve budget head names
-    React.useEffect(() => {
-        const resolveBudgetHeadNames = async () => {
-            if (!fundData?.received_amt_breakup) return;
-
-            const breakup = fundData.received_amt_breakup;
-            const uniqueHeadIds = [
-                ...new Set(
-                    breakup.map((row: any) => row.account_head).filter(Boolean),
-                ),
-            ];
-
-            const nameMap: Record<string, string> = {};
-
-            for (const headId of uniqueHeadIds) {
-                try {
-                    const response = await fetch(
-                        "/api/method/frappe.client.get_list",
-                        {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            credentials: "include",
-                            body: JSON.stringify({
-                                doctype: "Budget Head",
-                                filters: { name: headId },
-                                fields: ["name", "budget_head", "id"],
-                                limit_page_length: 1,
-                            }),
-                        },
-                    );
-
-                    if (response.ok) {
-                        const result = await response.json();
-                        console.log(
-                            `[FundReceivedDetails] API result for ${headId}:`,
-                            result,
-                        );
-                        const list = result.message;
-                        if (list && list.length > 0) {
-                            const d = list[0];
-                            console.log(
-                                `[FundReceivedDetails] Data for ${headId}:`,
-                                d,
-                                "budget_head:",
-                                d.budget_head,
-                            );
-                            // Use budget_head as the name
-                            nameMap[headId as string] = d.budget_head || d.name;
-                        }
-                    }
-                } catch (err) {
-                    console.error(
-                        `Failed to resolve budget head: ${headId}`,
-                        err,
-                    );
-                }
-            }
-            console.log("[FundReceivedDetails] resolvedHeadNames:", nameMap);
-            setResolvedHeadNames(nameMap);
-        };
-        resolveBudgetHeadNames();
-    }, [fundData]);
 
     const showDepositSlip =
         isRndMiscellaneous &&
         (docData?.workflow_state ===
             "Pending Misc. Staff Approval(Deposit Slip Pending)" ||
             listData?.workflow_state ===
-                "Pending Misc. Staff Approval(Deposit Slip Pending)");
+            "Pending Misc. Staff Approval(Deposit Slip Pending)");
 
     // State for client script
     const [clientScript, setClientScript] = useState<string>("");
@@ -900,7 +834,7 @@ const FundReceivedDetails = () => {
                                                 ...table[rowIndex],
                                                 [targetField.fieldname]:
                                                     data.message[
-                                                        sourceProperty
+                                                    sourceProperty
                                                     ],
                                             };
                                         }
@@ -948,7 +882,18 @@ const FundReceivedDetails = () => {
             console.log("Deposit slip API response for type:", type, result);
             console.log("Response status:", response.status, response.ok);
 
-            if (result?.message) {
+            if (!response.ok) {
+                console.error("API error response:", result?.exc || result);
+            }
+
+            // Normalize: backend may return { fields: [...], ... } or the fields array directly
+            const messagePayload = result?.message;
+            const normalizedPayload =
+                Array.isArray(messagePayload)
+                    ? { fields: messagePayload }
+                    : messagePayload;
+
+            if (normalizedPayload) {
                 const {
                     fields: apiFields,
                     link_options,
@@ -956,7 +901,7 @@ const FundReceivedDetails = () => {
                     client_scripts,
                     child_table_meta,
                     related_data,
-                } = result.message;
+                } = normalizedPayload;
 
                 console.log("apiFields:", apiFields);
                 console.log("Number of fields:", apiFields?.length);
@@ -1223,10 +1168,10 @@ const FundReceivedDetails = () => {
                                             dt === "User"
                                                 ? ["name", "full_name"]
                                                 : dt === "Department_prornd"
-                                                  ? ["name", "dept_name"]
-                                                  : dt === "Budget Head"
-                                                    ? ["*"]
-                                                    : ["name"],
+                                                    ? ["name", "dept_name"]
+                                                    : dt === "Budget Head"
+                                                        ? ["*"]
+                                                        : ["name"],
                                         limit_page_length: 500,
                                     }),
                                 },
@@ -1507,9 +1452,7 @@ const FundReceivedDetails = () => {
                                         className="divide-x divide-gray-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                                     >
                                         <td className="px-3 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                            {resolvedHeadNames[
-                                                item.account_head
-                                            ] || item.account_head}
+                                            <BudgetHeadName value={item.account_head} />
                                         </td>
                                         <td className="px-3 py-2 text-sm text-right font-bold text-[#D97757]">
                                             {item.amount_received?.toLocaleString(
@@ -1528,15 +1471,15 @@ const FundReceivedDetails = () => {
                             )}
                             {(!received_amt_breakup ||
                                 received_amt_breakup.length === 0) && (
-                                <tr>
-                                    <td
-                                        colSpan={3}
-                                        className="px-3 py-6 text-center text-zinc-500 dark:text-zinc-400"
-                                    >
-                                        No breakup details
-                                    </td>
-                                </tr>
-                            )}
+                                    <tr>
+                                        <td
+                                            colSpan={3}
+                                            className="px-3 py-6 text-center text-zinc-500 dark:text-zinc-400"
+                                        >
+                                            No breakup details
+                                        </td>
+                                    </tr>
+                                )}
                         </tbody>
                     </table>
                 </div>
@@ -1600,15 +1543,15 @@ const FundReceivedDetails = () => {
                             )}
                             {(!fund_transactions ||
                                 fund_transactions.length === 0) && (
-                                <tr>
-                                    <td
-                                        colSpan={4}
-                                        className="px-3 py-6 text-center text-zinc-500 dark:text-zinc-400"
-                                    >
-                                        No transactions
-                                    </td>
-                                </tr>
-                            )}
+                                    <tr>
+                                        <td
+                                            colSpan={4}
+                                            className="px-3 py-6 text-center text-zinc-500 dark:text-zinc-400"
+                                        >
+                                            No transactions
+                                        </td>
+                                    </tr>
+                                )}
                         </tbody>
                     </table>
                 </div>
@@ -1775,7 +1718,7 @@ const FundReceivedDetails = () => {
                                                     !!f.hidden ||
                                                     !evaluateDependsOn(
                                                         f.depends_on ||
-                                                            f.depends_on_eval,
+                                                        f.depends_on_eval,
                                                         formData,
                                                     ),
                                             }))}
@@ -1792,7 +1735,7 @@ const FundReceivedDetails = () => {
                                                     const isVisible =
                                                         evaluateDependsOn(
                                                             field.depends_on ||
-                                                                field.depends_on_eval,
+                                                            field.depends_on_eval,
                                                             formData,
                                                         );
 
@@ -1833,7 +1776,7 @@ const FundReceivedDetails = () => {
                                                             currentSection &&
                                                             currentSection
                                                                 .fields.length >
-                                                                0
+                                                            0
                                                         ) {
                                                             processed.push(
                                                                 currentSection,
@@ -1851,8 +1794,8 @@ const FundReceivedDetails = () => {
                                                                 null;
                                                             const meta =
                                                                 childTableMeta[
-                                                                    field
-                                                                        .fieldname
+                                                                field
+                                                                    .fieldname
                                                                 ];
 
                                                             if (
@@ -1896,10 +1839,10 @@ const FundReceivedDetails = () => {
                                                                                 ) {
                                                                                     opts =
                                                                                         linkOptions[
-                                                                                            "Budget Head"
+                                                                                        "Budget Head"
                                                                                         ] ||
                                                                                         linkOptions[
-                                                                                            "budget_head"
+                                                                                        "budget_head"
                                                                                         ] ||
                                                                                         [];
                                                                                     if (
@@ -1916,9 +1859,9 @@ const FundReceivedDetails = () => {
                                                                                 ) {
                                                                                     if (
                                                                                         f.fieldtype ===
-                                                                                            "Select" &&
+                                                                                        "Select" &&
                                                                                         typeof f.options ===
-                                                                                            "string"
+                                                                                        "string"
                                                                                     ) {
                                                                                         opts =
                                                                                             f.options
@@ -1945,12 +1888,12 @@ const FundReceivedDetails = () => {
                                                                                     ) {
                                                                                         opts =
                                                                                             linkOptions[
-                                                                                                f
-                                                                                                    .fieldname
+                                                                                            f
+                                                                                                .fieldname
                                                                                             ] ||
                                                                                             linkOptions[
-                                                                                                f
-                                                                                                    .options
+                                                                                            f
+                                                                                                .options
                                                                                             ] ||
                                                                                             [];
                                                                                     }
@@ -1983,9 +1926,9 @@ const FundReceivedDetails = () => {
                                                                     ) => {
                                                                         if (
                                                                             f.default !==
-                                                                                null &&
+                                                                            null &&
                                                                             f.default !==
-                                                                                undefined
+                                                                            undefined
                                                                         ) {
                                                                             newRowTemplate[
                                                                                 f.fieldname
@@ -1993,11 +1936,11 @@ const FundReceivedDetails = () => {
                                                                                 f.default;
                                                                         } else if (
                                                                             f.fieldtype ===
-                                                                                "Currency" ||
+                                                                            "Currency" ||
                                                                             f.fieldtype ===
-                                                                                "Float" ||
+                                                                            "Float" ||
                                                                             f.fieldtype ===
-                                                                                "Int"
+                                                                            "Int"
                                                                         ) {
                                                                             newRowTemplate[
                                                                                 f.fieldname
@@ -2044,9 +1987,9 @@ const FundReceivedDetails = () => {
                                                         }
                                                     } else if (
                                                         field.fieldtype ===
-                                                            "Column Break" ||
+                                                        "Column Break" ||
                                                         field.fieldtype ===
-                                                            "ColumnBreak"
+                                                        "ColumnBreak"
                                                     ) {
                                                         // Explicitly ignore Column Break when adding to fields list
                                                         // (In a grid layout we might use it, but here we just want to hide it from being a text input)
