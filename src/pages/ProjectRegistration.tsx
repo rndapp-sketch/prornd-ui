@@ -3171,19 +3171,19 @@ const ProjectRegistration: React.FC = () => {
                                                     tableName="upload_supporting_docs"
                                                     columns={[
                                                         {
-                                                            key: "doc_description",
+                                                            key: "file_description",
                                                             label: "Document Description",
                                                             type: "text",
                                                         },
                                                         {
-                                                            key: "supporting_file",
+                                                            key: "project_file",
                                                             label: "Upload File",
                                                             type: "file",
                                                         },
                                                     ]}
                                                     newRow={{
-                                                        doc_description: "",
-                                                        supporting_file: null,
+                                                        file_description: "",
+                                                        project_file: null,
                                                     }}
                                                     tableData={formData.upload_supporting_docs}
                                                     onRowChange={
