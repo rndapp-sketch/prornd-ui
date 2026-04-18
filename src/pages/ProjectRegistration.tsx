@@ -576,7 +576,9 @@ const MemoizedCollaboratorTable = memo(
                                             }
                                             options={piOptions || []}
                                             searchByLabel
-                                            placeholder="Enter Name"
+                                            strictMatch
+                                            showAllOnFocus
+                                            placeholder="Select Name"
                                         />
                                     </td>
                                     <td className="px-4 py-2.5">
@@ -922,7 +924,7 @@ const ProjectRegistration: React.FC = () => {
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     const [showPreviewAfterSave, setShowPreviewAfterSave] = useState(false);
-    
+
     // Comment modal state for final submission
     const [showSubmitCommentModal, setShowSubmitCommentModal] = useState(false);
     const [isFinalSubmitting, setIsFinalSubmitting] = useState(false);
@@ -3189,22 +3191,22 @@ const ProjectRegistration: React.FC = () => {
                                                     onRowChange={
                                                         isEditMode
                                                             ? handleTableRowChange
-                                                            : () => {}
+                                                            : () => { }
                                                     }
                                                     onFileChange={
                                                         isEditMode
                                                             ? handleTableFileChange
-                                                            : () => {}
+                                                            : () => { }
                                                     }
                                                     onAddRow={
                                                         isEditMode
                                                             ? addTableRow
-                                                            : () => {}
+                                                            : () => { }
                                                     }
                                                     onDeleteRow={
                                                         isEditMode
                                                             ? deleteTableRow
-                                                            : () => {}
+                                                            : () => { }
                                                     }
                                                 />
                                             </div>
@@ -3369,7 +3371,7 @@ const ProjectRegistration: React.FC = () => {
                                                         "Yes" && (
                                                             <MemoizedCollaboratorTable
                                                                 tableName="additional_pi_table"
-                                                                title="Details of Additional PI(s)"
+                                                                title="Details of Additional PI(s) (Only Internal PI(s))"
                                                                 tableData={
                                                                     formData.additional_pi_table
                                                                 }
@@ -3406,7 +3408,7 @@ const ProjectRegistration: React.FC = () => {
                                                     {formData.has_co_pi === "Yes" && (
                                                         <MemoizedCollaboratorTable
                                                             tableName="co_investigator_table"
-                                                            title="Details of Co-PI(s)"
+                                                            title="Details of Co-PI(s) (Only Internal Co-PI(s))"
                                                             tableData={
                                                                 formData.co_investigator_table
                                                             }
@@ -3646,7 +3648,7 @@ const ProjectRegistration: React.FC = () => {
                                                                     ? handleOpenQuickEntry
                                                                     : undefined
                                                             }
-                                                            // EDITED BY MKY | 2026-04-14 14:52 IST - END
+                                                        // EDITED BY MKY | 2026-04-14 14:52 IST - END
                                                         />
                                                     )}
                                             </div>
@@ -4089,7 +4091,7 @@ const ProjectRegistration: React.FC = () => {
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
-                            
+
                             {/* Body */}
                             <div className="flex-1 overflow-y-auto w-full relative bg-zinc-50 dark:bg-zinc-950 project-preview-wrapper">
                                 <style>
@@ -4099,11 +4101,11 @@ const ProjectRegistration: React.FC = () => {
                                     }
                                     `}
                                 </style>
-                                <div className="w-full min-h-full"> 
+                                <div className="w-full min-h-full">
                                     <ProjectDetailsView projectName={docname} backUrl="" backLabel="" />
                                 </div>
                             </div>
-                            
+
                             {/* Footer */}
                             <div className="flex justify-end gap-3 px-6 py-4 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
                                 <button
@@ -4195,7 +4197,7 @@ const ProjectRegistration: React.FC = () => {
                                         const commentEl = document.getElementById("finalSubmitComment") as HTMLTextAreaElement;
                                         const comment = commentEl ? commentEl.value : "";
                                         if (!comment.trim()) return;
-                                        
+
                                         setIsFinalSubmitting(true);
                                         try {
                                             await submitProjectRegistration({ docname: docname, comment: comment });
