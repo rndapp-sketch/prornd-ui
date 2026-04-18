@@ -21,6 +21,8 @@ interface AutocompleteEmailProps extends Omit<React.InputHTMLAttributes<HTMLInpu
   displayOnlyLabel?: boolean;
   /** Optional message shown at the bottom of the dropdown list */
   footerMessage?: string;
+  /** Disallow free-form input — clears field on blur if no matching option was selected */
+  strictMatch?: boolean;
 }
 
 export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
@@ -33,6 +35,7 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   showAllOnFocus = false,
   displayOnlyLabel = false,
   footerMessage,
+  strictMatch = false,
   ...rest
 }) => {
   const [inputValue, setInputValue] = useState(value);
@@ -99,12 +102,18 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
     );
   }, [debouncedValue, options, searchByLabel, showAllOnFocus]);
 
-  const dropdown = isOpen && (filteredOptions.length > 0 || footerMessage) ? (
+  const showNoResults = strictMatch && isOpen && debouncedValue.length > 0 && filteredOptions.length === 0;
+
+  const dropdown = isOpen && (filteredOptions.length > 0 || footerMessage || showNoResults) ? (
     <ul
       style={dropdownStyle}
       className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl max-h-60 overflow-y-auto min-w-[200px]"
     >
-      {filteredOptions.map((opt, index) => (
+      {showNoResults ? (
+        <li className="px-4 py-2.5 text-sm text-zinc-400 dark:text-zinc-500 italic select-none">
+          No matching user found
+        </li>
+      ) : filteredOptions.map((opt, index) => (
         <li
           key={index}
           className="px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer text-sm text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
@@ -144,6 +153,18 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
         }}
         onFocus={() => {
           setIsOpen(true);
+        }}
+        onBlur={() => {
+          if (strictMatch) {
+            const matched = searchByLabel
+              ? options.find(opt => opt.label.toLowerCase() === inputValue.toLowerCase())
+              : options.find(opt => opt.value.toLowerCase() === inputValue.toLowerCase());
+            if (!matched) {
+              setInputValue('');
+              onChange('');
+            }
+          }
+          setIsOpen(false);
         }}
         autoComplete="off"
         {...rest}
