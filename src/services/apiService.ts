@@ -159,6 +159,8 @@ export const repairReplacementAPI = {
 export const universalRegistrationAPI = {
     getFields: `${API_BASE}.universal_registration__.universal_registration__.get_universal_registration___fields`,
     save: `${API_BASE}.universal_registration__.universal_registration__.save_universal_registration___data`,
+    checkDuplicates: `${API_BASE}.universal_registration__.universal_registration__.check_duplicate_registration`,
+    checkEmailAvailability: `${API_BASE}.universal_registration__.universal_registration__.check_email_availability`,
 };
 
 // Disbursal of Consultancy API endpoints
@@ -176,7 +178,7 @@ export const disbursalOfConsultancyAPI = {
 export const disbursalOfHonorariumAPI = {
     getFields: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_fields`,
     save: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.save_disbursal_of_honorarium_data`,
-submit: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.submit_disbursal_of_honorarium`,
+    submit: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.submit_disbursal_of_honorarium`,
     getWorkflowActions: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_workflow_actions`,
     performAction: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.perform_disbursal_of_honorarium_action`,
     getByProject: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_by_project`,
