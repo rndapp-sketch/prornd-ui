@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from "react";
 import { AppSidebar } from "../components/RndSidebar";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetFooter,
+} from "@/components/ui/sheet";
+import { CountrySelect } from "@/components/CountrySelect";
 import ProjectDetailsView from "./ProjectDetails";
 
 import {
@@ -1039,7 +1047,7 @@ const ProjectRegistration: React.FC = () => {
     const { call: fetchPiDetails } = useFrappePostCall(
         commonAPI.getUserDetailsByEmail,
     );
-    const { data: allFundingAgencies } = useFrappeGetDocList("fundingagency_", {
+    const { data: allFundingAgencies, mutate: mutateFundingAgencies } = useFrappeGetDocList("fundingagency_", {
         fields: [
             "name",
             "funding_agency_name",
@@ -1066,6 +1074,87 @@ const ProjectRegistration: React.FC = () => {
     useEffect(() => {
         allFundingAgenciesRef.current = allFundingAgencies;
     }, [allFundingAgencies]);
+
+    // Funding Agency Sheet state (must be after allFundingAgencies)
+    const [showFundingAgencySheet, setShowFundingAgencySheet] = useState(false);
+    const [newAgencyData, setNewAgencyData] = useState<Record<string, string>>({ fundingagency_country: "India" });
+    const [isSavingAgency, setIsSavingAgency] = useState(false);
+    const { call: insertDoc } = useFrappePostCall("frappe.client.insert");
+
+    const duplicateAgency = useMemo(() => {
+        const typedName = newAgencyData.funding_agency_name?.trim().toLowerCase();
+        const typedInitials = newAgencyData.funding_agency_initials?.trim().toLowerCase();
+        if (!allFundingAgencies) return null;
+        return allFundingAgencies.find((a: any) => {
+            const existingName = a.funding_agency_name?.trim().toLowerCase() ?? "";
+            const existingInitials = a.funding_agency_initials?.trim().toLowerCase() ?? "";
+            if (!existingName) return false;
+            const existingPrefix = existingName.split(" - ")[0].trim();
+            if (typedName && typedName.length >= 2) {
+                if (existingName === typedName || existingPrefix === typedName || existingInitials === typedName) return true;
+                if (typedName.length >= 3 && existingName.includes(typedName)) return true;
+            }
+            if (typedInitials && typedInitials.length >= 1 && existingInitials && existingInitials === typedInitials) return true;
+            return false;
+        }) || null;
+    }, [newAgencyData.funding_agency_name, newAgencyData.funding_agency_initials, allFundingAgencies]);
+
+    const handleAgencyFieldChange = (key: string, value: string) => {
+        setNewAgencyData(prev => {
+            const next = { ...prev, [key]: value };
+            if (key === "funding_agency_type_1") {
+                if (value !== "Others") next.specify_other_funding_agency_type = "";
+                if (value !== "Government") { next.ministry_funding_agency = ""; next.specify_other_ministry = ""; }
+            }
+            if (key === "ministry_funding_agency" && value !== "Others") {
+                next.specify_other_ministry = "";
+            }
+            if (key === "origin_of_funding_agency") {
+                if (value === "International") {
+                    next.gstin_of_funding_agency = "";
+                    next.fundingagency_state = "";
+                    next.fundingagency_country = "";
+                }
+                if (value === "National") {
+                    next.fundingagency_country = "India";
+                }
+            }
+            return next;
+        });
+    };
+
+    const handleSaveFundingAgency = async () => {
+        const d = newAgencyData;
+        const errors: string[] = [];
+        if (!d.funding_agency_name?.trim()) errors.push("Funding Agency Name is required.");
+        if (d.origin_of_funding_agency === "National") {
+            if (!d.gstin_of_funding_agency?.trim()) errors.push("GSTIN is required for National agencies.");
+            if (!d.fundingagency_state?.trim()) errors.push("State is required for National agencies.");
+        }
+        if (d.funding_agency_type_1 === "Others" && !d.specify_other_funding_agency_type?.trim()) {
+            errors.push("Please specify the funding agency type.");
+        }
+        if (d.funding_agency_type_1 === "Government" && d.origin_of_funding_agency === "National" && !d.ministry_funding_agency?.trim()) {
+            errors.push("Ministry / Department is required.");
+        }
+        if (d.ministry_funding_agency === "Others" && !d.specify_other_ministry?.trim()) {
+            errors.push("Please specify the ministry.");
+        }
+        if (errors.length) { alert(errors.join("\n")); return; }
+        if (duplicateAgency) return;
+        setIsSavingAgency(true);
+        try {
+            await insertDoc({ doc: { doctype: "fundingagency_", ...newAgencyData } });
+            setShowFundingAgencySheet(false);
+            setNewAgencyData({ fundingagency_country: "India" });
+            mutateFundingAgencies();
+        } catch (err: any) {
+            alert("Failed to save: " + (err?.message || "Unknown error"));
+        } finally {
+            setIsSavingAgency(false);
+        }
+    };
+
     const { call: fetchBudgetHeads, result: budgetHeadsResult } =
         useFrappePostCall(
             "rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head",
@@ -1406,6 +1495,7 @@ const ProjectRegistration: React.FC = () => {
                             fund_agen_initials: agency.funding_agency_initials || "",
                             funding_agency_type: agency.funding_agency_type_1 || "",
                             origin_of_funding_agency: agency.origin_of_funding_agency || "",
+                            funding_agency_ministry: agency.ministry_funding_agency || "",
                             address_country: agency.fundingagency_country || "",
                             address_state: agency.fundingagency_state || "",
                             address_street_village_locality: agency.fundingagency_address || "",
@@ -2375,6 +2465,7 @@ const ProjectRegistration: React.FC = () => {
             fund_agen_initials: agency.funding_agency_initials || "",
             funding_agency_type: agency.funding_agency_type_1 || "",
             origin_of_funding_agency: agency.origin_of_funding_agency || "",
+            funding_agency_ministry: agency.ministry_funding_agency || "",
             address_country: agency.fundingagency_country || "",
             address_state: agency.fundingagency_state || "",
             address_street_village_locality: agency.fundingagency_address || "",
@@ -2902,19 +2993,19 @@ const ProjectRegistration: React.FC = () => {
                                                     <div className="space-y-8">
                                                         {renderField("involves_international_travel")}
                                                         <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                            {/* <div className="flex items-center justify-between flex-wrap gap-4">
-                                                        <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                window.open(`${import.meta.env.VITE_BASE_PATH || ''}/new-funding-agency`, '_blank');
-                                                            }}
-                                                            className="text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md shadow-sm transition-colors uppercase tracking-wider"
-                                                        >
-                                                            Add Funding Agency
-                                                        </button>
-                                                    </div> */}
+                                                            <div className="flex items-center justify-between flex-wrap gap-4">
+                                                                <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        setShowFundingAgencySheet(true);
+                                                                    }}
+                                                                    className="text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md shadow-sm transition-colors uppercase tracking-wider"
+                                                                >
+                                                                    Add Funding Agency
+                                                                </button>
+                                                            </div>
                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                                 {renderFields(
                                                                     tabFieldGroups.fundingDetails,
@@ -3118,19 +3209,19 @@ const ProjectRegistration: React.FC = () => {
                                                                 )}
                                                         </div>
                                                         <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                            {/* <div className="flex items-center justify-between flex-wrap gap-4">
-                                                        <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                window.open(`${import.meta.env.VITE_BASE_PATH || ''}/new-funding-agency`, '_blank');
-                                                            }}
-                                                            className="text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md shadow-sm transition-colors uppercase tracking-wider"
-                                                        >
-                                                            Add Funding Agency
-                                                        </button>
-                                                    </div> */}
+                                                            <div className="flex items-center justify-between flex-wrap gap-4">
+                                                                <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        setShowFundingAgencySheet(true);
+                                                                    }}
+                                                                    className="text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md shadow-sm transition-colors uppercase tracking-wider"
+                                                                >
+                                                                    Add Funding Agency
+                                                                </button>
+                                                            </div>
                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                                 {renderFields(
                                                                     tabFieldGroups.fundingDetails,
@@ -4219,6 +4310,182 @@ const ProjectRegistration: React.FC = () => {
                     </div>
                 )}
             </main>
+
+            {/* Add Funding Agency Sheet */}
+            <Sheet open={showFundingAgencySheet} onOpenChange={setShowFundingAgencySheet}>
+                <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+                    <SheetHeader className="pb-4 border-b border-zinc-200 dark:border-zinc-800">
+                        <SheetTitle>Register Funding Agency</SheetTitle>
+                    </SheetHeader>
+                    <div className="flex flex-col gap-4 p-6">
+                        {/* Funding Agency Name */}
+                        {(() => {
+                            const typedName = newAgencyData.funding_agency_name?.trim().toLowerCase() ?? "";
+                            const existingName = duplicateAgency?.funding_agency_name?.trim().toLowerCase() ?? "";
+                            const existingPrefix = existingName.split(" - ")[0].trim();
+                            const existingInitials = duplicateAgency?.funding_agency_initials?.trim().toLowerCase() ?? "";
+                            const hasDupe = !!duplicateAgency && (existingName === typedName || existingPrefix === typedName || existingInitials === typedName || (typedName.length >= 3 && existingName.includes(typedName)));
+                            return (
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Funding Agency Name <span className="text-red-500">*</span></label>
+                                    <input type="text" value={newAgencyData.funding_agency_name || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_name", e.target.value)}
+                                        className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors ${hasDupe ? "border-red-400 dark:border-red-500 focus:ring-red-300" : "border-zinc-300 dark:border-zinc-700 focus:ring-primary/30"}`} />
+                                    {hasDupe && <p className="text-xs text-red-500 font-medium">Duplicate: "{duplicateAgency!.funding_agency_name}" already exists.</p>}
+                                </div>
+                            );
+                        })()}
+
+                        {/* Initials */}
+                        {(() => {
+                            const typedInitials = newAgencyData.funding_agency_initials?.trim().toLowerCase() ?? "";
+                            const existingInitials = duplicateAgency?.funding_agency_initials?.trim().toLowerCase() ?? "";
+                            const hasDupe = !!duplicateAgency && typedInitials.length >= 1 && existingInitials === typedInitials;
+                            return (
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Initials / Abbreviation</label>
+                                    <input type="text" value={newAgencyData.funding_agency_initials || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_initials", e.target.value)}
+                                        className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors ${hasDupe ? "border-red-400 dark:border-red-500 focus:ring-red-300" : "border-zinc-300 dark:border-zinc-700 focus:ring-primary/30"}`} />
+                                    {hasDupe && <p className="text-xs text-red-500 font-medium">Duplicate: "{duplicateAgency!.funding_agency_name}" already exists.</p>}
+                                </div>
+                            );
+                        })()}
+
+                        {/* Origin */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Origin of Funding Agency</label>
+                            <select value={newAgencyData.origin_of_funding_agency || ""} onChange={(e) => handleAgencyFieldChange("origin_of_funding_agency", e.target.value)}
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+                                <option value="">— Select —</option>
+                                <option value="National">National</option>
+                                <option value="International">International</option>
+                            </select>
+                        </div>
+
+                        {/* Funding Agency Type */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Funding Agency Type</label>
+                            <select value={newAgencyData.funding_agency_type_1 || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_type_1", e.target.value)}
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+                                <option value="">— Select —</option>
+                                <option value="Government">Government</option>
+                                <option value="Industry">Industry</option>
+                                <option value="International">International</option>
+                                <option value="Others">Others</option>
+                            </select>
+                        </div>
+
+                        {/* Specify other type */}
+                        {newAgencyData.funding_agency_type_1 === "Others" && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Specify Type <span className="text-red-500">*</span></label>
+                                <input type="text" value={newAgencyData.specify_other_funding_agency_type || ""} onChange={(e) => handleAgencyFieldChange("specify_other_funding_agency_type", e.target.value)}
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                            </div>
+                        )}
+
+                        {/* Ministry — only when Government + National */}
+                        {newAgencyData.funding_agency_type_1 === "Government" && newAgencyData.origin_of_funding_agency === "National" && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Ministry / Department <span className="text-red-500">*</span></label>
+                                <select value={newAgencyData.ministry_funding_agency || ""} onChange={(e) => handleAgencyFieldChange("ministry_funding_agency", e.target.value)}
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+                                    <option value="">— Select —</option>
+                                    <option value="Defence">Defence</option>
+                                    <option value="Education">Education</option>
+                                    <option value="Water">Water</option>
+                                    <option value="Health">Health</option>
+                                    <option value="Others">Others</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Specify other ministry */}
+                        {newAgencyData.ministry_funding_agency === "Others" && newAgencyData.funding_agency_type_1 === "Government" && newAgencyData.origin_of_funding_agency === "National" && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Specify Ministry <span className="text-red-500">*</span></label>
+                                <input type="text" value={newAgencyData.specify_other_ministry || ""} onChange={(e) => handleAgencyFieldChange("specify_other_ministry", e.target.value)}
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                            </div>
+                        )}
+
+                        {/* GSTIN — only when National */}
+                        {newAgencyData.origin_of_funding_agency === "National" && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">GSTIN <span className="text-red-500">*</span></label>
+                                <input type="text" value={newAgencyData.gstin_of_funding_agency || ""} onChange={(e) => handleAgencyFieldChange("gstin_of_funding_agency", e.target.value)}
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                            </div>
+                        )}
+
+                        {/* Address */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Address</label>
+                            <textarea rows={2} value={newAgencyData.fundingagency_address || ""} onChange={(e) => handleAgencyFieldChange("fundingagency_address", e.target.value)}
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 resize-none" />
+                        </div>
+
+                        {/* Country */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Country</label>
+                            <CountrySelect value={newAgencyData.fundingagency_country || ""} onChange={(val) => handleAgencyFieldChange("fundingagency_country", val)} />
+                        </div>
+
+                        {/* State — only when National */}
+                        {newAgencyData.origin_of_funding_agency === "National" && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">State <span className="text-red-500">*</span></label>
+                                <select value={newAgencyData.fundingagency_state || ""} onChange={(e) => handleAgencyFieldChange("fundingagency_state", e.target.value)}
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+                                    <option value="">— Select State —</option>
+                                    {["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Andaman and Nicobar Islands","Chandigarh","Dadra and Nagar Haveli and Daman and Diu","Delhi","Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry"].map(s => (
+                                        <option key={s} value={s}>{s}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Postal Code */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Postal Code</label>
+                            <input type="text" value={newAgencyData.fundingagency_postalcode || ""} onChange={(e) => handleAgencyFieldChange("fundingagency_postalcode", e.target.value)}
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                        </div>
+
+                        {/* Email */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Email</label>
+                            <input type="email" value={newAgencyData.funding_agency_email || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_email", e.target.value)}
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                        </div>
+
+                        {/* Contact */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Contact No.</label>
+                            <input type="text" value={newAgencyData.funding_agency_contact_no || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_contact_no", e.target.value)}
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                        </div>
+
+                    </div>
+                    <SheetFooter>
+                        <button
+                            type="button"
+                            onClick={() => { setShowFundingAgencySheet(false); setNewAgencyData({ fundingagency_country: "India" }); }}
+                            className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                            disabled={isSavingAgency}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSaveFundingAgency}
+                            className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                            disabled={isSavingAgency || !!duplicateAgency}
+                        >
+                            {isSavingAgency ? "Saving..." : "Save"}
+                        </button>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
         </div>
     );
 };

@@ -84,6 +84,7 @@ import SelectionCommitteeReportForm from './pages/application/SelectionCommittee
 import DepartmentProjects from './pages/DepartmentProjects.tsx';
 import AdminLogin from './pages/AdminLogin.tsx';
 import NIQForm from './pages/application/NIQForm.tsx';
+import Profile from './pages/Profile.tsx';
 
 const router = createBrowserRouter(
   [
@@ -689,6 +690,14 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <UniversalRegistrationForm isFundingAgency={true} />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "profile",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <Profile />
             </AuthRouteWrapper>
           ),
         },
