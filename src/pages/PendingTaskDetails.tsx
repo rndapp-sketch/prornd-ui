@@ -20,11 +20,13 @@ import {
     PencilIcon,
     SaveIcon,
     XIcon,
+    FolderOpenIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 // import { AppSidebar } from '@/components/RndSidebar';
 import { FrappeButton } from "@/components/ui/neo-brutalism";
 import ProjectDetailsView from "./ProjectDetails";
+import { DOCTYPE_PR_LINKS, type PRLinkStrategy } from "@/utils/projectTypeMapping";
 import TemporaryAdvanceDetailsView from "./TemporaryAdvanceDetailsView";
 import {
     DynamicFormRenderer,
@@ -511,6 +513,65 @@ const RecruitmentAdhocContractualWorkflowActions = ({
         </>
     );
 };
+
+// ─── Project Preview Modal ────────────────────────────────────────────────────
+
+/**
+ * Returns the PR document `name` (auto-id) from a record, using the
+ * DOCTYPE_PR_LINKS mapping.  Returns null when only a project_no is available
+ * (caller should do an async lookup in that case).
+ */
+function extractPRName(doctype: string, data: Record<string, any>): string | null {
+    const mapping = DOCTYPE_PR_LINKS[doctype];
+    if (!mapping) return null;
+
+    const tryStrategy = (s: PRLinkStrategy): string | null => {
+        if (s.type === 'self')        return (data['name'] as string) || null;
+        if (s.type === 'pr_name')     return (data[s.field] as string) || null;
+        if (s.type === 'direct_type') return null; // value is project_type, not PR name
+        if (s.type === 'pr_project_no') return null; // only has project_no, needs async lookup
+        return null;
+    };
+
+    return tryStrategy(mapping.primary) ?? (mapping.fallback ? tryStrategy(mapping.fallback) : null);
+}
+
+const ProjectPreviewModal = ({
+    projectName,
+    onClose,
+}: {
+    projectName: string;
+    onClose: () => void;
+}) => (
+    <div
+        className="fixed inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-sm"
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+        <div className="relative flex-1 mx-auto my-4 w-full max-w-7xl flex flex-col bg-claude-bg dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden">
+            {/* Close bar */}
+            <div className="flex items-center justify-between px-5 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+                <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                    <FolderOpenIcon className="w-4 h-4 text-[#D97757]" />
+                    Project Registration Preview
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-orange-50 dark:bg-zinc-800 text-[#D97757] font-mono border border-orange-100 dark:border-zinc-700">
+                        {projectName}
+                    </span>
+                </span>
+                <button
+                    onClick={onClose}
+                    className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                    aria-label="Close project preview"
+                >
+                    <XIcon className="w-5 h-5" />
+                </button>
+            </div>
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto">
+                <ProjectDetailsView projectName={projectName} />
+            </div>
+        </div>
+    </div>
+);
 
 // Helper to check if a value is a file path
 const isFilePath = (value: string) => {
@@ -1299,6 +1360,10 @@ const PendingTaskDetails: React.FC = () => {
     const [editChairpersonName, setEditChairpersonName] = useState("");
     const [isSavingChairperson, setIsSavingChairperson] = useState(false);
 
+    // Project preview modal state
+    const [prPreviewName, setPrPreviewName] = useState<string | null>(null);
+    const [prPreviewLoading, setPrPreviewLoading] = useState(false);
+
     // Direct Purchase tab state — restore from sessionStorage after reload
     const [dpActiveTab, setDpActiveTab] = useState<DPTabId>(() => {
         if (name) {
@@ -2000,7 +2065,46 @@ const PendingTaskDetails: React.FC = () => {
                                 )}
                             </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
+                            {/* View linked Project Registration */}
+                            {doctype !== "Project Registration" && data && (
+                                <button
+                                    onClick={async () => {
+                                        const directName = extractPRName(doctype, data);
+                                        if (directName) {
+                                            setPrPreviewName(directName);
+                                            return;
+                                        }
+                                        // Fallback: lookup PR by project_no stored in the record
+                                        const mapping = DOCTYPE_PR_LINKS[doctype];
+                                        const noField = mapping?.primary?.type === 'pr_project_no'
+                                            ? mapping.primary.field
+                                            : mapping?.fallback?.type === 'pr_project_no'
+                                                ? (mapping.fallback as any).field
+                                                : null;
+                                        const projectNo = noField ? data[noField] : null;
+                                        if (!projectNo) return;
+                                        setPrPreviewLoading(true);
+                                        try {
+                                            const params = new URLSearchParams({
+                                                filters: JSON.stringify([['project_no', '=', projectNo]]),
+                                                fields: JSON.stringify(['name']),
+                                                limit: '1',
+                                            });
+                                            const res = await fetch(`/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
+                                            const prName = (res?.data ?? res?.message ?? [])[0]?.name;
+                                            if (prName) setPrPreviewName(prName);
+                                        } finally {
+                                            setPrPreviewLoading(false);
+                                        }
+                                    }}
+                                    disabled={prPreviewLoading}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-[#D97757] hover:text-[#D97757] transition-colors disabled:opacity-60"
+                                >
+                                    <FolderOpenIcon className="w-4 h-4" />
+                                    {prPreviewLoading ? 'Loading…' : 'View Project'}
+                                </button>
+                            )}
                             {doctype === "Reimbursement" && name && (
                                 <ReimbursementWorkflowActions
                                     docname={name}
@@ -2575,7 +2679,6 @@ const PendingTaskDetails: React.FC = () => {
                                 )}
                             {/* Setup for Recruitment Adhoc Contractual */}
                             {doctype === "Recruitment Adhoc Contractual" &&
-                                isRnDStaff &&
                                 (data?.upfa_project_code || data?.project_code) && (
                                     <BudgetActionsSidebar
                                         projectName={
@@ -2601,6 +2704,14 @@ const PendingTaskDetails: React.FC = () => {
                     </FrappeButton>
                 </div>
             </main>
+
+            {/* Project Registration Preview Modal */}
+            {prPreviewName && (
+                <ProjectPreviewModal
+                    projectName={prPreviewName}
+                    onClose={() => setPrPreviewName(null)}
+                />
+            )}
         </div>
     );
 };
