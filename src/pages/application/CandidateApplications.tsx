@@ -75,6 +75,109 @@ const CandidateApplications: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<string>("all");
 
+    // Track which candidates have already been marked as "Appeared" in the SCR
+    const [appearedCandidateIds, setAppearedCandidateIds] = useState<Set<string>>(new Set());
+    const [isMarkingAppeared, setIsMarkingAppeared] = useState<string | null>(null); // application_id currently being marked
+
+    // --- Fetch existing SCR to detect already-appeared candidates ---
+    const fetchAppearedCandidates = useCallback(async () => {
+        if (!refNum) return;
+        try {
+            // Query Frappe for Selection Committee Report docs with this interview_id
+            const listRes = await fetch(
+                `/api/method/frappe.client.get_list`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Accept: "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        doctype: "Selection Committee Report",
+                        filters: { interview_id: refNum },
+                        fields: ["name"],
+                        limit_page_length: 1,
+                    }),
+                }
+            );
+            if (!listRes.ok) return;
+            const listData = await listRes.json();
+            const scrList = listData?.message || [];
+            if (scrList.length === 0) return;
+
+            const scrName = scrList[0].name;
+
+            // Fetch the full SCR document to get the candidates JSON
+            const docRes = await fetch(
+                `/api/method/frappe.client.get`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Accept: "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        doctype: "Selection Committee Report",
+                        name: scrName,
+                    }),
+                }
+            );
+            if (!docRes.ok) return;
+            const docData = await docRes.json();
+            const scrDoc = docData?.message;
+            if (!scrDoc) return;
+
+            // Parse the candidates JSON field
+            let candidatesList: any[] = [];
+            try {
+                if (scrDoc.candidates) {
+                    candidatesList = typeof scrDoc.candidates === "string"
+                        ? JSON.parse(scrDoc.candidates)
+                        : scrDoc.candidates;
+                }
+            } catch {
+                candidatesList = [];
+            }
+
+            if (!Array.isArray(candidatesList)) return;
+
+            // Auto-clean stale entries (those without application_id and email)
+            const validCandidates = candidatesList.filter(
+                (c: any) => c.application_id && c.email
+            );
+
+            // If stale entries were removed, save back the cleaned list
+            if (validCandidates.length !== candidatesList.length) {
+                try {
+                    await fetch(
+                        `/api/method/frappe.client.set_value`,
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", Accept: "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({
+                                doctype: "Selection Committee Report",
+                                name: scrName,
+                                fieldname: "candidates",
+                                value: JSON.stringify(validCandidates),
+                            }),
+                        }
+                    );
+                    console.log(`Cleaned ${candidatesList.length - validCandidates.length} stale candidate entries from SCR`);
+                } catch (cleanErr) {
+                    console.error("Failed to clean stale candidates:", cleanErr);
+                }
+            }
+
+            // Build set of appeared candidate application_ids
+            const appearedIds = new Set<string>();
+            validCandidates.forEach((c: any) => {
+                if (c.application_id) {
+                    appearedIds.add(String(c.application_id));
+                }
+            });
+            setAppearedCandidateIds(appearedIds);
+        } catch (err) {
+            console.error("Error fetching appeared candidates from SCR:", err);
+        }
+    }, [refNum]);
+
     const fetchApplications = useCallback(async () => {
         if (!refNum) {
             setError("No reference number provided.");
@@ -105,16 +208,147 @@ const CandidateApplications: React.FC = () => {
         }
     }, [refNum]);
 
-    const handleAppearedClick = (applicationId: number) => {
-        // As per user clarification, "Appeared" is just a button to view/manage the candidate in the SCR form.
-        // No backend status update is needed.
-        // Option 2: Show only the specific candidate where "Appeared" was clicked.
-        navigate(`/selection-committee-report?interview_id=${refNum}&candidate_id=${applicationId}`);
+    // --- Handle "Mark Appeared" click: save candidate to SCR's candidates JSON ---
+    const handleAppearedClick = async (app: CandidateApplication) => {
+        if (!refNum) return;
+
+        setIsMarkingAppeared(String(app.application_id));
+
+        try {
+            // 1. Find the existing SCR for this refNum, or auto-create one
+            const listRes = await fetch(
+                `/api/method/frappe.client.get_list`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Accept: "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        doctype: "Selection Committee Report",
+                        filters: { interview_id: refNum },
+                        fields: ["name"],
+                        limit_page_length: 1,
+                    }),
+                }
+            );
+            if (!listRes.ok) throw new Error("Failed to find Selection Committee Report");
+            const listData = await listRes.json();
+            const scrList = listData?.message || [];
+
+            let scrName: string;
+
+            if (scrList.length === 0) {
+                // Auto-create a new SCR for this recruitment
+                console.log("No SCR found, auto-creating one for interview_id:", refNum);
+                const createRes = await fetch(
+                    `/api/method/rndopsapp.rndopsapp.doctype.selection_committee_report.selection_committee_report.save_selection_committee_report_data`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Accept: "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({
+                            data: { interview_id: refNum },
+                        }),
+                    }
+                );
+                if (!createRes.ok) throw new Error("Failed to auto-create Selection Committee Report");
+                const createData = await createRes.json();
+                if (createData?.message?.status !== "success" || !createData?.message?.docname) {
+                    throw new Error(createData?.message?.message || "Failed to auto-create Selection Committee Report");
+                }
+                scrName = createData.message.docname;
+                console.log("Auto-created SCR:", scrName);
+            } else {
+                scrName = scrList[0].name;
+            }
+
+            // 2. Fetch the existing SCR document to get current candidates
+            const docRes = await fetch(
+                `/api/method/frappe.client.get`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Accept: "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        doctype: "Selection Committee Report",
+                        name: scrName,
+                    }),
+                }
+            );
+            if (!docRes.ok) throw new Error("Failed to fetch Selection Committee Report");
+            const docData = await docRes.json();
+            const scrDoc = docData?.message;
+
+            // 3. Parse existing candidates JSON
+            let existingCandidates: any[] = [];
+            try {
+                if (scrDoc?.candidates) {
+                    existingCandidates = typeof scrDoc.candidates === "string"
+                        ? JSON.parse(scrDoc.candidates)
+                        : scrDoc.candidates;
+                }
+            } catch {
+                existingCandidates = [];
+            }
+            if (!Array.isArray(existingCandidates)) existingCandidates = [];
+
+            // 4. Check for duplicate (skip if already exists)
+            const isDuplicate = existingCandidates.some(
+                (c: any) => String(c.application_id) === String(app.application_id)
+            );
+            if (isDuplicate) {
+                // Already exists — just update the UI
+                setAppearedCandidateIds((prev) => new Set(prev).add(String(app.application_id)));
+                setIsMarkingAppeared(null);
+                return;
+            }
+
+            // 5. Add the new candidate entry
+            const candidateName = `${app.first_name || ""} ${app.last_name || ""}`.trim();
+            const newCandidate = {
+                sl_no: existingCandidates.length + 1,
+                candidate_name: candidateName,
+                candidate_id: app.candidate_id || app.id || "",
+                email: app.email || "",
+                application_id: String(app.application_id),
+                application_number: app.application_number || "",
+                status: "Appeared",
+            };
+
+            const updatedCandidates = [...existingCandidates, newCandidate];
+
+            // 6. Save back to Frappe
+            const saveRes = await fetch(
+                `/api/method/frappe.client.set_value`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Accept: "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        doctype: "Selection Committee Report",
+                        name: scrName,
+                        fieldname: "candidates",
+                        value: JSON.stringify(updatedCandidates),
+                    }),
+                }
+            );
+
+            if (!saveRes.ok) throw new Error("Failed to save candidate to Selection Committee Report");
+
+            // 7. Update local state
+            setAppearedCandidateIds((prev) => new Set(prev).add(String(app.application_id)));
+            console.log(`Candidate "${candidateName}" marked as Appeared in SCR "${scrName}"`);
+        } catch (err: any) {
+            console.error("Error marking candidate as appeared:", err);
+            alert(`Failed to mark candidate as appeared: ${err.message}`);
+        } finally {
+            setIsMarkingAppeared(null);
+        }
     };
 
     useEffect(() => {
         fetchApplications();
-    }, [fetchApplications]);
+        fetchAppearedCandidates();
+    }, [fetchApplications, fetchAppearedCandidates]);
 
     // Filter logic
     const filteredApplications =
@@ -211,57 +445,77 @@ const CandidateApplications: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    {filteredApplications.map((app, index) => (
-                                        <tr
-                                            key={app.application_id || index}
-                                            className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-                                        >
-                                            <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
-                                                {index + 1}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">
-                                                {`${app.first_name || ""} ${app.last_name || ""}`.trim() || "-"}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
-                                                {app.email || "-"}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">
-                                                {app.application_number || "-"}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-3">
-                                                    <StatusBadge status={app.status} />
-                                                    {app.status?.toLowerCase() === "shortlisted" && (
+                                    {filteredApplications.map((app, index) => {
+                                        const isAppeared = appearedCandidateIds.has(String(app.application_id));
+                                        const isCurrentlyMarking = isMarkingAppeared === String(app.application_id);
+                                        const isShortlisted = app.status?.toLowerCase() === "shortlisted";
+
+                                        return (
+                                            <tr
+                                                key={app.application_id || index}
+                                                className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                                            >
+                                                <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                                                    {index + 1}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">
+                                                    {`${app.first_name || ""} ${app.last_name || ""}`.trim() || "-"}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                                                    {app.email || "-"}
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">
+                                                    {app.application_number || "-"}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-3">
+                                                        {/* If candidate is already appeared, show Appeared badge instead of original status */}
+                                                        {isAppeared ? (
+                                                            <StatusBadge status="Appeared" />
+                                                        ) : (
+                                                            <StatusBadge status={app.status} />
+                                                        )}
+
+                                                        {/* Show "Mark Appeared" button only for shortlisted candidates who aren't already appeared */}
+                                                        {isShortlisted && !isAppeared && (
+                                                            <button
+                                                                onClick={() => handleAppearedClick(app)}
+                                                                disabled={isCurrentlyMarking}
+                                                                className={cn(
+                                                                    "inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition-all",
+                                                                    isCurrentlyMarking
+                                                                        ? "bg-zinc-400 text-white cursor-not-allowed"
+                                                                        : "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
+                                                                )}
+                                                            >
+                                                                {isCurrentlyMarking ? (
+                                                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                                ) : (
+                                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                                )}
+                                                                {isCurrentlyMarking ? "Saving..." : "Mark Appeared"}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex gap-3">
                                                         <button
-                                                            onClick={() => handleAppearedClick(app.application_id)}
-                                                            className={cn(
-                                                                "inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition-all",
-                                                                "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm"
-                                                            )}
+                                                            onClick={() =>
+                                                                navigate(
+                                                                    `/candidate-details/${app.candidate_id}?refNum=${refNum}&applicationId=${app.application_id}`
+                                                                )
+                                                            }
+                                                            className="inline-flex items-center gap-1.5 text-sm text-[#D97757] hover:underline whitespace-nowrap"
                                                         >
-                                                            <CheckCircle2 className="w-3.5 h-3.5" />
-                                                            Appeared
+                                                            <Eye className="w-3.5 h-3.5" />
+                                                            View
                                                         </button>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex gap-3">
-                                                    <button
-                                                        onClick={() =>
-                                                            navigate(
-                                                                `/candidate-details/${app.candidate_id}?refNum=${refNum}&applicationId=${app.application_id}`
-                                                            )
-                                                        }
-                                                        className="inline-flex items-center gap-1.5 text-sm text-[#D97757] hover:underline whitespace-nowrap"
-                                                    >
-                                                        <Eye className="w-3.5 h-3.5" />
-                                                        View
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

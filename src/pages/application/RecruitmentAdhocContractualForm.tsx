@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "@/components/UserRole";
+import { BudgetActionsSidebar } from "@/components/BudgetActionsSidebar";
 
 type LinkOption = {
     value: string;
@@ -187,14 +188,15 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     (f: any) => !HIDDEN_FIELDS.includes(f.fieldname),
                 );
 
-                // chairperson_name is always read-only (auto-derived, never manually typed).
-                // chairperson_webmail_id is editable only for DoRND users.
+                // chairperson_name and chairperson_webmail_id are editable only for DoRND users.
                 const processedFields = filteredFields.map((f: FormField) => {
                     if (f.fieldname === "chairperson_name") {
-                        return { ...f, read_only: 1 };
+                        if (!isDoRnd) return { ...f, read_only: 1 };
+                        return { ...f, read_only: 0, fieldtype: f.fieldtype === "Read Only" ? "Data" : f.fieldtype };
                     }
-                    if (f.fieldname === "chairperson_webmail_id" && !isDoRnd) {
-                        return { ...f, read_only: 1 };
+                    if (f.fieldname === "chairperson_webmail_id") {
+                        if (!isDoRnd) return { ...f, read_only: 1 };
+                        return { ...f, read_only: 0 };
                     }
                     if (f.fieldname === "webmail_id") {
                         return { ...f, fieldtype: "Data" };
@@ -282,7 +284,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                             existingData.chairperson_webmail_id,
                             link_options || {},
                         );
-                        
+
                         if (labelFromOptions) {
                             existingData.chairperson_name = labelFromOptions;
                         } else {
@@ -581,7 +583,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                     const nameField = tableField.child_fields.find(cf => cf.label?.toLowerCase().includes("name") && !cf.label?.toLowerCase().includes("email") && !cf.label?.toLowerCase().includes("webmail") && !cf.label?.toLowerCase().includes("designation") && !cf.label?.toLowerCase().includes("department"));
                                     if (nameField) nameKey = nameField.fieldname;
                                 }
-                                
+
                                 tData[rowIndex] = { ...tData[rowIndex], [nameKey]: res.message.full_name };
                             }
                             return { ...prev, [tableName]: tData };
@@ -720,7 +722,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error(`Workflow Action ${action} Error:`, error);
-            
+
             let errMsg = `An error occurred while performing action: ${action}`;
             try {
                 if (error.exc_type === "ValidationError" && error._server_messages) {
@@ -791,9 +793,9 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     {/* Main Form Content */}
-                    <div className="space-y-6">
+                    <div className="lg:col-span-3 space-y-6">
                         <FrappeCard>
                             <div className="p-8">
                                 <DynamicFormRenderer
@@ -910,6 +912,20 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                             </div>
                         </FrappeCard>
                     </div>
+
+                    {/* Sidebar */}
+                    {(editDocName || savedDocName) && (
+                        <div className="lg:col-span-1 space-y-6">
+                            {(workflowState === "Pending Staff Approval" || workflowState === "Approved") && (
+                                <BudgetActionsSidebar
+                                    projectName={formData?.upfa_project_code || formData?.project || formData?.project_no || ""}
+                                    isStaff={true}
+                                    docName={editDocName || savedDocName || ""}
+                                    doctype="Recruitment Adhoc Contractual"
+                                />
+                            )}
+                        </div>
+                    )}
                 </div>
             </main>
         </div>

@@ -9,7 +9,7 @@ import {
     selectionCommitteeReportAPI,
     prepareFormDataForApi,
 } from "@/services/apiService";
-import { Loader2, ArrowLeft, Save, Send, UserCheck, CheckCircle2 } from "lucide-react";
+import { Loader2, ArrowLeft, Save, Send, UserCheck, CheckCircle2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -293,6 +293,118 @@ const SelectionCommitteeReportForm: React.FC = () => {
                             ) || existingData.chairperson_name || "";
                     }
 
+                    // Enrich candidates with post details from Recruitment Adhoc Contractual
+                    const existingInterviewId = existingData.interview_id;
+                    if (existingInterviewId && existingData.candidates) {
+                        try {
+                            const recruitmentRes = await fetchFrappeDoc({
+                                doctype: "Recruitment Adhoc Contractual",
+                                name: existingInterviewId,
+                            });
+                            if (recruitmentRes?.message) {
+                                const rec = recruitmentRes.message;
+                                const postDetails = rec.upfa_post_details || [];
+
+                                let candidatesList: any[] = [];
+                                try {
+                                    candidatesList = typeof existingData.candidates === 'string'
+                                        ? JSON.parse(existingData.candidates)
+                                        : existingData.candidates;
+                                } catch (parseErr) {
+                                    console.error("Failed to parse existing candidates", parseErr);
+                                }
+
+                                if (Array.isArray(candidatesList) && candidatesList.length > 0 && postDetails.length > 0) {
+                                    const enrichedCandidates = candidatesList.map((c: any, i: number) => {
+                                        // If candidate already has post details populated, skip
+                                        if (c.applied_for_position && c.upfa_basic_pay) return c;
+
+                                        // Try to match by recruitment_post_id, or fall back to first post
+                                        const post = postDetails.find((p: any) =>
+                                            String(p.name) === String(c.recruitment_post_id) ||
+                                            String(p.idx) === String(c.recruitment_post_id)
+                                        ) || postDetails[0] || {};
+
+                                        const basic = parseFloat(post.upfa_basic_pay) || 0;
+                                        const hraStr = String(post.upfa_hra_percent || "0").replace('%', '');
+                                        const hraPercent = parseFloat(hraStr) || 0;
+                                        const medical = post.upfa_medical_required === 1 ? 1250 : (parseFloat(post.upfa_medical_required) || 0);
+                                        const calculatedTotal = post.upfa_total_amount || (basic + (basic * hraPercent / 100) + medical);
+
+                                        return {
+                                            ...c,
+                                            sl_no: c.sl_no || i + 1,
+                                            applied_for_position: c.applied_for_position || post.upfa_designation || "",
+                                            upfa_basic_pay: c.upfa_basic_pay || basic,
+                                            upfa_hra_percent: c.upfa_hra_percent || post.upfa_hra_percent || "0%",
+                                            upfa_medical_required: c.upfa_medical_required ?? medical,
+                                            upfa_total_amount: c.upfa_total_amount || calculatedTotal,
+                                            upfa_duration_months: c.upfa_duration_months || post.upfa_duration_months || 0,
+                                            upfa_selection_status: c.upfa_selection_status || "",
+                                            upfa_justification: c.upfa_justification || "",
+                                        };
+                                    });
+
+                                    existingData.candidates = JSON.stringify(enrichedCandidates);
+                                }
+
+                                // Also enrich post_details if empty
+                                if ((!existingData.post_details || existingData.post_details.length === 0) && postDetails.length > 0) {
+                                    existingData.post_details = postDetails.map((row: any) => ({
+                                        upfa_designation: row.upfa_designation || "",
+                                        upfa_vacancies: row.upfa_vacancies || 0,
+                                        upfa_basic_pay: row.upfa_basic_pay || 0,
+                                        upfa_hra_percent: row.upfa_hra_percent || "",
+                                        upfa_medical_required: row.upfa_medical_required || 0,
+                                        upfa_total_amount: row.upfa_total_amount || 0,
+                                        month_days: row.month_days || "",
+                                        upfa_duration_months: row.upfa_duration_months || 0,
+                                        upfa_qualification: row.upfa_qualification || "",
+                                        upfa_justification: row.upfa_justification || "",
+                                    }));
+                                }
+                            }
+                        } catch (enrichErr) {
+                            console.error("Failed to enrich candidates with Recruitment data:", enrichErr);
+                        }
+
+                        // Fetch candidate_id from applications API (same source as CandidateApplications page)
+                        try {
+                            const appUrl = `http://172.16.134.191:3000/api/applications?refNumParent=${existingInterviewId}`;
+                            const appResponse = await fetch(appUrl);
+                            if (appResponse.ok) {
+                                const appResult = await appResponse.json();
+                                const appsList = Array.isArray(appResult) ? appResult : (appResult.data || []);
+
+                                let candidatesList: any[] = [];
+                                try {
+                                    candidatesList = typeof existingData.candidates === 'string'
+                                        ? JSON.parse(existingData.candidates)
+                                        : existingData.candidates;
+                                } catch (parseErr) {
+                                    console.error("Failed to parse candidates for candidate_id enrichment", parseErr);
+                                }
+
+                                if (Array.isArray(candidatesList) && candidatesList.length > 0) {
+                                    const enrichedWithIds = candidatesList.map((c: any) => {
+                                        if (c.candidate_id) return c; // Already has candidate_id
+                                        // Match by application_id to find the correct candidate_id
+                                        const matchedApp = appsList.find((app: any) =>
+                                            String(app.application_id) === String(c.application_id)
+                                        );
+                                        return {
+                                            ...c,
+                                            candidate_id: matchedApp?.candidate_id || matchedApp?.id || "",
+                                        };
+                                    });
+                                    existingData.candidates = JSON.stringify(enrichedWithIds);
+                                }
+                            }
+                        } catch (appErr) {
+                            console.error("Failed to fetch candidate_ids from applications API:", appErr);
+                        }
+                    }
+
                     setFormData(existingData);
                     setWorkflowState(prefill_data.workflow_state || "Draft");
                 } else if (!currentDocName) {
@@ -420,6 +532,8 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                     return {
                                                         sl_no: 0,
                                                         candidate_name: `${app.first_name || ""} ${app.last_name || ""}`.trim(),
+                                                        candidate_id: app.candidate_id || app.id || "",
+                                                        application_id: app.application_id || "",
                                                         applied_for_position: post.upfa_designation || "",
                                                         upfa_basic_pay: basic,
                                                         upfa_hra_percent: post.upfa_hra_percent || "0%",
@@ -1041,6 +1155,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                             <th className="px-4 py-4 text-left font-bold text-zinc-700 dark:text-zinc-300">Total Amount</th>
                                                             <th className="px-4 py-4 text-left font-bold text-zinc-700 dark:text-zinc-300 w-32 text-center">Selection Status</th>
                                                             <th className="px-4 py-4 text-left font-bold text-zinc-700 dark:text-zinc-300 min-w-[200px]">Justification</th>
+                                                            <th className="px-4 py-4 text-center font-bold text-zinc-700 dark:text-zinc-300 w-36">Details</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -1077,6 +1192,16 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                         rows={1}
                                                                         className="w-full bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-md py-1.5 px-2 text-sm focus:ring-2 focus:ring-[#D97757] outline-none resize-none"
                                                                     />
+                                                                </td>
+                                                                <td className="px-2 py-4 text-center">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => navigate(`/candidate-details/${row.candidate_id || row.application_id}?refNum=${formData.interview_id || ''}&applicationId=${row.application_id}`)}
+                                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[#D97757]/10 text-[#D97757] hover:bg-[#D97757]/20 border border-[#D97757]/20 transition-colors"
+                                                                    >
+                                                                        <ExternalLink className="w-3.5 h-3.5" />
+                                                                        View Details
+                                                                    </button>
                                                                 </td>
                                                             </tr>
                                                         ))}
