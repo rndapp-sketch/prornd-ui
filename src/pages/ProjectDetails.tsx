@@ -13,6 +13,7 @@ import {
     useFrappeGetDoc,
     useFrappePostCall,
     useFrappeGetCall,
+    useFrappeGetDocList,
     useFrappeAuth,
 } from "frappe-react-sdk";
 import { Textarea } from "@/components/ui/textarea"; // Assuming this can be styled via className
@@ -1035,6 +1036,18 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
         { enabled: !!projectName, cacheTime: 0 },
     );
 
+    const MINIO_BASE = "http://172.16.135.118:9000";
+    const attachmentsPath = `${MINIO_BASE}/prod-rnd-files/Project_Registration/${projectName}/attachments`;
+
+    const { data: frappeFiles } = useFrappeGetDocList("File", {
+        filters: [
+            ["attached_to_doctype", "=", "Project Registration"],
+            ["attached_to_name", "=", projectName ?? ""],
+        ],
+        fields: ["file_name", "file_url", "file_size", "attached_to_field", "creation"],
+        limit: 200,
+    }, projectName ? undefined : null);
+
     // Auto-switch to endorsement tab when status is "Endorsement Pending at Dean"
     React.useEffect(() => {
         if (data?.workflow_state === "Endorsement Pending at Dean") {
@@ -1446,7 +1459,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                                     {data.upload_supporting_docs.map((row: any, idx: number) => {
                                                                         const filePath = row.project_file || '';
                                                                         const fileName = filePath.split('/').pop() || filePath;
-                                                                        const fileUrl = filePath ? `http://172.16.135.118:9000/prod-rnd-files${filePath}` : null;
+                                                                        const fileUrl = fileName ? `${attachmentsPath}/${fileName}` : null;
                                                                         return (
                                                                             <tr key={idx} className="border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
                                                                                 <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">{idx + 1}</td>
@@ -2297,83 +2310,57 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                 <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
                                                     Project Files
                                                 </h3>
+                                                {frappeFiles && (
+                                                    <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">
+                                                        {frappeFiles.length} file{frappeFiles.length !== 1 ? 's' : ''}
+                                                    </span>
+                                                )}
                                             </div>
-                                            {(() => {
-                                                const minioBase = `http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments`;
-                                                const allFiles: { name: string; url: string; label?: string }[] = [];
-                                                if (data?.upload_proj_prop) {
-                                                    const fname = data.upload_proj_prop.split('/').pop();
-                                                    allFiles.push({ name: fname, url: `${minioBase}/${fname}`, label: 'Project Proposal' });
-                                                }
-                                                if (data?.sanction_related_files?.length) {
-                                                    data.sanction_related_files.forEach((row: any) => {
-                                                        const raw = row.sanction_file || row.file_url || row.file;
-                                                        if (raw) {
-                                                            const fname = raw.split('/').pop();
-                                                            allFiles.push({ name: fname, url: `${minioBase}/${fname}`, label: row.description || 'Sanction File' });
-                                                        }
-                                                    });
-                                                }
-                                                if (data?.upload_supporting_docs?.length) {
-                                                    data.upload_supporting_docs.forEach((row: any) => {
-                                                        const filePath = row.project_file || '';
-                                                        if (filePath) {
-                                                            const fname = filePath.split('/').pop();
-                                                            allFiles.push({ name: fname, url: `http://172.16.135.118:9000/prod-rnd-files${filePath}`, label: row.file_description || 'Supporting Doc' });
-                                                        }
-                                                    });
-                                                }
-                                                if (data?.attachments?.length) {
-                                                    data.attachments.forEach((file: any) => {
-                                                        const fname = file.file_name || file.name || 'Document';
-                                                        const url = file.file_url || file.url || `${minioBase}/${fname}`;
-                                                        allFiles.push({ name: fname, url, label: file.attached_to_field || undefined });
-                                                    });
-                                                }
-                                                return allFiles.length > 0 ? (
-                                                    <div className="space-y-3">
-                                                        {allFiles.map((file, index) => (
+                                            {frappeFiles && frappeFiles.length > 0 ? (
+                                                <div className="space-y-3">
+                                                    {frappeFiles.map((file: { file_name: string; file_url?: string; file_size?: number; attached_to_field?: string; creation?: string }) => {
+                                                        const fname = file.file_name;
+                                                        const url = `${attachmentsPath}/${fname}`;
+                                                        return (
                                                             <div
-                                                                key={index}
-                                                                className="flex items-center justify-between p-3 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:bg-zinc-800 transition-colors"
+                                                                key={fname}
+                                                                className="flex items-center justify-between p-3 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                                             >
                                                                 <div className="flex items-center gap-3 min-w-0">
                                                                     <FileTextIcon className="h-5 w-5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
                                                                     <div className="min-w-0">
                                                                         <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                                                                            {file.name}
+                                                                            {fname}
                                                                         </p>
-                                                                        {file.label && (
-                                                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">{file.label}</p>
+                                                                        {file.attached_to_field && (
+                                                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">{file.attached_to_field}</p>
                                                                         )}
                                                                     </div>
                                                                 </div>
                                                                 <a
-                                                                    href={file.url}
+                                                                    href={url}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
-                                                                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#D97757] bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 rounded-lg hover:bg-[#B2EBF2] transition-colors"
+                                                                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#D97757] bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 rounded-lg hover:bg-[#B2EBF2] transition-colors flex-shrink-0"
                                                                 >
                                                                     <DownloadIcon className="h-4 w-4" />
                                                                     Download
                                                                 </a>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-center py-12 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl">
-                                                        <FolderOpenIcon className="h-12 w-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
-                                                        <p className="font-medium text-zinc-600 dark:text-zinc-400">
-                                                            No files attached yet.
-                                                        </p>
-                                                        <p className="text-sm mt-1">
-                                                            Files related to this
-                                                            project will appear
-                                                            here.
-                                                        </p>
-                                                    </div>
-                                                );
-                                            })()}
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="text-center py-12 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl">
+                                                    <FolderOpenIcon className="h-12 w-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
+                                                    <p className="font-medium text-zinc-600 dark:text-zinc-400">
+                                                        No files attached yet.
+                                                    </p>
+                                                    <p className="text-sm mt-1">
+                                                        Files related to this project will appear here.
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
