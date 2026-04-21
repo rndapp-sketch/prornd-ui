@@ -1144,7 +1144,6 @@ const ProjectRegistration: React.FC = () => {
         const errors: string[] = [];
         if (!d.funding_agency_name?.trim()) errors.push("Funding Agency Name is required.");
         if (d.origin_of_funding_agency === "National") {
-            if (!d.gstin_of_funding_agency?.trim()) errors.push("GSTIN is required for National agencies.");
             if (!d.fundingagency_state?.trim()) errors.push("State is required for National agencies.");
         }
         if (d.funding_agency_type_1 === "Others" && !d.specify_other_funding_agency_type?.trim()) {
@@ -4449,7 +4448,7 @@ const ProjectRegistration: React.FC = () => {
                         {/* GSTIN — only when National */}
                         {newAgencyData.origin_of_funding_agency === "National" && (
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">GSTIN <span className="text-red-500">*</span></label>
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">GSTIN</label>
                                 <input type="text" value={newAgencyData.gstin_of_funding_agency || ""} onChange={(e) => handleAgencyFieldChange("gstin_of_funding_agency", e.target.value)}
                                     className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
                             </div>
