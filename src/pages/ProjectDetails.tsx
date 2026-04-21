@@ -908,7 +908,7 @@ function useProjectWorkflowStages() {
     return { mainStages, isLoading };
 }
 
-const WorkflowTimeline: React.FC<{ currentState: string, userRoles?: string[] }> = ({ currentState, userRoles = [] }) => {
+const WorkflowTimeline: React.FC<{ currentState: string, userRoles?: string[], rolesLoading?: boolean }> = ({ currentState, userRoles = [], rolesLoading = false }) => {
     const { mainStages, isLoading } = useProjectWorkflowStages();
     
     // Fallback if loading or empty
@@ -955,7 +955,7 @@ const WorkflowTimeline: React.FC<{ currentState: string, userRoles?: string[] }>
     const connectorColor = (status: StageStatus) =>
         status === 'completed' ? 'bg-emerald-400' : 'bg-zinc-200 dark:bg-zinc-700';
 
-    if (isLoading) {
+    if (isLoading || rolesLoading) {
         return <div className="animate-pulse h-12 bg-zinc-100 dark:bg-zinc-800 rounded-xl" />;
     }
 
@@ -1027,7 +1027,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const [activeTab, setActiveTab] = useState("overview");
     const activityStreamRef = useRef<ActivityStreamHandle>(null);
     const { currentUser } = useFrappeAuth();
-    const { roles } = useUserRoles(currentUser ?? null);
+    const { roles, isLoading: isRolesLoading } = useUserRoles(currentUser ?? null);
     const isRnDStaff = roles.some(r => r === "staff, RnD");
 
     const { data, error, isLoading, mutate } = useFrappeGetDoc(
@@ -1329,7 +1329,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     isLoading={isFetchingEndorsementHtml}
                 />
                 <div className="mb-6">
-                    <WorkflowTimeline currentState={data?.workflow_state || 'Draft'} userRoles={roles} />
+                    <WorkflowTimeline currentState={data?.workflow_state || 'Draft'} userRoles={roles} rolesLoading={isRolesLoading} />
                 </div>
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
                     <div className="border-b border-zinc-200 dark:border-zinc-800">
