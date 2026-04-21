@@ -3342,7 +3342,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                 {data.upload_supporting_docs.map((row: any, idx: number) => {
                                   const filePath = row.project_file || "";
                                   const fileName = filePath.split("/").pop() || filePath;
-                                  const fileUrl = filePath ? `http://172.16.135.118:9000/prod-rnd-files${filePath}` : null;
+                                  const fileUrl = filePath ? `http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments/${filePath.split("/").pop()}` : null;
                                   return (
                                     <tr key={idx} className="border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
                                       <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">{idx + 1}</td>
