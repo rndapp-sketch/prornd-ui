@@ -94,12 +94,12 @@ const formatDate = (val: string, format: "long" | "short" = "long") =>
         "en-IN",
         format === "long"
             ? {
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-              }
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            }
             : { day: "numeric", month: "short", year: "numeric" },
     );
 
@@ -155,13 +155,13 @@ const ClaudeButton = ({
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200 dark:focus-visible:ring-zinc-700",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             variant === "primary" &&
-                "bg-[#D97757] text-white hover:opacity-90 shadow-sm",
+            "bg-[#D97757] text-white hover:opacity-90 shadow-sm",
             variant === "action" &&
-                "bg-[#D97757] text-white hover:opacity-90 shadow-sm border border-[#C66A4E]",
+            "bg-[#D97757] text-white hover:opacity-90 shadow-sm border border-[#C66A4E]",
             variant === "outline" &&
-                "border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-800",
+            "border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-zinc-800",
             variant === "ghost" &&
-                "text-[#71717A] dark:text-[#A1A1AA] hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[#3F3F46] dark:hover:text-[#E4E4E7]",
+            "text-[#71717A] dark:text-[#A1A1AA] hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-[#3F3F46] dark:hover:text-[#E4E4E7]",
             className,
         )}
     >
@@ -419,7 +419,7 @@ const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
                                             className={cn(
                                                 "border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors",
                                                 idx % 2 === 1 &&
-                                                    "bg-[#FAFAF9]/60 dark:bg-zinc-800/20",
+                                                "bg-[#FAFAF9]/60 dark:bg-zinc-800/20",
                                             )}
                                         >
                                             <td className="px-4 py-3 text-xs text-[#71717A] dark:text-[#A1A1AA] font-mono">
@@ -431,12 +431,12 @@ const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
                                                     className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]"
                                                 >
                                                     {isAmountField(k) &&
-                                                    !isNaN(Number(row[k])) ? (
+                                                        !isNaN(Number(row[k])) ? (
                                                         <span className="font-medium">
                                                             {formatINR(row[k])}
                                                         </span>
                                                     ) : row[k] !== null &&
-                                                      row[k] !== undefined ? (
+                                                        row[k] !== undefined ? (
                                                         String(row[k])
                                                     ) : (
                                                         "—"
@@ -660,7 +660,7 @@ const P11FormActionButtons = ({
             if (result?.message?.status === "success") {
                 alert(
                     result.message.message ||
-                        `Action "${action}" completed successfully.`,
+                    `Action "${action}" completed successfully.`,
                 );
                 onActionComplete();
             } else if (result?.message?.status === "error") {
@@ -824,7 +824,7 @@ const SanctionSheetActionButtons = ({
             if (result?.message?.status === "success") {
                 alert(
                     result.message.message ||
-                        `Action "${action}" completed successfully.`,
+                    `Action "${action}" completed successfully.`,
                 );
                 onActionComplete();
             } else if (result?.message?.status === "error") {
@@ -1446,7 +1446,7 @@ const DirectPurchaseDetails: React.FC = () => {
                     <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
                         {error
                             ? (error as any).message ||
-                              "Failed to load document"
+                            "Failed to load document"
                             : "Document not found"}
                     </p>
                     <button
@@ -1583,7 +1583,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                         filterField="app_id"
                                         filterValue={id}
                                         emptyTitle="No P-11 Form Generated Yet"
-                                        emptyDescription="The P-11 Form is generated after the Direct Purchase is approved by the Associate Dean."
+                                        emptyDescription="The P-11 Form is generated after the Direct Purchase is approved."
                                         onDataReload={loadData}
                                     />
                                 </>
@@ -1628,9 +1628,9 @@ const DirectPurchaseDetails: React.FC = () => {
                                             <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#D97757] border-t-transparent" />
                                         </div>
                                     ) : poSanctionData &&
-                                      (isStaffRnD ||
-                                          data?.workflow_state ===
-                                              "POGenerated") ? (
+                                        (isStaffRnD ||
+                                            data?.workflow_state ===
+                                            "POGenerated") ? (
                                         <POEditor
                                             ssData={poSanctionData}
                                             dpId={id || ""}
@@ -1659,7 +1659,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                                 formData.append(
                                                     "project_no",
                                                     poSanctionData.project_no ||
-                                                        "",
+                                                    "",
                                                 );
                                                 const res = await fetch(
                                                     "/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.upload_po_document",
@@ -1681,12 +1681,12 @@ const DirectPurchaseDetails: React.FC = () => {
                                                 if (
                                                     !res.ok ||
                                                     json?.message?.status ===
-                                                        false
+                                                    false
                                                 )
                                                     throw new Error(
                                                         json?.message
                                                             ?.message ||
-                                                            "Upload failed",
+                                                        "Upload failed",
                                                     );
                                                 // Reset so the effect re-fetches with updated file_path
                                                 setPoSanctionData(null);
@@ -1869,7 +1869,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                                     ₹{" "}
                                                     {Number(
                                                         linkedCommitment?.committed ||
-                                                            0,
+                                                        0,
                                                     ).toLocaleString("en-IN")}
                                                 </p>
                                             </div>

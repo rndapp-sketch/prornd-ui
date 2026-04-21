@@ -526,8 +526,8 @@ function extractPRName(doctype: string, data: Record<string, any>): string | nul
     if (!mapping) return null;
 
     const tryStrategy = (s: PRLinkStrategy): string | null => {
-        if (s.type === 'self')        return (data['name'] as string) || null;
-        if (s.type === 'pr_name')     return (data[s.field] as string) || null;
+        if (s.type === 'self') return (data['name'] as string) || null;
+        if (s.type === 'pr_name') return (data[s.field] as string) || null;
         if (s.type === 'direct_type') return null; // value is project_type, not PR name
         if (s.type === 'pr_project_no') return null; // only has project_no, needs async lookup
         return null;
@@ -849,7 +849,7 @@ const DPDocumentViewer = ({
                                             className={cn(
                                                 "border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors",
                                                 idx % 2 === 1 &&
-                                                    "bg-[#FAFAF9]/60 dark:bg-zinc-800/20",
+                                                "bg-[#FAFAF9]/60 dark:bg-zinc-800/20",
                                             )}
                                         >
                                             <td className="px-4 py-3 text-xs text-[#71717A] dark:text-[#A1A1AA] font-mono">
@@ -861,7 +861,7 @@ const DPDocumentViewer = ({
                                                     className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]"
                                                 >
                                                     {dpIsAmountField(k) &&
-                                                    !isNaN(Number(row[k])) ? (
+                                                        !isNaN(Number(row[k])) ? (
                                                         <span className="font-medium">
                                                             {dpFormatINR(
                                                                 row[k],
@@ -1142,7 +1142,7 @@ const DirectPurchaseTabView = ({
                         filterField="app_id"
                         filterValue={docName}
                         emptyTitle="No P-11 Form Generated Yet"
-                        emptyDescription="The P-11 Form is generated after the Direct Purchase is approved by the Associate Dean."
+                        emptyDescription="The P-11 Form is generated after the Direct Purchase is approved."
                     />
                 )}
 
@@ -1218,7 +1218,7 @@ const DirectPurchaseTabView = ({
                                     )
                                         throw new Error(
                                             json?.message?.message ||
-                                                "Upload failed",
+                                            "Upload failed",
                                         );
                                 }}
                             />
@@ -1819,7 +1819,7 @@ const PendingTaskDetails: React.FC = () => {
                                     ) : (
                                         <div className={valueClasses}>
                                             {value === null ||
-                                            value === undefined ? (
+                                                value === undefined ? (
                                                 <span className="text-zinc-400 dark:text-zinc-600">
                                                     -
                                                 </span>
@@ -1940,24 +1940,24 @@ const PendingTaskDetails: React.FC = () => {
                                                             header,
                                                         )
                                                             ? (
-                                                                  parseFloat(
-                                                                      row[
-                                                                          header
-                                                                      ],
-                                                                  ) || 0
-                                                              ).toLocaleString(
-                                                                  "en-IN",
-                                                                  {
-                                                                      style: "currency",
-                                                                      currency:
-                                                                          "INR",
-                                                                      maximumFractionDigits: 0,
-                                                                  },
-                                                              )
+                                                                parseFloat(
+                                                                    row[
+                                                                    header
+                                                                    ],
+                                                                ) || 0
+                                                            ).toLocaleString(
+                                                                "en-IN",
+                                                                {
+                                                                    style: "currency",
+                                                                    currency:
+                                                                        "INR",
+                                                                    maximumFractionDigits: 0,
+                                                                },
+                                                            )
                                                             : String(
-                                                                  row[header] ||
-                                                                      "-",
-                                                              )}
+                                                                row[header] ||
+                                                                "-",
+                                                            )}
                                                     </td>
                                                 ))}
                                                 {isBudgetTable && (
@@ -1984,14 +1984,14 @@ const PendingTaskDetails: React.FC = () => {
                                                         className="p-4 align-middle text-zinc-900 dark:text-zinc-100"
                                                     >
                                                         {header ===
-                                                        "account_head"
+                                                            "account_head"
                                                             ? "Total"
                                                             : budgetYearColumns.includes(
-                                                                    header,
-                                                                )
-                                                              ? (
+                                                                header,
+                                                            )
+                                                                ? (
                                                                     columnTotals[
-                                                                        header
+                                                                    header
                                                                     ] || 0
                                                                 ).toLocaleString(
                                                                     "en-IN",
@@ -2002,7 +2002,7 @@ const PendingTaskDetails: React.FC = () => {
                                                                         maximumFractionDigits: 0,
                                                                     },
                                                                 )
-                                                              : ""}
+                                                                : ""}
                                                     </td>
                                                 ))}
                                                 <td className="p-4 align-middle font-bold text-white bg-[#D97757]">
@@ -2140,7 +2140,7 @@ const PendingTaskDetails: React.FC = () => {
                             {doctype === "Direct Purchase" && name && (
                                 <DirectPurchaseWorkflowActions
                                     docname={name}
-                                    onActionComplete={() => {}}
+                                    onActionComplete={() => { }}
                                     onAfterAction={(action) => {
                                         if (
                                             action
@@ -2194,12 +2194,12 @@ const PendingTaskDetails: React.FC = () => {
                                         fields={travelFields}
                                         formData={data}
                                         linkOptions={travelLinkOptions}
-                                        onChange={() => {}}
-                                        onFileChange={() => {}}
-                                        onTableRowChange={() => {}}
-                                        onTableFileChange={() => {}}
-                                        onAddTableRow={() => {}}
-                                        onDeleteTableRow={() => {}}
+                                        onChange={() => { }}
+                                        onFileChange={() => { }}
+                                        onTableRowChange={() => { }}
+                                        onTableFileChange={() => { }}
+                                        onAddTableRow={() => { }}
+                                        onDeleteTableRow={() => { }}
                                         readOnly={true}
                                     />
                                 </div>
@@ -2224,12 +2224,12 @@ const PendingTaskDetails: React.FC = () => {
                                         linkOptions={
                                             advanceSettlementLinkOptions
                                         }
-                                        onChange={() => {}}
-                                        onFileChange={() => {}}
-                                        onTableRowChange={() => {}}
-                                        onTableFileChange={() => {}}
-                                        onAddTableRow={() => {}}
-                                        onDeleteTableRow={() => {}}
+                                        onChange={() => { }}
+                                        onFileChange={() => { }}
+                                        onTableRowChange={() => { }}
+                                        onTableFileChange={() => { }}
+                                        onAddTableRow={() => { }}
+                                        onDeleteTableRow={() => { }}
                                         readOnly={true}
                                     />
                                 </div>
@@ -2254,12 +2254,12 @@ const PendingTaskDetails: React.FC = () => {
                                         linkOptions={
                                             temporaryAdvanceLinkOptions
                                         }
-                                        onChange={() => {}}
-                                        onFileChange={() => {}}
-                                        onTableRowChange={() => {}}
-                                        onTableFileChange={() => {}}
-                                        onAddTableRow={() => {}}
-                                        onDeleteTableRow={() => {}}
+                                        onChange={() => { }}
+                                        onFileChange={() => { }}
+                                        onTableRowChange={() => { }}
+                                        onTableFileChange={() => { }}
+                                        onAddTableRow={() => { }}
+                                        onDeleteTableRow={() => { }}
                                         readOnly={true}
                                     />
                                 </div>
@@ -2282,12 +2282,12 @@ const PendingTaskDetails: React.FC = () => {
                                         fields={tadaFields}
                                         formData={displayData}
                                         linkOptions={tadaLinkOptions}
-                                        onChange={() => {}}
-                                        onFileChange={() => {}}
-                                        onTableRowChange={() => {}}
-                                        onTableFileChange={() => {}}
-                                        onAddTableRow={() => {}}
-                                        onDeleteTableRow={() => {}}
+                                        onChange={() => { }}
+                                        onFileChange={() => { }}
+                                        onTableRowChange={() => { }}
+                                        onTableFileChange={() => { }}
+                                        onAddTableRow={() => { }}
+                                        onDeleteTableRow={() => { }}
                                         readOnly={true}
                                     />
                                 </div>
@@ -2365,7 +2365,7 @@ const PendingTaskDetails: React.FC = () => {
                                                                                 setEditChairpersonName(res.message.full_name);
                                                                             }
                                                                         })
-                                                                        .catch(() => {});
+                                                                        .catch(() => { });
                                                                 }
                                                             }}
                                                             placeholder="Search by name or email..."
@@ -2455,12 +2455,12 @@ const PendingTaskDetails: React.FC = () => {
                                                 fields={recruitmentFields}
                                                 formData={displayData}
                                                 linkOptions={recruitmentLinkOptions}
-                                                onChange={() => {}}
-                                                onFileChange={() => {}}
-                                                onTableRowChange={() => {}}
-                                                onTableFileChange={() => {}}
-                                                onAddTableRow={() => {}}
-                                                onDeleteTableRow={() => {}}
+                                                onChange={() => { }}
+                                                onFileChange={() => { }}
+                                                onTableRowChange={() => { }}
+                                                onTableFileChange={() => { }}
+                                                onAddTableRow={() => { }}
+                                                onDeleteTableRow={() => { }}
                                                 readOnly={true}
                                             />
                                         </div>
@@ -2545,12 +2545,12 @@ const PendingTaskDetails: React.FC = () => {
                                                 </thead>
                                                 <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                                                     {data.sanctioned_budget_breakup.map((row: any, idx: number) => {
-                                                        const rowTotal = ['first_year_budget','second_year_budget','third_year_budget','fourth_year_budget','fifth_year_budget']
+                                                        const rowTotal = ['first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget']
                                                             .reduce((s, k) => s + (parseFloat(row[k]) || 0), 0);
                                                         return (
                                                             <tr key={idx} className={cn("hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors", row.is_total_row ? "bg-zinc-50 dark:bg-zinc-800/40 font-semibold" : "")}>
                                                                 <td className="px-5 py-3 text-sm text-zinc-900 dark:text-zinc-100">{row.account_head}</td>
-                                                                {['first_year_budget','second_year_budget','third_year_budget','fourth_year_budget','fifth_year_budget'].map(k => (
+                                                                {['first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget'].map(k => (
                                                                     <td key={k} className="px-5 py-3 text-sm text-right tabular-nums text-zinc-600 dark:text-zinc-300">
                                                                         {parseFloat(row[k]) ? Number(row[k]).toLocaleString('en-IN') : '—'}
                                                                     </td>
@@ -2564,7 +2564,7 @@ const PendingTaskDetails: React.FC = () => {
                                                 </tbody>
                                                 {/* Grand total footer */}
                                                 {(() => {
-                                                    const years = ['first_year_budget','second_year_budget','third_year_budget','fourth_year_budget','fifth_year_budget'];
+                                                    const years = ['first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget'];
                                                     const colTotals = years.map(k => data.sanctioned_budget_breakup.reduce((s: number, r: any) => s + (parseFloat(r[k]) || 0), 0));
                                                     const grand = colTotals.reduce((a: number, b: number) => a + b, 0);
                                                     return (
@@ -2666,7 +2666,7 @@ const PendingTaskDetails: React.FC = () => {
                             {doctype === "Direct Purchase" &&
                                 isRnDStaff &&
                                 data?.workflow_state ===
-                                    "Pending Staff Approval" &&
+                                "Pending Staff Approval" &&
                                 (data?.project_no || data?.project_name) && (
                                     <BudgetActionsSidebar
                                         projectName={
