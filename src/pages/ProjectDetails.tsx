@@ -1298,7 +1298,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                             </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
-                            {(data?.workflow_state === 'Draft' || !data?.workflow_state) && (
+                            {((data?.workflow_state === 'Draft' || !data?.workflow_state) ||
+                                (data?.workflow_state === 'Needs Correction (PE)' && currentUser === data?.pi_userid)) && (
                                 <button
                                     onClick={() => navigate(`/project-registration?docname=${projectName}&edit=true`)}
                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D97757] hover:bg-[#c66a4e] text-white text-xs font-semibold shadow-sm transition-colors"

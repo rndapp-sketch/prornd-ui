@@ -410,18 +410,34 @@ const MemoizedGenericTable = memo(
                                 <td key={col.key} className="px-4 py-2.5">
                                     {" "}
                                     {col.type === "file" ? (
-                                        <input
-                                            type="file"
-                                            className={`${inputClasses} !h-8 !py-1.5 text-xs !border-zinc-200`}
-                                            onChange={(e) =>
-                                                onFileChange(
-                                                    tableName,
-                                                    i,
-                                                    col.key,
-                                                    e.target.files?.[0] || null,
-                                                )
-                                            }
-                                        />
+                                        <div className="space-y-1">
+                                            {row[col.key] && typeof row[col.key] === "string" && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <a
+                                                        href={row[col.key].startsWith("http") ? row[col.key] : `http://172.16.135.118:9000/prod-rnd-files${row[col.key]}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-[10px] text-[#D97757] underline truncate max-w-[160px]"
+                                                        title={row[col.key].split("/").pop()}
+                                                    >
+                                                        {row[col.key].split("/").pop()}
+                                                    </a>
+                                                    <span className="text-[9px] text-zinc-400">(replace)</span>
+                                                </div>
+                                            )}
+                                            <input
+                                                type="file"
+                                                className={`${inputClasses} !h-8 !py-1.5 text-xs !border-zinc-200`}
+                                                onChange={(e) =>
+                                                    onFileChange(
+                                                        tableName,
+                                                        i,
+                                                        col.key,
+                                                        e.target.files?.[0] || null,
+                                                    )
+                                                }
+                                            />
+                                        </div>
                                     ) : col.type === "select" ? (
                                         <select
                                             className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary focus:!ring-primary/20`}
