@@ -1095,9 +1095,10 @@ const QuickActions = ({
         }
       } else if (selectedApplication === "Travel") {
         try {
-          // Use v2 API which works correctly
+          // Use project_no (actual project number field) as the filter key
+          const travelProjectCode = projectNo || projectName;
           const travelPromise = fetch(
-            `/api/v2/document/Travel?fields=["name","creation","workflow_state","owner","travel_project_title","travel_project_number","webmail_id_travel","applicant_name_travel"]&order_by=creation desc&limit_page_length=0`,
+            `/api/resource/Travel?filters=${encodeURIComponent(JSON.stringify([["travel_project_number", "=", travelProjectCode]]))}&fields=${encodeURIComponent(JSON.stringify(["name", "creation", "workflow_state", "owner", "travel_project_title", "travel_project_number", "webmail_id_travel", "applicant_name_travel"]))}&order_by=creation desc&limit_page_length=500`,
             {
               method: "GET",
               headers: { Accept: "application/json" },
@@ -1121,13 +1122,11 @@ const QuickActions = ({
 
           console.log("[Travel Fetch] Raw travelRes.data:", travelRes.data);
           console.log(
-            "[Travel Fetch] Filtering by travel_project_title:",
+            "[Travel Fetch] Filtering by travel_project_number:",
             projectName,
           );
 
-          // Filter by travel_project_title which contains the project ID
           const travelItems = (travelRes.data || [])
-            .filter((item: any) => item.travel_project_title === projectName)
             .map((item: any) => ({
               ...item,
               applicant_webmail: item.webmail_id_travel,

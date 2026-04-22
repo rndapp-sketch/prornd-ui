@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
-import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useUserRoles } from '@/components/UserRole';
 import { Wallet, AlertCircle, CheckCircle2, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -197,12 +198,27 @@ const EstimateValidation = ({ formData }: { formData: Record<string, any> }) => 
     );
 };
 
+// --- SCL BALANCE TYPES ---
+interface SclBalance {
+    employee: string;
+    year: number;
+    total_credited: number;
+    utilized_balance: number;
+    available_balance: number;
+    is_eligible: boolean;
+}
+
 // --- MAIN COMPONENT ---
 const TravelForm: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const projectName = searchParams.get('project') || '';
     const editDocName = searchParams.get('edit') || '';
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+    const isPermanentStaff = roles?.some((r: string) =>
+        r === 'Permanent Staff' || r === 'Permanent Employee'
+    ) ?? false;
 
     const [fields, setFields] = useState<FormField[]>([]);
     const [formData, setFormData] = useState<Record<string, any>>({});
@@ -211,7 +227,11 @@ const TravelForm: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [dataLoaded, setDataLoaded] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
-    const [savedDocName, setSavedDocName] = useState<string | null>(editDocName || null); // Track if draft is saved
+    const [savedDocName, setSavedDocName] = useState<string | null>(editDocName || null);
+
+    // --- SCL State ---
+    const [sclBalance, setSclBalance] = useState<SclBalance | null>(null);
+    const [sclLoading, setSclLoading] = useState(false);
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(travelAPI.getFields);
@@ -219,8 +239,57 @@ const TravelForm: React.FC = () => {
     const { call: submitForm, error: submitError } = useFrappePostCall(travelAPI.submit);
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
-
     const { call: fetchUserDetailsByEmail } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
+
+    // --- SCL: fetch balance directly from special_leave_balance doc ({employee}-{year}) ---
+    const loadSclBalance = useCallback(async (employee: string) => {
+        if (!employee) return;
+        setSclLoading(true);
+        try {
+            const year = new Date().getFullYear();
+            const docName = `${employee}-${year}`;
+            const res = await fetch(
+                `/api/resource/special_leave_balance/${encodeURIComponent(docName)}`,
+                { credentials: 'include' },
+            );
+            if (!res.ok) {
+                console.warn(`SCL balance doc not found for ${docName}`);
+                setSclBalance(null);
+                return;
+            }
+            const data = await res.json();
+            const doc = data?.data ?? data?.message;
+            if (doc) {
+                setSclBalance({
+                    employee: doc.employee ?? employee,
+                    year: doc.year ?? year,
+                    total_credited: doc.total_credited ?? 0,
+                    utilized_balance: doc.utilized_balance ?? 0,
+                    available_balance: doc.available_balance ?? (doc.total_credited ?? 0) - (doc.utilized_balance ?? 0),
+                    is_eligible: true,
+                });
+            }
+        } catch (err) {
+            console.error('Failed to fetch SCL balance:', err);
+        } finally {
+            setSclLoading(false);
+        }
+    }, []);
+
+    // Fetch on form load once data is ready
+    useEffect(() => {
+        if (dataLoaded && currentUser) {
+            const employee = formData.webmail_id_travel || currentUser;
+            loadSclBalance(employee);
+        }
+    }, [dataLoaded, currentUser]);
+
+    // Re-fetch when the applicant changes (webmail_id_travel)
+    useEffect(() => {
+        if (formData.webmail_id_travel) {
+            loadSclBalance(formData.webmail_id_travel);
+        }
+    }, [formData.webmail_id_travel]);
 
     // --- Computed: Total Estimate ---
     const totalEstimate = useMemo(() => {
@@ -299,11 +368,10 @@ const TravelForm: React.FC = () => {
 
                 // Set project if passed via URL
                 if (projectName) {
-                    // Set project number (used for filtering in list views)
                     if (!initialData.travel_project_number) {
                         initialData.travel_project_number = projectName;
                     }
-                    // Set project title (display field)
+                    // Set project title to the doc name (project number is the doc name in Project Registration)
                     if (!initialData.travel_project_title) {
                         initialData.travel_project_title = projectName;
                     }
@@ -348,9 +416,15 @@ const TravelForm: React.FC = () => {
         if (formData.travel_special_casual_leave === "Required") {
             if (!formData.travel_leave_from_date || !formData.travel_leave_to_date) {
                 errors.push("Please select Leave Period From Date and To Date.");
-            }
-            if (formData.travel_leave_to_date < formData.travel_leave_from_date) {
+            } else if (formData.travel_leave_to_date < formData.travel_leave_from_date) {
                 errors.push("Leave To Date cannot be earlier than Leave From Date.");
+            } else if (sclBalance && isPermanentStaff) {
+                const from = new Date(formData.travel_leave_from_date);
+                const to = new Date(formData.travel_leave_to_date);
+                const daysRequested = Math.floor((to.getTime() - from.getTime()) / 86400000) + 1;
+                if (daysRequested > sclBalance.available_balance) {
+                    errors.push(`Insufficient SCL balance. You requested ${daysRequested} days but only ${sclBalance.available_balance} days are available.`);
+                }
             }
         }
 
@@ -373,7 +447,7 @@ const TravelForm: React.FC = () => {
 
         setValidationErrors(errors);
         return errors.length === 0;
-    }, [formData]);
+    }, [formData, sclBalance]);
 
     // --- EVENT HANDLERS ---
     const handleChange = useCallback((fieldname: string, value: any) => {
@@ -440,7 +514,18 @@ const TravelForm: React.FC = () => {
                 console.error('Failed to fetch traveler details:', err);
             }
         }
-    }, [handleChange, fetchUserDetailsByEmail]);
+
+        // Sync project title doc name when project number changes
+        if (fieldname === 'travel_project_number' && value) {
+            handleChange('travel_project_title', value);
+        }
+
+        // Refresh SCL balance when SCL field is toggled to "Required"
+        if (fieldname === 'travel_special_casual_leave' && value === 'Required') {
+            const employee = formData.webmail_id_travel || currentUser || '';
+            if (employee) loadSclBalance(employee);
+        }
+    }, [handleChange, fetchUserDetailsByEmail, loadSclBalance, formData.webmail_id_travel, currentUser, linkOptions]);
 
     const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
         setFormData(prev => {
@@ -541,7 +626,7 @@ const TravelForm: React.FC = () => {
 
     // --- Apply depends_on logic to filter visible fields ---
     const visibleFields = useMemo(() => {
-        return fields.map(field => {
+        const mapped = fields.map(field => {
             const f = { ...field };
 
             // Handle depends_on conditions
@@ -575,9 +660,91 @@ const TravelForm: React.FC = () => {
                 f.fieldtype = 'Link';
             }
 
+            // Project title is a Link field — keep non-editable, display label from linkOptions
+            if (f.fieldname === 'travel_project_title') {
+                f.read_only = 1;
+            }
+
+            // Inject dynamic SCL balance into the HTML placeholder field
+            if (f.fieldname === 'travel_leave_balance_html') {
+                const isSclRequired = formData.travel_special_casual_leave === 'Required';
+
+                // Calculate days requested from leave dates
+                let daysRequested = 0;
+                if (formData.travel_leave_from_date && formData.travel_leave_to_date) {
+                    const from = new Date(formData.travel_leave_from_date);
+                    const to = new Date(formData.travel_leave_to_date);
+                    if (to >= from) {
+                        daysRequested = Math.floor((to.getTime() - from.getTime()) / 86400000) + 1;
+                    }
+                }
+
+                if (!isSclRequired) {
+                    f.hidden = 1;
+                } else if (!isPermanentStaff) {
+                    f.hidden = 1;
+                } else if (sclLoading || !sclBalance) {
+                    f.options = `<div style="padding:12px 16px;background:#f4f4f5;border-radius:10px;font-size:13px;color:#71717a;">Loading SCL balance…</div>`;
+                } else {
+                    const available = sclBalance.available_balance;
+                    const over = daysRequested > 0 && daysRequested > available;
+                    const accentColor = available === 0 || over ? '#dc2626' : '#16a34a';
+                    const bgColor = available === 0 || over ? '#fef2f2' : '#f0fdf4';
+                    const borderColor = available === 0 || over ? '#fca5a5' : '#86efac';
+                    const icon = available === 0 || over ? '⚠️' : '✅';
+
+                    const daysPreview = daysRequested > 0
+                        ? `<div style="margin-top:8px;padding:8px 10px;background:${over ? '#fef2f2' : '#eff6ff'};border:1px solid ${over ? '#fca5a5' : '#93c5fd'};border-radius:8px;font-size:12px;color:${over ? '#dc2626' : '#1d4ed8'};">
+                             ${over
+                                ? `⚠️ You are requesting <strong>${daysRequested} days</strong> but only <strong>${available} days</strong> are available.`
+                                : `You are requesting <strong>${daysRequested} days</strong> of SCL. Available: <strong>${available} days</strong>.`}
+                           </div>`
+                        : '';
+
+                    const exhaustedNote = available === 0
+                        ? `<div style="margin-top:6px;font-size:12px;color:#dc2626;">You have exhausted your SCL quota for this year.</div>`
+                        : '';
+
+                    f.options = `
+                        <div style="padding:14px 16px;background:${bgColor};border:1px solid ${borderColor};border-radius:10px;">
+                            <div style="font-weight:600;font-size:13px;color:#3f3f46;margin-bottom:8px;">Special Casual Leave (SCL) ${icon}</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                                <div style="font-size:12px;color:#71717a;">Total Credited<br/><strong style="font-size:14px;color:#3f3f46;">${sclBalance.total_credited} days</strong></div>
+                                <div style="font-size:12px;color:#71717a;">Utilized<br/><strong style="font-size:14px;color:#3f3f46;">${sclBalance.utilized_balance} days</strong></div>
+                                <div style="font-size:12px;color:#71717a;">Available<br/><strong style="font-size:14px;color:${accentColor};">${available} days</strong></div>
+                            </div>
+                            ${exhaustedNote}
+                            ${daysPreview}
+                        </div>`;
+                }
+            }
+
+            // Hide the original position of the balance HTML — we re-inject it after SCL below
+            if (f.fieldname === 'travel_leave_balance_html') {
+                f.hidden = 1;
+            }
+
             return f;
         });
-    }, [fields, formData]);
+
+        // Re-inject travel_leave_balance_html immediately after travel_special_casual_leave
+        const sclIdx = mapped.findIndex(f => f.fieldname === 'travel_special_casual_leave');
+        const balanceField = mapped.find(f => f.fieldname === 'travel_leave_balance_html');
+
+        if (sclIdx !== -1 && balanceField) {
+            const shouldShowBalance = formData.travel_special_casual_leave === 'Required' && isPermanentStaff;
+            if (shouldShowBalance) {
+                let insertAfter = sclIdx;
+                for (let i = sclIdx + 1; i < mapped.length; i++) {
+                    if (mapped[i].fieldtype === 'Section Break') break;
+                    insertAfter = i;
+                }
+                mapped.splice(insertAfter + 1, 0, { ...balanceField, hidden: 0 });
+            }
+        }
+
+        return mapped;
+    }, [fields, formData, sclBalance, sclLoading, isPermanentStaff]);
 
     // --- RENDER LOGIC ---
     if (loading) {

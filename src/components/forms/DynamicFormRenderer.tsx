@@ -190,8 +190,7 @@ const MemoizedFormField = memo(
                         field.fieldname === "department_for" ||
                         field.fieldname === "upfa_department" ||
                         field.fieldname === "implementation_department" ||
-                        field.fieldname === "applicant_department" ||
-                        field.fieldname === "account_head") &&
+                        field.fieldname === "applicant_department") &&
                         value)
                         ? "text-transparent focus:text-zinc-900 dark:focus:text-zinc-100 disabled:text-transparent dark:disabled:text-transparent bg-transparent relative z-10"
                         : "",
@@ -214,11 +213,6 @@ const MemoizedFormField = memo(
                         <DepartmentName name={value} />
                       </div>
                     )}
-                  {field.fieldname === "account_head" && value && (
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-sm text-zinc-900 dark:text-zinc-100 truncate max-w-[calc(100%-2.5rem)] pointer-events-none z-20">
-                      <BudgetHeadName id={value} />
-                    </div>
-                  )}
                 </div>
               </div>
             );

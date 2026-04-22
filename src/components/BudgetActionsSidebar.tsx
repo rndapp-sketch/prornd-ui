@@ -15,6 +15,8 @@ interface BudgetActionsSidebarProps {
     parentAppId?: string;
     /** Pre-fill the commit amount with this value (e.g. net_claimed from TA DA Settlement) */
     billAmount?: number;
+    /** Frappe doc name of the Budget Head to auto-select (e.g. ta_da_account_head value) */
+    preselectedAccountHead?: string;
 }
 
 export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
@@ -24,6 +26,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     doctype = "Travel",
     parentAppId,
     billAmount,
+    preselectedAccountHead,
 }) => {
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -68,7 +71,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     const actualBalance = (projectAmounts as any)?.message?.data?.availableCommitAmount ?? (projectAmounts as any)?.data?.availableCommitAmount ?? 0;
 
     // Fetch Budget Heads
-    const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: number | string }[]>([]);
+    const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: number | string; docName: string }[]>([]);
     useEffect(() => {
         const fetchBudgetHeads = async () => {
             try {
@@ -77,7 +80,8 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                 if (result?.data) {
                     setBudgetHeadList(result.data.map((item: any) => ({
                         name: item.title || item.budget_head || item.name,
-                        id: item.id
+                        id: item.id,
+                        docName: item.name,  // raw Frappe name (e.g. "vnacmhhbu5")
                     })));
                 }
             } catch (err) {
@@ -87,12 +91,18 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
         fetchBudgetHeads();
     }, []);
 
-    // Set default head
+    // Set default head — prefer preselectedAccountHead match, else first entry
     useEffect(() => {
-        if (budgetHeadList.length > 0 && !commitHead) {
-            setCommitHead(budgetHeadList[0].name);
+        if (budgetHeadList.length === 0 || commitHead) return;
+        if (preselectedAccountHead) {
+            const match = budgetHeadList.find(h => h.docName === preselectedAccountHead);
+            if (match) {
+                setCommitHead(match.name);
+                return;
+            }
         }
-    }, [budgetHeadList]);
+        setCommitHead(budgetHeadList[0].name);
+    }, [budgetHeadList, preselectedAccountHead]);
 
     // Pre-fill commitAmount: billAmount prop takes priority, then fall back to ledger lookup
     useEffect(() => {
@@ -141,30 +151,49 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
         try {
             let refDetails: string | undefined;
 
-            // If a parent app is linked (e.g. Travel for TA DA Settlement),
-            // fetch its committed TID from the ledger and pass as refDetails.
+            // If a parent Travel app is linked (e.g. for TA DA Settlement),
+            // check whether financial assistance was required before looking up the ledger TID.
             if (parentAppId) {
+                // Fetch the Travel doc to check financial assistance flag
+                let financialAssistance = "Yes"; // default: require TID
                 try {
-                    const headEntry = budgetHeadList.find(h => h.name === commitHead) || budgetHeadList[0];
-                    const accountHeadId = headEntry?.id || commitHead;
-                    const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(String(accountHeadId))}`;
-                    const ledgerRes = await fetch(ledgerUrl);
-                    if (ledgerRes.ok) {
-                        const entries: any[] = await ledgerRes.json().then(d => Array.isArray(d) ? d : []);
-                        const parentEntry = entries.find((e: any) => e.frapAppId === parentAppId);
-                        if (parentEntry) {
-                            refDetails = String(parentEntry.transactionId);
-                        }
+                    const travelRes = await fetch(
+                        `/api/resource/Travel/${encodeURIComponent(parentAppId)}?fields=["travel_financial_assistance"]`,
+                        { credentials: "include" },
+                    );
+                    if (travelRes.ok) {
+                        const travelData = await travelRes.json();
+                        financialAssistance = travelData?.data?.travel_financial_assistance ?? "Yes";
                     }
-                } catch (ledgerErr) {
-                    console.error("Failed to fetch parent TID from ledger:", ledgerErr);
+                } catch (err) {
+                    console.error("Failed to fetch Travel financial assistance flag:", err);
                 }
 
-                if (!refDetails) {
-                    alert("Could not find the parent Travel application TID in the ledger. Please ensure the Travel application has been committed first.");
-                    setIsSubmitting(false);
-                    return;
+                if (financialAssistance === "Yes") {
+                    // Financial assistance was given — require the parent TID from the ledger
+                    try {
+                        const headEntry = budgetHeadList.find(h => h.name === commitHead) || budgetHeadList[0];
+                        const accountHeadId = headEntry?.id || commitHead;
+                        const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(String(accountHeadId))}`;
+                        const ledgerRes = await fetch(ledgerUrl);
+                        if (ledgerRes.ok) {
+                            const entries: any[] = await ledgerRes.json().then(d => Array.isArray(d) ? d : []);
+                            const parentEntry = entries.find((e: any) => e.frapAppId === parentAppId);
+                            if (parentEntry) {
+                                refDetails = String(parentEntry.transactionId);
+                            }
+                        }
+                    } catch (ledgerErr) {
+                        console.error("Failed to fetch parent TID from ledger:", ledgerErr);
+                    }
+
+                    if (!refDetails) {
+                        alert("Could not find the parent Travel application TID in the ledger. Please ensure the Travel application has been committed first.");
+                        setIsSubmitting(false);
+                        return;
+                    }
                 }
+                // If financialAssistance === "No", skip TID lookup — refDetails stays undefined
             }
 
             await submitCommit({
@@ -173,6 +202,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                 name: docName,
                 project_name: projectName,
                 commit_amount: amount,
+                bill_amount: amount,
                 budget_head: commitHead,
                 bmr: "",
                 ...(refDetails ? { refDetails } : {}),

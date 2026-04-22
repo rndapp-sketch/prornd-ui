@@ -426,7 +426,29 @@ const TaskRegistryDetails: React.FC = () => {
         if (doctype === 'TA DA Settlement' && name) {
             setIsTadaLoading(true);
             fetchTadaFields({ doc_name: name }).then(res => {
-                if (res?.message) { setTadaFields(res.message.fields || []); setTadaLinkOptions(res.message.link_options || {}); }
+                if (res?.message) {
+                    // Force ta_da_account_head to Link so BudgetHeadName overlay renders
+                    const processedFields = (res.message.fields || []).map((f: any) =>
+                        f.fieldname === 'ta_da_account_head' ? { ...f, fieldtype: 'Link' } : f
+                    );
+                    setTadaFields(processedFields);
+
+                    // Inject Budget Head options so the ID resolves to its name
+                    const baseLinkOptions = res.message.link_options || {};
+                    fetch(
+                        `/api/resource/Budget Head?fields=["name","budget_head"]&limit_page_length=0`,
+                        { credentials: 'include' },
+                    )
+                        .then(r => r.ok ? r.json() : { data: [] })
+                        .then(result => {
+                            const opts = (result.data || []).map((h: any) => ({
+                                value: h.name,
+                                label: h.budget_head || h.name,
+                            }));
+                            setTadaLinkOptions({ ...baseLinkOptions, ta_da_account_head: opts });
+                        })
+                        .catch(() => setTadaLinkOptions(baseLinkOptions));
+                }
             }).finally(() => setIsTadaLoading(false));
         }
     }, [doctype, name]);
