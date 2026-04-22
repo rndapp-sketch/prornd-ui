@@ -141,12 +141,12 @@ const PendingTask: React.FC = () => {
     // prNoToType:   PR project_no (human-readable) → raw project_type
     const { prNameToType, prNoToType } = React.useMemo(() => {
         const prNameToType = new Map<string, string>();
-        const prNoToType   = new Map<string, string>();
+        const prNoToType = new Map<string, string>();
         if (allProjectRegistrations) {
             allProjectRegistrations.forEach((p: { name: string; project_no?: string; project_type?: string }) => {
                 const raw = p.project_type || '';
-                if (p.name)       prNameToType.set(p.name,       raw);
-                if (p.project_no) prNoToType.set(p.project_no,   raw);
+                if (p.name) prNameToType.set(p.name, raw);
+                if (p.project_no) prNoToType.set(p.project_no, raw);
             });
         }
         return { prNameToType, prNoToType };
@@ -231,8 +231,8 @@ const PendingTask: React.FC = () => {
             const filterValue = ids.join(',');
             const params = new URLSearchParams({
                 filters: JSON.stringify([['name', 'in', filterValue]]),
-                fields:  JSON.stringify([...fields]),
-                limit:   String(ids.length),
+                fields: JSON.stringify([...fields]),
+                limit: String(ids.length),
             });
 
             const p = fetch(`/api/resource/${encodeURIComponent(doctype)}?${params}`)
@@ -260,12 +260,12 @@ const PendingTask: React.FC = () => {
             const resolved = resolvedProjectTypes.get(task.id);
             return resolved ? { ...task, project_type: resolved } : task;
         }),
-    [allTasks, resolvedProjectTypes]);
+        [allTasks, resolvedProjectTypes]);
 
     const tabCounts = React.useMemo(() => ({
-        Research:    resolvedTasks.filter(t => t.project_type === 'Research').length,
+        Research: resolvedTasks.filter(t => t.project_type === 'Research').length,
         Consultancy: resolvedTasks.filter(t => t.project_type === 'Consultancy').length,
-        Others:      resolvedTasks.filter(t => t.project_type === 'Others').length,
+        Others: resolvedTasks.filter(t => t.project_type === 'Others').length,
     }), [resolvedTasks]);
 
     // Module names scoped to current project type tab
@@ -404,14 +404,14 @@ const PendingTask: React.FC = () => {
                     {PROJECT_TYPE_TABS.map((tab) => {
                         const active = selectedProjectType === tab;
                         const tabColors: Record<string, string> = {
-                            Research:    active ? 'bg-blue-600 text-white shadow-blue-200 dark:shadow-blue-900/40 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-blue-300 hover:text-blue-600',
+                            Research: active ? 'bg-blue-600 text-white shadow-blue-200 dark:shadow-blue-900/40 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-blue-300 hover:text-blue-600',
                             Consultancy: active ? 'bg-emerald-600 text-white shadow-emerald-200 dark:shadow-emerald-900/40 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-emerald-300 hover:text-emerald-600',
-                            Others:      active ? 'bg-zinc-700 text-white shadow-zinc-200 dark:shadow-zinc-900/40 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 hover:text-zinc-800',
+                            Others: active ? 'bg-zinc-700 text-white shadow-zinc-200 dark:shadow-zinc-900/40 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 hover:text-zinc-800',
                         };
                         const badgeColors: Record<string, string> = {
-                            Research:    active ? 'bg-blue-500 text-white' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+                            Research: active ? 'bg-blue-500 text-white' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
                             Consultancy: active ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
-                            Others:      active ? 'bg-zinc-600 text-white' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400',
+                            Others: active ? 'bg-zinc-600 text-white' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400',
                         };
                         return (
                             <button

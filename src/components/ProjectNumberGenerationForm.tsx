@@ -8,8 +8,40 @@ interface ProjectNumberGenerationFormProps {
     onSuccess?: () => void;
 }
 
-const InputField = ({ label, field, type = "text", options = [], formData, onChange, disabled = false, maxLength }: any) => {
+const InputField = ({ label, field, type = "text", options = [], formData, onChange, disabled = false, maxLength, fixedLength }: any) => {
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const pendingCursor = React.useRef<number | null>(null);
+
+    // Restore cursor after React re-renders the controlled input value
+    React.useLayoutEffect(() => {
+        if (pendingCursor.current !== null && inputRef.current) {
+            inputRef.current.setSelectionRange(pendingCursor.current, pendingCursor.current);
+            pendingCursor.current = null;
+        }
+    });
+
     const inputClasses = `w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] ${disabled ? 'opacity-60 bg-zinc-100 dark:bg-zinc-800 cursor-not-allowed' : ''}`;
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!fixedLength) {
+            onChange(field, e.target.value);
+            return;
+        }
+        const input = e.target;
+        const rawCursor = input.selectionStart ?? input.value.length;
+        const rawValue = input.value.toUpperCase();
+
+        // Strip X placeholders so we can re-pad correctly, then count
+        // how many X's appeared before the cursor to adjust it back
+        const xsBeforeCursor = (rawValue.substring(0, rawCursor).match(/X/g) || []).length;
+        const stripped = rawValue.replace(/X/g, '');
+        const trimmed = stripped.substring(0, fixedLength);
+        const padded = trimmed.padEnd(fixedLength, 'X');
+
+        pendingCursor.current = Math.min(rawCursor - xsBeforeCursor, trimmed.length);
+        onChange(field, padded);
+    };
+
     return (
         <div className="space-y-1">
             <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</label>
@@ -26,13 +58,14 @@ const InputField = ({ label, field, type = "text", options = [], formData, onCha
                 </select>
             ) : (
                 <input
+                    ref={inputRef}
                     type={type}
                     value={formData[field]}
-                    onChange={(e) => onChange(field, e.target.value)}
+                    onChange={handleChange}
                     className={inputClasses}
                     disabled={disabled}
                     readOnly={disabled}
-                    maxLength={maxLength}
+                    maxLength={fixedLength ? undefined : maxLength}
                 />
             )}
         </div>
@@ -51,23 +84,16 @@ const getEmpInitial = (fullName: string): string => {
     return initials.toUpperCase().padStart(4, 'x').slice(-4);
 };
 
-/**
- * Generate department initials from department name.
- * E.g. "Civil Engineering" -> "CE", "Computer Science and Engineering" -> "CSE"
- */
-const getDeptInitial = (deptName: string): string => {
-    if (!deptName) return '';
-    const wordsToIgnore = ['and', 'of', '&', 'for', 'in', 'the'];
-    const parts = deptName.trim().split(/\s+/).filter(w => !wordsToIgnore.includes(w.toLowerCase()));
-    return parts.map(p => p.charAt(0).toUpperCase()).join('').substring(0, 4);
-};
 
 export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormProps> = ({ projectData, onSuccess }) => {
+    const currentYear = new Date().getFullYear();
+    const fiscalYear = `${String(currentYear).slice(-2)}${String(currentYear + 1).slice(-2)}`;
     const [formData, setFormData] = useState<any>({
-        current_year1: new Date().getFullYear().toString().slice(-2),
+        current_year1: fiscalYear,
         category: 'C',
         project_no: '0',
         select_department: '',
+        dept_name: '',
         dept_initial: '',
         project_type: 'SP',
         emp_id: '',
@@ -80,15 +106,6 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
         "rndopsapp.rndopsapp.doctype.project_number_generation.project_number_generation.save_project_number_generation_data"
     );
 
-    // Fetch Departments for the Link field
-    const { data: departmentData } = useFrappeGetCall<{ message: any[] }>(
-        'frappe.client.get_list',
-        {
-            doctype: 'Department_prornd',
-            fields: ['name', 'dept_initials', 'dept_name'],
-            limit_page_length: 100
-        }
-    );
 
     // Use a custom cache key containing the modified timestamp so it fetches absolutely fresh data
     const refreshKey = projectData?.name ? `project_number_gen_${projectData.name}_${projectData.modified || ''}` : null;
@@ -124,6 +141,7 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
             ...(prefill.category && { category: prefill.category }),
             ...(prefill.project_no && { project_no: prefill.project_no }),
             ...(prefill.select_department && { select_department: prefill.select_department }),
+            ...(prefill.dept_name && { dept_name: prefill.dept_name }),
             ...(prefill.dept_initial && { dept_initial: prefill.dept_initial }),
             ...(prefill.project_type && { project_type: prefill.project_type }),
             ...(prefill.emp_id && { emp_id: prefill.emp_id }),
@@ -136,7 +154,7 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
     useEffect(() => {
         if (prefillApplied || !projectData) return;
         const newFormData: any = {
-            current_year1: new Date().getFullYear().toString().slice(-2),
+            current_year1: fiscalYear,
             category: 'C',
             project_no: '0',
             select_department: '',
@@ -187,29 +205,21 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
         setFormData(newFormData);
     }, [projectData, prefillApplied]);
 
-    // Update dept_initial when department changes (only if prefill hasn't set it)
-    useEffect(() => {
-        if (prefillApplied) return;
-        if (formData.select_department && departmentData?.message) {
-            const selectedDept = departmentData.message.find((d: any) => d.name === formData.select_department);
-            if (selectedDept) {
-                const initial = selectedDept.dept_initials || getDeptInitial(selectedDept.dept_name || selectedDept.name);
-                setFormData((prev: any) => ({ ...prev, dept_initial: initial }));
-            }
-        }
-    }, [formData.select_department, departmentData, prefillApplied]);
 
-    // Live preview of assembled project number
-    const previewProjectNumber = useMemo(() => {
-        const { current_year1, category, dept_initial, project_type, emp_id, emp_initial, project_no } = formData;
-        if (!current_year1 && !category && !dept_initial && !project_type && !emp_id && !emp_initial && !project_no) return '';
-        return `${current_year1 || ''}${category || ''}${dept_initial || ''}${project_type || ''}${emp_id || ''}${emp_initial || ''}${project_no || ''}`;
+    // Live preview — always computed from current formData so it reacts to field changes
+    const previewSegments = useMemo(() => {
+        const { current_year1, category, dept_initial, emp_id, emp_initial, project_no } = formData;
+        const part1 = `${current_year1 || ''}${category || ''}`;
+        const part2 = `${dept_initial || ''}${emp_id || ''}${emp_initial || ''}`;
+        const part3 = project_no || '';
+        return { part1, part2, part3, full: [part1, part2, part3].filter(Boolean).join('-') };
     }, [formData]);
 
     const handleChange = (field: string, value: any) => {
         if (isReadOnly) return;
         setFormData((prev: any) => ({ ...prev, [field]: value }));
     };
+
 
     const handleSubmit = async () => {
         if (isReadOnly) return;
@@ -244,7 +254,7 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
             </div>
             <div className="p-4 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                    <InputField label="Year (YY)" field="current_year1" formData={formData} onChange={handleChange} disabled={isReadOnly} />
+                    <InputField label="Year (YY)" field="current_year1" formData={formData} onChange={handleChange} disabled={isReadOnly} fixedLength={4} />
                     <InputField
                         label="Category"
                         field="category"
@@ -256,47 +266,35 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
 
                 <div className="space-y-1">
                     <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Department</label>
-                    <select
-                        value={formData.select_department}
-                        onChange={(e) => handleChange('select_department', e.target.value)}
-                        className={`w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none opacity-60 cursor-not-allowed`}
-                        disabled={true}
-                    >
-                        <option value="">Select Department</option>
-                        {departmentData?.message?.map((dept: any) => (
-                            <option key={dept.name} value={dept.name}>{dept.dept_name || dept.name}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                    <InputField label="Dept Initial" field="dept_initial" formData={formData} onChange={handleChange} disabled={true} />
-                    <InputField
-                        label="Project Type"
-                        field="project_type"
-                        type="select"
-                        options={[
-                            { value: 'SP', label: 'SP' },
-                            { value: 'CN', label: 'CN' },
-                            { value: 'OT', label: 'OT' },
-                            { value: 'PD', label: 'PD' },
-                            { value: 'TT', label: 'TT' }
-                        ]}
-                        formData={formData} onChange={handleChange} disabled={isReadOnly}
+                    <input
+                        type="text"
+                        value={formData.dept_name || ''}
+                        readOnly
+                        className="w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 opacity-60 cursor-not-allowed"
                     />
                 </div>
 
+                <div>
+                    <InputField label="Dept Initial" field="dept_initial" formData={formData} onChange={handleChange} disabled={true} fixedLength={4} />
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
-                    <InputField label="Emp ID" field="emp_id" formData={formData} onChange={handleChange} disabled={isReadOnly} />
-                    <InputField label="Emp Initial" field="emp_initial" formData={formData} onChange={handleChange} disabled={isReadOnly} />
+                    <InputField label="Emp ID" field="emp_id" formData={formData} onChange={handleChange} disabled={isReadOnly} fixedLength={4} />
+                    <InputField label="Emp Initial" field="emp_initial" formData={formData} onChange={handleChange} disabled={isReadOnly} fixedLength={4} />
                 </div>
 
                 <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
-                    <InputField label="Project No (Auto/Manual)" field="project_no" formData={formData} onChange={handleChange} disabled={isReadOnly} maxLength={22} />
-                    {previewProjectNumber && (
-                        <div className="p-2 rounded-md bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-0.5">Preview</p>
-                            <p className="text-sm font-mono font-semibold text-[#D97757]">{previewProjectNumber}</p>
+                    <InputField label="Project No." field="project_no" formData={formData} onChange={handleChange} disabled={isReadOnly} fixedLength={4} />
+                    {previewSegments.full && (
+                        <div className="p-3 rounded-md bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Preview</p>
+                            <p className="font-mono font-bold text-base tracking-wide">
+                                <span className="text-[#D97757]">{previewSegments.part1}</span>
+                                <span className="text-zinc-400 dark:text-zinc-500">-</span>
+                                <span className="text-[#D97757]">{previewSegments.part2}</span>
+                                <span className="text-zinc-400 dark:text-zinc-500">-</span>
+                                <span className="text-[#D97757]">{previewSegments.part3}</span>
+                            </p>
                         </div>
                     )}
                 </div>
