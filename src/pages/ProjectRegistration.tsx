@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from "react";
 import { AppSidebar } from "../components/RndSidebar";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetFooter,
+} from "@/components/ui/sheet";
+import { CountrySelect } from "@/components/CountrySelect";
+import ProjectDetailsView from "./ProjectDetails";
 
 import {
     useFrappePostCall,
@@ -64,6 +73,7 @@ interface FormData {
     sanctioned_budget_breakup?: (any & { id?: string })[];
     sanction_related_files?: (any & { id?: string })[];
     fund_transactions?: (any & { id?: string })[];
+    upload_supporting_docs?: (any & { id?: string })[];
 }
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
@@ -198,6 +208,7 @@ const MemoizedFormField = memo(
                                 searchByLabel
                                 showAllOnFocus
                                 displayOnlyLabel
+                                footerMessage="Not in the list? Select Other Funding Agency"
                             />
                         );
                     }
@@ -304,15 +315,13 @@ const MemoizedFormField = memo(
                 default:
                     return (
                         <input
-                            type={
-                                [
-                                    "Int",
-                                    "Currency",
-                                    "Float",
-                                    "Percent",
-                                ].includes(field.fieldtype)
-                                    ? "number"
-                                    : "text"
+                            type="text"
+                            inputMode={
+                                ["Int"].includes(field.fieldtype)
+                                    ? "numeric"
+                                    : ["Currency", "Float", "Percent"].includes(field.fieldtype)
+                                        ? "decimal"
+                                        : "text"
                             }
                             {...commonProps}
                             value={value || ""}
@@ -368,6 +377,7 @@ const MemoizedGenericTable = memo(
         onFileChange,
         onAddRow,
         onDeleteRow,
+        onOpenQuickEntry, // EDITED BY MKY | 2026-04-14 14:52 IST: Added Quick Entry hook prop
     }: any) => (
         <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-lg">
             <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -400,30 +410,57 @@ const MemoizedGenericTable = memo(
                                 <td key={col.key} className="px-4 py-2.5">
                                     {" "}
                                     {col.type === "file" ? (
-                                        <input
-                                            type="file"
-                                            className={`${inputClasses} !h-8 !py-1.5 text-xs !border-zinc-200`}
-                                            onChange={(e) =>
-                                                onFileChange(
-                                                    tableName,
-                                                    i,
-                                                    col.key,
-                                                    e.target.files?.[0] || null,
-                                                )
-                                            }
-                                        />
+                                        <div className="space-y-1">
+                                            {row[col.key] && typeof row[col.key] === "string" && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <a
+                                                        href={row[col.key].startsWith("http") ? row[col.key] : `http://172.16.135.118:9000/prod-rnd-files${row[col.key]}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-[10px] text-[#D97757] underline truncate max-w-[160px]"
+                                                        title={row[col.key].split("/").pop()}
+                                                    >
+                                                        {row[col.key].split("/").pop()}
+                                                    </a>
+                                                    <span className="text-[9px] text-zinc-400">(replace)</span>
+                                                </div>
+                                            )}
+                                            <input
+                                                type="file"
+                                                className={`${inputClasses} !h-8 !py-1.5 text-xs !border-zinc-200`}
+                                                onChange={(e) =>
+                                                    onFileChange(
+                                                        tableName,
+                                                        i,
+                                                        col.key,
+                                                        e.target.files?.[0] || null,
+                                                    )
+                                                }
+                                            />
+                                        </div>
                                     ) : col.type === "select" ? (
                                         <select
                                             className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary focus:!ring-primary/20`}
                                             value={row[col.key] || ""}
-                                            onChange={(e) =>
-                                                onRowChange(
-                                                    tableName,
-                                                    i,
-                                                    col.key,
-                                                    e.target.value,
-                                                )
-                                            }
+                                            onChange={(e) => {
+                                                // ============================================================
+                                                // EDITED BY MKY | 2026-04-14 14:52 IST
+                                                // START OF EDIT — Intercept "CREATE_NEW" selections
+                                                // Launch the quick entry modal instead of writing the placeholder to state.
+                                                // ============================================================
+                                                if (e.target.value === "CREATE_NEW" && onOpenQuickEntry) {
+                                                    onOpenQuickEntry(tableName, i, col.key);
+                                                } else {
+                                                    onRowChange(
+                                                        tableName,
+                                                        i,
+                                                        col.key,
+                                                        e.target.value,
+                                                    );
+                                                }
+                                                // END OF EDIT — MKY | 2026-04-14 14:52 IST
+                                                // ============================================================
+                                            }}
                                         >
                                             <option value="">Select...</option>
                                             {(col.options || []).map(
@@ -563,7 +600,9 @@ const MemoizedCollaboratorTable = memo(
                                             }
                                             options={piOptions || []}
                                             searchByLabel
-                                            placeholder="Enter Name"
+                                            strictMatch
+                                            showAllOnFocus
+                                            placeholder="Select Name"
                                         />
                                     </td>
                                     <td className="px-4 py-2.5">
@@ -876,6 +915,7 @@ const ProjectRegistration: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
+    const [isFetchingPiDetails, setIsFetchingPiDetails] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
     const { docname: pathDocname, tempId: pathTempId } = useParams<{ docname?: string; tempId?: string }>();
@@ -891,7 +931,7 @@ const ProjectRegistration: React.FC = () => {
             const newId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             navigate(`/project-registration/new/${newId}`, { replace: true });
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Stable IndexedDB key: tempId from URL for new forms, real docname for existing
@@ -903,8 +943,27 @@ const ProjectRegistration: React.FC = () => {
     }, [location.search]);
     const [budgetYears, setBudgetYears] = useState([1]);
     const [showEndorsementModal, setShowEndorsementModal] = useState(false);
+    const endorsementCertRef = React.useRef<HTMLDivElement>(null);
     const [showSubmitInsteadModal, setShowSubmitInsteadModal] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
+    const [showPreviewAfterSave, setShowPreviewAfterSave] = useState(false);
+
+    // Comment modal state for final submission
+    const [showSubmitCommentModal, setShowSubmitCommentModal] = useState(false);
+    const [isFinalSubmitting, setIsFinalSubmitting] = useState(false);
+
+    // ============================================================
+    // EDITED BY MKY | 2026-04-14 14:52 IST
+    // START OF EDIT — Quick Entry State & API
+    // ============================================================
+    const [quickEntryState, setQuickEntryState] = useState<{ isOpen: boolean; tableName: string; rowIndex: number; columnKey: string; pendingValue: string; isSubmitting: boolean } | null>(null);
+    const { call: createCustomDesignation } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.project_registration.project_registration.create_custom_designation"
+    );
+    // END OF EDIT — MKY | 2026-04-14 14:52 IST
+    // ============================================================
+
     // Edit mode: new forms start editable; existing docs start read-only
     const [isEditMode, setIsEditMode] = useState<boolean>(() => {
         const params = new URLSearchParams(location.search);
@@ -930,17 +989,37 @@ const ProjectRegistration: React.FC = () => {
         const hasPiEmployeeId = !!formData.pi_employee_id?.trim();
         const hasPiDepartment = !!formData.applicant_department;
 
+        const hasFundingAgency = !!formData.funding_agen;
+
         return (
             hasProjectTitle &&
             hasProjectType &&
             hasDepartment &&
             hasDuration &&
+            hasFundingAgency &&
             hasPiWebmail &&
             hasPiName &&
             hasPiDesignation &&
             hasPiEmployeeId &&
             hasPiDepartment
         );
+    }, [formData]);
+
+    // Build list of missing endorsement fields for user feedback
+    const missingEndorsementFields = useMemo(() => {
+        const missing: string[] = [];
+        if (!formData.project_title?.trim()) missing.push("Project Title");
+        if (!formData.project_type) missing.push("Project Type");
+        if (!formData.implementation_department) missing.push("Department/Centre");
+        const hasDuration =
+            formData.project_type === "Consultancy"
+                ? !!formData.project_duration_days
+                : !!formData.project_duration_months;
+        if (!hasDuration) missing.push("Duration of the Project");
+        if (!formData.funding_agen) missing.push("Funding Agency");
+        if (!formData.pi_webmail || !formData.principal_investigator_name?.trim())
+            missing.push("Principal Investigator (PI)");
+        return missing;
     }, [formData]);
 
     const {
@@ -964,6 +1043,9 @@ const ProjectRegistration: React.FC = () => {
     } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.project_registration.project_registration.save_project_data",
     );
+    const { call: submitProjectRegistration } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.project_registration.project_registration.submit_project_registration"
+    );
     const {
         call: saveDraft,
         result: saveResult,
@@ -981,7 +1063,7 @@ const ProjectRegistration: React.FC = () => {
     const { call: fetchPiDetails } = useFrappePostCall(
         commonAPI.getUserDetailsByEmail,
     );
-    const { data: allFundingAgencies } = useFrappeGetDocList("fundingagency_", {
+    const { data: allFundingAgencies, mutate: mutateFundingAgencies } = useFrappeGetDocList("fundingagency_", {
         fields: [
             "name",
             "funding_agency_name",
@@ -1008,6 +1090,86 @@ const ProjectRegistration: React.FC = () => {
     useEffect(() => {
         allFundingAgenciesRef.current = allFundingAgencies;
     }, [allFundingAgencies]);
+
+    // Funding Agency Sheet state (must be after allFundingAgencies)
+    const [showFundingAgencySheet, setShowFundingAgencySheet] = useState(false);
+    const [newAgencyData, setNewAgencyData] = useState<Record<string, string>>({ fundingagency_country: "India" });
+    const [isSavingAgency, setIsSavingAgency] = useState(false);
+    const { call: insertDoc } = useFrappePostCall("frappe.client.insert");
+
+    const duplicateAgency = useMemo(() => {
+        const typedName = newAgencyData.funding_agency_name?.trim().toLowerCase();
+        const typedInitials = newAgencyData.funding_agency_initials?.trim().toLowerCase();
+        if (!allFundingAgencies) return null;
+        return allFundingAgencies.find((a: any) => {
+            const existingName = a.funding_agency_name?.trim().toLowerCase() ?? "";
+            const existingInitials = a.funding_agency_initials?.trim().toLowerCase() ?? "";
+            if (!existingName) return false;
+            const existingPrefix = existingName.split(" - ")[0].trim();
+            if (typedName && typedName.length >= 2) {
+                if (existingName === typedName || existingPrefix === typedName || existingInitials === typedName) return true;
+                if (typedName.length >= 3 && existingName.includes(typedName)) return true;
+            }
+            if (typedInitials && typedInitials.length >= 1 && existingInitials && existingInitials === typedInitials) return true;
+            return false;
+        }) || null;
+    }, [newAgencyData.funding_agency_name, newAgencyData.funding_agency_initials, allFundingAgencies]);
+
+    const handleAgencyFieldChange = (key: string, value: string) => {
+        setNewAgencyData(prev => {
+            const next = { ...prev, [key]: value };
+            if (key === "funding_agency_type_1") {
+                if (value !== "Others") next.specify_other_funding_agency_type = "";
+                if (value !== "Government") { next.ministry_funding_agency = ""; next.specify_other_ministry = ""; }
+            }
+            if (key === "ministry_funding_agency" && value !== "Others") {
+                next.specify_other_ministry = "";
+            }
+            if (key === "origin_of_funding_agency") {
+                if (value === "International") {
+                    next.gstin_of_funding_agency = "";
+                    next.fundingagency_state = "";
+                    next.fundingagency_country = "";
+                }
+                if (value === "National") {
+                    next.fundingagency_country = "India";
+                }
+            }
+            return next;
+        });
+    };
+
+    const handleSaveFundingAgency = async () => {
+        const d = newAgencyData;
+        const errors: string[] = [];
+        if (!d.funding_agency_name?.trim()) errors.push("Funding Agency Name is required.");
+        if (d.origin_of_funding_agency === "National") {
+            if (!d.fundingagency_state?.trim()) errors.push("State is required for National agencies.");
+        }
+        if (d.funding_agency_type_1 === "Others" && !d.specify_other_funding_agency_type?.trim()) {
+            errors.push("Please specify the funding agency type.");
+        }
+        if (d.funding_agency_type_1 === "Government" && d.origin_of_funding_agency === "National" && !d.ministry_funding_agency?.trim()) {
+            errors.push("Ministry / Department is required.");
+        }
+        if (d.ministry_funding_agency === "Others" && !d.specify_other_ministry?.trim()) {
+            errors.push("Please specify the ministry.");
+        }
+        if (errors.length) { alert(errors.join("\n")); return; }
+        if (duplicateAgency) return;
+        setIsSavingAgency(true);
+        try {
+            await insertDoc({ doc: { doctype: "fundingagency_", ...newAgencyData } });
+            setShowFundingAgencySheet(false);
+            setNewAgencyData({ fundingagency_country: "India" });
+            mutateFundingAgencies();
+        } catch (err: any) {
+            alert("Failed to save: " + (err?.message || "Unknown error"));
+        } finally {
+            setIsSavingAgency(false);
+        }
+    };
+
     const { call: fetchBudgetHeads, result: budgetHeadsResult } =
         useFrappePostCall(
             "rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head",
@@ -1038,49 +1200,49 @@ const ProjectRegistration: React.FC = () => {
 
         // --- LOGIC FOR CATEGORY D (Technology Transfer) ---
         if (category.startsWith("Category D")) {
-            const grandTotal =
-                parseFloat(currentData.cat_d_grand_total_input) || 0;
-            const cfInput =
-                parseFloat(currentData.cat_d_consultancy_fee_input) || 0; // Gross CF
-            const oeInput =
-                parseFloat(currentData.operational_expense_input_inc_10_oh) ||
-                0; // Gross OE
+            // r2: round to 2dp for user-facing decimal fields (net CF, net OE)
+            const r2 = (v: number) => Math.round(v * 100) / 100;
 
-            // 1. Calculate Total Project Cost (Back calculate from Grand Total)
-            const totalProjectCost = Math.round(
-                grandTotal / (1 + gstRate / 100),
-            );
-            const gstAmt = grandTotal - totalProjectCost;
+            // User inputs — keep as entered (may have decimals)
+            const grandTotal = parseFloat(currentData.cat_d_grand_total_input) || 0;
+            const cfInput = parseFloat(currentData.cat_d_consultancy_fee_input) || 0;
 
-            // 2. Breakdown Calculations
-            // Institute Share = 20% of Gross CF Input
-            const instShare = Math.round(cfInput * 0.2);
+            // 1. project_cost_excl_gst = round(grand_total / (1 + gst_rate/100))  → integer
+            const projectCostExclGst = Math.round(grandTotal / (1 + gstRate / 100));
 
-            // Overhead = 10% of Gross CF + 10% of Gross OE
-            const overheadCf = cfInput * 0.1;
-            const overheadOe = oeInput * 0.1;
-            const totalOverhead = Math.round(overheadCf + overheadOe);
+            // 2. operational_expense = round(project_cost - consultancy_fee)  → integer, >= 0
+            const operationalExpense = Math.max(0, Math.round(projectCostExclGst - cfInput));
 
-            // Net CF (Base) = Input - Inst Share - Overhead on CF
-            const netCf = Math.round(cfInput - instShare - overheadCf);
+            // 3. institute_share = round(consultancy_fee × 0.20)  → integer
+            const instituteShare = Math.round(cfInput * 0.2);
 
-            // Net OE (Base) = Input - Overhead on OE
-            const netOe = Math.round(oeInput - overheadOe);
+            // 4. overhead_on_cf = round(consultancy_fee × 0.10)  → integer
+            const overheadOnCf = Math.round(cfInput * 0.1);
 
-            // 3. Validation: CF Check (Consultancy fee should be less than 30% of total project cost)
-            const limit = totalProjectCost * 0.3;
-            if (totalProjectCost > 0 && cfInput > limit) {
-                // We use alert here as we don't have a toast library connected in this context yet
-                // console.warn(`Consultancy Fee Input (${cfInput}) exceeds 30% of Total Project Cost (${Math.round(limit)})`);
-            }
+            // 5. overhead_on_oe = round(operational_expense × 0.10)  → integer
+            const overheadOnOe = Math.round(operationalExpense * 0.1);
 
-            // 4. Set Values
-            updates.cat_d_project_cost_excl_gst = totalProjectCost;
-            updates.cat_d_cf_base = netCf;
-            updates.cat_d_oe_base = netOe;
+            // 6. total_overhead = overhead_on_cf + overhead_on_oe  (both already integers)
+            const totalOverhead = overheadOnCf + overheadOnOe;
+
+            // 7. net_consultancy_fee = consultancy_fee - institute_share - overhead_on_cf
+            //    IS and OH are integers so subtraction is clean; r2 kills any float dust
+            const netConsultancyFee = r2(Math.max(0, cfInput - instituteShare - overheadOnCf));
+
+            // 8. net_operational_expense = operational_expense - overhead_on_oe
+            //    OE and OH are integers so result is clean
+            const netOperationalExpense = Math.max(0, operationalExpense - overheadOnOe);
+
+            // 9. gst_amount = round(grand_total - project_cost_excl_gst)  → integer, >= 0
+            const gstAmount = Math.max(0, Math.round(grandTotal - projectCostExclGst));
+
+            updates.cat_d_project_cost_excl_gst = projectCostExclGst;
+            updates.operational_expense_input_inc_10_oh = operationalExpense;
+            updates.cat_d_institute_share = instituteShare;
             updates.cat_d_total_overhead = totalOverhead;
-            updates.cat_d_institute_share = instShare;
-            updates.cat_d_gst_amt = gstAmt;
+            updates.cat_d_cf_base = netConsultancyFee;
+            updates.cat_d_oe_base = netOperationalExpense;
+            updates.cat_d_gst_amt = gstAmount;
             updates.cat_d_grand_total_calc = grandTotal;
         }
         // --- LOGIC FOR CATEGORY T (Routine) & E (Non-Routine) ---
@@ -1157,14 +1319,19 @@ const ProjectRegistration: React.FC = () => {
         if (!startDate) return null;
 
         const date = new Date(startDate);
+        let valid = false;
+
         if (durationMonths > 0) {
             date.setMonth(date.getMonth() + durationMonths);
             date.setDate(date.getDate() - 1); // Subtract 1 day
-        } else if (durationDays > 0) {
-            date.setDate(date.getDate() + durationDays);
-        } else {
-            return null;
+            valid = true;
         }
+        if (durationDays > 0) {
+            date.setDate(date.getDate() + durationDays);
+            valid = true;
+        }
+
+        if (!valid) return null;
         return date.toISOString().split("T")[0];
     }, []);
 
@@ -1256,6 +1423,7 @@ const ProjectRegistration: React.FC = () => {
             // 2. Run Side Effects based on fieldname
             if (fieldname === "pi_webmail") {
                 if (value) {
+                    setIsFetchingPiDetails(true);
                     try {
                         const result = await fetchPiDetails({
                             user_email: value,
@@ -1312,6 +1480,8 @@ const ProjectRegistration: React.FC = () => {
                         }
                     } catch (err) {
                         console.error("Failed to fetch main PI details:", err);
+                    } finally {
+                        setIsFetchingPiDetails(false);
                     }
                 } else {
                     updatedData = {
@@ -1337,15 +1507,16 @@ const ProjectRegistration: React.FC = () => {
                     if (agency) {
                         updatedData = {
                             ...updatedData,
-                            fund_agen_initials:              agency.funding_agency_initials  || "",
-                            funding_agency_type:             agency.funding_agency_type_1    || "",
-                            origin_of_funding_agency:        agency.origin_of_funding_agency || "",
-                            address_country:                 agency.fundingagency_country    || "",
-                            address_state:                   agency.fundingagency_state      || "",
-                            address_street_village_locality:  agency.fundingagency_address    || "",
-                            address_postal_code:             agency.fundingagency_postalcode || "",
-                            gstin_number:                    agency.gstin_of_funding_agency  || "",
-                            funding_agency_id:               agency.funding_agency_id        || "",
+                            fund_agen_initials: agency.funding_agency_initials || "",
+                            funding_agency_type: agency.funding_agency_type_1 || "",
+                            origin_of_funding_agency: agency.origin_of_funding_agency || "",
+                            funding_agency_ministry: agency.ministry_funding_agency || "",
+                            address_country: agency.fundingagency_country || "",
+                            address_state: agency.fundingagency_state || "",
+                            address_street_village_locality: agency.fundingagency_address || "",
+                            address_postal_code: agency.fundingagency_postalcode || "",
+                            gstin_number: agency.gstin_of_funding_agency || "",
+                            funding_agency_id: agency.funding_agency_id || "",
                         };
                     }
                 } else if (!value) {
@@ -1380,10 +1551,29 @@ const ProjectRegistration: React.FC = () => {
                     "consultancy_gst_rate",
                     "cat_d_grand_total_input",
                     "cat_d_consultancy_fee_input",
-                    "operational_expense_input_inc_10_oh",
                     "cat_ef_total_amount",
                 ].includes(fieldname)
             ) {
+                // Validate CF input does not exceed 29.99% of project cost excl. GST
+                if (
+                    updatedData.consultancy_category?.startsWith("Category D") &&
+                    fieldname === "cat_d_consultancy_fee_input"
+                ) {
+                    const gstR = parseFloat(updatedData.consultancy_gst_rate) || 18;
+                    const gt = parseFloat(updatedData.cat_d_grand_total_input) || 0;
+                    const projectCost = Math.round(gt / (1 + gstR / 100));
+                    const maxCf = Math.floor(projectCost * 0.2999 * 100) / 100;
+                    const enteredCf = parseFloat(updatedData.cat_d_consultancy_fee_input) || 0;
+                    if (projectCost > 0 && enteredCf > maxCf) {
+                        alert(
+                            `Consultancy Fee cannot exceed 29.99% of Total Project Cost.\n\nMax allowed: ${maxCf.toLocaleString()} (29.99% of ${projectCost.toLocaleString()})`,
+                        );
+                        // Revert to previous valid value
+                        updatedData = { ...updatedData, cat_d_consultancy_fee_input: formData.cat_d_consultancy_fee_input ?? "" };
+                        setFormData(updatedData);
+                        return;
+                    }
+                }
                 const consultancyUpdates = calculateConsultancy(updatedData);
                 updatedData = { ...updatedData, ...consultancyUpdates };
             }
@@ -1398,7 +1588,7 @@ const ProjectRegistration: React.FC = () => {
                 ].includes(fieldname)
             ) {
                 const newEndDate = calculateEndDate(updatedData);
-                if (newEndDate) updatedData.prj_end_date = newEndDate;
+                updatedData.prj_end_date = newEndDate || "";
 
                 if (
                     updatedData.project_type === "Research" &&
@@ -1408,8 +1598,13 @@ const ProjectRegistration: React.FC = () => {
                         parseInt(updatedData.project_duration_months) || 0,
                     );
                 } else if (
-                    (updatedData.project_type === "Consultancy" ||
-                        updatedData.project_type === "Testing") &&
+                    updatedData.project_type === "Consultancy"
+                ) {
+                    const m = parseInt(updatedData.project_duration_months) || 0;
+                    const d = parseInt(updatedData.project_duration_days) || 0;
+                    controlYearFieldsVisibility(Math.ceil((m * 30 + d) / 30));
+                } else if (
+                    updatedData.project_type === "Testing" &&
                     updatedData.project_duration_days
                 ) {
                     const days =
@@ -1431,6 +1626,74 @@ const ProjectRegistration: React.FC = () => {
             controlYearFieldsVisibility,
         ],
     );
+
+    // ============================================================
+    // EDITED BY MKY | 2026-04-14 14:52 IST
+    // START OF EDIT — Quick Entry Handlers
+    // ============================================================
+    const handleOpenQuickEntry = useCallback((tableName: string, rowIndex: number, columnKey: string) => {
+        setQuickEntryState({ isOpen: true, tableName, rowIndex, columnKey, pendingValue: "", isSubmitting: false });
+    }, []);
+
+    const handleQuickEntrySave = async () => {
+        if (!quickEntryState || !quickEntryState.pendingValue.trim()) return;
+
+        setQuickEntryState(prev => prev ? { ...prev, isSubmitting: true } : null);
+
+        // ============================================================
+        // EDITED BY MKY | 2026-04-14 15:35 IST
+        // START OF EDIT — Handle duplicate designation alert + new entry creation
+        // Backend now returns status="duplicate" when the designation already exists.
+        // We alert the user and keep the modal open so they can change their input.
+        // ============================================================
+        try {
+            const apiRes = await createCustomDesignation({
+                designation_name: quickEntryState.pendingValue,
+                designation_type: "Project Staff"
+            });
+
+            const result = apiRes?.message;
+
+            if (result?.status === "duplicate") {
+                // Alert the user and keep the modal open for correction
+                alert(`⚠️ Designation already exists: "${result.message || result.designation_name}". Please choose it from the dropdown or enter a different name.`);
+                setQuickEntryState(prev => prev ? { ...prev, isSubmitting: false } : null);
+                return;
+            }
+
+            if (result?.status === "success") {
+                const finalDesignation = result.designation_name;
+
+                // Optimistically inject into dropdown options so it's immediately selectable
+                setLinkOptions((prev: any) => {
+                    const currentOpts = prev["designation_name"] || [];
+                    if (!currentOpts.find((o: any) => String(o.value) === String(finalDesignation))) {
+                        return {
+                            ...prev,
+                            "designation_name": [...currentOpts, { value: finalDesignation, label: finalDesignation }]
+                        };
+                    }
+                    return prev;
+                });
+
+                // Apply the new designation to the paused table row
+                handleTableRowChange(quickEntryState.tableName, quickEntryState.rowIndex, quickEntryState.columnKey, finalDesignation);
+                setQuickEntryState(null); // Close modal
+            } else {
+                alert(`Error: ${result?.message || 'Failed to create custom designation.'}`);
+                setQuickEntryState(prev => prev ? { ...prev, isSubmitting: false } : null);
+            }
+        } catch (e: any) {
+            console.error("Quick Entry error", e);
+            alert("Failed to create custom designation. Please try again.");
+            setQuickEntryState(prev => prev ? { ...prev, isSubmitting: false } : null);
+        }
+        // END OF EDIT — MKY | 2026-04-14 15:35 IST
+        // ============================================================
+    };
+    // END OF EDIT — MKY | 2026-04-14 14:52 IST
+    // ============================================================
+
 
     const handleTableRowChange = useCallback(
         (
@@ -1641,8 +1904,19 @@ const ProjectRegistration: React.FC = () => {
 
     const ALWAYS_HIDDEN_FIELDS = ["department_head", "head_approver"];
 
+    const CONSULTANCY_CALCULATED_FIELDS = new Set([
+        "cat_d_project_cost_excl_gst",
+        "operational_expense_input_inc_10_oh",
+        "cat_d_cf_base",
+        "cat_d_oe_base",
+        "cat_d_total_overhead",
+        "cat_d_institute_share",
+        "cat_d_gst_amt",
+        "cat_d_grand_total_calc",
+    ]);
+
     const renderField = useCallback(
-        (fieldname: string) => {
+        (fieldname: string, labelOverride?: string) => {
             const field = fields.find((f) => f.fieldname === fieldname);
             if (!field) {
                 if (!ALWAYS_HIDDEN_FIELDS.includes(fieldname)) {
@@ -1696,10 +1970,16 @@ const ProjectRegistration: React.FC = () => {
                 isReadOnly = true;
             }
 
+            // Consultancy calculated fields are always read-only
+            if (CONSULTANCY_CALCULATED_FIELDS.has(fieldname)) {
+                isReadOnly = true;
+            }
+
             const effectiveField = {
                 ...field,
                 mandatory: isMandatory,
                 read_only: isReadOnly,
+                ...(labelOverride ? { label: labelOverride } : {}),
             };
             const options =
                 linkOptions[field.options as string] || linkOptions[fieldname];
@@ -1747,10 +2027,21 @@ const ProjectRegistration: React.FC = () => {
         doc_data: Record<string, any>;
         files: { filename: string; content: string }[];
     }> => {
-        const data: Record<string, any> = JSON.parse(JSON.stringify(formData));
+        // Re-run consultancy calculations so saved values are always up-to-date
+        const recalculated = calculateConsultancy(formData);
+        const data: Record<string, any> = JSON.parse(
+            JSON.stringify({ ...formData, ...recalculated }),
+        );
         const filesArray: { filename: string; content: string }[] = [];
 
         if (docname) data.name = docname;
+
+        // Remove frappe standard fields that cause "Document modified" conflicts
+        delete data.modified;
+        delete data.creation;
+        delete data.modified_by;
+        delete data.owner;
+        delete data.docstatus;
 
         for (const k in formData) {
             const v = formData[k];
@@ -1799,18 +2090,26 @@ const ProjectRegistration: React.FC = () => {
             if (isEmpty) errors.push(field.label || field.fieldname);
         }
 
-        // --- Budget breakup: every row must have a budget head ---
-        const budgetRows: any[] = formData.proposed_budget_breakup || [];
-        if (budgetRows.length === 0) {
-            errors.push("Budget Breakup (at least one row required)");
-        } else {
-            budgetRows.forEach((row, i) => {
-                if (!row.head)
-                    errors.push(
-                        `Budget Breakup Row ${i + 1}: Budget Head is required`,
-                    );
-            });
+        // --- Consultancy Category D: CF gross must be <= 30% of project cost excl. GST ---
+        if (formData.consultancy_category?.startsWith("Category D")) {
+            const cfInput = parseFloat(formData.cat_d_consultancy_fee_input) || 0;
+            const projectCost = parseFloat(formData.cat_d_project_cost_excl_gst) || 0;
+            const limit = Math.round(projectCost * 0.3);
+            if (projectCost > 0 && cfInput > limit) {
+                errors.push(
+                    `Consultancy Fee (₹${cfInput.toLocaleString()}) exceeds 30% of Project Cost Excl. GST — max allowed: ₹${limit.toLocaleString()}`,
+                );
+            }
         }
+
+        // --- Budget breakup: validate rows only if any rows exist ---
+        const budgetRows: any[] = formData.proposed_budget_breakup || [];
+        budgetRows.forEach((row, i) => {
+            if (!row.head)
+                errors.push(
+                    `Budget Breakup Row ${i + 1}: Budget Head is required`,
+                );
+        });
 
         // --- Additional PI table (only when toggle is "Yes") ---
         if (formData.is_additional_pi === "Yes") {
@@ -1881,8 +2180,8 @@ const ProjectRegistration: React.FC = () => {
         return errors;
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (isSubmitting || isSavingDraft) return;
         const errors = validateMandatoryFields();
         if (errors.length > 0) {
@@ -1892,7 +2191,7 @@ const ProjectRegistration: React.FC = () => {
         setIsSubmitting(true);
         try {
             const { doc_data, files } = await prepareDataWithFiles();
-            await submitForm({ doc: doc_data, files });
+            await submitForm({ docname, doc: doc_data, files });
         } catch (err) {
             alert("File processing error.");
             setIsSubmitting(false);
@@ -1953,20 +2252,20 @@ const ProjectRegistration: React.FC = () => {
                 0,
             );
 
-            const savedBodyHtml = await getEndorsementDraft(
-                endorsementSessionId,
-                currentUser || "guest",
-            );
 
-            // Block save if endorsement body is empty
-            if (!savedBodyHtml || savedBodyHtml.trim() === "") {
-                setIsSavingDraft(false);
-                setShowSubmitInsteadModal(true);
-                return;
-            }
+            const isConsultancy = formData.project_type === "Consultancy";
 
-            const endorsementHtml = getEndorsementHtml({
-                proposalId: docname || "IITG/RND/NEW",
+            const savedBodyHtml = isConsultancy
+                ? null
+                : await getEndorsementDraft(
+                    endorsementSessionId,
+                    currentUser || "guest",
+                );
+
+            // Endorsement is optional for now — allow saving even if endorsement body is empty
+
+            const endorsementHtml = (isConsultancy || !savedBodyHtml || savedBodyHtml.trim() === "") ? null : getEndorsementHtml({
+                proposalId: docname || "IITG-",
                 piName: formData.principal_investigator_name,
                 piDesignation: formData.designation,
                 piDepartment: formData.applicant_department,
@@ -1996,6 +2295,7 @@ const ProjectRegistration: React.FC = () => {
             );
 
             const payload = {
+                docname,
                 doc_data: JSON.stringify(doc_data),
                 files: files.length > 0 ? files : null,
                 html_content: endorsementHtml,
@@ -2064,7 +2364,26 @@ const ProjectRegistration: React.FC = () => {
                 link_options,
                 prefill_data,
             } = formDataResult.message;
-            setFields(apiFields);
+
+            const modifiedFields = apiFields.map((field: Field) => {
+                if (
+                    field.fieldname === "involves_international_travel" ||
+                    field.fieldname === "project_duration_months" ||
+                    field.fieldname === "project_duration_days"
+                ) {
+                    return {
+                        ...field,
+                        mandatory: false,
+                        mandatory_depends_on: "",
+                        mandatory_depends_on_eval: "",
+                        depends_on: "",
+                        depends_on_eval: ""
+                    };
+                }
+                return field;
+            });
+
+            setFields(modifiedFields);
             setLinkOptions(link_options || {});
 
             const initialFormData: Record<string, any> = { ...prefill_data };
@@ -2077,7 +2396,6 @@ const ProjectRegistration: React.FC = () => {
             // Make Equipment and Manpower default unselect as requested
             initialFormData.equipment_checkbox = 0;
             initialFormData.manpower_checkbox = 0;
-            
             // Explicitly unset select defaults to prevent auto-expanding sections
             if (!initialFormData.name) {
                 initialFormData.needs_committee_clearance = "";
@@ -2158,17 +2476,18 @@ const ProjectRegistration: React.FC = () => {
 
         setFormData((prev) => ({
             ...prev,
-            fund_agen_initials:              agency.funding_agency_initials  || "",
-            funding_agency_type:             agency.funding_agency_type_1    || "",
-            origin_of_funding_agency:        agency.origin_of_funding_agency || "",
-            address_country:                 agency.fundingagency_country    || "",
-            address_state:                   agency.fundingagency_state      || "",
-            address_street_village_locality:  agency.fundingagency_address    || "",
-            address_postal_code:             agency.fundingagency_postalcode || "",
-            gstin_number:                    agency.gstin_of_funding_agency  || "",
-            funding_agency_id:               agency.funding_agency_id        || "",
+            fund_agen_initials: agency.funding_agency_initials || "",
+            funding_agency_type: agency.funding_agency_type_1 || "",
+            origin_of_funding_agency: agency.origin_of_funding_agency || "",
+            funding_agency_ministry: agency.ministry_funding_agency || "",
+            address_country: agency.fundingagency_country || "",
+            address_state: agency.fundingagency_state || "",
+            address_street_village_locality: agency.fundingagency_address || "",
+            address_postal_code: agency.fundingagency_postalcode || "",
+            gstin_number: agency.gstin_of_funding_agency || "",
+            funding_agency_id: agency.funding_agency_id || "",
         }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.funding_agen, allFundingAgencies]);
 
     // --- SIDE EFFECTS for dependent API calls ---
@@ -2332,7 +2651,7 @@ const ProjectRegistration: React.FC = () => {
         if (saveResult) {
             const savedDocname = saveResult.message.docname;
             setDocname(savedDocname);
-            navigate(`/project-details/${savedDocname}`);
+            setShowPreviewModal(true);
         }
         if (saveError) alert(`Draft save error: ${saveError.message}`);
         setIsSavingDraft(false);
@@ -2375,7 +2694,7 @@ const ProjectRegistration: React.FC = () => {
                             className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 p-5 space-y-4"
                         >
                             {/* Section title */}
-                            <div className="h-4 w-36 rounded bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+                            <div className="h-4 w-36 rounded bƒg-zinc-200 dark:bg-zinc-700 animate-pulse" />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {[1, 2, 3, 4].map((field) => (
                                     <div key={field} className="space-y-1.5">
@@ -2397,6 +2716,28 @@ const ProjectRegistration: React.FC = () => {
                 </div>
             </div>
         );
+
+    if (docname && !formData.project_title) {
+        return (
+            <div className="min-h-screen bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center p-6">
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-8 max-w-md w-full text-center space-y-4">
+                    <div className="text-3xl">⚠️</div>
+                    <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                        Data failed to load
+                    </h2>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                        The form data did not load correctly. Please go back and click <span className="font-semibold text-[#D97757]">Edit</span> again to reload.
+                    </p>
+                    <button
+                        onClick={() => window.history.back()}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#D97757] hover:bg-[#c66a4e] text-white text-sm font-semibold transition-colors"
+                    >
+                        Go Back
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     const budgetTableData = formData.proposed_budget_breakup || [];
     const totalBudgetAmount = budgetTableData.reduce(
@@ -2524,7 +2865,7 @@ const ProjectRegistration: React.FC = () => {
                             <div className="flex-shrink-0 w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                                 <X className="w-4 h-4 text-red-600 dark:text-red-400" />
                             </div>
-                            <div>
+                            <div className="flex-1">
                                 <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                                     Required Fields Missing
                                 </h3>
@@ -2533,6 +2874,13 @@ const ProjectRegistration: React.FC = () => {
                                     proceeding.
                                 </p>
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => setValidationErrors([])}
+                                className="flex-shrink-0 p-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                            >
+                                <X className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+                            </button>
                         </div>
                         <ul className="px-6 py-4 space-y-1.5 max-h-60 overflow-y-auto">
                             {validationErrors.map((err, i) => (
@@ -2590,7 +2938,7 @@ const ProjectRegistration: React.FC = () => {
                                     type="button"
                                     onClick={() => setActiveTab(index)}
                                     className={cn(
-                                        "flex-shrink-0 flex items-center gap-2 py-2 px-3 font-medium text-xs rounded-md border border-transparent transition-all",
+                                        "flex-shrink-0 flex items-center gap-2 py-2 px-3 font-bold text-xs rounded-md border border-transparent transition-all",
                                         activeTab === index
                                             ? "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100"
                                             : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800",
@@ -2600,26 +2948,33 @@ const ProjectRegistration: React.FC = () => {
                                 </button>
                             ))}
                             {/* Endorsement Button */}
-                            {!isApprovedEndorsement && (
-                                <button
-                                    type="button"
-                                    onClick={() => setShowEndorsementModal(true)}
-                                    disabled={!isEndorsementEnabled}
-                                    className={cn(
-                                        "flex-shrink-0 flex items-center gap-2 py-2 px-3 font-medium text-xs rounded-md border transition-all ml-auto",
-                                        isEndorsementEnabled
-                                            ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 cursor-pointer"
-                                            : "bg-zinc-50 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 border-zinc-200 dark:border-zinc-800 cursor-not-allowed",
+                            {!isApprovedEndorsement && formData.project_type !== "Consultancy" && (
+                                <div className="ml-auto flex flex-col items-end gap-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowEndorsementModal(true)}
+                                        disabled={!isEndorsementEnabled}
+                                        className={cn(
+                                            "flex-shrink-0 flex items-center gap-2 py-2 px-3 font-medium text-xs rounded-md border transition-all",
+                                            isEndorsementEnabled
+                                                ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 cursor-pointer"
+                                                : "bg-zinc-50 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 border-zinc-200 dark:border-zinc-800 cursor-not-allowed",
+                                        )}
+                                        title={
+                                            isEndorsementEnabled
+                                                ? "Generate Endorsement Certificate"
+                                                : "Fill all required Project Details and PI Details to enable"
+                                        }
+                                    >
+                                        <FileBadge className="h-4 w-4" />
+                                        Endorsement
+                                    </button>
+                                    {!isEndorsementEnabled && missingEndorsementFields.length > 0 && (
+                                        <span className="text-[10px] text-red-500 dark:text-red-400 max-w-[220px] text-right leading-tight">
+                                            Required: {missingEndorsementFields.join(", ")}
+                                        </span>
                                     )}
-                                    title={
-                                        isEndorsementEnabled
-                                            ? "Generate Endorsement Certificate"
-                                            : "Fill all required Project Details and PI Details to enable"
-                                    }
-                                >
-                                    <FileBadge className="h-4 w-4" /> Generate
-                                    Endorsement
-                                </button>
+                                </div>
                             )}
                         </nav>
                     </div>
@@ -2672,20 +3027,21 @@ const ProjectRegistration: React.FC = () => {
                                             {formData.project_type ===
                                                 "Research" && (
                                                     <div className="space-y-8">
+                                                        {renderField("involves_international_travel")}
                                                         <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                            {/* <div className="flex items-center justify-between flex-wrap gap-4">
-                                                        <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                window.open(`${import.meta.env.VITE_BASE_PATH || ''}/new-funding-agency`, '_blank');
-                                                            }}
-                                                            className="text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md shadow-sm transition-colors uppercase tracking-wider"
-                                                        >
-                                                            Add Funding Agency
-                                                        </button>
-                                                    </div> */}
+                                                            <div className="flex items-center justify-between flex-wrap gap-4">
+                                                                <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        setShowFundingAgencySheet(true);
+                                                                    }}
+                                                                    className="text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md shadow-sm transition-colors uppercase tracking-wider"
+                                                                >
+                                                                    Add Funding Agency
+                                                                </button>
+                                                            </div>
                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                                 {renderFields(
                                                                     tabFieldGroups.fundingDetails,
@@ -2717,52 +3073,128 @@ const ProjectRegistration: React.FC = () => {
                                                             {renderField(
                                                                 "consultancy_gst_rate",
                                                             )}
-                                                            {renderField(
-                                                                "involves_international_travel",
-                                                            )}
 
                                                             {/* Category D Fields */}
                                                             {formData.consultancy_category?.startsWith(
                                                                 "Category D",
                                                             ) && (
-                                                                    <div className="space-y-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
-                                                                        <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
-                                                                            Category D
-                                                                            Details
-                                                                        </h4>
-                                                                        {renderField(
-                                                                            "category_d_note",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_grand_total_input",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_project_cost_excl_gst",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_consultancy_fee_input",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "operational_expense_input_inc_10_oh",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_cf_base",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_oe_base",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_total_overhead",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_institute_share",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_gst_amt",
-                                                                        )}
-                                                                        {renderField(
-                                                                            "cat_d_grand_total_calc",
-                                                                        )}
+                                                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
+                                                                        <div className="space-y-4">
+                                                                            <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
+                                                                                Category D Details
+                                                                            </h4>
+                                                                            {renderField("category_d_note")}
+                                                                            {renderField("cat_d_grand_total_input")}
+                                                                            {renderField("cat_d_project_cost_excl_gst")}
+                                                                            <div className="space-y-1">
+                                                                                {renderField("cat_d_consultancy_fee_input")}
+                                                                                {(() => {
+                                                                                    const gt = parseFloat(formData.cat_d_grand_total_input) || 0;
+                                                                                    const gstRate = parseFloat(formData.consultancy_gst_rate) || 18;
+                                                                                    const pjCost = Math.round(gt / (1 + gstRate / 100));
+                                                                                    if (pjCost > 0) {
+                                                                                        const maxCf = Math.floor(pjCost * 0.2999 * 100) / 100;
+                                                                                        return (
+                                                                                            <p className="text-xs text-red-500 font-medium px-1">
+                                                                                                * Max allowed limit: ₹{maxCf.toLocaleString('en-IN', {
+                                                                                                    minimumFractionDigits: 2,
+                                                                                                    maximumFractionDigits: 2
+                                                                                                })} (must be less than 30% of the Total Project Cost)
+                                                                                            </p>
+                                                                                        );
+                                                                                    }
+                                                                                    return null;
+                                                                                })()}
+                                                                            </div>
+                                                                            {renderField("operational_expense_input_inc_10_oh")}
+                                                                            {renderField("cat_d_cf_base")}
+                                                                            {renderField("cat_d_oe_base")}
+                                                                            {renderField("cat_d_total_overhead")}
+                                                                            {renderField("cat_d_institute_share")}
+                                                                            {renderField("cat_d_gst_amt")}
+                                                                            {renderField("cat_d_grand_total_calc")}
+                                                                        </div>
+                                                                        <div className="space-y-4">
+                                                                            <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
+                                                                                Calculation Breakdown
+                                                                            </h4>
+                                                                            {(() => {
+                                                                                const gt = parseFloat(formData.cat_d_grand_total_input) || 0;
+                                                                                const cf = parseFloat(formData.cat_d_consultancy_fee_input) || 0;
+                                                                                const gstRate = parseFloat(formData.consultancy_gst_rate) || 18;
+
+                                                                                const projectCostExclGst = Math.round(gt / (1 + gstRate / 100));
+                                                                                const oe = Math.max(0, Math.round(projectCostExclGst - cf));
+                                                                                const instShare = Math.round(cf * 0.2);
+                                                                                const ohCf = Math.round(cf * 0.1);
+                                                                                const ohOe = Math.round(oe * 0.1);
+                                                                                const totalOh = ohCf + ohOe;
+                                                                                const netCf = Math.round(Math.max(0, cf - instShare - ohCf) * 100) / 100;
+                                                                                const netOe = Math.max(0, oe - ohOe);
+                                                                                const gstAmt = Math.max(0, Math.round(gt - projectCostExclGst));
+
+                                                                                return (
+                                                                                    <div className="overflow-hidden shadow ring-1 ring-zinc-200 dark:ring-zinc-700 sm:rounded-lg">
+                                                                                        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700 text-sm">
+                                                                                            <thead className="bg-zinc-100 dark:bg-zinc-800">
+                                                                                                <tr>
+                                                                                                    <th scope="col" className="px-3 py-2 text-left font-semibold text-zinc-900 dark:text-zinc-100">Step</th>
+                                                                                                    <th scope="col" className="px-3 py-2 text-left font-semibold text-zinc-900 dark:text-zinc-100">Formula</th>
+                                                                                                    <th scope="col" className="px-3 py-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">Result</th>
+                                                                                                </tr>
+                                                                                            </thead>
+                                                                                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700 bg-white dark:bg-zinc-900">
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Project Cost Excl GST</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({gt.toLocaleString('en-IN', { maximumFractionDigits: 2 })} / (1 + {gstRate}/100))</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{projectCostExclGst.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Operational Expense</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({projectCostExclGst.toLocaleString('en-IN')} - {cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })})</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{oe.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Institute Share</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })} × 0.20)</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{instShare.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Overhead on Consultancy Fee</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })} × 0.10)</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{ohCf.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Overhead on Operational Expense</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({oe.toLocaleString('en-IN')} × 0.10)</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{ohOe.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr className="bg-zinc-50/50 dark:bg-zinc-800/50">
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-semibold text-zinc-900 dark:text-zinc-100">Total Overhead</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">{ohCf.toLocaleString('en-IN')} + {ohOe.toLocaleString('en-IN')}</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">{totalOh.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Net Consultancy Fee</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">r2({cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })} - {instShare.toLocaleString('en-IN')} - {ohCf.toLocaleString('en-IN')})</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{netCf.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Net Operational Expense</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">{oe.toLocaleString('en-IN')} - {ohOe.toLocaleString('en-IN')}</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{netOe.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                                <tr className="bg-zinc-50/50 dark:bg-zinc-800/50">
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-semibold text-zinc-900 dark:text-zinc-100">GST Amount</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({gt.toLocaleString('en-IN', { maximumFractionDigits: 2 })} - {projectCostExclGst.toLocaleString('en-IN')}) (@ {gstRate}%)</td>
+                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">{gstAmt.toLocaleString('en-IN')} ✓</td>
+                                                                                                </tr>
+                                                                                            </tbody>
+                                                                                        </table>
+                                                                                    </div>
+                                                                                );
+                                                                            })()}
+                                                                        </div>
                                                                     </div>
                                                                 )}
 
@@ -2793,9 +3225,15 @@ const ProjectRegistration: React.FC = () => {
                                                                         )}
                                                                         {renderField(
                                                                             "cat_ef_honorarium",
+                                                                            formData.consultancy_category?.includes("Non-Routine")
+                                                                                ? "Honorarium and other expenses (0.7 * TE)"
+                                                                                : "Honorarium and other expenses (0.3 * TE)",
                                                                         )}
                                                                         {renderField(
                                                                             "cat_ef_institute_share",
+                                                                            formData.consultancy_category?.includes("Non-Routine")
+                                                                                ? "Institute Overhead/Share (0.3 * TE)"
+                                                                                : "Institute Overhead/Share (0.7 * TE)",
                                                                         )}
                                                                         {renderField(
                                                                             "cat_ef_gst",
@@ -2807,19 +3245,19 @@ const ProjectRegistration: React.FC = () => {
                                                                 )}
                                                         </div>
                                                         <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                            {/* <div className="flex items-center justify-between flex-wrap gap-4">
-                                                        <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                window.open(`${import.meta.env.VITE_BASE_PATH || ''}/new-funding-agency`, '_blank');
-                                                            }}
-                                                            className="text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md shadow-sm transition-colors uppercase tracking-wider"
-                                                        >
-                                                            Add Funding Agency
-                                                        </button>
-                                                    </div> */}
+                                                            <div className="flex items-center justify-between flex-wrap gap-4">
+                                                                <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        setShowFundingAgencySheet(true);
+                                                                    }}
+                                                                    className="text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 rounded-md shadow-sm transition-colors uppercase tracking-wider"
+                                                                >
+                                                                    Add Funding Agency
+                                                                </button>
+                                                            </div>
                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                                 {renderFields(
                                                                     tabFieldGroups.fundingDetails,
@@ -2850,18 +3288,67 @@ const ProjectRegistration: React.FC = () => {
                                             {renderField(
                                                 "project_deliverables",
                                             )}
-                                            {renderField("executive_summary")}
+                                            {formData.project_type === "Consultancy"
+                                                ? renderField("executive_summary", "Executive Summary (If Applicable)")
+                                                : renderField("executive_summary")}
                                             {renderField("upload_proj_prop")}
+                                            <div className="space-y-3">
+                                                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                                                    Upload Supporting Docs ( Project Proposal / Invitation Letter)
+                                                </h3>
+                                                <MemoizedGenericTable
+                                                    tableName="upload_supporting_docs"
+                                                    columns={[
+                                                        {
+                                                            key: "file_description",
+                                                            label: "Document Description",
+                                                            type: "text",
+                                                        },
+                                                        {
+                                                            key: "project_file",
+                                                            label: "Upload File",
+                                                            type: "file",
+                                                        },
+                                                    ]}
+                                                    newRow={{
+                                                        file_description: "",
+                                                        project_file: null,
+                                                    }}
+                                                    tableData={formData.upload_supporting_docs}
+                                                    onRowChange={
+                                                        isEditMode
+                                                            ? handleTableRowChange
+                                                            : () => { }
+                                                    }
+                                                    onFileChange={
+                                                        isEditMode
+                                                            ? handleTableFileChange
+                                                            : () => { }
+                                                    }
+                                                    onAddRow={
+                                                        isEditMode
+                                                            ? addTableRow
+                                                            : () => { }
+                                                    }
+                                                    onDeleteRow={
+                                                        isEditMode
+                                                            ? deleteTableRow
+                                                            : () => { }
+                                                    }
+                                                />
+                                            </div>
                                             {renderField("my_projects")}
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                {formData.project_type !==
-                                                    "Consultancy"
-                                                    ? renderField(
-                                                        "project_duration_months",
-                                                    )
-                                                    : renderField(
-                                                        "project_duration_days",
-                                                    )}
+                                                {formData.project_type === "Consultancy" ? (
+                                                    <>
+                                                        {renderField("project_duration_months")}
+                                                        {renderField("project_duration_days")}
+                                                    </>
+                                                ) : formData.project_type === "Testing" ? (
+                                                    renderField("project_duration_days")
+                                                ) : (
+                                                    renderField("project_duration_months")
+                                                )}
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 {renderField("prj_start_date")}
@@ -2972,9 +3459,17 @@ const ProjectRegistration: React.FC = () => {
                                                 2. Investigators & Collaborators
                                             </h2>
                                             <div className="p-5 space-y-5 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm bg-white dark:bg-zinc-900">
-                                                <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
-                                                    Principal Investigator (PI)
-                                                </h3>
+                                                <div className="flex items-center gap-3">
+                                                    <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                                        Principal Investigator (PI)
+                                                    </h3>
+                                                    {isFetchingPiDetails && (
+                                                        <span className="inline-flex items-center gap-1.5 text-xs text-primary font-medium animate-pulse">
+                                                            <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" /><path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>
+                                                            Fetching PI details…
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="space-y-8">
                                                     {renderField("pi_webmail")}
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-dashed border-zinc-400 dark:border-zinc-600">
@@ -2996,80 +3491,83 @@ const ProjectRegistration: React.FC = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="space-y-6">
-                                                {renderFields(
-                                                    tabFieldGroups.collaboratorToggles,
-                                                )}
+                                            <div className="space-y-8">
+                                                <div className="space-y-4">
+                                                    {renderField("is_additional_pi")}
+                                                    {formData.is_additional_pi ===
+                                                        "Yes" && (
+                                                            <MemoizedCollaboratorTable
+                                                                tableName="additional_pi_table"
+                                                                title="Details of Additional PI(s) (Only Internal PI(s))"
+                                                                tableData={
+                                                                    formData.additional_pi_table
+                                                                }
+                                                                piOptions={
+                                                                    linkOptions[
+                                                                    "pi_webmail"
+                                                                    ]
+                                                                }
+                                                                onCollaboratorChange={
+                                                                    isEditMode
+                                                                        ? handleCollaboratorChange
+                                                                        : () => { }
+                                                                }
+                                                                onRowChange={
+                                                                    isEditMode
+                                                                        ? handleTableRowChange
+                                                                        : () => { }
+                                                                }
+                                                                onAddRow={
+                                                                    isEditMode
+                                                                        ? addTableRow
+                                                                        : () => { }
+                                                                }
+                                                                onDeleteRow={
+                                                                    isEditMode
+                                                                        ? deleteTableRow
+                                                                        : () => { }
+                                                                }
+                                                            />
+                                                        )}
+                                                </div>
+                                                <div className="space-y-4">
+                                                    {renderField("has_co_pi")}
+                                                    {formData.has_co_pi === "Yes" && (
+                                                        <MemoizedCollaboratorTable
+                                                            tableName="co_investigator_table"
+                                                            title="Details of Co-PI(s) (Only Internal Co-PI(s))"
+                                                            tableData={
+                                                                formData.co_investigator_table
+                                                            }
+                                                            piOptions={
+                                                                linkOptions[
+                                                                "pi_webmail"
+                                                                ]
+                                                            }
+                                                            onCollaboratorChange={
+                                                                isEditMode
+                                                                    ? handleCollaboratorChange
+                                                                    : () => { }
+                                                            }
+                                                            onRowChange={
+                                                                isEditMode
+                                                                    ? handleTableRowChange
+                                                                    : () => { }
+                                                            }
+                                                            onAddRow={
+                                                                isEditMode
+                                                                    ? addTableRow
+                                                                    : () => { }
+                                                            }
+                                                            onDeleteRow={
+                                                                isEditMode
+                                                                    ? deleteTableRow
+                                                                    : () => { }
+                                                            }
+                                                        />
+                                                    )}
+                                                </div>
                                             </div>
-                                            {formData.is_additional_pi ===
-                                                "Yes" && (
-                                                    <MemoizedCollaboratorTable
-                                                        tableName="additional_pi_table"
-                                                        title="Details of Additional PI(s)"
-                                                        tableData={
-                                                            formData.additional_pi_table
-                                                        }
-                                                        piOptions={
-                                                            linkOptions[
-                                                            "pi_webmail"
-                                                            ]
-                                                        }
-                                                        onCollaboratorChange={
-                                                            isEditMode
-                                                                ? handleCollaboratorChange
-                                                                : () => { }
-                                                        }
-                                                        onRowChange={
-                                                            isEditMode
-                                                                ? handleTableRowChange
-                                                                : () => { }
-                                                        }
-                                                        onAddRow={
-                                                            isEditMode
-                                                                ? addTableRow
-                                                                : () => { }
-                                                        }
-                                                        onDeleteRow={
-                                                            isEditMode
-                                                                ? deleteTableRow
-                                                                : () => { }
-                                                        }
-                                                    />
-                                                )}
-                                            {formData.has_co_pi === "Yes" && (
-                                                <MemoizedCollaboratorTable
-                                                    tableName="co_investigator_table"
-                                                    title="Details of Co-PI(s)"
-                                                    tableData={
-                                                        formData.co_investigator_table
-                                                    }
-                                                    piOptions={
-                                                        linkOptions[
-                                                        "pi_webmail"
-                                                        ]
-                                                    }
-                                                    onCollaboratorChange={
-                                                        isEditMode
-                                                            ? handleCollaboratorChange
-                                                            : () => { }
-                                                    }
-                                                    onRowChange={
-                                                        isEditMode
-                                                            ? handleTableRowChange
-                                                            : () => { }
-                                                    }
-                                                    onAddRow={
-                                                        isEditMode
-                                                            ? addTableRow
-                                                            : () => { }
-                                                    }
-                                                    onDeleteRow={
-                                                        isEditMode
-                                                            ? deleteTableRow
-                                                            : () => { }
-                                                    }
-                                                />
-                                            )}
                                         </FrappeCard>
                                         {renderNextPrevButtons(true, true)}
                                     </div>
@@ -3083,6 +3581,12 @@ const ProjectRegistration: React.FC = () => {
                                             <h2 className="text-xl font-bold uppercase text-zinc-900 dark:text-zinc-100">
                                                 3. Proposed Budget
                                             </h2>
+                                            {formData.project_type?.toLowerCase() === "consultancy" && (
+                                                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-xs font-medium">
+                                                    <span>⚠️</span>
+                                                    <span>Ignore if this is a consultancy project</span>
+                                                </div>
+                                            )}
                                             <p className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">
                                                 Provide a detailed year-wise
                                                 breakup of the proposed budget.
@@ -3124,6 +3628,9 @@ const ProjectRegistration: React.FC = () => {
                                                 }
                                             />
                                             <div className="space-y-6 border-t border-zinc-300 dark:border-zinc-700 pt-8">
+                                                <p className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">
+                                                    Enter the details of Equipment and Manpower (Optional)
+                                                </p>
                                                 {renderField(
                                                     "equipment_checkbox",
                                                 )}
@@ -3262,6 +3769,13 @@ const ProjectRegistration: React.FC = () => {
                                                                     ? deleteTableRow
                                                                     : () => { }
                                                             }
+                                                            // EDITED BY MKY | 2026-04-14 14:52 IST - START: Wire Quick Entry to manpower table
+                                                            onOpenQuickEntry={
+                                                                isEditMode
+                                                                    ? handleOpenQuickEntry
+                                                                    : undefined
+                                                            }
+                                                        // EDITED BY MKY | 2026-04-14 14:52 IST - END
                                                         />
                                                     )}
                                             </div>
@@ -3508,18 +4022,19 @@ const ProjectRegistration: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Submit Instead Modal */}
+                {/* Endorsement Required Modal */}
                 {showSubmitInsteadModal && (
                     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
                         <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-2xl max-w-md w-full mx-4 border border-zinc-300 dark:border-zinc-700">
-                            <div className="px-6 py-5 border-b border-zinc-200 dark:border-zinc-700">
+                            <div className="px-6 py-5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-3">
+                                <span className="text-red-500 text-xl">⚠️</span>
                                 <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                                    Endorsement Certificate is Empty
+                                    Endorsement Certificate Required
                                 </h2>
                             </div>
                             <div className="px-6 py-5">
                                 <p className="text-sm text-zinc-700 dark:text-zinc-300">
-                                    The endorsement certificate has not been filled in. Would you like to submit the project without it?
+                                    The endorsement certificate <strong>must</strong> be filled in before you can submit the project. Please complete the endorsement certificate and try again.
                                 </p>
                             </div>
                             <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-end gap-3">
@@ -3528,15 +4043,17 @@ const ProjectRegistration: React.FC = () => {
                                     onClick={() => setShowSubmitInsteadModal(false)}
                                     className="px-4 py-2 rounded-md text-sm font-medium border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                 >
-                                    Cancel
+                                    Close
                                 </button>
                                 <button
                                     type="button"
-                                    disabled={isSubmitting}
-                                    onClick={handleConfirmSubmitInstead}
-                                    className="px-4 py-2 rounded-md text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    onClick={() => {
+                                        setShowSubmitInsteadModal(false);
+                                        endorsementCertRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    }}
+                                    className="px-4 py-2 rounded-md text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                                 >
-                                    {isSubmitting ? "Submitting..." : "Submit Project"}
+                                    Go to Endorsement
                                 </button>
                             </div>
                         </div>
@@ -3562,10 +4079,18 @@ const ProjectRegistration: React.FC = () => {
                                     <X className="h-6 w-6 text-zinc-900 dark:text-zinc-100" />
                                 </button>
                             </div>
+                            {/* Guidance message */}
+                            <div className="flex gap-3 px-6 py-3 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs leading-relaxed">
+                                <span className="text-base leading-none mt-0.5">💡</span>
+                                <div className="space-y-1">
+                                    <p><span className="font-semibold">Submitting endorsement only?</span> Fill the endorsement and click the <span className="font-semibold">Submit</span> button below.</p>
+                                    <p><span className="font-semibold">Registering a full project?</span> Fill the endorsement here, then <span className="font-semibold">close this panel</span> and use the main <span className="font-semibold">Submit Project</span> button — do not submit from here.</p>
+                                </div>
+                            </div>
                             {/* Modal Body */}
-                            <div className="p-0">
+                            <div className="p-0" ref={endorsementCertRef}>
                                 <EndorsementCertificate
-                                    proposalId={docname || "IITG/RND/NEW"}
+                                    proposalId={docname || "IITG-"}
                                     sessionId={endorsementSessionId}
                                     piName={
                                         formData.principal_investigator_name
@@ -3606,120 +4131,397 @@ const ProjectRegistration: React.FC = () => {
                                 />
                             </div>
                             {/* Modal Footer */}
-                            <div className="bg-white dark:bg-zinc-900 border-t border-zinc-300 dark:border-zinc-700 px-6 py-4 flex items-center justify-end rounded-b-lg">
-                                <button
-                                    type="button"
-                                    disabled={isSubmitting}
-                                    onClick={async () => {
-                                        setIsSubmitting(true);
-                                        try {
-                                            const { doc_data, files } =
-                                                await prepareDataWithFiles();
-                                            const savedBodyHtml = await getEndorsementDraft(
-                                                endorsementSessionId,
-                                                currentUser || 'guest',
-                                            );
-                                            // Generate fresh full HTML using the standalone function
-                                            // (avoids DOM innerHTML stripping structural tags)
-                                            const budgetTotal = (
-                                                formData.proposed_budget_breakup ||
-                                                []
-                                            ).reduce(
-                                                (acc: number, row: any) =>
-                                                    acc +
-                                                    (row.years || []).reduce(
-                                                        (
-                                                            sum: number,
-                                                            val: any,
-                                                        ) =>
-                                                            sum +
-                                                            Number(val || 0),
-                                                        0,
-                                                    ),
-                                                0,
-                                            );
-                                            const fullHtml = getEndorsementHtml(
-                                                {
-                                                    proposalId:
-                                                        docname ||
-                                                        "IITG/RND/NEW",
+                            <div className="bg-white dark:bg-zinc-900 border-t border-zinc-300 dark:border-zinc-700 px-6 py-4 rounded-b-lg">
+                                <div className="flex items-center justify-end">
+                                    <button
+                                        type="button"
+                                        disabled={isSubmitting}
+                                        onClick={async () => {
+                                            setIsSubmitting(true);
+                                            try {
+                                                const { doc_data, files } =
+                                                    await prepareDataWithFiles();
+
+                                                const savedBodyHtml = await getEndorsementDraft(
+                                                    endorsementSessionId,
+                                                    currentUser || "guest",
+                                                );
+
+                                                const budgetTotal = (formData.proposed_budget_breakup || []).reduce(
+                                                    (acc: number, row: any) =>
+                                                        acc + (row.years || []).reduce(
+                                                            (sum: number, val: any) => sum + Number(val || 0), 0,
+                                                        ),
+                                                    0,
+                                                );
+
+                                                const html_content = getEndorsementHtml({
+                                                    proposalId: docname || "IITG-",
                                                     piName: formData.principal_investigator_name,
-                                                    piDesignation:
-                                                        formData.designation,
-                                                    piDepartment:
-                                                        formData.applicant_department,
-                                                    coPiName:
-                                                        formData
-                                                            .co_investigator_table?.[0]
-                                                            ?.copi_name || "",
-                                                    coPiDesignation:
-                                                        formData
-                                                            .co_investigator_table?.[0]
-                                                            ?.copi_designation ||
-                                                        "",
-                                                    coPiDepartment:
-                                                        formData
-                                                            .co_investigator_table?.[0]
-                                                            ?.copi_department ||
-                                                        "",
-                                                    projectTitle:
-                                                        formData.project_title,
-                                                    fundingAgency:
-                                                        formData.funding_agen,
+                                                    piDesignation: formData.designation,
+                                                    piDepartment: formData.applicant_department,
+                                                    coPiName: formData.co_investigator_table?.[0]?.copi_name || "",
+                                                    coPiDesignation: formData.co_investigator_table?.[0]?.copi_designation || "",
+                                                    coPiDepartment: formData.co_investigator_table?.[0]?.copi_department || "",
+                                                    projectTitle: formData.project_title,
+                                                    fundingAgency: formData.funding_agen,
                                                     duration:
-                                                        formData.project_type ===
-                                                            "Consultancy"
+                                                        formData.project_type === "Consultancy"
                                                             ? `${formData.project_duration_days} days`
                                                             : `${formData.project_duration_months} months`,
-                                                    totalCost:
-                                                        String(budgetTotal),
-                                                    bodyHtml:
-                                                        savedBodyHtml ||
-                                                        undefined,
-                                                },
-                                            );
-                                            console.log(
-                                                "=== ENDORSEMENT SUBMIT DEBUG ===",
-                                            );
-                                            console.log(
-                                                "Full HTML length:",
-                                                fullHtml.length,
-                                            );
-                                            console.log(
-                                                "Starts with DOCTYPE:",
-                                                fullHtml
-                                                    .trimStart()
-                                                    .startsWith("<!DOCTYPE"),
-                                            );
-                                            await saveEndorsementDraft({
-                                                doc_data:
-                                                    JSON.stringify(doc_data),
-                                                html_content: fullHtml,
-                                                files:
-                                                    files.length > 0
-                                                        ? files
-                                                        : null,
-                                                endorsement: 1,
-                                            });
-                                            setShowEndorsementModal(false);
-                                            navigate("/projects-view");
-                                        } catch (err) {
-                                            alert(
-                                                "Error processing endorsement.",
-                                            );
+                                                    totalCost: String(budgetTotal),
+                                                    bodyHtml: savedBodyHtml || undefined,
+                                                });
+
+                                                await saveEndorsementDraft({
+                                                    doc_data: JSON.stringify(doc_data),
+                                                    html_content,
+                                                    files: files.length > 0 ? files : null,
+                                                    endorsement: 1,
+                                                });
+                                                setShowEndorsementModal(false);
+                                                navigate(`/project-details/${docname}`);
+                                            } catch (err) {
+                                                alert(
+                                                    "Error processing endorsement.",
+                                                );
+                                            } finally {
+                                                setIsSubmitting(false);
+                                            }
+                                        }}
+                                        className="px-6 py-3 rounded-md font-bold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {isSubmitting ? "Submitting..." : "Submit"}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Preview Modal */}
+                {showPreviewModal && docname && (
+                    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 p-4 sm:p-6 overflow-hidden">
+                        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl flex flex-col w-full max-w-7xl h-full max-h-screen border border-zinc-200 dark:border-zinc-800">
+                            {/* Header */}
+                            <div className="flex justify-between items-center px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm z-10 shrink-0">
+                                <div>
+                                    <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-rose-600">
+                                        Project Preview
+                                    </h2>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Review your draft. Click Submit when you are ready to finalize Registration.</p>
+                                </div>
+                                <button
+                                    onClick={() => setShowPreviewModal(false)}
+                                    className="p-2 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Body */}
+                            <div className="flex-1 overflow-y-auto w-full relative bg-zinc-50 dark:bg-zinc-950 project-preview-wrapper">
+                                <style>
+                                    {`
+                                    .project-preview-wrapper header button {
+                                        display: none !important;
+                                    }
+                                    `}
+                                </style>
+                                <div className="w-full min-h-full">
+                                    <ProjectDetailsView projectName={docname} backUrl="" backLabel="" />
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="flex justify-end gap-3 px-6 py-4 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                                <button
+                                    onClick={() => setShowPreviewModal(false)}
+                                    className="px-6 py-2.5 rounded-md font-bold text-sm bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                >
+                                    Continue Editing
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setShowSubmitCommentModal(true);
+                                    }}
+                                    disabled={isSubmitting || isFinalSubmitting}
+                                    className="px-8 py-2.5 rounded-md font-bold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isFinalSubmitting ? "Submitting..." : "Submit Project"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ============================================================ */}
+                {/* EDITED BY MKY | 2026-04-14 14:52 IST                           */}
+                {/* START OF EDIT — Quick Entry Modal                            */}
+                {/* ============================================================ */}
+                {quickEntryState?.isOpen && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999999] p-4">
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-sm relative">
+                            <h3 className="text-sm font-bold mb-4 text-zinc-900 dark:text-zinc-100">
+                                Create New Designation
+                            </h3>
+                            <input
+                                type="text"
+                                autoFocus
+                                placeholder="Enter designation name..."
+                                value={quickEntryState.pendingValue}
+                                onChange={(e) => setQuickEntryState(prev => prev ? { ...prev, pendingValue: e.target.value } : null)}
+                                className={`${inputClasses} w-full mb-4 !h-10 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100`}
+                            />
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    onClick={() => setQuickEntryState(null)}
+                                    disabled={quickEntryState.isSubmitting}
+                                    className="px-4 py-2 rounded-md text-sm font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleQuickEntrySave}
+                                    disabled={quickEntryState.isSubmitting || !quickEntryState.pendingValue.trim()}
+                                    className="px-4 py-2 rounded-md text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                                >
+                                    {quickEntryState.isSubmitting ? "Saving..." : "Save"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {/* END OF EDIT — MKY | 2026-04-14 14:52 IST */}
+                {/* ============================================================ */}
+
+                {/* Final Submission Comment Modal */}
+                {showSubmitCommentModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999999] p-4">
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md relative">
+                            <h3 className="text-sm font-bold mb-4 capitalize text-zinc-900 dark:text-zinc-100">
+                                Confirm Submit
+                            </h3>
+                            <p className="mb-4 text-zinc-600 dark:text-zinc-400">
+                                Please provide a comment for this action.
+                            </p>
+                            <textarea
+                                id="finalSubmitComment"
+                                placeholder="Enter your comment here..."
+                                className="w-full mb-4 min-h-[100px] border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 p-3 rounded-md"
+                            />
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    className="px-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-md text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors"
+                                    onClick={() => setShowSubmitCommentModal(false)}
+                                    disabled={isFinalSubmitting}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-bold disabled:opacity-50 transition-colors cursor-pointer"
+                                    onClick={async () => {
+                                        const commentEl = document.getElementById("finalSubmitComment") as HTMLTextAreaElement;
+                                        const comment = commentEl ? commentEl.value : "";
+                                        if (!comment.trim()) return;
+
+                                        setIsFinalSubmitting(true);
+                                        try {
+                                            await submitProjectRegistration({ docname: docname, comment: comment });
+                                            setShowSubmitCommentModal(false);
+                                            setShowPreviewModal(false);
+                                            navigate(`/project-details/${docname}`);
+                                        } catch (err: any) {
+                                            alert("Submit failed: " + err.message);
                                         } finally {
-                                            setIsSubmitting(false);
+                                            setIsFinalSubmitting(false);
                                         }
                                     }}
-                                    className="px-6 py-3 rounded-md font-bold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isFinalSubmitting}
                                 >
-                                    {isSubmitting ? "Submitting..." : "Submit"}
+                                    {isFinalSubmitting ? "Submitting..." : "Submit"}
                                 </button>
                             </div>
                         </div>
                     </div>
                 )}
             </main>
+
+            {/* Add Funding Agency Sheet */}
+            <Sheet open={showFundingAgencySheet} onOpenChange={setShowFundingAgencySheet}>
+                <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+                    <SheetHeader className="pb-4 border-b border-zinc-200 dark:border-zinc-800">
+                        <SheetTitle>Register Funding Agency</SheetTitle>
+                    </SheetHeader>
+                    <div className="flex flex-col gap-4 p-6">
+                        {/* Funding Agency Name */}
+                        {(() => {
+                            const typedName = newAgencyData.funding_agency_name?.trim().toLowerCase() ?? "";
+                            const existingName = duplicateAgency?.funding_agency_name?.trim().toLowerCase() ?? "";
+                            const existingPrefix = existingName.split(" - ")[0].trim();
+                            const existingInitials = duplicateAgency?.funding_agency_initials?.trim().toLowerCase() ?? "";
+                            const hasDupe = !!duplicateAgency && (existingName === typedName || existingPrefix === typedName || existingInitials === typedName || (typedName.length >= 3 && existingName.includes(typedName)));
+                            return (
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Funding Agency Name <span className="text-red-500">*</span></label>
+                                    <input type="text" value={newAgencyData.funding_agency_name || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_name", e.target.value)}
+                                        className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors ${hasDupe ? "border-red-400 dark:border-red-500 focus:ring-red-300" : "border-zinc-300 dark:border-zinc-700 focus:ring-primary/30"}`} />
+                                    {hasDupe && <p className="text-xs text-red-500 font-medium">Duplicate: "{duplicateAgency!.funding_agency_name}" already exists.</p>}
+                                </div>
+                            );
+                        })()}
+
+                        {/* Initials */}
+                        {(() => {
+                            const typedInitials = newAgencyData.funding_agency_initials?.trim().toLowerCase() ?? "";
+                            const existingInitials = duplicateAgency?.funding_agency_initials?.trim().toLowerCase() ?? "";
+                            const hasDupe = !!duplicateAgency && typedInitials.length >= 1 && existingInitials === typedInitials;
+                            return (
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Initials / Abbreviation</label>
+                                    <input type="text" value={newAgencyData.funding_agency_initials || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_initials", e.target.value)}
+                                        className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors ${hasDupe ? "border-red-400 dark:border-red-500 focus:ring-red-300" : "border-zinc-300 dark:border-zinc-700 focus:ring-primary/30"}`} />
+                                    {hasDupe && <p className="text-xs text-red-500 font-medium">Duplicate: "{duplicateAgency!.funding_agency_name}" already exists.</p>}
+                                </div>
+                            );
+                        })()}
+
+                        {/* Origin */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Origin of Funding Agency</label>
+                            <select value={newAgencyData.origin_of_funding_agency || ""} onChange={(e) => handleAgencyFieldChange("origin_of_funding_agency", e.target.value)}
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+                                <option value="">— Select —</option>
+                                <option value="National">National</option>
+                                <option value="International">International</option>
+                            </select>
+                        </div>
+
+                        {/* Funding Agency Type */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Funding Agency Type</label>
+                            <select value={newAgencyData.funding_agency_type_1 || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_type_1", e.target.value)}
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+                                <option value="">— Select —</option>
+                                <option value="Government">Government</option>
+                                <option value="Industry">Industry</option>
+                                <option value="International">International</option>
+                                <option value="Others">Others</option>
+                            </select>
+                        </div>
+
+                        {/* Specify other type */}
+                        {newAgencyData.funding_agency_type_1 === "Others" && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Specify Type <span className="text-red-500">*</span></label>
+                                <input type="text" value={newAgencyData.specify_other_funding_agency_type || ""} onChange={(e) => handleAgencyFieldChange("specify_other_funding_agency_type", e.target.value)}
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                            </div>
+                        )}
+
+                        {/* Ministry — only when Government + National */}
+                        {newAgencyData.funding_agency_type_1 === "Government" && newAgencyData.origin_of_funding_agency === "National" && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Ministry / Department <span className="text-red-500">*</span></label>
+                                <select value={newAgencyData.ministry_funding_agency || ""} onChange={(e) => handleAgencyFieldChange("ministry_funding_agency", e.target.value)}
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+                                    <option value="">— Select —</option>
+                                    <option value="Defence">Defence</option>
+                                    <option value="Education">Education</option>
+                                    <option value="Water">Water</option>
+                                    <option value="Health">Health</option>
+                                    <option value="Others">Others</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Specify other ministry */}
+                        {newAgencyData.ministry_funding_agency === "Others" && newAgencyData.funding_agency_type_1 === "Government" && newAgencyData.origin_of_funding_agency === "National" && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Specify Ministry <span className="text-red-500">*</span></label>
+                                <input type="text" value={newAgencyData.specify_other_ministry || ""} onChange={(e) => handleAgencyFieldChange("specify_other_ministry", e.target.value)}
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                            </div>
+                        )}
+
+                        {/* GSTIN — only when National */}
+                        {newAgencyData.origin_of_funding_agency === "National" && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">GSTIN</label>
+                                <input type="text" value={newAgencyData.gstin_of_funding_agency || ""} onChange={(e) => handleAgencyFieldChange("gstin_of_funding_agency", e.target.value)}
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                            </div>
+                        )}
+
+                        {/* Address */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Address</label>
+                            <textarea rows={2} value={newAgencyData.fundingagency_address || ""} onChange={(e) => handleAgencyFieldChange("fundingagency_address", e.target.value)}
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 resize-none" />
+                        </div>
+
+                        {/* Country */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Country</label>
+                            <CountrySelect value={newAgencyData.fundingagency_country || ""} onChange={(val) => handleAgencyFieldChange("fundingagency_country", val)} />
+                        </div>
+
+                        {/* State — only when National */}
+                        {newAgencyData.origin_of_funding_agency === "National" && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">State <span className="text-red-500">*</span></label>
+                                <select value={newAgencyData.fundingagency_state || ""} onChange={(e) => handleAgencyFieldChange("fundingagency_state", e.target.value)}
+                                    className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
+                                    <option value="">— Select State —</option>
+                                    {["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Andaman and Nicobar Islands","Chandigarh","Dadra and Nagar Haveli and Daman and Diu","Delhi","Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry"].map(s => (
+                                        <option key={s} value={s}>{s}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Postal Code */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Postal Code</label>
+                            <input type="text" value={newAgencyData.fundingagency_postalcode || ""} onChange={(e) => handleAgencyFieldChange("fundingagency_postalcode", e.target.value)}
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                        </div>
+
+                        {/* Email */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Email</label>
+                            <input type="email" value={newAgencyData.funding_agency_email || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_email", e.target.value)}
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                        </div>
+
+                        {/* Contact */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Contact No.</label>
+                            <input type="text" value={newAgencyData.funding_agency_contact_no || ""} onChange={(e) => handleAgencyFieldChange("funding_agency_contact_no", e.target.value)}
+                                className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100" />
+                        </div>
+
+                    </div>
+                    <SheetFooter>
+                        <button
+                            type="button"
+                            onClick={() => { setShowFundingAgencySheet(false); setNewAgencyData({ fundingagency_country: "India" }); }}
+                            className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                            disabled={isSavingAgency}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSaveFundingAgency}
+                            className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                            disabled={isSavingAgency || !!duplicateAgency}
+                        >
+                            {isSavingAgency ? "Saving..." : "Save"}
+                        </button>
+                    </SheetFooter>
+                </SheetContent>
+            </Sheet>
         </div>
     );
 };

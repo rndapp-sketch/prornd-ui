@@ -23,7 +23,7 @@ const GROUP_B_FIELDS = new Set([
 ]);
 const GROUP_C_FIELDS = new Set(['account_head_fund_breakup']);
 const GROUP_D_FIELDS = new Set([
-    'loan_agreements_section', 'agreement_no_1', 'agreement_no_2',
+    'loan_agreements_section', 'agreement_no_1', 'agreement_no_2', 'project_copi',
     'section_break_fqlm', 'witness_attachment',
 ]);
 
@@ -384,6 +384,49 @@ const LoanRequestForm: React.FC = () => {
                             </p>
                         </div>
                         <DynamicFormRenderer fields={groupD} {...commonRendererProps} />
+                        {/* Comments + Additional Attachment — side by side */}
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                    Comments, If Any
+                                </label>
+                                <textarea
+                                    value={formData.comments_if_any || ''}
+                                    onChange={(e) => handleChange('comments_if_any', e.target.value)}
+                                    rows={8}
+                                    placeholder="Enter any comments..."
+                                    className="w-full px-3 py-2 text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-none"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                    Add Attachment, If Any
+                                </label>
+                                {formData.additional_attachment && typeof formData.additional_attachment === 'string' ? (
+                                    <div className="flex flex-col gap-2">
+                                        <a
+                                            href={formData.additional_attachment}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-md text-sm font-medium transition-colors"
+                                        >
+                                            {formData.additional_attachment.split('/').pop() || 'File'}
+                                        </a>
+                                        <input
+                                            type="file"
+                                            className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg px-2 py-1.5 bg-white dark:bg-zinc-900"
+                                            onChange={(e) => handleFileChange('additional_attachment', e.target.files?.[0] || null)}
+                                        />
+                                    </div>
+                                ) : (
+                                    <input
+                                        type="file"
+                                        className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-lg px-2 py-1.5 bg-white dark:bg-zinc-900"
+                                        onChange={(e) => handleFileChange('additional_attachment', e.target.files?.[0] || null)}
+                                    />
+                                )}
+                            </div>
+                        </div>
                     </GroupCard>
                 </div>
             </main>

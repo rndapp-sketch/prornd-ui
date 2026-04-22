@@ -1023,6 +1023,7 @@ export function AppSidebar() {
                             </div>
                         ) : (
                             <div
+                                onClick={() => navigate("/profile")}
                                 className={cn(
                                     "flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer",
                                     state === "expanded"

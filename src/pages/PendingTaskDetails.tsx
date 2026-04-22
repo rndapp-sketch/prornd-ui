@@ -17,11 +17,16 @@ import {
     ShoppingCartIcon,
     CheckCircle2Icon,
     XCircleIcon,
+    PencilIcon,
+    SaveIcon,
+    XIcon,
+    FolderOpenIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 // import { AppSidebar } from '@/components/RndSidebar';
 import { FrappeButton } from "@/components/ui/neo-brutalism";
 import ProjectDetailsView from "./ProjectDetails";
+import { DOCTYPE_PR_LINKS, type PRLinkStrategy } from "@/utils/projectTypeMapping";
 import TemporaryAdvanceDetailsView from "./TemporaryAdvanceDetailsView";
 import {
     DynamicFormRenderer,
@@ -45,6 +50,7 @@ import TADASettlementActionButtons from "@/components/TADASettlementActionButton
 import { useUserRoles } from "@/components/UserRole";
 import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
+import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 
 // Fields to hide from the overview
 const HIDDEN_FIELDS = [
@@ -220,12 +226,17 @@ const FundSanctionWorkflowActions = ({
         }
     };
 
-    if (actionsLoading || !data?.message?.length) return null;
+    // "Add Fund" belongs on the Fund Received page, not the pending-task detail view
+    const visibleActions = (data?.message || []).filter(
+        (action) => action !== "Add Fund",
+    );
+
+    if (actionsLoading || !visibleActions.length) return null;
 
     return (
         <>
             <div className="flex gap-2">
-                {data.message.map((action) => (
+                {visibleActions.map((action) => (
                     <FrappeButton
                         key={action}
                         onClick={() => handleActionClick(action)}
@@ -503,6 +514,65 @@ const RecruitmentAdhocContractualWorkflowActions = ({
     );
 };
 
+// ─── Project Preview Modal ────────────────────────────────────────────────────
+
+/**
+ * Returns the PR document `name` (auto-id) from a record, using the
+ * DOCTYPE_PR_LINKS mapping.  Returns null when only a project_no is available
+ * (caller should do an async lookup in that case).
+ */
+function extractPRName(doctype: string, data: Record<string, any>): string | null {
+    const mapping = DOCTYPE_PR_LINKS[doctype];
+    if (!mapping) return null;
+
+    const tryStrategy = (s: PRLinkStrategy): string | null => {
+        if (s.type === 'self') return (data['name'] as string) || null;
+        if (s.type === 'pr_name') return (data[s.field] as string) || null;
+        if (s.type === 'direct_type') return null; // value is project_type, not PR name
+        if (s.type === 'pr_project_no') return null; // only has project_no, needs async lookup
+        return null;
+    };
+
+    return tryStrategy(mapping.primary) ?? (mapping.fallback ? tryStrategy(mapping.fallback) : null);
+}
+
+const ProjectPreviewModal = ({
+    projectName,
+    onClose,
+}: {
+    projectName: string;
+    onClose: () => void;
+}) => (
+    <div
+        className="fixed inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-sm"
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+        <div className="relative flex-1 mx-auto my-4 w-full max-w-7xl flex flex-col bg-claude-bg dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden">
+            {/* Close bar */}
+            <div className="flex items-center justify-between px-5 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+                <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                    <FolderOpenIcon className="w-4 h-4 text-[#D97757]" />
+                    Project Registration Preview
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-orange-50 dark:bg-zinc-800 text-[#D97757] font-mono border border-orange-100 dark:border-zinc-700">
+                        {projectName}
+                    </span>
+                </span>
+                <button
+                    onClick={onClose}
+                    className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                    aria-label="Close project preview"
+                >
+                    <XIcon className="w-5 h-5" />
+                </button>
+            </div>
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto">
+                <ProjectDetailsView projectName={projectName} />
+            </div>
+        </div>
+    </div>
+);
+
 // Helper to check if a value is a file path
 const isFilePath = (value: string) => {
     if (typeof value !== "string") return false;
@@ -779,7 +849,7 @@ const DPDocumentViewer = ({
                                             className={cn(
                                                 "border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors",
                                                 idx % 2 === 1 &&
-                                                    "bg-[#FAFAF9]/60 dark:bg-zinc-800/20",
+                                                "bg-[#FAFAF9]/60 dark:bg-zinc-800/20",
                                             )}
                                         >
                                             <td className="px-4 py-3 text-xs text-[#71717A] dark:text-[#A1A1AA] font-mono">
@@ -791,7 +861,7 @@ const DPDocumentViewer = ({
                                                     className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7]"
                                                 >
                                                     {dpIsAmountField(k) &&
-                                                    !isNaN(Number(row[k])) ? (
+                                                        !isNaN(Number(row[k])) ? (
                                                         <span className="font-medium">
                                                             {dpFormatINR(
                                                                 row[k],
@@ -1072,7 +1142,7 @@ const DirectPurchaseTabView = ({
                         filterField="app_id"
                         filterValue={docName}
                         emptyTitle="No P-11 Form Generated Yet"
-                        emptyDescription="The P-11 Form is generated after the Direct Purchase is approved by the Associate Dean."
+                        emptyDescription="The P-11 Form is generated after the Direct Purchase is approved."
                     />
                 )}
 
@@ -1148,7 +1218,7 @@ const DirectPurchaseTabView = ({
                                     )
                                         throw new Error(
                                             json?.message?.message ||
-                                                "Upload failed",
+                                            "Upload failed",
                                         );
                                 }}
                             />
@@ -1195,6 +1265,13 @@ const PendingTaskDetails: React.FC = () => {
         doctype || "",
         name || "",
     );
+    // Fund Sanction: fetch linked Project Registration to get project_no
+    const { data: fsProjectRegData } = useFrappeGetDoc(
+        'Project Registration',
+        data?.project_proposal || '',
+        { revalidateOnFocus: false, isPaused: () => doctype !== 'Fund Sanction' || !data?.project_proposal }
+    );
+
     const { mutate: globalMutate } = useSWRConfig();
     const refreshAll = () => {
         mutate();
@@ -1218,6 +1295,7 @@ const PendingTaskDetails: React.FC = () => {
             r === "staff, RnD" ||
             r === "Hos, RnD (Head of Section, RnD)",
     );
+    const isDoRnd = roles.includes("Dean, RnD");
 
     // Redirect dedicated detail pages
     useEffect(() => {
@@ -1232,6 +1310,9 @@ const PendingTaskDetails: React.FC = () => {
         }
         if (doctype === "Loan Request" && name) {
             navigate(`/loan-request/${name}`, { replace: true });
+        }
+        if (doctype === "Indent General Form" && name) {
+            navigate(`/indent-general-form-details/${name}`, { replace: true });
         }
     }, [doctype, name]);
 
@@ -1273,6 +1354,15 @@ const PendingTaskDetails: React.FC = () => {
         Record<string, LinkOption[]>
     >({});
     const [isRecruitmentLoading, setIsRecruitmentLoading] = useState(false);
+    // Chairperson inline-edit state (DoRnD only)
+    const [chairpersonEditMode, setChairpersonEditMode] = useState(false);
+    const [editChairpersonEmail, setEditChairpersonEmail] = useState("");
+    const [editChairpersonName, setEditChairpersonName] = useState("");
+    const [isSavingChairperson, setIsSavingChairperson] = useState(false);
+
+    // Project preview modal state
+    const [prPreviewName, setPrPreviewName] = useState<string | null>(null);
+    const [prPreviewLoading, setPrPreviewLoading] = useState(false);
 
     // Direct Purchase tab state — restore from sessionStorage after reload
     const [dpActiveTab, setDpActiveTab] = useState<DPTabId>(() => {
@@ -1315,6 +1405,12 @@ const PendingTaskDetails: React.FC = () => {
             child_table_meta?: any;
         };
     }>(recruitmentAdhocContractualAPI.getFields);
+    const { call: updateChairpersonFields } = useFrappePostCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.update_chairperson_fields",
+    );
+    const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>(
+        "frappe.client.get_value",
+    );
     // State for display data (to handle ID resolution)
     const [displayData, setDisplayData] = useState<Record<string, any>>({});
 
@@ -1723,7 +1819,7 @@ const PendingTaskDetails: React.FC = () => {
                                     ) : (
                                         <div className={valueClasses}>
                                             {value === null ||
-                                            value === undefined ? (
+                                                value === undefined ? (
                                                 <span className="text-zinc-400 dark:text-zinc-600">
                                                     -
                                                 </span>
@@ -1844,24 +1940,24 @@ const PendingTaskDetails: React.FC = () => {
                                                             header,
                                                         )
                                                             ? (
-                                                                  parseFloat(
-                                                                      row[
-                                                                          header
-                                                                      ],
-                                                                  ) || 0
-                                                              ).toLocaleString(
-                                                                  "en-IN",
-                                                                  {
-                                                                      style: "currency",
-                                                                      currency:
-                                                                          "INR",
-                                                                      maximumFractionDigits: 0,
-                                                                  },
-                                                              )
+                                                                parseFloat(
+                                                                    row[
+                                                                    header
+                                                                    ],
+                                                                ) || 0
+                                                            ).toLocaleString(
+                                                                "en-IN",
+                                                                {
+                                                                    style: "currency",
+                                                                    currency:
+                                                                        "INR",
+                                                                    maximumFractionDigits: 0,
+                                                                },
+                                                            )
                                                             : String(
-                                                                  row[header] ||
-                                                                      "-",
-                                                              )}
+                                                                row[header] ||
+                                                                "-",
+                                                            )}
                                                     </td>
                                                 ))}
                                                 {isBudgetTable && (
@@ -1888,14 +1984,14 @@ const PendingTaskDetails: React.FC = () => {
                                                         className="p-4 align-middle text-zinc-900 dark:text-zinc-100"
                                                     >
                                                         {header ===
-                                                        "account_head"
+                                                            "account_head"
                                                             ? "Total"
                                                             : budgetYearColumns.includes(
-                                                                    header,
-                                                                )
-                                                              ? (
+                                                                header,
+                                                            )
+                                                                ? (
                                                                     columnTotals[
-                                                                        header
+                                                                    header
                                                                     ] || 0
                                                                 ).toLocaleString(
                                                                     "en-IN",
@@ -1906,7 +2002,7 @@ const PendingTaskDetails: React.FC = () => {
                                                                         maximumFractionDigits: 0,
                                                                     },
                                                                 )
-                                                              : ""}
+                                                                : ""}
                                                     </td>
                                                 ))}
                                                 <td className="p-4 align-middle font-bold text-white bg-[#D97757]">
@@ -1953,9 +2049,62 @@ const PendingTaskDetails: React.FC = () => {
                                         {name}
                                     </span>
                                 </h1>
+                                {data?.workflow_state && (
+                                    <span className={cn(
+                                        "mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border",
+                                        data.workflow_state === "Approved"
+                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50"
+                                            : data.workflow_state === "Draft"
+                                                ? "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
+                                                : data.workflow_state === "Rejected"
+                                                    ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:border-red-800/50"
+                                                    : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50",
+                                    )}>
+                                        {data.workflow_state}
+                                    </span>
+                                )}
                             </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
+                            {/* View linked Project Registration */}
+                            {doctype !== "Project Registration" && data && (
+                                <button
+                                    onClick={async () => {
+                                        const directName = extractPRName(doctype, data);
+                                        if (directName) {
+                                            setPrPreviewName(directName);
+                                            return;
+                                        }
+                                        // Fallback: lookup PR by project_no stored in the record
+                                        const mapping = DOCTYPE_PR_LINKS[doctype];
+                                        const noField = mapping?.primary?.type === 'pr_project_no'
+                                            ? mapping.primary.field
+                                            : mapping?.fallback?.type === 'pr_project_no'
+                                                ? (mapping.fallback as any).field
+                                                : null;
+                                        const projectNo = noField ? data[noField] : null;
+                                        if (!projectNo) return;
+                                        setPrPreviewLoading(true);
+                                        try {
+                                            const params = new URLSearchParams({
+                                                filters: JSON.stringify([['project_no', '=', projectNo]]),
+                                                fields: JSON.stringify(['name']),
+                                                limit: '1',
+                                            });
+                                            const res = await fetch(`/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
+                                            const prName = (res?.data ?? res?.message ?? [])[0]?.name;
+                                            if (prName) setPrPreviewName(prName);
+                                        } finally {
+                                            setPrPreviewLoading(false);
+                                        }
+                                    }}
+                                    disabled={prPreviewLoading}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-[#D97757] hover:text-[#D97757] transition-colors disabled:opacity-60"
+                                >
+                                    <FolderOpenIcon className="w-4 h-4" />
+                                    {prPreviewLoading ? 'Loading…' : 'View Project'}
+                                </button>
+                            )}
                             {doctype === "Reimbursement" && name && (
                                 <ReimbursementWorkflowActions
                                     docname={name}
@@ -1991,7 +2140,7 @@ const PendingTaskDetails: React.FC = () => {
                             {doctype === "Direct Purchase" && name && (
                                 <DirectPurchaseWorkflowActions
                                     docname={name}
-                                    onActionComplete={() => {}}
+                                    onActionComplete={() => { }}
                                     onAfterAction={(action) => {
                                         if (
                                             action
@@ -2045,12 +2194,12 @@ const PendingTaskDetails: React.FC = () => {
                                         fields={travelFields}
                                         formData={data}
                                         linkOptions={travelLinkOptions}
-                                        onChange={() => {}}
-                                        onFileChange={() => {}}
-                                        onTableRowChange={() => {}}
-                                        onTableFileChange={() => {}}
-                                        onAddTableRow={() => {}}
-                                        onDeleteTableRow={() => {}}
+                                        onChange={() => { }}
+                                        onFileChange={() => { }}
+                                        onTableRowChange={() => { }}
+                                        onTableFileChange={() => { }}
+                                        onAddTableRow={() => { }}
+                                        onDeleteTableRow={() => { }}
                                         readOnly={true}
                                     />
                                 </div>
@@ -2075,12 +2224,12 @@ const PendingTaskDetails: React.FC = () => {
                                         linkOptions={
                                             advanceSettlementLinkOptions
                                         }
-                                        onChange={() => {}}
-                                        onFileChange={() => {}}
-                                        onTableRowChange={() => {}}
-                                        onTableFileChange={() => {}}
-                                        onAddTableRow={() => {}}
-                                        onDeleteTableRow={() => {}}
+                                        onChange={() => { }}
+                                        onFileChange={() => { }}
+                                        onTableRowChange={() => { }}
+                                        onTableFileChange={() => { }}
+                                        onAddTableRow={() => { }}
+                                        onDeleteTableRow={() => { }}
                                         readOnly={true}
                                     />
                                 </div>
@@ -2105,12 +2254,12 @@ const PendingTaskDetails: React.FC = () => {
                                         linkOptions={
                                             temporaryAdvanceLinkOptions
                                         }
-                                        onChange={() => {}}
-                                        onFileChange={() => {}}
-                                        onTableRowChange={() => {}}
-                                        onTableFileChange={() => {}}
-                                        onAddTableRow={() => {}}
-                                        onDeleteTableRow={() => {}}
+                                        onChange={() => { }}
+                                        onFileChange={() => { }}
+                                        onTableRowChange={() => { }}
+                                        onTableFileChange={() => { }}
+                                        onAddTableRow={() => { }}
+                                        onDeleteTableRow={() => { }}
                                         readOnly={true}
                                     />
                                 </div>
@@ -2133,12 +2282,12 @@ const PendingTaskDetails: React.FC = () => {
                                         fields={tadaFields}
                                         formData={displayData}
                                         linkOptions={tadaLinkOptions}
-                                        onChange={() => {}}
-                                        onFileChange={() => {}}
-                                        onTableRowChange={() => {}}
-                                        onTableFileChange={() => {}}
-                                        onAddTableRow={() => {}}
-                                        onDeleteTableRow={() => {}}
+                                        onChange={() => { }}
+                                        onFileChange={() => { }}
+                                        onTableRowChange={() => { }}
+                                        onTableFileChange={() => { }}
+                                        onAddTableRow={() => { }}
+                                        onDeleteTableRow={() => { }}
                                         readOnly={true}
                                     />
                                 </div>
@@ -2155,23 +2304,170 @@ const PendingTaskDetails: React.FC = () => {
                                         </p>
                                     </div>
                                 </div>
-                            ) : recruitmentFields.length > 0 ? (
-                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
-                                    <DynamicFormRenderer
-                                        fields={recruitmentFields}
-                                        formData={displayData}
-                                        linkOptions={recruitmentLinkOptions}
-                                        onChange={() => {}}
-                                        onFileChange={() => {}}
-                                        onTableRowChange={() => {}}
-                                        onTableFileChange={() => {}}
-                                        onAddTableRow={() => {}}
-                                        onDeleteTableRow={() => {}}
-                                        readOnly={true}
-                                    />
-                                </div>
                             ) : (
-                                renderGenericDetails()
+                                <div className="space-y-4">
+                                    {/* DoRnD: Inline chairperson editor */}
+                                    {isDoRnd && name && (
+                                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                                                    Chairperson Fields
+                                                </h3>
+                                                {!chairpersonEditMode && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditChairpersonEmail(displayData.chairperson_webmail_id || "");
+                                                            setEditChairpersonName(displayData.chairperson_name || "");
+                                                            setChairpersonEditMode(true);
+                                                        }}
+                                                        className="flex items-center gap-1.5 text-xs font-medium text-[#D97757] hover:text-[#c66a4e] transition-colors"
+                                                    >
+                                                        <PencilIcon className="w-3.5 h-3.5" />
+                                                        Edit
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {chairpersonEditMode ? (
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                                                            Chairperson Webmail ID
+                                                        </label>
+                                                        <AutocompleteEmail
+                                                            options={
+                                                                recruitmentLinkOptions["chairperson_webmail_id"] ||
+                                                                recruitmentLinkOptions["User"] ||
+                                                                recruitmentLinkOptions["webmail_id"] ||
+                                                                []
+                                                            }
+                                                            value={editChairpersonEmail}
+                                                            onChange={(val) => {
+                                                                setEditChairpersonEmail(val);
+                                                                // Auto-fill name from matched option label
+                                                                const opts =
+                                                                    recruitmentLinkOptions["chairperson_webmail_id"] ||
+                                                                    recruitmentLinkOptions["User"] ||
+                                                                    recruitmentLinkOptions["webmail_id"] ||
+                                                                    [];
+                                                                const match = opts.find((o) => o.value === val);
+                                                                if (match?.label) {
+                                                                    setEditChairpersonName(match.label);
+                                                                } else {
+                                                                    // Fallback: fetch full_name from backend
+                                                                    fetchFrappeValue({
+                                                                        doctype: "User",
+                                                                        filters: { name: val },
+                                                                        fieldname: "full_name",
+                                                                    })
+                                                                        .then((res) => {
+                                                                            if (res?.message?.full_name) {
+                                                                                setEditChairpersonName(res.message.full_name);
+                                                                            }
+                                                                        })
+                                                                        .catch(() => { });
+                                                                }
+                                                            }}
+                                                            placeholder="Search by name or email..."
+                                                            showAllOnFocus
+                                                            className="px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                                                            Chairperson Name
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm bg-zinc-50 dark:bg-zinc-800/50 text-zinc-700 dark:text-zinc-300"
+                                                            value={editChairpersonName}
+                                                            readOnly
+                                                        />
+                                                    </div>
+                                                    <div className="flex gap-2 pt-1">
+                                                        <button
+                                                            onClick={async () => {
+                                                                setIsSavingChairperson(true);
+                                                                try {
+                                                                    const res = await updateChairpersonFields({
+                                                                        docname: name,
+                                                                        chairperson_webmail_id: editChairpersonEmail,
+                                                                        chairperson_name: editChairpersonName,
+                                                                    });
+                                                                    if (res?.message?.status === "success") {
+                                                                        setDisplayData((prev: any) => ({
+                                                                            ...prev,
+                                                                            chairperson_webmail_id: editChairpersonEmail,
+                                                                            chairperson_name: editChairpersonName,
+                                                                        }));
+                                                                        setChairpersonEditMode(false);
+                                                                    } else {
+                                                                        alert(res?.message?.message || "Failed to update chairperson fields.");
+                                                                    }
+                                                                } catch (err: any) {
+                                                                    alert(err?.message || "An error occurred.");
+                                                                } finally {
+                                                                    setIsSavingChairperson(false);
+                                                                }
+                                                            }}
+                                                            disabled={isSavingChairperson}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#D97757] hover:bg-[#c66a4e] text-white text-xs font-medium rounded-lg transition-colors disabled:opacity-60"
+                                                        >
+                                                            <SaveIcon className="w-3.5 h-3.5" />
+                                                            {isSavingChairperson ? "Saving..." : "Save"}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setChairpersonEditMode(false)}
+                                                            disabled={isSavingChairperson}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-medium rounded-lg transition-colors"
+                                                        >
+                                                            <XIcon className="w-3.5 h-3.5" />
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <span className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                                                            Chairperson Webmail ID
+                                                        </span>
+                                                        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                                            {displayData.chairperson_webmail_id || <span className="text-zinc-400">—</span>}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
+                                                            Chairperson Name
+                                                        </span>
+                                                        <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                                            {displayData.chairperson_name || <span className="text-zinc-400">—</span>}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {recruitmentFields.length > 0 ? (
+                                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+                                            <DynamicFormRenderer
+                                                fields={recruitmentFields}
+                                                formData={displayData}
+                                                linkOptions={recruitmentLinkOptions}
+                                                onChange={() => { }}
+                                                onFileChange={() => { }}
+                                                onTableRowChange={() => { }}
+                                                onTableFileChange={() => { }}
+                                                onAddTableRow={() => { }}
+                                                onDeleteTableRow={() => { }}
+                                                readOnly={true}
+                                            />
+                                        </div>
+                                    ) : (
+                                        renderGenericDetails()
+                                    )}
+                                </div>
                             )
                         ) : doctype === "Direct Purchase" && data && name ? (
                             <DirectPurchaseTabView
@@ -2180,6 +2476,133 @@ const PendingTaskDetails: React.FC = () => {
                                 activeTab={dpActiveTab}
                                 setActiveTab={setDpActiveTab}
                             />
+                        ) : doctype === "Fund Sanction" && data ? (
+                            <div className="space-y-6">
+                                {/* Summary Cards */}
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+                                        <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Total Sanctioned</p>
+                                        <p className="text-2xl font-bold text-[#D97757]">
+                                            {(data.total_sanctioned_amount || 0).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
+                                        </p>
+                                    </div>
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+                                        <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Letter No</p>
+                                        <p className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{data.sanctioned_letter_no || '—'}</p>
+                                    </div>
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+                                        <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Letter Date</p>
+                                        <p className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{data.sanctioned_letter_date || '—'}</p>
+                                    </div>
+                                </div>
+
+                                {/* Core Details */}
+                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+                                    <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">Sanction Details</h3>
+                                    </div>
+                                    <div className="p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-6">
+                                        {[
+                                            { label: "Project", value: data.project_proposal || data.refnum_prj_num },
+                                            { label: "Project No", value: fsProjectRegData?.project_no },
+                                            { label: "Project Title", value: data.project_title || fsProjectRegData?.project_title },
+                                            { label: "Funding Agency", value: data.funding_agency },
+                                            { label: "Sanctioned Date", value: data.date_of_sanction || data.sanctioned_letter_date },
+                                            { label: "Sanction Order No", value: data.sanction_order_no || data.sanctioned_letter_no },
+                                            { label: "Duration (Months)", value: data.duration_of_project },
+                                            { label: "Start Date", value: data.start_date },
+                                            { label: "End Date", value: data.end_date },
+                                            { label: "Principal Investigator", value: data.principal_investigator || data.pi_name },
+                                            { label: "Department", value: data.department },
+                                            { label: "Remarks", value: data.remarks },
+                                        ].filter(f => f.value != null && f.value !== "").map(({ label, value }) => (
+                                            <div key={label} className="flex flex-col">
+                                                <span className={labelClasses}>{label}</span>
+                                                <span className={valueClasses}>{String(value)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Budget Breakup Table */}
+                                {data.sanctioned_budget_breakup?.length > 0 && (
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+                                        <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">Sanctioned Budget Breakup</h3>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
+                                                <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                                    <tr>
+                                                        <th className="px-5 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Account Head</th>
+                                                        <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Year 1</th>
+                                                        <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Year 2</th>
+                                                        <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Year 3</th>
+                                                        <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Year 4</th>
+                                                        <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Year 5</th>
+                                                        <th className="px-5 py-3 text-right text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                                                    {data.sanctioned_budget_breakup.map((row: any, idx: number) => {
+                                                        const rowTotal = ['first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget']
+                                                            .reduce((s, k) => s + (parseFloat(row[k]) || 0), 0);
+                                                        return (
+                                                            <tr key={idx} className={cn("hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors", row.is_total_row ? "bg-zinc-50 dark:bg-zinc-800/40 font-semibold" : "")}>
+                                                                <td className="px-5 py-3 text-sm text-zinc-900 dark:text-zinc-100">{row.account_head}</td>
+                                                                {['first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget'].map(k => (
+                                                                    <td key={k} className="px-5 py-3 text-sm text-right tabular-nums text-zinc-600 dark:text-zinc-300">
+                                                                        {parseFloat(row[k]) ? Number(row[k]).toLocaleString('en-IN') : '—'}
+                                                                    </td>
+                                                                ))}
+                                                                <td className="px-5 py-3 text-sm text-right tabular-nums font-semibold text-zinc-900 dark:text-zinc-100">
+                                                                    {rowTotal ? rowTotal.toLocaleString('en-IN') : '—'}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                                {/* Grand total footer */}
+                                                {(() => {
+                                                    const years = ['first_year_budget', 'second_year_budget', 'third_year_budget', 'fourth_year_budget', 'fifth_year_budget'];
+                                                    const colTotals = years.map(k => data.sanctioned_budget_breakup.reduce((s: number, r: any) => s + (parseFloat(r[k]) || 0), 0));
+                                                    const grand = colTotals.reduce((a: number, b: number) => a + b, 0);
+                                                    return (
+                                                        <tfoot>
+                                                            <tr className="bg-[#D97757] text-white">
+                                                                <td className="px-5 py-3 text-sm font-bold">Grand Total</td>
+                                                                {colTotals.map((t: number, i: number) => (
+                                                                    <td key={i} className="px-5 py-3 text-sm font-bold text-right tabular-nums">
+                                                                        {t ? t.toLocaleString('en-IN') : '—'}
+                                                                    </td>
+                                                                ))}
+                                                                <td className="px-5 py-3 text-sm font-bold text-right tabular-nums">{grand.toLocaleString('en-IN')}</td>
+                                                            </tr>
+                                                        </tfoot>
+                                                    );
+                                                })()}
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Attached Sanction Letter */}
+                                {data.sanction_letter && (
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
+                                        <p className={labelClasses}>Sanction Letter</p>
+                                        <a
+                                            href={data.sanction_letter}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 mt-2 px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm font-medium text-[#D97757] hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                        >
+                                            <FileIcon className="h-4 w-4" />
+                                            {data.sanction_letter.split('/').pop() || 'View Document'}
+                                            <ExternalLinkIcon className="h-3.5 w-3.5 ml-1 opacity-60" />
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
                         ) : (
                             renderGenericDetails()
                         )}
@@ -2243,11 +2666,23 @@ const PendingTaskDetails: React.FC = () => {
                             {doctype === "Direct Purchase" &&
                                 isRnDStaff &&
                                 data?.workflow_state ===
-                                    "Pending Staff Approval" &&
+                                "Pending Staff Approval" &&
                                 (data?.project_no || data?.project_name) && (
                                     <BudgetActionsSidebar
                                         projectName={
                                             data.project_no || data.project_name
+                                        }
+                                        isStaff={true}
+                                        docName={name}
+                                        doctype={doctype}
+                                    />
+                                )}
+                            {/* Setup for Recruitment Adhoc Contractual */}
+                            {doctype === "Recruitment Adhoc Contractual" &&
+                                (data?.upfa_project_code || data?.project_code) && (
+                                    <BudgetActionsSidebar
+                                        projectName={
+                                            data.upfa_project_code || data.project_code
                                         }
                                         isStaff={true}
                                         docName={name}
@@ -2269,6 +2704,14 @@ const PendingTaskDetails: React.FC = () => {
                     </FrappeButton>
                 </div>
             </main>
+
+            {/* Project Registration Preview Modal */}
+            {prPreviewName && (
+                <ProjectPreviewModal
+                    projectName={prPreviewName}
+                    onClose={() => setPrPreviewName(null)}
+                />
+            )}
         </div>
     );
 };

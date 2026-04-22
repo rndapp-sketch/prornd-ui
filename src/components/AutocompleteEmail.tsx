@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { useDebounce } from 'use-debounce';
 
@@ -18,6 +19,10 @@ interface AutocompleteEmailProps extends Omit<React.InputHTMLAttributes<HTMLInpu
   showAllOnFocus?: boolean;
   /** Show only the label in dropdown items, without the value in parentheses */
   displayOnlyLabel?: boolean;
+  /** Optional message shown at the bottom of the dropdown list */
+  footerMessage?: string;
+  /** Disallow free-form input — clears field on blur if no matching option was selected */
+  strictMatch?: boolean;
 }
 
 export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
@@ -29,11 +34,14 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
   searchByLabel = false,
   showAllOnFocus = false,
   displayOnlyLabel = false,
+  footerMessage,
+  strictMatch = false,
   ...rest
 }) => {
   const [inputValue, setInputValue] = useState(value);
   const [isOpen, setIsOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const inputRef = useRef<HTMLInputElement>(null);
   const [debouncedValue] = useDebounce(inputValue, 300);
 
   // Update internal input value if external value changes (e.g. reset/cleared)
@@ -46,15 +54,40 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
     }
   }, [value, options, searchByLabel]);
 
+  // Close on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+      if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Recompute dropdown position whenever it opens or window scrolls/resizes
+  useEffect(() => {
+    if (!isOpen || !inputRef.current) return;
+
+    const updatePosition = () => {
+      const rect = inputRef.current!.getBoundingClientRect();
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      });
+    };
+
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [isOpen]);
 
   const filteredOptions = useMemo(() => {
     if (!debouncedValue && !showAllOnFocus) return [];
@@ -69,9 +102,47 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
     );
   }, [debouncedValue, options, searchByLabel, showAllOnFocus]);
 
+  const showNoResults = strictMatch && isOpen && debouncedValue.length > 0 && filteredOptions.length === 0;
+
+  const dropdown = isOpen && (filteredOptions.length > 0 || footerMessage || showNoResults) ? (
+    <ul
+      style={dropdownStyle}
+      className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl max-h-60 overflow-y-auto min-w-[200px]"
+    >
+      {showNoResults ? (
+        <li className="px-4 py-2.5 text-sm text-zinc-400 dark:text-zinc-500 italic select-none">
+          No matching user found
+        </li>
+      ) : filteredOptions.map((opt, index) => (
+        <li
+          key={index}
+          className="px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer text-sm text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setInputValue(searchByLabel ? opt.label : opt.value);
+            onChange(opt.value);
+            setIsOpen(false);
+          }}
+        >
+          {displayOnlyLabel
+            ? opt.label
+            : searchByLabel
+              ? `${opt.label} (${opt.value})`
+              : `${opt.value} (${opt.label})`}
+        </li>
+      ))}
+      {footerMessage && (
+        <li className="px-4 py-2 text-xs text-zinc-400 dark:text-zinc-500 italic border-t border-zinc-100 dark:border-zinc-800 select-none">
+          {footerMessage}
+        </li>
+      )}
+    </ul>
+  ) : null;
+
   return (
-    <div ref={wrapperRef} className="relative w-full">
+    <div className="relative w-full">
       <input
+        ref={inputRef}
         type="text"
         className={cn(className, "w-full")}
         placeholder={placeholder}
@@ -83,32 +154,22 @@ export const AutocompleteEmail: React.FC<AutocompleteEmailProps> = ({
         onFocus={() => {
           setIsOpen(true);
         }}
+        onBlur={() => {
+          if (strictMatch) {
+            const matched = searchByLabel
+              ? options.find(opt => opt.label.toLowerCase() === inputValue.toLowerCase())
+              : options.find(opt => opt.value.toLowerCase() === inputValue.toLowerCase());
+            if (!matched) {
+              setInputValue('');
+              onChange('');
+            }
+          }
+          setIsOpen(false);
+        }}
         autoComplete="off"
         {...rest}
       />
-      {isOpen && filteredOptions.length > 0 && (
-        <ul className="absolute z-[9999] w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-xl max-h-60 overflow-y-auto left-0 min-w-[200px]">
-          {filteredOptions.map((opt, index) => (
-            <li
-              key={index}
-              className="px-4 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer text-sm text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
-              onMouseDown={(e) => {
-                // use onMouseDown instead of onClick to prevent onBlur from firing first
-                e.preventDefault();
-                setInputValue(searchByLabel ? opt.label : opt.value);
-                onChange(opt.value);
-                setIsOpen(false);
-              }}
-            >
-              {displayOnlyLabel
-                ? opt.label
-                : searchByLabel
-                  ? `${opt.label} (${opt.value})`
-                  : `${opt.value} (${opt.label})`}
-            </li>
-          ))}
-        </ul>
-      )}
+      {createPortal(dropdown, document.body)}
     </div>
   );
 };

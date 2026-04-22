@@ -688,6 +688,7 @@ import {
   useFrappeGetDocList,
   useFrappeAuth,
   useFrappeGetDoc,
+  useFrappePostCall,
 } from "frappe-react-sdk";
 import {
   Table,
@@ -714,6 +715,7 @@ import {
   SearchIcon,
   ChevronsUpDown,
   CheckCircle2,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "../components/UserRole";
@@ -850,6 +852,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     data: myCreatedProjects,
     isLoading: createdLoading,
     error: createdError,
+    mutate: mutateCreated,
   } = useFrappeGetDocList<Project>("Project Registration", {
     fields: ["*"],
     filters: currentUser
@@ -924,6 +927,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     data: myOwnedProjects,
     isLoading: ownedLoading,
     error: ownedError,
+    mutate: mutateOwned,
   } = useFrappeGetDocList<Project>("Project Registration", {
     fields: ["*"],
     filters: currentUser
@@ -931,6 +935,35 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       : [["name", "=", "NON_EXISTENT_DOC"]],
     limit: 1000,
   });
+
+  // --- Delete draft state ---
+  const [confirmDeleteProject, setConfirmDeleteProject] = React.useState<Project | null>(null);
+  const [deleteLoading, setDeleteLoading] = React.useState(false);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
+
+  const { call: deleteDraft } = useFrappePostCall(
+    "rndopsapp.rndopsapp.doctype.project_registration.project_registration.delete_draft_project",
+  );
+
+  const handleDeleteDraft = async () => {
+    if (!confirmDeleteProject) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      const res: any = await deleteDraft({ docname: confirmDeleteProject.name });
+      if (res?.message?.status === "success") {
+        setConfirmDeleteProject(null);
+        mutateCreated();
+        mutateOwned();
+      } else {
+        setDeleteError(res?.message?.message || "Delete failed.");
+      }
+    } catch (err: any) {
+      setDeleteError(err?.message || "Delete failed.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const {
     myProjects,
@@ -1126,6 +1159,22 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         : [["name", "=", "NON_EXISTENT_DOC"]],
       limit: 100,
     });
+
+  // --- Fetch all Funding Agencies for name lookup ---
+  const { data: allFundingAgencies } = useFrappeGetDocList("fundingagency_", {
+    fields: ["name", "funding_agency_name"],
+    limit: 0,
+  } as any);
+
+  const fundingAgencyNameMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    (allFundingAgencies ?? []).forEach((agency: any) => {
+      if (agency.name && agency.funding_agency_name) {
+        map.set(agency.name, agency.funding_agency_name);
+      }
+    });
+    return map;
+  }, [allFundingAgencies]);
 
   const allPendingTasks: Record<string, Task[]> = React.useMemo(() => {
     const proposals: Task[] = (projectProposals || []).map((p: any) => ({
@@ -1479,7 +1528,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                         </div>
                       </TableCell>
                       <TableCell className="text-zinc-600 dark:text-zinc-400 text-xs whitespace-nowrap">
-                        {p.funding_agen || "-"}
+                        {fundingAgencyNameMap.get(p.funding_agen) || p.funding_agen || "-"}
                       </TableCell>
                       <TableCell className="text-zinc-500 text-xs whitespace-nowrap">
                         {p.creation
@@ -1506,32 +1555,46 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                         </div>
                       </TableCell>
                       <TableCell className="text-right whitespace-nowrap">
-                        {p.workflow_state ===
-                          "Endorsement Approved" ? (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(
-                                `/project-registration?docname=${p.name}&isApprovedEndorsement=true`,
-                              );
-                            }}
-                          >
-                            Register Project
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0"
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                            <span className="sr-only">
-                              View
-                            </span>
-                          </Button>
-                        )}
+                        <div className="flex items-center justify-end gap-1">
+                          {p.workflow_state === "Draft" &&
+                            p.owner === currentUser && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmDeleteProject(p);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Delete</span>
+                              </Button>
+                            )}
+                          {p.workflow_state === "Endorsement Approved" ? (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(
+                                  `/project-registration?docname=${p.name}&isApprovedEndorsement=true`,
+                                );
+                              }}
+                            >
+                              Register Project
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                              <span className="sr-only">View</span>
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -1634,6 +1697,55 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
             : renderProjectsTable()}
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      {confirmDeleteProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <Card className="w-full max-w-sm mx-4 p-6 space-y-4 shadow-xl">
+            <div className="flex items-start gap-3">
+              <Trash2 className="h-5 w-5 text-rose-500 mt-0.5 shrink-0" />
+              <div>
+                <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                  Delete Draft Project
+                </h2>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                  Are you sure you want to delete{" "}
+                  <span className="font-medium text-zinc-800 dark:text-zinc-200">
+                    {confirmDeleteProject.project_title || confirmDeleteProject.name}
+                  </span>
+                  ? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            {deleteError && (
+              <p className="text-sm text-rose-600 bg-rose-50 dark:bg-rose-950 rounded px-3 py-2">
+                {deleteError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={deleteLoading}
+                onClick={() => {
+                  setConfirmDeleteProject(null);
+                  setDeleteError(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={deleteLoading}
+                onClick={handleDeleteDraft}
+              >
+                {deleteLoading ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { DepartmentName } from "@/components/DepartmentName";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { getFileUrl } from "@/utils/fileUtils";
+import { CountrySelect } from "@/components/CountrySelect";
 
 // --- TYPE DEFINITIONS ---
 export interface FormField {
@@ -43,6 +44,11 @@ export interface FormSection {
   hidden?: boolean | number | string;
 }
 
+export interface FieldMessage {
+  type: "error" | "success" | "warning" | "info" | "loading";
+  message: string;
+}
+
 export interface DynamicFormRendererProps {
   fields: FormField[];
   formData: Record<string, any>;
@@ -68,6 +74,8 @@ export interface DynamicFormRendererProps {
   readOnly?: boolean;
   /** Fieldnames that should render as searchable autocomplete instead of a plain select dropdown */
   autocompleteFields?: string[];
+  /** Field-level validation messages to display below specific fields */
+  fieldMessages?: Record<string, FieldMessage>;
 }
 
 // --- STYLES ---
@@ -140,9 +148,12 @@ const MemoizedFormField = memo(
                   field.fieldname === "department_for" ||
                   field.fieldname === "upfa_department" ||
                   field.fieldname === "implementation_department" ||
-                  field.fieldname === "applicant_department") &&
+                  field.fieldname === "applicant_department" ||
+                  field.fieldname === "igf_department_centre_section") &&
                 value ? (
                   <DepartmentName name={value} />
+                ) : (field.fieldname === "account_head" || field.fieldname === "igf_account_head") && value ? (
+                  <BudgetHeadName id={value} />
                 ) : (
                   readOnlyLabel || "-"
                 )}
@@ -532,6 +543,8 @@ const MemoizedFormField = memo(
                 field.fieldname === "applicant_department") &&
               value ? (
                 <DepartmentName name={value} />
+              ) : field.fieldname === "account_head" && value ? (
+                <BudgetHeadName id={value} />
               ) : (
                 readOnlyLabel || "-"
               )}
@@ -593,6 +606,16 @@ const MemoizedFormField = memo(
 
         case "Data":
         default:
+          // Special handling for nationality field — render country dropdown
+          if (field.fieldname === "nationality_u_r") {
+            return (
+              <CountrySelect
+                value={value ?? ""}
+                onChange={(val) => handleChange(field.fieldname, val)}
+                disabled={isReadOnly}
+              />
+            );
+          }
           return (
             <div className="relative flex flex-col pt-1">
               <div className="relative">
@@ -714,6 +737,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   onTableLinkChange,
   readOnly = false,
   autocompleteFields,
+  fieldMessages,
 }) => {
   // Group fields by sections
   const groupFieldsBySection = useCallback((): FormSection[] => {
@@ -797,21 +821,53 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       );
     }
 
+    const fieldMsg = fieldMessages?.[field.fieldname];
+
     return (
-      <MemoizedFormField
-        key={field.fieldname}
-        field={field}
-        value={formData[field.fieldname]}
-        options={
-          linkOptions[field.options as string] || linkOptions[field.fieldname]
-        }
-        isMandatory={isMandatory}
-        isReadOnly={fieldIsReadOnly}
-        onChange={onChange}
-        onFileChange={onFileChange}
-        onFieldChangeWithSideEffects={onFieldChangeWithSideEffects}
-        isAutocomplete={autocompleteFields?.includes(field.fieldname)}
-      />
+      <div key={field.fieldname}>
+        <MemoizedFormField
+          field={field}
+          value={formData[field.fieldname]}
+          options={
+            linkOptions[field.options as string] || linkOptions[field.fieldname]
+          }
+          isMandatory={isMandatory}
+          isReadOnly={fieldIsReadOnly}
+          onChange={onChange}
+          onFileChange={onFileChange}
+          onFieldChangeWithSideEffects={onFieldChangeWithSideEffects}
+          isAutocomplete={autocompleteFields?.includes(field.fieldname)}
+        />
+        {fieldMsg && (
+          <div
+            className={cn(
+              "flex items-center gap-1.5 mt-1.5 text-xs font-medium transition-all duration-300",
+              fieldMsg.type === "error" && "text-red-600 dark:text-red-400",
+              fieldMsg.type === "success" && "text-emerald-600 dark:text-emerald-400",
+              fieldMsg.type === "warning" && "text-amber-600 dark:text-amber-400",
+              (fieldMsg.type === "info" || fieldMsg.type === "loading") && "text-blue-500 dark:text-blue-400",
+            )}
+          >
+            {fieldMsg.type === "loading" && (
+              <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            )}
+            {fieldMsg.type === "success" && (
+              <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            )}
+            {(fieldMsg.type === "error" || fieldMsg.type === "warning") && (
+              <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            )}
+            <span>{fieldMsg.message}</span>
+          </div>
+        )}
+      </div>
     );
   };
 

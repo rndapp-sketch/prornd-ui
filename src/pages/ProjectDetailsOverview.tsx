@@ -59,6 +59,9 @@ import {
   Plus,
   X,
   ArrowUpDown,
+  Pencil,
+  Save,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,11 +133,13 @@ const SectionWrapper = ({
   children,
   icon: Icon,
   className,
+  action,
 }: {
   title: string;
   children: React.ReactNode;
   icon: any;
   className?: string;
+  action?: React.ReactNode;
 }) => (
   <Card
     className={cn(
@@ -143,11 +148,14 @@ const SectionWrapper = ({
     )}
   >
     <CardHeader className="py-3 px-3 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/50">
-      <div className="flex items-center gap-2">
-        {Icon && <Icon className="h-3.5 w-3.5 text-[#D97757]" />}
-        <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">
-          {title}
-        </CardTitle>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="h-3.5 w-3.5 text-[#D97757]" />}
+          <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">
+            {title}
+          </CardTitle>
+        </div>
+        {action && <div>{action}</div>}
       </div>
     </CardHeader>
     <CardContent className="pt-4 px-3">{children}</CardContent>
@@ -840,7 +848,7 @@ const QuickActions = ({
       title: "Disbursal",
       icon: Upload,
       items: [
-        "Top Up Fellowship",
+        // "Top Up Fellowship",
         "Disbursal of Honorarium",
         "Disbursal of Consultancy",
       ],
@@ -850,10 +858,10 @@ const QuickActions = ({
       icon: ShoppingCart,
       items: [
         "Direct Purchase",
-        "General Indent",
-        "Generate NIQ",
+        "Indent General Form",
+        // "Generate NIQ",
         "Indent cum Sanction",
-        "Rate Contract",
+        // "Rate Contract",
       ],
     },
     {
@@ -861,23 +869,23 @@ const QuickActions = ({
       icon: Users,
       items: [
         "Adhoc/Contractual",
-        "Committee Member Change",
-        "Selection Committee Report",
-        "Project Staff Resignation",
+        // "Committee Member Change",
+        // "Selection Committee Report",
+        // "Project Staff Resignation",
       ],
     },
     { title: "Travel", icon: Plane, items: ["Travel"] },
     { title: "Loan", icon: CreditCardIcon, items: ["Loan Request"] },
-    {
-      title: "Utilities",
-      icon: Settings,
-      items: [
-        "Add New User",
-        "Application History",
-        "Form Tracking",
-        "Incharge Assignment",
-      ],
-    },
+    // {
+    //   title: "Utilities",
+    //   icon: Settings,
+    //   items: [
+    //     "Add New User",
+    //     "Application History",
+    //     "Form Tracking",
+    //     "Incharge Assignment",
+    //   ],
+    // },
   ];
 
   // Frappe SDK hooks for fetching data
@@ -1235,7 +1243,8 @@ const QuickActions = ({
       } else if (selectedApplication === "Direct Purchase") {
         try {
           const timestamp = Date.now();
-          const apiUrl = `/api/resource/Direct%20Purchase?fields=["name","creation","workflow_state","owner","project_no","applicant_name","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          const projectFilter = projectNo || projectName;
+          const apiUrl = `/api/resource/Direct%20Purchase?fields=["name","creation","workflow_state","owner","project_no","applicant_name","docstatus"]&filters=[["project_no","=","${projectFilter}"]]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
           const fetchResponse = await fetch(apiUrl, {
             method: "GET",
             headers: { Accept: "application/json" },
@@ -1247,12 +1256,6 @@ const QuickActions = ({
           const allItems = result?.data || [];
 
           data = allItems
-            .filter((item: any) => {
-              const matchesProject =
-                item.project_no === projectName ||
-                item.project_no === projectNo;
-              return matchesProject;
-            })
             .map((item: any) => ({
               ...item,
               workflow_state:
@@ -1302,6 +1305,37 @@ const QuickActions = ({
             }));
         } catch (fetchError) {
           console.error("Adhoc/Contractual fetch error:", fetchError);
+          data = [];
+        }
+      } else if (selectedApplication === "Indent General Form") {
+        try {
+          const timestamp = Date.now();
+          const filters = encodeURIComponent(
+            JSON.stringify([
+              ["igf_project_code", "=", projectNo],
+              ["docstatus", "in", [0, 1]],
+            ])
+          );
+          const apiUrl = `/api/resource/Indent%20General%20Form?fields=["name","creation","workflow_state","owner","igf_project_title","igf_project_code","igf_webmail_user_id","docstatus","igf_total_estimate","igf_tender_type"]&filters=${filters}&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+          const fetchResponse = await fetch(apiUrl, {
+            method: "GET",
+            headers: { Accept: "application/json" },
+            credentials: "include",
+          });
+          if (!fetchResponse.ok)
+            throw new Error(`HTTP error! status: ${fetchResponse.status}`);
+          const result = await fetchResponse.json();
+          const allItems = result?.data || [];
+
+          data = allItems.map((item: any) => ({
+            ...item,
+            workflow_state:
+              item.workflow_state ||
+              (item.docstatus === 1 ? "Submitted" : "Draft"),
+            applicant_webmail: item.igf_webmail_user_id || item.owner,
+          }));
+        } catch (fetchError) {
+          console.error("Indent General Form fetch error:", fetchError);
           data = [];
         }
       } else if (selectedApplication === "Indent cum Sanction") {
@@ -1506,6 +1540,11 @@ const QuickActions = ({
         break;
       case "Adhoc/Contractual":
         onNavigate(`/recruitment-adhoc-contractual?project=${projectParam}`);
+        break;
+      case "Indent General Form":
+        onNavigate(
+          `/indent-general-form?project_no=${projectParam}&project_name=${projectName}${projectTitle ? `&projectTitle=${encodeURIComponent(projectTitle)}` : ""}`,
+        );
         break;
       case "Indent cum Sanction":
         onNavigate(`/indent-cum-sanction-sheet?project=${projectParam}`);
@@ -1738,6 +1777,9 @@ const QuickActions = ({
                               case "Loan Request":
                                 onNavigate(`/loan-request/${item.name}`);
                                 break;
+                              case "Indent General Form":
+                                onNavigate(`/indent-general-form-details/${item.name}`);
+                                break;
                               default:
                                 // Check item.type for Travel consolidated view
                                 if (item.type === "Travel Apply") {
@@ -1760,6 +1802,19 @@ const QuickActions = ({
                         >
                           View
                         </button>
+                        {/* NIQ Form — Indent General Form, Approved, Limited Tender, below ₹50 lakh */}
+                        {selectedApplication === "Indent General Form" &&
+                          item.workflow_state === "Approved" &&
+                          Number(item.igf_total_estimate) < 5000000 &&
+                          item.igf_tender_type === "Limited Tender" && (
+                            <button
+                              onClick={() => onNavigate(`/niq-form/${item.name}`)}
+                              className="text-sm text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 hover:underline whitespace-nowrap font-medium"
+                              title="Generate NIQ Form"
+                            >
+                              NIQ
+                            </button>
+                          )}
                         {selectedApplication === "Adhoc/Contractual" &&
                           item.workflow_state === "Approved" && (
                             <>
@@ -2816,6 +2871,128 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   );
 
   const isCurrentUserPI = currentUser && data?.pi_webmail === currentUser;
+  const isDocOwner = currentUser && data?.owner === currentUser;
+
+  // --- Proposed Budget Breakup edit state ---
+  type BudgetRow = {
+    account_head: string;
+    first_year_budget: number;
+    second_year_budget: number;
+    third_year_budget: number;
+    fourth_year_budget: number;
+    fifth_year_budget: number;
+  };
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [editBudgetRows, setEditBudgetRows] = useState<BudgetRow[]>([]);
+  const [isSavingBudget, setIsSavingBudget] = useState(false);
+
+  const { call: updateBudgetBreakup } = useFrappePostCall(
+    "rndopsapp.rndopsapp.doctype.project_registration.project_registration.update_proposed_budget_breakup",
+  );
+
+  const startEditBudget = () => {
+    setEditBudgetRows(
+      (data?.proposed_budget_breakup ?? []).map((row: any) => ({
+        account_head: row.account_head ?? "",
+        first_year_budget: row.first_year_budget ?? 0,
+        second_year_budget: row.second_year_budget ?? 0,
+        third_year_budget: row.third_year_budget ?? 0,
+        fourth_year_budget: row.fourth_year_budget ?? 0,
+        fifth_year_budget: row.fifth_year_budget ?? 0,
+      })),
+    );
+    setIsEditingBudget(true);
+  };
+
+  const cancelEditBudget = () => {
+    setIsEditingBudget(false);
+    setEditBudgetRows([]);
+  };
+
+  const saveBudgetBreakup = async () => {
+    setIsSavingBudget(true);
+    try {
+      await updateBudgetBreakup({
+        docname: projectName,
+        rows: editBudgetRows.map((r) => ({
+          account_head: r.account_head,
+          first_year_budget: r.first_year_budget,
+          second_year_budget: r.second_year_budget,
+          third_year_budget: r.third_year_budget,
+          fourth_year_budget: r.fourth_year_budget,
+          fifth_year_budget: r.fifth_year_budget,
+        })),
+      });
+      await mutate();
+      setIsEditingBudget(false);
+      setEditBudgetRows([]);
+    } catch (err) {
+      console.error("Failed to update budget breakup:", err);
+    } finally {
+      setIsSavingBudget(false);
+    }
+  };
+
+  // --- Sanctioned Budget Breakup edit state (per sanction) ---
+  type SanctionBudgetRow = {
+    account_head: string;
+    first_year_budget: number;
+    second_year_budget: number;
+    third_year_budget: number;
+    fourth_year_budget: number;
+    fifth_year_budget: number;
+  };
+  const [editingSanctionBudgetName, setEditingSanctionBudgetName] = useState<string | null>(null);
+  const [editSanctionBudgetRows, setEditSanctionBudgetRows] = useState<SanctionBudgetRow[]>([]);
+  const [isSavingSanctionBudget, setIsSavingSanctionBudget] = useState(false);
+
+  const { call: updateSanctionBudget } = useFrappePostCall(
+    "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.update_sanctioned_budget_breakup",
+  );
+
+  const startEditSanctionBudget = (sanction: any) => {
+    setEditSanctionBudgetRows(
+      (sanction.sanctioned_budget_breakup ?? []).map((r: any) => ({
+        account_head: r.account_head ?? "",
+        first_year_budget: parseFloat(r.first_year_budget) || 0,
+        second_year_budget: parseFloat(r.second_year_budget) || 0,
+        third_year_budget: parseFloat(r.third_year_budget) || 0,
+        fourth_year_budget: parseFloat(r.fourth_year_budget) || 0,
+        fifth_year_budget: parseFloat(r.fifth_year_budget) || 0,
+      })),
+    );
+    setEditingSanctionBudgetName(sanction.name);
+  };
+
+  const cancelEditSanctionBudget = () => {
+    setEditingSanctionBudgetName(null);
+    setEditSanctionBudgetRows([]);
+  };
+
+  const saveSanctionBudget = async (sanctionName: string) => {
+    setIsSavingSanctionBudget(true);
+    try {
+      await updateSanctionBudget({
+        docname: sanctionName,
+        rows: editSanctionBudgetRows.map((r) => ({
+          account_head: r.account_head,
+          first_year_budget: r.first_year_budget,
+          second_year_budget: r.second_year_budget,
+          third_year_budget: r.third_year_budget,
+          fourth_year_budget: r.fourth_year_budget,
+          fifth_year_budget: r.fifth_year_budget,
+        })),
+      });
+      await refetchSanctions();
+      setEditingSanctionBudgetName(null);
+      setEditSanctionBudgetRows([]);
+    } catch (err) {
+      console.error("Failed to update sanctioned budget breakup:", err);
+    } finally {
+      setIsSavingSanctionBudget(false);
+    }
+  };
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -3006,8 +3183,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     <PlusIcon className="h-3.5 w-3.5" /> Add Funds
                   </FrappeButton>
                   {/* Only show Add Sanction button if no sanction exists */}
-                  {(!sanctionData?.message ||
-                    sanctionData.message.length === 0) && (
+                  {normalizeResponse(sanctionData).length === 0 && (
                       <FrappeButton
                         onClick={handleAddSanctionDetails}
                         variant="outline"
@@ -3049,9 +3225,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     <tab.icon className="h-3.5 w-3.5" /> {tab.label}
                     {tab.id === "sanction-details" &&
                       (() => {
-                        const draftSanctions = (
-                          sanctionData?.message || []
-                        ).filter(
+                        const draftSanctions = normalizeResponse(sanctionData).filter(
                           (s: any) =>
                             (s.sanction_workflow_status || "").toLowerCase() ===
                             "draft",
@@ -3145,6 +3319,55 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             <ExternalLinkIcon className="h-3 w-3" />{" "}
                             {data.upload_proj_prop.split("/").pop()}
                           </a>
+                        </div>
+                      )}
+                      {data?.upload_supporting_docs?.length > 0 && (
+                        <div className="py-2 col-span-full">
+                          <div className="flex items-center gap-1.5 mb-2">
+                            <FileTextIcon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
+                            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
+                              Upload Supporting Docs ( Project Proposal / Invitation Letter)
+                            </p>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                              <thead className="bg-zinc-100 dark:bg-zinc-800">
+                                <tr>
+                                  <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300 w-8">No.</th>
+                                  <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300">File</th>
+                                  <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300">Description</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {data.upload_supporting_docs.map((row: any, idx: number) => {
+                                  const filePath = row.project_file || "";
+                                  const fileName = filePath.split("/").pop() || filePath;
+                                  const fileUrl = filePath ? `http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments/${filePath.split("/").pop()}` : null;
+                                  return (
+                                    <tr key={idx} className="border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                                      <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">{idx + 1}</td>
+                                      <td className="px-3 py-2">
+                                        {fileUrl ? (
+                                          <a
+                                            href={fileUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[#D97757] hover:underline flex items-center gap-1 truncate max-w-xs"
+                                          >
+                                            <ExternalLinkIcon className="h-3 w-3 flex-shrink-0" />
+                                            <span className="truncate">{fileName}</span>
+                                          </a>
+                                        ) : (
+                                          <span className="text-zinc-400">—</span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">{row.file_description || "—"}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -3407,185 +3630,283 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       <SectionWrapper
                         title="Proposed Budget Breakup"
                         icon={IndianRupeeIcon}
+                        action={
+                          isDocOwner && !isEditingBudget ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-xs gap-1"
+                              onClick={startEditBudget}
+                            >
+                              <Pencil className="h-3 w-3" />
+                              Edit
+                            </Button>
+                          ) : isEditingBudget ? (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-6 px-2 text-xs gap-1"
+                                onClick={cancelEditBudget}
+                                disabled={isSavingBudget}
+                              >
+                                <X className="h-3 w-3" />
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-6 px-2 text-xs gap-1 bg-[#D97757] hover:bg-[#c4673e] text-white"
+                                onClick={saveBudgetBreakup}
+                                disabled={isSavingBudget}
+                              >
+                                <Save className="h-3 w-3" />
+                                {isSavingBudget ? "Saving…" : "Save"}
+                              </Button>
+                            </div>
+                          ) : null
+                        }
                       >
-                        {(() => {
-                          // Calculate column totals to determine visibility
-                          const totals = {
-                            year1: data.proposed_budget_breakup.reduce(
-                              (sum: number, row: any) =>
-                                sum + (row.first_year_budget || 0),
-                              0,
-                            ),
-                            year2: data.proposed_budget_breakup.reduce(
-                              (sum: number, row: any) =>
-                                sum + (row.second_year_budget || 0),
-                              0,
-                            ),
-                            year3: data.proposed_budget_breakup.reduce(
-                              (sum: number, row: any) =>
-                                sum + (row.third_year_budget || 0),
-                              0,
-                            ),
-                            year4: data.proposed_budget_breakup.reduce(
-                              (sum: number, row: any) =>
-                                sum + (row.fourth_year_budget || 0),
-                              0,
-                            ),
-                            year5: data.proposed_budget_breakup.reduce(
-                              (sum: number, row: any) =>
-                                sum + (row.fifth_year_budget || 0),
-                              0,
-                            ),
-                          };
-
-                          return (
+                        {isEditingBudget ? (
+                          /* ---- Edit Mode ---- */
+                          <div className="space-y-3">
                             <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-                              <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                              <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
                                 <thead className="bg-zinc-50 dark:bg-zinc-800/50">
                                   <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                    <th className="px-3 py-2 text-left font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                                       Budget Head
                                     </th>
-                                    {totals.year1 > 0 && (
-                                      <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                        Year 1
+                                    {(["Year 1","Year 2","Year 3","Year 4","Year 5"] as const).map((y) => (
+                                      <th key={y} className="px-3 py-2 text-right font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                        {y}
                                       </th>
-                                    )}
-                                    {totals.year2 > 0 && (
-                                      <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                        Year 2
-                                      </th>
-                                    )}
-                                    {totals.year3 > 0 && (
-                                      <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                        Year 3
-                                      </th>
-                                    )}
-                                    {totals.year4 > 0 && (
-                                      <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                        Year 4
-                                      </th>
-                                    )}
-                                    {totals.year5 > 0 && (
-                                      <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                        Year 5
-                                      </th>
-                                    )}
-                                    <th className="px-4 py-3 text-right text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
-                                      Total
-                                    </th>
+                                    ))}
+                                    <th className="px-3 py-2" />
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
-                                  {data.proposed_budget_breakup.map(
-                                    (row: any, index: number) => (
-                                      <tr
-                                        key={index}
-                                        className="hover:bg-zinc-50 dark:bg-zinc-800/50"
-                                      >
-                                        <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-                                          {getBudgetHeadName(row.account_head)}
+                                  {editBudgetRows.map((row, idx) => (
+                                    <tr key={idx}>
+                                      <td className="px-2 py-1.5">
+                                        <select
+                                          className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs"
+                                          value={row.account_head}
+                                          onChange={(e) => {
+                                            const updated = [...editBudgetRows];
+                                            updated[idx] = { ...updated[idx], account_head: e.target.value };
+                                            setEditBudgetRows(updated);
+                                          }}
+                                        >
+                                          <option value="">— Select —</option>
+                                          {budgetHeadList.map((bh) => (
+                                            <option key={bh.name} value={bh.name}>{bh.name}</option>
+                                          ))}
+                                        </select>
+                                      </td>
+                                      {(["first_year_budget","second_year_budget","third_year_budget","fourth_year_budget","fifth_year_budget"] as const).map((field) => (
+                                        <td key={field} className="px-2 py-1.5">
+                                          <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            className="w-24 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs text-right"
+                                            value={row[field] || ""}
+                                            onChange={(e) => {
+                                              const updated = [...editBudgetRows];
+                                              updated[idx] = { ...updated[idx], [field]: Number(e.target.value) };
+                                              setEditBudgetRows(updated);
+                                            }}
+                                          />
                                         </td>
-                                        {totals.year1 > 0 && (
-                                          <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                            {(
-                                              row.first_year_budget || 0
-                                            ).toLocaleString("en-IN")}
-                                          </td>
-                                        )}
-                                        {totals.year2 > 0 && (
-                                          <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                            {(
-                                              row.second_year_budget || 0
-                                            ).toLocaleString("en-IN")}
-                                          </td>
-                                        )}
-                                        {totals.year3 > 0 && (
-                                          <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                            {(
-                                              row.third_year_budget || 0
-                                            ).toLocaleString("en-IN")}
-                                          </td>
-                                        )}
-                                        {totals.year4 > 0 && (
-                                          <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                            {(
-                                              row.fourth_year_budget || 0
-                                            ).toLocaleString("en-IN")}
-                                          </td>
-                                        )}
-                                        {totals.year5 > 0 && (
-                                          <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                            {(
-                                              row.fifth_year_budget || 0
-                                            ).toLocaleString("en-IN")}
-                                          </td>
-                                        )}
-                                        <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                          {(
-                                            (row.first_year_budget || 0) +
-                                            (row.second_year_budget || 0) +
-                                            (row.third_year_budget || 0) +
-                                            (row.fourth_year_budget || 0) +
-                                            (row.fifth_year_budget || 0)
-                                          ).toLocaleString("en-IN")}
-                                        </td>
-                                      </tr>
-                                    ),
-                                  )}
+                                      ))}
+                                      <td className="px-2 py-1.5">
+                                        <button
+                                          type="button"
+                                          className="text-zinc-400 hover:text-red-500"
+                                          onClick={() => setEditBudgetRows(editBudgetRows.filter((_, i) => i !== idx))}
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
                                 </tbody>
-                                <tfoot className="bg-zinc-100 dark:bg-zinc-800">
-                                  <tr>
-                                    <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-                                      GRAND TOTAL
-                                    </td>
-                                    {totals.year1 > 0 && (
-                                      <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                        {totals.year1.toLocaleString("en-IN")}
-                                      </td>
-                                    )}
-                                    {totals.year2 > 0 && (
-                                      <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                        {totals.year2.toLocaleString("en-IN")}
-                                      </td>
-                                    )}
-                                    {totals.year3 > 0 && (
-                                      <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                        {totals.year3.toLocaleString("en-IN")}
-                                      </td>
-                                    )}
-                                    {totals.year4 > 0 && (
-                                      <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                        {totals.year4.toLocaleString("en-IN")}
-                                      </td>
-                                    )}
-                                    {totals.year5 > 0 && (
-                                      <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                        {totals.year5.toLocaleString("en-IN")}
-                                      </td>
-                                    )}
-                                    <td className="px-4 py-3 text-sm font-bold text-[#D97757] text-right whitespace-nowrap">
-                                      ₹{" "}
-                                      {(
-                                        data.total_budget_amount ||
-                                        data.proposed_budget_breakup.reduce(
-                                          (sum: number, row: any) =>
-                                            sum +
-                                            (row.first_year_budget || 0) +
-                                            (row.second_year_budget || 0) +
-                                            (row.third_year_budget || 0) +
-                                            (row.fourth_year_budget || 0) +
-                                            (row.fifth_year_budget || 0),
-                                          0,
-                                        )
-                                      ).toLocaleString("en-IN")}
-                                    </td>
-                                  </tr>
-                                </tfoot>
                               </table>
                             </div>
-                          );
-                        })()}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-xs gap-1"
+                              onClick={() =>
+                                setEditBudgetRows([
+                                  ...editBudgetRows,
+                                  { account_head: "", first_year_budget: 0, second_year_budget: 0, third_year_budget: 0, fourth_year_budget: 0, fifth_year_budget: 0 },
+                                ])
+                              }
+                            >
+                              <Plus className="h-3 w-3" />
+                              Add Row
+                            </Button>
+                          </div>
+                        ) : (
+                          /* ---- View Mode ---- */
+                          (() => {
+                            const totals = {
+                              year1: data.proposed_budget_breakup.reduce(
+                                (sum: number, row: any) => sum + (row.first_year_budget || 0), 0,
+                              ),
+                              year2: data.proposed_budget_breakup.reduce(
+                                (sum: number, row: any) => sum + (row.second_year_budget || 0), 0,
+                              ),
+                              year3: data.proposed_budget_breakup.reduce(
+                                (sum: number, row: any) => sum + (row.third_year_budget || 0), 0,
+                              ),
+                              year4: data.proposed_budget_breakup.reduce(
+                                (sum: number, row: any) => sum + (row.fourth_year_budget || 0), 0,
+                              ),
+                              year5: data.proposed_budget_breakup.reduce(
+                                (sum: number, row: any) => sum + (row.fifth_year_budget || 0), 0,
+                              ),
+                            };
+
+                            return (
+                              <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                                  <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                    <tr>
+                                      <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                        Budget Head
+                                      </th>
+                                      {totals.year1 > 0 && (
+                                        <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                          Year 1
+                                        </th>
+                                      )}
+                                      {totals.year2 > 0 && (
+                                        <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                          Year 2
+                                        </th>
+                                      )}
+                                      {totals.year3 > 0 && (
+                                        <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                          Year 3
+                                        </th>
+                                      )}
+                                      {totals.year4 > 0 && (
+                                        <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                          Year 4
+                                        </th>
+                                      )}
+                                      {totals.year5 > 0 && (
+                                        <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                          Year 5
+                                        </th>
+                                      )}
+                                      <th className="px-4 py-3 text-right text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                                        Total
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
+                                    {data.proposed_budget_breakup.map(
+                                      (row: any, index: number) => (
+                                        <tr
+                                          key={index}
+                                          className="hover:bg-zinc-50 dark:bg-zinc-800/50"
+                                        >
+                                          <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                                            {getBudgetHeadName(row.account_head)}
+                                          </td>
+                                          {totals.year1 > 0 && (
+                                            <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                              {(row.first_year_budget || 0).toLocaleString("en-IN")}
+                                            </td>
+                                          )}
+                                          {totals.year2 > 0 && (
+                                            <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                              {(row.second_year_budget || 0).toLocaleString("en-IN")}
+                                            </td>
+                                          )}
+                                          {totals.year3 > 0 && (
+                                            <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                              {(row.third_year_budget || 0).toLocaleString("en-IN")}
+                                            </td>
+                                          )}
+                                          {totals.year4 > 0 && (
+                                            <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                              {(row.fourth_year_budget || 0).toLocaleString("en-IN")}
+                                            </td>
+                                          )}
+                                          {totals.year5 > 0 && (
+                                            <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                              {(row.fifth_year_budget || 0).toLocaleString("en-IN")}
+                                            </td>
+                                          )}
+                                          <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                            {(
+                                              (row.first_year_budget || 0) +
+                                              (row.second_year_budget || 0) +
+                                              (row.third_year_budget || 0) +
+                                              (row.fourth_year_budget || 0) +
+                                              (row.fifth_year_budget || 0)
+                                            ).toLocaleString("en-IN")}
+                                          </td>
+                                        </tr>
+                                      ),
+                                    )}
+                                  </tbody>
+                                  <tfoot className="bg-zinc-100 dark:bg-zinc-800">
+                                    <tr>
+                                      <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                                        GRAND TOTAL
+                                      </td>
+                                      {totals.year1 > 0 && (
+                                        <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                          {totals.year1.toLocaleString("en-IN")}
+                                        </td>
+                                      )}
+                                      {totals.year2 > 0 && (
+                                        <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                          {totals.year2.toLocaleString("en-IN")}
+                                        </td>
+                                      )}
+                                      {totals.year3 > 0 && (
+                                        <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                          {totals.year3.toLocaleString("en-IN")}
+                                        </td>
+                                      )}
+                                      {totals.year4 > 0 && (
+                                        <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                          {totals.year4.toLocaleString("en-IN")}
+                                        </td>
+                                      )}
+                                      {totals.year5 > 0 && (
+                                        <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                          {totals.year5.toLocaleString("en-IN")}
+                                        </td>
+                                      )}
+                                      <td className="px-4 py-3 text-sm font-bold text-[#D97757] text-right whitespace-nowrap">
+                                        ₹{" "}
+                                        {(
+                                          data.total_budget_amount ||
+                                          data.proposed_budget_breakup.reduce(
+                                            (sum: number, row: any) =>
+                                              sum +
+                                              (row.first_year_budget || 0) +
+                                              (row.second_year_budget || 0) +
+                                              (row.third_year_budget || 0) +
+                                              (row.fourth_year_budget || 0) +
+                                              (row.fifth_year_budget || 0),
+                                            0,
+                                          )
+                                        ).toLocaleString("en-IN")}
+                                      </td>
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </div>
+                            );
+                          })()
+                        )}
                         {/* Display total_budget_amount from project data */}
                         <div className="mt-4 p-4 bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 rounded-lg flex justify-between items-center">
                           <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase">
@@ -3593,9 +3914,20 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                           </span>
                           <span className="text-xl font-bold text-[#D97757]">
                             ₹{" "}
-                            {(data.total_budget_amount || 0).toLocaleString(
-                              "en-IN",
-                            )}
+                            {isEditingBudget
+                              ? editBudgetRows
+                                  .reduce(
+                                    (sum, r) =>
+                                      sum +
+                                      (r.first_year_budget || 0) +
+                                      (r.second_year_budget || 0) +
+                                      (r.third_year_budget || 0) +
+                                      (r.fourth_year_budget || 0) +
+                                      (r.fifth_year_budget || 0),
+                                    0,
+                                  )
+                                  .toLocaleString("en-IN")
+                              : (data.total_budget_amount || 0).toLocaleString("en-IN")}
                           </span>
                         </div>
                       </SectionWrapper>
@@ -3671,7 +4003,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                 </div>
               )}
 
-              {activeTab === "sanction-details" && (
+              {activeTab === "sanction-details" && (() => {
+                const sanctions = normalizeResponse(sanctionData);
+                return (
                 <div className="space-y-5">
                   {/* ... existing sanction details content ... */}
                   {sanctionIsLoading && <p>Loading Sanction Details...</p>}
@@ -3681,10 +4015,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     </p>
                   )}
 
-                  {sanctionData?.message && sanctionData.message.length > 0 ? (
+                  {sanctions.length > 0 ? (
                     <>
                       {/* Sanction Selector - only show if more than 1 sanction */}
-                      {sanctionData.message.length > 1 && (
+                      {sanctions.length > 1 && (
                         <div className="flex items-center gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
                           <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                             Select Sanction:
@@ -3696,7 +4030,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             }
                             className="flex-1 max-w-md px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                           >
-                            {sanctionData.message.map(
+                            {sanctions.map(
                               (sanction: any, index: number) => (
                                 <option key={sanction.name} value={index}>
                                   {sanction.name} -{" "}
@@ -3720,7 +4054,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       {/* Selected Sanction Details */}
                       {(() => {
                         const sanction =
-                          sanctionData.message[selectedSanctionIndex];
+                          sanctions[selectedSanctionIndex];
                         if (!sanction) return null;
 
                         const budgetColumnsAll = [
@@ -3849,96 +4183,224 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                 </div>
                               )}
                             </div>
-                            {sanction.sanctioned_budget_breakup?.length > 0 && (
-                              <div>
-                                <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">
-                                  Budget Breakup
-                                </h4>
-                                <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                  <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                                      <tr>
-                                        {budgetColumns.map((c) => (
-                                          <th
-                                            key={c.fieldname}
-                                            className={`px-4 py-3 text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider ${c.fieldname === "account_head" ? "text-left" : "text-right"}`}
-                                          >
-                                            {c.label}
-                                          </th>
-                                        ))}
-                                        <th className="px-4 py-3 text-right text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
-                                          Total
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
-                                      {(
-                                        sanction.sanctioned_budget_breakup || []
-                                      ).map((row: any, i: number) => {
-                                        const rowTotal =
-                                          budgetYearFieldnames.reduce(
-                                            (sum, fieldname) => {
-                                              return (
-                                                sum +
-                                                (parseFloat(row[fieldname]) ||
-                                                  0)
-                                              );
-                                            },
-                                            0,
-                                          );
+                            {/* Sanctioned Budget Breakup */}
+                            {(() => {
+                              const isEditingSB = editingSanctionBudgetName === sanction.name;
+                              const isSanctionOwner = currentUser && sanction.owner === currentUser;
+                              const yearFields = [
+                                { key: "first_year_budget" as const, label: "Year 1" },
+                                { key: "second_year_budget" as const, label: "Year 2" },
+                                { key: "third_year_budget" as const, label: "Year 3" },
+                                { key: "fourth_year_budget" as const, label: "Year 4" },
+                                { key: "fifth_year_budget" as const, label: "Year 5" },
+                              ];
+                              const editLiveTotal = editSanctionBudgetRows.reduce(
+                                (s, r) => s + r.first_year_budget + r.second_year_budget + r.third_year_budget + r.fourth_year_budget + r.fifth_year_budget, 0,
+                              );
 
-                                        return (
-                                          <tr
-                                            key={i}
-                                            className="hover:bg-zinc-50 dark:bg-zinc-800/50"
-                                          >
-                                            {budgetColumns.map((c) => (
-                                              <td
-                                                key={c.fieldname}
-                                                className={`px-4 py-3 text-sm whitespace-nowrap ${c.fieldname === "account_head" ? "text-zinc-900 dark:text-zinc-100 text-left" : "text-zinc-700 dark:text-zinc-300 text-right"}`}
-                                              >
-                                                {c.fieldname === "account_head"
-                                                  ? row[c.fieldname]
-                                                  : (
-                                                    parseFloat(
-                                                      row[c.fieldname],
-                                                    ) || 0
-                                                  ).toLocaleString("en-IN")}
+                              return (
+                                <div>
+                                  <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                                      Budget Breakup
+                                    </h4>
+                                    {isSanctionOwner && !isEditingSB && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-6 px-2 text-xs gap-1"
+                                        onClick={() => startEditSanctionBudget(sanction)}
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                        Edit
+                                      </Button>
+                                    )}
+                                    {isEditingSB && (
+                                      <div className="flex items-center gap-1">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-6 px-2 text-xs gap-1"
+                                          onClick={cancelEditSanctionBudget}
+                                          disabled={isSavingSanctionBudget}
+                                        >
+                                          <X className="h-3 w-3" />
+                                          Cancel
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          className="h-6 px-2 text-xs gap-1 bg-[#D97757] hover:bg-[#c4673e] text-white"
+                                          onClick={() => saveSanctionBudget(sanction.name)}
+                                          disabled={isSavingSanctionBudget}
+                                        >
+                                          <Save className="h-3 w-3" />
+                                          {isSavingSanctionBudget ? "Saving…" : "Save"}
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {isEditingSB ? (
+                                    <div className="space-y-3">
+                                      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
+                                          <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                            <tr>
+                                              <th className="px-3 py-2 text-left font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Budget Head</th>
+                                              {yearFields.map((y) => (
+                                                <th key={y.key} className="px-3 py-2 text-right font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">{y.label}</th>
+                                              ))}
+                                              <th className="px-3 py-2 text-right font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Total</th>
+                                              <th className="px-3 py-2" />
+                                            </tr>
+                                          </thead>
+                                          <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
+                                            {editSanctionBudgetRows.map((row, idx) => {
+                                              const rowTotal = row.first_year_budget + row.second_year_budget + row.third_year_budget + row.fourth_year_budget + row.fifth_year_budget;
+                                              return (
+                                                <tr key={idx}>
+                                                  <td className="px-2 py-1.5">
+                                                    <select
+                                                      className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs"
+                                                      value={row.account_head}
+                                                      onChange={(e) => {
+                                                        const updated = [...editSanctionBudgetRows];
+                                                        updated[idx] = { ...updated[idx], account_head: e.target.value };
+                                                        setEditSanctionBudgetRows(updated);
+                                                      }}
+                                                    >
+                                                      <option value="">— Select —</option>
+                                                      {budgetHeadList.map((bh) => (
+                                                        <option key={bh.name} value={bh.name}>{bh.name}</option>
+                                                      ))}
+                                                    </select>
+                                                  </td>
+                                                  {yearFields.map((y) => (
+                                                    <td key={y.key} className="px-2 py-1.5">
+                                                      <input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        className="w-24 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs text-right"
+                                                        value={row[y.key] || ""}
+                                                        onChange={(e) => {
+                                                          const updated = [...editSanctionBudgetRows];
+                                                          updated[idx] = { ...updated[idx], [y.key]: Number(e.target.value) };
+                                                          setEditSanctionBudgetRows(updated);
+                                                        }}
+                                                      />
+                                                    </td>
+                                                  ))}
+                                                  <td className="px-2 py-1.5 text-right text-xs font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
+                                                    {rowTotal.toLocaleString("en-IN")}
+                                                  </td>
+                                                  <td className="px-2 py-1.5">
+                                                    <button
+                                                      type="button"
+                                                      className="text-zinc-400 hover:text-red-500"
+                                                      onClick={() => setEditSanctionBudgetRows(editSanctionBudgetRows.filter((_, i) => i !== idx))}
+                                                    >
+                                                      <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
+                                                  </td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                          <tfoot className="bg-zinc-100 dark:bg-zinc-800">
+                                            <tr>
+                                              <td className="px-3 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100">Total</td>
+                                              {yearFields.map((y) => (
+                                                <td key={y.key} className="px-3 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100 text-right">
+                                                  {editSanctionBudgetRows.reduce((s, r) => s + (r[y.key] || 0), 0).toLocaleString("en-IN")}
+                                                </td>
+                                              ))}
+                                              <td className="px-3 py-2 text-xs font-bold text-[#D97757] text-right">
+                                                ₹ {editLiveTotal.toLocaleString("en-IN")}
                                               </td>
-                                            ))}
-                                            <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                              {rowTotal.toLocaleString("en-IN")}
-                                            </td>
-                                          </tr>
-                                        );
-                                      })}
-                                    </tbody>
-                                    <tfoot className="bg-zinc-100 dark:bg-zinc-800">
-                                      <tr>
-                                        <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-                                          Total
-                                        </td>
-                                        {budgetYearFieldnames.map(
-                                          (fieldname) => (
-                                            <td
-                                              key={fieldname}
-                                              className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap"
-                                            >
-                                              {columnTotals[
-                                                fieldname
-                                              ].toLocaleString("en-IN")}
-                                            </td>
-                                          ),
-                                        )}
-                                        <td className="px-4 py-3 text-sm font-bold text-[#D97757] text-right whitespace-nowrap">
-                                          {grandTotal.toLocaleString("en-IN")}
-                                        </td>
-                                      </tr>
-                                    </tfoot>
-                                  </table>
+                                              <td />
+                                            </tr>
+                                          </tfoot>
+                                        </table>
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-6 px-2 text-xs gap-1"
+                                        onClick={() =>
+                                          setEditSanctionBudgetRows([
+                                            ...editSanctionBudgetRows,
+                                            { account_head: "", first_year_budget: 0, second_year_budget: 0, third_year_budget: 0, fourth_year_budget: 0, fifth_year_budget: 0 },
+                                          ])
+                                        }
+                                      >
+                                        <Plus className="h-3 w-3" />
+                                        Add Row
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    (sanction.sanctioned_budget_breakup?.length > 0) && (
+                                      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                                          <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                            <tr>
+                                              {budgetColumns.map((c) => (
+                                                <th
+                                                  key={c.fieldname}
+                                                  className={`px-4 py-3 text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider ${c.fieldname === "account_head" ? "text-left" : "text-right"}`}
+                                                >
+                                                  {c.label}
+                                                </th>
+                                              ))}
+                                              <th className="px-4 py-3 text-right text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                                                Total
+                                              </th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
+                                            {(sanction.sanctioned_budget_breakup || []).map((row: any, i: number) => {
+                                              const rowTotal = budgetYearFieldnames.reduce(
+                                                (sum, fieldname) => sum + (parseFloat(row[fieldname]) || 0), 0,
+                                              );
+                                              return (
+                                                <tr key={i} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
+                                                  {budgetColumns.map((c) => (
+                                                    <td
+                                                      key={c.fieldname}
+                                                      className={`px-4 py-3 text-sm whitespace-nowrap ${c.fieldname === "account_head" ? "text-zinc-900 dark:text-zinc-100 text-left" : "text-zinc-700 dark:text-zinc-300 text-right"}`}
+                                                    >
+                                                      {c.fieldname === "account_head"
+                                                        ? row[c.fieldname]
+                                                        : (parseFloat(row[c.fieldname]) || 0).toLocaleString("en-IN")}
+                                                    </td>
+                                                  ))}
+                                                  <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                                    {rowTotal.toLocaleString("en-IN")}
+                                                  </td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                          <tfoot className="bg-zinc-100 dark:bg-zinc-800">
+                                            <tr>
+                                              <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">Total</td>
+                                              {budgetYearFieldnames.map((fieldname) => (
+                                                <td key={fieldname} className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                                  {columnTotals[fieldname].toLocaleString("en-IN")}
+                                                </td>
+                                              ))}
+                                              <td className="px-4 py-3 text-sm font-bold text-[#D97757] text-right whitespace-nowrap">
+                                                {grandTotal.toLocaleString("en-IN")}
+                                              </td>
+                                            </tr>
+                                          </tfoot>
+                                        </table>
+                                      </div>
+                                    )
+                                  )}
                                 </div>
-                              </div>
-                            )}
+                              );
+                            })()}
+
                             {sanction.sanction_related_files?.length > 0 && (
                               <div>
                                 <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">
@@ -3989,7 +4451,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                         <FundDetails
                           project_title={projectName || ""}
                           sanction_ref_no={
-                            sanctionData.message[selectedSanctionIndex]?.name
+                            sanctions[selectedSanctionIndex]?.name
                           }
                         />
                       </div>
@@ -4006,7 +4468,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                     </div>
                   )}
                 </div>
-              )}
+              );
+              })()}
 
               {/* Disbursal Tab Removed */}
 

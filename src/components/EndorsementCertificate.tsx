@@ -269,7 +269,7 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
         <table class="header-table">
             <tr>
                 <td style="width:100px;">
-                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo" class="logo"/>
+                    <img src="http://172.16.131.206:8000/files/IITG_logo.png" alt="IITG Logo" class="logo"/>
                 </td>
                 <td style="padding-left:16px;">
                     <div class="institute-name">Indian Institute of Technology Guwahati,</div>
@@ -282,7 +282,7 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
 
                 </td>
                 <td style="padding-left:16px;">
-                    <img src="http://172.16.117.39:8000/files/yellow_office_name.png" alt="Office of R&D" class="office-logo"/>
+                    <img src="http://172.16.131.206:8000/files/yellow_office_name.png" alt="Office of R&D" class="office-logo"/>
                 </td>
             </tr>
         </table>
@@ -311,6 +311,7 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
 </body>
 </html>`;
 };
+{/* <img src="http://172.16.131.206:8000/files/rohit_fake_sign.png" alt="Signature"/> */ }
 
 export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (props) => {
     const bodyRef = useRef<HTMLDivElement>(null);
@@ -341,7 +342,7 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                 latestHtml.current = saved;
             }
         });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser]);
 
     // On unmount (modal close): flush to IndexedDB immediately using the ref — no stale closure.
@@ -451,7 +452,7 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                                 <tr>
                                     <td className="w-[100px] align-top">
                                         <img
-                                            src="http://172.16.117.39:8000/files/IITG_logo.png"
+                                            src="http://172.16.131.206:8000/files/IITG_logo.png"
                                             alt="IITG Logo"
                                             className="w-[90px] h-auto"
                                         />
@@ -466,14 +467,14 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                                         <div>
                                             <span className="font-semibold">E-mail:</span>{" "}
                                             <a href="mailto:dornd@iitg.ernet.in" className="text-zinc-900 dark:text-zinc-100 hover:underline">
-                                                dornd@iitg.ernet.in
+                                                dornd@iitg.ac.in
                                             </a>
                                         </div>
 
                                     </td>
                                     {/* <td className="align-top pl-4">
                                         <img
-                                            src="http://172.16.117.39:8000/files/yellow_office_name.png"
+                                            src="http://172.16.131.206:8000/files/yellow_office_name.png"
                                             alt="Office of R&D"
                                             className="h-[150px] w-auto"
                                         />
@@ -524,7 +525,7 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                             <div className="font-bold">Signature of the Dean (R&D)</div>
                             {/* <div className="mt-4">
                                 <img
-                                    src="http://172.16.117.39:8000/files/rohit_fake_sign.png"
+                                    src="http://172.16.131.206:8000/files/rohit_fake_sign.png"
                                     alt="Signature"
                                     className="h-16 w-auto"
                                 />

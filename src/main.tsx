@@ -76,11 +76,15 @@ import RecruitmentAdhocContractualForm from './pages/application/RecruitmentAdho
 import CandidateApplications from './pages/application/CandidateApplications.tsx';
 import CandidateDetails from './pages/application/CandidateDetails.tsx';
 import IndentCumSanctionSheetForm from './pages/application/IndentCumSanctionSheetForm.tsx';
+import IndentGeneralForm from './pages/application/IndentGeneralForm.tsx';
+import IndentGeneralFormDetails from './pages/application/IndentGeneralFormDetails.tsx';
 import UniversalRegistrationForm from './pages/application/UniversalRegistrationForm.tsx';
 import UniversalUserForm from './pages/application/UniversalUserForm.tsx';
 import SelectionCommitteeReportForm from './pages/application/SelectionCommitteeReportForm.tsx';
 import DepartmentProjects from './pages/DepartmentProjects.tsx';
 import AdminLogin from './pages/AdminLogin.tsx';
+import NIQForm from './pages/application/NIQForm.tsx';
+import Profile from './pages/Profile.tsx';
 
 const router = createBrowserRouter(
   [
@@ -650,6 +654,22 @@ const router = createBrowserRouter(
           )
         },
         {
+          path: "indent-general-form/:id?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <IndentGeneralForm />
+            </AuthRouteWrapper>
+          )
+        },
+        {
+          path: "indent-general-form-details/:id",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <IndentGeneralFormDetails />
+            </AuthRouteWrapper>
+          )
+        },
+        {
           path: "universal-registration/:id?",
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
@@ -670,6 +690,22 @@ const router = createBrowserRouter(
           element: (
             <AuthRouteWrapper allowedRole="All_ProRnd_User">
               <UniversalRegistrationForm isFundingAgency={true} />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "profile",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <Profile />
+            </AuthRouteWrapper>
+          ),
+        },
+        {
+          path: "niq-form/:igfId?",
+          element: (
+            <AuthRouteWrapper allowedRole="All_ProRnd_User">
+              <NIQForm />
             </AuthRouteWrapper>
           ),
         },

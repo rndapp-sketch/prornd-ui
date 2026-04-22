@@ -13,6 +13,7 @@ import {
     useFrappeGetDoc,
     useFrappePostCall,
     useFrappeGetCall,
+    useFrappeGetDocList,
     useFrappeAuth,
 } from "frappe-react-sdk";
 import { Textarea } from "@/components/ui/textarea"; // Assuming this can be styled via className
@@ -45,6 +46,10 @@ import {
     DownloadIcon,
     ExternalLinkIcon,
     PencilIcon,
+    ChevronRight,
+    CheckCircle2,
+    XCircle,
+    Clock,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -841,6 +846,171 @@ const WorkflowActions = ({
     );
 };
 
+// --- WORKFLOW TIMELINE ---
+type StageStatus = 'completed' | 'in-progress' | 'pending' | 'rejected' | 'draft';
+
+function buildTimelineStages(currentState: string, mainStages: string[]): { label: string; status: StageStatus }[] {
+    const isApproved = currentState === 'Approved';
+    const isErrorState = currentState === 'Rejected' || currentState === 'Needs Correction';
+    const isPutBack = currentState === 'Put Back';
+    let normalizedState = isPutBack ? 'Pending Staff Approval' : currentState;
+    
+    // Normalize Head/HoD discrepancies between workflow states and document state
+    if (normalizedState === 'Pending Head Approval' && !mainStages.includes('Pending Head Approval') && mainStages.includes('Pending HoD Approval')) {
+        normalizedState = 'Pending HoD Approval';
+    } else if (normalizedState === 'Pending HoD Approval' && !mainStages.includes('Pending HoD Approval') && mainStages.includes('Pending Head Approval')) {
+        normalizedState = 'Pending Head Approval';
+    }
+
+    const currentIdx = mainStages.findIndex(s => s === normalizedState);
+
+    return mainStages.map((stage, idx) => {
+        if (isApproved) return { label: stage, status: 'completed' };
+        if (isErrorState) {
+            if (idx < mainStages.length - 1) return { label: stage, status: idx < currentIdx ? 'completed' : idx === currentIdx ? 'rejected' : 'pending' };
+            return { label: currentState, status: 'rejected' };
+        }
+        if (idx < currentIdx) return { label: stage, status: 'completed' };
+        if (idx === currentIdx) return { label: isPutBack ? `${stage} (Put Back)` : stage, status: 'in-progress' };
+        return { label: stage, status: 'pending' };
+    });
+}
+
+function useProjectWorkflowStages() {
+    const { data: workflowDoc } = useFrappeGetCall<{ message: any[] }>(
+        "frappe.client.get_list",
+        {
+            doctype: "Workflow",
+            filters: { document_type: "Project Registration" },
+            fields: ["name"],
+        }
+    );
+    const workflowName = workflowDoc?.message?.[0]?.name;
+
+    const { data: fullWorkflow, isLoading } = useFrappeGetCall<{ message: any }>(
+        "frappe.client.get",
+        {
+            doctype: "Workflow",
+            name: workflowName
+        },
+        workflowName ? `workflow-doc-${workflowName}` : null
+    );
+
+    const mainStages = React.useMemo(() => {
+        if (!fullWorkflow?.message?.states) return [];
+        const sortedStates = [...fullWorkflow.message.states]
+            .sort((a, b) => (a.idx ?? 0) - (b.idx ?? 0))
+            .map(s => s.state);
+        // Deduplicate in case Frappe states table has repeats
+        return sortedStates.filter((val, index, arr) => arr.indexOf(val) === index);
+    }, [fullWorkflow]);
+
+    return { mainStages, isLoading };
+}
+
+const WorkflowTimeline: React.FC<{ currentState: string, userRoles?: string[], rolesLoading?: boolean }> = ({ currentState, userRoles = [], rolesLoading = false }) => {
+    const { mainStages, isLoading } = useProjectWorkflowStages();
+    
+    // Fallback if loading or empty
+    let stagesToUse = mainStages.length > 0 ? mainStages : ['Draft', 'Pending...', 'Approved'];
+    
+    // Map HoD to Head natively to fix timeline naming discrepancies
+    stagesToUse = stagesToUse.map(stage => stage === 'Pending HoD Approval' ? 'Pending Head Approval' : stage);
+
+    // Dedup again since mapping might have created duplicates if both existed
+    stagesToUse = stagesToUse.filter((val, index, arr) => arr.indexOf(val) === index);
+
+    // Filter out error/conditional states if they are not the current state
+    stagesToUse = stagesToUse.filter(stage => {
+        if (stage === 'Pending Mentor Approval') {
+            // Mentor approval is bypassed for PE and project staff based on the transitions sheet
+            if (userRoles.includes('Permanent Employee') || userRoles.includes('project staff')) {
+                return stage === currentState;
+            }
+        }
+        
+        const s = stage.toLowerCase();
+        if (s.includes('rejected') || s.includes('correction') || s.includes('endorsement')) {
+            return stage === currentState;
+        }
+        return true;
+    });
+
+    const stages = buildTimelineStages(currentState, stagesToUse);
+
+    const iconForStatus = (status: StageStatus) => {
+        if (status === 'completed') return <CheckCircle2 className="w-2.5 h-2.5 text-white" />;
+        if (status === 'in-progress') return <Clock className="w-2.5 h-2.5 text-white" />;
+        if (status === 'rejected') return <XCircle className="w-2.5 h-2.5 text-white" />;
+        return <span className="w-1.5 h-1.5 rounded-full bg-white/60" />;
+    };
+
+    const bgForStatus = (status: StageStatus) => {
+        if (status === 'completed') return 'bg-emerald-500';
+        if (status === 'in-progress') return 'bg-[#D97757]';
+        if (status === 'rejected') return 'bg-red-500';
+        return 'bg-zinc-300 dark:bg-zinc-600';
+    };
+
+    const connectorColor = (status: StageStatus) =>
+        status === 'completed' ? 'bg-emerald-400' : 'bg-zinc-200 dark:bg-zinc-700';
+
+    if (isLoading || rolesLoading) {
+        return <div className="animate-pulse h-12 bg-zinc-100 dark:bg-zinc-800 rounded-xl" />;
+    }
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm px-4 py-2.5 w-full">
+            <h3 className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2.5">
+                Workflow Progress
+            </h3>
+            <div className="flex items-start overflow-x-auto pb-1 scrollbar-thin">
+                {stages.map((stage, idx) => (
+                    <React.Fragment key={stage.label + idx}>
+                        <div className="flex flex-col items-center min-w-[60px] max-w-[80px]">
+                            <div className={cn(
+                                'w-5 h-5 rounded-full flex items-center justify-center shadow-sm flex-shrink-0 transition-all duration-300',
+                                bgForStatus(stage.status),
+                            )}>
+                                {iconForStatus(stage.status)}
+                            </div>
+                            <p className={cn(
+                                'mt-1.5 text-center text-[9px] leading-tight px-1 transition-all duration-300',
+                                stage.status === 'in-progress' ? 'font-bold text-[#D97757]' : '',
+                                stage.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : '',
+                                stage.status === 'pending' ? 'text-zinc-400 dark:text-zinc-500' : '',
+                                stage.status === 'rejected' ? 'text-red-500 font-bold' : '',
+                            )}>
+                                {stage.label}
+                            </p>
+                            {stage.status === 'in-progress' && (
+                                <span className="mt-1 flex-shrink-0 text-[8px] font-bold text-white bg-[#D97757] px-1.5 py-[2px] rounded-full leading-none">
+                                    Pending
+                                </span>
+                            )}
+                        </div>
+                        {idx < stages.length - 1 && (
+                            <div className="flex-1 flex items-center pt-2 min-w-[16px]">
+                                <div className={cn('h-0.5 w-full rounded transition-all duration-300', connectorColor(stage.status))} />
+                                <ChevronRight className="w-2.5 h-2.5 text-zinc-400 flex-shrink-0 -ml-[2px]" />
+                            </div>
+                        )}
+                    </React.Fragment>
+                ))}
+            </div>
+            {/* Pending at text */}
+            {currentState && currentState !== 'Draft' && currentState !== 'Approved' && currentState !== 'Rejected' && (
+                <div className="mt-2 pt-1.5 border-t border-zinc-100 dark:border-zinc-800">
+                    <p className="text-[9px] text-zinc-500 dark:text-zinc-400 transition-all duration-300">
+                        Currently pending at:{' '}
+                        <span className="font-semibold text-[#D97757]">{currentState}</span>
+                    </p>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // --- Main Component ---
 const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     projectName: propProjectName,
@@ -857,7 +1027,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const [activeTab, setActiveTab] = useState("overview");
     const activityStreamRef = useRef<ActivityStreamHandle>(null);
     const { currentUser } = useFrappeAuth();
-    const { roles } = useUserRoles(currentUser ?? null);
+    const { roles, isLoading: isRolesLoading } = useUserRoles(currentUser ?? null);
     const isRnDStaff = roles.some(r => r === "staff, RnD");
 
     const { data, error, isLoading, mutate } = useFrappeGetDoc(
@@ -865,6 +1035,18 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
         projectName ?? "",
         { enabled: !!projectName, cacheTime: 0 },
     );
+
+    const MINIO_BASE = "http://172.16.135.118:9000";
+    const attachmentsPath = `${MINIO_BASE}/rnd-files/Project_Registration/${projectName}/attachments`;
+
+    const { data: frappeFiles } = useFrappeGetDocList("File", {
+        filters: [
+            ["attached_to_doctype", "=", "Project Registration"],
+            ["attached_to_name", "=", projectName ?? ""],
+        ],
+        fields: ["file_name", "file_url", "file_size", "attached_to_field", "creation"],
+        limit: 200,
+    }, projectName ? undefined : null);
 
     // Auto-switch to endorsement tab when status is "Endorsement Pending at Dean"
     React.useEffect(() => {
@@ -898,6 +1080,33 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
         };
         fetchBudgetHeads();
     }, []);
+
+    // Fetch Funding Agency master details
+    const { data: fundingAgencyResult } = useFrappeGetCall<{ message: Record<string, any> }>(
+        "frappe.client.get_value",
+        data?.funding_agen
+            ? {
+                doctype: "fundingagency_",
+                filters: data.funding_agen,
+                fieldname: JSON.stringify([
+                    "funding_agency_id",
+                    "funding_agency_name",
+                    "funding_agency_initials",
+                    "funding_agency_type_1",
+                    "origin_of_funding_agency",
+                    "gstin_of_funding_agency",
+                    "ministry_funding_agency",
+                    "fundingagency_address",
+                    "fundingagency_country",
+                    "fundingagency_state",
+                    "fundingagency_postalcode",
+                ]),
+            }
+            : undefined,
+        data?.funding_agen ? `funding-agency-${data.funding_agen}` : null,
+        { revalidateOnFocus: false, revalidateOnReconnect: false, refreshInterval: 0, dedupingInterval: 60000 },
+    );
+    const fundingAgencyData = fundingAgencyResult?.message;
 
     const { call: triggerWorkflowAction, loading: isActionLoading } =
         useFrappePostCall(
@@ -1089,7 +1298,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                             </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
-                            {(data?.workflow_state === 'Draft' || !data?.workflow_state) && (
+                            {((data?.workflow_state === 'Draft' || !data?.workflow_state) ||
+                                (data?.workflow_state === 'Needs Correction (PE)' && currentUser === data?.pi_userid)) && (
                                 <button
                                     onClick={() => navigate(`/project-registration?docname=${projectName}&edit=true`)}
                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D97757] hover:bg-[#c66a4e] text-white text-xs font-semibold shadow-sm transition-colors"
@@ -1118,6 +1328,9 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     html={endorsementHtml}
                     isLoading={isFetchingEndorsementHtml}
                 />
+                <div className="mb-6">
+                    <WorkflowTimeline currentState={data?.workflow_state || 'Draft'} userRoles={roles} rolesLoading={isRolesLoading} />
+                </div>
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
                     <div className="border-b border-zinc-200 dark:border-zinc-800">
                         <nav className="flex space-x-1 p-1 overflow-x-auto">
@@ -1224,6 +1437,55 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                                 .split("/")
                                                                 .pop()}
                                                         </a>
+                                                    </div>
+                                                )}
+                                                {data?.upload_supporting_docs?.length > 0 && (
+                                                    <div className="py-3 col-span-full">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <FileTextIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                                                            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                                                                Upload Supporting Docs ( Project Proposal / Invitation Letter)
+                                                            </p>
+                                                        </div>
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                                                                <thead className="bg-zinc-100 dark:bg-zinc-800">
+                                                                    <tr>
+                                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300 w-8">No.</th>
+                                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300">File</th>
+                                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300">Description</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {data.upload_supporting_docs.map((row: any, idx: number) => {
+                                                                        const filePath = row.project_file || '';
+                                                                        const fileName = filePath.split('/').pop() || filePath;
+                                                                        const fileUrl = fileName ? `${attachmentsPath}/${fileName}` : null;
+                                                                        return (
+                                                                            <tr key={idx} className="border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                                                                                <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">{idx + 1}</td>
+                                                                                <td className="px-3 py-2">
+                                                                                    {fileUrl ? (
+                                                                                        <a
+                                                                                            href={fileUrl}
+                                                                                            target="_blank"
+                                                                                            rel="noopener noreferrer"
+                                                                                            className="text-[#D97757] hover:underline flex items-center gap-1 truncate max-w-xs"
+                                                                                        >
+                                                                                            <ExternalLinkIcon className="h-3 w-3 flex-shrink-0" />
+                                                                                            <span className="truncate">{fileName}</span>
+                                                                                        </a>
+                                                                                    ) : (
+                                                                                        <span className="text-zinc-400">—</span>
+                                                                                    )}
+                                                                                </td>
+                                                                                <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">{row.file_description || '—'}</td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
@@ -1466,40 +1728,52 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
                                                 <FieldDisplay
                                                     label="Agency Name"
-                                                    value={data?.funding_agen}
+                                                    value={fundingAgencyData?.funding_agency_name}
                                                     icon={BuildingIcon}
                                                 />
                                                 <FieldDisplay
+                                                    label="Agency ID"
+                                                    value={fundingAgencyData?.funding_agency_id}
+                                                    icon={BuildingIcon}
+                                                />
+                                                <FieldDisplay
+                                                    label="Initials"
+                                                    value={fundingAgencyData?.funding_agency_initials}
+                                                    icon={FileTextIcon}
+                                                />
+                                                <FieldDisplay
                                                     label="Agency Type"
-                                                    value={
-                                                        data?.funding_agency_type
-                                                    }
+                                                    value={fundingAgencyData?.funding_agency_type_1 ?? data?.funding_agency_type}
                                                     icon={UsersIcon}
                                                 />
                                                 <FieldDisplay
                                                     label="Origin"
-                                                    value={
-                                                        data?.origin_of_funding_agency
-                                                    }
+                                                    value={fundingAgencyData?.origin_of_funding_agency ?? data?.origin_of_funding_agency}
                                                     icon={GlobeIcon}
                                                 />
                                                 <FieldDisplay
+                                                    label="GSTIN"
+                                                    value={fundingAgencyData?.gstin_of_funding_agency}
+                                                    icon={CreditCardIcon}
+                                                />
+                                                <FieldDisplay
                                                     label="Ministry"
-                                                    value={
-                                                        data?.funding_agency_ministry
-                                                    }
+                                                    value={fundingAgencyData?.ministry_funding_agency ?? data?.funding_agency_ministry}
                                                     icon={BuildingIcon}
                                                 />
                                                 <FieldDisplay
                                                     label="Scheme"
-                                                    value={
-                                                        data?.funding_agency_schemes
-                                                    }
+                                                    value={data?.funding_agency_schemes}
                                                     icon={FileTextIcon}
                                                 />
                                                 <FieldDisplay
                                                     label="Address"
-                                                    value={`${data?.address_street_village_locality}, ${data?.address_state}, ${data?.address_country} - ${data?.address_postal_code}`}
+                                                    value={[
+                                                        fundingAgencyData?.fundingagency_address ?? data?.address_street_village_locality,
+                                                        fundingAgencyData?.fundingagency_state ?? data?.address_state,
+                                                        fundingAgencyData?.fundingagency_country ?? data?.address_country,
+                                                        fundingAgencyData?.fundingagency_postalcode ?? data?.address_postal_code,
+                                                    ].filter(Boolean).join(", ")}
                                                     icon={MapPinIcon}
                                                 />
                                             </div>
@@ -1959,7 +2233,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                 />
                                                 <FieldDisplay
                                                     label="Funding Agency"
-                                                    value={data?.funding_agen}
+                                                    value={fundingAgencyData?.funding_agency_name || data?.funding_agen}
                                                     icon={BuildingIcon}
                                                 />
                                             </div>
@@ -2037,74 +2311,57 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                 <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
                                                     Project Files
                                                 </h3>
+                                                {frappeFiles && (
+                                                    <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">
+                                                        {frappeFiles.length} file{frappeFiles.length !== 1 ? 's' : ''}
+                                                    </span>
+                                                )}
                                             </div>
-                                            {(() => {
-                                                const minioBase = `http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments`;
-                                                const allFiles: { name: string; url: string; label?: string }[] = [];
-                                                if (data?.upload_proj_prop) {
-                                                    const fname = data.upload_proj_prop.split('/').pop();
-                                                    allFiles.push({ name: fname, url: `${minioBase}/${fname}`, label: 'Project Proposal' });
-                                                }
-                                                if (data?.sanction_related_files?.length) {
-                                                    data.sanction_related_files.forEach((row: any) => {
-                                                        const raw = row.sanction_file || row.file_url || row.file;
-                                                        if (raw) {
-                                                            const fname = raw.split('/').pop();
-                                                            allFiles.push({ name: fname, url: `${minioBase}/${fname}`, label: row.description || 'Sanction File' });
-                                                        }
-                                                    });
-                                                }
-                                                if (data?.attachments?.length) {
-                                                    data.attachments.forEach((file: any) => {
-                                                        const fname = file.file_name || file.name || 'Document';
-                                                        const url = file.file_url || file.url || `${minioBase}/${fname}`;
-                                                        allFiles.push({ name: fname, url, label: file.attached_to_field || undefined });
-                                                    });
-                                                }
-                                                return allFiles.length > 0 ? (
-                                                    <div className="space-y-3">
-                                                        {allFiles.map((file, index) => (
+                                            {frappeFiles && frappeFiles.length > 0 ? (
+                                                <div className="space-y-3">
+                                                    {frappeFiles.map((file: { file_name: string; file_url?: string; file_size?: number; attached_to_field?: string; creation?: string }) => {
+                                                        const fname = file.file_name;
+                                                        const url = `${attachmentsPath}/${fname}`;
+                                                        return (
                                                             <div
-                                                                key={index}
-                                                                className="flex items-center justify-between p-3 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:bg-zinc-800 transition-colors"
+                                                                key={fname}
+                                                                className="flex items-center justify-between p-3 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                                                             >
                                                                 <div className="flex items-center gap-3 min-w-0">
                                                                     <FileTextIcon className="h-5 w-5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" />
                                                                     <div className="min-w-0">
                                                                         <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                                                                            {file.name}
+                                                                            {fname}
                                                                         </p>
-                                                                        {file.label && (
-                                                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">{file.label}</p>
+                                                                        {file.attached_to_field && (
+                                                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">{file.attached_to_field}</p>
                                                                         )}
                                                                     </div>
                                                                 </div>
                                                                 <a
-                                                                    href={file.url}
+                                                                    href={url}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
-                                                                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#D97757] bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 rounded-lg hover:bg-[#B2EBF2] transition-colors"
+                                                                    className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#D97757] bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 rounded-lg hover:bg-[#B2EBF2] transition-colors flex-shrink-0"
                                                                 >
                                                                     <DownloadIcon className="h-4 w-4" />
                                                                     Download
                                                                 </a>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-center py-12 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl">
-                                                        <FolderOpenIcon className="h-12 w-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
-                                                        <p className="font-medium text-zinc-600 dark:text-zinc-400">
-                                                            No files attached yet.
-                                                        </p>
-                                                        <p className="text-sm mt-1">
-                                                            Files related to this
-                                                            project will appear
-                                                            here.
-                                                        </p>
-                                                    </div>
-                                                );
-                                            })()}
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="text-center py-12 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl">
+                                                    <FolderOpenIcon className="h-12 w-12 text-zinc-300 dark:text-zinc-600 mx-auto mb-4" />
+                                                    <p className="font-medium text-zinc-600 dark:text-zinc-400">
+                                                        No files attached yet.
+                                                    </p>
+                                                    <p className="text-sm mt-1">
+                                                        Files related to this project will appear here.
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -2222,3 +2479,4 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
 };
 
 export default ProjectDetailsView;
+

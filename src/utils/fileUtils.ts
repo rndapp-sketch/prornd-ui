@@ -1,30 +1,44 @@
 /**
  * Utility for building correct file URLs from Frappe file_url values.
  *
- * Frappe stores file URLs with a leading slash, e.g.:
- *   /Project_Registration/2026031901MeiTy000636/proposal/abc123_file.pdf
+ * Files uploaded through the custom MinIO-backed storage are stored by
+ * Frappe with a path like:
+ *   /Project_Registration/2026031901MeiTy000636/indent_general_form/.../file.pdf
  *
- * The correct browseable URL is:
- *   /files/Project_Registration/...
+ * These must be served from MinIO directly:
+ *   http://172.16.135.118:9000/prod-rnd-files/Project_Registration/...
  *
- * Using `/files/${path}` when `path` already starts with `/` produces a
- * double slash (`/files//Project_Registration/...`), which is wrong.
- * This helper handles both cases correctly.
+ * Standard Frappe-managed files use `/files/...` or `/private/files/...`
+ * paths and are served from the Frappe backend.
  */
+
+const MINIO_BASE = "http://172.16.135.118:9000/prod-rnd-files";
+
+// Path prefixes that indicate a MinIO-stored file
+const MINIO_PATH_PREFIXES = [
+    "/Project_Registration/",
+    "/indent_general_form/",
+];
+
 export function getFileUrl(path: string | null | undefined): string {
     if (!path) return "";
 
-    // Already a full URL (e.g. proxied MinIO direct link)
+    // Already a full URL — return as-is
     if (path.startsWith("http://") || path.startsWith("https://")) {
         return path;
     }
 
-    // MinIO path served via /rnd-files proxy — use as-is
+    // Already a MinIO proxy path — prepend the MinIO base
     if (path.startsWith("/rnd-files/")) {
-        return path;
+        return `http://172.16.135.118:9000${path}`;
     }
 
-    // Frappe stores paths starting with "/" -- avoid double slash
+    // MinIO-stored file referenced by its object path (no bucket prefix)
+    if (MINIO_PATH_PREFIXES.some((prefix) => path.startsWith(prefix))) {
+        return `${MINIO_BASE}${path}`;
+    }
+
+    // Standard Frappe file path starting with "/" — avoid double slash
     if (path.startsWith("/")) {
         return `/files${path}`;
     }

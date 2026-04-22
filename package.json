@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build --base=/assets/rndopsapp/frontend/ && yarn copy-html-entry",
+    "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "copy-html-entry": "cp /home/rndops/Desktop/frappe_dev/prornd/apps/rndopsapp/rndopsapp/public/frontend/index.html /home/rndops/Desktop/frappe_dev/prornd/apps/rndopsapp/rndopsapp/www/rndopsapp.html"

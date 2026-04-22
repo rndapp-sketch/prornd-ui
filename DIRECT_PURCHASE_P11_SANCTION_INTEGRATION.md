@@ -556,7 +556,7 @@ const LinkedDocTab = ({
         filterField="app_id"
         filterValue={id}
         emptyTitle="No P-11 Form Generated Yet"
-        emptyDescription="The P-11 Form is generated after the Direct Purchase is approved by the Associate Dean."
+        emptyDescription="The P-11 Form is generated after the Direct Purchase is approved."
     />
 )}
 
@@ -579,7 +579,7 @@ const LinkedDocTab = ({
         filterField="app_id"
         filterValue={id}
         emptyTitle="No P-11 Form Generated Yet"
-        emptyDescription="The P-11 Form is generated after the Direct Purchase is approved by the Associate Dean."
+        emptyDescription="The P-11 Form is generated after the Direct Purchase is approved."
         onDataReload={loadData} // NEW: Pass reload handler
     />
 )}
