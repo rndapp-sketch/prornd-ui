@@ -2107,28 +2107,53 @@ const WorkflowActions = ({
   docname,
   onAction,
   isLoading,
+  projectNo,
+  status,
+  isStaffRnD,
 }: {
   docname: string;
   onAction: (action: string) => void;
   isLoading: boolean;
+  projectNo?: string;
+  status?: string;
+  isStaffRnD?: boolean;
 }) => {
   const { data } = useFrappeGetCall<{ message: string[] }>(
     "rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_available_workflow_actions",
     { docname },
   );
   if (!data?.message || data.message.length === 0) return null;
+
+  const isForwardBlocked =
+    isStaffRnD &&
+    status === "Pending Staff Approval" &&
+    !projectNo?.trim();
+
   return (
     <div className="flex items-center gap-2">
-      {data.message.map((actionString: string) => (
-        <FrappeButton
-          key={actionString}
-          onClick={() => onAction(actionString)}
-          variant="outline"
-          disabled={isLoading}
-        >
-          {isLoading ? "Processing..." : actionString}
-        </FrappeButton>
-      ))}
+      {data.message.map((actionString: string) => {
+        const isForward = actionString.toLowerCase() === "forward";
+        const blocked = isForward && isForwardBlocked;
+        return (
+          <div key={actionString} className="relative group">
+            <FrappeButton
+              onClick={() => onAction(actionString)}
+              variant="outline"
+              disabled={isLoading || blocked}
+              className={blocked ? "opacity-50 cursor-not-allowed" : ""}
+            >
+              {isLoading ? "Processing..." : actionString}
+            </FrappeButton>
+            {blocked && (
+              <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:block z-50 w-max max-w-xs">
+                <div className="bg-zinc-900 text-white text-xs rounded px-2.5 py-1.5 shadow-lg whitespace-nowrap">
+                  Project Number is required before forwarding.
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -2209,6 +2234,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
       r === "staff, RnD" ||
       r === "Hos, RnD (Head of Section, RnD)",
   );
+  const isStaffRnDOnly = roles.includes("staff, RnD");
   // console.log("User Roles:", roles, "Is RnD Staff:", isRnDStaff);
 
   const {
@@ -3033,6 +3059,19 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     });
   };
 
+  const handleProjectStaff = () => {
+    const username = currentUser ?? "";
+    const projectCodes = data?.project_no ? [data.project_no] : [];
+    const timestamp = Date.now();
+    const jsonString = JSON.stringify({ username, projectCodes, timestamp });
+    const encodedJson = btoa(
+      Array.from(new TextEncoder().encode(jsonString), (b) =>
+        String.fromCharCode(b),
+      ).join(""),
+    );
+    window.open(`http://172.16.135.27:7079/sso?token=${encodedJson}`, "_blank");
+  };
+
   const tabs = [
     { id: "overview", label: "Overview", icon: FileTextIcon },
     { id: "sanction-details", label: "Sanction Details", icon: CreditCardIcon },
@@ -3198,6 +3237,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                 docname={projectName!}
                 onAction={handleWorkflowAction}
                 isLoading={isActionLoading}
+                projectNo={data?.project_no}
+                status={data?.workflow_state}
+                isStaffRnD={isStaffRnDOnly}
               />
             </div>
           </div>
@@ -3245,6 +3287,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                       })()}
                   </button>
                 ))}
+                <button
+                  onClick={handleProjectStaff}
+                  aria-selected={false}
+                  className="frappe-tab flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-bold"
+                >
+                  <UsersIcon className="h-3.5 w-3.5" /> Project Staff
+                </button>
               </nav>
             </div>
             <div className="bg-zinc-50/50 dark:bg-zinc-900/50 p-4">

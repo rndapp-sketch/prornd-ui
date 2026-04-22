@@ -50,6 +50,7 @@ import {
     CheckCircle2,
     XCircle,
     Clock,
+    AlertTriangleIcon,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -778,10 +779,16 @@ const WorkflowActions = ({
     docname,
     onAction,
     isLoading,
+    projectNo,
+    status,
+    isStaffRnD,
 }: {
     docname: string;
     onAction: (action: string) => void;
     isLoading: boolean;
+    projectNo?: string;
+    status?: string;
+    isStaffRnD?: boolean;
 }) => {
     const {
         data,
@@ -801,47 +808,64 @@ const WorkflowActions = ({
     if (error || !data?.message || data.message.length === 0) {
         return null;
     }
+
+    const isForwardBlocked =
+        isStaffRnD &&
+        status === "Pending Staff Approval" &&
+        !projectNo?.trim();
+
     return (
         <div className="flex items-center gap-2">
-            {data.message.map((actionString: string) => (
-                <Button
-                    key={actionString}
-                    onClick={() => onAction(actionString)}
-                    variant={
-                        actionString.toLowerCase().includes("approve") ||
-                            actionString.toLowerCase().includes("submit")
-                            ? "default"
-                            : actionString.toLowerCase().includes("reject")
-                                ? "destructive"
-                                : "secondary"
-                    }
-                    className={cn(
-                        "flex items-center gap-2 h-9 px-4 text-xs font-medium rounded-lg shadow-sm transition-all",
-                        {
-                            "bg-[#D97757] hover:bg-[#D97757] text-white":
-                                actionString
-                                    .toLowerCase()
-                                    .includes("approve") ||
-                                actionString.toLowerCase().includes("submit"),
-                            "bg-red-500 hover:bg-red-600 text-white":
-                                actionString.toLowerCase().includes("reject"),
-                            "bg-white dark:bg-zinc-900 hover:bg-zinc-50 text-zinc-700 border border-zinc-200":
-                                !["approve", "reject", "submit"].some((term) =>
-                                    actionString.toLowerCase().includes(term),
-                                ),
-                        },
-                    )}
-                    disabled={isLoading}
-                >
-                    {actionString.toLowerCase().includes("approve") && (
-                        <CheckCircleIcon className="h-3.5 w-3.5 mr-1.5" />
-                    )}
-                    {actionString.toLowerCase().includes("reject") && (
-                        <XCircleIcon className="h-3.5 w-3.5 mr-1.5" />
-                    )}
-                    {isLoading ? "Processing..." : actionString}
-                </Button>
-            ))}
+            {data.message.map((actionString: string) => {
+                const isForward = actionString.toLowerCase() === "forward";
+                const blocked = isForward && isForwardBlocked;
+                return (
+                    <div key={actionString} className="relative group">
+                        <Button
+                            onClick={() => onAction(actionString)}
+                            variant={
+                                actionString.toLowerCase().includes("approve") ||
+                                    actionString.toLowerCase().includes("submit")
+                                    ? "default"
+                                    : actionString.toLowerCase().includes("reject")
+                                        ? "destructive"
+                                        : "secondary"
+                            }
+                            className={cn(
+                                "flex items-center gap-2 h-9 px-4 text-xs font-medium rounded-lg shadow-sm transition-all",
+                                {
+                                    "bg-[#D97757] hover:bg-[#D97757] text-white":
+                                        actionString.toLowerCase().includes("approve") ||
+                                        actionString.toLowerCase().includes("submit"),
+                                    "bg-red-500 hover:bg-red-600 text-white":
+                                        actionString.toLowerCase().includes("reject"),
+                                    "bg-white dark:bg-zinc-900 hover:bg-zinc-50 text-zinc-700 border border-zinc-200":
+                                        !["approve", "reject", "submit"].some((term) =>
+                                            actionString.toLowerCase().includes(term),
+                                        ),
+                                    "opacity-50 cursor-not-allowed": blocked,
+                                },
+                            )}
+                            disabled={isLoading || blocked}
+                        >
+                            {actionString.toLowerCase().includes("approve") && (
+                                <CheckCircleIcon className="h-3.5 w-3.5 mr-1.5" />
+                            )}
+                            {actionString.toLowerCase().includes("reject") && (
+                                <XCircleIcon className="h-3.5 w-3.5 mr-1.5" />
+                            )}
+                            {isLoading ? "Processing..." : actionString}
+                        </Button>
+                        {blocked && (
+                            <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:block z-50 w-max max-w-xs">
+                                <div className="bg-zinc-900 text-white text-xs rounded px-2.5 py-1.5 shadow-lg whitespace-nowrap">
+                                    Project Number is required before forwarding.
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
         </div>
     );
 };
@@ -854,7 +878,7 @@ function buildTimelineStages(currentState: string, mainStages: string[]): { labe
     const isErrorState = currentState === 'Rejected' || currentState === 'Needs Correction';
     const isPutBack = currentState === 'Put Back';
     let normalizedState = isPutBack ? 'Pending Staff Approval' : currentState;
-    
+
     // Normalize Head/HoD discrepancies between workflow states and document state
     if (normalizedState === 'Pending Head Approval' && !mainStages.includes('Pending Head Approval') && mainStages.includes('Pending HoD Approval')) {
         normalizedState = 'Pending HoD Approval';
@@ -910,10 +934,10 @@ function useProjectWorkflowStages() {
 
 const WorkflowTimeline: React.FC<{ currentState: string, userRoles?: string[], rolesLoading?: boolean }> = ({ currentState, userRoles = [], rolesLoading = false }) => {
     const { mainStages, isLoading } = useProjectWorkflowStages();
-    
+
     // Fallback if loading or empty
     let stagesToUse = mainStages.length > 0 ? mainStages : ['Draft', 'Pending...', 'Approved'];
-    
+
     // Map HoD to Head natively to fix timeline naming discrepancies
     stagesToUse = stagesToUse.map(stage => stage === 'Pending HoD Approval' ? 'Pending Head Approval' : stage);
 
@@ -928,7 +952,7 @@ const WorkflowTimeline: React.FC<{ currentState: string, userRoles?: string[], r
                 return stage === currentState;
             }
         }
-        
+
         const s = stage.toLowerCase();
         if (s.includes('rejected') || s.includes('correction') || s.includes('endorsement')) {
             return stage === currentState;
@@ -1300,17 +1324,20 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                         <div className="flex items-center gap-2 flex-wrap">
                             {((data?.workflow_state === 'Draft' || !data?.workflow_state) ||
                                 (data?.workflow_state === 'Needs Correction (PE)' && currentUser === data?.pi_userid)) && (
-                                <button
-                                    onClick={() => navigate(`/project-registration?docname=${projectName}&edit=true`)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D97757] hover:bg-[#c66a4e] text-white text-xs font-semibold shadow-sm transition-colors"
-                                >
-                                    <PencilIcon className="h-3.5 w-3.5" /> Edit
-                                </button>
-                            )}
+                                    <button
+                                        onClick={() => navigate(`/project-registration?docname=${projectName}&edit=true`)}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D97757] hover:bg-[#c66a4e] text-white text-xs font-semibold shadow-sm transition-colors"
+                                    >
+                                        <PencilIcon className="h-3.5 w-3.5" /> Edit
+                                    </button>
+                                )}
                             <WorkflowActions
                                 docname={projectName}
                                 onAction={handleWorkflowAction}
                                 isLoading={isActionLoading}
+                                projectNo={data?.project_no}
+                                status={data?.workflow_state}
+                                isStaffRnD={isRnDStaff}
                             />
                         </div>
                     </div>
@@ -1331,6 +1358,17 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                 <div className="mb-6">
                     <WorkflowTimeline currentState={data?.workflow_state || 'Draft'} userRoles={roles} rolesLoading={isRolesLoading} />
                 </div>
+                {isRnDStaff && data?.workflow_state === "Pending Staff Approval" && !data?.project_no?.trim() && (
+                    <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700">
+                        <AlertTriangleIcon className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                        <div>
+                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Project Number Not Generated</p>
+                            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                                A project number must be generated before this project can be forwarded. Please generate it using the form on the right.
+                            </p>
+                        </div>
+                    </div>
+                )}
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
                     <div className="border-b border-zinc-200 dark:border-zinc-800">
                         <nav className="flex space-x-1 p-1 overflow-x-auto">
