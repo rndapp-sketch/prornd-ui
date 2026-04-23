@@ -3060,7 +3060,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   };
 
   const handleProjectStaff = () => {
-    const username = currentUser ?? "";
+    const username = currentUser ? currentUser.split("@")[0] : "";
     const projectCodes = data?.project_no ? [data.project_no] : [];
     const timestamp = Date.now();
     const jsonString = JSON.stringify({ username, projectCodes, timestamp });
