@@ -210,8 +210,8 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
     const previewSegments = useMemo(() => {
         const { current_year1, category, dept_initial, emp_id, emp_initial, project_no } = formData;
         const part1 = `${current_year1 || ''}${category || ''}`;
-        const part2 = `${dept_initial || ''}${emp_id || ''}${emp_initial || ''}`;
-        const part3 = project_no || '';
+        const part2 = project_no || '';
+        const part3 = `${dept_initial || ''}${emp_id || ''}${emp_initial || ''}`;
         return { part1, part2, part3, full: [part1, part2, part3].filter(Boolean).join('-') };
     }, [formData]);
 

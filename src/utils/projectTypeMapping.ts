@@ -115,49 +115,41 @@ export const DOCTYPE_PR_LINKS: Record<string, DoctypePRLink> = {
     },
 
     // ── Indirect Data field only DocTypes ────────────────────────────────────
-    // These fields store either the PR `project_no` (human-readable) OR the PR
-    // `name` (auto-id), depending on how the record was filled in practice.
-    // We try pr_project_no first; if that map misses (project_no not yet assigned
-    // on the PR, or the field actually holds the auto-id), we fall back to pr_name.
+    // These fields store the PR `project_no` (human-readable). The async
+    // filter lookup in the button handler resolves project_no → PR document name.
+    // Do NOT add a pr_name fallback here with the same field — extractPRName would
+    // return the project_no value as a PR document name, bypassing the async
+    // lookup and causing a 404 on /api/resource/Project Registration/<project_no>.
     'Direct Purchase': {
-        primary:  { type: 'pr_project_no', field: 'project_no' },
-        fallback: { type: 'pr_name',       field: 'project_no' },
+        primary: { type: 'pr_project_no', field: 'project_no' },
     },
     'Disbursal of Honorarium': {
-        primary:  { type: 'pr_project_no', field: 'project_no' },
-        fallback: { type: 'pr_name',       field: 'project_no' },
+        primary: { type: 'pr_project_no', field: 'project_no' },
     },
     'Endorsement Data': {
-        primary:  { type: 'pr_project_no', field: 'project_no' },
-        fallback: { type: 'pr_name',       field: 'project_no' },
+        primary: { type: 'pr_project_no', field: 'project_no' },
     },
     'Extension Of Tenure Of Appointment': {
-        primary:  { type: 'pr_project_no', field: 'project_number' },
-        fallback: { type: 'pr_name',       field: 'project_number' },
+        primary: { type: 'pr_project_no', field: 'project_number' },
     },
     'P_11 Form': {
-        primary:  { type: 'pr_project_no', field: 'project_no' },
-        fallback: { type: 'pr_name',       field: 'project_no' },
+        primary: { type: 'pr_project_no', field: 'project_no' },
     },
     'Recruitment Adhoc Contractual': {
         primary: { type: 'pr_project_no', field: 'upfa_project_code' },
     },
     'repair_replacement': {
-        primary:  { type: 'pr_project_no', field: 'project_no' },
-        fallback: { type: 'pr_name',       field: 'project_no' },
+        primary: { type: 'pr_project_no', field: 'project_no' },
     },
     'sanction_sheet': {
-        primary:  { type: 'pr_project_no', field: 'project_no' },
-        fallback: { type: 'pr_name',       field: 'project_no' },
+        primary: { type: 'pr_project_no', field: 'project_no' },
     },
     // TA DA Settlement resolves via Travel → project_no
     'TA DA Settlement': {
-        primary:  { type: 'pr_project_no', field: 'project_no' },
-        fallback: { type: 'pr_name',       field: 'project_no' },
+        primary: { type: 'pr_project_no', field: 'project_no' },
     },
     'Temporary Advance': {
-        primary:  { type: 'pr_project_no', field: 'project_code' },
-        fallback: { type: 'pr_name',       field: 'project_code' },
+        primary: { type: 'pr_project_no', field: 'project_code' },
     },
 };
 
