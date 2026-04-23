@@ -1288,12 +1288,12 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                         <p className="text-[#D97757] mb-6 text-sm">
                             {error.message}
                         </p>
-                        <FrappeButton
+                        {/* <FrappeButton
                             onClick={() => navigate(backUrl)}
                             className="bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:bg-zinc-800"
                         >
                             {backLabel}
-                        </FrappeButton>
+                        </FrappeButton> */}
                     </div>
                 </div>
             );

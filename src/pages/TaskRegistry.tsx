@@ -463,7 +463,7 @@ import { FaExclamationCircle, FaArrowLeft, FaSearch } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
 import { AppSidebar } from '@/components/RndSidebar';
 import { useNavigate } from 'react-router-dom';
-import { useFrappeGetCall } from 'frappe-react-sdk';
+import { useFrappeGetCall, useFrappeGetDocList } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
 // import { debounce } from 'lodash';
 
@@ -551,7 +551,8 @@ const DOCTYPE_OPTIONS = [
     "Rate Contract",
     "Travel Request",
     "Temporary Advance",
-    "Deposit Slip"
+    "Deposit Slip",
+    "Recruitment Adhoc Contractual",
 ];
 
 const TaskRegistry: React.FC = () => {
@@ -575,9 +576,25 @@ const TaskRegistry: React.FC = () => {
     const { data, isLoading, error } = useFrappeGetCall<TaskRegistryResponse>(
         "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_task_registry",
         {
-            page_name: "task-registry"
+            page_name: "task-registry",
+            debug: 1,
         }
     );
+
+    // Supplemental fetch: Recruitment Adhoc Contractual is not returned by the
+    // task-registry endpoint, so fetch them directly and merge below.
+    const { data: recData } = useFrappeGetDocList<{
+        name: string;
+        upfa_project_title?: string;
+        workflow_state?: string;
+        creation: string;
+        modified: string;
+        owner: string;
+    }>("Recruitment Adhoc Contractual", {
+        fields: ["name", "upfa_project_title", "workflow_state", "creation", "modified", "owner"],
+        limit: 500,
+        orderBy: { field: "modified", order: "desc" },
+    });
 
     // import { debounce } from 'lodash'; // Removed unused import
 
@@ -585,26 +602,47 @@ const TaskRegistry: React.FC = () => {
 
     // Transform API data into flattened tasks
     const allTasks: FlattenedTask[] = React.useMemo(() => {
-        if (!data?.message?.results) return [];
-
+        const existingIds = new Set<string>();
         const tasks: FlattenedTask[] = [];
-        data.message.results.forEach((group) => {
-            if (group.records && Array.isArray(group.records)) {
-                group.records.forEach((record) => {
-                    tasks.push({
-                        id: record.name,
-                        title: record.title,
-                        status: record.status,
-                        creation: record.creation,
-                        modified: record.modified,
-                        owner: record.owner,
-                        doctype: group.doctype
+
+        if (data?.message?.results) {
+            data.message.results.forEach((group) => {
+                if (group.records && Array.isArray(group.records)) {
+                    group.records.forEach((record) => {
+                        existingIds.add(record.name);
+                        tasks.push({
+                            id: record.name,
+                            title: record.title,
+                            status: record.status,
+                            creation: record.creation,
+                            modified: record.modified,
+                            owner: record.owner,
+                            doctype: group.doctype,
+                        });
                     });
-                });
-            }
-        });
+                }
+            });
+        }
+
+        // Merge Recruitment Adhoc Contractual records not already in the registry response
+        if (recData) {
+            recData.forEach((rec) => {
+                if (!existingIds.has(rec.name)) {
+                    tasks.push({
+                        id: rec.name,
+                        title: rec.upfa_project_title || rec.name,
+                        status: rec.workflow_state || '',
+                        creation: rec.creation,
+                        modified: rec.modified,
+                        owner: rec.owner,
+                        doctype: 'Recruitment Adhoc Contractual',
+                    });
+                }
+            });
+        }
+
         return tasks;
-    }, [data]);
+    }, [data, recData]);
 
     // Client-side filtering
     const filteredTasks = React.useMemo(() => {
