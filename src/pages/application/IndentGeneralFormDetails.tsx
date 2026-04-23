@@ -23,6 +23,7 @@ import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
+import { CommitPayment } from "@/components/CommitPayment";
 
 // ---------------------------------------------------------------------------
 // Workflow pipeline
@@ -370,8 +371,8 @@ const IndentGeneralFormDetails: React.FC = () => {
 
     // Commit Payment state
     const [commitHead, setCommitHead] = useState("");
-    const [commitAmount, setCommitAmount] = useState("");
     const [paymentAmount, setPaymentAmount] = useState("");
+    const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -383,9 +384,7 @@ const IndentGeneralFormDetails: React.FC = () => {
     const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>("frappe.client.get_value");
     const { call: getActionsCall } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.getWorkflowActions);
     const { call: performActionCall } = useFrappePostCall<{ message: any }>(indentGeneralFormAPI.performAction);
-    const { call: submitCommit, loading: isCommitting } = useFrappePostCall<{ message: any }>(
-        "rndopsapp.rndopsapp.commitPayment.submit_commit_data",
-    );
+    // submitCommit moved to CommitPayment component
     const { call: submitPayment, loading: isPaying } = useFrappePostCall<{ message: any }>(
         "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
     );
@@ -414,29 +413,7 @@ const IndentGeneralFormDetails: React.FC = () => {
         setRefreshKey((k) => k + 1);
     }, []);
 
-    const handleCommit = async () => {
-        if (!commitAmount || !commitHead || !id) {
-            alert("Please select a budget head and enter an amount.");
-            return;
-        }
-        try {
-            await submitCommit({
-                doctype: "Indent General Form",
-                frapAppId: id,
-                name: id,
-                project_name: projectName,
-                commit_amount: parseFloat(commitAmount),
-                budget_head: commitHead,
-                bmr: "",
-                refDetails: null,
-            });
-            alert("Commitment submitted successfully!");
-            setCommitAmount("");
-            handleRefresh();
-        } catch (error: any) {
-            alert(`Commitment failed: ${error.message || "Unknown error"}`);
-        }
-    };
+    // handleCommit moved to CommitPayment component
 
     const handlePayment = async () => {
         if (!paymentAmount || !commitHead || !id) {
@@ -633,18 +610,33 @@ const IndentGeneralFormDetails: React.FC = () => {
                             Edit
                         </button>
                     )}
-                    {headerActions.map((action) => (
-                        <button
-                            key={action}
-                            onClick={() => handleAction(action)}
-                            disabled={isActing}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Send className="w-4 h-4" />
-                            {isActing ? "Processing…" : action}
-                        </button>
-                    ))}
+                    {headerActions.map((action) => {
+                        const commitRequired = isStaffRnD && isCommittedForGate === false && workflowState === "Pending Staff Approval";
+                        return (
+                            <button
+                                key={action}
+                                onClick={() => handleAction(action)}
+                                disabled={isActing || commitRequired}
+                                title={commitRequired ? "A commitment must be submitted before forwarding." : undefined}
+                                className={cn(
+                                    "inline-flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-all",
+                                    commitRequired
+                                        ? "bg-zinc-200 text-zinc-400 cursor-not-allowed border-0"
+                                        : "bg-[#D97757] text-white hover:bg-[#c66a4e] disabled:opacity-50 disabled:cursor-not-allowed"
+                                )}
+                            >
+                                <Send className="w-4 h-4" />
+                                {isActing ? "Processing…" : action}
+                            </button>
+                        );
+                    })}
                 </PageHeader>
+                
+                {isStaffRnD && isCommittedForGate === false && workflowState === "Pending Staff Approval" && (
+                    <div className="mt-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300 font-medium max-w-fit">
+                        A commitment must be submitted before forwarding this application.
+                    </div>
+                )}
 
                 {/* Workflow Timeline */}
                 <div className="mt-6">
@@ -836,81 +828,26 @@ const IndentGeneralFormDetails: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Commit Payment — Staff RnD only, Pending Staff Approval */}
-                        {isStaffRnD && workflowState === "Pending Staff Approval" && !isCommitted && (
-                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                    Make a Commitment
-                                </h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-                                            Budget Head
-                                        </label>
-                                        <select
-                                            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                                            value={commitHead}
-                                            onChange={(e) => setCommitHead(e.target.value)}
-                                        >
-                                            {budgetHeads.length > 0 ? (
-                                                budgetHeads.map((head) => (
-                                                    <option key={head} value={head}>{head}</option>
-                                                ))
-                                            ) : (
-                                                <option value="">No Budget Heads</option>
-                                            )}
-                                        </select>
-                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                                            Available:{" "}
-                                            <span className="font-semibold text-[#D97757]">
-                                                ₹ {actualBalance.toLocaleString("en-IN")}
-                                            </span>
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-                                            Amount (₹)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                                            placeholder="e.g., 5000"
-                                            value={commitAmount}
-                                            onChange={(e) => setCommitAmount(e.target.value)}
-                                            onWheel={(e) => e.currentTarget.blur()}
-                                        />
-                                    </div>
-                                    <button
-                                        onClick={handleCommit}
-                                        disabled={isCommitting}
-                                        className="w-full px-4 py-2.5 rounded-lg text-sm font-semibold bg-[#D97757] text-white hover:bg-[#c66a4e] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                    >
-                                        {isCommitting ? "Submitting…" : "Submit Commitment"}
-                                    </button>
-                                </div>
-                            </div>
+                        {/* Make a Commitment via CommitPayment component */}
+                        {isStaffRnD && workflowState === "Pending Staff Approval" && (
+                            <CommitPayment
+                                doctype="Indent General Form"
+                                docName={id || ""}
+                                projectName={projectName}
+                                budgetHeads={budgetHeads}
+                                actualBalance={actualBalance}
+                                onCommitSuccess={() => handleRefresh()}
+                                onStagingStatusChange={(status) => setIsCommittedForGate(status)}
+                            />
                         )}
 
-                        {/* Committed — show details + record payment */}
+                        {/* Record Payment */}
                         {isStaffRnD && workflowState === "Pending Staff Approval" && isCommitted && (
                             <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
                                 <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                    Commitment Details
+                                    Record Payment
                                 </h3>
                                 <div className="space-y-4">
-                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
-                                        <p className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1">
-                                            Commitment Initiated
-                                        </p>
-                                        <div className="flex justify-between items-end">
-                                            <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
-                                                {linkedCommitment?.head}
-                                            </p>
-                                            <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
-                                                ₹ {Number(linkedCommitment?.committed || 0).toLocaleString("en-IN")}
-                                            </p>
-                                        </div>
-                                    </div>
                                     <div>
                                         <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
                                             Payment Amount (₹)

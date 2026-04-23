@@ -13,7 +13,7 @@ import TravelActionButtons from '@/components/TravelActionButtons';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { useUserRoles } from '@/components/UserRole';
 import { ProjectLedgerModal } from '@/components/ProjectLedgerModal';
-import { BudgetHeadName } from '@/components/BudgetHeadName';
+import { CommitPayment } from '@/components/CommitPayment';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -158,17 +158,13 @@ const TravelDetails: React.FC = () => {
     const [isAddingComment, setIsAddingComment] = useState(false);
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
 
-    // Commit / Payment state — commitHead stores the Frappe docname (uid) of the selected Budget Head
     const [commitHead, setCommitHead] = useState("");
-    const [commitAmount, setCommitAmount] = useState("");
     const [paymentAmount, setPaymentAmount] = useState("");
-    // Staged commit: tracked locally because travel commits are staged (ledger not updated until approval)
-    const [stagedCommit, setStagedCommit] = useState<{ head: string; amount: number } | null>(null);
+    // Track Kafka Commit Staging status to gate workflow action buttons for Staff RnD
+    const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
     // Budget head list for ledger modal
     const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: string }[]>([]);
-    // Full budget head list: uid = Frappe docname, label = human-readable name for dropdown options
-    const [allBudgetHeads, setAllBudgetHeads] = useState<{ uid: string; label: string; id: string }[]>([]);
 
     // Resolved project number — travel_project_number is a Link field whose value is
     // the Frappe docname of Project Registration (may be an internal ID like "110001").
@@ -195,9 +191,7 @@ const TravelDetails: React.FC = () => {
         { revalidateOnFocus: false, isPaused: () => !docName },
     );
     const tadaSettlement = tadaListData?.message?.[0] ?? null;
-    const { call: submitCommit, loading: isCommitting } = useFrappePostCall(
-        'rndopsapp.rndopsapp.commitPayment.submit_commit_data',
-    );
+    // submitCommit moved to CommitPayment component
     const { call: submitPayment, loading: isPaying } = useFrappePostCall(
         'rndopsapp.rndopsapp.commitPayment.submit_payment_data',
     );
@@ -278,14 +272,12 @@ const TravelDetails: React.FC = () => {
             e.payment > 0,
     );
 
-    const isCommitted = !!linkedCommitment || !!stagedCommit;
+    const isCommitted = !!linkedCommitment;
 
-    // Unified commitment display: prefer ledger data, fall back to staged
+    // Unified commitment display: prefer ledger data
     const displayCommitment = linkedCommitment
         ? { head: linkedCommitment.head, committed: linkedCommitment.committed }
-        : stagedCommit
-          ? { head: stagedCommit.head, committed: stagedCommit.amount }
-          : null;
+        : null;
 
     const isRnDStaff = roles.some(
         (r) =>
@@ -304,14 +296,11 @@ const TravelDetails: React.FC = () => {
     const showSettleButton = isApproved && (needsAdvance ? !!linkedPayment : true);
 
     // Block "Forward" when R&D Staff hasn't committed yet but advance is required
-    const isForwardBlocked =
+    const commitRequired =
         formData.workflow_state === "Pending Staff Approval" &&
         isRnDStaff &&
         needsAdvance &&
-        !isCommitted;
-    const blockedActions = isForwardBlocked
-        ? [{ action: "Forward", reason: "Please make a commitment before forwarding." }]
-        : [];
+        isCommittedForGate === false;
 
     // Show commit section for any in-progress workflow state (not Draft/Rejected/Cancelled)
     const showCommitSection =
@@ -319,12 +308,10 @@ const TravelDetails: React.FC = () => {
         formData.workflow_state &&
         !["Draft", "Rejected", "Cancelled"].includes(formData.workflow_state);
 
-    // Pre-fill commit inputs from formData — store uid in commitHead so BudgetHeadName can resolve it
     useEffect(() => {
         if (!showCommitSection || isCommitted || !formData.account_head) return;
         setCommitHead(formData.account_head);
-        setCommitAmount(String(formData.total_estimate ?? ""));
-    }, [showCommitSection, isCommitted, formData.account_head, formData.total_estimate]);
+    }, [showCommitSection, isCommitted, formData.account_head]);
 
     useEffect(() => {
         if (budgetHeads.length > 0 && !commitHead) {
@@ -336,11 +323,8 @@ const TravelDetails: React.FC = () => {
         if (linkedCommitment) {
             setCommitHead(linkedCommitment.head || "");
             if (!paymentAmount) setPaymentAmount(String(linkedCommitment.committed));
-        } else if (stagedCommit) {
-            setCommitHead(stagedCommit.head);
-            if (!paymentAmount) setPaymentAmount(String(stagedCommit.amount));
         }
-    }, [linkedCommitment, stagedCommit]);
+    }, [linkedCommitment]);
 
     // Fetch budget head list — also used to resolve account_head docname → label
     useEffect(() => {
@@ -357,7 +341,6 @@ const TravelDetails: React.FC = () => {
                         label: item.budget_head, // Human-readable label
                         id: item.id,
                     }));
-                    setAllBudgetHeads(mapped);
                     setBudgetHeadList(mapped.map((h: any) => ({ name: h.label, id: h.id })));
                     // Inject into linkOptions so DynamicFormRenderer resolves account_head uid → label
                     const budgetHeadOptions = mapped.map((h: any) => ({ value: h.uid, label: h.label }));
@@ -446,39 +429,7 @@ const TravelDetails: React.FC = () => {
     };
 
     // --- COMMIT ---
-    const handleCommit = async () => {
-        if (!docName) return;
-        // commitHead stores the Frappe uid — resolve to human-readable label for the API
-        const resolvedHead = allBudgetHeads.find(h => h.uid === commitHead)?.label || commitHead;
-        const amount = parseFloat(commitAmount);
-        const project = projectTitle;
-        if (!resolvedHead || !amount) {
-            alert("Commit details not ready. Please refresh and try again.");
-            return;
-        }
-        try {
-            await submitCommit({
-                doctype: "Travel",
-                frapAppId: docName,
-                name: docName,
-                project_name: project,
-                commit_amount: amount,
-                budget_head: resolvedHead,
-                bmr: "",
-            });
-            try {
-                await addComment({
-                    doctype: "Travel",
-                    docname: docName,
-                    content: `Commitment of ₹ ${amount.toLocaleString("en-IN")} under "${resolvedHead}" has been sent to the Account Side.`,
-                });
-            } catch (_) {}
-            alert("Commitment submitted successfully!");
-            setStagedCommit({ head: resolvedHead, amount });
-        } catch (error: any) {
-            alert(`Commitment failed: ${error.message || "Unknown error"}`);
-        }
-    };
+    // handleCommit moved to CommitPayment component
 
     // --- PAYMENT ---
     const handlePayment = async () => {
@@ -575,7 +526,7 @@ const TravelDetails: React.FC = () => {
                         <TravelActionButtons
                             docName={docName}
                             onActionComplete={handleRefresh}
-                            blockedActions={blockedActions}
+                            commitRequired={commitRequired}
                         />
                     </div>
                 )}
@@ -714,80 +665,17 @@ const TravelDetails: React.FC = () => {
                             </FrappeButton>
                         </div>
 
-                        {/* Make a Commitment */}
-                        {showCommitSection && !isCommitted && (
-                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                    Make a Commitment
-                                </h3>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                                            Budget Head
-                                        </label>
-                                        <select
-                                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
-                                            value={commitHead}
-                                            onChange={(e) => setCommitHead(e.target.value)}
-                                        >
-                                            <option value="">Select...</option>
-                                            {allBudgetHeads.map((h) => (
-                                                <option key={h.uid} value={h.uid}>
-                                                    {h.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <p className="text-xs text-zinc-500 mt-1">
-                                            Available:{" "}
-                                            <span className="font-medium text-[#D97757]">
-                                                ₹ {actualBalance.toLocaleString("en-IN")}
-                                            </span>
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                                            Amount (₹)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
-                                            value={commitAmount}
-                                            onChange={(e) => setCommitAmount(e.target.value)}
-                                            placeholder="e.g., 5000"
-                                        />
-                                    </div>
-                                    <FrappeButton
-                                        className="w-full"
-                                        variant="primary"
-                                        onClick={handleCommit}
-                                        disabled={isCommitting || !commitHead || !commitAmount}
-                                    >
-                                        {isCommitting ? "Submitting..." : "Submit Commitment"}
-                                    </FrappeButton>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Commitment Details */}
-                        {showCommitSection && isCommitted && (
-                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                    Commitment Details
-                                </h3>
-                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
-                                    <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
-                                        Linked Commitment
-                                    </p>
-                                    <div className="flex justify-between items-end">
-                                        <p className="text-sm font-medium text-blue-900">
-                                            <BudgetHeadName id={displayCommitment?.head || ""} />
-                                        </p>
-                                        <p className="text-lg font-bold text-blue-700">
-                                            ₹ {Number(displayCommitment?.committed || 0).toLocaleString("en-IN")}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                        {/* Commit Payment — centralised component handles staging check + form/display card */}
+                        {showCommitSection && (
+                            <CommitPayment
+                                doctype="Travel"
+                                docName={docName || ""}
+                                projectName={projectTitle}
+                                budgetHeads={budgetHeads}
+                                actualBalance={actualBalance}
+                                onCommitSuccess={() => handleRefresh()}
+                                onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
+                            />
                         )}
 
                         {/* Record Payment */}

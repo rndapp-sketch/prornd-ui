@@ -176,9 +176,11 @@ import { useEffect } from 'react';
 interface TemporaryAdvanceActionButtonsProps {
     docname: string;
     onActionComplete: () => void;
+    /** When true, all action buttons are disabled until a commitment exists (Staff RnD gate) */
+    commitRequired?: boolean;
 }
 
-const TemporaryAdvanceActionButtons = ({ docname, onActionComplete }: TemporaryAdvanceActionButtonsProps) => {
+const TemporaryAdvanceActionButtons = ({ docname, onActionComplete, commitRequired = false }: TemporaryAdvanceActionButtonsProps) => {
     console.log('🎯 TemporaryAdvanceActionButtons mounted with docname:', docname);
 
     // Simple pattern matching ReimbursementWorkflowActions - just method and params
@@ -299,38 +301,43 @@ const TemporaryAdvanceActionButtons = ({ docname, onActionComplete }: TemporaryA
     };
 
     return (
-        <div className="flex items-center gap-3 flex-wrap">
-            {actions.map((action: any, idx: number) => {
-                let actionName = typeof action === 'string' ? action : '';
-                if (typeof action === 'object' && action !== null) {
-                    // Only use specific action-related keys. Avoid 'name' as it might be a document ID.
-                    actionName = action.action || action.workflow_action || action.label || action.transition_name || action.name || '';
-
-                    // If empty, we can't render a button usefuly.
-                    if (!actionName) {
-                        console.warn('Invalid action object:', action);
-                        return <span key={idx} className="text-xs text-red-400" title={JSON.stringify(action)}>Invalid Action</span>;
+        <div className="flex flex-col gap-2">
+            {commitRequired && (
+                <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
+                    A commitment must be submitted before forwarding this application.
+                </div>
+            )}
+            <div className="flex items-center gap-3 flex-wrap">
+                {actions.map((action: any, idx: number) => {
+                    let actionName = typeof action === 'string' ? action : '';
+                    if (typeof action === 'object' && action !== null) {
+                        actionName = action.action || action.workflow_action || action.label || action.transition_name || action.name || '';
+                        if (!actionName) {
+                            console.warn('Invalid action object:', action);
+                            return <span key={idx} className="text-xs text-red-400" title={JSON.stringify(action)}>Invalid Action</span>;
+                        }
                     }
-                }
-
-                if (!actionName) return null;
-
-                return (
-                    <button
-                        key={actionName}
-                        onClick={() => onAction(actionName)}
-                        disabled={isActionLoading}
-                        className={cn(
-                            "px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 border",
-                            "focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-zinc-300 dark:focus:ring-offset-zinc-900",
-                            getActionStyle(actionName),
-                            isActionLoading && "opacity-50 cursor-not-allowed"
-                        )}
-                    >
-                        {isActionLoading ? 'Processing...' : actionName}
-                    </button>
-                );
-            })}
+                    if (!actionName) return null;
+                    return (
+                        <button
+                            key={actionName}
+                            onClick={() => onAction(actionName)}
+                            disabled={isActionLoading || commitRequired}
+                            title={commitRequired ? "Submit a commitment first" : undefined}
+                            className={cn(
+                                "px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 border",
+                                "focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-zinc-300 dark:focus:ring-offset-zinc-900",
+                                commitRequired
+                                    ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700 cursor-not-allowed"
+                                    : getActionStyle(actionName),
+                                isActionLoading && "opacity-50 cursor-not-allowed"
+                            )}
+                        >
+                            {isActionLoading ? 'Processing...' : actionName}
+                        </button>
+                    );
+                })}
+            </div>
         </div>
     );
 };

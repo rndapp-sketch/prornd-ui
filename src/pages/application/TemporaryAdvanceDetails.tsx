@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AppSidebar } from "../../components/RndSidebar";
 import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, UserIcon, EditIcon, Wallet as WalletIcon, CheckCircle2 } from "lucide-react";
+import { CalendarIcon, UserIcon, EditIcon, Wallet as WalletIcon } from "lucide-react";
 import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +14,7 @@ import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { useUserRoles } from '../../components/UserRole';
 import { ProjectLedgerModal } from '../../components/ProjectLedgerModal';
 import { DeclarationFields } from '@/components/DeclarationFields';
+import { CommitPayment } from '@/components/CommitPayment';
 
 // Initialize ToWords converter
 const toWords = new ToWords({
@@ -133,6 +134,8 @@ const TemporaryAdvanceDetails: React.FC = () => {
     const [data, setData] = useState<TemporaryAdvanceData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Track Kafka Commit Staging status to gate workflow action buttons for Staff RnD
+    const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
     const [projectTitle, setProjectTitle] = useState<string>('');
     const [resolvedAccountHead, setResolvedAccountHead] = useState<string>('');
 
@@ -147,12 +150,11 @@ const TemporaryAdvanceDetails: React.FC = () => {
 
     // Commitment Widget State
     const [commitHead, setCommitHead] = useState("");
-    const [commitAmount, setCommitAmount] = useState("");
     const [paymentAmount, setPaymentAmount] = useState("");
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
+    // commitAmount moved to CommitPayment component
 
-    // API Hooks for Commit/Payment
-    const { call: submitCommit, loading: isCommitting } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_commit_data");
+    // commit handled by CommitPayment component
     const { call: submitPayment, loading: isPaying } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_payment_data");
 
     // Role Check
@@ -187,18 +189,17 @@ const TemporaryAdvanceDetails: React.FC = () => {
 
     const { budgetData, heads: budgetHeads } = useProjectBudget(projectCode);
 
-    // Find existing commitment for this document
+    // Find existing commitment for this document (used for payment pre-fill)
     const linkedCommitment = budgetData.find(e => e.ref === (id || "") && e.type === 'commitment');
-    const isCommitted = !!linkedCommitment;
+    // isCommitted tracked via CommitPayment onStagingStatusChange
 
-    // Set default commit head
+    // commitHead default & payment defaults from linked commitment
     useEffect(() => {
         if (budgetHeads.length > 0 && !commitHead) {
             setCommitHead(budgetHeads[0]);
         }
     }, [budgetHeads]);
 
-    // Set Payment defaults from Commitment
     useEffect(() => {
         if (linkedCommitment) {
             setCommitHead(linkedCommitment.head || "");
@@ -314,31 +315,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
         }
     };
 
-    const handleCommit = async () => {
-        if (!commitAmount || !commitHead || !id || !data) {
-            alert("Please select a budget head and enter an amount.");
-            return;
-        }
-
-        try {
-            await submitCommit({
-                doctype: "Temporary Advance",
-                frapAppId: id,
-                name: id,
-                project_name: data.project_name || data.project_code,
-                commit_amount: parseFloat(commitAmount),
-                budget_head: commitHead,
-                bmr: ""
-            });
-            alert("Commitment submitted successfully!");
-            setCommitAmount("");
-            // Refetch data instead of reload
-            loadData();
-        } catch (error: any) {
-            console.error("Commit failed:", error);
-            alert(`Commitment failed: ${error.message || "Unknown error"}`);
-        }
-    };
+    // handleCommit moved to CommitPayment component
 
     const handlePayment = async () => {
         if (!paymentAmount || !commitHead || !id || !data) {
@@ -405,7 +382,11 @@ const TemporaryAdvanceDetails: React.FC = () => {
                                 Edit
                             </button>
                         )}
-                        {id && <TemporaryAdvanceActionButtons docname={id} onActionComplete={() => loadData()} />}
+                        {id && <TemporaryAdvanceActionButtons
+                            docname={id}
+                            onActionComplete={() => loadData()}
+                            commitRequired={isRnDStaff && isCommittedForGate === false && data.workflow_state !== "Draft" && data.workflow_state !== "Rejected" && data.workflow_state !== "Cancelled"}
+                        />}
                     </div>
                 </PageHeader>
 
@@ -632,45 +613,14 @@ const TemporaryAdvanceDetails: React.FC = () => {
                                     </div>
 
                                     {/* Commitment Section */}
-                                    <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                                        <h4 className="font-bold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
-                                            1. Commitment
-                                            {isCommitted && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-                                        </h4>
-                                        <div className="space-y-3">
-                                            <div>
-                                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Budget Head</label>
-                                                <select
-                                                    value={commitHead}
-                                                    onChange={(e) => setCommitHead(e.target.value)}
-                                                    className="w-full p-2 text-sm border border-zinc-300 rounded-md bg-white dark:bg-zinc-900 dark:border-zinc-700"
-                                                    disabled={isCommitted}
-                                                >
-                                                    <option value="">Select Head</option>
-                                                    {budgetHeads.map(h => <option key={h} value={h}>{h}</option>)}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Amount</label>
-                                                <input
-                                                    type="number"
-                                                    value={commitAmount}
-                                                    onChange={(e) => setCommitAmount(e.target.value)}
-                                                    className="w-full p-2 text-sm border border-zinc-300 rounded-md bg-white dark:bg-zinc-900 dark:border-zinc-700"
-                                                    placeholder="Enter amount"
-                                                    disabled={isCommitted}
-                                                />
-                                            </div>
-                                            <FrappeButton
-                                                onClick={handleCommit}
-                                                disabled={isCommitting || isCommitted || !commitAmount}
-                                                variant="primary"
-                                                className="w-full bg-blue-600 hover:bg-blue-700 border-blue-600"
-                                            >
-                                                {isCommitting ? "Committing..." : isCommitted ? "Committed" : "Commit Funds"}
-                                            </FrappeButton>
-                                        </div>
-                                    </div>
+                                    <CommitPayment
+                                        doctype="Temporary Advance"
+                                        docName={id || ""}
+                                        projectName={data?.project_name || data?.project_code || ""}
+                                        budgetHeads={budgetHeads}
+                                        onCommitSuccess={() => loadData()}
+                                        onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
+                                    />
 
                                     {/* Payment Section */}
                                     {/* <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">

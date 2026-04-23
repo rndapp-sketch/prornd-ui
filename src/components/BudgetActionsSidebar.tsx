@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useFrappeGetCall, useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { PaymentModal } from './PaymentModal';
 import { ProjectLedgerModal, type BudgetEntry } from './ProjectLedgerModal';
 import { FrappeButton } from '@/components/ui/neo-brutalism';
-import { CreditCardIcon, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
+import { CreditCardIcon, CheckCircle2 } from 'lucide-react';
 import { useUserRoles } from './UserRole';
+import { CommitPayment } from './CommitPayment';
 
 interface BudgetActionsSidebarProps {
     projectName: string;
@@ -34,17 +35,13 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
         r === "System Manager" || r === "staff, RnD"
     );
 
-    const [commitHead, setCommitHead] = useState("");
-    const [commitAmount, setCommitAmount] = useState("");
     const [isPaymentOpen, setIsPaymentOpen] = useState(false);
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
     const [initialPaymentData, setInitialPaymentData] = useState<any>(null);
 
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [commitSuccess, setCommitSuccess] = useState<{ amount: number; head: string } | null>(null);
 
-    // API Hooks for Commit
-    const { call: submitCommit, loading: isCommitting } = useFrappePostCall("rndopsapp.rndopsapp.commitPayment.submit_commit_data");
+    // commit handled by CommitPayment component
 
     // Fetch Balances
     const balanceParams = useMemo(() => ({ project_number: projectName || '' }), [projectName]);
@@ -53,7 +50,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
         isPaused: () => !projectName
     }), [projectName]);
 
-    const { data: projectAmounts, isLoading: isBalanceLoading } = useFrappeGetCall<{
+    const { data: projectAmounts } = useFrappeGetCall<{
         message: {
             data: {
                 availableCommitAmount: number;
@@ -87,106 +84,9 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
         fetchBudgetHeads();
     }, []);
 
-    // Set default head
-    useEffect(() => {
-        if (budgetHeadList.length > 0 && !commitHead) {
-            setCommitHead(budgetHeadList[0].name);
-        }
-    }, [budgetHeadList]);
+    // Pre-fill logic (commitHead/commitAmount) moved to CommitPayment component
 
-    // Pre-fill commitAmount: billAmount prop takes priority, then fall back to ledger lookup
-    useEffect(() => {
-        if (billAmount != null && billAmount > 0) {
-            setCommitAmount(String(billAmount));
-            return;
-        }
-
-        if (!parentAppId || !projectName || budgetHeadList.length === 0) return;
-
-        const fetchParentCommitAmount = async () => {
-            try {
-                const headEntry = budgetHeadList[0];
-                const accountHeadId = headEntry?.id || headEntry?.name;
-                const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(String(accountHeadId))}`;
-                const res = await fetch(ledgerUrl);
-                if (!res.ok) return;
-                const entries: any[] = await res.json().then(d => Array.isArray(d) ? d : []);
-                const parentEntry = entries.find((e: any) => e.frapAppId === parentAppId);
-                if (parentEntry?.committed) {
-                    setCommitAmount(String(parentEntry.committed));
-                }
-            } catch (err) {
-                console.error("Failed to fetch parent committed amount:", err);
-            }
-        };
-
-        fetchParentCommitAmount();
-    }, [billAmount, parentAppId, projectName, budgetHeadList]);
-
-    const handleCommit = async () => {
-        if (isCommitting || isSubmitting) return;
-
-        const amount = parseFloat(commitAmount);
-        if (isNaN(amount) || amount <= 0) {
-            alert("Please enter a valid amount.");
-            return;
-        }
-
-        if (!projectName || !docName) {
-            alert("Missing project or document information.");
-            return;
-        }
-
-        setIsSubmitting(true);
-        try {
-            let refDetails: string | undefined;
-
-            // If a parent app is linked (e.g. Travel for TA DA Settlement),
-            // fetch its committed TID from the ledger and pass as refDetails.
-            if (parentAppId) {
-                try {
-                    const headEntry = budgetHeadList.find(h => h.name === commitHead) || budgetHeadList[0];
-                    const accountHeadId = headEntry?.id || commitHead;
-                    const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(String(accountHeadId))}`;
-                    const ledgerRes = await fetch(ledgerUrl);
-                    if (ledgerRes.ok) {
-                        const entries: any[] = await ledgerRes.json().then(d => Array.isArray(d) ? d : []);
-                        const parentEntry = entries.find((e: any) => e.frapAppId === parentAppId);
-                        if (parentEntry) {
-                            refDetails = String(parentEntry.transactionId);
-                        }
-                    }
-                } catch (ledgerErr) {
-                    console.error("Failed to fetch parent TID from ledger:", ledgerErr);
-                }
-
-                if (!refDetails) {
-                    alert("Could not find the parent Travel application TID in the ledger. Please ensure the Travel application has been committed first.");
-                    setIsSubmitting(false);
-                    return;
-                }
-            }
-
-            await submitCommit({
-                doctype: doctype,
-                frapAppId: docName,
-                name: docName,
-                project_name: projectName,
-                commit_amount: amount,
-                budget_head: commitHead,
-                bmr: "",
-                ...(refDetails ? { refDetails } : {}),
-            });
-
-            setCommitSuccess({ amount, head: commitHead });
-            setCommitAmount("");
-        } catch (error: any) {
-            console.error("Commit failed:", error);
-            alert(`Commitment failed: ${error.message || "Unknown error"}`);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
+    // handleCommit moved to CommitPayment component
 
     if (!isStaff || !isRndStaff) return null;
 
@@ -213,65 +113,17 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                     </button>
                 </div>
             )}
-            {/* Make a Commitment Widget */}
-            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                <h3 className="frappe-widget-title mb-3 font-semibold text-zinc-900 dark:text-zinc-100">Make a Commitment</h3>
-                <div className="space-y-3">
-                    <div>
-                        <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1 block">Budget Head</label>
-                        <select
-                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                            value={commitHead}
-                            onChange={(e) => setCommitHead(e.target.value)}
-                        >
-                            {budgetHeadList.map((head) => (
-                                <option key={head.id} value={head.name}>{head.name}</option>
-                            ))}
-                        </select>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                            Available: <span className="font-medium text-[#D97757]">
-                                {isBalanceLoading ? "..." : `₹${actualBalance.toLocaleString('en-IN')}`}
-                            </span>
-                        </p>
-                    </div>
-                    <div>
-                        <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-1 block">Amount (₹)</label>
-                        <input
-                            type="number"
-                            min="0"
-                            title="Enter a positive amount in ₹"
-                            className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-900 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                            placeholder="e.g., 5000"
-                            value={commitAmount}
-                            onChange={(e) => setCommitAmount(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
-                                    e.preventDefault();
-                                }
-                            }}
-                        />
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                        <button
-                            onClick={handleCommit}
-                            disabled={isCommitting || isSubmitting}
-                            className="flex-1 bg-[#D97757] hover:bg-[#D97757] text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                        >
-                            {isCommitting || isSubmitting ? "Committing..." : "Commit"}
-                        </button>
-                    </div>
-
-                    <button
-                        onClick={() => setIsLedgerOpen(true)}
-                        className="w-full text-center text-xs font-medium text-[#D97757] hover:underline pt-2"
-                    >
-                        <div className="flex items-center justify-center gap-1">
-                            <FileSpreadsheet className="w-3 h-3" />
-                            View Project Budget Ledger
-                        </div>
-                    </button>
-                </div>
-            </div>
+            {/* Make a Commitment Widget — delegated to CommitPayment */}
+                <CommitPayment
+                    doctype={doctype}
+                    docName={docName || ""}
+                    projectName={projectName}
+                    budgetHeads={budgetHeadList.map(h => h.name)}
+                    actualBalance={actualBalance}
+                    billAmount={billAmount}
+                    parentAppId={parentAppId}
+                    onCommitSuccess={(head, amount) => setCommitSuccess({ head, amount })}
+                />
 
             {/* Payment Widget */}
             <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">

@@ -39,6 +39,7 @@ import { P11PrintModal } from "@/components/P11PrintModal";
 import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
+import { CommitPayment } from "@/components/CommitPayment";
 
 // --- TYPE DEFINITIONS ---
 interface DirectPurchaseData {
@@ -529,9 +530,11 @@ const ActivityStream = ({
 const DirectPurchaseActionButtons = ({
     docname,
     onActionComplete,
+    commitRequired = false,
 }: {
     docname: string;
     onActionComplete: () => void;
+    commitRequired?: boolean;
 }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
@@ -579,17 +582,25 @@ const DirectPurchaseActionButtons = ({
     if (!actions.length) return null;
 
     return (
-        <div className="flex flex-wrap gap-2">
-            {actions.map((action) => (
-                <ClaudeButton
-                    key={action}
-                    variant="action"
-                    onClick={() => handleAction(action)}
-                    disabled={isPerforming}
-                >
-                    {isPerforming ? "Processing…" : action}
-                </ClaudeButton>
-            ))}
+        <div className="flex flex-col gap-2">
+            {commitRequired && (
+                <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
+                    A commitment must be submitted before forwarding this application.
+                </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+                {actions.map((action) => (
+                    <ClaudeButton
+                        key={action}
+                        variant={commitRequired ? "outline" : "action"}
+                        onClick={() => handleAction(action)}
+                        disabled={isPerforming || commitRequired}
+                        className={commitRequired ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0" : ""}
+                    >
+                        {isPerforming ? "Processing…" : action}
+                    </ClaudeButton>
+                ))}
+            </div>
         </div>
     );
 };
@@ -1137,12 +1148,10 @@ const DirectPurchaseDetails: React.FC = () => {
 
     // Commit Payment state
     const [commitHead, setCommitHead] = useState("");
-    const [commitAmount, setCommitAmount] = useState("");
     const [paymentAmount, setPaymentAmount] = useState("");
+    const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
-    const { call: submitCommit, loading: isCommitting } = useFrappePostCall(
-        "rndopsapp.rndopsapp.commitPayment.submit_commit_data",
-    );
+    // submitCommit moved to CommitPayment component
     const { call: submitPayment, loading: isPaying } = useFrappePostCall(
         "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
     );
@@ -1250,43 +1259,9 @@ const DirectPurchaseDetails: React.FC = () => {
         }
     };
 
-    const handleCommit = async () => {
-        if (!commitAmount || !commitHead || !id || !data) {
-            alert("Please select a budget head and enter an amount.");
-            return;
-        }
-        try {
-            await submitCommit({
-                doctype: "Direct Purchase",
-                frapAppId: id,
-                name: id,
-                project_name: data.project_name,
-                commit_amount: parseFloat(commitAmount),
-                budget_head: commitHead,
-                bmr: "",
-                refDetails: id,
-            });
-            try {
-                await addComment({
-                    doctype: "Direct Purchase",
-                    docname: id,
-                    content: `Commitment of ₹ ${parseFloat(commitAmount).toLocaleString("en-IN")} under "${commitHead}" has been sent to the Account Side.`,
-                });
-            } catch (commentErr) {
-                console.error("Failed to add commitment comment:", commentErr);
-            }
-            alert("Commitment submitted successfully!");
-            setCommitAmount("");
-            window.location.reload();
-        } catch (error: any) {
-            console.error("Commit failed:", error);
-            alert(`Commitment failed: ${error.message || "Unknown error"}`);
-        }
-    };
-
     const handlePayment = async () => {
-        if (!paymentAmount || !commitHead || !id || !data) {
-            alert("Please select a budget head and enter an amount.");
+        if (!paymentAmount || !id || !data) {
+            alert("Please enter an amount.");
             return;
         }
         try {
@@ -1295,7 +1270,7 @@ const DirectPurchaseDetails: React.FC = () => {
                 name: id,
                 project_name: data.project_name,
                 payment_amount: parseFloat(paymentAmount),
-                budget_head: commitHead,
+                budget_head: linkedCommitment?.head || "",
                 bmr: "",
             });
             alert("Payment recorded successfully!");
@@ -1326,59 +1301,6 @@ const DirectPurchaseDetails: React.FC = () => {
             );
         } finally {
             setIsGeneratingPO(false);
-        }
-    };
-
-    const [isDownloadingPO, setIsDownloadingPO] = useState(false);
-    const handleDownloadPO = async () => {
-        if (!id) return;
-        setIsDownloadingPO(true);
-        try {
-            // Get sanction sheet name and project_no (use cached or fetch)
-            let ssName = poSanctionData?.name;
-            let projectNo = poSanctionData?.project_no;
-            if (!ssName) {
-                const filters = JSON.stringify([["app_id", "=", id]]);
-                const listRes = await fetch(
-                    `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(filters)}&fields=${encodeURIComponent('["name","project_no"]')}`,
-                    {
-                        credentials: "include",
-                        headers: { Accept: "application/json" },
-                    },
-                )
-                    .then((r) => r.json())
-                    .catch(() => ({ data: [] }));
-                ssName = listRes?.data?.[0]?.name;
-                projectNo = listRes?.data?.[0]?.project_no;
-            }
-            if (!ssName) throw new Error("Sanction Sheet not found");
-
-            const params = new URLSearchParams({
-                docname: ssName,
-                app_id: id,
-                project_no: projectNo || "",
-            });
-            const res = await fetch(
-                `/api/method/rndopsapp.rndopsapp.doctype.direct_purchase.direct_purchase.get_po_document?${params}`,
-                {
-                    credentials: "include",
-                    headers: { Accept: "application/json" },
-                },
-            );
-            const json = await res.json().catch(() => ({}));
-            if (!res.ok || json?.message?.status === false)
-                throw new Error(json?.message?.message || "Failed to fetch PO");
-
-            const fileUrl = json?.message?.file_url || json?.message?.url;
-            if (fileUrl) {
-                window.open(fileUrl, "_blank");
-            } else {
-                throw new Error("No file URL returned");
-            }
-        } catch (err: any) {
-            alert(`Error: ${err.message || "Could not download PO."}`);
-        } finally {
-            setIsDownloadingPO(false);
         }
     };
 
@@ -1483,15 +1405,6 @@ const DirectPurchaseDetails: React.FC = () => {
                                 Edit
                             </ClaudeButton>
                         )}
-                        {/*{data.workflow_state === 'Approved' && id && (
-                            <ClaudeButton
-                                variant="primary"
-                                onClick={handleGenerateP11}
-                                disabled={isGeneratingP11}
-                            >
-                                {isGeneratingP11 ? 'Generating…' : 'Generate P-11 Form'}
-                            </ClaudeButton>
-                        )}*/}
                         {data.workflow_state === "Sanction Approved" &&
                             id &&
                             isStaffRnD &&
@@ -1506,19 +1419,11 @@ const DirectPurchaseDetails: React.FC = () => {
                                         : "Generate Purchase Order"}
                                 </ClaudeButton>
                             )}
-                        {/*{data.workflow_state === "POGenerated" && id && (
-                            <ClaudeButton
-                                variant="outline"
-                                onClick={handleDownloadPO}
-                                disabled={isDownloadingPO}
-                            >
-                                {isDownloadingPO ? "Loading…" : "Print PO"}
-                            </ClaudeButton>
-                        )}*/}
                         {id && (
                             <DirectPurchaseActionButtons
                                 docname={id}
                                 onActionComplete={loadData}
+                                commitRequired={isStaffRnD && isCommittedForGate === false && data?.workflow_state === "Pending Staff Approval"}
                             />
                         )}
                     </div>
@@ -1771,81 +1676,18 @@ const DirectPurchaseDetails: React.FC = () => {
                             )}
                         </ClaudeCard>
 
-                        {/* Commit Payment — only for Staff RnD, only when Pending Staff Approval */}
+                        {/* Make a Commitment via CommitPayment component */}
                         {isStaffRnD &&
-                            data.workflow_state === "Pending Staff Approval" &&
-                            !isCommitted && (
-                                <ClaudeCard title="Make a Commitment" accentTop>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-                                                Budget Head
-                                            </label>
-                                            <select
-                                                className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                                                value={commitHead}
-                                                onChange={(e) =>
-                                                    setCommitHead(
-                                                        e.target.value,
-                                                    )
-                                                }
-                                            >
-                                                {budgetHeads.length > 0 ? (
-                                                    budgetHeads.map((head) => (
-                                                        <option
-                                                            key={head}
-                                                            value={head}
-                                                        >
-                                                            {head}
-                                                        </option>
-                                                    ))
-                                                ) : (
-                                                    <option value="">
-                                                        No Budget Heads
-                                                    </option>
-                                                )}
-                                            </select>
-                                            <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-1">
-                                                Available:{" "}
-                                                <span className="font-semibold text-[#D97757]">
-                                                    ₹{" "}
-                                                    {actualBalance.toLocaleString(
-                                                        "en-IN",
-                                                    )}
-                                                </span>
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-                                                Amount (₹)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                                                placeholder="e.g., 5000"
-                                                value={commitAmount}
-                                                onChange={(e) =>
-                                                    setCommitAmount(
-                                                        e.target.value,
-                                                    )
-                                                }
-                                                onWheel={(e) =>
-                                                    e.currentTarget.blur()
-                                                }
-                                            />
-                                        </div>
-                                        <ClaudeButton
-                                            variant="primary"
-                                            className="w-full"
-                                            onClick={handleCommit}
-                                            disabled={isCommitting}
-                                        >
-                                            {isCommitting
-                                                ? "Submitting…"
-                                                : "Submit Commitment"}
-                                        </ClaudeButton>
-                                    </div>
-                                </ClaudeCard>
+                            data.workflow_state === "Pending Staff Approval" && (
+                                <CommitPayment
+                                    doctype="Direct Purchase"
+                                    docName={id || ""}
+                                    projectName={projectTitle}
+                                    budgetHeads={budgetHeads}
+                                    actualBalance={actualBalance}
+                                    onCommitSuccess={() => reloadData()}
+                                    onStagingStatusChange={(status) => setIsCommittedForGate(status)}
+                                />
                             )}
 
                         {/* Committed state display + Payment */}
