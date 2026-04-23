@@ -66,7 +66,7 @@ const FrappeButton = ({
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "px-5 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-lg font-semibold text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed",
+            "px-5 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-lg font-semibold text-sm text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed",
             className,
         )}
     >
@@ -75,7 +75,7 @@ const FrappeButton = ({
 );
 const NeoSection = ({ title, children }: any) => (
     <div className="space-y-6">
-        <h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-3">
+        <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-3">
             {title}
         </h2>
         {children}
@@ -87,7 +87,7 @@ const MemoizedTransactionsTable = memo(
     ({ tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => {
         return (
             <div>
-                <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
                     Transaction Details
                 </h3>
                 <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
@@ -203,7 +203,7 @@ const MemoizedTransactionsTable = memo(
                             attachment: null,
                         })
                     }
-                    className="bg-[#D97757] hover:bg-[#D97757] mt-4"
+                    className="bg-[#D97757] hover:bg-[#D97757] text-white mt-4"
                 >
                     + Add Transaction
                 </FrappeButton>
@@ -305,7 +305,7 @@ const MemoizedBudgetBreakupTable = memo(
         const options = budgetHeadOptions || [];
         return (
             <div>
-                <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-4">
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
                     Budget Breakup of Received Amount
                 </h3>
                 <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
@@ -409,7 +409,7 @@ const MemoizedBudgetBreakupTable = memo(
                             remarks: "",
                         })
                     }
-                    className="bg-[#D97757] hover:bg-[#D97757] mt-4"
+                    className="bg-[#D97757] hover:bg-[#D97757] text-white mt-4"
                 >
                     + Add Budget Item
                 </FrappeButton>
@@ -471,6 +471,28 @@ const AddFundReceived: React.FC = () => {
         },
         headValidations: {},
     });
+
+    // ── fund_received_amt vs breakup-total validation ──
+    const totalBreakupAmt = (formData.received_amt_breakup || []).reduce(
+        (sum: number, row: any) =>
+            sum + (row.amount_received ? parseFloat(row.amount_received) : 0),
+        0,
+    );
+    const fundReceivedAmt = formData.fund_received_amt
+        ? parseFloat(formData.fund_received_amt)
+        : NaN;
+    const fundReceivedAmtError: string | null = (() => {
+        if (isNaN(fundReceivedAmt) || fundReceivedAmt === 0) return null; // nothing entered yet
+        if (totalBreakupAmt > fundReceivedAmt)
+            return `⚠️ Budget breakup total (₹${totalBreakupAmt.toLocaleString("en-IN")}) exceeds Fund Received Amount (₹${fundReceivedAmt.toLocaleString("en-IN")}) by ₹${(totalBreakupAmt - fundReceivedAmt).toLocaleString("en-IN")}.`;
+        if (totalBreakupAmt > 0 && totalBreakupAmt < fundReceivedAmt)
+            return `ℹ️ Budget breakup total (₹${totalBreakupAmt.toLocaleString("en-IN")}) is less than Fund Received Amount (₹${fundReceivedAmt.toLocaleString("en-IN")}). Remaining: ₹${(fundReceivedAmt - totalBreakupAmt).toLocaleString("en-IN")}.`;
+        return null;
+    })();
+    const isFundAmtBreakupValid =
+        isNaN(fundReceivedAmt) ||
+        fundReceivedAmt === 0 ||
+        totalBreakupAmt <= fundReceivedAmt;
 
     const {
         call: fetchFormData,
@@ -936,6 +958,18 @@ const AddFundReceived: React.FC = () => {
 
         // --- ENHANCED VALIDATION LOGIC WITH DETAILED MESSAGES ---
         try {
+            // ── Validate fund_received_amt vs breakup total ──
+            if (!isFundAmtBreakupValid) {
+                const exceeded = totalBreakupAmt - fundReceivedAmt;
+                throw new Error(
+                    `❌ TOTAL FUND VALIDATION FAILED\n\n` +
+                        `Budget Breakup Total: ₹${totalBreakupAmt.toLocaleString("en-IN")}\n` +
+                        `Fund Received Amount: ₹${fundReceivedAmt.toLocaleString("en-IN")}\n` +
+                        `Exceeded By: ₹${exceeded.toLocaleString("en-IN")}\n\n` +
+                        `The total of all budget breakup entries must not exceed the Fund Received Amount.`,
+                );
+            }
+
             // Check if overall validation state is valid
             if (!validationState.totalValidation.isValid) {
                 const { currentTotal, previousTotal, sanctionedTotal } =
@@ -1261,11 +1295,15 @@ const AddFundReceived: React.FC = () => {
             }
         };
 
+        // Inline error for fund_received_amt
+        const isFundReceivedAmtField =
+            field.fieldname === "fund_received_amt";
+
         return (
             <div key={field.fieldname} className="space-y-2">
                 <label
                     htmlFor={field.fieldname}
-                    className="block font-bold text-zinc-900 dark:text-zinc-100 text-lg uppercase"
+                    className="block font-bold text-zinc-900 dark:text-zinc-100 text-sm uppercase"
                 >
                     {field.label}
                     {field.mandatory === 1 && (
@@ -1273,6 +1311,26 @@ const AddFundReceived: React.FC = () => {
                     )}
                 </label>
                 {renderInput()}
+                {/* Real-time validation: breakup total vs fund_received_amt */}
+                {isFundReceivedAmtField && fundReceivedAmtError && (
+                    <p
+                        className={`text-sm font-medium mt-1 ${
+                            totalBreakupAmt > fundReceivedAmt
+                                ? "text-red-600"
+                                : "text-amber-600"
+                        }`}
+                    >
+                        {fundReceivedAmtError}
+                    </p>
+                )}
+                {isFundReceivedAmtField &&
+                    !isNaN(fundReceivedAmt) &&
+                    fundReceivedAmt > 0 &&
+                    totalBreakupAmt === fundReceivedAmt && (
+                        <p className="text-sm font-medium text-green-600 mt-1">
+                            ✓ Budget breakup total matches Fund Received Amount.
+                        </p>
+                    )}
                 {field.description && (
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
                         {field.description}
@@ -1348,12 +1406,12 @@ const AddFundReceived: React.FC = () => {
                             <ArrowLeftIcon className="h-6 w-6" />
                         </button>
                         <div>
-                            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+                            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                                 {editDocName
                                     ? "Edit Received Fund"
                                     : "Record Received Fund"}
                             </h1>
-                            <p className="text-zinc-700 dark:text-zinc-300 mt-1">
+                            <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1">
                                 For Project:{" "}
                                 {projectNoFromUrl && (
                                     <strong>{projectNoFromUrl}</strong>
@@ -1464,7 +1522,7 @@ const AddFundReceived: React.FC = () => {
                                 </FrappeButton>
                                 <FrappeButton
                                     type="submit"
-                                    disabled={isSubmitting}
+                                    disabled={isSubmitting || !isFundAmtBreakupValid}
                                     className="bg-green-300 hover:bg-green-400 disabled:bg-zinc-300 dark:bg-zinc-600"
                                 >
                                     {isSubmitting
@@ -1788,6 +1846,73 @@ const AddFundReceived: React.FC = () => {
                                     Real-time Validation
                                 </h3>
 
+                                {/* Fund Received Amt vs Breakup Total */}
+                                {!isNaN(fundReceivedAmt) &&
+                                    fundReceivedAmt > 0 && (
+                                        <div className="space-y-2 mb-5 pb-5 border-b border-zinc-200 dark:border-zinc-800">
+                                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
+                                                Fund Received Amount
+                                            </p>
+                                            <ProgressBar
+                                                current={totalBreakupAmt}
+                                                total={fundReceivedAmt}
+                                                label="Breakup vs Received"
+                                                showWarning={true}
+                                            />
+                                            <div className="grid grid-cols-2 gap-2 text-xs mt-1">
+                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded">
+                                                    <p className="text-zinc-500 dark:text-zinc-400">
+                                                        Fund Received Amt
+                                                    </p>
+                                                    <p className="font-bold text-zinc-800 dark:text-zinc-200">
+                                                        ₹
+                                                        {fundReceivedAmt.toLocaleString(
+                                                            "en-IN",
+                                                        )}
+                                                    </p>
+                                                </div>
+                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded">
+                                                    <p className="text-zinc-500 dark:text-zinc-400">
+                                                        Breakup Total
+                                                    </p>
+                                                    <p
+                                                        className={`font-bold ${
+                                                            totalBreakupAmt >
+                                                            fundReceivedAmt
+                                                                ? "text-red-600"
+                                                                : totalBreakupAmt ===
+                                                                    fundReceivedAmt
+                                                                  ? "text-green-600"
+                                                                  : "text-blue-600"
+                                                        }`}
+                                                    >
+                                                        ₹
+                                                        {totalBreakupAmt.toLocaleString(
+                                                            "en-IN",
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {fundReceivedAmtError ? (
+                                                <p
+                                                    className={`text-xs font-semibold mt-1 ${
+                                                        totalBreakupAmt >
+                                                        fundReceivedAmt
+                                                            ? "text-red-600"
+                                                            : "text-amber-600"
+                                                    }`}
+                                                >
+                                                    {fundReceivedAmtError}
+                                                </p>
+                                            ) : (
+                                                <p className="text-xs font-semibold text-green-600 mt-1">
+                                                    ✓ Breakup matches Fund
+                                                    Received Amount
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
                                 {/* Total Budget Validation */}
                                 <div className="space-y-3 mb-4">
                                     <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
@@ -1894,6 +2019,7 @@ const AddFundReceived: React.FC = () => {
                                 {/* Overall Status Badge */}
                                 <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
                                     {validationState.totalValidation.isValid &&
+                                    isFundAmtBreakupValid &&
                                     Object.values(
                                         validationState.headValidations,
                                     ).every((v) => v.isValid) ? (
