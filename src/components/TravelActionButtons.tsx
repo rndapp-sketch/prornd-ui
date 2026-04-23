@@ -14,9 +14,11 @@ interface TravelActionButtonsProps {
     docName: string;
     onActionComplete?: () => void;
     blockedActions?: BlockedAction[];
+    /** When true, all action buttons are disabled until a commitment exists (Staff RnD gate) */
+    commitRequired?: boolean;
 }
 
-const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({ docName, onActionComplete, blockedActions = [] }) => {
+const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({ docName, onActionComplete, blockedActions = [], commitRequired = false }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [selectedAction, setSelectedAction] = useState<string | null>(null);
 
@@ -87,42 +89,50 @@ const TravelActionButtons: React.FC<TravelActionButtonsProps> = ({ docName, onAc
     }
 
     return (
-        <div className="flex flex-wrap gap-3">
-            {actions.map((action) => {
-                const blocked = blockedActions.find(
-                    (b) => b.action.toLowerCase() === action.toLowerCase(),
-                );
-                return blocked ? (
-                    <div key={action} className="flex flex-col gap-1">
+        <div className="flex flex-col gap-2">
+            {commitRequired && (
+                <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
+                    A commitment must be submitted before forwarding this application.
+                </div>
+            )}
+            <div className="flex flex-wrap gap-3">
+                {actions.map((action) => {
+                    const blocked = blockedActions.find(
+                        (b) => b.action.toLowerCase() === action.toLowerCase(),
+                    );
+                    return blocked ? (
+                        <div key={action} className="flex flex-col gap-1">
+                            <Button
+                                key={action}
+                                disabled
+                                className={getActionButtonStyle(action) + " opacity-50 cursor-not-allowed"}
+                                title={blocked.reason}
+                            >
+                                {getActionIcon(action)}
+                                {action}
+                            </Button>
+                            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                {blocked.reason}
+                            </p>
+                        </div>
+                    ) : (
                         <Button
                             key={action}
-                            disabled
-                            className={getActionButtonStyle(action) + " opacity-50 cursor-not-allowed"}
-                            title={blocked.reason}
+                            onClick={() => handleActionClick(action)}
+                            className={commitRequired ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0" : getActionButtonStyle(action)}
+                            disabled={actionLoading || commitRequired}
+                            title={commitRequired ? "Submit a commitment first" : undefined}
                         >
-                            {getActionIcon(action)}
+                            {actionLoading && selectedAction === action ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                getActionIcon(action)
+                            )}
                             {action}
                         </Button>
-                        <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                            {blocked.reason}
-                        </p>
-                    </div>
-                ) : (
-                    <Button
-                        key={action}
-                        onClick={() => handleActionClick(action)}
-                        className={getActionButtonStyle(action)}
-                        disabled={actionLoading}
-                    >
-                        {actionLoading && selectedAction === action ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                            getActionIcon(action)
-                        )}
-                        {action}
-                    </Button>
-                );
-            })}
+                    );
+                })}
+            </div>
         </div>
     );
 };

@@ -14,9 +14,9 @@ import { advanceSettlementAPI } from "@/services/apiService";
 import { useUserRoles } from "../../components/UserRole";
 import { useFrappeAuth } from "frappe-react-sdk";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
-import { ProjectLedgerModal } from "../../components/ProjectLedgerModal";
 import { Wallet as WalletIcon, CheckCircle2 } from "lucide-react";
 import { DeclarationFields } from "@/components/DeclarationFields";
+import { CommitPayment } from "@/components/CommitPayment";
 
 // --- TYPE DEFINITIONS ---
 interface AdvanceSettlementData {
@@ -157,13 +157,14 @@ const CommentModal = ({
   );
 };
 
-// --- WORKFLOW ACTIONS COMPONENT ---
 const AdvanceSettlementWorkflowActions = ({
   docname,
   onActionComplete,
+  commitRequired = false,
 }: {
   docname: string;
   onActionComplete: () => void;
+  commitRequired?: boolean;
 }) => {
   const [actions, setActions] = useState<string[]>([]);
   const [actionsLoading, setActionsLoading] = useState(true);
@@ -220,19 +221,27 @@ const AdvanceSettlementWorkflowActions = ({
 
   return (
     <>
+      {commitRequired && (
+        <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium mb-4">
+          A commitment must be submitted before forwarding this application.
+        </div>
+      )}
       <div className="flex gap-3 mb-6">
         {filteredActions.map((action) => (
           <button
             key={action}
             onClick={() => handleActionClick(action)}
-            disabled={actionLoading}
+            disabled={actionLoading || commitRequired}
+            title={commitRequired ? "A commitment must be submitted before forwarding." : undefined}
             className={cn(
               "inline-flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-medium text-sm transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed",
-              action.toLowerCase().includes("reject")
-                ? "bg-red-600 text-white hover:opacity-90"
-                : action.toLowerCase().includes("put back")
-                  ? "bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-[#3F3F46]"
-                  : "bg-[#18181B] dark:bg-[#E4E4E7] text-white dark:text-[#18181B] hover:opacity-90"
+              commitRequired
+                ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0"
+                : action.toLowerCase().includes("reject")
+                  ? "bg-red-600 text-white hover:opacity-90"
+                  : action.toLowerCase().includes("put back")
+                    ? "bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-[#3F3F46]"
+                    : "bg-[#18181B] dark:bg-[#E4E4E7] text-white dark:text-[#18181B] hover:opacity-90"
             )}
           >
             {action}
@@ -266,12 +275,7 @@ const AdvanceSettlementDetails: React.FC = () => {
     "frappe.client.get",
   );
   const { call: submitForm } = useFrappePostCall(advanceSettlementAPI.submit);
-  const { call: submitCommit, loading: isCommitting } = useFrappePostCall(
-    "rndopsapp.rndopsapp.commitPayment.submit_commit_data",
-  );
-  const { call: submitPayment, loading: isPaying } = useFrappePostCall(
-    "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
-  );
+  // submitCommit moved to CommitPayment component
 
   // Auth & Roles
   const { currentUser } = useFrappeAuth();
@@ -287,8 +291,7 @@ const AdvanceSettlementDetails: React.FC = () => {
   );
 
   // Budget & Payment State
-  const [commitAmount, setCommitAmount] = useState("");
-  const [paymentAmount, setPaymentAmount] = useState("");
+  const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
   const [commitHead, setCommitHead] = useState("");
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
@@ -347,153 +350,11 @@ const AdvanceSettlementDetails: React.FC = () => {
     } else if (budgetHeads.length > 0 && !commitHead) {
       setCommitHead(budgetHeads[0]);
     }
+  }, [budgetHeads, data, budgetHeadList, commitHead]);
 
-    if (data?.total_amount) {
-      setCommitAmount((prev) => prev || String(data.total_amount));
-    }
-  }, [budgetHeads, data, budgetHeadList]);
+  // handleCommit moved to CommitPayment component
 
-  useEffect(() => {
-    if (linkedCommitment) {
-      setCommitHead(linkedCommitment.head || "");
-      if (!paymentAmount) setPaymentAmount(String(linkedCommitment.committed));
-    }
-  }, [linkedCommitment]);
 
-  // Handlers
-  const handleCommit = async () => {
-    if (!commitAmount || !commitHead || !id || !data) {
-      alert("Please select a budget head and enter an amount.");
-      return;
-    }
-    try {
-      // Fetch TID of parent Temporary Advance from ledger
-      let parentTid: string = "";
-      try {
-        const projectCode = data.project_code || "";
-        const headEntry = budgetHeadList.find(
-          (h) => h.name === commitHead || h.uid === commitHead,
-        );
-        const accountHeadId = headEntry?.id || commitHead;
-        const parentAppId = data.temporary_advance_application || "";
-        const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectCode)}&accountHeadId=${encodeURIComponent(String(accountHeadId))}`;
-        console.log("=== FETCHING PARENT TID ===", { parentAppId, ledgerUrl });
-        const ledgerRes = await fetch(ledgerUrl);
-        if (ledgerRes.ok) {
-          const ledgerData = await ledgerRes.json();
-          const entries = Array.isArray(ledgerData) ? ledgerData : [];
-          const parentEntry = entries.find(
-            (entry: any) => entry.frapAppId === parentAppId,
-          );
-          if (parentEntry) {
-            parentTid = String(parentEntry.transactionId);
-            console.log(
-              "Parent TID found:",
-              parentTid,
-              "from entry:",
-              parentEntry,
-            );
-          } else {
-            console.log(
-              "No parent entry found for frapAppId:",
-              parentAppId,
-              "in",
-              entries.length,
-              "entries",
-            );
-          }
-        }
-      } catch (ledgerErr) {
-        console.error("Failed to fetch parent TID from ledger:", ledgerErr);
-      }
-
-      if (!parentTid) {
-        alert(
-          "Could not find the parent Temporary Advance TID in the ledger. Please ensure the Temporary Advance has been committed first.",
-        );
-        return;
-      }
-
-      const commitPayload = {
-        doctype: "Advance Settlement",
-        frapAppId: id,
-        name: id,
-        project_name: data.project_name,
-        commit_amount: parseFloat(commitAmount),
-        budget_head: commitHead,
-        bmr: "",
-        refDetails: parentTid,
-      };
-      console.log(
-        "=== COMMIT PAYLOAD ===",
-        JSON.stringify(commitPayload, null, 2),
-      );
-      await submitCommit(commitPayload);
-
-      // Query ledger to get the TID for this commitment
-      let tid: number | string | null = null;
-      try {
-        const projectCode = data.project_code || "";
-        // Look up the numeric budget head ID from the list
-        const headEntry = budgetHeadList.find(
-          (h) => h.name === commitHead || h.uid === commitHead,
-        );
-        const accountHeadId = headEntry?.id || commitHead;
-        const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectCode)}&accountHeadId=${encodeURIComponent(String(accountHeadId))}`;
-        const ledgerRes = await fetch(ledgerUrl);
-        if (ledgerRes.ok) {
-          const ledgerData = await ledgerRes.json();
-          const entries = Array.isArray(ledgerData) ? ledgerData : [];
-          // Find the entry matching our frapAppId
-          const matchingEntry = entries.find(
-            (entry: any) => entry.frapAppId === id,
-          );
-          if (matchingEntry) {
-            tid = matchingEntry.transactionId;
-            console.log("=== COMMIT TID FOUND ===");
-            console.log("TID:", tid);
-            console.log("refDetails:", matchingEntry.refDetails);
-            console.log("Full entry:", matchingEntry);
-          }
-        }
-      } catch (ledgerErr) {
-        console.error("Failed to fetch TID from ledger:", ledgerErr);
-      }
-
-      alert(`Commitment submitted successfully!${tid ? ` TID: ${tid}` : ""}`);
-      setCommitAmount("");
-      // window.location.reload();
-    } catch (error: any) {
-      console.error("Commit failed:", error);
-      alert(`Commitment failed: ${error.message || "Unknown error"}`);
-    }
-  };
-
-  const handlePayment = async () => {
-    if (!paymentAmount || !commitHead || !id || !data) {
-      alert("Please select a budget head and enter an amount.");
-      return;
-    }
-
-    try {
-      await submitPayment({
-        doctype: "Advance Settlement",
-        name: id,
-        project_name: data.project_name,
-        payment_amount: parseFloat(paymentAmount),
-        budget_head: commitHead,
-        bmr: "",
-        frapAppId: id,
-        moduleName: "Advance Settlement",
-      });
-      alert("Payment recorded successfully!");
-      setPaymentAmount("");
-      window.location.reload();
-    } catch (error: any) {
-      console.error("Payment failed:", error);
-      alert(`Payment failed: ${error.message || "Unknown error"}`);
-    }
-  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -802,6 +663,20 @@ const AdvanceSettlementDetails: React.FC = () => {
               </div>
             </div>
 
+            {/* Make a Commitment via CommitPayment component */}
+            {isRnDStaff &&
+              data.workflow_state === "Pending Staff Approval" && (
+                <CommitPayment
+                    doctype="Advance Settlement"
+                    docName={id || ""}
+                    projectName={data.project_code}
+                    budgetHeads={budgetHeads}
+                    parentAppId={data.temporary_advance_application}
+                    onCommitSuccess={() => window.location.reload()}
+                    onStagingStatusChange={(status) => setIsCommittedForGate(status)}
+                />
+              )}
+
             {/* Submit Button - only for Draft */}
             {isDraft && (
               <FrappeButton
@@ -838,10 +713,11 @@ const AdvanceSettlementDetails: React.FC = () => {
         </PageHeader>
 
         {/* Workflow Actions */}
-        {id && (
+        {data.workflow_state && (
           <AdvanceSettlementWorkflowActions
-            docname={id}
+            docname={data.name}
             onActionComplete={() => window.location.reload()}
+            commitRequired={isRnDStaff && isCommittedForGate === false && data.workflow_state === "Pending Staff Approval"}
           />
         )}
 
@@ -974,130 +850,24 @@ const AdvanceSettlementDetails: React.FC = () => {
           </div>
 
           <div className="space-y-6">
-            {/* Bank Details */}
-            {/* Staff Action Section */}
-            {isRnDStaff && (
-              <FrappeCard
-                title="Advance Settlement Processing (Staff Only)"
-                className="border-l-4 border-l-blue-500"
-              >
-                <div className="space-y-6">
-                  {/* Action Buttons */}
-                  <div className="flex gap-3">
-                    <FrappeButton
-                      onClick={() => setIsLedgerOpen(true)}
-                      variant="outline"
-                      className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                    >
-                      <WalletIcon className="w-4 h-4" />
-                      Check Ledger
-                    </FrappeButton>
-                  </div>
-
-                  {/* Commitment Section */}
-                  <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                    <h4 className="font-bold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
-                      1. Commitment
-                      {isCommitted && (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                      )}
-                    </h4>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs font-semibold text-zinc-500 mb-1 block">
-                          Budget Head
-                        </label>
-                        <select
-                          value={commitHead}
-                          onChange={(e) => setCommitHead(e.target.value)}
-                          className="w-full p-2 text-sm border border-zinc-300 rounded-md bg-white dark:bg-zinc-900 dark:border-zinc-700"
-                          disabled={isCommitted}
-                        >
-                          <option value="">Select Head</option>
-                          {budgetHeads.map((h) => (
-                            <option key={h} value={h}>
-                              {h}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-zinc-500 mb-1 block">
-                          Amount
-                        </label>
-                        <input
-                          type="number"
-                          value={commitAmount}
-                          onChange={(e) => setCommitAmount(e.target.value)}
-                          className="w-full p-2 text-sm border border-zinc-300 rounded-md bg-white dark:bg-zinc-900 dark:border-zinc-700"
-                          placeholder="Enter amount"
-                          disabled={isCommitted}
-                        />
-                      </div>
-                      <FrappeButton
-                        onClick={handleCommit}
-                        disabled={isCommitting || isCommitted || !commitAmount}
-                        variant="primary"
-                        className="w-full bg-blue-600 hover:bg-blue-700 border-blue-600"
-                      >
-                        {isCommitting
-                          ? "Committing..."
-                          : isCommitted
-                            ? "Committed"
-                            : "Commit Funds"}
-                      </FrappeButton>
-                    </div>
-                  </div>
-
-                  {/* Payment Section */}
-                  {/* <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                                        <h4 className="font-bold text-zinc-900 dark:text-zinc-100 mb-3">2. Payment Processing</h4>
-                                        <div className="space-y-3">
-                                            <div>
-                                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Budget Head</label>
-                                                <input
-                                                    type="text"
-                                                    value={budgetHeadList.find(h => h.id === commitHead || h.name === commitHead)?.name || commitHead}
-                                                    disabled
-                                                    className="w-full p-2 text-sm border border-zinc-200 rounded-md bg-zinc-100 text-zinc-500"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-semibold text-zinc-500 mb-1 block">Payment Amount</label>
-                                                <input
-                                                    type="number"
-                                                    value={paymentAmount}
-                                                    onChange={(e) => setPaymentAmount(e.target.value)}
-                                                    className="w-full p-2 text-sm border border-zinc-300 rounded-md bg-white dark:bg-zinc-900 dark:border-zinc-700"
-                                                    placeholder="Enter payment amount"
-                                                />
-                                            </div>
-                                            <FrappeButton
-                                                onClick={handlePayment}
-                                                disabled={isPaying || !isCommitted || !paymentAmount}
-                                                variant="primary"
-                                                className="w-full bg-emerald-600 hover:bg-emerald-700 border-emerald-600"
-                                            >
-                                                {isPaying ? "Processing..." : "Record Payment"}
-                                            </FrappeButton>
-                                        </div>
-                                    </div> */}
-                </div>
-              </FrappeCard>
-            )}
+            {/* Make a Commitment via CommitPayment component */}
+            {isRnDStaff &&
+              data.workflow_state === "Pending Staff Approval" && (
+                <CommitPayment
+                    doctype="Advance Settlement"
+                    docName={id || ""}
+                    projectName={data.project_code}
+                    budgetHeads={budgetHeads}
+                    parentAppId={data.temporary_advance_application}
+                    onCommitSuccess={() => window.location.reload()}
+                    onStagingStatusChange={(status) => setIsCommittedForGate(status)}
+                />
+              )}
 
             {/* Declarations */}
             <DeclarationFields doctype="Advance Settlement" />
           </div>
         </div>
-
-        {/* Ledger Modal */}
-        <ProjectLedgerModal
-          isOpen={isLedgerOpen}
-          onClose={() => setIsLedgerOpen(false)}
-          projectName={data.project_code}
-          budgetHeadList={budgetHeadList}
-        />
       </main>
     </div>
   );

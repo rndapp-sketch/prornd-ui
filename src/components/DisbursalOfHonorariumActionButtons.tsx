@@ -6,6 +6,8 @@ import { disbursalOfHonorariumAPI } from "@/services/apiService";
 interface DisbursalOfHonorariumActionButtonsProps {
   docname: string;
   onActionComplete: () => void;
+  /** When true, all action buttons are disabled until a commitment exists (Staff RnD gate) */
+  commitRequired?: boolean;
 }
 
 const CommentModal = ({
@@ -62,6 +64,7 @@ const CommentModal = ({
 const DisbursalOfHonorariumActionButtons = ({
   docname,
   onActionComplete,
+  commitRequired = false,
 }: DisbursalOfHonorariumActionButtonsProps) => {
   const { data, isLoading: actionsLoading } = useFrappeGetCall<{
     message: string[];
@@ -93,15 +96,23 @@ const DisbursalOfHonorariumActionButtons = ({
 
   return (
     <>
+      {commitRequired && (
+        <div className="mb-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
+          A commitment must be submitted before forwarding this application.
+        </div>
+      )}
       <div className="flex gap-2 flex-wrap">
         {data.message.map((action) => (
           <button
             key={action}
             onClick={() => handleActionClick(action)}
-            disabled={actionLoading}
+            disabled={actionLoading || commitRequired}
+            title={commitRequired ? "Submit a commitment first" : undefined}
             className={cn(
               "px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 border",
-              "bg-[#D97757] hover:bg-[#c66a4e] text-white",
+              commitRequired
+                ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700 cursor-not-allowed"
+                : "bg-[#D97757] hover:bg-[#c66a4e] text-white",
               actionLoading && "opacity-50 cursor-not-allowed",
             )}
           >

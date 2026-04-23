@@ -60,6 +60,7 @@ import {
     type LinkOption,
 } from "@/components/forms/DynamicFormRenderer";
 import DisbursalOfHonorariumActionButtons from "@/components/DisbursalOfHonorariumActionButtons";
+import { CommitPayment } from "@/components/CommitPayment";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { useUserRoles } from "@/components/UserRole";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
@@ -207,10 +208,11 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     const [isAddingComment, setIsAddingComment] = useState(false);
     const [isLedgerOpen, setIsLedgerOpen] = useState(false);
 
-    // Commit / Payment state
+    // Commit / Payment state (commitAmount moved to CommitPayment component)
     const [commitHead, setCommitHead] = useState("");
-    const [commitAmount, setCommitAmount] = useState("");
     const [paymentAmount, setPaymentAmount] = useState("");
+    // Track commitment staging status to gate workflow action buttons for Staff RnD
+    const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
     // --- API HOOKS ---
     const {
@@ -227,9 +229,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
     const { call: addComment } = useFrappePostCall(
         "rndopsapp.rndopsapp.api.add_project_comment",
     );
-    const { call: submitCommit, loading: isCommitting } = useFrappePostCall(
-        "rndopsapp.rndopsapp.commitPayment.submit_commit_data",
-    );
+    // CommitPayment component handles submit_commit_data internally
     const { call: submitPayment, loading: isPaying } = useFrappePostCall(
         "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
     );
@@ -457,39 +457,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
         setLoading(true);
     }, []);
 
-    // --- COMMIT ---
-    const handleCommit = async () => {
-        if (!commitAmount || !commitHead || !id || !formData) {
-            alert("Please select a budget head and enter an amount.");
-            return;
-        }
-        try {
-            await submitCommit({
-                doctype: "Disbursal of Honorarium",
-                frapAppId: id,
-                name: id,
-                project_name: projectTitle,
-                commit_amount: parseFloat(commitAmount),
-                budget_head: commitHead,
-                bmr: "",
-                refDetails: linkedCommitment?.transactionId
-                    ? String(linkedCommitment.transactionId)
-                    : undefined,
-            });
-            try {
-                await addComment({
-                    doctype: "Disbursal of Honorarium",
-                    docname: id,
-                    content: `Commitment of ₹ ${parseFloat(commitAmount).toLocaleString("en-IN")} under "${commitHead}" has been sent to the Account Side.`,
-                });
-            } catch (_) {}
-            alert("Commitment submitted successfully!");
-            setCommitAmount("");
-            window.location.reload();
-        } catch (error: any) {
-            alert(`Commitment failed: ${error.message || "Unknown error"}`);
-        }
-    };
+    // handleCommit moved to CommitPayment component
 
     // --- PAYMENT ---
     const handlePayment = async () => {
@@ -615,6 +583,11 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                             <DisbursalOfHonorariumActionButtons
                                 docname={id}
                                 onActionComplete={handleRefresh}
+                                commitRequired={
+                                    isRnDStaff &&
+                                    (formData.workflow_state === "Pending Staff Approval") &&
+                                    isCommittedForGate === false
+                                }
                             />
                         </div>
                     )}
@@ -767,114 +740,22 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                             </FrappeButton>
                         </div>
 
-                        {/* Make a Commitment */}
-                        {(formData.workflow_state ===
-                            "Pending Staff Approval" ||
+                        {/* Make a Commitment / Committed Data Display */}
+                        {(formData.workflow_state === "Pending Staff Approval" ||
                             formData.workflow_state === "Approved") &&
                             isRnDStaff &&
-                            !isCommitted && (
-                                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                    <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                        Make a Commitment
-                                    </h3>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                                                Budget Head
-                                            </label>
-                                            <select
-                                                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
-                                                value={commitHead}
-                                                onChange={(e) =>
-                                                    setCommitHead(
-                                                        e.target.value,
-                                                    )
-                                                }
-                                            >
-                                                {budgetHeads.length > 0 ? (
-                                                    budgetHeads.map((head) => (
-                                                        <option
-                                                            key={head}
-                                                            value={head}
-                                                        >
-                                                            {head}
-                                                        </option>
-                                                    ))
-                                                ) : (
-                                                    <option value="">
-                                                        No Budget Heads
-                                                    </option>
-                                                )}
-                                            </select>
-                                            <p className="text-xs text-zinc-500 mt-1">
-                                                Available:{" "}
-                                                <span className="font-medium text-[#D97757]">
-                                                    ₹{" "}
-                                                    {actualBalance.toLocaleString(
-                                                        "en-IN",
-                                                    )}
-                                                </span>
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                                                Amount (₹)
-                                            </label>
-                                            <input
-                                                type="number"
-                                                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25"
-                                                placeholder="e.g., 5000"
-                                                value={commitAmount}
-                                                onChange={(e) =>
-                                                    setCommitAmount(
-                                                        e.target.value,
-                                                    )
-                                                }
-                                            />
-                                        </div>
-                                        <FrappeButton
-                                            className="w-full"
-                                            variant="primary"
-                                            onClick={handleCommit}
-                                            disabled={isCommitting}
-                                        >
-                                            {isCommitting
-                                                ? "Submitting..."
-                                                : "Submit Commitment"}
-                                        </FrappeButton>
-                                    </div>
-                                </div>
+                            id && (
+                                <CommitPayment
+                                    doctype="Disbursal of Honorarium"
+                                    docName={id}
+                                    projectName={projectTitle}
+                                    budgetHeads={budgetHeads}
+                                    actualBalance={actualBalance}
+                                    onCommitSuccess={() => handleRefresh()}
+                                    onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
+                                />
                             )}
 
-                        {/* Commitment Indicator */}
-                        {(formData.workflow_state ===
-                            "Pending Staff Approval" ||
-                            formData.workflow_state === "Approved") &&
-                            isRnDStaff &&
-                            isCommitted && (
-                                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                    <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                        Commitment Details
-                                    </h3>
-                                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex flex-col gap-1">
-                                        <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
-                                            Linked Commitment
-                                        </p>
-                                        <div className="flex justify-between items-end">
-                                            <p className="text-sm font-medium text-blue-900">
-                                                {linkedCommitment?.head}
-                                            </p>
-                                            <p className="text-lg font-bold text-blue-700">
-                                                ₹{" "}
-                                                {Number(
-                                                    linkedCommitment?.committed ||
-                                                        0,
-                                                ).toLocaleString("en-IN")}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
 
                         {/* Record Payment */}
                         {(formData.workflow_state ===
