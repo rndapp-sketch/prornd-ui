@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { AutocompleteEmail } from '@/components/AutocompleteEmail';
 
@@ -28,9 +28,19 @@ export interface ChildTableProps {
     onAddRow: (tableName: string, newRow: Record<string, any>) => void;
     onDeleteRow: (tableName: string, rowIndex: number) => void;
     readOnly?: boolean;
+    /** Maximum number of rows allowed. When reached, the "Add Row" button is hidden. */
+    maxRows?: number;
+    /** Automatically add the first row if the table is empty. If number, adds that many rows. */
+    autoAddFirstRow?: boolean | number;
+    /** Disable deleting rows (hides the Actions column) */
+    disableDelete?: boolean;
+    /** Whether this table field is mandatory */
+    mandatory?: boolean;
     // New props for Link field support with auto-fetch
     linkOptions?: Record<string, LinkOption[]>;
     onLinkChange?: (tableName: string, rowIndex: number, fieldname: string, value: string) => void;
+    /** Pre-filled data for automatically added rows */
+    defaultRows?: Record<string, any>[];
 }
 
 // --- STYLES ---
@@ -69,9 +79,15 @@ export const ChildTableComponent = memo(({
     onAddRow,
     onDeleteRow,
     readOnly = false,
+    maxRows,
+    autoAddFirstRow,
+    disableDelete = false,
+    mandatory = false,
     linkOptions = {},
     onLinkChange,
+    defaultRows = [],
 }: ChildTableProps) => {
+    const canAddRow = !maxRows || tableData.length < maxRows;
     // Filter visible columns - exclude hidden columns AND columns without labels
     const visibleColumns = columns.filter(col =>
         !col.hidden &&
@@ -96,6 +112,24 @@ export const ChildTableComponent = memo(({
         });
         return newRow;
     }, [visibleColumns]);
+
+    // Automatically add rows if the table is empty and autoAddFirstRow or defaultRows is set
+    const hasAutoAdded = React.useRef(false);
+    useEffect(() => {
+        if ((autoAddFirstRow || defaultRows.length > 0) && tableData.length === 0 && !readOnly && !hasAutoAdded.current) {
+            hasAutoAdded.current = true;
+            if (defaultRows.length > 0) {
+                defaultRows.forEach(row => {
+                    onAddRow(tableName, { ...createNewRow(), ...row });
+                });
+            } else {
+                const rowsToAdd = typeof autoAddFirstRow === 'number' ? autoAddFirstRow : 1;
+                for (let i = 0; i < rowsToAdd; i++) {
+                    onAddRow(tableName, createNewRow());
+                }
+            }
+        }
+    }, [autoAddFirstRow, defaultRows, tableData.length, readOnly, onAddRow, tableName, createNewRow]);
 
     // Render cell input based on field type
     const renderCellInput = (col: ChildField, row: any, rowIndex: number) => {
@@ -319,7 +353,10 @@ export const ChildTableComponent = memo(({
     return (
         <div className="space-y-4">
             {label && (
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{label}</h3>
+                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                    {label}
+                    {mandatory && <span className="text-red-500 ml-1">*</span>}
+                </h3>
             )}
 
             <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-xl">
@@ -338,7 +375,7 @@ export const ChildTableComponent = memo(({
                                     {!!col.mandatory && <span className="text-red-500 ml-1">*</span>}
                                 </th>
                             ))}
-                            {!readOnly && (
+                            {!readOnly && !disableDelete && (
                                 <th className="p-3 font-medium text-zinc-600 dark:text-zinc-400 text-xs uppercase tracking-wider text-center w-24">
                                     Actions
                                 </th>
@@ -356,7 +393,7 @@ export const ChildTableComponent = memo(({
                                         {renderCellInput(col, row, rowIndex)}
                                     </td>
                                 ))}
-                                {!readOnly && (
+                                {!readOnly && !disableDelete && (
                                     <td className="p-2 text-center">
                                         <FrappeButton
                                             onClick={() => onDeleteRow(tableName, rowIndex)}
@@ -398,14 +435,14 @@ export const ChildTableComponent = memo(({
                                         ) : null}
                                     </td>
                                 ))}
-                                {!readOnly && <td />}
+                                {!readOnly && !disableDelete && <td />}
                             </tr>
                         </tfoot>
                     )}
                 </table>
             </div>
 
-            {!readOnly && (
+            {!readOnly && canAddRow && (
                 <FrappeButton
                     onClick={() => onAddRow(tableName, createNewRow())}
                     className="w-full py-2.5 text-sm bg-white border border-dashed border-[#D97757]/40 text-[#D97757] hover:bg-[#D97757]/5 hover:border-[#D97757]/60 hover:text-[#D97757] dark:bg-zinc-900 dark:border-[#D97757]/30 dark:text-[#D97757]/80 dark:hover:bg-[#D97757]/10 dark:hover:text-[#D97757] shadow-sm"

@@ -28,6 +28,14 @@ export interface FormField {
   mandatory_depends_on?: string;
   read_only_depends_on?: string;
   child_fields?: ChildField[];
+  /** Maximum number of rows allowed for Table fields */
+  maxRows?: number;
+  /** Automatically add the first row if the table is empty. If number, adds that many rows. */
+  autoAddFirstRow?: boolean | number;
+  /** Disable deleting rows */
+  disableDelete?: boolean;
+  /** Pre-filled data for automatically added rows */
+  defaultRows?: Record<string, any>[];
 }
 
 export interface LinkOption {
@@ -108,7 +116,8 @@ const MemoizedFormField = memo(
     if (
       !field.label &&
       field.fieldtype !== "HTML" &&
-      field.fieldtype !== "Section Break"
+      field.fieldtype !== "Section Break" &&
+      field.fieldtype !== "Check"
     )
       return null;
 
@@ -654,6 +663,9 @@ const MemoizedFormField = memo(
     if (field.fieldtype === "Check") {
       return (
         <div className="space-y-2">
+          <label className="text-sm font-medium leading-none opacity-0 select-none hidden md:block mb-2">
+            &nbsp;
+          </label>
           {renderInput()}
           {field.description && (
             <p className="text-[0.8rem] text-zinc-500 dark:text-zinc-400 ml-6">
@@ -814,8 +826,13 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             onAddRow={onAddTableRow}
             onDeleteRow={onDeleteTableRow}
             readOnly={fieldIsReadOnly}
+            maxRows={field.maxRows}
+            autoAddFirstRow={field.autoAddFirstRow}
+            disableDelete={field.disableDelete}
+            mandatory={isMandatory}
             linkOptions={linkOptions}
             onLinkChange={onTableLinkChange}
+            defaultRows={field.defaultRows}
           />
         </div>
       );

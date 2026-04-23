@@ -9,7 +9,8 @@ import {
     CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, Loader2, FileText, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, FileText } from "lucide-react";
+// import { ArrowLeft, Save, Loader2, FileText, CheckCircle2 } from "lucide-react";
 import DynamicFormRenderer from "@/components/forms/DynamicFormRenderer";
 import {
     universalRegistrationAPI,
@@ -24,6 +25,8 @@ interface UniversalRegistrationFormProps {
 export default function UniversalRegistrationForm({
     isFundingAgency = false,
 }: UniversalRegistrationFormProps) {
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const prevNationality = useRef<string | undefined>(undefined);
     const { id } = useParams();
     const navigate = useNavigate();
 
@@ -94,7 +97,19 @@ export default function UniversalRegistrationForm({
                         return null;
                     };
 
+                    const profileTypeField = processedFields.find(f => f.fieldname === "profile_type_u_r");
+                    if (profileTypeField && profileTypeField.options) {
+                        const originalOptions = profileTypeField.options.split("\n");
+                        const modifiedOptions = originalOptions
+                            .filter((opt: string) => opt.trim() !== "Organization")
+                            .map((opt: string) => opt.trim() === "Individual (For Honorarium)" ? "Individual (For Honorarium)" : opt);
+                        profileTypeField.options = modifiedOptions.join("\n");
+                    }
+
                     const emailField = pullField("email_address_u_r");
+                    if (emailField) {
+                        emailField.label = "Official Email Address";
+                    }
                     const profileTypeIdx = processedFields.findIndex((f) => f.fieldname === "profile_type_u_r");
                     if (profileTypeIdx !== -1 && emailField) {
                         processedFields.splice(profileTypeIdx + 1, 0, emailField);
@@ -108,8 +123,129 @@ export default function UniversalRegistrationForm({
                     const contactFnames = ["mobile_number_u_r", "same_as_mobile_number_u_r", "whatsapp_number_u_r", "alternate_mobile_number_u_r"];
                     const contactExtracted = contactFnames.map(f => pullField(f)).filter(Boolean);
 
-                    const uniFnames = ["university_name_u_r", "university_address_u_r", "designation_u_r", "department_u_r"];
+                    const sameAsMobileField = contactExtracted.find(f => f.fieldname === "same_as_mobile_number_u_r");
+                    if (sameAsMobileField) {
+                        sameAsMobileField.label = "WhatsApp No. Same as mobile number.";
+                    }
+
+                    const uniFnames = ["institution_details_u_r", "designation_u_r", "department_u_r"];
                     const uniExtracted = uniFnames.map(f => pullField(f)).filter(Boolean);
+
+                    // Auto-add first row for Institution Details
+                    const instField = uniExtracted.find((f: any) => f.fieldname === "institution_details_u_r");
+                    if (instField) {
+                        instField.autoAddFirstRow = true;
+                        instField.maxRows = 1;
+                        instField.disableDelete = true;
+                    }
+
+                    // Auto-add first row for Bank Details
+                    const bankField = processedFields.find((f: any) => f.fieldname === "bank_details_u_r");
+                    if (bankField) {
+                        bankField.autoAddFirstRow = true;
+                        bankField.maxRows = 1;
+                        bankField.disableDelete = true;
+                        if (bankField.child_fields) {
+                            bankField.child_fields.forEach((cf: any) => {
+                                if (cf.fieldname === "bank_city_u_r" || cf.fieldname === "bank_state_u_r") {
+                                    cf.read_only = 0;
+                                }
+                            });
+                        }
+                    }
+
+                    // Split Address Tables into Permanent and Current
+                    const addrIdx = processedFields.findIndex((f: any) => f.fieldname === "address_details");
+                    if (addrIdx !== -1) {
+                        const baseField = JSON.parse(JSON.stringify(processedFields[addrIdx]));
+                        if (baseField.child_fields) {
+                            baseField.child_fields.forEach((cf: any) => {
+                                const lowerLabel = cf.label?.toLowerCase() || "";
+                                if (lowerLabel.includes("district") || lowerLabel.includes("city") || lowerLabel.includes("state")) {
+                                    cf.read_only = 0;
+                                }
+                            });
+                        }
+                        const typeField = baseField.child_fields?.find((cf: any) => {
+                            const lbl = cf.label?.toLowerCase() || "";
+                            const fn = cf.fieldname || "";
+                            return lbl.includes("address type") || fn.includes("address_type") || lbl === "type" || fn === "type";
+                        });
+                        if (typeField) {
+                            typeField.read_only = 1;
+                        }
+
+                        const permField = { ...baseField, fieldname: "permanent_address_custom", label: "Permanent Address", maxRows: 1, autoAddFirstRow: 1, mandatory: 1, disableDelete: true };
+                        const currField = { ...baseField, fieldname: "current_address_custom", label: "Present Address", maxRows: 1, autoAddFirstRow: 1, mandatory: 1, disableDelete: true };
+                        if (typeField) {
+                            permField.defaultRows = [{ [typeField.fieldname]: "Permanent" }];
+                            currField.defaultRows = [{ [typeField.fieldname]: "Present" }];
+                        }
+                        const checkboxField = { fieldname: "same_as_permanent_address_custom", fieldtype: "Check", label: "Present Address Same as Permanent Address", read_only: 0 };
+                        processedFields.splice(addrIdx, 1, permField, checkboxField, currField);
+                    }
+
+                    const orgAddrIdx = processedFields.findIndex((f: any) => f.fieldname === "org_address_details_u_r");
+                    if (orgAddrIdx !== -1) {
+                        const baseField = JSON.parse(JSON.stringify(processedFields[orgAddrIdx]));
+                        if (baseField.child_fields) {
+                            baseField.child_fields.forEach((cf: any) => {
+                                const lowerLabel = cf.label?.toLowerCase() || "";
+                                if (lowerLabel.includes("district") || lowerLabel.includes("city") || lowerLabel.includes("state")) {
+                                    cf.read_only = 0;
+                                }
+                            });
+                        }
+                        const typeField = baseField.child_fields?.find((cf: any) => {
+                            const lbl = cf.label?.toLowerCase() || "";
+                            const fn = cf.fieldname || "";
+                            return lbl.includes("address type") || fn.includes("address_type") || lbl === "type" || fn === "type";
+                        });
+                        if (typeField) {
+                            typeField.read_only = 1;
+                        }
+
+                        const permField = { ...baseField, fieldname: "org_permanent_address_custom", label: "Permanent Address", maxRows: 1, autoAddFirstRow: 1, mandatory: 1, disableDelete: true };
+                        const currField = { ...baseField, fieldname: "org_current_address_custom", label: "Present Address", maxRows: 1, autoAddFirstRow: 1, mandatory: 1, disableDelete: true };
+                        if (typeField) {
+                            permField.defaultRows = [{ [typeField.fieldname]: "Permanent" }];
+                            currField.defaultRows = [{ [typeField.fieldname]: "Present" }];
+                        }
+                        const checkboxField = { fieldname: "org_same_as_permanent_address_custom", fieldtype: "Check", label: "Same as Permanent Address", read_only: 0 };
+                        processedFields.splice(orgAddrIdx, 1, permField, checkboxField, currField);
+                    }
+
+                    // Mark PI / Co-PI mandatory fields
+                    const piMandatoryFields = [
+                        "email_address_u_r", "full_name_u_r", "gender_u_r",
+                        "nationality_u_r", "institution_details_u_r", "uploaded_documents_u_r",
+                        "mobile_number_u_r",
+                    ];
+                    const allExtracted = [
+                        ...personalExtracted, ...contactExtracted, ...uniExtracted,
+                    ];
+                    // Also mark fields that remain in processedFields
+                    [...allExtracted, ...processedFields].forEach((f: any) => {
+                        if (piMandatoryFields.includes(f.fieldname)) {
+                            f.mandatory = 1;
+                        }
+                        if (f.fieldname === "uploaded_documents_u_r") {
+                            f.label = "Official Identification (Aadhaar & PAN / Foreigner ID)";
+                            // Remove mandatory from the table label itself (*) as per requirement
+                            f.mandatory = 0;
+                            // Ensure internal columns remain mandatory
+                            if (f.child_fields && Array.isArray(f.child_fields)) {
+                                f.child_fields.forEach((cf: any) => {
+                                    if (cf.label === "Document Type" || cf.label === "ID Number") {
+                                        cf.mandatory = 1;
+                                    }
+                                });
+                            }
+                        }
+                        if (f.fieldname === "experiences_u_r") {
+                            f.label = "Experience (If Any)";
+                        }
+                    });
 
                     const personalSec = pullField("personal_information_section_u_r") || {
                         fieldname: "personal_information_section_u_r",
@@ -126,7 +262,7 @@ export default function UniversalRegistrationForm({
                     const uniSec = pullField("university_detail_u_r") || {
                         fieldname: "university_detail_u_r",
                         fieldtype: "Section Break",
-                        label: "University Details",
+                        label: "Affiliation Details",
                     };
 
                     const anchorIdx = processedFields.findIndex((f) => f.fieldname === "organization_sub_type_u_r");
@@ -165,6 +301,11 @@ export default function UniversalRegistrationForm({
                     initialData = { ...initialData, ...prefill_data };
                 }
 
+                // Map legacy profile type value to the new renamed value for UI consistency
+                if (initialData.profile_type_u_r === "Individual (For Honorarium)") {
+                    initialData.profile_type_u_r = "Individual (For Honorarium)";
+                }
+
                 setFormData(initialData);
             }
         } catch (error) {
@@ -194,6 +335,156 @@ export default function UniversalRegistrationForm({
             }
         }
     }, [formData.same_as_mobile_number_u_r, formData.mobile_number_u_r]);
+
+    // Map existing address data to split tables on load
+    useEffect(() => {
+        if (formData.address_details && formData.address_details.length > 0 && !formData.permanent_address_custom && !formData.current_address_custom) {
+            const perm = formData.address_details.find((r: any) => r.address_type === "Permanent" || r.address_type === "Permanent Address") || formData.address_details[0];
+            const curr = formData.address_details.find((r: any) => r.address_type === "Present" || r.address_type === "Present Address" || r.address_type === "Current") || formData.address_details[1] || {};
+            setFormData(prev => ({ ...prev, permanent_address_custom: [perm], current_address_custom: [curr] }));
+        }
+    }, [formData.address_details]);
+
+    useEffect(() => {
+        if (formData.org_address_details_u_r && formData.org_address_details_u_r.length > 0 && !formData.org_permanent_address_custom && !formData.org_current_address_custom) {
+            const perm = formData.org_address_details_u_r.find((r: any) => r.address_type === "Permanent" || r.address_type === "Permanent Address") || formData.org_address_details_u_r[0];
+            const curr = formData.org_address_details_u_r.find((r: any) => r.address_type === "Present" || r.address_type === "Present Address" || r.address_type === "Current") || formData.org_address_details_u_r[1] || {};
+            setFormData(prev => ({ ...prev, org_permanent_address_custom: [perm], org_current_address_custom: [curr] }));
+        }
+    }, [formData.org_address_details_u_r]);
+
+    // Address auto-fill: sync Permanent to Current when "Same as Permanent Address" is checked
+    useEffect(() => {
+        if (formData.same_as_permanent_address_custom === 1 || formData.same_as_permanent_address_custom === true) {
+            const permTable = formData.permanent_address_custom || [];
+            if (permTable.length > 0) {
+                const permanentRow = permTable[0];
+                const currentRow = (formData.current_address_custom || [])[0] || {};
+                let needsUpdate = false;
+                const updatedCurrentRow = { ...currentRow };
+                Object.keys(permanentRow).forEach(key => {
+                    if (key !== 'id' && key !== 'idx' && !key.includes('address_type') && key !== 'type') {
+                        if (updatedCurrentRow[key] !== permanentRow[key]) {
+                            updatedCurrentRow[key] = permanentRow[key];
+                            needsUpdate = true;
+                        }
+                    }
+                });
+                if (needsUpdate) {
+                    setFormData(prev => ({ ...prev, current_address_custom: [updatedCurrentRow] }));
+                }
+            }
+        }
+    }, [formData.same_as_permanent_address_custom, formData.permanent_address_custom]);
+
+    // Organization Address auto-fill
+    useEffect(() => {
+        if (formData.org_same_as_permanent_address_custom === 1 || formData.org_same_as_permanent_address_custom === true) {
+            const permTable = formData.org_permanent_address_custom || [];
+            if (permTable.length > 0) {
+                const permanentRow = permTable[0];
+                const currentRow = (formData.org_current_address_custom || [])[0] || {};
+                let needsUpdate = false;
+                const updatedCurrentRow = { ...currentRow };
+                Object.keys(permanentRow).forEach(key => {
+                    if (key !== 'id' && key !== 'idx' && !key.includes('address_type') && key !== 'type') {
+                        if (updatedCurrentRow[key] !== permanentRow[key]) {
+                            updatedCurrentRow[key] = permanentRow[key];
+                            needsUpdate = true;
+                        }
+                    }
+                });
+                if (needsUpdate) {
+                    setFormData(prev => ({ ...prev, org_current_address_custom: [updatedCurrentRow] }));
+                }
+            }
+        }
+    }, [formData.org_same_as_permanent_address_custom, formData.org_permanent_address_custom]);
+
+    // Dynamically update uploaded_documents_u_r based on nationality
+    useEffect(() => {
+        let shouldClearTable = false;
+        if (prevNationality.current !== undefined && prevNationality.current !== formData.nationality_u_r) {
+            shouldClearTable = true;
+        }
+        prevNationality.current = formData.nationality_u_r;
+
+        setFields(prevFields => {
+            const newFields = [...prevFields];
+            const docsIdx = newFields.findIndex(f => f.fieldname === "uploaded_documents_u_r");
+            if (docsIdx !== -1) {
+                const docsField = JSON.parse(JSON.stringify(newFields[docsIdx])); 
+                const typeField = docsField.child_fields?.find((cf: any) => cf.label === "Document Type" || cf.fieldname === "document_type");
+                const typeFieldname = typeField ? typeField.fieldname : "document_type";
+
+                let needsUpdate = false;
+
+                if (formData.nationality_u_r === "India") {
+                    if (docsField.maxRows !== 2 || docsField.autoAddFirstRow !== 2) {
+                        docsField.autoAddFirstRow = 2;
+                        docsField.maxRows = 2;
+                        docsField.disableDelete = true;
+                        docsField.defaultRows = [
+                            { [typeFieldname]: "Aadhaar Card" },
+                            { [typeFieldname]: "Pan Card" }
+                        ];
+                        if (typeField) typeField.read_only = 1;
+                        needsUpdate = true;
+                    }
+                } else if (formData.nationality_u_r && formData.nationality_u_r !== "India") {
+                    if (docsField.maxRows !== 1 || docsField.autoAddFirstRow !== 1) {
+                        docsField.autoAddFirstRow = 1;
+                        docsField.maxRows = 1;
+                        docsField.disableDelete = true;
+                        docsField.defaultRows = [
+                            { [typeFieldname]: "ID Proof (For Non-Indian)" }
+                        ];
+                        if (typeField) typeField.read_only = 1;
+                        needsUpdate = true;
+                    }
+                } else {
+                    if (docsField.disableDelete === true) {
+                        docsField.autoAddFirstRow = 0;
+                        docsField.maxRows = undefined;
+                        docsField.disableDelete = false;
+                        docsField.defaultRows = [];
+                        if (typeField) typeField.read_only = 0;
+                        needsUpdate = true;
+                    }
+                }
+
+                if (needsUpdate) {
+                    newFields[docsIdx] = docsField;
+                    return newFields;
+                }
+            }
+            return prevFields;
+        });
+
+        if (shouldClearTable) {
+            setFormData(prev => {
+                let newDocs: any[] = [];
+                let typeFieldname = "document_type"; // fallback
+                if (fields && fields.length > 0) {
+                    const docFielddef = fields.find(f => f.fieldname === "uploaded_documents_u_r");
+                    const typeField = docFielddef?.child_fields?.find((cf: any) => cf.label === "Document Type" || cf.fieldname === "document_type");
+                    if (typeField) typeFieldname = typeField.fieldname;
+                }
+
+                if (formData.nationality_u_r === "India") {
+                    newDocs = [
+                        { [typeFieldname]: "Aadhaar Card" },
+                        { [typeFieldname]: "Pan Card" }
+                    ];
+                } else if (formData.nationality_u_r && formData.nationality_u_r !== "India") {
+                    newDocs = [
+                        { [typeFieldname]: "ID Proof (For Non-Indian)" }
+                    ];
+                }
+                return { ...prev, uploaded_documents_u_r: newDocs };
+            });
+        }
+    }, [formData.nationality_u_r]);
 
     // Handle single field changes
     const handleFieldChange = useCallback((fieldname: string, value: any) => {
@@ -263,11 +554,11 @@ export default function UniversalRegistrationForm({
 
                     if (result?.status === "success") {
                         if (result.available) {
-                            setEmailStatus("available");
-                            setEmailMessage("✓ Email is available.");
+                            setEmailStatus("idle");
+                            setEmailMessage("");
                         } else {
                             setEmailStatus("unavailable");
-                            setEmailMessage(result.message || "This email is already registered.");
+                            setEmailMessage("An account with this email already exists.");
                         }
                     } else {
                         setEmailStatus("idle");
@@ -334,6 +625,8 @@ export default function UniversalRegistrationForm({
                         if (typeof value === "string" && value.length !== 11) {
                             tableData[rowIndex].bank_name_u_r = "";
                             tableData[rowIndex].branch_name_u_r = "";
+                            tableData[rowIndex].bank_city_u_r = "";
+                            tableData[rowIndex].bank_state_u_r = "";
                         }
                     }
 
@@ -408,6 +701,8 @@ export default function UniversalRegistrationForm({
                                     ...tableData[rowIndex],
                                     bank_name_u_r: data.BANK,
                                     branch_name_u_r: data.BRANCH,
+                                    bank_city_u_r: data.CITY,
+                                    bank_state_u_r: data.STATE,
                                 };
                             }
                             return { ...prev, [tableName]: tableData };
@@ -422,6 +717,8 @@ export default function UniversalRegistrationForm({
                                     ...tableData[rowIndex],
                                     bank_name_u_r: "",
                                     branch_name_u_r: "",
+                                    bank_city_u_r: "",
+                                    bank_state_u_r: "",
                                 };
                             }
                             return { ...prev, [tableName]: tableData };
@@ -484,7 +781,7 @@ export default function UniversalRegistrationForm({
     const profile_type = formData.profile_type_u_r || null;
     const org_sub_type = formData.organization_sub_type_u_r || null;
 
-    const is_personal = profile_type === "Individual / Personal";
+    const is_personal = profile_type === "Individual (For Honorarium)" || profile_type === "Individual (For Honorarium)";
     const is_org = profile_type === "Organization";
     const is_vendor = is_org && org_sub_type === "Vendor";
     const is_pi_copi = profile_type === "PI / Co-PI (External only)";
@@ -511,6 +808,9 @@ export default function UniversalRegistrationForm({
         "whatsapp_number_u_r",
         "same_as_mobile_number_u_r",
         "alternate_mobile_number_u_r",
+        "permanent_address_custom",
+        "same_as_permanent_address_custom",
+        "current_address_custom",
         "address_details",
         "qualifications_u_r",
         "experiences_u_r",
@@ -524,6 +824,9 @@ export default function UniversalRegistrationForm({
         "email_oraganization__contact_person_u_r",
         "org_contact_number_u_r",
         "organization_mobile_number_u_r",
+        "org_permanent_address_custom",
+        "org_same_as_permanent_address_custom",
+        "org_current_address_custom",
         "org_address_details_u_r",
         "universal_user_u_r",
         // --- Vendor / Org sub-type fields ---
@@ -541,10 +844,9 @@ export default function UniversalRegistrationForm({
         "signatory_designation_u_r",
         "date_of_signing_u_r",
         "decl_info_true_u_r",
-        // --- University Detail fields (shown for PI / Co-PI (External only)) ---
+        // --- Affiliation Detail fields (shown for PI / Co-PI (External only)) ---
         "university_detail_u_r",
-        "university_name_u_r",
-        "university_address_u_r",
+        "institution_details_u_r",
         "designation_u_r",
         "department_u_r",
         // --- Financial / Documents ---
@@ -559,15 +861,15 @@ export default function UniversalRegistrationForm({
         sectionsToHide.delete("personal_history_section_u_r");
         sectionsToHide.delete("financial_and_documents_common_section_u_r");
         sectionsToHide.delete("full_name_u_r");
-        sectionsToHide.delete("guardian_name_u_r");
-        sectionsToHide.delete("dob_u_r");
         sectionsToHide.delete("gender_u_r");
         sectionsToHide.delete("nationality_u_r");
         sectionsToHide.delete("mobile_number_u_r");
         sectionsToHide.delete("email_address_u_r");
         sectionsToHide.delete("whatsapp_number_u_r");
         sectionsToHide.delete("same_as_mobile_number_u_r");
-        sectionsToHide.delete("alternate_mobile_number_u_r");
+        sectionsToHide.delete("permanent_address_custom");
+        sectionsToHide.delete("same_as_permanent_address_custom");
+        sectionsToHide.delete("current_address_custom");
         sectionsToHide.delete("address_details");
         sectionsToHide.delete("qualifications_u_r");
         sectionsToHide.delete("experiences_u_r");
@@ -588,10 +890,9 @@ export default function UniversalRegistrationForm({
         sectionsToHide.delete("email_address_u_r");
         sectionsToHide.delete("same_as_mobile_number_u_r");
         sectionsToHide.delete("whatsapp_number_u_r");
-        // University Detail section
+        // Affiliation Detail section
         sectionsToHide.delete("university_detail_u_r");
-        sectionsToHide.delete("university_name_u_r");
-        sectionsToHide.delete("university_address_u_r");
+        sectionsToHide.delete("institution_details_u_r");
         sectionsToHide.delete("designation_u_r");
         sectionsToHide.delete("department_u_r");
         // Identity & Credential Documents + Bank Details
@@ -615,6 +916,9 @@ export default function UniversalRegistrationForm({
         sectionsToHide.delete("email_oraganization__contact_person_u_r");
         sectionsToHide.delete("org_contact_number_u_r");
         sectionsToHide.delete("organization_mobile_number_u_r");
+        sectionsToHide.delete("org_permanent_address_custom");
+        sectionsToHide.delete("org_same_as_permanent_address_custom");
+        sectionsToHide.delete("org_current_address_custom");
         sectionsToHide.delete("org_address_details_u_r");
         sectionsToHide.delete("gst_number_u_r");
         sectionsToHide.delete("uploaded_documents_u_r");
@@ -652,19 +956,81 @@ export default function UniversalRegistrationForm({
 
     dynamicHiddenFields = [...dynamicHiddenFields, ...Array.from(sectionsToHide)];
 
-    const filteredFields = (fields || []).filter(
-        (f: any) => !dynamicHiddenFields.includes(f.fieldname),
-    );
+    const filteredFields = (fields || [])
+        .filter((f: any) => !dynamicHiddenFields.includes(f.fieldname))
+        .map((f: any) => {
+            if (is_personal && f.fieldname === "bank_details_u_r") {
+                return { ...f, mandatory: 1 };
+            }
+            return f;
+        });
 
     const handleSave = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         setIsSaving(true);
 
         try {
+            // MERGE SPLIT ADDRESS TABLES
+            const finalFormData = { ...formData };
+            if (finalFormData.permanent_address_custom || finalFormData.current_address_custom) {
+                finalFormData.address_details = [
+                    ...(finalFormData.permanent_address_custom || []),
+                    ...(finalFormData.current_address_custom || [])
+                ];
+            }
+            if (finalFormData.org_permanent_address_custom || finalFormData.org_current_address_custom) {
+                finalFormData.org_address_details_u_r = [
+                    ...(finalFormData.org_permanent_address_custom || []),
+                    ...(finalFormData.org_current_address_custom || [])
+                ];
+            }
+
+            // 0. Frontend Mandatory Field Validation (Generic)
+            const missingFields: string[] = [];
+            filteredFields.forEach((f: any) => {
+                if (f.mandatory) {
+                    if (f.fieldtype === "Table") {
+                        const tableData = finalFormData[f.fieldname];
+                        if (!tableData || !Array.isArray(tableData) || tableData.length === 0) {
+                            missingFields.push(f.label || f.fieldname);
+                        } else {
+                            // Check if mandatory child fields are filled
+                            if (f.child_fields && Array.isArray(f.child_fields)) {
+                                const mandatoryChildFields = f.child_fields.filter((cf: any) => cf.mandatory);
+                                if (mandatoryChildFields.length > 0) {
+                                    const isAnyRowIncomplete = tableData.some((row: any) => 
+                                        mandatoryChildFields.some((cf: any) => {
+                                            const val = row[cf.fieldname];
+                                            return val === undefined || val === null || (typeof val === "string" && val.trim() === "");
+                                        })
+                                    );
+                                    if (isAnyRowIncomplete) {
+                                        // Only push if not already in missingFields
+                                        if (!missingFields.includes(f.label || f.fieldname)) {
+                                            missingFields.push(`${f.label || f.fieldname} (All rows must be complete)`);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        const val = finalFormData[f.fieldname];
+                        if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+                            missingFields.push(f.label || f.fieldname);
+                        }
+                    }
+                }
+            });
+
+            if (missingFields.length > 0) {
+                alert(`Please fill in the following mandatory fields:\n\n• ${missingFields.join("\n• ")}`);
+                setIsSaving(false);
+                return;
+            }
             // 1. Pre-flight Duplicate Check
             // Extract Email and ID Numbers
-            const emailToCheck = formData.email_address_u_r;
-            const idNumbersToCheck = (formData.uploaded_documents_u_r || [])
+            const emailToCheck = finalFormData.email_address_u_r;
+            const idNumbersToCheck = (finalFormData.uploaded_documents_u_r || [])
                 .map((doc: any) => doc.id_number_u_r)
                 .filter((val: string) => val && val.trim() !== "");
 
@@ -690,7 +1056,7 @@ export default function UniversalRegistrationForm({
 
             // 2. Prepare and Save Data
             const preparedData = await prepareFormDataForApi({
-                ...formData,
+                ...finalFormData,
                 docname: savedDocName,
             });
 
@@ -839,7 +1205,7 @@ export default function UniversalRegistrationForm({
                                 Registration Details
                             </CardTitle>
                         </div>
-                        <CardDescription className="text-base text-zinc-700 dark:text-zinc-300 font-medium font-serif">
+                        <CardDescription className="text-base text-zinc-700 text-red-600 dark:text-zinc-300 font-medium font-serif">
                             Please complete the form below only if the PI/Co-PI details are unavailable. Fields marked with a red asterisk (*) are mandatory.
                         </CardDescription>
                     </CardHeader>
@@ -880,12 +1246,12 @@ export default function UniversalRegistrationForm({
                         {/* Sticky Action Footer */}
                         {!isReadOnly && (
                             <div className="sticky bottom-0 border-t border-zinc-200 dark:border-zinc-800 bg-[#FDFDFD]/95 dark:bg-zinc-900/95 backdrop-blur-md px-8 py-5 flex items-center justify-between z-10 transition-all shadow-[0_-4px_24px_-12px_rgba(0,0,0,0.1)]">
-                                <div className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">
+                                {/* <div className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">
                                     <span className="flex items-center gap-2">
                                         <CheckCircle2 className="h-4 w-4 text-[#D97757]" />
                                         Registration in Draft Mode
                                     </span>
-                                </div>
+                                </div> */}
                                 <div className="space-x-3">
                                     <Button
                                         variant="outline"
