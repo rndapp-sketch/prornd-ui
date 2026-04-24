@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 // import { AppSidebar } from '@/components/RndSidebar';
 import { FrappeButton } from "@/components/ui/neo-brutalism";
 import ProjectDetailsView from "./ProjectDetails";
+import ProjectDetailsOverview from "./ProjectDetailsOverview";
 import { DOCTYPE_PR_LINKS, type PRLinkStrategy } from "@/utils/projectTypeMapping";
 import TemporaryAdvanceDetailsView from "./TemporaryAdvanceDetailsView";
 import {
@@ -567,7 +568,7 @@ const ProjectPreviewModal = ({
             </div>
             {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto">
-                <ProjectDetailsView projectName={projectName} />
+                <ProjectDetailsOverview projectName={projectName} embedded />
             </div>
         </div>
     </div>

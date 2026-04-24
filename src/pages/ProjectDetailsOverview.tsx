@@ -110,7 +110,10 @@ interface ActivityStreamProps {
 interface ActivityStreamHandle {
   refetch: () => void;
 }
-interface ProjectDetailsProps {}
+interface ProjectDetailsProps {
+  projectName?: string;
+  embedded?: boolean;
+}
 
 interface BudgetEntry {
   sl: number;
@@ -860,7 +863,7 @@ const QuickActions = ({
         "Direct Purchase",
         "Indent General Form",
         // "Generate NIQ",
-        "Indent cum Sanction",
+        // "Indent cum Sanction",
         // "Rate Contract",
       ],
     },
@@ -1677,20 +1680,20 @@ const QuickActions = ({
                           className={cn(
                             "inline-flex px-2 py-1 text-xs font-medium rounded-full",
                             item.workflow_state === "Approved" &&
-                              "bg-green-100 text-green-700",
+                            "bg-green-100 text-green-700",
                             item.workflow_state === "Pending" &&
-                              "bg-yellow-100 text-yellow-700",
+                            "bg-yellow-100 text-yellow-700",
                             item.workflow_state === "Rejected" &&
-                              "bg-red-100 text-red-700",
+                            "bg-red-100 text-red-700",
                             item.workflow_state === "Draft" &&
-                              "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
+                            "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
                             ![
                               "Approved",
                               "Pending",
                               "Rejected",
                               "Draft",
                             ].includes(item.workflow_state) &&
-                              "bg-blue-100 text-blue-700",
+                            "bg-blue-100 text-blue-700",
                           )}
                         >
                           {item.workflow_state || "Draft"}
@@ -1711,11 +1714,11 @@ const QuickActions = ({
                                 className={cn(
                                   "inline-flex px-2 py-1 text-xs font-medium rounded-full",
                                   settlement.workflow_state === "Approved" &&
-                                    "bg-green-100 text-green-700",
+                                  "bg-green-100 text-green-700",
                                   settlement.workflow_state === "Rejected" &&
-                                    "bg-red-100 text-red-700",
+                                  "bg-red-100 text-red-700",
                                   settlement.workflow_state === "Draft" &&
-                                    "bg-zinc-100 text-zinc-700",
+                                  "bg-zinc-100 text-zinc-700",
                                   !["Approved", "Rejected", "Draft"].includes(
                                     settlement.workflow_state,
                                   ) && "bg-blue-100 text-blue-700",
@@ -1818,26 +1821,26 @@ const QuickActions = ({
                         {selectedApplication === "Adhoc/Contractual" &&
                           item.workflow_state === "Approved" && (
                             <>
-                                <button
-                                  onClick={() =>
-                                    onNavigate(
-                                      `/candidate-applications?refNum=${item.name}`,
-                                    )
-                                  }
-                                  className="text-sm text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:underline whitespace-nowrap"
-                                >
-                                  Add
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    onNavigate(
-                                      `/selection-committee-report?interview_id=${item.name}`,
-                                    )
-                                  }
-                                  className="text-sm text-green-600 hover:text-green-800 dark:text-green-500 hover:underline whitespace-nowrap"
-                                >
-                                  SCR
-                                </button>
+                              <button
+                                onClick={() =>
+                                  onNavigate(
+                                    `/candidate-applications?refNum=${item.name}`,
+                                  )
+                                }
+                                className="text-sm text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 hover:underline whitespace-nowrap"
+                              >
+                                Add
+                              </button>
+                              <button
+                                onClick={() =>
+                                  onNavigate(
+                                    `/selection-committee-report?interview_id=${item.name}`,
+                                  )
+                                }
+                                className="text-sm text-green-600 hover:text-green-800 dark:text-green-500 hover:underline whitespace-nowrap"
+                              >
+                                SCR
+                              </button>
                             </>
                           )}
                         {selectedApplication === "Direct Purchase" &&
@@ -2173,8 +2176,9 @@ const normalizeResponse = (raw: any): any[] => {
 };
 
 // --- Main Component ---
-const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
-  const { projectName } = useParams<{ projectName: string }>();
+const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: propProjectName, embedded = false }) => {
+  const { projectName: paramProjectName } = useParams<{ projectName: string }>();
+  const projectName = propProjectName || paramProjectName;
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const activityStreamRef = useRef<ActivityStreamHandle>(null);
@@ -2193,22 +2197,22 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
     "frappe.client.get_value",
     data?.funding_agen
       ? {
-          doctype: "fundingagency_",
-          filters: data.funding_agen,
-          fieldname: JSON.stringify([
-            "funding_agency_id",
-            "funding_agency_name",
-            "funding_agency_initials",
-            "funding_agency_type_1",
-            "origin_of_funding_agency",
-            "gstin_of_funding_agency",
-            "ministry_funding_agency",
-            "fundingagency_address",
-            "fundingagency_country",
-            "fundingagency_state",
-            "fundingagency_postalcode",
-          ]),
-        }
+        doctype: "fundingagency_",
+        filters: data.funding_agen,
+        fieldname: JSON.stringify([
+          "funding_agency_id",
+          "funding_agency_name",
+          "funding_agency_initials",
+          "funding_agency_type_1",
+          "origin_of_funding_agency",
+          "gstin_of_funding_agency",
+          "ministry_funding_agency",
+          "fundingagency_address",
+          "fundingagency_country",
+          "fundingagency_state",
+          "fundingagency_postalcode",
+        ]),
+      }
       : undefined,
     data?.funding_agen ? `funding-agency-${data.funding_agen}` : null,
     { revalidateOnFocus: false, revalidateOnReconnect: false, refreshInterval: 0, dedupingInterval: 60000 },
@@ -3075,10 +3079,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
   const tabs = [
     { id: "overview", label: "Overview", icon: FileTextIcon },
     { id: "sanction-details", label: "Sanction Details", icon: CreditCardIcon },
-    // { id: "sanction-details", label: "Sanction Details", icon: CreditCardIcon },
-    // { id: "disbursal", label: "Disbursal", icon: Upload }, // Removed as per request
     { id: "ledger", label: "Ledger", icon: LedgerIcon },
-    { id: "quick-actions", label: "Applications", icon: ZapIcon },
+    ...(!embedded ? [{ id: "quick-actions", label: "Applications", icon: ZapIcon }] : []),
     { id: "activity", label: "Activity Log", icon: MessageSquareIcon },
   ];
 
@@ -3158,13 +3160,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
         <header className="sticky top-0 z-50 mb-4 p-4 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm transition-all duration-200">
           <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate("/projects-view")}
-                aria-label="Back to projects"
-                className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:bg-zinc-800 transition-colors"
-              >
-                <ArrowLeftIcon className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
-              </button>
+              {!embedded && (
+                <button
+                  onClick={() => navigate("/projects-view")}
+                  aria-label="Back to projects"
+                  className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:bg-zinc-800 transition-colors"
+                >
+                  <ArrowLeftIcon className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+                </button>
+              )}
               <div>
                 <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   {data?.project_title || "Project Details"}
@@ -3223,14 +3227,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                   </FrappeButton>
                   {/* Only show Add Sanction button if no sanction exists */}
                   {normalizeResponse(sanctionData).length === 0 && (
-                      <FrappeButton
-                        onClick={handleAddSanctionDetails}
-                        variant="outline"
-                        aria-label="Add sanction details"
-                      >
-                        <FilePlusIcon className="h-3.5 w-3.5" /> Add Sanction
-                      </FrappeButton>
-                    )}
+                    <FrappeButton
+                      onClick={handleAddSanctionDetails}
+                      variant="outline"
+                      aria-label="Add sanction details"
+                    >
+                      <FilePlusIcon className="h-3.5 w-3.5" /> Add Sanction
+                    </FrappeButton>
+                  )}
                 </div>
               )}
               <WorkflowActions
@@ -3725,7 +3729,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                     <th className="px-3 py-2 text-left font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                                       Budget Head
                                     </th>
-                                    {(["Year 1","Year 2","Year 3","Year 4","Year 5"] as const).map((y) => (
+                                    {(["Year 1", "Year 2", "Year 3", "Year 4", "Year 5"] as const).map((y) => (
                                       <th key={y} className="px-3 py-2 text-right font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                                         {y}
                                       </th>
@@ -3752,7 +3756,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                                           ))}
                                         </select>
                                       </td>
-                                      {(["first_year_budget","second_year_budget","third_year_budget","fourth_year_budget","fifth_year_budget"] as const).map((field) => (
+                                      {(["first_year_budget", "second_year_budget", "third_year_budget", "fourth_year_budget", "fifth_year_budget"] as const).map((field) => (
                                         <td key={field} className="px-2 py-1.5">
                                           <input
                                             type="text"
@@ -3965,17 +3969,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
                             ₹{" "}
                             {isEditingBudget
                               ? editBudgetRows
-                                  .reduce(
-                                    (sum, r) =>
-                                      sum +
-                                      (r.first_year_budget || 0) +
-                                      (r.second_year_budget || 0) +
-                                      (r.third_year_budget || 0) +
-                                      (r.fourth_year_budget || 0) +
-                                      (r.fifth_year_budget || 0),
-                                    0,
-                                  )
-                                  .toLocaleString("en-IN")
+                                .reduce(
+                                  (sum, r) =>
+                                    sum +
+                                    (r.first_year_budget || 0) +
+                                    (r.second_year_budget || 0) +
+                                    (r.third_year_budget || 0) +
+                                    (r.fourth_year_budget || 0) +
+                                    (r.fifth_year_budget || 0),
+                                  0,
+                                )
+                                .toLocaleString("en-IN")
                               : (data.total_budget_amount || 0).toLocaleString("en-IN")}
                           </span>
                         </div>
@@ -4055,469 +4059,469 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = () => {
               {activeTab === "sanction-details" && (() => {
                 const sanctions = normalizeResponse(sanctionData);
                 return (
-                <div className="space-y-5">
-                  {/* ... existing sanction details content ... */}
-                  {sanctionIsLoading && <p>Loading Sanction Details...</p>}
-                  {sanctionError && (
-                    <p className="text-red-600">
-                      Error: {sanctionError.message}
-                    </p>
-                  )}
+                  <div className="space-y-5">
+                    {/* ... existing sanction details content ... */}
+                    {sanctionIsLoading && <p>Loading Sanction Details...</p>}
+                    {sanctionError && (
+                      <p className="text-red-600">
+                        Error: {sanctionError.message}
+                      </p>
+                    )}
 
-                  {sanctions.length > 0 ? (
-                    <>
-                      {/* Sanction Selector - only show if more than 1 sanction */}
-                      {sanctions.length > 1 && (
-                        <div className="flex items-center gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                          <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                            Select Sanction:
-                          </label>
-                          <select
-                            value={selectedSanctionIndex}
-                            onChange={(e) =>
-                              setSelectedSanctionIndex(Number(e.target.value))
-                            }
-                            className="flex-1 max-w-md px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                          >
-                            {sanctions.map(
-                              (sanction: any, index: number) => (
-                                <option key={sanction.name} value={index}>
-                                  {sanction.name} -{" "}
-                                  {sanction.sanctioned_letter_no ||
-                                    "No Letter No"}{" "}
-                                  (
-                                  {(
-                                    sanction.total_sanctioned_amount || 0
-                                  ).toLocaleString("en-IN", {
-                                    style: "currency",
-                                    currency: "INR",
-                                  })}
-                                  )
-                                </option>
-                              ),
-                            )}
-                          </select>
-                        </div>
-                      )}
+                    {sanctions.length > 0 ? (
+                      <>
+                        {/* Sanction Selector - only show if more than 1 sanction */}
+                        {sanctions.length > 1 && (
+                          <div className="flex items-center gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                              Select Sanction:
+                            </label>
+                            <select
+                              value={selectedSanctionIndex}
+                              onChange={(e) =>
+                                setSelectedSanctionIndex(Number(e.target.value))
+                              }
+                              className="flex-1 max-w-md px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                            >
+                              {sanctions.map(
+                                (sanction: any, index: number) => (
+                                  <option key={sanction.name} value={index}>
+                                    {sanction.name} -{" "}
+                                    {sanction.sanctioned_letter_no ||
+                                      "No Letter No"}{" "}
+                                    (
+                                    {(
+                                      sanction.total_sanctioned_amount || 0
+                                    ).toLocaleString("en-IN", {
+                                      style: "currency",
+                                      currency: "INR",
+                                    })}
+                                    )
+                                  </option>
+                                ),
+                              )}
+                            </select>
+                          </div>
+                        )}
 
-                      {/* Selected Sanction Details */}
-                      {(() => {
-                        const sanction =
-                          sanctions[selectedSanctionIndex];
-                        if (!sanction) return null;
+                        {/* Selected Sanction Details */}
+                        {(() => {
+                          const sanction =
+                            sanctions[selectedSanctionIndex];
+                          if (!sanction) return null;
 
-                        const budgetColumnsAll = [
-                          { fieldname: "account_head", label: "Account Head" },
-                          { fieldname: "first_year_budget", label: "Year 1" },
-                          { fieldname: "second_year_budget", label: "Year 2" },
-                          { fieldname: "third_year_budget", label: "Year 3" },
-                          { fieldname: "fourth_year_budget", label: "Year 4" },
-                          { fieldname: "fifth_year_budget", label: "Year 5" },
-                        ];
-                        // Filter to only show years that have data
-                        const budgetColumns = budgetColumnsAll.filter((c) => {
-                          if (c.fieldname === "account_head") return true;
+                          const budgetColumnsAll = [
+                            { fieldname: "account_head", label: "Account Head" },
+                            { fieldname: "first_year_budget", label: "Year 1" },
+                            { fieldname: "second_year_budget", label: "Year 2" },
+                            { fieldname: "third_year_budget", label: "Year 3" },
+                            { fieldname: "fourth_year_budget", label: "Year 4" },
+                            { fieldname: "fifth_year_budget", label: "Year 5" },
+                          ];
+                          // Filter to only show years that have data
+                          const budgetColumns = budgetColumnsAll.filter((c) => {
+                            if (c.fieldname === "account_head") return true;
+                            return (
+                              sanction.sanctioned_budget_breakup || []
+                            ).some(
+                              (row: any) =>
+                                (parseFloat(row[c.fieldname]) || 0) > 0,
+                            );
+                          });
+                          const budgetYearFieldnames = budgetColumns
+                            .filter((c) => c.fieldname !== "account_head")
+                            .map((c) => c.fieldname);
+                          const columnTotals: { [key: string]: number } =
+                            budgetYearFieldnames.reduce(
+                              (totals: { [key: string]: number }, fieldname) => {
+                                totals[fieldname] = (
+                                  sanction.sanctioned_budget_breakup || []
+                                ).reduce((sum: number, row: any) => {
+                                  return sum + (parseFloat(row[fieldname]) || 0);
+                                }, 0);
+                                return totals;
+                              },
+                              {},
+                            );
+                          const grandTotal = Object.values(columnTotals).reduce(
+                            (sum: number, total: any) => sum + total,
+                            0,
+                          );
+                          const isDraft =
+                            sanction.sanction_workflow_status?.toLowerCase() ===
+                            "draft";
+
                           return (
-                            sanction.sanctioned_budget_breakup || []
-                          ).some(
-                            (row: any) =>
-                              (parseFloat(row[c.fieldname]) || 0) > 0,
-                          );
-                        });
-                        const budgetYearFieldnames = budgetColumns
-                          .filter((c) => c.fieldname !== "account_head")
-                          .map((c) => c.fieldname);
-                        const columnTotals: { [key: string]: number } =
-                          budgetYearFieldnames.reduce(
-                            (totals: { [key: string]: number }, fieldname) => {
-                              totals[fieldname] = (
-                                sanction.sanctioned_budget_breakup || []
-                              ).reduce((sum: number, row: any) => {
-                                return sum + (parseFloat(row[fieldname]) || 0);
-                              }, 0);
-                              return totals;
-                            },
-                            {},
-                          );
-                        const grandTotal = Object.values(columnTotals).reduce(
-                          (sum: number, total: any) => sum + total,
-                          0,
-                        );
-                        const isDraft =
-                          sanction.sanction_workflow_status?.toLowerCase() ===
-                          "draft";
-
-                        return (
-                          <FrappeCard className="space-y-5">
-                            <div className="pb-4 border-b border-zinc-200 dark:border-zinc-800">
-                              <div className="flex items-start justify-between gap-4 mb-3">
-                                <div className="flex-1">
-                                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                                    Sanction: {sanction.name}
-                                  </h3>
-                                  <div className="text-sm text-[#6B7280] dark:text-zinc-400 mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
-                                    <span className="inline-flex items-center gap-1.5">
-                                      Status:{" "}
-                                      <span
-                                        className={cn(
-                                          "font-medium px-2.5 py-0.5 rounded-full text-xs",
-                                          getStatusBadgeClass(
-                                            sanction.sanction_workflow_status,
-                                          ),
-                                        )}
-                                      >
-                                        {sanction.sanction_workflow_status ||
-                                          "DRAFT"}
+                            <FrappeCard className="space-y-5">
+                              <div className="pb-4 border-b border-zinc-200 dark:border-zinc-800">
+                                <div className="flex items-start justify-between gap-4 mb-3">
+                                  <div className="flex-1">
+                                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                      Sanction: {sanction.name}
+                                    </h3>
+                                    <div className="text-sm text-[#6B7280] dark:text-zinc-400 mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                                      <span className="inline-flex items-center gap-1.5">
+                                        Status:{" "}
+                                        <span
+                                          className={cn(
+                                            "font-medium px-2.5 py-0.5 rounded-full text-xs",
+                                            getStatusBadgeClass(
+                                              sanction.sanction_workflow_status,
+                                            ),
+                                          )}
+                                        >
+                                          {sanction.sanction_workflow_status ||
+                                            "DRAFT"}
+                                        </span>
                                       </span>
-                                    </span>
-                                    <span>
-                                      Letter No:{" "}
-                                      <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                                        {sanction.sanctioned_letter_no}
+                                      <span>
+                                        Letter No:{" "}
+                                        <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                                          {sanction.sanctioned_letter_no}
+                                        </span>
                                       </span>
-                                    </span>
-                                    <span>
-                                      Date:{" "}
-                                      <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                                        {sanction.sanctioned_letter_date}
+                                      <span>
+                                        Date:{" "}
+                                        <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                                          {sanction.sanctioned_letter_date}
+                                        </span>
                                       </span>
-                                    </span>
-                                    <span>
-                                      Amount:{" "}
-                                      <span className="font-semibold text-[#D97757]">
-                                        {(
-                                          sanction.total_sanctioned_amount || 0
-                                        ).toLocaleString("en-IN", {
-                                          style: "currency",
-                                          currency: "INR",
-                                        })}
+                                      <span>
+                                        Amount:{" "}
+                                        <span className="font-semibold text-[#D97757]">
+                                          {(
+                                            sanction.total_sanctioned_amount || 0
+                                          ).toLocaleString("en-IN", {
+                                            style: "currency",
+                                            currency: "INR",
+                                          })}
+                                        </span>
                                       </span>
-                                    </span>
+                                    </div>
                                   </div>
-                                </div>
 
+                                  {isDraft && (
+                                    <div className="flex-shrink-0">
+                                      <FrappeButton
+                                        onClick={() =>
+                                          handleSanctionSubmitClick(sanction.name)
+                                        }
+                                        disabled={isSubmittingSanction}
+                                        aria-label="Submit sanction"
+                                      >
+                                        <CheckCircleIcon className="h-4 w-4" />
+                                        {isSubmittingSanction
+                                          ? "Submitting..."
+                                          : "Submit"}
+                                      </FrappeButton>
+                                    </div>
+                                  )}
+                                </div>
                                 {isDraft && (
-                                  <div className="flex-shrink-0">
-                                    <FrappeButton
-                                      onClick={() =>
-                                        handleSanctionSubmitClick(sanction.name)
-                                      }
-                                      disabled={isSubmittingSanction}
-                                      aria-label="Submit sanction"
-                                    >
-                                      <CheckCircleIcon className="h-4 w-4" />
-                                      {isSubmittingSanction
-                                        ? "Submitting..."
-                                        : "Submit"}
-                                    </FrappeButton>
+                                  <div className="flex items-start gap-3 p-4 border border-yellow-400 rounded-lg bg-[#FFFDF5] dark:bg-yellow-900/20 shadow-sm">
+                                    <AlertCircleIcon className="h-6 w-6 text-yellow-600 flex-shrink-0 mt-0.5 drop-shadow-sm" />
+                                    <div className="space-y-1">
+                                      <p className="font-semibold text-yellow-800 tracking-wide text-base">
+                                        Draft Document
+                                      </p>
+                                      <p className="text-sm text-yellow-700 leading-relaxed">
+                                        This sanction is currently in{" "}
+                                        <span className="font-medium">
+                                          draft status
+                                        </span>
+                                        . Please review and submit when you are
+                                        ready.
+                                      </p>
+                                    </div>
                                   </div>
                                 )}
                               </div>
-                              {isDraft && (
-                                <div className="flex items-start gap-3 p-4 border border-yellow-400 rounded-lg bg-[#FFFDF5] dark:bg-yellow-900/20 shadow-sm">
-                                  <AlertCircleIcon className="h-6 w-6 text-yellow-600 flex-shrink-0 mt-0.5 drop-shadow-sm" />
-                                  <div className="space-y-1">
-                                    <p className="font-semibold text-yellow-800 tracking-wide text-base">
-                                      Draft Document
-                                    </p>
-                                    <p className="text-sm text-yellow-700 leading-relaxed">
-                                      This sanction is currently in{" "}
-                                      <span className="font-medium">
-                                        draft status
-                                      </span>
-                                      . Please review and submit when you are
-                                      ready.
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            {/* Sanctioned Budget Breakup */}
-                            {(() => {
-                              const isEditingSB = editingSanctionBudgetName === sanction.name;
-                              const isSanctionOwner = currentUser && sanction.owner === currentUser;
-                              const yearFields = [
-                                { key: "first_year_budget" as const, label: "Year 1" },
-                                { key: "second_year_budget" as const, label: "Year 2" },
-                                { key: "third_year_budget" as const, label: "Year 3" },
-                                { key: "fourth_year_budget" as const, label: "Year 4" },
-                                { key: "fifth_year_budget" as const, label: "Year 5" },
-                              ];
-                              const editLiveTotal = editSanctionBudgetRows.reduce(
-                                (s, r) => s + r.first_year_budget + r.second_year_budget + r.third_year_budget + r.fourth_year_budget + r.fifth_year_budget, 0,
-                              );
+                              {/* Sanctioned Budget Breakup */}
+                              {(() => {
+                                const isEditingSB = editingSanctionBudgetName === sanction.name;
+                                const isSanctionOwner = currentUser && sanction.owner === currentUser;
+                                const yearFields = [
+                                  { key: "first_year_budget" as const, label: "Year 1" },
+                                  { key: "second_year_budget" as const, label: "Year 2" },
+                                  { key: "third_year_budget" as const, label: "Year 3" },
+                                  { key: "fourth_year_budget" as const, label: "Year 4" },
+                                  { key: "fifth_year_budget" as const, label: "Year 5" },
+                                ];
+                                const editLiveTotal = editSanctionBudgetRows.reduce(
+                                  (s, r) => s + r.first_year_budget + r.second_year_budget + r.third_year_budget + r.fourth_year_budget + r.fifth_year_budget, 0,
+                                );
 
-                              return (
-                                <div>
-                                  <div className="flex items-center justify-between mb-3">
-                                    <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                                      Budget Breakup
-                                    </h4>
-                                    {isSanctionOwner && !isEditingSB && (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-6 px-2 text-xs gap-1"
-                                        onClick={() => startEditSanctionBudget(sanction)}
-                                      >
-                                        <Pencil className="h-3 w-3" />
-                                        Edit
-                                      </Button>
-                                    )}
-                                    {isEditingSB && (
-                                      <div className="flex items-center gap-1">
+                                return (
+                                  <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                      <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+                                        Budget Breakup
+                                      </h4>
+                                      {isSanctionOwner && !isEditingSB && (
                                         <Button
                                           size="sm"
                                           variant="outline"
                                           className="h-6 px-2 text-xs gap-1"
-                                          onClick={cancelEditSanctionBudget}
-                                          disabled={isSavingSanctionBudget}
+                                          onClick={() => startEditSanctionBudget(sanction)}
                                         >
-                                          <X className="h-3 w-3" />
-                                          Cancel
+                                          <Pencil className="h-3 w-3" />
+                                          Edit
                                         </Button>
-                                        <Button
-                                          size="sm"
-                                          className="h-6 px-2 text-xs gap-1 bg-[#D97757] hover:bg-[#c4673e] text-white"
-                                          onClick={() => saveSanctionBudget(sanction.name)}
-                                          disabled={isSavingSanctionBudget}
-                                        >
-                                          <Save className="h-3 w-3" />
-                                          {isSavingSanctionBudget ? "Saving…" : "Save"}
-                                        </Button>
-                                      </div>
-                                    )}
-                                  </div>
+                                      )}
+                                      {isEditingSB && (
+                                        <div className="flex items-center gap-1">
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-6 px-2 text-xs gap-1"
+                                            onClick={cancelEditSanctionBudget}
+                                            disabled={isSavingSanctionBudget}
+                                          >
+                                            <X className="h-3 w-3" />
+                                            Cancel
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            className="h-6 px-2 text-xs gap-1 bg-[#D97757] hover:bg-[#c4673e] text-white"
+                                            onClick={() => saveSanctionBudget(sanction.name)}
+                                            disabled={isSavingSanctionBudget}
+                                          >
+                                            <Save className="h-3 w-3" />
+                                            {isSavingSanctionBudget ? "Saving…" : "Save"}
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
 
-                                  {isEditingSB ? (
-                                    <div className="space-y-3">
-                                      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
-                                          <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                                            <tr>
-                                              <th className="px-3 py-2 text-left font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Budget Head</th>
-                                              {yearFields.map((y) => (
-                                                <th key={y.key} className="px-3 py-2 text-right font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">{y.label}</th>
-                                              ))}
-                                              <th className="px-3 py-2 text-right font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Total</th>
-                                              <th className="px-3 py-2" />
-                                            </tr>
-                                          </thead>
-                                          <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
-                                            {editSanctionBudgetRows.map((row, idx) => {
-                                              const rowTotal = row.first_year_budget + row.second_year_budget + row.third_year_budget + row.fourth_year_budget + row.fifth_year_budget;
-                                              return (
-                                                <tr key={idx}>
-                                                  <td className="px-2 py-1.5">
-                                                    <select
-                                                      className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs"
-                                                      value={row.account_head}
-                                                      onChange={(e) => {
-                                                        const updated = [...editSanctionBudgetRows];
-                                                        updated[idx] = { ...updated[idx], account_head: e.target.value };
-                                                        setEditSanctionBudgetRows(updated);
-                                                      }}
-                                                    >
-                                                      <option value="">— Select —</option>
-                                                      {budgetHeadList.map((bh) => (
-                                                        <option key={bh.name} value={bh.name}>{bh.name}</option>
-                                                      ))}
-                                                    </select>
-                                                  </td>
-                                                  {yearFields.map((y) => (
-                                                    <td key={y.key} className="px-2 py-1.5">
-                                                      <input
-                                                        type="text"
-                                                        inputMode="numeric"
-                                                        className="w-24 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs text-right"
-                                                        value={row[y.key] || ""}
+                                    {isEditingSB ? (
+                                      <div className="space-y-3">
+                                        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                          <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
+                                            <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                              <tr>
+                                                <th className="px-3 py-2 text-left font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Budget Head</th>
+                                                {yearFields.map((y) => (
+                                                  <th key={y.key} className="px-3 py-2 text-right font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">{y.label}</th>
+                                                ))}
+                                                <th className="px-3 py-2 text-right font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Total</th>
+                                                <th className="px-3 py-2" />
+                                              </tr>
+                                            </thead>
+                                            <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
+                                              {editSanctionBudgetRows.map((row, idx) => {
+                                                const rowTotal = row.first_year_budget + row.second_year_budget + row.third_year_budget + row.fourth_year_budget + row.fifth_year_budget;
+                                                return (
+                                                  <tr key={idx}>
+                                                    <td className="px-2 py-1.5">
+                                                      <select
+                                                        className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs"
+                                                        value={row.account_head}
                                                         onChange={(e) => {
                                                           const updated = [...editSanctionBudgetRows];
-                                                          updated[idx] = { ...updated[idx], [y.key]: Number(e.target.value) };
+                                                          updated[idx] = { ...updated[idx], account_head: e.target.value };
                                                           setEditSanctionBudgetRows(updated);
                                                         }}
-                                                      />
+                                                      >
+                                                        <option value="">— Select —</option>
+                                                        {budgetHeadList.map((bh) => (
+                                                          <option key={bh.name} value={bh.name}>{bh.name}</option>
+                                                        ))}
+                                                      </select>
                                                     </td>
-                                                  ))}
-                                                  <td className="px-2 py-1.5 text-right text-xs font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
-                                                    {rowTotal.toLocaleString("en-IN")}
-                                                  </td>
-                                                  <td className="px-2 py-1.5">
-                                                    <button
-                                                      type="button"
-                                                      className="text-zinc-400 hover:text-red-500"
-                                                      onClick={() => setEditSanctionBudgetRows(editSanctionBudgetRows.filter((_, i) => i !== idx))}
-                                                    >
-                                                      <Trash2 className="h-3.5 w-3.5" />
-                                                    </button>
-                                                  </td>
-                                                </tr>
-                                              );
-                                            })}
-                                          </tbody>
-                                          <tfoot className="bg-zinc-100 dark:bg-zinc-800">
-                                            <tr>
-                                              <td className="px-3 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100">Total</td>
-                                              {yearFields.map((y) => (
-                                                <td key={y.key} className="px-3 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100 text-right">
-                                                  {editSanctionBudgetRows.reduce((s, r) => s + (r[y.key] || 0), 0).toLocaleString("en-IN")}
-                                                </td>
-                                              ))}
-                                              <td className="px-3 py-2 text-xs font-bold text-[#D97757] text-right">
-                                                ₹ {editLiveTotal.toLocaleString("en-IN")}
-                                              </td>
-                                              <td />
-                                            </tr>
-                                          </tfoot>
-                                        </table>
-                                      </div>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-6 px-2 text-xs gap-1"
-                                        onClick={() =>
-                                          setEditSanctionBudgetRows([
-                                            ...editSanctionBudgetRows,
-                                            { account_head: "", first_year_budget: 0, second_year_budget: 0, third_year_budget: 0, fourth_year_budget: 0, fifth_year_budget: 0 },
-                                          ])
-                                        }
-                                      >
-                                        <Plus className="h-3 w-3" />
-                                        Add Row
-                                      </Button>
-                                    </div>
-                                  ) : (
-                                    (sanction.sanctioned_budget_breakup?.length > 0) && (
-                                      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                                          <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                                            <tr>
-                                              {budgetColumns.map((c) => (
-                                                <th
-                                                  key={c.fieldname}
-                                                  className={`px-4 py-3 text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider ${c.fieldname === "account_head" ? "text-left" : "text-right"}`}
-                                                >
-                                                  {c.label}
-                                                </th>
-                                              ))}
-                                              <th className="px-4 py-3 text-right text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
-                                                Total
-                                              </th>
-                                            </tr>
-                                          </thead>
-                                          <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
-                                            {(sanction.sanctioned_budget_breakup || []).map((row: any, i: number) => {
-                                              const rowTotal = budgetYearFieldnames.reduce(
-                                                (sum, fieldname) => sum + (parseFloat(row[fieldname]) || 0), 0,
-                                              );
-                                              return (
-                                                <tr key={i} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
-                                                  {budgetColumns.map((c) => (
-                                                    <td
-                                                      key={c.fieldname}
-                                                      className={`px-4 py-3 text-sm whitespace-nowrap ${c.fieldname === "account_head" ? "text-zinc-900 dark:text-zinc-100 text-left" : "text-zinc-700 dark:text-zinc-300 text-right"}`}
-                                                    >
-                                                      {c.fieldname === "account_head"
-                                                        ? row[c.fieldname]
-                                                        : (parseFloat(row[c.fieldname]) || 0).toLocaleString("en-IN")}
+                                                    {yearFields.map((y) => (
+                                                      <td key={y.key} className="px-2 py-1.5">
+                                                        <input
+                                                          type="text"
+                                                          inputMode="numeric"
+                                                          className="w-24 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs text-right"
+                                                          value={row[y.key] || ""}
+                                                          onChange={(e) => {
+                                                            const updated = [...editSanctionBudgetRows];
+                                                            updated[idx] = { ...updated[idx], [y.key]: Number(e.target.value) };
+                                                            setEditSanctionBudgetRows(updated);
+                                                          }}
+                                                        />
+                                                      </td>
+                                                    ))}
+                                                    <td className="px-2 py-1.5 text-right text-xs font-semibold text-zinc-700 dark:text-zinc-300 whitespace-nowrap">
+                                                      {rowTotal.toLocaleString("en-IN")}
                                                     </td>
-                                                  ))}
-                                                  <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                                    {rowTotal.toLocaleString("en-IN")}
+                                                    <td className="px-2 py-1.5">
+                                                      <button
+                                                        type="button"
+                                                        className="text-zinc-400 hover:text-red-500"
+                                                        onClick={() => setEditSanctionBudgetRows(editSanctionBudgetRows.filter((_, i) => i !== idx))}
+                                                      >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                      </button>
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              })}
+                                            </tbody>
+                                            <tfoot className="bg-zinc-100 dark:bg-zinc-800">
+                                              <tr>
+                                                <td className="px-3 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100">Total</td>
+                                                {yearFields.map((y) => (
+                                                  <td key={y.key} className="px-3 py-2 text-xs font-bold text-zinc-900 dark:text-zinc-100 text-right">
+                                                    {editSanctionBudgetRows.reduce((s, r) => s + (r[y.key] || 0), 0).toLocaleString("en-IN")}
                                                   </td>
-                                                </tr>
-                                              );
-                                            })}
-                                          </tbody>
-                                          <tfoot className="bg-zinc-100 dark:bg-zinc-800">
-                                            <tr>
-                                              <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">Total</td>
-                                              {budgetYearFieldnames.map((fieldname) => (
-                                                <td key={fieldname} className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                                  {columnTotals[fieldname].toLocaleString("en-IN")}
+                                                ))}
+                                                <td className="px-3 py-2 text-xs font-bold text-[#D97757] text-right">
+                                                  ₹ {editLiveTotal.toLocaleString("en-IN")}
                                                 </td>
-                                              ))}
-                                              <td className="px-4 py-3 text-sm font-bold text-[#D97757] text-right whitespace-nowrap">
-                                                {grandTotal.toLocaleString("en-IN")}
-                                              </td>
-                                            </tr>
-                                          </tfoot>
-                                        </table>
-                                      </div>
-                                    )
-                                  )}
-                                </div>
-                              );
-                            })()}
-
-                            {sanction.sanction_related_files?.length > 0 && (
-                              <div>
-                                <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">
-                                  Attached Files
-                                </h4>
-                                <div className="space-y-2">
-                                  {sanction.sanction_related_files.map(
-                                    (file: any, i: number) => (
-                                      <div
-                                        key={i}
-                                        className="flex items-center justify-between gap-4 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-                                      >
-                                        <div className="flex-1 min-w-0">
-                                          <p className="font-medium text-zinc-800 dark:text-zinc-200 text-sm truncate">
-                                            {file.file_name || "File"}
-                                          </p>
-                                          <p className="text-xs text-[#6B7280] dark:text-zinc-400">
-                                            {file.description}
-                                          </p>
+                                                <td />
+                                              </tr>
+                                            </tfoot>
+                                          </table>
                                         </div>
-                                        {file.file_data ? (
-                                          <a
-                                            href={`data:${getMimeType(file.file_name)};base64,${file.file_data}`}
-                                            download={file.file_name}
-                                            className="frappe-btn frappe-btn-primary text-sm"
-                                            aria-label={`Download ${file.file_name}`}
-                                          >
-                                            <DownloadIcon className="h-4 w-4" />{" "}
-                                            Download
-                                          </a>
-                                        ) : (
-                                          <span className="text-xs text-red-500">
-                                            Could not load
-                                          </span>
-                                        )}
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-6 px-2 text-xs gap-1"
+                                          onClick={() =>
+                                            setEditSanctionBudgetRows([
+                                              ...editSanctionBudgetRows,
+                                              { account_head: "", first_year_budget: 0, second_year_budget: 0, third_year_budget: 0, fourth_year_budget: 0, fifth_year_budget: 0 },
+                                            ])
+                                          }
+                                        >
+                                          <Plus className="h-3 w-3" />
+                                          Add Row
+                                        </Button>
                                       </div>
-                                    ),
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </FrappeCard>
-                        );
-                      })()}
+                                    ) : (
+                                      (sanction.sanctioned_budget_breakup?.length > 0) && (
+                                        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                          <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                                            <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                              <tr>
+                                                {budgetColumns.map((c) => (
+                                                  <th
+                                                    key={c.fieldname}
+                                                    className={`px-4 py-3 text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider ${c.fieldname === "account_head" ? "text-left" : "text-right"}`}
+                                                  >
+                                                    {c.label}
+                                                  </th>
+                                                ))}
+                                                <th className="px-4 py-3 text-right text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
+                                                  Total
+                                                </th>
+                                              </tr>
+                                            </thead>
+                                            <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
+                                              {(sanction.sanctioned_budget_breakup || []).map((row: any, i: number) => {
+                                                const rowTotal = budgetYearFieldnames.reduce(
+                                                  (sum, fieldname) => sum + (parseFloat(row[fieldname]) || 0), 0,
+                                                );
+                                                return (
+                                                  <tr key={i} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
+                                                    {budgetColumns.map((c) => (
+                                                      <td
+                                                        key={c.fieldname}
+                                                        className={`px-4 py-3 text-sm whitespace-nowrap ${c.fieldname === "account_head" ? "text-zinc-900 dark:text-zinc-100 text-left" : "text-zinc-700 dark:text-zinc-300 text-right"}`}
+                                                      >
+                                                        {c.fieldname === "account_head"
+                                                          ? row[c.fieldname]
+                                                          : (parseFloat(row[c.fieldname]) || 0).toLocaleString("en-IN")}
+                                                      </td>
+                                                    ))}
+                                                    <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                                      {rowTotal.toLocaleString("en-IN")}
+                                                    </td>
+                                                  </tr>
+                                                );
+                                              })}
+                                            </tbody>
+                                            <tfoot className="bg-zinc-100 dark:bg-zinc-800">
+                                              <tr>
+                                                <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">Total</td>
+                                                {budgetYearFieldnames.map((fieldname) => (
+                                                  <td key={fieldname} className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                                    {columnTotals[fieldname].toLocaleString("en-IN")}
+                                                  </td>
+                                                ))}
+                                                <td className="px-4 py-3 text-sm font-bold text-[#D97757] text-right whitespace-nowrap">
+                                                  {grandTotal.toLocaleString("en-IN")}
+                                                </td>
+                                              </tr>
+                                            </tfoot>
+                                          </table>
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                );
+                              })()}
 
-                      {/* Consolidated Fund History Section - Show funds for selected sanction */}
-                      <div className="mt-8">
-                        <FundDetails
-                          project_title={projectName || ""}
-                          sanction_ref_no={
-                            sanctions[selectedSanctionIndex]?.name
-                          }
-                        />
+                              {sanction.sanction_related_files?.length > 0 && (
+                                <div>
+                                  <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">
+                                    Attached Files
+                                  </h4>
+                                  <div className="space-y-2">
+                                    {sanction.sanction_related_files.map(
+                                      (file: any, i: number) => (
+                                        <div
+                                          key={i}
+                                          className="flex items-center justify-between gap-4 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                        >
+                                          <div className="flex-1 min-w-0">
+                                            <p className="font-medium text-zinc-800 dark:text-zinc-200 text-sm truncate">
+                                              {file.file_name || "File"}
+                                            </p>
+                                            <p className="text-xs text-[#6B7280] dark:text-zinc-400">
+                                              {file.description}
+                                            </p>
+                                          </div>
+                                          {file.file_data ? (
+                                            <a
+                                              href={`data:${getMimeType(file.file_name)};base64,${file.file_data}`}
+                                              download={file.file_name}
+                                              className="frappe-btn frappe-btn-primary text-sm"
+                                              aria-label={`Download ${file.file_name}`}
+                                            >
+                                              <DownloadIcon className="h-4 w-4" />{" "}
+                                              Download
+                                            </a>
+                                          ) : (
+                                            <span className="text-xs text-red-500">
+                                              Could not load
+                                            </span>
+                                          )}
+                                        </div>
+                                      ),
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </FrappeCard>
+                          );
+                        })()}
+
+                        {/* Consolidated Fund History Section - Show funds for selected sanction */}
+                        <div className="mt-8">
+                          <FundDetails
+                            project_title={projectName || ""}
+                            sanction_ref_no={
+                              sanctions[selectedSanctionIndex]?.name
+                            }
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-16 text-[#6B7280] dark:text-zinc-400 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+                        <CreditCardIcon className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
+                        <p className="font-medium text-zinc-700 dark:text-zinc-300">
+                          No Sanction Details Found
+                        </p>
+                        <p className="text-sm mt-1">
+                          Click "Add Sanction" to create the first entry.
+                        </p>
                       </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-16 text-[#6B7280] dark:text-zinc-400 rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900">
-                      <CreditCardIcon className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
-                      <p className="font-medium text-zinc-700 dark:text-zinc-300">
-                        No Sanction Details Found
-                      </p>
-                      <p className="text-sm mt-1">
-                        Click "Add Sanction" to create the first entry.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
+                    )}
+                  </div>
+                );
               })()}
 
               {/* Disbursal Tab Removed */}

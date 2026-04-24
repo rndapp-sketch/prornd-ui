@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppSidebar } from "@/components/RndSidebar";
 import { useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
-import { AlertCircle, Printer } from "lucide-react";
+import { AlertCircle, FolderOpen, Printer, X } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
     DynamicFormRenderer,
@@ -13,6 +13,7 @@ import {
 import { sanctionSheetAPI, prepareFormDataForApi } from "@/services/apiService";
 import { generateSanctionSheetHtml } from "@/utils/sanctionSheetPrint";
 import { P11PrintModal } from "@/components/P11PrintModal";
+import ProjectDetailsOverview from "@/pages/ProjectDetailsOverview";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -92,6 +93,8 @@ const SanctionSheetForm: React.FC = () => {
     );
 
     const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+    const [prPreviewName, setPrPreviewName] = useState<string | null>(null);
+    const [prPreviewLoading, setPrPreviewLoading] = useState(false);
 
     // Workflow state
     const [workflowActions, setWorkflowActions] = useState<string[]>([]);
@@ -550,14 +553,42 @@ const SanctionSheetForm: React.FC = () => {
                         }
                         projectName={projectName}
                     />
-                    {editDocName && (
-                        <button
-                            onClick={() => setIsPrintModalOpen(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shrink-0"
-                        >
-                            <Printer className="w-4 h-4" /> Print / PDF
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2 shrink-0">
+                        {(projectName || projectNo) && (
+                            <button
+                                type="button"
+                                disabled={prPreviewLoading}
+                                onClick={async () => {
+                                    if (projectName) { setPrPreviewName(projectName); return; }
+                                    setPrPreviewLoading(true);
+                                    try {
+                                        const params = new URLSearchParams({
+                                            filters: JSON.stringify([['project_no', '=', projectNo]]),
+                                            fields: JSON.stringify(['name']),
+                                            limit: '1',
+                                        });
+                                        const res = await fetch(`/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
+                                        const prName = (res?.data ?? res?.message ?? [])[0]?.name;
+                                        if (prName) setPrPreviewName(prName);
+                                    } finally {
+                                        setPrPreviewLoading(false);
+                                    }
+                                }}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-[#D97757] hover:text-[#D97757] transition-colors disabled:opacity-60"
+                            >
+                                <FolderOpen className="w-4 h-4" />
+                                {prPreviewLoading ? 'Loading…' : 'View Project'}
+                            </button>
+                        )}
+                        {editDocName && (
+                            <button
+                                onClick={() => setIsPrintModalOpen(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
+                            >
+                                <Printer className="w-4 h-4" /> Print / PDF
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {validationErrors.length > 0 && (
@@ -672,6 +703,35 @@ const SanctionSheetForm: React.FC = () => {
                 htmlContent={isPrintModalOpen ? generateSanctionSheetHtml(formData) : ''}
                 docName={editDocName || formData.name || ''}
             />
+
+            {prPreviewName && (
+                <div
+                    className="fixed inset-0 z-50 flex flex-col bg-black/60 backdrop-blur-sm"
+                    onClick={(e) => { if (e.target === e.currentTarget) setPrPreviewName(null); }}
+                >
+                    <div className="relative flex-1 mx-auto my-4 w-full max-w-7xl flex flex-col bg-claude-bg dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="flex items-center justify-between px-5 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
+                            <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                                <FolderOpen className="w-4 h-4 text-[#D97757]" />
+                                Project Registration Preview
+                                <span className="px-2 py-0.5 rounded-full text-xs bg-orange-50 dark:bg-zinc-800 text-[#D97757] font-mono border border-orange-100 dark:border-zinc-700">
+                                    {prPreviewName}
+                                </span>
+                            </span>
+                            <button
+                                onClick={() => setPrPreviewName(null)}
+                                className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                                aria-label="Close project preview"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto">
+                            <ProjectDetailsOverview projectName={prPreviewName} embedded />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
