@@ -4468,13 +4468,24 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: pr
                                         >
                                           <div className="flex-1 min-w-0">
                                             <p className="font-medium text-zinc-800 dark:text-zinc-200 text-sm truncate">
-                                              {file.file_name || "File"}
+                                              {file.file_name || file.sanction_file?.split("/").pop() || "File"}
                                             </p>
                                             <p className="text-xs text-[#6B7280] dark:text-zinc-400">
                                               {file.description}
                                             </p>
                                           </div>
-                                          {file.file_data ? (
+                                          {file.sanction_file ? (
+                                            <a
+                                              href={getFileUrl(file.sanction_file)}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="frappe-btn frappe-btn-primary text-sm"
+                                              aria-label={`View ${file.sanction_file?.split("/").pop()}`}
+                                            >
+                                              <DownloadIcon className="h-4 w-4" />{" "}
+                                              View
+                                            </a>
+                                          ) : file.file_data ? (
                                             <a
                                               href={`data:${getMimeType(file.file_name)};base64,${file.file_data}`}
                                               download={file.file_name}

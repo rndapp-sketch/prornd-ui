@@ -401,17 +401,34 @@ const AddFundSanction: React.FC = () => {
 
     const preparePayload = async (): Promise<FormData> => {
         const dataToSubmit: FormData = { ...formData };
+
         if (dataToSubmit.sanction_related_files?.length) {
-            dataToSubmit.sanction_related_files = await Promise.all(
-                dataToSubmit.sanction_related_files.map(async (row: any) => {
-                    if (row.sanction_file instanceof File) {
-                        const base64Data = await toBase64(row.sanction_file);
-                        return { ...row, file_name: row.sanction_file.name, file_data: base64Data, sanction_file: undefined };
-                    }
-                    return row;
-                })
-            );
+            const newFiles: any[] = [];
+            const existingRows: any[] = [];
+
+            for (const row of dataToSubmit.sanction_related_files) {
+                if (row.sanction_file instanceof File) {
+                    const fileObj = row.sanction_file as File;
+                    const base64Data = await toBase64(fileObj);
+                    // Backend reads from files_payload: expects file_name, file_data, description
+                    newFiles.push({
+                        file_name: fileObj.name,
+                        file_data: base64Data,
+                        description: row.description || fileObj.name,
+                        is_private: 1,
+                    });
+                } else {
+                    // Already-uploaded row (has a URL string in sanction_file)
+                    existingRows.push(row);
+                }
+            }
+
+            dataToSubmit.sanction_related_files = existingRows;
+            if (newFiles.length) {
+                (dataToSubmit as any).files = newFiles;
+            }
         }
+
         return dataToSubmit;
     };
 
