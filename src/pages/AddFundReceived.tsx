@@ -43,11 +43,11 @@ interface FormData {
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const inputClasses =
-    "w-full h-12 px-4 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800 read-only:bg-zinc-100 dark:bg-zinc-800";
+    "w-full h-9 px-3 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800 read-only:bg-zinc-100 dark:bg-zinc-800";
 const FrappeCard = ({ children, className }: any) => (
     <div
         className={cn(
-            "bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm",
+            "bg-white dark:bg-zinc-900 p-4 md:p-5 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm",
             className,
         )}
     >
@@ -66,7 +66,7 @@ const FrappeButton = ({
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "px-5 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-lg font-semibold text-sm text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed",
+            "px-3.5 py-1.5 border border-zinc-200 dark:border-zinc-800 rounded-md font-semibold text-xs text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed",
             className,
         )}
     >
@@ -74,8 +74,8 @@ const FrappeButton = ({
     </button>
 );
 const NeoSection = ({ title, children }: any) => (
-    <div className="space-y-6">
-        <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-3">
+    <div className="space-y-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-2">
             {title}
         </h2>
         {children}
@@ -87,7 +87,7 @@ const MemoizedTransactionsTable = memo(
     ({ tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => {
         return (
             <div>
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-900 dark:text-zinc-100 mb-3">
                     Transaction Details
                 </h3>
                 <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
@@ -103,7 +103,7 @@ const MemoizedTransactionsTable = memo(
                                 ].map((h) => (
                                     <th
                                         key={h}
-                                        className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm text-left"
+                                        className="px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase tracking-wide text-left"
                                     >
                                         {h}
                                     </th>
@@ -116,10 +116,10 @@ const MemoizedTransactionsTable = memo(
                                     key={row.id || i}
                                     className="divide-x divide-zinc-100 dark:divide-zinc-800"
                                 >
-                                    <td className="p-2">
+                                    <td className="px-2 py-1.5">
                                         <input
                                             type="text"
-                                            className={`${inputClasses} !h-11`}
+                                            className={`${inputClasses} !h-8`}
                                             value={row.transaction_number || ""}
                                             onChange={(e) =>
                                                 onRowChange(
@@ -131,10 +131,10 @@ const MemoizedTransactionsTable = memo(
                                             placeholder="Transaction ID"
                                         />
                                     </td>
-                                    <td className="p-2">
+                                    <td className="px-2 py-1.5">
                                         <input
                                             type="date"
-                                            className={`${inputClasses} !h-11`}
+                                            className={`${inputClasses} !h-8`}
                                             value={row.transaction_date || ""}
                                             onChange={(e) =>
                                                 onRowChange(
@@ -145,10 +145,10 @@ const MemoizedTransactionsTable = memo(
                                             }
                                         />
                                     </td>
-                                    <td className="p-2">
+                                    <td className="px-2 py-1.5">
                                         <input
                                             type="number"
-                                            className={`${inputClasses} !h-11`}
+                                            className={`${inputClasses} !h-8`}
                                             value={row.amount || ""}
                                             onChange={(e) =>
                                                 onRowChange(
@@ -163,10 +163,10 @@ const MemoizedTransactionsTable = memo(
                                             placeholder="0.00"
                                         />
                                     </td>
-                                    <td className="p-2">
+                                    <td className="px-2 py-1.5">
                                         <input
                                             type="file"
-                                            className={`${inputClasses} !h-11 file:mr-2`}
+                                            className={`${inputClasses} !h-8 file:mr-2 file:px-2 file:py-0.5 file:text-xs file:font-medium`}
                                             onChange={(e) =>
                                                 onFileChange(
                                                     i,
@@ -176,15 +176,15 @@ const MemoizedTransactionsTable = memo(
                                             }
                                         />
                                         {row.attachment_name && (
-                                            <span className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 block">
+                                            <span className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-1 block">
                                                 {row.attachment_name}
                                             </span>
                                         )}
                                     </td>
-                                    <td className="p-2 text-center">
+                                    <td className="px-2 py-1.5 text-center">
                                         <FrappeButton
                                             onClick={() => onDeleteRow(i)}
-                                            className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm"
+                                            className="!bg-red-200 hover:!bg-red-300 !py-1"
                                         >
                                             Delete
                                         </FrappeButton>
@@ -203,7 +203,7 @@ const MemoizedTransactionsTable = memo(
                             attachment: null,
                         })
                     }
-                    className="bg-[#D97757] hover:bg-[#D97757] text-white mt-4"
+                    className="bg-[#D97757] hover:bg-[#D97757] text-white mt-3"
                 >
                     + Add Transaction
                 </FrappeButton>
@@ -229,7 +229,7 @@ const ProgressBar = ({
 
     return (
         <div className="space-y-1">
-            <div className="flex justify-between text-xs font-medium">
+            <div className="flex justify-between text-[11px] font-medium">
                 <span
                     className={
                         isOverLimit
@@ -249,9 +249,9 @@ const ProgressBar = ({
                     ₹{current.toLocaleString()} / ₹{total.toLocaleString()}
                 </span>
             </div>
-            <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2.5 overflow-hidden">
+            <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
                 <div
-                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                    className={`h-2 rounded-full transition-all duration-300 ${
                         isOverLimit
                             ? "bg-red-600"
                             : percentage > 90
@@ -262,7 +262,7 @@ const ProgressBar = ({
                 />
             </div>
             {showWarning && isOverLimit && (
-                <p className="text-xs text-red-600 font-semibold">
+                <p className="text-[11px] text-red-600 font-semibold">
                     ⚠️ Exceeds limit by ₹{(current - total).toLocaleString()}
                 </p>
             )}
@@ -283,13 +283,13 @@ const ValidationAlert = ({
 
     return (
         <div
-            className={`p-3 rounded-lg border ${
+            className={`p-2.5 rounded-md border ${
                 isValid
                     ? "bg-green-50 border-green-200 text-green-800"
                     : "bg-red-50 border-red-300 text-red-800"
             }`}
         >
-            <p className="text-sm font-medium">{message}</p>
+            <p className="text-xs font-medium">{message}</p>
         </div>
     );
 };
@@ -305,7 +305,7 @@ const MemoizedBudgetBreakupTable = memo(
         const options = budgetHeadOptions || [];
         return (
             <div>
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-900 dark:text-zinc-100 mb-3">
                     Budget Breakup of Received Amount
                 </h3>
                 <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
@@ -320,7 +320,7 @@ const MemoizedBudgetBreakupTable = memo(
                                 ].map((h) => (
                                     <th
                                         key={h}
-                                        className="p-3 font-semibold text-zinc-700 dark:text-zinc-300 text-sm text-left"
+                                        className="px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase tracking-wide text-left"
                                     >
                                         {h}
                                     </th>
@@ -333,9 +333,9 @@ const MemoizedBudgetBreakupTable = memo(
                                     key={row.id || i}
                                     className="divide-x divide-zinc-100 dark:divide-zinc-800"
                                 >
-                                    <td className="p-2">
+                                    <td className="px-2 py-1.5">
                                         <select
-                                            className={`${inputClasses} !h-11`}
+                                            className={`${inputClasses} !h-8`}
                                             value={row.account_head || ""}
                                             onChange={(e) =>
                                                 onRowChange(
@@ -355,10 +355,10 @@ const MemoizedBudgetBreakupTable = memo(
                                             ))}
                                         </select>
                                     </td>
-                                    <td className="p-2">
+                                    <td className="px-2 py-1.5">
                                         <input
                                             type="number"
-                                            className={`${inputClasses} !h-11`}
+                                            className={`${inputClasses} !h-8`}
                                             value={row.amount_received || ""}
                                             onChange={(e) =>
                                                 onRowChange(
@@ -373,10 +373,10 @@ const MemoizedBudgetBreakupTable = memo(
                                             placeholder="0.00"
                                         />
                                     </td>
-                                    <td className="p-2">
+                                    <td className="px-2 py-1.5">
                                         <input
                                             type="text"
-                                            className={`${inputClasses} !h-11`}
+                                            className={`${inputClasses} !h-8`}
                                             value={row.remarks || ""}
                                             onChange={(e) =>
                                                 onRowChange(
@@ -388,10 +388,10 @@ const MemoizedBudgetBreakupTable = memo(
                                             placeholder="Remarks"
                                         />
                                     </td>
-                                    <td className="p-2 text-center">
+                                    <td className="px-2 py-1.5 text-center">
                                         <FrappeButton
                                             onClick={() => onDeleteRow(i)}
-                                            className="!bg-red-200 hover:!bg-red-300 !py-2 text-sm"
+                                            className="!bg-red-200 hover:!bg-red-300 !py-1"
                                         >
                                             Delete
                                         </FrappeButton>
@@ -409,7 +409,7 @@ const MemoizedBudgetBreakupTable = memo(
                             remarks: "",
                         })
                     }
-                    className="bg-[#D97757] hover:bg-[#D97757] text-white mt-4"
+                    className="bg-[#D97757] hover:bg-[#D97757] text-white mt-3"
                 >
                     + Add Budget Item
                 </FrappeButton>
@@ -1300,10 +1300,10 @@ const AddFundReceived: React.FC = () => {
             field.fieldname === "fund_received_amt";
 
         return (
-            <div key={field.fieldname} className="space-y-2">
+            <div key={field.fieldname} className="space-y-1.5">
                 <label
                     htmlFor={field.fieldname}
-                    className="block font-bold text-zinc-900 dark:text-zinc-100 text-sm uppercase"
+                    className="block font-semibold text-zinc-900 dark:text-zinc-100 text-xs uppercase tracking-wide"
                 >
                     {field.label}
                     {field.mandatory === 1 && (
@@ -1314,7 +1314,7 @@ const AddFundReceived: React.FC = () => {
                 {/* Real-time validation: breakup total vs fund_received_amt */}
                 {isFundReceivedAmtField && fundReceivedAmtError && (
                     <p
-                        className={`text-sm font-medium mt-1 ${
+                        className={`text-xs font-medium mt-1 ${
                             totalBreakupAmt > fundReceivedAmt
                                 ? "text-red-600"
                                 : "text-amber-600"
@@ -1327,12 +1327,12 @@ const AddFundReceived: React.FC = () => {
                     !isNaN(fundReceivedAmt) &&
                     fundReceivedAmt > 0 &&
                     totalBreakupAmt === fundReceivedAmt && (
-                        <p className="text-sm font-medium text-green-600 mt-1">
+                        <p className="text-xs font-medium text-green-600 mt-1">
                             ✓ Budget breakup total matches Fund Received Amount.
                         </p>
                     )}
                 {field.description && (
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
+                    <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
                         {field.description}
                     </p>
                 )}
@@ -1364,7 +1364,7 @@ const AddFundReceived: React.FC = () => {
             <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b border-zinc-200 dark:border-zinc-800 mx-auto"></div>
-                    <p className="mt-4 text-lg font-semibold">
+                    <p className="mt-3 text-sm font-semibold">
                         Loading form data...
                     </p>
                 </div>
@@ -1396,22 +1396,22 @@ const AddFundReceived: React.FC = () => {
     return (
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
-            <main className="flex-1 p-4 md:p-8">
-                <header className="mb-8 p-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md shadow-sm">
-                    <div className="flex items-center gap-4">
+            <main className="flex-1 p-4 md:p-6">
+                <header className="mb-6 p-4 md:p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
+                    <div className="flex items-center gap-3">
                         <button
                             onClick={() => navigate(-1)}
-                            className="p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-50 dark:bg-zinc-800/50 active:translate-y-1 transition-transform"
+                            className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-50 dark:bg-zinc-800/50 active:translate-y-1 transition-transform"
                         >
-                            <ArrowLeftIcon className="h-6 w-6" />
+                            <ArrowLeftIcon className="h-5 w-5" />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
                                 {editDocName
                                     ? "Edit Received Fund"
                                     : "Record Received Fund"}
                             </h1>
-                            <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1">
+                            <p className="text-xs text-zinc-700 dark:text-zinc-300 mt-1">
                                 For Project:{" "}
                                 {projectNoFromUrl && (
                                     <strong>{projectNoFromUrl}</strong>
@@ -1423,11 +1423,11 @@ const AddFundReceived: React.FC = () => {
                     </div>
                 </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-5">
                     {/* Left: Main Form */}
                     <div className="lg:col-span-3">
                         <form onSubmit={handleSubmit}>
-                            <FrappeCard className="space-y-12">
+                            <FrappeCard className="space-y-8">
                                 {sections.map((section, index) => (
                                     <NeoSection
                                         key={index}
@@ -1435,8 +1435,8 @@ const AddFundReceived: React.FC = () => {
                                     >
                                         {section.title ===
                                         "Transaction & Budget Breakups" ? (
-                                            <div className="space-y-8">
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                            <div className="space-y-6">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                                                     {section.fields
                                                         .filter((f) =>
                                                             [
@@ -1502,7 +1502,7 @@ const AddFundReceived: React.FC = () => {
                                                 />
                                             </div>
                                         ) : (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
                                                 {section.fields.map(
                                                     renderFormField,
                                                 )}
@@ -1512,7 +1512,7 @@ const AddFundReceived: React.FC = () => {
                                 ))}
                             </FrappeCard>
 
-                            <div className="mt-8 flex justify-end gap-4">
+                            <div className="mt-6 flex justify-end gap-3">
                                 <FrappeButton
                                     type="button"
                                     onClick={() => navigate(-1)}
@@ -1535,29 +1535,29 @@ const AddFundReceived: React.FC = () => {
 
                     {/* Right: Sanction Details Panel */}
                     <div className="lg:col-span-1">
-                        <div className="sticky top-4 space-y-6 max-h-[calc(100vh-2rem)] overflow-y-auto">
-                            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-5">
-                                <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-4 flex items-center gap-2">
-                                    <span className="p-1.5 rounded-lg bg-zinc-50 dark:bg-zinc-800">
+                        <div className="sticky top-4 space-y-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
+                            <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
+                                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-800 dark:text-zinc-200 mb-3 flex items-center gap-2">
+                                    <span className="p-1 rounded-md bg-zinc-50 dark:bg-zinc-800">
                                         📋
                                     </span>
                                     Sanction Details
                                 </h3>
 
                                 {sanctionLoading ? (
-                                    <div className="text-center py-8">
+                                    <div className="text-center py-6">
                                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757] mx-auto"></div>
-                                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">
+                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2">
                                             Loading...
                                         </p>
                                     </div>
                                 ) : selectedSanction ? (
-                                    <div className="space-y-4">
+                                    <div className="space-y-3">
                                         <div>
                                             <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
                                                 Sanction Reference
                                             </p>
-                                            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                            <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
                                                 {selectedSanction.name}
                                             </p>
                                         </div>
@@ -1565,7 +1565,7 @@ const AddFundReceived: React.FC = () => {
                                             <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
                                                 Sanction Letter No
                                             </p>
-                                            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                            <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
                                                 {selectedSanction.sanction_letter_no ||
                                                     "-"}
                                             </p>
@@ -1574,7 +1574,7 @@ const AddFundReceived: React.FC = () => {
                                             <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
                                                 Sanction Date
                                             </p>
-                                            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                            <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
                                                 {selectedSanction.sanction_date ||
                                                     "-"}
                                             </p>
@@ -1583,7 +1583,7 @@ const AddFundReceived: React.FC = () => {
                                             <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
                                                 Total Amount
                                             </p>
-                                            <p className="text-lg font-bold text-[#D97757]">
+                                            <p className="text-base font-bold text-[#D97757]">
                                                 ₹{" "}
                                                 {(
                                                     selectedSanction.total_sanctioned_amount ||
@@ -1826,11 +1826,11 @@ const AddFundReceived: React.FC = () => {
                                             })()}
                                     </div>
                                 ) : (
-                                    <div className="text-center py-8">
-                                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                                    <div className="text-center py-6">
+                                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
                                             No sanction details found.
                                         </p>
-                                        <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
+                                        <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">
                                             Please add a sanction first.
                                         </p>
                                     </div>
@@ -1838,9 +1838,9 @@ const AddFundReceived: React.FC = () => {
                             </div>
 
                             {/* Validation Summary Panel */}
-                            <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-5 mt-6">
-                                <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-4 flex items-center gap-2">
-                                    <span className="p-1.5 rounded-lg bg-blue-100">
+                            <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
+                                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-800 dark:text-zinc-200 mb-3 flex items-center gap-2">
+                                    <span className="p-1 rounded-md bg-blue-100">
                                         ✓
                                     </span>
                                     Real-time Validation
@@ -1849,7 +1849,7 @@ const AddFundReceived: React.FC = () => {
                                 {/* Fund Received Amt vs Breakup Total */}
                                 {!isNaN(fundReceivedAmt) &&
                                     fundReceivedAmt > 0 && (
-                                        <div className="space-y-2 mb-5 pb-5 border-b border-zinc-200 dark:border-zinc-800">
+                                        <div className="space-y-2 mb-4 pb-4 border-b border-zinc-200 dark:border-zinc-800">
                                             <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
                                                 Fund Received Amount
                                             </p>
@@ -1859,24 +1859,24 @@ const AddFundReceived: React.FC = () => {
                                                 label="Breakup vs Received"
                                                 showWarning={true}
                                             />
-                                            <div className="grid grid-cols-2 gap-2 text-xs mt-1">
-                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded">
+                                            <div className="grid grid-cols-2 gap-2 text-[11px] mt-1">
+                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-md">
                                                     <p className="text-zinc-500 dark:text-zinc-400">
                                                         Fund Received Amt
                                                     </p>
-                                                    <p className="font-bold text-zinc-800 dark:text-zinc-200">
+                                                    <p className="font-bold text-xs text-zinc-800 dark:text-zinc-200">
                                                         ₹
                                                         {fundReceivedAmt.toLocaleString(
                                                             "en-IN",
                                                         )}
                                                     </p>
                                                 </div>
-                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded">
+                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-md">
                                                     <p className="text-zinc-500 dark:text-zinc-400">
                                                         Breakup Total
                                                     </p>
                                                     <p
-                                                        className={`font-bold ${
+                                                        className={`text-xs font-bold ${
                                                             totalBreakupAmt >
                                                             fundReceivedAmt
                                                                 ? "text-red-600"
@@ -1895,7 +1895,7 @@ const AddFundReceived: React.FC = () => {
                                             </div>
                                             {fundReceivedAmtError ? (
                                                 <p
-                                                    className={`text-xs font-semibold mt-1 ${
+                                                    className={`text-[11px] font-semibold mt-1 ${
                                                         totalBreakupAmt >
                                                         fundReceivedAmt
                                                             ? "text-red-600"
@@ -1905,7 +1905,7 @@ const AddFundReceived: React.FC = () => {
                                                     {fundReceivedAmtError}
                                                 </p>
                                             ) : (
-                                                <p className="text-xs font-semibold text-green-600 mt-1">
+                                                <p className="text-[11px] font-semibold text-green-600 mt-1">
                                                     ✓ Breakup matches Fund
                                                     Received Amount
                                                 </p>
@@ -1942,21 +1942,21 @@ const AddFundReceived: React.FC = () => {
                                                 .message
                                         }
                                     />
-                                    <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded">
+                                    <div className="grid grid-cols-2 gap-2 text-[11px] mt-2">
+                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-md">
                                             <p className="text-zinc-500 dark:text-zinc-400">
                                                 Previously Received
                                             </p>
-                                            <p className="font-bold text-zinc-800 dark:text-zinc-200">
+                                            <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
                                                 ₹
                                                 {validationState.totalValidation.previousTotal.toLocaleString()}
                                             </p>
                                         </div>
-                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded">
+                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-md">
                                             <p className="text-zinc-500 dark:text-zinc-400">
                                                 Current Entry
                                             </p>
-                                            <p className="font-bold text-blue-600">
+                                            <p className="text-xs font-bold text-blue-600">
                                                 ₹
                                                 {validationState.totalValidation.currentTotal.toLocaleString()}
                                             </p>
@@ -1971,15 +1971,15 @@ const AddFundReceived: React.FC = () => {
                                         <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
                                             Budget Head Status
                                         </p>
-                                        <div className="space-y-3 max-h-80 overflow-y-auto">
+                                        <div className="space-y-2.5 max-h-80 overflow-y-auto">
                                             {Object.entries(
                                                 validationState.headValidations,
                                             ).map(([head, validation]) => (
                                                 <div
                                                     key={head}
-                                                    className="space-y-2 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg"
+                                                    className="space-y-2 p-2.5 bg-zinc-50 dark:bg-zinc-800/50 rounded-md"
                                                 >
-                                                    <p className="font-semibold text-sm text-zinc-800 dark:text-zinc-200">
+                                                    <p className="font-semibold text-xs text-zinc-800 dark:text-zinc-200">
                                                         {head}
                                                     </p>
                                                     <ProgressBar
@@ -1993,7 +1993,7 @@ const AddFundReceived: React.FC = () => {
                                                         label=""
                                                         showWarning={false}
                                                     />
-                                                    <div className="flex justify-between text-xs">
+                                                    <div className="flex justify-between text-[11px]">
                                                         <span
                                                             className={
                                                                 validation.isValid
@@ -2023,20 +2023,20 @@ const AddFundReceived: React.FC = () => {
                                     Object.values(
                                         validationState.headValidations,
                                     ).every((v) => v.isValid) ? (
-                                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-                                            <p className="text-green-800 font-semibold">
+                                        <div className="bg-green-50 border border-green-200 rounded-md p-2.5 text-center">
+                                            <p className="text-green-800 text-sm font-semibold">
                                                 ✓ Ready to Submit
                                             </p>
-                                            <p className="text-xs text-green-600 mt-1">
+                                            <p className="text-[11px] text-green-600 mt-1">
                                                 All validations passed
                                             </p>
                                         </div>
                                     ) : (
-                                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-                                            <p className="text-red-800 font-semibold">
+                                        <div className="bg-red-50 border border-red-200 rounded-md p-2.5 text-center">
+                                            <p className="text-red-800 text-sm font-semibold">
                                                 ⚠️ Cannot Submit
                                             </p>
-                                            <p className="text-xs text-red-600 mt-1">
+                                            <p className="text-[11px] text-red-600 mt-1">
                                                 Please fix validation errors
                                                 above
                                             </p>
