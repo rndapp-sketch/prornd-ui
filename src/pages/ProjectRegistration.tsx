@@ -4181,7 +4181,7 @@ const ProjectRegistration: React.FC = () => {
                                                     endorsement: 1,
                                                 });
                                                 setShowEndorsementModal(false);
-                                                navigate(`/project-details/${docname}`);
+                                                navigate("/projects-view");
                                             } catch (err) {
                                                 alert(
                                                     "Error processing endorsement.",
@@ -4474,7 +4474,7 @@ const ProjectRegistration: React.FC = () => {
                                 <select value={newAgencyData.fundingagency_state || ""} onChange={(e) => handleAgencyFieldChange("fundingagency_state", e.target.value)}
                                     className="w-full border border-zinc-300 dark:border-zinc-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
                                     <option value="">— Select State —</option>
-                                    {["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Andaman and Nicobar Islands","Chandigarh","Dadra and Nagar Haveli and Daman and Diu","Delhi","Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry"].map(s => (
+                                    {["Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"].map(s => (
                                         <option key={s} value={s}>{s}</option>
                                     ))}
                                 </select>
