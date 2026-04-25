@@ -784,6 +784,8 @@ export function AppSidebar() {
                         message: feedbackMessage.trim(),
                         urgent: feedbackUrgent,
                         channel_id: "jnkacpywbjnh9frhg1bb8gs85y",
+                        feedback: true,
+                        current_user_email: currentUser || "",
                     }),
                 },
             );
