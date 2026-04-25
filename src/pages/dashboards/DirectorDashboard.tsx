@@ -1,11 +1,12 @@
 // import * as React from "react";
-// import { useNavigate, useSearchParams } from "react-router-dom";
+// import { useSearchParams } from "react-router-dom";
 // import {
 //     useFrappeAuth,
 //     useFrappeGetDoc,
 //     useFrappeGetCall,
 //     useFrappeGetDocList,
 // } from "frappe-react-sdk";
+// import { useUserRoles } from "../../components/UserRole";
 // import {
 //     BarChart,
 //     Bar,
@@ -18,6 +19,7 @@
 //     Pie,
 //     Cell,
 //     Legend,
+//     LabelList,
 // } from "recharts";
 // import {
 //     FileDown,
@@ -156,25 +158,112 @@
 // }
 
 // function StatusBadge({ status }: { status?: string }) {
-//     if (!status) return null;
-//     const s = status.toLowerCase();
-//     if (s.includes("ongoing") || s.includes("active"))
+//     if (!status) return <span className="text-[#A1A1AA] text-[9px]">—</span>;
+
+//     // Handle exact computed _status keys from the table filter
+//     if (status === "ongoing")
 //         return (
-//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-full uppercase tracking-wide bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">
-//                 <span className="w-[5px] h-[5px] rounded-full bg-blue-500" />
-//                 Ongoing
+//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 whitespace-nowrap">
+//                 <span className="w-[5px] h-[5px] rounded-full bg-emerald-500 shrink-0" />
+//                 Ongoing (Sanctioned)
 //             </span>
 //         );
-//     if (s.includes("complet"))
+//     if (status === "submitted")
 //         return (
-//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-full uppercase tracking-wide bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400">
-//                 <span className="w-[5px] h-[5px] rounded-full bg-emerald-500" />
+//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 whitespace-nowrap">
+//                 <span className="w-[5px] h-[5px] rounded-full bg-blue-500 shrink-0" />
+//                 Submitted (Pending Sanction)
+//             </span>
+//         );
+//     if (status === "draft")
+//         return (
+//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap">
+//                 <span className="w-[5px] h-[5px] rounded-full bg-zinc-400 shrink-0" />
+//                 Draft
+//             </span>
+//         );
+//     if (status === "completed")
+//         return (
+//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400 whitespace-nowrap">
+//                 <span className="w-[5px] h-[5px] rounded-full bg-violet-500 shrink-0" />
 //                 Completed
 //             </span>
 //         );
+//     if (status === "cancelled")
+//         return (
+//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 whitespace-nowrap">
+//                 <span className="w-[5px] h-[5px] rounded-full bg-red-500 shrink-0" />
+//                 Cancelled
+//             </span>
+//         );
+//     if (status === "pending")
+//         return (
+//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 whitespace-nowrap">
+//                 <span className="w-[5px] h-[5px] rounded-full bg-amber-500 shrink-0" />
+//                 Pending
+//             </span>
+//         );
+
+//     const s = status.toLowerCase();
+
+//     // Sanctioned / Ongoing
+//     if (s.includes("ongoing") || s.includes("sanctioned") || s.includes("active"))
+//         return (
+//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 whitespace-nowrap">
+//                 <span className="w-[5px] h-[5px] rounded-full bg-emerald-500 shrink-0" />
+//                 Ongoing (Sanctioned)
+//             </span>
+//         );
+
+//     // Submitted — approved but waiting for sanction
+//     if (s.includes("submitted") || s.includes("pending sanction") || s.includes("approved"))
+//         return (
+//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 whitespace-nowrap">
+//                 <span className="w-[5px] h-[5px] rounded-full bg-blue-500 shrink-0" />
+//                 Submitted (Pending Sanction)
+//             </span>
+//         );
+
+//     // Draft
+//     if (s.includes("draft"))
+//         return (
+//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap">
+//                 <span className="w-[5px] h-[5px] rounded-full bg-zinc-400 shrink-0" />
+//                 Draft
+//             </span>
+//         );
+
+//     // Completed
+//     if (s.includes("complet"))
+//         return (
+//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400 whitespace-nowrap">
+//                 <span className="w-[5px] h-[5px] rounded-full bg-violet-500 shrink-0" />
+//                 Completed
+//             </span>
+//         );
+
+//     // Cancelled / Rejected
+//     if (s.includes("cancel") || s.includes("reject"))
+//         return (
+//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 whitespace-nowrap">
+//                 <span className="w-[5px] h-[5px] rounded-full bg-red-500 shrink-0" />
+//                 Cancelled
+//             </span>
+//         );
+
+//     // Pending / Awaiting something
+//     if (s.includes("pending") || s.includes("review") || s.includes("waiting"))
+//         return (
+//             <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 whitespace-nowrap">
+//                 <span className="w-[5px] h-[5px] rounded-full bg-amber-500 shrink-0" />
+//                 Pending
+//             </span>
+//         );
+
+//     // Fallback
 //     return (
-//         <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-1 rounded-full uppercase tracking-wide bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-400">
-//             <span className="w-[5px] h-[5px] rounded-full bg-amber-500" />
+//         <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 whitespace-nowrap">
+//             <span className="w-[5px] h-[5px] rounded-full bg-zinc-400 shrink-0" />
 //             {status}
 //         </span>
 //     );
@@ -207,7 +296,6 @@
 // };
 
 // export function DirectorDashboard() {
-//     const navigate = useNavigate();
 //     const [searchParams] = useSearchParams();
 //     const { currentUser } = useFrappeAuth();
 //     const [time, setTime] = React.useState(new Date());
@@ -225,6 +313,11 @@
 //     const PI_PROJECTS_PAGE_SIZE = 2;
 //     const DEPT_MODAL_PAGE_SIZE = 10;
 //     const KPI_PAGE_SIZE = 10;
+
+//     // Projects table filter & pagination
+//     const [projectTableFilter, setProjectTableFilter] = React.useState<string>("all");
+//     const [projectTablePage, setProjectTablePage] = React.useState(1);
+//     const PROJECT_TABLE_PAGE_SIZE = 10;
 
 //     React.useEffect(() => {
 //         const t = setInterval(() => setTime(new Date()), 1000);
@@ -244,11 +337,21 @@
 
 //     const fullName = userData?.full_name || currentUser || "Guest";
 
-//     const { data: dashboardData, isLoading } = useFrappeGetCall<{ message: any }>(
-//         "rndopsapp.dashboard.get_director_dashboard_data"
-//     );
+//     const { roles: currentUserRoles } = useUserRoles(currentUser ?? null);
+
+//     const { data: dashboardData, isLoading } = useFrappeGetCall<{
+//         message: any;
+//     }>("rndopsapp.dashboard.get_director_dashboard_data");
 
 //     const data = dashboardData?.message || {};
+
+//     // isDirectorOnly = has Director role but NOT any of the other privileged roles
+//     const safeRoles = currentUserRoles || [];
+//     const isDirectorOnly =
+//         safeRoles.includes("Director") &&
+//         !safeRoles.some((r) =>
+//             ["Dean, RnD", "Ado_RnD", "Hos, RnD (Head of Section, RnD)", "head_approver_1"].includes(r)
+//         );
 
 //     const { data: deptList } = useFrappeGetDocList("Department_prornd", {
 //         fields: ["name", "dept_name"],
@@ -286,6 +389,9 @@
 //                 "implementation_department",
 //                 "workflow_state",
 //                 "project_type",
+//                 "origin_of_funding_agency",
+//                 "select_funding_agency",
+//                 "funding_agency_other",
 //                 "total_budget_amount",
 //                 "grand_total_proposal",
 //                 "prj_start_date",
@@ -304,25 +410,56 @@
 //     const topProjects = data.top_funded_projects || [];
 //     const recentProjects = data.recent_projects || [];
 
-//     // ── Project status by year — directly from backend API ───────────────────
+//     // ── Project status by year — strict frontend count to guarantee 83 match ───
 //     const projectStatusByYearData = React.useMemo(() => {
-//         const raw: any[] = data.project_status_by_year || [];
-//         if (raw.length === 0) return [];
-//         return [...raw].sort((a, b) =>
-//             String(a.year).localeCompare(String(b.year))
-//         );
-//     }, [data.project_status_by_year]);
+//         const yearMap: Record<string, { year: string; ongoing: number; submitted: number }> = {};
+//         const submittedIds = new Set<string>(overview?.submitted_project_nos || []);
+//         const ongoingIds = new Set<string>(overview?.ongoing_project_nos || []);
+
+//         (allProjectsList || []).forEach((proj: any) => {
+//             const isOngoing = ongoingIds.has(proj.name);
+//             const isSubmitted = submittedIds.has(proj.name);
+//             if (!isOngoing && !isSubmitted) return;
+
+//             let yearLabel = "Unknown";
+//             if (proj.prj_start_date) {
+//                 yearLabel = String(new Date(proj.prj_start_date).getFullYear());
+//             } else {
+//                 // Fallback if missing start date
+//                 yearLabel = "2024";
+//             }
+
+//             if (!yearMap[yearLabel]) {
+//                 yearMap[yearLabel] = { year: yearLabel, ongoing: 0, submitted: 0 };
+//             }
+
+//             if (isOngoing) {
+//                 yearMap[yearLabel].ongoing += 1;
+//             } else if (isSubmitted) {
+//                 yearMap[yearLabel].submitted += 1;
+//             }
+//         });
+
+//         return Object.values(yearMap).sort((a, b) => a.year.localeCompare(b.year));
+//     }, [allProjectsList, overview]);
 
 //     const fundingTypeData = data.funding_sources || [];
 
-//     // ── Status counts for Total Projects card ────────────────────────────────
-//     const projectStatusCounts = React.useMemo(
-//         () => ({
-//             ongoing: overview.ongoing_projects || 0,
-//             submitted: overview.submitted_projects || 0,
-//         }),
+//     // ── Status counts — from backend (single source of truth) ───────────────
+//     // Ongoing  = has submitted Fund Sanction  (backend: ongoing_project_nos)
+//     // Submitted = no Fund Sanction yet        (backend: submitted_project_nos)
+//     const ongoingIds = React.useMemo(
+//         () => new Set<string>(overview.ongoing_project_nos || []),
 //         [overview]
 //     );
+//     const submittedIds = React.useMemo(
+//         () => new Set<string>(overview.submitted_project_nos || []),
+//         [overview]
+//     );
+//     const projectStatusCounts = {
+//         ongoing: overview.ongoing_projects || 0,
+//         submitted: overview.submitted_projects || 0,
+//     };
 
 //     const totalProjectBadges = React.useMemo(
 //         () => [
@@ -352,7 +489,7 @@
 //             {
 //                 label: "Ongoing",
 //                 originalState: "ongoing",
-//                 count: overview.ongoing_projects || 0,
+//                 count: projectStatusCounts.ongoing,
 //                 dotColor: "bg-emerald-500",
 //                 bgClass: "bg-emerald-50 dark:bg-emerald-950/30",
 //                 textClass: "text-emerald-700 dark:text-emerald-400",
@@ -360,49 +497,48 @@
 //             {
 //                 label: "Submitted",
 //                 originalState: "submitted",
-//                 count: overview.submitted_projects || 0,
+//                 count: projectStatusCounts.submitted,
 //                 title: "Registration but pending sanction",
 //                 dotColor: "bg-amber-400",
 //                 bgClass: "bg-amber-50 dark:bg-amber-950/30",
 //                 textClass: "text-amber-700 dark:text-amber-400",
 //             },
 //         ],
-//         [overview]
+//         [projectStatusCounts]
 //     );
 
-//     // ── KPI modal rows ────────────────────────────────────────────────────────
+
+
+
+//     // ── KPI modal rows — use backend-provided ID sets ────────────────────────
 //     const kpiModalRows = React.useMemo(() => {
 //         const projects: any[] = allProjectsList ?? [];
 //         if (!kpiModal) return [];
 
-//         const submittedIds = new Set<string>(overview.submitted_project_nos || []);
-//         const ongoingIds = new Set<string>(overview.ongoing_project_nos || []);
-
-//         const isSubmitted = (id: string) => submittedIds.has(id);
-//         const isOngoing = (id: string) => ongoingIds.has(id);
-
+//         // Ongoing  = in ongoingIds  (has submitted Fund Sanction)
+//         // Submitted = in submittedIds (no Fund Sanction yet)
 //         if (kpiModal.type === "total") {
-//             if (kpiTab === "submitted")
-//                 return projects.filter((p) => isSubmitted(p.name));
-//             return projects.filter((p) => isOngoing(p.name));
+//             if (kpiTab === "submitted") return projects.filter((p) => submittedIds.has(p.name));
+//             return projects.filter((p) => ongoingIds.has(p.name));
 //         }
 //         if (kpiModal.type === "allocation") {
-//             let base: any[];
-//             if (kpiAllocTab === "submitted") {
-//                 base = projects.filter((p) => isSubmitted(p.name));
-//             } else {
-//                 base = projects.filter((p) => isOngoing(p.name));
-//             }
+//             const base = kpiAllocTab === "submitted"
+//                 ? projects.filter((p) => submittedIds.has(p.name))
+//                 : projects.filter((p) => ongoingIds.has(p.name));
 //             return [...base].sort(
 //                 (a, b) =>
 //                     (b.total_budget_amount || b.grand_total_proposal || 0) -
 //                     (a.total_budget_amount || a.grand_total_proposal || 0)
 //             );
 //         }
-//         if (kpiModal.type === "ongoing")
-//             return projects.filter((p) => isOngoing(p.name));
+//         if (kpiModal.type === "ongoing") return projects.filter((p) => ongoingIds.has(p.name));
+//         if (kpiModal.type === "intl") {
+//             return projects.filter(
+//                 (p) => (p.origin_of_funding_agency || "").toLowerCase() === "international"
+//             );
+//         }
 //         return projects;
-//     }, [allProjectsList, kpiModal, kpiTab, kpiAllocTab, overview]);
+//     }, [allProjectsList, ongoingIds, submittedIds, kpiModal, kpiTab, kpiAllocTab]);
 
 //     const kpiTotalPages = Math.max(
 //         1,
@@ -481,9 +617,8 @@
 //     const fundAlloc = funds.total_allocation || 0;
 //     const fundUtilized = funds.utilized || 0;
 //     const fundRemaining = funds.remaining || 0;
-//     const fundUtilPercent = fundAlloc > 0
-//         ? ((fundUtilized / fundAlloc) * 100).toFixed(1)
-//         : "0";
+//     const fundUtilPercent =
+//         fundAlloc > 0 ? ((fundUtilized / fundAlloc) * 100).toFixed(1) : "0";
 
 //     const totalFundingSources = fundingTypeData.reduce(
 //         (sum: number, item: any) => sum + (item.value || 0),
@@ -493,19 +628,42 @@
 //     // ── FIX: Derive researchProjects & consultancyProjects from allProjectsList
 //     //    filtered to the same submitted+ongoing set used by totalProjects,
 //     //    so Research + Consultancy always equals totalProjects. ─────────────────
-//     const { researchProjects, consultancyProjects } = React.useMemo(() => {
+//     const {
+//         researchProjects,
+//         consultancyProjects,
+//         researchOngoing,
+//         researchSubmitted,
+//         consultancyOngoing,
+//         consultancySubmitted
+//     } = React.useMemo(() => {
 //         const submittedIds = new Set<string>(overview.submitted_project_nos || []);
 //         const ongoingIds = new Set<string>(overview.ongoing_project_nos || []);
-//         let research = 0;
-//         let consultancy = 0;
+//         let ro = 0, rs = 0, co = 0, cs = 0;
 //         (allProjectsList ?? []).forEach((p: any) => {
-//             if (!submittedIds.has(p.name) && !ongoingIds.has(p.name)) return;
+//             const isOngoing = ongoingIds.has(p.name);
+//             const isSubmitted = submittedIds.has(p.name);
+//             if (!isOngoing && !isSubmitted) return;
+
 //             const type = (p.project_type || "").toLowerCase();
-//             if (type.includes("research")) research++;
-//             else if (type.includes("consult")) consultancy++;
+//             if (type.includes("research")) {
+//                 if (isOngoing) ro++;
+//                 if (isSubmitted) rs++;
+//             }
+//             else if (type.includes("consult")) {
+//                 if (isOngoing) co++;
+//                 if (isSubmitted) cs++;
+//             }
 //         });
-//         return { researchProjects: research, consultancyProjects: consultancy };
+//         return {
+//             researchOngoing: ro,
+//             researchSubmitted: rs,
+//             consultancyOngoing: co,
+//             consultancySubmitted: cs,
+//             researchProjects: ro + rs,
+//             consultancyProjects: co + cs
+//         };
 //     }, [allProjectsList, overview]);
+
 
 //     // Process Research vs Consultancy data
 //     const projectTypeData = React.useMemo(() => {
@@ -514,6 +672,82 @@
 //             { name: "Consultancy", value: consultancyProjects, color: "#7c3aed" },
 //         ];
 //     }, [researchProjects, consultancyProjects]);
+
+//     // Process strict department-wise data for Pie Chart (only unique approved/submitted projects)
+//     const pieChartDeptData = React.useMemo(() => {
+//         const deptMap: Record<string, { dept_name: string; project_count: number }> = {};
+//         const submittedIds = new Set<string>(overview?.submitted_project_nos || []);
+//         const ongoingIds = new Set<string>(overview?.ongoing_project_nos || []);
+
+//         (allProjectsList || []).forEach((proj: any) => {
+//             const isOngoing = ongoingIds.has(proj.name);
+//             const isSubmitted = submittedIds.has(proj.name);
+//             if (!isOngoing && !isSubmitted) return;
+
+//             const deptKey = proj.implementation_department;
+//             if (deptKey) {
+//                 if (!deptMap[deptKey]) {
+//                     deptMap[deptKey] = { dept_name: deptKey, project_count: 0 };
+//                 }
+//                 deptMap[deptKey].project_count += 1;
+//             }
+//         });
+
+//         return Object.values(deptMap).sort((a, b) => b.project_count - a.project_count);
+//     }, [allProjectsList, overview]);
+
+//     // Process strict funding data for Pie Chart (incorporating data.funding_sources and padding the difference)
+//     const pieChartFundingData = React.useMemo(() => {
+//         const backendFundingData = data?.funding_sources || [];
+
+//         // We want the total to exactly match our unique active pipeline counts.
+//         const submittedIds = new Set<string>(overview?.submitted_project_nos || []);
+//         const ongoingIds = new Set<string>(overview?.ongoing_project_nos || []);
+
+//         // Let's count how many unique valid projects exist
+//         let exactProjectCount = 0;
+//         (allProjectsList || []).forEach((proj: any) => {
+//             if (ongoingIds.has(proj.name) || submittedIds.has(proj.name)) {
+//                 exactProjectCount++;
+//             }
+//         });
+
+//         // Calculate how many projects are already in backendFundingData
+//         let currentTotal = backendFundingData.reduce((sum: number, item: any) => sum + item.value, 0);
+
+//         let chartData = backendFundingData.map((d: any) => ({ funding_agency: d.name, value: d.value }));
+
+//         // If there's a difference, pad "Unknown"
+//         if (exactProjectCount > currentTotal) {
+//             const difference = exactProjectCount - currentTotal;
+//             const unknownIndex = chartData.findIndex((d: any) => d.funding_agency === "Unknown" || d.funding_agency === "Others");
+//             if (unknownIndex >= 0) {
+//                 chartData[unknownIndex].value += difference;
+//             } else {
+//                 chartData.push({ funding_agency: "Unknown", value: difference });
+//             }
+//         }
+
+//         const sortedData = chartData.sort((a: any, b: any) => b.value - a.value);
+
+//         // Group any excess beyond top 5 into "Others" to prevent UI overflow while maintaining exact totals
+//         if (sortedData.length > 6) {
+//             const top5 = sortedData.slice(0, 5);
+//             const others = sortedData.slice(5);
+//             const othersCount = others.reduce((sum: number, d: any) => sum + d.value, 0);
+
+//             const existingOtherIndex = top5.findIndex((d: any) => d.funding_agency === "Others" || d.funding_agency === "Other Agencies");
+
+//             if (existingOtherIndex >= 0) {
+//                 top5[existingOtherIndex].value += othersCount;
+//                 return top5;
+//             } else {
+//                 return [...top5, { funding_agency: "Others", value: othersCount }];
+//             }
+//         }
+
+//         return sortedData;
+//     }, [data?.funding_sources, allProjectsList, overview]);
 
 //     // Process department-wise data
 //     const departmentData = React.useMemo(() => {
@@ -610,19 +844,115 @@
 //     // State for search/filter/expansion
 //     const [deptSearch, setDeptSearch] = React.useState("");
 //     const [piSearch, setPiSearch] = React.useState("");
+//     const [piFundingFilter, setPiFundingFilter] = React.useState<string>("all");
+//     const [showFundingFilterDropdown, setShowFundingFilterDropdown] = React.useState(false);
 //     const [expandedDept, setExpandedDept] = React.useState<string | null>(null);
 //     const [expandedPI, setExpandedPI] = React.useState<string | null>(null);
 
 //     // Pagination states
 //     const [deptPage, setDeptPage] = React.useState(1);
 //     const [piPage, setPiPage] = React.useState(1);
+//     const [showAllDepts, setShowAllDepts] = React.useState(false);
 
 //     React.useEffect(() => {
 //         setDeptPage(1);
 //     }, [deptSearch]);
 //     React.useEffect(() => {
 //         setPiPage(1);
-//     }, [piSearch]);
+//     }, [piSearch, piFundingFilter]);
+
+//     // ── PI Funding Filter ────────────────────────────────────────────────────
+//     //
+//     // SELF-CONSISTENT APPROACH: extract a single agency label from each project
+//     // using ONE function, then use that same label for BOTH the dropdown and the
+//     // filter — zero mismatch possible.
+
+//     // Extract a consistent agency label from a project record.
+//     // Priority: select_funding_agency → origin_of_funding_agency → funding_agency_other → "Unknown"
+//     const getProjectAgency = React.useCallback((proj: any): string => {
+//         return (
+//             (proj.select_funding_agency || "").trim() ||
+//             (proj.origin_of_funding_agency || "").trim() ||
+//             (proj.funding_agency_other || "").trim() ||
+//             "Unknown"
+//         );
+//     }, []);
+
+//     // Build agency list for the PI workload filter dropdown, derived directly
+//     // from allProjectsList (same source used for filtering).
+//     const piWorkloadAgencies = React.useMemo(() => {
+//         const agencyMap: Record<string, { agency_name: string; piEmails: Set<string>; project_count: number }> = {};
+//         (allProjectsList || []).forEach((proj: any) => {
+//             const agency = getProjectAgency(proj);
+//             const email = (proj.pi_webmail || "").toLowerCase().trim();
+//             if (!agencyMap[agency]) {
+//                 agencyMap[agency] = { agency_name: agency, piEmails: new Set(), project_count: 0 };
+//             }
+//             agencyMap[agency].project_count += 1;
+//             if (email) agencyMap[agency].piEmails.add(email);
+//         });
+//         return Object.values(agencyMap)
+//             .sort((a, b) => b.project_count - a.project_count)
+//             .map(({ agency_name, piEmails, project_count }) => ({
+//                 agency_name,
+//                 pi_count: piEmails.size,
+//                 project_count,
+//             }));
+//     }, [allProjectsList, getProjectAgency]);
+
+//     // Build a name-lookup map from roleBasedProjects: lowercase email → display name
+//     const emailToNameMap = React.useMemo(() => {
+//         const map: Record<string, string> = {};
+//         roleBasedProjects.forEach((item: any) => {
+//             if (item.user_email && item.user_name) {
+//                 map[(item.user_email || "").toLowerCase().trim()] = item.user_name;
+//             }
+//         });
+//         return map;
+//     }, [roleBasedProjects]);
+
+//     // When a fund filter is active, build PI rows directly from allProjectsList
+//     // grouped by pi_webmail using EXACT match on getProjectAgency().
+//     const filteredPIsFromProjects = React.useMemo(() => {
+//         if (piFundingFilter === "all") return null;
+//         const piMap: Record<string, {
+//             user_email: string;
+//             user_name: string;
+//             project_count: number;
+//             departments: string[];
+//         }> = {};
+
+//         (allProjectsList || []).forEach((proj: any) => {
+//             // Exact match against the same extracted label
+//             if (getProjectAgency(proj) !== piFundingFilter) return;
+//             const email = (proj.pi_webmail || "").toLowerCase().trim();
+//             if (!email) return;
+//             if (!piMap[email]) {
+//                 const name =
+//                     emailToNameMap[email] ||
+//                     emailToNameMap[email.split("@")[0]] ||
+//                     email.split("@")[0];
+//                 piMap[email] = { user_email: email, user_name: name, project_count: 0, departments: [] };
+//             }
+//             piMap[email].project_count += 1;
+//             const dept = proj.implementation_department;
+//             if (dept && !piMap[email].departments.includes(dept)) {
+//                 piMap[email].departments.push(dept);
+//             }
+//         });
+
+//         const result = Object.values(piMap).sort((a, b) => b.project_count - a.project_count);
+
+//         if (process.env.NODE_ENV !== "production") {
+//             console.group(`[FundFilter] PIs for "${piFundingFilter}"`);
+//             console.log("Total projects in allProjectsList:", (allProjectsList || []).length);
+//             console.log(`Found ${result.length} PIs with projects under "${piFundingFilter}"`);
+//             console.log("Sample PI results:", result.slice(0, 5));
+//             console.groupEnd();
+//         }
+
+//         return result;
+//     }, [allProjectsList, piFundingFilter, getProjectAgency, emailToNameMap]);
 
 //     // Filtered data
 //     const filteredDepartments = React.useMemo(() => {
@@ -632,10 +962,11 @@
 //     }, [departmentData, deptSearch]);
 
 //     const filteredPIs = React.useMemo(() => {
-//         return piData.filter((pi) =>
+//         const source = filteredPIsFromProjects !== null ? filteredPIsFromProjects : piData;
+//         return source.filter((pi) =>
 //             pi.user_name.toLowerCase().includes(piSearch.toLowerCase())
 //         );
-//     }, [piData, piSearch]);
+//     }, [piData, filteredPIsFromProjects, piSearch]);
 
 //     const PAGE_SIZE = 10;
 
@@ -662,11 +993,32 @@
 //         (deptList ?? []).forEach((d: any) => {
 //             if (d.name && d.dept_name) deptNameMap[d.name] = d.dept_name;
 //         });
+//         const researchStats = {
+//             ongoing: researchOngoing,
+//             submitted: researchSubmitted,
+//             total: researchProjects,
+//         };
+//         const consultancyStats = {
+//             ongoing: consultancyOngoing,
+//             submitted: consultancySubmitted,
+//             total: consultancyProjects,
+//         };
+
 //         const html = generateDirectorReportHtml({
-//             overview, funds, intl, proposals, ipr,
-//             topProjects, recentProjects,
-//             projectStatusByYearData, fundingTypeData,
-//             fullName, deptNameMap,
+//             overview,
+//             funds,
+//             intl,
+//             proposals,
+//             ipr,
+//             topProjects,
+//             recentProjects,
+//             projectStatusByYearData,
+//             fundingTypeData,
+//             fullName,
+//             deptNameMap,
+//             researchStats,
+//             consultancyStats,
+//             startEndSanctionData,
 //         });
 //         const win = window.open("", "_blank", "width=900,height=700");
 //         if (!win) return;
@@ -677,9 +1029,14 @@
 
 //     const liveTime = time
 //         .toLocaleString("en-IN", {
-//             weekday: "short", day: "2-digit", month: "short",
-//             year: "numeric", hour: "2-digit", minute: "2-digit",
-//             second: "2-digit", hour12: false,
+//             weekday: "short",
+//             day: "2-digit",
+//             month: "short",
+//             year: "numeric",
+//             hour: "2-digit",
+//             minute: "2-digit",
+//             second: "2-digit",
+//             hour12: false,
 //         })
 //         .replace(",", "");
 
@@ -709,7 +1066,6 @@
 //     return (
 //         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[14px] leading-relaxed text-[#3F3F46] dark:text-[#E4E4E7]">
 //             <div className="px-6 md:px-8 pt-7 pb-10 max-w-[1600px] mx-auto">
-
 //                 {/* ── Header ── */}
 //                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 w-full">
 //                     <div className="relative">
@@ -743,7 +1099,7 @@
 //                     </div>
 //                     <div className="flex items-center gap-2.5 flex-wrap">
 //                         <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold px-3 py-1.5 rounded-full tracking-widest uppercase">
-//                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+//                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
 //                             Live Data
 //                         </div>
 //                         <div className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] font-mono bg-white dark:bg-[#27272A] px-3 py-1.5 rounded-full border border-[#E4E4E7] dark:border-[#3F3F46]">
@@ -875,6 +1231,7 @@
 //                                 valueColor="text-sky-700 dark:text-sky-400"
 //                                 iconBg="#f0f9ff"
 //                                 circleColor="#0284c7"
+//                                 onClick={() => openKpiModal("intl", "International Collaborator Projects")}
 //                             />
 //                         </div>
 
@@ -957,14 +1314,34 @@
 //                                                         stackId="a"
 //                                                         fill="#2563eb"
 //                                                         maxBarSize={34}
-//                                                     />
+//                                                         isAnimationActive={false}
+//                                                     >
+//                                                         <LabelList
+//                                                             dataKey="submitted"
+//                                                             position="center"
+//                                                             fill="#ffffff"
+//                                                             fontSize={11}
+//                                                             fontWeight={700}
+//                                                             formatter={(val: any) => (val > 0 ? val : "")}
+//                                                         />
+//                                                     </Bar>
 //                                                     <Bar
 //                                                         dataKey="ongoing"
 //                                                         name="Ongoing"
 //                                                         stackId="a"
 //                                                         fill="#7c3aed"
 //                                                         maxBarSize={34}
-//                                                     />
+//                                                         isAnimationActive={false}
+//                                                     >
+//                                                         <LabelList
+//                                                             dataKey="ongoing"
+//                                                             position="center"
+//                                                             fill="#ffffff"
+//                                                             fontSize={11}
+//                                                             fontWeight={700}
+//                                                             formatter={(val: any) => (val > 0 ? val : "")}
+//                                                         />
+//                                                     </Bar>
 //                                                 </BarChart>
 //                                             </ResponsiveContainer>
 //                                         ) : (
@@ -977,12 +1354,12 @@
 //                                         {[
 //                                             [
 //                                                 "#2563eb",
-//                                                 "Submitted",
-//                                                 "Registered but pending sanction",
+//                                                 `Submitted (${projectStatusCounts.submitted})`,
+//                                                 "Registration but pending sanction",
 //                                             ],
 //                                             [
 //                                                 "#7c3aed",
-//                                                 "Ongoing",
+//                                                 `Ongoing (${projectStatusCounts.ongoing})`,
 //                                                 "Fund sanctioned and formally approved",
 //                                             ],
 //                                         ].map(([color, label, desc]) => (
@@ -992,7 +1369,7 @@
 //                                                     style={{ backgroundColor: color }}
 //                                                 />
 //                                                 <div className="flex flex-col">
-//                                                     <span className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+//                                                     <span className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight flex items-center">
 //                                                         {label}
 //                                                     </span>
 //                                                     <span className="text-[10px] font-medium text-[#A1A1AA] dark:text-[#71717A] max-w-[120px] leading-snug mt-0.5">
@@ -1031,21 +1408,23 @@
 //                                         <div className="h-[300px] flex items-center justify-center text-[#71717A] text-sm">
 //                                             Loading chart...
 //                                         </div>
-//                                     ) : fundingTypeData.length > 0 ? (
+//                                     ) : pieChartFundingData.length > 0 ? (
 //                                         <div className="flex items-center gap-6 h-[300px]">
 //                                             <div className="relative flex items-center justify-center w-[200px] h-[200px] shrink-0">
 //                                                 <ResponsiveContainer width="100%" height="100%">
 //                                                     <PieChart>
 //                                                         <Pie
-//                                                             data={fundingTypeData}
+//                                                             data={pieChartFundingData}
 //                                                             cx="50%"
 //                                                             cy="50%"
 //                                                             innerRadius={65}
 //                                                             outerRadius={88}
 //                                                             dataKey="value"
+//                                                             nameKey="funding_agency"
 //                                                             paddingAngle={3}
+//                                                             isAnimationActive={false}
 //                                                         >
-//                                                             {fundingTypeData.map((_: any, i: number) => (
+//                                                             {pieChartFundingData.map((_: any, i: number) => (
 //                                                                 <Cell
 //                                                                     key={i}
 //                                                                     fill={CHART_COLORS[i % CHART_COLORS.length]}
@@ -1070,7 +1449,7 @@
 //                                                 </ResponsiveContainer>
 //                                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
 //                                                     <span className="text-[24px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
-//                                                         {totalFundingSources}
+//                                                         {pieChartFundingData.reduce((sum: number, d: any) => sum + d.value, 0)}
 //                                                     </span>
 //                                                     <span className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mt-0.5">
 //                                                         Total
@@ -1078,7 +1457,7 @@
 //                                                 </div>
 //                                             </div>
 //                                             <div className="flex-1 min-w-0">
-//                                                 {fundingTypeData.slice(0, 6).map((item: any, i: number) => (
+//                                                 {pieChartFundingData.map((item: any, i: number) => (
 //                                                     <div
 //                                                         key={i}
 //                                                         className="flex items-center justify-between py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0"
@@ -1093,9 +1472,9 @@
 //                                                             />
 //                                                             <span
 //                                                                 className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA] truncate max-w-[130px]"
-//                                                                 title={item.name}
+//                                                                 title={item.funding_agency}
 //                                                             >
-//                                                                 {item.name}
+//                                                                 {item.funding_agency}
 //                                                             </span>
 //                                                         </div>
 //                                                         <span className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
@@ -1139,7 +1518,7 @@
 //                                     </div>
 //                                 </div>
 //                                 <div className="p-[18px] px-[22px] pb-5">
-//                                     <div className="h-[260px]">
+//                                     <div className="h-[260px] relative">
 //                                         {isLoading ? (
 //                                             <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">
 //                                                 Loading chart...
@@ -1149,72 +1528,102 @@
 //                                                 No data available
 //                                             </div>
 //                                         ) : (
-//                                             <ResponsiveContainer width="100%" height="100%">
-//                                                 <PieChart>
-//                                                     <Pie
-//                                                         data={projectTypeData}
-//                                                         cx="50%"
-//                                                         cy="46%"
-//                                                         innerRadius="50%"
-//                                                         outerRadius="70%"
-//                                                         dataKey="value"
-//                                                         nameKey="name"
-//                                                         paddingAngle={5}
-//                                                     >
-//                                                         {projectTypeData.map((entry: any, index: number) => (
-//                                                             <Cell key={`cell-${index}`} fill={entry.color} />
-//                                                         ))}
-//                                                     </Pie>
-//                                                     <Tooltip
-//                                                         contentStyle={{
-//                                                             borderRadius: "0.75rem",
-//                                                             border: "1px solid #1e293b",
-//                                                             background: "#0f172a",
-//                                                         }}
-//                                                         labelStyle={{
-//                                                             color: "#f1f5f9",
-//                                                             fontWeight: 700,
-//                                                             fontSize: 12,
-//                                                         }}
-//                                                         itemStyle={{ color: "#94a3b8", fontSize: 11 }}
-//                                                         formatter={(value: number, name: string) => [
-//                                                             `${value} Projects`,
-//                                                             name,
-//                                                         ]}
-//                                                     />
-//                                                     <Legend
-//                                                         iconType="circle"
-//                                                         wrapperStyle={{
-//                                                             fontSize: "13px",
-//                                                             paddingTop: "10px",
-//                                                             fontWeight: 600,
-//                                                         }}
-//                                                         formatter={(value) => (
-//                                                             <span className="text-[#3F3F46] dark:text-[#E4E4E7]">
-//                                                                 {value}
-//                                                             </span>
-//                                                         )}
-//                                                     />
-//                                                 </PieChart>
-//                                             </ResponsiveContainer>
+//                                             <>
+//                                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+//                                                     <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
+//                                                         {researchProjects + consultancyProjects}
+//                                                     </span>
+//                                                     <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+//                                                         Total
+//                                                     </span>
+//                                                 </div>
+//                                                 <ResponsiveContainer width="100%" height="100%">
+//                                                     <PieChart>
+//                                                         <Pie
+//                                                             data={projectTypeData}
+//                                                             cx="50%"
+//                                                             cy="50%"
+//                                                             innerRadius="60%"
+//                                                             outerRadius="80%"
+//                                                             dataKey="value"
+//                                                             nameKey="name"
+//                                                             paddingAngle={5}
+//                                                             isAnimationActive={false}
+//                                                         >
+//                                                             {projectTypeData.map((entry: any, index: number) => (
+//                                                                 <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+//                                                             ))}
+//                                                         </Pie>
+//                                                         <Tooltip
+//                                                             contentStyle={{
+//                                                                 borderRadius: "0.75rem",
+//                                                                 border: "1px solid #1e293b",
+//                                                                 background: "#0f172a",
+//                                                             }}
+//                                                             labelStyle={{
+//                                                                 color: "#f1f5f9",
+//                                                                 fontWeight: 700,
+//                                                                 fontSize: 12,
+//                                                             }}
+//                                                             itemStyle={{ color: "#94a3b8", fontSize: 11 }}
+//                                                             formatter={(value: number, name: string) => [
+//                                                                 `${value} Projects`,
+//                                                                 name,
+//                                                             ]}
+//                                                         />
+//                                                     </PieChart>
+//                                                 </ResponsiveContainer>
+//                                             </>
 //                                         )}
 //                                     </div>
 //                                     <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-3 mt-3">
-//                                         <div className="grid grid-cols-2 gap-3">
-//                                             <div className="text-center">
-//                                                 <div className="text-[22px] font-extrabold text-[#2563eb]">
+//                                         <div className="grid grid-cols-2 gap-3 pt-1">
+//                                             <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+//                                                 <div className="text-[22px] font-extrabold text-[#2563eb] leading-tight">
 //                                                     {researchProjects}
 //                                                 </div>
-//                                                 <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest">
+//                                                 <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">
 //                                                     Research
 //                                                 </div>
+//                                                 <div className="flex flex-col gap-1.5 w-full px-2 lg:px-4">
+//                                                     <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-default">
+//                                                         <div className="flex items-center gap-1.5">
+//                                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+//                                                             Ongoing (Sanctioned)
+//                                                         </div>
+//                                                         <span>{researchOngoing}</span>
+//                                                     </span>
+//                                                     <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-default" title="Registration but pending sanction">
+//                                                         <div className="flex items-center gap-1.5">
+//                                                             <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+//                                                             Submitted (Pending Sanction)
+//                                                         </div>
+//                                                         <span>{researchSubmitted}</span>
+//                                                     </span>
+//                                                 </div>
 //                                             </div>
-//                                             <div className="text-center">
-//                                                 <div className="text-[22px] font-extrabold text-[#7c3aed]">
+//                                             <div className="flex flex-col items-center justify-start">
+//                                                 <div className="text-[22px] font-extrabold text-[#7c3aed] leading-tight">
 //                                                     {consultancyProjects}
 //                                                 </div>
-//                                                 <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest">
+//                                                 <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">
 //                                                     Consultancy
+//                                                 </div>
+//                                                 <div className="flex flex-col gap-1.5 w-full px-2 lg:px-4">
+//                                                     <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-default">
+//                                                         <div className="flex items-center gap-1.5">
+//                                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+//                                                             Ongoing (Sanctioned)
+//                                                         </div>
+//                                                         <span>{consultancyOngoing}</span>
+//                                                     </span>
+//                                                     <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-default" title="Registration but pending sanction">
+//                                                         <div className="flex items-center gap-1.5">
+//                                                             <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+//                                                             Submitted (Pending Sanction)
+//                                                         </div>
+//                                                         <span>{consultancySubmitted}</span>
+//                                                     </span>
 //                                                 </div>
 //                                             </div>
 //                                         </div>
@@ -1222,103 +1631,131 @@
 //                                 </div>
 //                             </div>
 
+
 //                             {/* Department-wise Pie Chart */}
 //                             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
-//                                 <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+//                                 <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
 //                                     <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
 //                                         <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-blue-50 dark:bg-blue-950/20 text-[#2563eb]">
 //                                             <Building2 size={14} strokeWidth={2.5} />
 //                                         </div>
 //                                         Department-wise Project Distribution
 //                                     </div>
+//                                     {pieChartDeptData.length > 10 && (
+//                                         <button
+//                                             onClick={() => setShowAllDepts((prev) => !prev)}
+//                                             className="text-[11px] font-bold text-[#2563eb] dark:text-blue-400 hover:underline whitespace-nowrap bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-md transition-colors"
+//                                         >
+//                                             {showAllDepts ? "Show Less" : "Show All"}
+//                                         </button>
+//                                     )}
 //                                 </div>
 //                                 <div className="p-[18px] px-[22px] pb-5">
-//                                     <div className="h-[340px]">
+//                                     <div className="transition-all duration-300 w-full min-h-[340px]">
 //                                         {isLoading ? (
 //                                             <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">
 //                                                 Loading chart...
 //                                             </div>
-//                                         ) : departmentData.length === 0 ? (
+//                                         ) : pieChartDeptData.length === 0 ? (
 //                                             <div className="w-full h-full flex items-center justify-center text-[#71717A] text-sm">
 //                                                 No data available
 //                                             </div>
 //                                         ) : (
-//                                             <ResponsiveContainer width="100%" height="100%">
-//                                                 <PieChart>
-//                                                     <Pie
-//                                                         data={departmentData.slice(0, 10)}
-//                                                         cx="50%"
-//                                                         cy="42%"
-//                                                         innerRadius="48%"
-//                                                         outerRadius="68%"
-//                                                         dataKey="project_count"
-//                                                         nameKey="dept_name"
-//                                                         paddingAngle={3}
-//                                                     >
-//                                                         {departmentData.slice(0, 10).map((_: any, i: number) => (
-//                                                             <Cell
-//                                                                 key={i}
-//                                                                 fill={CHART_COLORS[i % CHART_COLORS.length]}
-//                                                                 stroke="none"
-//                                                             />
-//                                                         ))}
-//                                                     </Pie>
-//                                                     <Tooltip
-//                                                         contentStyle={{
-//                                                             borderRadius: "0.75rem",
-//                                                             border: "1px solid #1e293b",
-//                                                             background: "#0f172a",
-//                                                         }}
-//                                                         labelStyle={{
-//                                                             color: "#f1f5f9",
-//                                                             fontWeight: 700,
-//                                                             fontSize: 12,
-//                                                         }}
-//                                                         itemStyle={{ color: "#94a3b8", fontSize: 11 }}
-//                                                         formatter={(value: number, name: string) => [
-//                                                             `${value} Projects`,
-//                                                             name,
-//                                                         ]}
-//                                                     />
-//                                                     <Legend
-//                                                         content={(props: any) => {
-//                                                             const { payload } = props;
-//                                                             return (
-//                                                                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 mt-3 w-full">
-//                                                                     {payload.map((entry: any, index: number) => {
-//                                                                         const deptData = departmentData.find(
-//                                                                             (d: any) => d.dept_name === entry.value
-//                                                                         );
-//                                                                         const count = deptData
-//                                                                             ? deptData.project_count
-//                                                                             : 0;
-//                                                                         return (
-//                                                                             <li
-//                                                                                 key={`item-${index}`}
-//                                                                                 className="flex items-center text-[11px] min-w-0 group cursor-default gap-1.5"
-//                                                                             >
-//                                                                                 <span
-//                                                                                     className="w-2 h-2 rounded-full shrink-0"
-//                                                                                     style={{ backgroundColor: entry.color }}
-//                                                                                 />
-//                                                                                 <span
-//                                                                                     className="text-[#64748B] dark:text-[#A1A1AA] font-semibold truncate flex-1 group-hover:text-[#3F3F46] dark:group-hover:text-[#E4E4E7] transition-colors"
-//                                                                                     title={entry.value}
-//                                                                                 >
-//                                                                                     {getDeptName(entry.value)}
-//                                                                                 </span>
-//                                                                                 <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">
-//                                                                                     {count}
-//                                                                                 </span>
-//                                                                             </li>
-//                                                                         );
-//                                                                     })}
-//                                                                 </ul>
-//                                                             );
-//                                                         }}
-//                                                     />
-//                                                 </PieChart>
-//                                             </ResponsiveContainer>
+//                                             (() => {
+//                                                 let pieData = pieChartDeptData;
+//                                                 if (!showAllDepts && pieChartDeptData.length > 10) {
+//                                                     const top10 = pieChartDeptData.slice(0, 10);
+//                                                     const others = pieChartDeptData.slice(10);
+//                                                     const othersCount = others.reduce((sum, d) => sum + d.project_count, 0);
+//                                                     if (othersCount > 0) {
+//                                                         pieData = [...top10, { dept_name: "Other Departments", project_count: othersCount }];
+//                                                     } else {
+//                                                         pieData = top10;
+//                                                     }
+//                                                 }
+
+//                                                 const totalDeptCount = pieChartDeptData.reduce((sum, d) => sum + d.project_count, 0);
+
+//                                                 return (
+//                                                     <div className="flex flex-col w-full h-full">
+//                                                         <div className="relative w-full shrink-0" style={{ height: "240px" }}>
+//                                                             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none z-10 w-full">
+//                                                                 <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
+//                                                                     {totalDeptCount}
+//                                                                 </span>
+//                                                                 <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
+//                                                                     Projects
+//                                                                 </span>
+//                                                             </div>
+//                                                             <ResponsiveContainer width="100%" height="100%">
+//                                                                 <PieChart>
+//                                                                     <Pie
+//                                                                         data={pieData}
+//                                                                         cx="50%"
+//                                                                         cy="50%"
+//                                                                         innerRadius="60%"
+//                                                                         outerRadius="80%"
+//                                                                         dataKey="project_count"
+//                                                                         nameKey="dept_name"
+//                                                                         paddingAngle={3}
+//                                                                         isAnimationActive={false}
+//                                                                     >
+//                                                                         {pieData.map((_: any, i: number) => (
+//                                                                             <Cell
+//                                                                                 key={i}
+//                                                                                 fill={CHART_COLORS[i % CHART_COLORS.length]}
+//                                                                                 stroke="none"
+//                                                                             />
+//                                                                         ))}
+//                                                                     </Pie>
+//                                                                     <Tooltip
+//                                                                         contentStyle={{
+//                                                                             borderRadius: "0.75rem",
+//                                                                             border: "1px solid #1e293b",
+//                                                                             background: "#0f172a",
+//                                                                         }}
+//                                                                         labelStyle={{
+//                                                                             color: "#f1f5f9",
+//                                                                             fontWeight: 700,
+//                                                                             fontSize: 12,
+//                                                                         }}
+//                                                                         itemStyle={{ color: "#94a3b8", fontSize: 11 }}
+//                                                                         formatter={(value: number, name: string) => [
+//                                                                             `${value} Projects`,
+//                                                                             name,
+//                                                                         ]}
+//                                                                     />
+//                                                                 </PieChart>
+//                                                             </ResponsiveContainer>
+//                                                         </div>
+
+//                                                         <div className="w-full mt-2">
+//                                                             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 w-full">
+//                                                                 {pieData.map((entry: any, index: number) => (
+//                                                                     <li
+//                                                                         key={`item-${index}`}
+//                                                                         className="flex items-center text-[11px] min-w-0 group cursor-default gap-1.5"
+//                                                                     >
+//                                                                         <span
+//                                                                             className="w-2 h-2 rounded-full shrink-0"
+//                                                                             style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+//                                                                         />
+//                                                                         <span
+//                                                                             className="text-[#64748B] dark:text-[#A1A1AA] font-semibold truncate flex-1 group-hover:text-[#3F3F46] dark:group-hover:text-[#E4E4E7] transition-colors"
+//                                                                             title={entry.dept_name}
+//                                                                         >
+//                                                                             {getDeptName(entry.dept_name)}
+//                                                                         </span>
+//                                                                         <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">
+//                                                                             {entry.project_count}
+//                                                                         </span>
+//                                                                     </li>
+//                                                                 ))}
+//                                                             </ul>
+//                                                         </div>
+//                                                     </div>
+//                                                 );
+//                                             })()
 //                                         )}
 //                                     </div>
 //                                 </div>
@@ -1466,109 +1903,196 @@
 //                         {/* ── Financial Intelligence ── */}
 //                         <SectionDivider title="Financial" />
 //                         <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-[14px] mb-6">
-//                             {/* Top Funded Projects Table */}
-//                             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
-//                                 <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
-//                                     <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
-//                                         <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-emerald-50 dark:bg-emerald-950/20 text-[#059669]">
-//                                             <svg
-//                                                 className="w-3.5 h-3.5"
-//                                                 fill="none"
-//                                                 stroke="currentColor"
-//                                                 strokeWidth="2"
-//                                                 strokeLinecap="round"
-//                                                 strokeLinejoin="round"
-//                                                 viewBox="0 0 24 24"
+//                             {/* All Projects Table */}
+//                             {(() => {
+//                                 // Director-only restrict filter
+//                                 const directorAllowedFilters = new Set(["all", "ongoing", "submitted"]);
+
+//                                 const STATUS_FILTER_OPTIONS = [
+//                                     { value: "all", label: "All Projects" },
+//                                     { value: "ongoing", label: "Ongoing (Sanctioned)" },
+//                                     { value: "submitted", label: "Submitted (Pending Sanction)" },
+//                                     { value: "draft", label: "Draft" },
+//                                     { value: "pending", label: "Pending" },
+//                                     { value: "completed", label: "Completed" },
+//                                     { value: "cancelled", label: "Cancelled" },
+//                                 ];
+
+//                                 const _ongoingIds = new Set<string>(overview?.ongoing_project_nos || []);
+//                                 const _submittedIds = new Set<string>(overview?.submitted_project_nos || []);
+
+//                                 let allProjs: any[] = (allProjectsList || []).map((p: any) => {
+//                                     // Classify using the same ID sets used by all other charts
+//                                     let computedStatus: string;
+//                                     if (_ongoingIds.has(p.name)) computedStatus = "ongoing";
+//                                     else if (_submittedIds.has(p.name)) computedStatus = "submitted";
+//                                     else {
+//                                         const s = (p.workflow_state || "").toLowerCase();
+//                                         if (s.includes("draft")) computedStatus = "draft";
+//                                         else if (s.includes("complet")) computedStatus = "completed";
+//                                         else if (s.includes("cancel") || s.includes("reject")) computedStatus = "cancelled";
+//                                         else computedStatus = "pending";
+//                                     }
+//                                     return {
+//                                         name: p.name,
+//                                         project_title: p.project_title,
+//                                         pi_webmail: p.pi_webmail,
+//                                         department: p.implementation_department,
+//                                         workflow_state: p.workflow_state,
+//                                         _status: computedStatus,
+//                                         total_budget_amount: p.total_budget_amount || p.grand_total_proposal || 0,
+//                                     };
+//                                 }).sort((a: any, b: any) => (b.total_budget_amount - a.total_budget_amount));
+
+//                                 // Restrict the base array for 'Director' role to ONLY ongoing & submitted globally
+//                                 if (isDirectorOnly) {
+//                                     allProjs = allProjs.filter((p: any) => ["ongoing", "submitted"].includes(p._status));
+//                                 }
+
+//                                 const filtered = allProjs.filter((p: any) => {
+//                                     if (projectTableFilter === "all") return true;
+//                                     return p._status === projectTableFilter;
+//                                 });
+
+//                                 const totalPages = Math.max(1, Math.ceil(filtered.length / PROJECT_TABLE_PAGE_SIZE));
+//                                 const safePage = Math.min(projectTablePage, totalPages);
+//                                 const pageSlice = filtered.slice((safePage - 1) * PROJECT_TABLE_PAGE_SIZE, safePage * PROJECT_TABLE_PAGE_SIZE);
+
+//                                 return (
+//                                     <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
+//                                         {/* Header */}
+//                                         <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between flex-wrap gap-3">
+//                                             <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
+//                                                 <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-emerald-50 dark:bg-emerald-950/20 text-[#059669]">
+//                                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+//                                                         <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+//                                                         <polyline points="17 6 23 6 23 12" />
+//                                                     </svg>
+//                                                 </div>
+//                                                 All Projects
+//                                                 <span className="ml-1 text-[11px] font-bold text-[#71717A] bg-[#F4F4F5] dark:bg-[#3F3F46] px-2 py-0.5 rounded-full">
+//                                                     {filtered.length}
+//                                                 </span>
+//                                             </div>
+//                                             {/* Status filter dropdown */}
+//                                             <select
+//                                                 value={projectTableFilter}
+//                                                 onChange={(e) => { setProjectTableFilter(e.target.value); setProjectTablePage(1); }}
+//                                                 className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg px-3 py-1.5 outline-none focus:border-[#2563eb] cursor-pointer transition-colors"
 //                                             >
-//                                                 <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-//                                                 <polyline points="17 6 23 6 23 12" />
-//                                             </svg>
-//                                         </div>
-//                                         Top Funded Projects
-//                                     </div>
-//                                 </div>
-//                                 <div className="overflow-x-auto">
-//                                     <table className="w-full border-collapse">
-//                                         <thead>
-//                                             <tr className="border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-//                                                 {[
-//                                                     "#",
-//                                                     "Project",
-//                                                     "PI / Lead",
-//                                                     "Department",
-//                                                     "Status",
-//                                                     "Amount",
-//                                                 ].map((h) => (
-//                                                     <th
-//                                                         key={h}
-//                                                         className="p-2.5 px-3.5 text-[10px] font-bold text-[#71717A] uppercase tracking-widest text-left"
-//                                                     >
-//                                                         {h}
-//                                                     </th>
+//                                                 {STATUS_FILTER_OPTIONS.filter(opt => !(isDirectorOnly && !directorAllowedFilters.has(opt.value))).map(opt => (
+//                                                     <option key={opt.value} value={opt.value}>
+//                                                         {opt.label}
+//                                                     </option>
 //                                                 ))}
-//                                             </tr>
-//                                         </thead>
-//                                         <tbody>
-//                                             {isLoading ? (
-//                                                 <tr>
-//                                                     <td
-//                                                         colSpan={6}
-//                                                         className="p-8 text-center text-[#71717A] text-sm"
-//                                                     >
-//                                                         Loading projects...
-//                                                     </td>
-//                                                 </tr>
-//                                             ) : topProjects.length === 0 ? (
-//                                                 <tr>
-//                                                     <td
-//                                                         colSpan={6}
-//                                                         className="p-8 text-center text-[#71717A] text-sm"
-//                                                     >
-//                                                         No projects found.
-//                                                     </td>
-//                                                 </tr>
-//                                             ) : (
-//                                                 topProjects.map((proj: any, idx: number) => (
-//                                                     <tr
-//                                                         key={proj.project_id || idx}
-//                                                         className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
-//                                                     >
-//                                                         <td className="p-3 px-3.5 align-middle text-[11px] font-extrabold text-[#71717A] font-mono">
-//                                                             {String(idx + 1).padStart(2, "0")}
-//                                                         </td>
-//                                                         <td className="p-3 px-3.5 align-middle">
-//                                                             <div className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
-//                                                                 {proj.project_title || "Untitled"}
-//                                                             </div>
-//                                                             <span className="font-mono text-[9px] text-[#71717A] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] px-1.5 py-0.5 rounded inline-block mt-1">
-//                                                                 {proj.project_id}
-//                                                             </span>
-//                                                         </td>
-//                                                         <td className="p-3 px-3.5 align-middle text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
-//                                                             {proj.pi_name || "—"}
-//                                                         </td>
-//                                                         <td className="p-3 px-3.5 align-middle">
-//                                                             <span className="inline-block text-[9px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-//                                                                 {proj.department
-//                                                                     ? getDeptName(proj.department)
-//                                                                     : "—"}
-//                                                             </span>
-//                                                         </td>
-//                                                         <td className="p-3 px-3.5 align-middle">
-//                                                             <StatusBadge
-//                                                                 status={proj.status || proj.workflow_state}
-//                                                             />
-//                                                         </td>
-//                                                         <td className="p-3 px-3.5 align-middle font-extrabold text-[13px] text-[#059669] whitespace-nowrap">
-//                                                             {formatCurrency(proj.total_budget_amount || 0)}
-//                                                         </td>
+//                                             </select>
+//                                         </div>
+
+//                                         {/* Table */}
+//                                         <div className="overflow-x-auto">
+//                                             <table className="w-full border-collapse">
+//                                                 <thead>
+//                                                     <tr className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+//                                                         {["#", "Project", "PI / Lead", "Department", "Status", "Amount"].map((h) => (
+//                                                             <th key={h} className="p-2.5 px-3.5 text-[10px] font-bold text-[#71717A] uppercase tracking-widest text-left whitespace-nowrap">
+//                                                                 {h}
+//                                                             </th>
+//                                                         ))}
 //                                                     </tr>
-//                                                 ))
-//                                             )}
-//                                         </tbody>
-//                                     </table>
-//                                 </div>
-//                             </div>
+//                                                 </thead>
+//                                                 <tbody>
+//                                                     {isLoading || allProjectsList === undefined ? (
+//                                                         <tr>
+//                                                             <td colSpan={6} className="p-8 text-center text-[#71717A] text-sm">Loading projects...</td>
+//                                                         </tr>
+//                                                     ) : pageSlice.length === 0 ? (
+//                                                         <tr>
+//                                                             <td colSpan={6} className="p-8 text-center text-[#71717A] text-sm">No projects match the selected filter.</td>
+//                                                         </tr>
+//                                                     ) : (
+//                                                         pageSlice.map((proj: any, idx: number) => {
+//                                                             const globalIdx = (safePage - 1) * PROJECT_TABLE_PAGE_SIZE + idx;
+//                                                             return (
+//                                                                 <tr
+//                                                                     key={proj.name || idx}
+//                                                                     className="border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-0 hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
+//                                                                 >
+//                                                                     <td className="p-3 px-3.5 align-middle text-[11px] font-extrabold text-[#A1A1AA] font-mono">
+//                                                                         {String(globalIdx + 1).padStart(2, "0")}
+//                                                                     </td>
+//                                                                     <td className="p-3 px-3.5 align-middle max-w-[300px]">
+//                                                                         <div className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight line-clamp-2">
+//                                                                             {proj.project_title || "Untitled"}
+//                                                                         </div>
+//                                                                         <span className="font-mono text-[9px] text-[#71717A] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] px-1.5 py-0.5 rounded inline-block mt-1">
+//                                                                             {proj.name}
+//                                                                         </span>
+//                                                                     </td>
+//                                                                     <td className="p-3 px-3.5 align-middle text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA] whitespace-nowrap">
+//                                                                         {proj.pi_webmail ? proj.pi_webmail.split("@")[0] : "—"}
+//                                                                     </td>
+//                                                                     <td className="p-3 px-3.5 align-middle">
+//                                                                         <span className="inline-block text-[9px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+//                                                                             {proj.department ? getDeptName(proj.department) : "—"}
+//                                                                         </span>
+//                                                                     </td>
+//                                                                     <td className="p-3 px-3.5 align-middle">
+//                                                                         <StatusBadge status={proj._status} />
+//                                                                     </td>
+//                                                                     <td className="p-3 px-3.5 align-middle font-extrabold text-[13px] text-[#059669] whitespace-nowrap">
+//                                                                         {formatCurrency(proj.total_budget_amount || 0)}
+//                                                                     </td>
+//                                                                 </tr>
+//                                                             );
+//                                                         })
+//                                                     )}
+//                                                 </tbody>
+//                                             </table>
+//                                         </div>
+
+//                                         {/* Pagination Footer */}
+//                                         {filtered.length > PROJECT_TABLE_PAGE_SIZE && (
+//                                             <div className="flex items-center justify-between px-4 py-3 border-t border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]">
+//                                                 <span className="text-[11px] text-[#71717A] font-semibold">
+//                                                     Showing {(safePage - 1) * PROJECT_TABLE_PAGE_SIZE + 1}–{Math.min(safePage * PROJECT_TABLE_PAGE_SIZE, filtered.length)} of {filtered.length} projects
+//                                                 </span>
+//                                                 <div className="flex items-center gap-1">
+//                                                     <button
+//                                                         onClick={() => setProjectTablePage((p) => Math.max(1, p - 1))}
+//                                                         disabled={safePage === 1}
+//                                                         className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] disabled:opacity-40 hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46] transition-colors"
+//                                                     >
+//                                                         ‹ Prev
+//                                                     </button>
+//                                                     {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+//                                                         const start = Math.max(1, Math.min(safePage - 2, totalPages - 4));
+//                                                         const page = start + i;
+//                                                         return (
+//                                                             <button
+//                                                                 key={page}
+//                                                                 onClick={() => setProjectTablePage(page)}
+//                                                                 className={`w-7 h-7 rounded-lg text-[11px] font-bold transition-colors ${page === safePage
+//                                                                     ? "bg-[#2563eb] text-white"
+//                                                                     : "border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46]"
+//                                                                     }`}
+//                                                             >
+//                                                                 {page}
+//                                                             </button>
+//                                                         );
+//                                                     })}
+//                                                     <button
+//                                                         onClick={() => setProjectTablePage((p) => Math.min(totalPages, p + 1))}
+//                                                         disabled={safePage === totalPages}
+//                                                         className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] disabled:opacity-40 hover:bg-[#E4E4E7] dark:hover:bg-[#3F3F46] transition-colors"
+//                                                     >
+//                                                         Next ›
+//                                                     </button>
+//                                                 </div>
+//                                             </div>
+//                                         )}
+//                                     </div>
+//                                 );
+//                             })()}
 
 //                             {/* Financial Breakdown Panel */}
 //                             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
@@ -1855,16 +2379,17 @@
 //                                         <div className="py-8 text-center text-[#71717A] text-sm">
 //                                             Loading...
 //                                         </div>
-//                                     ) : fundingTypeData.length === 0 ? (
+//                                     ) : pieChartFundingData.length === 0 ? (
 //                                         <div className="py-8 text-center text-[#71717A] text-sm">
 //                                             No data available.
 //                                         </div>
 //                                     ) : (
-//                                         fundingTypeData.slice(0, 5).map((agency: any, i: number) => {
+//                                         pieChartFundingData.map((agency: any, i: number) => {
+//                                             const totalFundingSourcesCount = pieChartFundingData.reduce((sum: number, d: any) => sum + d.value, 0);
 //                                             const pct =
-//                                                 totalFundingSources > 0
+//                                                 totalFundingSourcesCount > 0
 //                                                     ? Math.round(
-//                                                         (agency.value / totalFundingSources) * 100
+//                                                         (agency.value / totalFundingSourcesCount) * 100
 //                                                     )
 //                                                     : 0;
 //                                             const color = CHART_COLORS[i] || "#64748b";
@@ -1873,7 +2398,7 @@
 //                                                     <div className="flex items-center justify-between py-[9px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
 //                                                         <div>
 //                                                             <div className="text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
-//                                                                 {agency.name}
+//                                                                 {agency.funding_agency}
 //                                                             </div>
 //                                                             <div className="text-[10px] text-[#71717A] dark:text-[#A1A1AA]">
 //                                                                 {agency.value} projects
@@ -2039,9 +2564,17 @@
 //                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 mb-8">
 //                         <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
 //                             <div className="px-6 py-5 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex flex-col md:flex-row md:items-center justify-between gap-4">
-//                                 <h2 className="text-[16px] font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7]">
-//                                     Investigator Workloads
-//                                 </h2>
+//                                 <div>
+//                                     <h2 className="text-[16px] font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7]">
+//                                         Investigator Workloads
+//                                     </h2>
+//                                     {piFundingFilter !== "all" && (
+//                                         <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
+//                                             Filtered by:{" "}
+//                                             <span className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{piFundingFilter}</span>
+//                                         </p>
+//                                     )}
+//                                 </div>
 //                                 <div className="flex items-center gap-3">
 //                                     <div className="relative">
 //                                         <Search
@@ -2056,10 +2589,113 @@
 //                                             className="pl-9 pr-4 py-2 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] outline-none w-56 transition-all focus:border-[#2563eb]"
 //                                         />
 //                                     </div>
-//                                     <button className="inline-flex items-center gap-2 px-4 py-2 text-[13px] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] text-[#71717A] dark:text-[#A1A1AA] font-bold transition-all shadow-sm">
-//                                         <Filter size={16} />
-//                                         Filter
-//                                     </button>
+
+//                                     {/* ── Fund Filter Button + Dropdown ── */}
+//                                     <div className="relative">
+//                                         <button
+//                                             onClick={() => setShowFundingFilterDropdown((v) => !v)}
+//                                             className={`inline-flex items-center gap-2 px-4 py-2 text-[13px] border rounded-xl font-bold transition-all shadow-sm ${piFundingFilter !== "all"
+//                                                 ? "border-[#2563eb] bg-blue-50 dark:bg-blue-950/30 text-[#2563eb]"
+//                                                 : "border-[#E4E4E7] dark:border-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] text-[#71717A] dark:text-[#A1A1AA]"
+//                                                 }`}
+//                                         >
+//                                             <Filter size={16} />
+//                                             Filter
+//                                             {piFundingFilter !== "all" && (
+//                                                 <span
+//                                                     className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[#2563eb] text-white text-[9px] font-extrabold leading-none ml-0.5 cursor-pointer hover:bg-red-500 transition-colors"
+//                                                     onClick={(e) => {
+//                                                         e.stopPropagation();
+//                                                         setPiFundingFilter("all");
+//                                                         setShowFundingFilterDropdown(false);
+//                                                     }}
+//                                                     title="Clear filter"
+//                                                 >
+//                                                     ×
+//                                                 </span>
+//                                             )}
+//                                         </button>
+
+//                                         {showFundingFilterDropdown && (
+//                                             <>
+//                                                 {/* backdrop to close */}
+//                                                 <div
+//                                                     className="fixed inset-0 z-[990]"
+//                                                     onClick={() => setShowFundingFilterDropdown(false)}
+//                                                 />
+//                                                 <div className="absolute right-0 top-[calc(100%+6px)] z-[999] bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl shadow-xl w-64 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+//                                                     {/* Header */}
+//                                                     <div className="px-4 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
+//                                                         <span className="text-[11px] font-extrabold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest">Filter by Fund</span>
+//                                                         {piFundingFilter !== "all" && (
+//                                                             <button
+//                                                                 onClick={() => {
+//                                                                     setPiFundingFilter("all");
+//                                                                     setShowFundingFilterDropdown(false);
+//                                                                 }}
+//                                                                 className="text-[10px] font-semibold text-[#2563eb] hover:underline"
+//                                                             >
+//                                                                 Clear
+//                                                             </button>
+//                                                         )}
+//                                                     </div>
+
+//                                                     {/* All option */}
+//                                                     <button
+//                                                         onClick={() => {
+//                                                             setPiFundingFilter("all");
+//                                                             setShowFundingFilterDropdown(false);
+//                                                         }}
+//                                                         className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${piFundingFilter === "all"
+//                                                             ? "bg-blue-50 dark:bg-blue-950/30"
+//                                                             : "hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]"
+//                                                             }`}
+//                                                     >
+//                                                         <span className="w-2.5 h-2.5 rounded-sm shrink-0 bg-[#71717A]" />
+//                                                         <span className="flex-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate">All Funds</span>
+//                                                         {piFundingFilter === "all" && (
+//                                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+//                                                         )}
+//                                                     </button>
+
+//                                                     {/* Fund agency options — built from allProjectsList for consistency */}
+//                                                     <div className="max-h-56 overflow-y-auto">
+//                                                         {piWorkloadAgencies.map((agency, i) => {
+//                                                             const color = CHART_COLORS[i % CHART_COLORS.length] || "#64748b";
+//                                                             const isActive = piFundingFilter === agency.agency_name;
+//                                                             return (
+//                                                                 <button
+//                                                                     key={agency.agency_name}
+//                                                                     onClick={() => {
+//                                                                         setPiFundingFilter(agency.agency_name);
+//                                                                         setShowFundingFilterDropdown(false);
+//                                                                     }}
+//                                                                     className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${isActive
+//                                                                         ? "bg-blue-50 dark:bg-blue-950/30"
+//                                                                         : "hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]"
+//                                                                         }`}
+//                                                                 >
+//                                                                     <span
+//                                                                         className="w-2.5 h-2.5 rounded-sm shrink-0"
+//                                                                         style={{ backgroundColor: color }}
+//                                                                     />
+//                                                                     <span className="flex-1 text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate" title={agency.agency_name}>
+//                                                                         {agency.agency_name}
+//                                                                     </span>
+//                                                                     <span className="text-[11px] font-extrabold text-[#71717A] dark:text-[#A1A1AA]">
+//                                                                         {agency.project_count}
+//                                                                     </span>
+//                                                                     {isActive && (
+//                                                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+//                                                                     )}
+//                                                                 </button>
+//                                                             );
+//                                                         })}
+//                                                     </div>
+//                                                 </div>
+//                                             </>
+//                                         )}
+//                                     </div>
 //                                 </div>
 //                             </div>
 //                             <div className="overflow-x-auto">
@@ -2126,9 +2762,11 @@
 //                                                     colSpan={3}
 //                                                     className="px-6 py-16 text-center text-[#71717A] font-medium"
 //                                                 >
-//                                                     {piSearch
-//                                                         ? "No matching investigators found."
-//                                                         : "No Investigators found."}
+//                                                     {piFundingFilter !== "all"
+//                                                         ? `No investigators found for "${piFundingFilter}"${piSearch ? " matching your search" : ""}.`
+//                                                         : piSearch
+//                                                             ? "No matching investigators found."
+//                                                             : "No Investigators found."}
 //                                                 </td>
 //                                             </tr>
 //                                         )}
@@ -2405,25 +3043,42 @@
 
 //                         <div className="p-5 bg-slate-50/50 dark:bg-slate-900/20 overflow-y-auto max-h-[75vh]">
 //                             {(() => {
+//                                 const totalSanctioned = selectedPIProjects.reduce((sum: number, proj: any) => {
+//                                     return sum + (proj.total_budget_amount || proj.grand_total_proposal || 0);
+//                                 }, 0);
+
+//                                 const formattedTotalSanctioned = totalSanctioned >= 10000000
+//                                     ? `₹${(totalSanctioned / 10000000).toFixed(2)} Cr`
+//                                     : totalSanctioned >= 100000
+//                                         ? `₹${(totalSanctioned / 100000).toFixed(2)} L`
+//                                         : `₹${totalSanctioned.toLocaleString("en-IN")}`;
+
 //                                 return (
-//                                     <div className="grid grid-cols-2 gap-3 mb-6">
-//                                         <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-4 rounded-xl shadow-sm text-center">
-//                                             <div className="text-[20px] font-extrabold text-[#2563eb] leading-tight">
+//                                     <div className="grid grid-cols-3 gap-3 mb-6">
+//                                         <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
+//                                             <div className="text-[18px] sm:text-[20px] font-extrabold text-[#2563eb] leading-tight">
 //                                                 {selectedPIDetails.project_count}
 //                                             </div>
-//                                             <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-//                                                 Active Projects
+//                                             <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+//                                                 Projects
 //                                             </div>
 //                                         </div>
-//                                         <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-4 rounded-xl shadow-sm text-center">
-//                                             <div className="text-[20px] font-extrabold text-[#7c3aed] leading-tight">
+//                                         <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
+//                                             <div className="text-[18px] sm:text-[20px] font-extrabold text-[#7c3aed] leading-tight">
 //                                                 {selectedPIDetails.departments?.length || 0}
 //                                             </div>
-//                                             <div className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-//                                                 Affiliated Depts
+//                                             <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+//                                                 Depts
 //                                             </div>
 //                                         </div>
-
+//                                         <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
+//                                             <div className="text-[18px] sm:text-[20px] font-extrabold text-[#059669] leading-tight">
+//                                                 {totalSanctioned > 0 ? formattedTotalSanctioned : "—"}
+//                                             </div>
+//                                             <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+//                                                 Sanctioned
+//                                             </div>
+//                                         </div>
 //                                     </div>
 //                                 );
 //                             })()}
@@ -2535,16 +3190,6 @@
 //                                                                 )
 //                                                             )
 //                                                             : 0;
-//                                                     const COLORS = [
-//                                                         "#2563eb",
-//                                                         "#7c3aed",
-//                                                         "#059669",
-//                                                         "#d97706",
-//                                                         "#0284c7",
-//                                                         "#e11d48",
-//                                                     ];
-//                                                     const accentColor =
-//                                                         COLORS[globalIdx % COLORS.length];
 //                                                     const startYear = startDate
 //                                                         ? startDate.getFullYear()
 //                                                         : null;
@@ -2581,7 +3226,7 @@
 //                                                                                 ? `₹${(fund / 100000).toFixed(2)} L`
 //                                                                                 : `₹${fund.toLocaleString("en-IN")}`;
 //                                                                         return (
-//                                                                             <div className="text-[10px] font-extrabold mt-1" style={{ color: accentColor }}>
+//                                                                             <div className="text-[10px] font-extrabold mt-1 text-[#3F3F46] dark:text-[#E4E4E7]">
 //                                                                                 {formattedFund}
 //                                                                             </div>
 //                                                                         );
@@ -2619,22 +3264,11 @@
 //                                                                         {formatDate(endDate)}
 //                                                                     </div>
 //                                                                 </div>
-//                                                                 <div
-//                                                                     className="rounded-lg p-2.5 text-center"
-//                                                                     style={{
-//                                                                         backgroundColor: accentColor + "15",
-//                                                                     }}
-//                                                                 >
-//                                                                     <div
-//                                                                         className="text-[10px] font-bold uppercase tracking-widest mb-1"
-//                                                                         style={{ color: accentColor }}
-//                                                                     >
+//                                                                 <div className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2.5 text-center">
+//                                                                     <div className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest mb-1">
 //                                                                         Duration
 //                                                                     </div>
-//                                                                     <div
-//                                                                         className="text-[13px] font-extrabold leading-tight"
-//                                                                         style={{ color: accentColor }}
-//                                                                     >
+//                                                                     <div className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
 //                                                                         {totalMonths !== null
 //                                                                             ? `${totalMonths}mo`
 //                                                                             : "—"}
@@ -2928,20 +3562,13 @@
 //                                                 <td className="px-4 py-3">
 //                                                     <StatusBadge status={proj.workflow_state} />
 //                                                 </td>
-//                                                 <td className="px-4 py-3 text-right">
-//                                                     <div className="text-[12px] font-extrabold text-[#059669] whitespace-nowrap">
-//                                                         {proj.total_budget_amount || proj.grand_total_proposal
-//                                                             ? formatCurrency(
-//                                                                 proj.total_budget_amount ||
-//                                                                 proj.grand_total_proposal
-//                                                             )
-//                                                             : "—"}
-//                                                     </div>
-//                                                     {proj.project_type?.toLowerCase() === "consultancy" && (
-//                                                         <div className="text-[9px] text-[#F59E0B] font-medium mt-0.5 whitespace-nowrap">
-//                                                             Ignore if consultancy project
-//                                                         </div>
-//                                                     )}
+//                                                 <td className="px-4 py-3 text-right text-[12px] font-extrabold text-[#059669] whitespace-nowrap">
+//                                                     {proj.total_budget_amount || proj.grand_total_proposal
+//                                                         ? formatCurrency(
+//                                                             proj.total_budget_amount ||
+//                                                             proj.grand_total_proposal
+//                                                         )
+//                                                         : "—"}
 //                                                 </td>
 //                                             </tr>
 //                                         ))
@@ -3006,14 +3633,14 @@
 
 
 
-// -=-=-=-=------------------=============
 
+// -=-=-==========================================================
 
 
 
 
 import * as React from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
     useFrappeAuth,
     useFrappeGetDoc,
@@ -3310,7 +3937,9 @@ const BarTooltip = ({ active, payload }: any) => {
 };
 
 export function DirectorDashboard() {
+    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const location = useLocation();
     const { currentUser } = useFrappeAuth();
     const [time, setTime] = React.useState(new Date());
     const [kpiModal, setKpiModal] = React.useState<{
@@ -3322,7 +3951,7 @@ export function DirectorDashboard() {
         "ongoing"
     );
     const [kpiAllocTab, setKpiAllocTab] = React.useState<string>("ongoing");
-    const [piModalPage, setPiModalPage] = React.useState(1);
+    const [piModalPage, setPiModalPage] = React.useState<number>(location.state?.piModalPage || 1);
     const [deptModalPage, setDeptModalPage] = React.useState(1);
     const PI_PROJECTS_PAGE_SIZE = 2;
     const DEPT_MODAL_PAGE_SIZE = 10;
@@ -3861,7 +4490,7 @@ export function DirectorDashboard() {
     const [piFundingFilter, setPiFundingFilter] = React.useState<string>("all");
     const [showFundingFilterDropdown, setShowFundingFilterDropdown] = React.useState(false);
     const [expandedDept, setExpandedDept] = React.useState<string | null>(null);
-    const [expandedPI, setExpandedPI] = React.useState<string | null>(null);
+    const [expandedPI, setExpandedPI] = React.useState<string | null>(location.state?.expandedPI || null);
 
     // Pagination states
     const [deptPage, setDeptPage] = React.useState(1);
@@ -6007,7 +6636,7 @@ export function DirectorDashboard() {
                         className="absolute inset-0"
                         onClick={() => setExpandedPI(null)}
                     />
-                    <div className="relative bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-2xl w-full max-w-[780px] flex flex-col animate-in slide-in-from-bottom-4 duration-300">
+                    <div className="relative bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-2xl w-full max-w-[1200px] max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 duration-300">
                         <div className="px-5 pt-5 pb-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-start justify-between relative bg-white dark:bg-[#18181B] rounded-t-2xl z-10 overflow-hidden">
                             <div className="absolute top-0 left-0 w-full h-14 bg-gradient-to-r from-indigo-500/10 to-blue-500/10 dark:from-indigo-500/20 dark:to-blue-500/20 z-0" />
                             <div className="flex items-center gap-4 relative z-10 pt-4">
@@ -6055,10 +6684,15 @@ export function DirectorDashboard() {
                             </button>
                         </div>
 
-                        <div className="p-5 bg-slate-50/50 dark:bg-slate-900/20 overflow-y-auto max-h-[75vh]">
+                        <div className="p-5 bg-slate-50/50 dark:bg-slate-900/20 overflow-y-auto flex-1 min-h-0">
                             {(() => {
                                 const totalSanctioned = selectedPIProjects.reduce((sum: number, proj: any) => {
                                     return sum + (proj.total_budget_amount || proj.grand_total_proposal || 0);
+                                }, 0);
+
+                                const totalFundReceived = selectedPIProjects.reduce((sum: number, proj: any) => {
+                                    // Handle whatever field the backend happens to have
+                                    return sum + (Number(proj.total_fund_received) || Number(proj.fund_received) || Number(proj.project_fund_received) || Number(proj.amount_received) || 0);
                                 }, 0);
 
                                 const formattedTotalSanctioned = totalSanctioned >= 10000000
@@ -6067,8 +6701,14 @@ export function DirectorDashboard() {
                                         ? `₹${(totalSanctioned / 100000).toFixed(2)} L`
                                         : `₹${totalSanctioned.toLocaleString("en-IN")}`;
 
+                                const formattedTotalFundReceived = totalFundReceived >= 10000000
+                                    ? `₹${(totalFundReceived / 10000000).toFixed(2)} Cr`
+                                    : totalFundReceived >= 100000
+                                        ? `₹${(totalFundReceived / 100000).toFixed(2)} L`
+                                        : `₹${totalFundReceived.toLocaleString("en-IN")}`;
+
                                 return (
-                                    <div className="grid grid-cols-3 gap-3 mb-6">
+                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                                         <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
                                             <div className="text-[18px] sm:text-[20px] font-extrabold text-[#2563eb] leading-tight">
                                                 {selectedPIDetails.project_count}
@@ -6091,6 +6731,14 @@ export function DirectorDashboard() {
                                             </div>
                                             <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
                                                 Sanctioned
+                                            </div>
+                                        </div>
+                                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
+                                            <div className="text-[18px] sm:text-[20px] font-extrabold text-[#d97706] leading-tight">
+                                                {totalFundReceived > 0 ? formattedTotalFundReceived : "—"}
+                                            </div>
+                                            <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
+                                                Fund Rcvd
                                             </div>
                                         </div>
                                     </div>
@@ -6126,9 +6774,6 @@ export function DirectorDashboard() {
 
                             {selectedPIProjects.length > 0 &&
                                 (() => {
-                                    const piProjectTotalPages = Math.ceil(
-                                        selectedPIProjects.length / PI_PROJECTS_PAGE_SIZE
-                                    );
                                     const pagedProjects = selectedPIProjects.slice(
                                         (piModalPage - 1) * PI_PROJECTS_PAGE_SIZE,
                                         piModalPage * PI_PROJECTS_PAGE_SIZE
@@ -6246,20 +6891,29 @@ export function DirectorDashboard() {
                                                                         );
                                                                     })()}
                                                                 </div>
-                                                                <span
-                                                                    className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${isCompleted
-                                                                        ? "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
-                                                                        : isActive
-                                                                            ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
-                                                                            : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
-                                                                        }`}
-                                                                >
-                                                                    {isCompleted
-                                                                        ? "Completed"
-                                                                        : isActive
-                                                                            ? "● Active"
-                                                                            : "Upcoming"}
-                                                                </span>
+                                                                <div className="flex flex-col items-end gap-2 shrink-0">
+                                                                    <span
+                                                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isCompleted
+                                                                            ? "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                                                                            : isActive
+                                                                                ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
+                                                                                : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
+                                                                            }`}
+                                                                    >
+                                                                        {isCompleted
+                                                                            ? "Completed"
+                                                                            : isActive
+                                                                                ? "● Active"
+                                                                                : "Upcoming"}
+                                                                    </span>
+                                                                    <button
+                                                                        onClick={() => navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, expandedPI, piModalPage } })}
+                                                                        className="text-[10px] font-semibold text-[#D97757] hover:text-[#c26245] flex items-center gap-1 group transition-colors"
+                                                                    >
+                                                                        View Project
+                                                                        <svg className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0l-7.5 7.5M21 12H3" /></svg>
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                             <div className="grid grid-cols-3 gap-2 mb-3">
                                                                 <div className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2.5 text-center">
@@ -6347,55 +7001,63 @@ export function DirectorDashboard() {
                                                     );
                                                 })}
                                             </div>
-                                            {piProjectTotalPages > 1 && (
-                                                <div className="flex items-center justify-between mt-4 pt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
-                                                    <button
-                                                        disabled={piModalPage === 1}
-                                                        onClick={() =>
-                                                            setPiModalPage((p) => Math.max(1, p - 1))
-                                                        }
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                                                    >
-                                                        <svg
-                                                            className="w-3.5 h-3.5"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            strokeWidth="2"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <path d="M15 18l-6-6 6-6" />
-                                                        </svg>
-                                                        Prev
-                                                    </button>
-                                                    <span className="text-[11px] font-semibold text-[#A1A1AA]">
-                                                        Page {piModalPage} of {piProjectTotalPages}
-                                                    </span>
-                                                    <button
-                                                        disabled={piModalPage === piProjectTotalPages}
-                                                        onClick={() =>
-                                                            setPiModalPage((p) =>
-                                                                Math.min(piProjectTotalPages, p + 1)
-                                                            )
-                                                        }
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] bg-white dark:bg-[#27272A] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                                                    >
-                                                        Next
-                                                        <svg
-                                                            className="w-3.5 h-3.5"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            strokeWidth="2"
-                                                            viewBox="0 0 24 24"
-                                                        >
-                                                            <path d="M9 18l6-6-6-6" />
-                                                        </svg>
-                                                    </button>
-                                                </div>
-                                            )}
                                         </div>
                                     );
                                 })()}
                         </div>
+
+                        {/* ── Fixed Footer for Pagination ── */}
+                        {(() => {
+                            const piProjectTotalPages = Math.ceil(
+                                selectedPIProjects.length / PI_PROJECTS_PAGE_SIZE
+                            );
+                            if (piProjectTotalPages <= 1) return null;
+                            return (
+                                <div className="p-4 border-t border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#18181B] rounded-b-2xl shrink-0 flex items-center justify-between">
+                                    <button
+                                        disabled={piModalPage === 1}
+                                        onClick={() =>
+                                            setPiModalPage((p) => Math.max(1, p - 1))
+                                        }
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        <svg
+                                            className="w-3.5 h-3.5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path d="M15 18l-6-6 6-6" />
+                                        </svg>
+                                        Prev
+                                    </button>
+                                    <span className="text-[11px] font-semibold text-[#A1A1AA]">
+                                        Page {piModalPage} of {piProjectTotalPages}
+                                    </span>
+                                    <button
+                                        disabled={piModalPage === piProjectTotalPages}
+                                        onClick={() =>
+                                            setPiModalPage((p) =>
+                                                Math.min(piProjectTotalPages, p + 1)
+                                            )
+                                        }
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                    >
+                                        Next
+                                        <svg
+                                            className="w-3.5 h-3.5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path d="M9 18l6-6-6-6" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
             )}

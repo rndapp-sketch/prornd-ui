@@ -2659,7 +2659,11 @@ const ProjectRegistration: React.FC = () => {
     }, [saveResult, saveError]);
     useEffect(() => {
         if (saveEndorsementResult) {
-            alert(`Endorsement Submitted!`);
+            alert(`Endorsement Submitted!
+
+After the Dean approves this endorsement, the project can be registered as a full project.
+Until then, the project is not yet eligible for submission.`);
+            navigate("/projects-view");
         }
         if (saveEndorsementError) {
             alert(`Endorsement save error: ${saveEndorsementError.message}`);
@@ -4181,7 +4185,6 @@ const ProjectRegistration: React.FC = () => {
                                                     endorsement: 1,
                                                 });
                                                 setShowEndorsementModal(false);
-                                                navigate("/projects-view");
                                             } catch (err) {
                                                 alert(
                                                     "Error processing endorsement.",
@@ -4523,6 +4526,8 @@ const ProjectRegistration: React.FC = () => {
                     </SheetFooter>
                 </SheetContent>
             </Sheet>
+
+
         </div>
     );
 };
