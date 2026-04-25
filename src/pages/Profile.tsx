@@ -86,7 +86,6 @@ const editableFields: Array<keyof ProfileForm> = [
     "last_name",
     "full_name",
     "user_image",
-    "pi_initials",
     "phone",
     "mobile_no",
     "location",
@@ -194,9 +193,9 @@ export default function Profile() {
     const [isDirty, setIsDirty] = useState(false);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const { roles, isLoading: isRolesLoading } = useUserRoles(
-        currentUser || null,
-    );
+    // const { roles, isLoading: isRolesLoading } = useUserRoles(
+    //     currentUser || null,
+    // );
 
     const {
         data: user,
@@ -244,7 +243,7 @@ export default function Profile() {
         if (!currentUser) return;
         fetchUserDetails({ user_email: currentUser })
             .then((res) => setResolvedEmpclass(res?.message?.empclass || ""))
-            .catch(() => {});
+            .catch(() => { });
     }, [currentUser]);
 
     useEffect(() => {
