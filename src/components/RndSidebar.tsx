@@ -522,6 +522,8 @@ import {
     ListTodo,
     CreditCard,
     BarChart3,
+    MessageSquare,
+    X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -536,6 +538,9 @@ import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { useSWRConfig } from "swr";
 import { useUserRoles } from "./UserRole";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 
 // --- LOGIC: Interfaces (Unchanged) ---
 interface SubMenuItem {
@@ -560,6 +565,11 @@ export function AppSidebar() {
     const [openSubMenus, setOpenSubMenus] = useState<string[]>([]);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const { mutate } = useSWRConfig();
+    const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+    const [feedbackMessage, setFeedbackMessage] = useState("");
+    const [feedbackUrgent, setFeedbackUrgent] = useState(false);
+    const [isSendingFeedback, setIsSendingFeedback] = useState(false);
+    const [feedbackStatus, setFeedbackStatus] = useState<"idle" | "success" | "error">("idle");
 
     const { data: userDoc, isLoading: isLoadingUserDoc } = useFrappeGetDoc(
         "User",
@@ -757,6 +767,38 @@ export function AppSidebar() {
         } catch (error) {
             console.error("Logout failed:", error);
             setIsLoggingOut(false);
+        }
+    };
+
+    const handleSendFeedback = async () => {
+        if (!feedbackMessage.trim()) return;
+        setIsSendingFeedback(true);
+        setFeedbackStatus("idle");
+        try {
+            const res = await fetch(
+                "/api/method/rndopsapp.rndopsapp.api.publish_to_mattermost",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": "fetch" },
+                    body: JSON.stringify({
+                        message: feedbackMessage.trim(),
+                        urgent: feedbackUrgent,
+                        channel_id: "jnkacpywbjnh9frhg1bb8gs85y",
+                    }),
+                },
+            );
+            if (!res.ok) throw new Error("Failed");
+            setFeedbackStatus("success");
+            setFeedbackMessage("");
+            setFeedbackUrgent(false);
+            setTimeout(() => {
+                setIsFeedbackOpen(false);
+                setFeedbackStatus("idle");
+            }, 1500);
+        } catch {
+            setFeedbackStatus("error");
+        } finally {
+            setIsSendingFeedback(false);
         }
     };
 
@@ -987,6 +1029,29 @@ export function AppSidebar() {
                 <SidebarFooter className="px-2 py-3 border-t border-zinc-200 bg-[#F0EDE4] dark:bg-zinc-900 dark:border-zinc-800">
                     <SidebarMenuItem>
                         <SidebarMenuButton
+                            onClick={() => setIsFeedbackOpen(true)}
+                            className={cn(
+                                "w-full h-8 rounded-md font-medium text-xs transition-all duration-200 bg-transparent text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
+                                state === "expanded"
+                                    ? "px-2.5 justify-start"
+                                    : "px-0 justify-center",
+                            )}
+                            tooltip="Send Feedback"
+                        >
+                            <MessageSquare
+                                className={cn(
+                                    state === "expanded" ? "w-4 h-4" : "w-5 h-5",
+                                    "text-zinc-500 dark:text-zinc-400",
+                                )}
+                                strokeWidth={1.5}
+                            />
+                            {state === "expanded" && (
+                                <span className="ml-2">Send Feedback</span>
+                            )}
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
                             onClick={handleLogout}
                             className={cn(
                                 "w-full h-8 rounded-md font-medium text-xs transition-all duration-200 bg-transparent text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200",
@@ -1059,6 +1124,87 @@ export function AppSidebar() {
                     </div>
                 </SidebarFooter>
             </Sidebar>
+
+            {/* Feedback Modal */}
+            {isFeedbackOpen && (
+                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50">
+                    <div className="w-full max-w-md rounded-xl border border-zinc-200 bg-white dark:bg-zinc-900 dark:border-zinc-700 shadow-xl p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                <MessageSquare className="w-4 h-4 text-zinc-500" />
+                                Send Feedback
+                            </h2>
+                            <button
+                                onClick={() => {
+                                    setIsFeedbackOpen(false);
+                                    setFeedbackMessage("");
+                                    setFeedbackUrgent(false);
+                                    setFeedbackStatus("idle");
+                                }}
+                                className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <Textarea
+                            placeholder="Write your message or feedback..."
+                            value={feedbackMessage}
+                            onChange={(e) => setFeedbackMessage(e.target.value)}
+                            rows={5}
+                            className="mb-4 resize-none text-sm"
+                        />
+
+                        <div className="flex items-center gap-2 mb-5">
+                            <Checkbox
+                                id="urgent"
+                                checked={feedbackUrgent}
+                                onCheckedChange={(v) => setFeedbackUrgent(!!v)}
+                            />
+                            <label
+                                htmlFor="urgent"
+                                className="text-sm font-medium text-zinc-700 dark:text-zinc-300 cursor-pointer select-none"
+                            >
+                                Mark as urgent
+                            </label>
+                        </div>
+
+                        {feedbackStatus === "success" && (
+                            <p className="text-xs text-green-600 font-medium mb-3">
+                                Feedback sent successfully!
+                            </p>
+                        )}
+                        {feedbackStatus === "error" && (
+                            <p className="text-xs text-red-500 font-medium mb-3">
+                                Failed to send. Please try again.
+                            </p>
+                        )}
+
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    setIsFeedbackOpen(false);
+                                    setFeedbackMessage("");
+                                    setFeedbackUrgent(false);
+                                    setFeedbackStatus("idle");
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                size="sm"
+                                disabled={!feedbackMessage.trim() || isSendingFeedback}
+                                onClick={handleSendFeedback}
+                                className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
+                            >
+                                {isSendingFeedback ? "Sending…" : "Send"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
