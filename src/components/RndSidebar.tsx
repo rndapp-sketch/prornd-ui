@@ -1157,18 +1157,24 @@ export function AppSidebar() {
                             className="mb-4 resize-none text-sm"
                         />
 
-                        <div className="flex items-center gap-2 mb-5">
+                        <div className="flex items-start gap-2 mb-5">
                             <Checkbox
                                 id="urgent"
                                 checked={feedbackUrgent}
                                 onCheckedChange={(v) => setFeedbackUrgent(!!v)}
+                                className="mt-0.5"
                             />
-                            <label
-                                htmlFor="urgent"
-                                className="text-sm font-medium text-zinc-700 dark:text-zinc-300 cursor-pointer select-none"
-                            >
-                                Mark as urgent
-                            </label>
+                            <div>
+                                <label
+                                    htmlFor="urgent"
+                                    className="text-sm font-medium text-zinc-700 dark:text-zinc-300 cursor-pointer select-none"
+                                >
+                                    Mark as urgent
+                                </label>
+                                <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
+                                    Check this if the issue requires immediate attention.
+                                </p>
+                            </div>
                         </div>
 
                         {feedbackStatus === "success" && (
