@@ -1036,7 +1036,7 @@ export function AppSidebar() {
                                     ? "px-2.5 justify-start"
                                     : "px-0 justify-center",
                             )}
-                            tooltip="Send Feedback"
+                            tooltip="Help & Support"
                         >
                             <MessageSquare
                                 className={cn(
@@ -1046,7 +1046,7 @@ export function AppSidebar() {
                                 strokeWidth={1.5}
                             />
                             {state === "expanded" && (
-                                <span className="ml-2">Send Feedback</span>
+                                <span className="ml-2">Help & Support</span>
                             )}
                         </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -1132,7 +1132,7 @@ export function AppSidebar() {
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
                                 <MessageSquare className="w-4 h-4 text-zinc-500" />
-                                Send Feedback
+                                Help & Support
                             </h2>
                             <button
                                 onClick={() => {
