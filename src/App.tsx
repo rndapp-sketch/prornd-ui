@@ -2,7 +2,7 @@ import { FrappeProvider, useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/RndSidebar";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
-import { MenuIcon, UserIcon, SearchIcon, MoonIcon, SunIcon, LogOutIcon } from "lucide-react";
+import { MenuIcon, UserIcon, SearchIcon, MoonIcon, SunIcon, LogOutIcon, UserCircle } from "lucide-react";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { SWRConfig, useSWRConfig } from "swr";
 import { useRef, useEffect, useState } from "react";
@@ -96,18 +96,7 @@ function AppContent() {
     }
   }
 
-  // Get user image URL with fallback
-  const getUserImageUrl = () => {
-    if (!actualUserData?.user_image) {
-      return null;
-    }
-    if (actualUserData.user_image.startsWith('http')) {
-      return actualUserData.user_image;
-    }
-    return `https://prornd.local${actualUserData.user_image}`;
-  };
-
-  const userImageUrl = getUserImageUrl();
+  const userImageUrl = actualUserData?.user_image || null;
 
   return (
     <div className="App bg-[#F9F7F2] dark:bg-zinc-900 min-h-screen">
@@ -190,6 +179,11 @@ function AppContent() {
                                 <p className="text-xs leading-none text-muted-foreground">{currentUser}</p>
                               </div>
                             </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer">
+                              <UserCircle className="mr-2 h-4 w-4" />
+                              <span>Profile</span>
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-400 dark:focus:text-red-400 dark:focus:bg-red-400/10 cursor-pointer">
                               <LogOutIcon className="mr-2 h-4 w-4" />
