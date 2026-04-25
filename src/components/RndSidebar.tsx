@@ -524,6 +524,7 @@ import {
     BarChart3,
     MessageSquare,
     X,
+    Paperclip,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -568,8 +569,10 @@ export function AppSidebar() {
     const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
     const [feedbackMessage, setFeedbackMessage] = useState("");
     const [feedbackUrgent, setFeedbackUrgent] = useState(false);
+    const [feedbackFiles, setFeedbackFiles] = useState<File[]>([]);
     const [isSendingFeedback, setIsSendingFeedback] = useState(false);
     const [feedbackStatus, setFeedbackStatus] = useState<"idle" | "success" | "error">("idle");
+    const feedbackFileInputRef = React.useRef<HTMLInputElement>(null);
 
     const { data: userDoc, isLoading: isLoadingUserDoc } = useFrappeGetDoc(
         "User",
@@ -775,24 +778,27 @@ export function AppSidebar() {
         setIsSendingFeedback(true);
         setFeedbackStatus("idle");
         try {
+            const form = new FormData();
+            form.append("message", feedbackMessage.trim());
+            form.append("urgent", feedbackUrgent ? "1" : "0");
+            form.append("channel_id", "jnkacpywbjnh9frhg1bb8gs85y");
+            form.append("feedback", "1");
+            form.append("current_user_email", currentUser || "");
+            feedbackFiles.forEach((file) => form.append("files", file, file.name));
+
             const res = await fetch(
                 "/api/method/rndopsapp.rndopsapp.api.publish_to_mattermost",
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": "fetch" },
-                    body: JSON.stringify({
-                        message: feedbackMessage.trim(),
-                        urgent: feedbackUrgent,
-                        channel_id: "jnkacpywbjnh9frhg1bb8gs85y",
-                        feedback: true,
-                        current_user_email: currentUser || "",
-                    }),
+                    headers: { "X-Frappe-CSRF-Token": "fetch" },
+                    body: form,
                 },
             );
             if (!res.ok) throw new Error("Failed");
             setFeedbackStatus("success");
             setFeedbackMessage("");
             setFeedbackUrgent(false);
+            setFeedbackFiles([]);
             setTimeout(() => {
                 setIsFeedbackOpen(false);
                 setFeedbackStatus("idle");
@@ -1141,6 +1147,7 @@ export function AppSidebar() {
                                     setIsFeedbackOpen(false);
                                     setFeedbackMessage("");
                                     setFeedbackUrgent(false);
+                                    setFeedbackFiles([]);
                                     setFeedbackStatus("idle");
                                 }}
                                 className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500"
@@ -1153,9 +1160,48 @@ export function AppSidebar() {
                             placeholder="Write your message or feedback..."
                             value={feedbackMessage}
                             onChange={(e) => setFeedbackMessage(e.target.value)}
-                            rows={5}
-                            className="mb-4 resize-none text-sm"
+                            rows={4}
+                            className="mb-3 resize-none text-sm"
                         />
+
+                        {/* File attachments */}
+                        <div className="mb-4">
+                            <input
+                                ref={feedbackFileInputRef}
+                                type="file"
+                                multiple
+                                className="hidden"
+                                onChange={(e) => {
+                                    const picked = Array.from(e.target.files || []);
+                                    setFeedbackFiles((prev) => [...prev, ...picked]);
+                                    e.target.value = "";
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => feedbackFileInputRef.current?.click()}
+                                className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+                            >
+                                <Paperclip className="w-3.5 h-3.5" />
+                                Attach files
+                            </button>
+                            {feedbackFiles.length > 0 && (
+                                <ul className="mt-2 space-y-1">
+                                    {feedbackFiles.map((f, i) => (
+                                        <li key={i} className="flex items-center justify-between text-xs bg-zinc-50 dark:bg-zinc-800 rounded px-2 py-1 border border-zinc-200 dark:border-zinc-700">
+                                            <span className="truncate text-zinc-700 dark:text-zinc-300 max-w-[80%]">{f.name}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setFeedbackFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                                                className="ml-2 text-zinc-400 hover:text-red-500 transition-colors"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
 
                         <div className="flex items-start gap-2 mb-5">
                             <Checkbox
@@ -1196,6 +1242,7 @@ export function AppSidebar() {
                                     setIsFeedbackOpen(false);
                                     setFeedbackMessage("");
                                     setFeedbackUrgent(false);
+                                    setFeedbackFiles([]);
                                     setFeedbackStatus("idle");
                                 }}
                             >
