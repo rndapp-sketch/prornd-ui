@@ -623,12 +623,8 @@ export default function Profile() {
                                     <Input
                                         id="pi_initials"
                                         value={form.pi_initials}
-                                        onChange={(event) =>
-                                            updateField(
-                                                "pi_initials",
-                                                event.target.value,
-                                            )
-                                        }
+                                        readOnly
+                                        className="bg-muted cursor-not-allowed opacity-70"
                                     />
                                 </Field>
                                 <Field id="phone" label="Phone" icon={Phone}>
