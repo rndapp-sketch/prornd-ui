@@ -224,6 +224,16 @@ export const fileToBase64 = (file: File): Promise<{ file_name: string; file_data
     });
 };
 
+// Candidate APIs (External Node Server)
+export const CANDIDATE_API_BASE_URL = import.meta.env.VITE_CANDIDATE_API_URL || "http://172.16.135.27:8091";
+
+export const candidateAPI = {
+    getApplications: (refNum: string) => `${CANDIDATE_API_BASE_URL}/api/applications?refNumParent=${encodeURIComponent(refNum)}`,
+    reviewApplication: (applicationId: number | string) => `${CANDIDATE_API_BASE_URL}/api/applications/${applicationId}/review`,
+    getProfile: (candidateId: number | string) => `${CANDIDATE_API_BASE_URL}/api/candidates/${candidateId}/profile`,
+    getDocument: (docId: number | string) => `${CANDIDATE_API_BASE_URL}/api/documents/${docId}`,
+};
+
 // Helper to prepare form data with file conversions for API submission
 export const prepareFormDataForApi = async (formData: Record<string, any>): Promise<Record<string, any>> => {
     const data = JSON.parse(JSON.stringify(formData));

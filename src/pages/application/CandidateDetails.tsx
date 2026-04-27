@@ -10,10 +10,10 @@ import {
     Briefcase,
     ClipboardCheck,
     FileText,
-    ChevronDown,
     Download,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { candidateAPI } from "@/services/apiService";
 
 // --- Types ---
 interface UserInfo {
@@ -99,47 +99,16 @@ interface CandidateProfile {
     documents: Document[];
 }
 
-// --- Collapsible Card ---
-const CollapsibleCard = ({
-    title,
-    icon: Icon,
-    children,
-    defaultOpen = true,
-}: {
-    title: string;
-    icon: React.ElementType;
-    children: React.ReactNode;
-    defaultOpen?: boolean;
-}) => {
-    const [isOpen, setIsOpen] = useState(defaultOpen);
-    return (
-        <Card className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#27272A] shadow-sm rounded-xl overflow-hidden">
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between px-6 py-4 bg-[#D97757] text-white cursor-pointer select-none"
-            >
-                <div className="flex items-center gap-2.5 font-semibold text-sm">
-                    <Icon className="w-4.5 h-4.5" />
-                    {title}
-                </div>
-                <ChevronDown
-                    className={cn(
-                        "w-4.5 h-4.5 transition-transform duration-200",
-                        !isOpen && "-rotate-90"
-                    )}
-                />
-            </button>
-            <div
-                className={cn(
-                    "transition-all duration-300 overflow-hidden",
-                    isOpen ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
-                )}
-            >
-                <CardContent className="p-6">{children}</CardContent>
-            </div>
-        </Card>
-    );
-};
+// --- Tab definitions ---
+const TABS = [
+    { key: "personal", label: "Personal", icon: User },
+    { key: "address", label: "Address", icon: MapPin },
+    { key: "education", label: "Education", icon: GraduationCap },
+    { key: "employment", label: "Employment", icon: Briefcase },
+    { key: "recruitment", label: "Recruitment", icon: ClipboardCheck },
+    { key: "documents", label: "Documents", icon: FileText },
+    { key: "review", label: "Review", icon: ClipboardCheck },
+] as const;
 
 // --- Info Row ---
 const InfoRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
@@ -165,7 +134,7 @@ const StatusBadge = ({ status }: { status: string }) => {
                 (normalized === "rejected" || normalized === "not shortlisted") && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
                 normalized === "submitted" && "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
                 !["shortlisted", "under review", "rejected", "not shortlisted", "submitted"].includes(normalized) &&
-                    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
             )}
         >
             {status}
@@ -187,10 +156,32 @@ const formatDate = (dateStr: string | null) => {
     }
 };
 
-// --- Document Row (fetches binary from API and creates blob URLs) ---
+const getDocumentMimeType = (doc: Document) => {
+    if (doc.mime_type) return doc.mime_type;
+
+    const extension = doc.document_name.split(".").pop()?.toLowerCase();
+    const mimeTypes: Record<string, string> = {
+        pdf: "application/pdf",
+        png: "image/png",
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        gif: "image/gif",
+        webp: "image/webp",
+        svg: "image/svg+xml",
+        txt: "text/plain",
+        csv: "text/csv",
+        doc: "application/msword",
+        docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    };
+
+    return (extension && mimeTypes[extension]) || "application/octet-stream";
+};
+
+// --- Document Row (fetches raw binary from document API) ---
 const DocumentRow = ({ doc }: { doc: Document }) => {
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
     const [isLoadingDoc, setIsLoadingDoc] = useState(false);
+    const resolvedMimeType = getDocumentMimeType(doc);
 
     useEffect(() => {
         let objectUrl: string | null = null;
@@ -198,28 +189,29 @@ const DocumentRow = ({ doc }: { doc: Document }) => {
         const fetchDocBlob = async () => {
             setIsLoadingDoc(true);
             try {
-                const resp = await fetch(
-                    `http://172.16.134.191:3000/api/documents/${doc.id}`,
-                    { headers: { Accept: "application/json" } }
-                );
+                const resp = await fetch(candidateAPI.getDocument(doc.id), {
+                    headers: { Accept: "application/json" },
+                });
                 if (!resp.ok) throw new Error("Failed to fetch document");
+
                 const jsonResp = await resp.json();
-                
-                // The API returns { success: true, document: { file_data_base64: ... } }
                 const docData = jsonResp.document || jsonResp;
                 const raw: string = docData.file_data_base64;
                 if (!raw) return;
 
-                // Convert the raw binary string to a Uint8Array
                 const bytes = new Uint8Array(raw.length);
                 for (let i = 0; i < raw.length; i++) {
                     bytes[i] = raw.charCodeAt(i) & 0xff;
                 }
-                const blob = new Blob([bytes], { type: doc.mime_type || "application/octet-stream" });
+
+                const blob = new Blob([bytes], {
+                    type: doc.mime_type || resolvedMimeType || "application/octet-stream",
+                });
                 objectUrl = URL.createObjectURL(blob);
                 setBlobUrl(objectUrl);
             } catch (err) {
                 console.error("Error fetching document blob:", err);
+                setBlobUrl(null);
             } finally {
                 setIsLoadingDoc(false);
             }
@@ -230,7 +222,7 @@ const DocumentRow = ({ doc }: { doc: Document }) => {
         return () => {
             if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
-    }, [doc.id, doc.mime_type]);
+    }, [doc.id, doc.mime_type, resolvedMimeType]);
 
     const handleDownload = () => {
         if (!blobUrl) return;
@@ -243,7 +235,9 @@ const DocumentRow = ({ doc }: { doc: Document }) => {
     };
 
     const handlePreview = () => {
-        if (blobUrl) window.open(blobUrl, "_blank");
+        if (blobUrl) {
+            window.open(blobUrl, "_blank");
+        }
     };
 
     return (
@@ -259,7 +253,7 @@ const DocumentRow = ({ doc }: { doc: Document }) => {
             <td className="px-4 py-3">
                 {isLoadingDoc ? (
                     <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-                ) : blobUrl && doc.mime_type?.startsWith("image") ? (
+                ) : blobUrl && resolvedMimeType.startsWith("image") ? (
                     <img
                         src={blobUrl}
                         alt={doc.document_name}
@@ -268,8 +262,9 @@ const DocumentRow = ({ doc }: { doc: Document }) => {
                     />
                 ) : (
                     <button
+                        type="button"
                         onClick={handlePreview}
-                        disabled={!blobUrl}
+                        disabled={isLoadingDoc}
                         className="text-zinc-400 hover:text-[#D97757] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <FileText className="w-8 h-8" />
@@ -281,6 +276,7 @@ const DocumentRow = ({ doc }: { doc: Document }) => {
             </td>
             <td className="px-4 py-3">
                 <button
+                    type="button"
                     onClick={handleDownload}
                     disabled={!blobUrl}
                     className="inline-flex items-center gap-1.5 text-sm text-[#D97757] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
@@ -305,6 +301,8 @@ const CandidateDetails: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const [activeTab, setActiveTab] = useState<typeof TABS[number]["key"]>("personal");
+
     // Status update state
     const [selectedStatus, setSelectedStatus] = useState("");
     const [justification, setJustification] = useState("");
@@ -320,7 +318,7 @@ const CandidateDetails: React.FC = () => {
         setError(null);
         try {
             const response = await fetch(
-                `http://172.16.134.191:3000/api/candidates/${candidateId}/profile`,
+                candidateAPI.getProfile(candidateId),
                 {
                     method: "GET",
                     headers: { Accept: "application/json" },
@@ -358,7 +356,7 @@ const CandidateDetails: React.FC = () => {
         setIsUpdating(true);
         try {
             const response = await fetch(
-                `http://172.16.134.191:3000/api/applications/${applicationId}/review`,
+                candidateAPI.reviewApplication(applicationId),
                 {
                     method: "PUT",
                     headers: {
@@ -433,189 +431,187 @@ const CandidateDetails: React.FC = () => {
                     </span>
                 </div>
 
-                {/* Cards */}
-                <div className="space-y-6">
-                    {/* Personal Information */}
-                    <CollapsibleCard title="Personal Information" icon={User} defaultOpen={true}>
-                        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                            <InfoRow label="Full Name" value={fullName} />
-                            <InfoRow label="Email" value={user.email} />
-                            <InfoRow label="Father's Name" value={candidate.father_name} />
-                            <InfoRow label="Gender" value={candidate.gender} />
-                            <InfoRow label="Date of Birth" value={formatDate(candidate.date_of_birth)} />
-                            <InfoRow label="Marital Status" value={candidate.marital_status} />
-                            <InfoRow label="Citizenship" value={candidate.citizenship} />
-                            <InfoRow label="Phone Number" value={candidate.phone_number} />
-                            {candidate.cover_letter && (
-                                <InfoRow label="Cover Letter" value={candidate.cover_letter} />
+                {/* Tab Bar */}
+                <div className="flex flex-wrap gap-1 mb-6 border-b border-zinc-200 dark:border-zinc-800">
+                    {TABS.map(({ key, label, icon: Icon }) => (
+                        <button
+                            key={key}
+                            onClick={() => setActiveTab(key)}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors whitespace-nowrap",
+                                activeTab === key
+                                    ? "border-[#D97757] text-[#D97757] bg-[#D97757]/5"
+                                    : "border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                             )}
-                        </div>
-                    </CollapsibleCard>
+                        >
+                            <Icon className="w-4 h-4" />
+                            {label}
+                        </button>
+                    ))}
+                </div>
 
-                    {/* Address Information */}
-                    <CollapsibleCard title="Address Information" icon={MapPin} defaultOpen={false}>
-                        {address && address.length > 0 ? (
-                            <div className="space-y-4">
-                                {address.map((addr) => (
-                                    <div
-                                        key={addr.addrId}
-                                        className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden"
-                                    >
-                                        <div className="px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
-                                            <span className="text-sm font-semibold text-[#D97757] flex items-center gap-2">
-                                                <MapPin className="w-3.5 h-3.5" />
-                                                {addr.addrType} Address
-                                            </span>
+                {/* Tab Content */}
+                <Card className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#27272A] shadow-sm rounded-xl overflow-hidden">
+                    <CardContent className="p-6">
+
+                        {/* Personal */}
+                        {activeTab === "personal" && (
+                            <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                <InfoRow label="Full Name" value={fullName} />
+                                <InfoRow label="Email" value={user.email} />
+                                <InfoRow label="Father's Name" value={candidate.father_name} />
+                                <InfoRow label="Gender" value={candidate.gender} />
+                                <InfoRow label="Date of Birth" value={formatDate(candidate.date_of_birth)} />
+                                <InfoRow label="Marital Status" value={candidate.marital_status} />
+                                <InfoRow label="Citizenship" value={candidate.citizenship} />
+                                <InfoRow label="Phone Number" value={candidate.phone_number} />
+                                {candidate.cover_letter && (
+                                    <InfoRow label="Cover Letter" value={candidate.cover_letter} />
+                                )}
+                            </div>
+                        )}
+
+                        {/* Address */}
+                        {activeTab === "address" && (
+                            address && address.length > 0 ? (
+                                <div className="space-y-4">
+                                    {address.map((addr) => (
+                                        <div key={addr.addrId} className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                            <div className="px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-800">
+                                                <span className="text-sm font-semibold text-[#D97757] flex items-center gap-2">
+                                                    <MapPin className="w-3.5 h-3.5" />
+                                                    {addr.addrType} Address
+                                                </span>
+                                            </div>
+                                            <InfoRow label="House No" value={addr.houseNum} />
+                                            <InfoRow label="Street" value={addr.streetName} />
+                                            <InfoRow label="Locality" value={addr.locality} />
+                                            <InfoRow label="City" value={addr.city} />
+                                            <InfoRow label="District" value={addr.district} />
+                                            <InfoRow label="State" value={addr.state} />
+                                            <InfoRow label="Country" value={addr.country} />
+                                            <InfoRow label="Pincode" value={addr.pincode} />
                                         </div>
-                                        <InfoRow label="House No" value={addr.houseNum} />
-                                        <InfoRow label="Street" value={addr.streetName} />
-                                        <InfoRow label="Locality" value={addr.locality} />
-                                        <InfoRow label="City" value={addr.city} />
-                                        <InfoRow label="District" value={addr.district} />
-                                        <InfoRow label="State" value={addr.state} />
-                                        <InfoRow label="Country" value={addr.country} />
-                                        <InfoRow label="Pincode" value={addr.pincode} />
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">
-                                No address information provided.
-                            </p>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">No address information provided.</p>
+                            )
                         )}
-                    </CollapsibleCard>
 
-                    {/* Educational Qualifications */}
-                    <CollapsibleCard title="Educational Qualifications" icon={GraduationCap} defaultOpen={false}>
-                        {education && education.length > 0 ? (
-                            <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                                        <tr>
-                                            {["Board/University", "Specialization", "Division", "Exam", "Percentage", "Date of Passing"].map((h) => (
-                                                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                                                    {h}
-                                                </th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                        {education.map((edu) => (
-                                            <tr key={edu.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                                                <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">{edu.boardName || "-"}</td>
-                                                <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{edu.examName || "-"}</td>
-                                                <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{edu.distinction || "-"}</td>
-                                                <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{edu.level_of_edu || "-"}</td>
-                                                <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{edu.percentage || "-"}</td>
-                                                <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{formatDate(edu.dateOfPassing)}</td>
+                        {/* Education */}
+                        {activeTab === "education" && (
+                            education && education.length > 0 ? (
+                                <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                    <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                                        <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                            <tr>
+                                                {["Board/University", "Specialization", "Division", "Exam", "Percentage", "Date of Passing"].map((h) => (
+                                                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">{h}</th>
+                                                ))}
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">
-                                No educational qualifications provided.
-                            </p>
-                        )}
-                    </CollapsibleCard>
-
-                    {/* Employment History */}
-                    <CollapsibleCard title="Employment History" icon={Briefcase} defaultOpen={false}>
-                        {employment && employment.length > 0 ? (
-                            <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                                        <tr>
-                                            {["Organization", "Position", "From - To", "Last Pay", "Scale"].map((h) => (
-                                                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                                                    {h}
-                                                </th>
+                                        </thead>
+                                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                            {education.map((edu) => (
+                                                <tr key={edu.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                                                    <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">{edu.boardName || "-"}</td>
+                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{edu.examName || "-"}</td>
+                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{edu.distinction || "-"}</td>
+                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{edu.level_of_edu || "-"}</td>
+                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{edu.percentage || "-"}</td>
+                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{formatDate(edu.dateOfPassing)}</td>
+                                                </tr>
                                             ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                        {employment.map((emp) => (
-                                            <tr key={emp.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                                                <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">{emp.organization || "-"}</td>
-                                                <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{emp.position || "-"}</td>
-                                                <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
-                                                    {formatDate(emp.joiningDate)} - {emp.leavingDate ? formatDate(emp.leavingDate) : "Present"}
-                                                </td>
-                                                <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{emp.lastPay || "-"}</td>
-                                                <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{emp.scaleOfPay || "-"}</td>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">No educational qualifications provided.</p>
+                            )
+                        )}
+
+                        {/* Employment */}
+                        {activeTab === "employment" && (
+                            employment && employment.length > 0 ? (
+                                <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                    <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                                        <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                            <tr>
+                                                {["Organization", "Position", "From - To", "Last Pay", "Scale"].map((h) => (
+                                                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">{h}</th>
+                                                ))}
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">
-                                No employment history provided.
-                            </p>
-                        )}
-                    </CollapsibleCard>
-
-                    {/* Recruitment Info */}
-                    <CollapsibleCard title="Recruitment Info" icon={ClipboardCheck} defaultOpen={false}>
-                        {applications && applications.length > 0 ? (
-                            <div className="space-y-4">
-                                {applications.map((app) => (
-                                    <div
-                                        key={app.id}
-                                        className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden"
-                                    >
-                                        <InfoRow label="Application Number" value={app.application_number} />
-                                        <InfoRow label="Status" value={<StatusBadge status={app.status} />} />
-                                        <InfoRow label="Submitted At" value={formatDate(app.submitted_at)} />
-                                        {app.justification && (
-                                            <InfoRow label="Justification" value={app.justification} />
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">
-                                No recruitment information available.
-                            </p>
-                        )}
-                    </CollapsibleCard>
-
-                    {/* Uploaded Documents */}
-                    <CollapsibleCard title="Uploaded Documents" icon={FileText} defaultOpen={false}>
-                        {documents && documents.length > 0 ? (
-                            <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                                        <tr>
-                                            {["Document", "Type", "Preview", "Uploaded", "Action"].map((h) => (
-                                                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                                                    {h}
-                                                </th>
+                                        </thead>
+                                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                            {employment.map((emp) => (
+                                                <tr key={emp.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                                                    <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100">{emp.organization || "-"}</td>
+                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{emp.position || "-"}</td>
+                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
+                                                        {formatDate(emp.joiningDate)} – {emp.leavingDate ? formatDate(emp.leavingDate) : "Present"}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{emp.lastPay || "-"}</td>
+                                                    <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{emp.scaleOfPay || "-"}</td>
+                                                </tr>
                                             ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                        {documents.map((doc) => (
-                                            <DocumentRow key={doc.id} doc={doc} />
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">
-                                No documents uploaded.
-                            </p>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">No employment history provided.</p>
+                            )
                         )}
-                    </CollapsibleCard>
 
-                    {/* Status Update Form */}
-                    <Card className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#27272A] shadow-sm rounded-xl overflow-hidden">
-                        <CardContent className="p-6">
-                            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-5">
-                                Update Application Status
-                            </h3>
+                        {/* Recruitment */}
+                        {activeTab === "recruitment" && (
+                            applications && applications.length > 0 ? (
+                                <div className="space-y-4">
+                                    {applications.map((app) => (
+                                        <div key={app.id} className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                                            <InfoRow label="Application Number" value={app.application_number} />
+                                            <InfoRow label="Status" value={<StatusBadge status={app.status} />} />
+                                            <InfoRow label="Submitted At" value={formatDate(app.submitted_at)} />
+                                            {app.justification && (
+                                                <InfoRow label="Justification" value={app.justification} />
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">No recruitment information available.</p>
+                            )
+                        )}
+
+                        {/* Documents */}
+                        {activeTab === "documents" && (
+                            documents && documents.length > 0 ? (
+                                <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                    <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                                        <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                            <tr>
+                                                {["Document", "Type", "Preview", "Uploaded", "Action"].map((h) => (
+                                                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                            {documents.map((doc) => (
+                                                <DocumentRow key={doc.id} doc={doc} />
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">No documents uploaded.</p>
+                            )
+                        )}
+
+                        {/* Review */}
+                        {activeTab === "review" && (
                             <form onSubmit={handleStatusUpdate}>
+                                <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-5">
+                                    Update Application Status
+                                </h3>
                                 <div className="mb-4">
                                     <label htmlFor="status-select" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
                                         Status
@@ -634,7 +630,6 @@ const CandidateDetails: React.FC = () => {
                                         <option value="Not Shortlisted">Not Shortlisted</option>
                                     </select>
                                 </div>
-
                                 {(selectedStatus === "Shortlisted" || selectedStatus === "Not Shortlisted") && (
                                     <div className="mb-4">
                                         <label htmlFor="justification" className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
@@ -651,7 +646,6 @@ const CandidateDetails: React.FC = () => {
                                         />
                                     </div>
                                 )}
-
                                 <button
                                     type="submit"
                                     disabled={isUpdating || !selectedStatus}
@@ -661,17 +655,14 @@ const CandidateDetails: React.FC = () => {
                                         "disabled:opacity-50 disabled:cursor-not-allowed"
                                     )}
                                 >
-                                    {isUpdating ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <ClipboardCheck className="w-4 h-4" />
-                                    )}
+                                    {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ClipboardCheck className="w-4 h-4" />}
                                     {isUpdating ? "Updating..." : "Update Status"}
                                 </button>
                             </form>
-                        </CardContent>
-                    </Card>
-                </div>
+                        )}
+
+                    </CardContent>
+                </Card>
             </main>
         </div>
     );
