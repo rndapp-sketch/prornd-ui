@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Loader2, Users, Eye, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { candidateAPI } from "@/services/apiService";
 
 // --- Types ---
 interface CandidateApplication {
@@ -47,15 +48,15 @@ const StatusBadge = ({ status }: { status: string }) => {
             className={cn(
                 "inline-flex px-2.5 py-1 text-xs font-semibold rounded-full border",
                 (normalized === "shortlisted" || normalized === "appeared") &&
-                    "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800/50",
+                "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 dark:border-emerald-800/50",
                 normalized === "under review" &&
-                    "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800/50",
+                "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800/50",
                 (normalized === "rejected" || normalized === "not shortlisted") &&
-                    "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800/50",
+                "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800/50",
                 normalized === "submitted" &&
-                    "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
+                "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
                 !["shortlisted", "under review", "rejected", "not shortlisted", "submitted", "appeared"].includes(normalized) &&
-                    "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/50",
+                "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/50",
             )}
         >
             {status || "Unknown"}
@@ -85,7 +86,7 @@ const CandidateApplications: React.FC = () => {
         setError(null);
         try {
             const response = await fetch(
-                `http://172.16.134.191:3000/api/applications?refNumParent=${encodeURIComponent(refNum)}`,
+                candidateAPI.getApplications(refNum),
                 {
                     method: "GET",
                     headers: { Accept: "application/json" },
@@ -110,7 +111,7 @@ const CandidateApplications: React.FC = () => {
         setUpdatingIds((prev) => ({ ...prev, [applicationId]: true }));
         try {
             const response = await fetch(
-                `http://172.16.134.191:3000/api/applications/${applicationId}/review`,
+                candidateAPI.reviewApplication(applicationId),
                 {
                     method: "PUT",
                     headers: {
@@ -123,7 +124,11 @@ const CandidateApplications: React.FC = () => {
                     }),
                 }
             );
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            if (!response.ok) {
+                const errorBody = await response.text();
+                console.error("Server error response:", response.status, errorBody);
+                throw new Error(`HTTP ${response.status}: ${errorBody}`);
+            }
             fetchApplications(); // Refresh the list
         } catch (err: any) {
             console.error("Error updating status:", err);
@@ -142,8 +147,8 @@ const CandidateApplications: React.FC = () => {
         filter === "all"
             ? applications
             : applications.filter(
-                  (app) => app.status?.toLowerCase() === filter.toLowerCase()
-              );
+                (app) => app.status?.toLowerCase() === filter.toLowerCase()
+            );
 
     const filters = [
         { key: "all", label: "All Candidates", icon: "fas fa-list" },

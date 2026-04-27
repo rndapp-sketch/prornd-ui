@@ -3210,6 +3210,20 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: pr
                   <FrappeButton
                     onClick={handleAddFunds}
                     aria-label="Add funds to project"
+                    disabled={!normalizeResponse(sanctionData).some(
+                      (s) =>
+                        (s.sanction_workflow_status || "").toLowerCase() ===
+                        "sanction approved",
+                    )}
+                    title={
+                      !normalizeResponse(sanctionData).some(
+                        (s) =>
+                          (s.sanction_workflow_status || "").toLowerCase() ===
+                          "sanction approved",
+                      )
+                        ? "Fund can only be added after sanction is approved"
+                        : undefined
+                    }
                   >
                     <PlusIcon className="h-3.5 w-3.5" /> Add Funds
                   </FrappeButton>
@@ -4794,7 +4808,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: pr
             </div>
 
             {/* Section 2: Add Comment (Moved Up) */}
-            <div className="frappe-widget">
+            {/* <div className="frappe-widget">
               <h3 className="frappe-widget-title">Add Comment</h3>
               <textarea
                 id="comment-box"
@@ -4812,7 +4826,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: pr
               >
                 {isAddingComment ? "Submitting..." : "Submit Comment"}
               </button>
-            </div>
+            </div> */}
 
             {/* Section 3: Commits - Only visible on Application tab */}
             {isRnDStaff && activeTab === "quick-actions" && (
