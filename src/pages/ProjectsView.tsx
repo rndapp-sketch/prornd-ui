@@ -741,8 +741,20 @@ interface Project {
   modified?: string;
   head_approver?: string;
   owner?: string;
-  project_no?: string; // Added field
+  project_no?: string;
+  project_type?: string;
 }
+
+type ProjectTypeTab = 'Research' | 'Consultancy' | 'Others';
+const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'];
+
+const normalizeProjectType = (raw?: string): ProjectTypeTab => {
+  if (!raw) return 'Others';
+  const lower = raw.toLowerCase();
+  if (lower.includes('research')) return 'Research';
+  if (lower.includes('consult')) return 'Consultancy';
+  return 'Others';
+};
 
 interface ProjectsViewProps {
   initialTab?: string;
@@ -816,6 +828,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   const [activeTaskTab, setActiveTaskTab] = React.useState(
     Object.keys(pendingTasksData)[0],
   );
+  const [selectedProjectType, setSelectedProjectType] = React.useState<ProjectTypeTab>('Research');
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -1041,9 +1054,16 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     rndstaffError,
   ]);
 
+  const projectTypeCounts = React.useMemo(() => ({
+    Research: (myProjects ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Research').length,
+    Consultancy: (myProjects ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Consultancy').length,
+    Others: (myProjects ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Others').length,
+  }), [myProjects]);
+
   const filteredAndSortedProjects = React.useMemo(() => {
     if (!myProjects) return [];
     let filtered = myProjects.filter((p) =>
+      normalizeProjectType((p as any).project_type) === selectedProjectType &&
       Object.values(p).some((val) =>
         String(val).toLowerCase().includes(searchQuery.toLowerCase()),
       ),
@@ -1056,7 +1076,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       return 0;
     });
     return filtered;
-  }, [myProjects, searchQuery, sortField, sortOrder]);
+  }, [myProjects, searchQuery, sortField, sortOrder, selectedProjectType]);
 
   const totalPages = Math.ceil(
     filteredAndSortedProjects.length / itemsPerPage,
@@ -1382,6 +1402,38 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 
   const renderProjectsTable = () => (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Project Type Tabs */}
+      <div className="flex items-center gap-2">
+        {PROJECT_TYPE_TABS.map((tab) => {
+          const active = selectedProjectType === tab;
+          const tabColors: Record<string, string> = {
+            Research: active ? 'bg-blue-600 text-white shadow-blue-200 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-blue-300 hover:text-blue-600',
+            Consultancy: active ? 'bg-emerald-600 text-white shadow-emerald-200 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-emerald-300 hover:text-emerald-600',
+            Others: active ? 'bg-zinc-700 text-white shadow-zinc-200 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 hover:text-zinc-800',
+          };
+          const badgeColors: Record<string, string> = {
+            Research: active ? 'bg-blue-500 text-white' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+            Consultancy: active ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+            Others: active ? 'bg-zinc-600 text-white' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400',
+          };
+          return (
+            <button
+              key={tab}
+              onClick={() => { setSelectedProjectType(tab); setCurrentPage(1); }}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                tabColors[tab]
+              )}
+            >
+              {tab}
+              <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold", badgeColors[tab])}>
+                {projectTypeCounts[tab]}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
         <div className="relative w-full sm:w-72">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />

@@ -3063,18 +3063,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: pr
     });
   };
 
-  const handleProjectStaff = () => {
-    const username = currentUser ? currentUser.split("@")[0] : "";
-    const projectCodes = data?.project_no ? [data.project_no] : [];
-    const timestamp = Date.now();
-    const jsonString = JSON.stringify({ username, projectCodes, timestamp });
-    const encodedJson = btoa(
-      Array.from(new TextEncoder().encode(jsonString), (b) =>
-        String.fromCharCode(b),
-      ).join(""),
-    );
-    window.open(`http://172.16.135.27:7079/sso?token=${encodedJson}`, "_blank");
-  };
 
   const tabs = [
     { id: "overview", label: "Overview", icon: FileTextIcon },
@@ -3291,13 +3279,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: pr
                       })()}
                   </button>
                 ))}
-                <button
-                  onClick={handleProjectStaff}
-                  aria-selected={false}
-                  className="frappe-tab flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-bold"
-                >
-                  <UsersIcon className="h-3.5 w-3.5" /> Project Staff
-                </button>
               </nav>
             </div>
             <div className="bg-zinc-50/50 dark:bg-zinc-900/50 p-4">
