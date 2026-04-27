@@ -156,87 +156,31 @@ const formatDate = (dateStr: string | null) => {
     }
 };
 
-const getDocumentMimeType = (doc: Document) => {
-    if (doc.mime_type) return doc.mime_type;
 
-    const extension = doc.document_name.split(".").pop()?.toLowerCase();
-    const mimeTypes: Record<string, string> = {
-        pdf: "application/pdf",
-        png: "image/png",
-        jpg: "image/jpeg",
-        jpeg: "image/jpeg",
-        gif: "image/gif",
-        webp: "image/webp",
-        svg: "image/svg+xml",
-        txt: "text/plain",
-        csv: "text/csv",
-        doc: "application/msword",
-        docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    };
-
-    return (extension && mimeTypes[extension]) || "application/octet-stream";
-};
-
-// --- Document Row (fetches raw binary from document API) ---
+// --- Document Row ---
 const DocumentRow = ({ doc }: { doc: Document }) => {
-    const [blobUrl, setBlobUrl] = useState<string | null>(null);
-    const [isLoadingDoc, setIsLoadingDoc] = useState(false);
-    const resolvedMimeType = getDocumentMimeType(doc);
+    const viewUrl = candidateAPI.viewDocument(doc.id);
+    const [isDownloading, setIsDownloading] = useState(false);
 
-    useEffect(() => {
-        let objectUrl: string | null = null;
-
-        const fetchDocBlob = async () => {
-            setIsLoadingDoc(true);
-            try {
-                const resp = await fetch(candidateAPI.getDocument(doc.id), {
-                    headers: { Accept: "application/json" },
-                });
-                if (!resp.ok) throw new Error("Failed to fetch document");
-
-                const jsonResp = await resp.json();
-                const docData = jsonResp.document || jsonResp;
-                const raw: string = docData.file_data_base64;
-                if (!raw) return;
-
-                const bytes = new Uint8Array(raw.length);
-                for (let i = 0; i < raw.length; i++) {
-                    bytes[i] = raw.charCodeAt(i) & 0xff;
-                }
-
-                const blob = new Blob([bytes], {
-                    type: doc.mime_type || resolvedMimeType || "application/octet-stream",
-                });
-                objectUrl = URL.createObjectURL(blob);
-                setBlobUrl(objectUrl);
-            } catch (err) {
-                console.error("Error fetching document blob:", err);
-                setBlobUrl(null);
-            } finally {
-                setIsLoadingDoc(false);
-            }
-        };
-
-        fetchDocBlob();
-
-        return () => {
-            if (objectUrl) URL.revokeObjectURL(objectUrl);
-        };
-    }, [doc.id, doc.mime_type, resolvedMimeType]);
-
-    const handleDownload = () => {
-        if (!blobUrl) return;
-        const a = window.document.createElement("a");
-        a.href = blobUrl;
-        a.download = doc.document_name || "document";
-        window.document.body.appendChild(a);
-        a.click();
-        window.document.body.removeChild(a);
-    };
-
-    const handlePreview = () => {
-        if (blobUrl) {
-            window.open(blobUrl, "_blank");
+    const handleDownload = async () => {
+        setIsDownloading(true);
+        try {
+            const resp = await fetch(viewUrl, { credentials: "include" });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = window.document.createElement("a");
+            a.href = url;
+            a.download = doc.document_name || `document-${doc.id}`;
+            window.document.body.appendChild(a);
+            a.click();
+            window.document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error("Download failed:", err);
+            window.open(viewUrl, "_blank");
+        } finally {
+            setIsDownloading(false);
         }
     };
 
@@ -251,25 +195,14 @@ const DocumentRow = ({ doc }: { doc: Document }) => {
                 </span>
             </td>
             <td className="px-4 py-3">
-                {isLoadingDoc ? (
-                    <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-                ) : blobUrl && resolvedMimeType.startsWith("image") ? (
-                    <img
-                        src={blobUrl}
-                        alt={doc.document_name}
-                        onClick={handlePreview}
-                        className="w-16 h-16 object-contain rounded border border-zinc-200 dark:border-zinc-700 cursor-pointer hover:opacity-80 transition-opacity"
-                    />
-                ) : (
-                    <button
-                        type="button"
-                        onClick={handlePreview}
-                        disabled={isLoadingDoc}
-                        className="text-zinc-400 hover:text-[#D97757] disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <FileText className="w-8 h-8" />
-                    </button>
-                )}
+                <a
+                    href={viewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-zinc-400 hover:text-[#D97757]"
+                >
+                    <FileText className="w-8 h-8" />
+                </a>
             </td>
             <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
                 {formatDate(doc.uploaded_at)}
@@ -278,11 +211,11 @@ const DocumentRow = ({ doc }: { doc: Document }) => {
                 <button
                     type="button"
                     onClick={handleDownload}
-                    disabled={!blobUrl}
+                    disabled={isDownloading}
                     className="inline-flex items-center gap-1.5 text-sm text-[#D97757] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <Download className="w-3.5 h-3.5" />
-                    Download
+                    {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                    {isDownloading ? "Downloading..." : "Download"}
                 </button>
             </td>
         </tr>

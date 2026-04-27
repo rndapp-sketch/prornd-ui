@@ -232,6 +232,7 @@ export const candidateAPI = {
     reviewApplication: (applicationId: number | string) => `${CANDIDATE_API_BASE_URL}/api/applications/${applicationId}/review`,
     getProfile: (candidateId: number | string) => `${CANDIDATE_API_BASE_URL}/api/candidates/${candidateId}/profile`,
     getDocument: (docId: number | string) => `${CANDIDATE_API_BASE_URL}/api/documents/${docId}`,
+    viewDocument: (docId: number | string) => `${CANDIDATE_API_BASE_URL}/api/documents/${docId}/view`,
 };
 
 // Helper to prepare form data with file conversions for API submission
