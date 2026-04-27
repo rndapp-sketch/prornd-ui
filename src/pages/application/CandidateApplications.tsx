@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Loader2, Users, Eye, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { candidateAPI } from "@/services/apiService";
 
 // --- Types ---
 interface CandidateApplication {
@@ -85,7 +86,7 @@ const CandidateApplications: React.FC = () => {
         setError(null);
         try {
             const response = await fetch(
-                `http://172.16.134.191:3000/api/applications?refNumParent=${encodeURIComponent(refNum)}`,
+                candidateAPI.getApplications(refNum),
                 {
                     method: "GET",
                     headers: { Accept: "application/json" },
@@ -110,7 +111,7 @@ const CandidateApplications: React.FC = () => {
         setUpdatingIds((prev) => ({ ...prev, [applicationId]: true }));
         try {
             const response = await fetch(
-                `http://172.16.134.191:3000/api/applications/${applicationId}/review`,
+                candidateAPI.reviewApplication(applicationId),
                 {
                     method: "PUT",
                     headers: {
@@ -123,7 +124,11 @@ const CandidateApplications: React.FC = () => {
                     }),
                 }
             );
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            if (!response.ok) {
+                const errorBody = await response.text();
+                console.error("Server error response:", response.status, errorBody);
+                throw new Error(`HTTP ${response.status}: ${errorBody}`);
+            }
             fetchApplications(); // Refresh the list
         } catch (err: any) {
             console.error("Error updating status:", err);

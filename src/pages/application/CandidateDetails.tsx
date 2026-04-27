@@ -14,6 +14,7 @@ import {
     Download,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { candidateAPI } from "@/services/apiService";
 
 // --- Types ---
 interface UserInfo {
@@ -199,7 +200,7 @@ const DocumentRow = ({ doc }: { doc: Document }) => {
             setIsLoadingDoc(true);
             try {
                 const resp = await fetch(
-                    `http://172.16.134.191:3000/api/documents/${doc.id}`,
+                    candidateAPI.getDocument(doc.id),
                     { headers: { Accept: "application/json" } }
                 );
                 if (!resp.ok) throw new Error("Failed to fetch document");
@@ -320,7 +321,7 @@ const CandidateDetails: React.FC = () => {
         setError(null);
         try {
             const response = await fetch(
-                `http://172.16.134.191:3000/api/candidates/${candidateId}/profile`,
+                candidateAPI.getProfile(candidateId),
                 {
                     method: "GET",
                     headers: { Accept: "application/json" },
@@ -358,7 +359,7 @@ const CandidateDetails: React.FC = () => {
         setIsUpdating(true);
         try {
             const response = await fetch(
-                `http://172.16.134.191:3000/api/applications/${applicationId}/review`,
+                candidateAPI.reviewApplication(applicationId),
                 {
                     method: "PUT",
                     headers: {
