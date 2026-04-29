@@ -82,6 +82,7 @@ import DepartmentProjects from './pages/DepartmentProjects.tsx';
 import AdminLogin from './pages/AdminLogin.tsx';
 import NIQForm from './pages/application/NIQForm.tsx';
 import Profile from './pages/Profile.tsx';
+import { HeadOverview } from './pages/dashboards/HeadOverview.tsx';
 
 const router = createBrowserRouter(
     [
@@ -296,6 +297,14 @@ const router = createBrowserRouter(
                 {
                     path: "dean-dashboard",
                     element: (<AuthRouteWrapper allowedRole="Dean, RnD"><DorndDashboard /></AuthRouteWrapper>),
+                },
+                {
+                    path: "head-overview",
+                    element: (
+                        <AuthRouteWrapper allowedRole="head_approver_1">
+                            <HeadOverview />
+                        </AuthRouteWrapper>
+                    ),
                 },
                 {
                     path: "head-dashboard",

@@ -800,6 +800,52 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const isMandatory = isFieldMandatory(field, formData);
     const fieldIsReadOnly = readOnly || checkFieldReadOnly(field, formData);
 
+    // Handle JSON fields — render as a read-only display table
+    if (field.fieldtype === "JSON") {
+      let rows: Record<string, any>[] = [];
+      try {
+        const val = formData[field.fieldname];
+        if (val) rows = Array.isArray(val) ? val : JSON.parse(val);
+      } catch { /* invalid JSON — render nothing */ }
+
+      if (!rows.length) return null;
+
+      const hiddenKeys = new Set(["id", "application_id", "recruitment_post_id"]);
+      const columns = Object.keys(rows[0]).filter(k => !hiddenKeys.has(k));
+
+      return (
+        <div key={field.fieldname} className="col-span-full space-y-3">
+          {field.label && (
+            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{field.label}</h3>
+          )}
+          <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-xl">
+            <table className="w-full text-sm">
+              <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                <tr>
+                  {columns.map(col => (
+                    <th key={col} className="px-4 py-2.5 text-left font-semibold text-zinc-600 dark:text-zinc-400 text-xs uppercase tracking-wider whitespace-nowrap">
+                      {col.replace(/_/g, " ")}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {rows.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30">
+                    {columns.map(col => (
+                      <td key={col} className="px-4 py-2.5 text-zinc-700 dark:text-zinc-300">
+                        {String(row[col] ?? "—")}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
     // Handle Table fields
     if (field.fieldtype === "Table" && field.child_fields) {
       return (

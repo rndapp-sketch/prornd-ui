@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Loader2, Users, Eye, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Loader2, Users, Eye } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { candidateAPI } from "@/services/apiService";
 
@@ -72,7 +72,6 @@ const CandidateApplications: React.FC = () => {
 
     const [applications, setApplications] = useState<CandidateApplication[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [updatingIds, setUpdatingIds] = useState<Record<string, boolean>>({});
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<string>("all");
 
@@ -105,38 +104,6 @@ const CandidateApplications: React.FC = () => {
             setIsLoading(false);
         }
     }, [refNum]);
-
-    const handleAppearedClick = async (applicationId: number) => {
-        if (!confirm("Are you sure the candidate appeared?")) return;
-        setUpdatingIds((prev) => ({ ...prev, [applicationId]: true }));
-        try {
-            const response = await fetch(
-                candidateAPI.reviewApplication(applicationId),
-                {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Accept: "application/json",
-                    },
-                    body: JSON.stringify({
-                        status: "Appeared",
-                        justification: "Marked as appeared in list view",
-                    }),
-                }
-            );
-            if (!response.ok) {
-                const errorBody = await response.text();
-                console.error("Server error response:", response.status, errorBody);
-                throw new Error(`HTTP ${response.status}: ${errorBody}`);
-            }
-            fetchApplications(); // Refresh the list
-        } catch (err: any) {
-            console.error("Error updating status:", err);
-            alert(`Failed to update status: ${err.message}`);
-        } finally {
-            setUpdatingIds((prev) => ({ ...prev, [applicationId]: false }));
-        }
-    };
 
     useEffect(() => {
         fetchApplications();
@@ -257,24 +224,6 @@ const CandidateApplications: React.FC = () => {
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center gap-3">
                                                     <StatusBadge status={app.status} />
-                                                    {app.status?.toLowerCase() === "shortlisted" && (
-                                                        <button
-                                                            onClick={() => handleAppearedClick(app.application_id)}
-                                                            disabled={updatingIds[app.application_id]}
-                                                            className={cn(
-                                                                "inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition-all",
-                                                                "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm",
-                                                                "disabled:opacity-50 disabled:cursor-not-allowed"
-                                                            )}
-                                                        >
-                                                            {updatingIds[app.application_id] ? (
-                                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                            ) : (
-                                                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                                            )}
-                                                            Appeared
-                                                        </button>
-                                                    )}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3">
