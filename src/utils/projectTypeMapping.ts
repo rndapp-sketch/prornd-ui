@@ -138,6 +138,9 @@ export const DOCTYPE_PR_LINKS: Record<string, DoctypePRLink> = {
     'Recruitment Adhoc Contractual': {
         primary: { type: 'pr_project_no', field: 'upfa_project_code' },
     },
+    'Selection Committee Report': {
+        primary: { type: 'pr_project_no', field: 'project_number' },
+    },
     'repair_replacement': {
         primary: { type: 'pr_project_no', field: 'project_no' },
     },

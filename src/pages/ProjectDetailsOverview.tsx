@@ -633,6 +633,90 @@ const P11FormModal = ({
   );
 };
 
+const ScrModal = ({
+  isOpen,
+  onClose,
+  scrs,
+  onCreateNew,
+  onNavigate,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  scrs: any[];
+  onCreateNew: () => void;
+  onNavigate: (path: string) => void;
+}) => {
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[99999]">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-lg relative z-[100000]">
+        <h3 className="text-lg font-bold mb-4 text-zinc-900 dark:text-zinc-100">
+          Existing Selection Committee Report(s) Found
+        </h3>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+          A Selection Committee Report already exists for this interview. You
+          can open an existing report or create a new one.
+        </p>
+        <div className="space-y-3 mb-6 max-h-[280px] overflow-y-auto">
+          {scrs.map((scr) => (
+            <div
+              key={scr.name}
+              className="flex items-center justify-between p-3 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50"
+            >
+              <div>
+                <p className="font-bold text-sm text-zinc-900 dark:text-zinc-100">
+                  {scr.name}
+                </p>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  {scr.creation
+                    ? new Date(scr.creation).toLocaleDateString()
+                    : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-xs px-2 py-1 rounded-full border ${
+                    scr.workflow_state === "Approved"
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                      : scr.workflow_state === "Submitted"
+                        ? "bg-blue-100 text-blue-800 border-blue-200"
+                        : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                  }`}
+                >
+                  {scr.workflow_state || "Draft"}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onClose();
+                    onNavigate(`/selection-committee-report/${scr.name}`);
+                  }}
+                >
+                  View
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={onCreateNew}
+            className="bg-[#D97757] hover:bg-[#D97757] text-white"
+          >
+            Create New SCR
+          </Button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+};
+
 // --- START: REFACTORED QuickActions COMPONENT ---
 
 interface QuickActionsProps {
@@ -679,6 +763,11 @@ const QuickActions = ({
   const [existingP11Forms, setExistingP11Forms] = useState<any[]>([]);
   const [selectedDirectPurchaseForP11, setSelectedDirectPurchaseForP11] =
     useState<any>(null);
+
+  // SCR Modal State
+  const [isScrModalOpen, setIsScrModalOpen] = useState(false);
+  const [existingScrs, setExistingScrs] = useState<any[]>([]);
+  const [selectedItemForScr, setSelectedItemForScr] = useState<any>(null);
 
   const handleSettleClick = async (item: any) => {
     setIsLoading(true);
@@ -840,6 +929,41 @@ const QuickActions = ({
     } finally {
       setSelectedDirectPurchaseForP11(item);
       setIsP11ModalOpen(true);
+      setIsLoading(false);
+    }
+  };
+
+  const handleScrClick = async (item: any) => {
+    setIsLoading(true);
+    try {
+      const response = await fetchReimbursements({
+        doctype: "Selection Committee Report",
+        filters: [["interview_id", "=", item.name]],
+        fields: ["name", "workflow_state", "creation"],
+        order_by: "creation desc",
+        limit_page_length: 20,
+      });
+      const scrs = (response?.message || []).map((s: any) => ({
+        ...s,
+        workflow_state:
+          s.workflow_state ||
+          (s.docstatus === 1
+            ? "Submitted"
+            : s.docstatus === 2
+              ? "Cancelled"
+              : "Draft"),
+      }));
+      setExistingScrs(scrs);
+      setSelectedItemForScr(item);
+      if (scrs.length > 0) {
+        setIsScrModalOpen(true);
+      } else {
+        onNavigate(`/selection-committee-report?interview_id=${item.name}`);
+      }
+    } catch (error) {
+      console.error("Error checking for existing SCRs:", error);
+      onNavigate(`/selection-committee-report?interview_id=${item.name}`);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -1832,11 +1956,7 @@ const QuickActions = ({
                                 Add
                               </button>
                               <button
-                                onClick={() =>
-                                  onNavigate(
-                                    `/selection-committee-report?interview_id=${item.name}`,
-                                  )
-                                }
+                                onClick={() => handleScrClick(item)}
                                 className="text-sm text-green-600 hover:text-green-800 dark:text-green-500 hover:underline whitespace-nowrap"
                               >
                                 SCR
@@ -1939,6 +2059,20 @@ const QuickActions = ({
             if (selectedDirectPurchaseForP11) {
               onNavigate(
                 `/p11-form?project_no=${projectNo || projectName}&app_id=${selectedDirectPurchaseForP11.name}`,
+              );
+            }
+          }}
+          onNavigate={onNavigate}
+        />
+        <ScrModal
+          isOpen={isScrModalOpen}
+          onClose={() => setIsScrModalOpen(false)}
+          scrs={existingScrs}
+          onCreateNew={() => {
+            setIsScrModalOpen(false);
+            if (selectedItemForScr) {
+              onNavigate(
+                `/selection-committee-report?interview_id=${selectedItemForScr.name}`,
               );
             }
           }}

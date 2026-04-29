@@ -578,10 +578,14 @@ const PendingTask: React.FC = () => {
                                                             navigate(`/advance-settlement/${task.id}`);
                                                         } else if (task.doctype === "Temporary Advance") {
                                                             navigate(`/pending-tasks/${encodeURIComponent(task.doctype)}/${task.id}`);
+                                                        } else if (task.doctype === "Direct Purchase") {
+                                                            navigate(`/direct-purchase/${task.id}`);
                                                         } else if (task.doctype === "Disbursal of Consultancy") {
                                                             navigate(`/disbursal-of-consultancy/${task.id}`);
                                                         } else if (task.doctype === "Travel") {
                                                             navigate(`/travel/${task.id}`);
+                                                        } else if (task.doctype === "Selection Committee Report") {
+                                                            navigate(`/selection-committee-report/${task.id}`);
                                                         } else {
                                                             navigate(`/pending-tasks/${task.doctype}/${task.id}`);
                                                         }
