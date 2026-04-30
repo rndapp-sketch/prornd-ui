@@ -880,11 +880,11 @@
 
 
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
     Printer, X, FileText,
-    Loader2,
+    Loader2, Save, CheckCircle2,
     Bold, Italic, Underline,
     AlignLeft, AlignCenter, AlignJustify,
     Undo, Redo,
@@ -1157,15 +1157,16 @@ const F = ({
 );
 
 // ─── Toolbar ──────────────────────────────────────────────────────────────────
-const Toolbar = ({ onClose }: { onClose: () => void }) => (
+const Toolbar = ({ onClose, onSave, isSaving }: { onClose: () => void; onSave: () => void; isSaving: boolean }) => (
     <div className="sticky top-4 self-start flex flex-col gap-2 p-3 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg no-print z-10 h-fit">
         <div className="flex flex-col gap-1 pb-2 border-b border-zinc-200 dark:border-zinc-700">
             <button
-                onClick={() => window.print()}
-                title="Print NIQ"
-                className="p-2 bg-[#D97757] text-white hover:bg-[#b35d41] rounded-lg transition-colors flex items-center justify-center"
+                onClick={onSave}
+                disabled={isSaving}
+                title="Save NIQ"
+                className="p-2 bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 rounded-lg transition-colors flex items-center justify-center"
             >
-                <Printer className="w-5 h-5" />
+                {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
             </button>
             <button
                 onClick={onClose}
@@ -1257,13 +1258,55 @@ const NIQPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [additionalTerms, setAdditionalTerms] = useState<string>('');
+    const [isSaving, setIsSaving] = useState(false);
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [existingNiqHtml, setExistingNiqHtml] = useState<string | null>(null);
+    const printRef = useRef<HTMLDivElement>(null);
 
     const docId = id ?? igfId ?? (location.state as any)?.application?.id ?? '';
+
+    const handleSave = async () => {
+        if (!printRef.current) return;
+        setIsSaving(true);
+        try {
+            const niqHtml = printRef.current.outerHTML;
+            const body = new FormData();
+            body.append('project_no', igf?.igf_project_code ?? '');
+            body.append('direct_purchase_ref', igf?.name ?? docId);
+            body.append('niq_data', niqHtml);
+            const res = await fetch(
+                '/api/method/rndopsapp.rndopsapp.doctype.niq.niq.save_niq_data',
+                { method: 'POST', credentials: 'include', headers: { Accept: 'application/json' }, body }
+            );
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setShowSuccessModal(true);
+        } catch (e: any) {
+            alert(`Failed to save NIQ: ${e.message}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
 
     useEffect(() => {
         if (!docId) { setLoading(false); return; }
         const fetchIGF = async () => {
             try {
+                // Check if a NIQ has already been saved for this direct_purchase_ref
+                const niqCheck = await fetch(
+                    `/api/resource/Niq?filters=${encodeURIComponent(JSON.stringify([["direct_purchase_ref", "=", docId]]))}&fields=${encodeURIComponent(JSON.stringify(["niq_data", "name"]))}`,
+                    { headers: { Accept: 'application/json' }, credentials: 'include' }
+                );
+                if (niqCheck.ok) {
+                    const niqJson = await niqCheck.json();
+                    const niqDoc = niqJson?.data?.[0];
+                    if (niqDoc?.niq_data) {
+                        setExistingNiqHtml(niqDoc.niq_data);
+                        setLoading(false);
+                        return;
+                    }
+                }
+
                 const res = await fetch(
                     `/api/resource/Indent%20General%20Form/${encodeURIComponent(docId)}`,
                     { headers: { Accept: 'application/json' }, credentials: 'include' }
@@ -1402,16 +1445,51 @@ const NIQPage: React.FC = () => {
         <div className="bg-zinc-100 dark:bg-zinc-950 min-h-screen">
             <style>{printStyles}</style>
 
+            {/* ── Success Modal ── */}
+            {showSuccessModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 no-print">
+                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-sm mx-4">
+                        <div className="flex items-center gap-3 mb-1">
+                            <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />
+                            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">NIQ Saved Successfully</h3>
+                        </div>
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-5">What would you like to do next?</p>
+                        <div className="flex flex-col gap-2">
+                            <button
+                                onClick={() => { setShowSuccessModal(false); window.print(); }}
+                                className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium bg-[#D97757] text-white hover:bg-[#c66a4e] transition-colors shadow-sm"
+                            >
+                                <Printer className="w-4 h-4" /> Print NIQ
+                            </button>
+                            <button
+                                onClick={() => setShowSuccessModal(false)}
+                                className="w-full px-4 py-2 rounded-lg text-sm font-medium bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <main className="p-4 md:p-8 w-full">
                 <div className="niq-scroll-wrapper flex justify-center items-start gap-4 max-h-[calc(100vh-4rem)] overflow-y-auto">
 
                     {/* ── Toolbar ── */}
                     <div className="niq-toolbar-wrapper sticky top-4">
-                        <Toolbar onClose={() => navigate(-1)} />
+                        <Toolbar onClose={() => navigate(-1)} onSave={handleSave} isSaving={isSaving} />
                     </div>
 
                     {/* ── A4 Paper ── */}
+                    {existingNiqHtml ? (
+                        <div
+                            ref={printRef}
+                            className="print-container bg-white text-black shadow-2xl relative"
+                            dangerouslySetInnerHTML={{ __html: existingNiqHtml }}
+                        />
+                    ) : (
                     <div
+                        ref={printRef}
                         className="print-container bg-white text-black shadow-2xl relative"
                         style={{
                             width: '210mm',
@@ -1825,7 +1903,8 @@ const NIQPage: React.FC = () => {
                             Printed on: {printedAt}
                         </div>
 
-                    </div>{/* /A4 */}
+                    </div>
+                    )}{/* /A4 */}
                 </div>{/* /scroll-wrapper */}
             </main>
         </div>
