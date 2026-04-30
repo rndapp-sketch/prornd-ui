@@ -2320,6 +2320,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: pr
   const { data, error, isLoading, mutate } = useFrappeGetDoc(
     "Project Registration",
     projectName ?? "",
+    projectName ? undefined : null, // Use undefined to use default key, or null to pause
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
@@ -2383,6 +2384,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: pr
   } = useFrappeGetCall(
     "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
     { project_name: projectName },
+    projectName ? undefined : null,
     { revalidateOnFocus: false },
   );
 
@@ -2396,18 +2398,19 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: pr
     [data?.project_no],
   );
 
-  const fundQueryOptions = useMemo(
-    () => ({
-      revalidateOnFocus: false,
-      isPaused: () => !data?.project_no,
-    }),
-    [data?.project_no],
-  );
-
-  const { data: fundReceivedData } = useFrappeGetCall(
-    "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
+  const {
+    data: fundReceivedData,
+    isLoading: isFundLoading,
+    error: fundError,
+  } = useFrappeGetCall<{
+    message: {
+      data: any[];
+    };
+  }>(
+    "rndopsapp.rndopsapp.api.get_fund_received_by_prjreg",
     fundQueryParams,
-    fundQueryOptions,
+    data?.project_no ? undefined : null,
+    { revalidateOnFocus: false }
   );
 
   const { data: activityData } = useFrappeGetCall<{ message: ActivityItem[] }>(
@@ -2561,8 +2564,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: pr
   }, [activeTab, projectName, budgetHeadList, data?.project_no]);
 
   // Use budgetHeadList filtered to only heads with data for ledger tabs
-  const ledgerHeads = budgetHeadList.filter((head) =>
-    headsWithData.has(head.id),
+  const ledgerHeads = useMemo(
+    () => budgetHeadList.filter((head) => headsWithData.has(head.id)),
+    [budgetHeadList, headsWithData],
   );
 
   // Track selected head by ID
@@ -2761,25 +2765,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: pr
     () => ({ project_number: data?.project_no || "" }),
     [data?.project_no],
   );
-  const balanceOptions = useMemo(
-    () => ({
-      revalidateOnFocus: false,
-      isPaused: () => !data?.project_no,
-    }),
-    [data?.project_no],
-  );
 
   const {
     data: projectAmounts,
     isLoading: isBalanceLoading,
-    error: balanceError,
   } = useFrappeGetCall<{
     message: {
-      status: string;
       data: {
-        projectNumber: string;
-        totalFundReceived: number;
-        totalCommitted: number;
         totalPaid: number;
         availableCommitAmount: number; // This is the "Actual Balance"
         availablePaymentAmount: number; // This is the "Commitable"
@@ -2788,7 +2780,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: pr
   }>(
     "rndopsapp.rndopsapp.commitPayment.get_project_available_amounts",
     balanceParams,
-    balanceOptions,
+    data?.project_no ? undefined : null,
+    { revalidateOnFocus: false, revalidateOnReconnect: false, dedupingInterval: 60000 }
   );
 
   // Extract balance values from API response
@@ -2800,23 +2793,6 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({ projectName: pr
   const actualBalance = projectData?.availableCommitAmount ?? 0;
   const commitableBalance = projectData?.availablePaymentAmount ?? 0;
 
-  // Debug logging
-  console.log("[ProjectDetailsOverview] Current projectName:", projectName);
-  console.log("[ProjectDetailsOverview] Balance Query API status:", {
-    isLoading: isBalanceLoading,
-    error: balanceError,
-    hasData: !!projectAmounts,
-  });
-  console.log(
-    "[ProjectDetailsOverview] projectAmounts API response:",
-    projectAmounts,
-  );
-  console.log(
-    "[ProjectDetailsOverview] actualBalance:",
-    actualBalance,
-    "commitableBalance:",
-    commitableBalance,
-  );
 
   const handleCommit = () => {
     const amount = parseFloat(commitAmount);

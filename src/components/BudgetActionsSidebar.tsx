@@ -45,10 +45,6 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
 
     // Fetch Balances
     const balanceParams = useMemo(() => ({ project_number: projectName || '' }), [projectName]);
-    const balanceOptions = useMemo(() => ({
-        revalidateOnFocus: false,
-        isPaused: () => !projectName
-    }), [projectName]);
 
     const { data: projectAmounts } = useFrappeGetCall<{
         message: {
@@ -59,7 +55,8 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     }>(
         'rndopsapp.rndopsapp.commitPayment.get_project_available_amounts',
         balanceParams,
-        balanceOptions
+        projectName ? undefined : null,
+        { revalidateOnFocus: false }
     );
 
     const actualBalance = (projectAmounts as any)?.message?.data?.availableCommitAmount ?? (projectAmounts as any)?.data?.availableCommitAmount ?? 0;
@@ -87,6 +84,8 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     // Pre-fill logic (commitHead/commitAmount) moved to CommitPayment component
 
     // handleCommit moved to CommitPayment component
+
+    const budgetHeadNames = useMemo(() => budgetHeadList.map(h => h.name), [budgetHeadList]);
 
     if (!isStaff || !isRndStaff) return null;
 
@@ -118,7 +117,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                     doctype={doctype}
                     docName={docName || ""}
                     projectName={projectName}
-                    budgetHeads={budgetHeadList.map(h => h.name)}
+                    budgetHeads={budgetHeadNames}
                     actualBalance={actualBalance}
                     billAmount={billAmount}
                     parentAppId={parentAppId}

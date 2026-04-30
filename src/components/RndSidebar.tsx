@@ -107,7 +107,7 @@ export function AppSidebar() {
     }>(
         "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_task",
         { page_name: "pending-task" },
-        { enabled: !!currentUser },
+        currentUser ? undefined : null,
     );
 
     // Calculate count matching PendingTask.tsx filter logic

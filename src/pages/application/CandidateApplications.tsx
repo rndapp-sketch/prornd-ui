@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Loader2, Users, Eye } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -71,9 +72,13 @@ const CandidateApplications: React.FC = () => {
     const refNum = searchParams.get("refNum") || "";
 
     const [applications, setApplications] = useState<CandidateApplication[]>([]);
+    const [postDetailsCache, setPostDetailsCache] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<string>("all");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { call: fetchFrappeDoc } = useFrappePostCall<{ message: any }>("frappe.client.get");
 
     const fetchApplications = useCallback(async () => {
         if (!refNum) {
@@ -84,18 +89,22 @@ const CandidateApplications: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(
-                candidateAPI.getApplications(refNum),
-                {
-                    method: "GET",
-                    headers: { Accept: "application/json" },
-                }
-            );
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const result: ApiResponse = await response.json();
+            const [appsResponse, recRes] = await Promise.all([
+                fetch(candidateAPI.getApplications(refNum), { headers: { Accept: "application/json" } }),
+                fetchFrappeDoc({ doctype: "Recruitment Adhoc Contractual", name: refNum }).catch(() => null),
+            ]);
+
+            if (!appsResponse.ok) throw new Error(`HTTP error! status: ${appsResponse.status}`);
+            const result: ApiResponse = await appsResponse.json();
             setApplications(result.data || []);
+
+            // Build post cache from the child table rows (row.name === recruitment_post_id)
+            const postRows: any[] = recRes?.message?.upfa_post_details ?? [];
+            const cache: Record<string, string> = {};
+            for (const row of postRows) {
+                if (row.name) cache[String(row.name)] = row.upfa_designation || "";
+            }
+            setPostDetailsCache(cache);
         } catch (err: any) {
             console.error("Error fetching candidate applications:", err);
             setError(err.message || "Failed to fetch candidate applications.");
@@ -103,7 +112,7 @@ const CandidateApplications: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [refNum]);
+    }, [refNum, fetchFrappeDoc]);
 
     useEffect(() => {
         fetchApplications();
@@ -193,7 +202,7 @@ const CandidateApplications: React.FC = () => {
                                             Email
                                         </th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                            Application No.
+                                            Applied Post
                                         </th>
                                         <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                                             Status
@@ -218,8 +227,14 @@ const CandidateApplications: React.FC = () => {
                                             <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
                                                 {app.email || "-"}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">
-                                                {app.application_number || "-"}
+                                            <td className="px-4 py-3 text-sm">
+                                                {postDetailsCache[String(app.recruitment_post_id)] ? (
+                                                    <span className="inline-block text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded font-medium">
+                                                        {postDetailsCache[String(app.recruitment_post_id)]}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-zinc-400 dark:text-zinc-600">—</span>
+                                                )}
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center gap-3">
