@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
+import { useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import {
     ArrowLeft,
@@ -231,8 +232,12 @@ const CandidateDetails: React.FC = () => {
     const applicationId = searchParams.get("applicationId") || "";
 
     const [profile, setProfile] = useState<CandidateProfile | null>(null);
+    const [postDesignations, setPostDesignations] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { call: fetchFrappeDoc } = useFrappePostCall<{ message: any }>("frappe.client.get");
 
     const [activeTab, setActiveTab] = useState<typeof TABS[number]["key"]>("personal");
 
@@ -250,31 +255,32 @@ const CandidateDetails: React.FC = () => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(
-                candidateAPI.getProfile(candidateId),
-                {
-                    method: "GET",
-                    headers: { Accept: "application/json" },
-                }
-            );
+            const [response, recRes] = await Promise.all([
+                fetch(candidateAPI.getProfile(candidateId), { headers: { Accept: "application/json" } }),
+                refNum ? fetchFrappeDoc({ doctype: "Recruitment Adhoc Contractual", name: refNum }).catch(() => null) : Promise.resolve(null),
+            ]);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const result: CandidateProfile = await response.json();
             setProfile(result);
 
-            // Pre-fill status from the matching application
-            const matchingApp = result.applications?.find(
-                (a) => String(a.id) === applicationId
-            );
-            if (matchingApp?.status) {
-                setSelectedStatus(matchingApp.status);
+            // Build post designation map from child table
+            const postRows: any[] = recRes?.message?.upfa_post_details ?? [];
+            const map: Record<string, string> = {};
+            for (const row of postRows) {
+                if (row.name) map[String(row.name)] = row.upfa_designation || "";
             }
+            setPostDesignations(map);
+
+            // Pre-fill status from the matching application
+            const matchingApp = result.applications?.find((a) => String(a.id) === applicationId);
+            if (matchingApp?.status) setSelectedStatus(matchingApp.status);
         } catch (err: any) {
             console.error("Error fetching candidate profile:", err);
             setError(err.message || "Failed to load candidate profile.");
         } finally {
             setIsLoading(false);
         }
-    }, [candidateId, applicationId]);
+    }, [candidateId, applicationId, refNum, fetchFrappeDoc]);
 
     useEffect(() => {
         fetchProfile();
@@ -496,12 +502,21 @@ const CandidateDetails: React.FC = () => {
                         )}
 
                         {/* Recruitment */}
-                        {activeTab === "recruitment" && (
-                            applications && applications.length > 0 ? (
+                        {activeTab === "recruitment" && (() => {
+                            const matchedApp = applications?.find((a) => String(a.id) === applicationId);
+                            const displayApps = matchedApp ? [matchedApp] : (applications ?? []);
+                            return displayApps.length > 0 ? (
                                 <div className="space-y-4">
-                                    {applications.map((app) => (
+                                    {displayApps.map((app) => (
                                         <div key={app.id} className="rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden">
                                             <InfoRow label="Application Number" value={app.application_number} />
+                                            {postDesignations[String(app.recruitment_post_id)] && (
+                                                <InfoRow label="Applied Post" value={
+                                                    <span className="inline-block text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded font-medium">
+                                                        {postDesignations[String(app.recruitment_post_id)]}
+                                                    </span>
+                                                } />
+                                            )}
                                             <InfoRow label="Status" value={<StatusBadge status={app.status} />} />
                                             <InfoRow label="Submitted At" value={formatDate(app.submitted_at)} />
                                             {app.justification && (
@@ -512,8 +527,8 @@ const CandidateDetails: React.FC = () => {
                                 </div>
                             ) : (
                                 <p className="text-sm text-zinc-500 dark:text-zinc-400 italic text-center py-6">No recruitment information available.</p>
-                            )
-                        )}
+                            );
+                        })()}
 
                         {/* Documents */}
                         {activeTab === "documents" && (
