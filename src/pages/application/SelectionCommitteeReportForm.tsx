@@ -29,6 +29,20 @@ type CandidateRecord = {
     display_name: string; // "FirstName LastName (Status)"
 };
 
+type CommitteeMemberRow = {
+    id: string;
+    sl_no: number;
+    email: string;
+    name: string;
+    designation: string;
+};
+
+const COMMITTEE_DESIGNATION_OPTIONS = [
+    "PI & Convener",
+    "Expert Member",
+    "External Expert",
+] as const;
+
 type CandidateRow = {
     id: string;
     candidate_name: string;
@@ -128,6 +142,9 @@ const SelectionCommitteeReportForm: React.FC = () => {
     const [candidatesList, setCandidatesList] = useState<CandidateRecord[]>([]);
     const [isFetchingCandidates, setIsFetchingCandidates] = useState(false);
     const recruitmentDocRef = useRef<any>(null);
+
+    // Committee members: true when auto-filled from Recruitment Adhoc Contractual (read-only)
+    const [isCommitteeFromRecruitment, setIsCommitteeFromRecruitment] = useState(false);
 
 
     // API Hooks
@@ -296,7 +313,12 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     doctype: "Recruitment Adhoc Contractual",
                                     name: existingInterviewId,
                                 });
-                                if (recRes?.message) recruitmentDocRef.current = recRes.message;
+                                if (recRes?.message) {
+                                    recruitmentDocRef.current = recRes.message;
+                                    if (recRes.message.upfa_selection_committee?.length > 0) {
+                                        setIsCommitteeFromRecruitment(true);
+                                    }
+                                }
                             } catch (e) {
                                 console.error("Failed to fetch recruitment doc for existing doc:", e);
                             }
@@ -385,12 +407,14 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                 // Auto-fill Committee Members (JSON field rendered as table)
                                 if (rec.upfa_selection_committee && Array.isArray(rec.upfa_selection_committee) && rec.upfa_selection_committee.length > 0 && !initialData.committee_members) {
                                     const committeeData = rec.upfa_selection_committee.map((row: any, idx: number) => ({
+                                        id: String(idx),
                                         sl_no: idx + 1,
                                         email: row.webmail_id__email || "",
                                         name: row.upfa_member_name || "",
                                         designation: row.upfa_member_designation || "",
                                     }));
                                     initialData.committee_members = JSON.stringify(committeeData);
+                                    setIsCommitteeFromRecruitment(true);
                                 }
 
                                 // Cache recruitment doc, then load candidates list for dropdown
@@ -777,6 +801,39 @@ const SelectionCommitteeReportForm: React.FC = () => {
         });
     }, []);
 
+    // --- COMMITTEE MEMBERS TABLE HELPERS ---
+    const getCommitteeRows = useCallback((): CommitteeMemberRow[] => {
+        try {
+            const val = formData.committee_members;
+            if (!val) return [];
+            if (Array.isArray(val)) return val as CommitteeMemberRow[];
+            if (typeof val === "string") return JSON.parse(val) as CommitteeMemberRow[];
+            return [];
+        } catch { return []; }
+    }, [formData.committee_members]);
+
+    const updateCommitteeRow = useCallback((rowIndex: number, updates: Partial<CommitteeMemberRow>) => {
+        setFormData(prev => {
+            let rows: CommitteeMemberRow[];
+            try {
+                const val = prev.committee_members;
+                if (!val) rows = [];
+                else if (Array.isArray(val)) rows = [...val];
+                else rows = JSON.parse(val);
+            } catch { rows = []; }
+            return { ...prev, committee_members: rows.map((r, i) => i === rowIndex ? { ...r, ...updates } : r) };
+        });
+    }, []);
+
+    const handleCommitteeEmailSelect = useCallback((rowIndex: number, email: string) => {
+        const userOpts = linkOptions["chairperson_webmail_id"] || linkOptions["User"] || [];
+        const match = userOpts.find(o => o.value === email);
+        updateCommitteeRow(rowIndex, {
+            email,
+            name: match?.label || "",
+        });
+    }, [linkOptions, updateCommitteeRow]);
+
     const handleCandidateSelect = useCallback(async (rowIndex: number, displayName: string) => {
         const candidate = candidatesList.find(c => c.display_name === displayName);
         if (!candidate) return;
@@ -840,12 +897,16 @@ const SelectionCommitteeReportForm: React.FC = () => {
         setIsSubmitting(true);
         try {
             const candidatesVal = formData.candidates;
+            const committeeMembersVal = formData.committee_members;
             const preparedData = await prepareFormDataForApi({
                 ...formData,
                 name: savedDocName || editDocName,
                 candidates: Array.isArray(candidatesVal)
                     ? JSON.stringify(candidatesVal)
                     : (candidatesVal || "[]"),
+                committee_members: Array.isArray(committeeMembersVal)
+                    ? JSON.stringify(committeeMembersVal)
+                    : (committeeMembersVal || "[]"),
             });
 
             console.log("Saving Selection Committee Report:", preparedData);
@@ -897,12 +958,16 @@ const SelectionCommitteeReportForm: React.FC = () => {
             let preparedData;
             if (workflowState === "Draft" || action === "Submit") {
                 const candidatesVal = formData.candidates;
+                const committeeMembersVal = formData.committee_members;
                 preparedData = await prepareFormDataForApi({
                     ...formData,
                     name: docNameToUse,
                     candidates: Array.isArray(candidatesVal)
                         ? JSON.stringify(candidatesVal)
                         : (candidatesVal || "[]"),
+                    committee_members: Array.isArray(committeeMembersVal)
+                        ? JSON.stringify(committeeMembersVal)
+                        : (committeeMembersVal || "[]"),
                 });
             }
 
@@ -1041,44 +1106,140 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     readOnly={deanOverrideReadOnly ? false : isReadOnly}
                                 />
 
-                                {/* Custom Committee Members Table */}
+                                {/* Committee Members Table */}
                                 {(() => {
-                                    let committeeRows: any[] = [];
-                                    try {
-                                        if (formData.committee_members) {
-                                            const parsed = typeof formData.committee_members === 'string'
-                                                ? JSON.parse(formData.committee_members)
-                                                : formData.committee_members;
-                                            if (Array.isArray(parsed)) committeeRows = parsed;
-                                        }
-                                    } catch (e) {
-                                        console.error('Failed to parse committee_members', e);
-                                    }
-
-                                    if (committeeRows.length === 0) return null;
+                                    const committeeRows = getCommitteeRows();
+                                    const userOpts = linkOptions["chairperson_webmail_id"] || linkOptions["User"] || [];
+                                    const cellCls = "w-full h-9 px-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:disabled:bg-zinc-800";
+                                    // Table is read-only when the workflow form is read-only OR when
+                                    // committee was sourced from the Recruitment Adhoc Contractual doc
+                                    const committeeReadOnly = isReadOnly || isCommitteeFromRecruitment;
 
                                     return (
                                         <div className="mt-8">
-                                            <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200 mb-4">Committee Members:</h3>
-                                            <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
+                                                    Committee Members
+                                                    {isCommitteeFromRecruitment && (
+                                                        <span className="ml-2 text-xs font-normal text-zinc-400 dark:text-zinc-500">(auto-filled from recruitment)</span>
+                                                    )}
+                                                </h3>
+                                                {!committeeReadOnly && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const rows = getCommitteeRows();
+                                                            const newRow: CommitteeMemberRow = {
+                                                                id: Date.now().toString(),
+                                                                sl_no: rows.length + 1,
+                                                                email: "",
+                                                                name: "",
+                                                                designation: "",
+                                                            };
+                                                            setFormData(prev => ({
+                                                                ...prev,
+                                                                committee_members: [...rows, newRow],
+                                                            }));
+                                                        }}
+                                                        className="px-3 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-dashed border-[#D97757]/50 text-[#D97757] rounded-lg hover:bg-[#D97757]/5 transition-colors"
+                                                    >
+                                                        + Add Row
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700 rounded-xl">
                                                 <table className="w-full text-sm">
                                                     <thead>
-                                                        <tr className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-300 dark:border-zinc-700">
-                                                            <th className="px-4 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 w-16">Sl No.</th>
-                                                            <th className="px-4 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300">Email</th>
-                                                            <th className="px-4 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300">Name</th>
-                                                            <th className="px-4 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300">Designation</th>
+                                                        <tr className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
+                                                            <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 w-10">#</th>
+                                                            <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[240px]">Webmail ID</th>
+                                                            <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[180px]">Name</th>
+                                                            <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[180px]">Designation</th>
+                                                            {!committeeReadOnly && <th className="px-3 py-2.5 w-20" />}
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {committeeRows.map((row: any, idx: number) => (
-                                                            <tr key={idx} className="border-b border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                                                                <td className="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{row.sl_no || idx + 1}</td>
-                                                                <td className="px-4 py-2.5 text-zinc-800 dark:text-zinc-200">{row.email || ''}</td>
-                                                                <td className="px-4 py-2.5 text-zinc-800 dark:text-zinc-200">{row.name || ''}</td>
-                                                                <td className="px-4 py-2.5 text-zinc-800 dark:text-zinc-200">{row.designation || ''}</td>
+                                                        {committeeRows.map((row, idx) => (
+                                                            <tr key={row.id || idx} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30">
+                                                                <td className="px-3 py-2 text-zinc-500 text-center text-xs">{idx + 1}</td>
+
+                                                                {/* Webmail ID */}
+                                                                <td className="px-3 py-2">
+                                                                    {committeeReadOnly ? (
+                                                                        <span className="text-zinc-800 dark:text-zinc-200">{row.email || '—'}</span>
+                                                                    ) : (
+                                                                        <select
+                                                                            className={cellCls}
+                                                                            value={row.email}
+                                                                            onChange={e => handleCommitteeEmailSelect(idx, e.target.value)}
+                                                                        >
+                                                                            <option value="">Select user…</option>
+                                                                            {row.email && !userOpts.find(o => o.value === row.email) && (
+                                                                                <option value={row.email}>{row.email}</option>
+                                                                            )}
+                                                                            {userOpts.map(o => (
+                                                                                <option key={o.value} value={o.value}>{o.value}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    )}
+                                                                </td>
+
+                                                                {/* Name — auto-populated */}
+                                                                <td className="px-3 py-2">
+                                                                    <span className="text-zinc-800 dark:text-zinc-200 font-medium">
+                                                                        {row.name || '—'}
+                                                                    </span>
+                                                                </td>
+
+                                                                {/* Designation */}
+                                                                <td className="px-3 py-2">
+                                                                    {committeeReadOnly ? (
+                                                                        <span className="inline-block text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-1 rounded font-medium">
+                                                                            {row.designation || '—'}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <select
+                                                                            className={cellCls}
+                                                                            value={row.designation}
+                                                                            onChange={e => updateCommitteeRow(idx, { designation: e.target.value })}
+                                                                        >
+                                                                            <option value="">Select designation…</option>
+                                                                            {COMMITTEE_DESIGNATION_OPTIONS.map(d => (
+                                                                                <option key={d} value={d}>{d}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    )}
+                                                                </td>
+
+                                                                {/* Remove */}
+                                                                {!committeeReadOnly && (
+                                                                    <td className="px-3 py-2 text-center">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const rows = getCommitteeRows();
+                                                                                setFormData(prev => ({
+                                                                                    ...prev,
+                                                                                    committee_members: rows.filter((_, i) => i !== idx).map((r, i) => ({ ...r, sl_no: i + 1 })),
+                                                                                }));
+                                                                            }}
+                                                                            className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors"
+                                                                        >
+                                                                            Remove
+                                                                        </button>
+                                                                    </td>
+                                                                )}
                                                             </tr>
                                                         ))}
+
+                                                        {committeeRows.length === 0 && (
+                                                            <tr>
+                                                                <td colSpan={committeeReadOnly ? 4 : 5} className="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                                                                    No members added. Click &quot;+ Add Row&quot; to add one.
+                                                                </td>
+                                                            </tr>
+                                                        )}
                                                     </tbody>
                                                 </table>
                                             </div>
