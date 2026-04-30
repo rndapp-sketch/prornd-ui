@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
-import { useFrappePostCall, useFrappeAuth } from "frappe-react-sdk";
+import { useFrappePostCall, useFrappeAuth, useFrappeGetCall } from "frappe-react-sdk";
 import {
     DynamicFormRenderer,
     type FormField,
@@ -54,6 +54,14 @@ type CandidateRow = {
     medical_required: string;
     total_amount: number | string;
     recommendation: string;
+};
+
+type PostDetail = {
+    upfa_designation: string;
+    upfa_basic_pay: number;
+    upfa_hra_percent: string;
+    upfa_medical_required: number | boolean;
+    upfa_total_amount: number;
 };
 
 const getChairpersonLabel = (
@@ -140,6 +148,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
 
     // Candidates feature
     const [candidatesList, setCandidatesList] = useState<CandidateRecord[]>([]);
+    const [postDetailsCache, setPostDetailsCache] = useState<Record<string, PostDetail>>({});
     const [isFetchingCandidates, setIsFetchingCandidates] = useState(false);
     const recruitmentDocRef = useRef<any>(null);
 
@@ -170,6 +179,49 @@ const SelectionCommitteeReportForm: React.FC = () => {
     const { call: fetchFrappeDoc } = useFrappePostCall<{ message: any }>(
         "frappe.client.get",
     );
+    const fetchCandidatesWithPostDetails = useCallback(async (interviewId: string) => {
+        setIsFetchingCandidates(true);
+        try {
+            const res = await fetch(candidateAPI.getApplications(interviewId));
+            if (!res.ok) return;
+            const data = await res.json();
+            const records: CandidateRecord[] = (Array.isArray(data) ? data : (data?.data || [])).map((app: any) => ({
+                application_id: String(app.application_id || ""),
+                recruitment_post_id: String(app.recruitment_post_id || ""),
+                display_name: `${(app.first_name || "").trim()} ${(app.last_name || "").trim()} (${app.status || ""})`.trim(),
+            }));
+            setCandidatesList(records);
+
+            const uniquePostIds = [...new Set(records.map(r => r.recruitment_post_id).filter(Boolean))];
+            const entries = await Promise.all(
+                uniquePostIds.map(async (postId) => {
+                    try {
+                        const postRes = await fetch(candidateAPI.getPost(postId));
+                        if (!postRes.ok) return null;
+                        const postData = await postRes.json();
+                        const p = postData?.data ?? postData;
+                        return [postId, {
+                            upfa_designation: p.designation || p.upfa_designation || p.post_name || p.title || "",
+                            upfa_basic_pay: p.basic_pay ?? p.upfa_basic_pay ?? 0,
+                            upfa_hra_percent: p.hra_percent ?? p.upfa_hra_percent ?? p.hra ?? "",
+                            upfa_medical_required: p.medical_required ?? p.upfa_medical_required ?? 0,
+                            upfa_total_amount: p.total_amount ?? p.upfa_total_amount ?? 0,
+                        }] as [string, PostDetail];
+                    } catch { return null; }
+                })
+            );
+            const cache: Record<string, PostDetail> = {};
+            for (const entry of entries) {
+                if (entry) cache[entry[0]] = entry[1];
+            }
+            setPostDetailsCache(cache);
+        } catch (e) {
+            console.error("Failed to fetch candidates:", e);
+        } finally {
+            setIsFetchingCandidates(false);
+        }
+    }, []);
+
     const resolveChairpersonFromDepartment = useCallback(
         async (
             departmentId: string | null | undefined,
@@ -323,23 +375,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                 console.error("Failed to fetch recruitment doc for existing doc:", e);
                             }
                         }
-                        try {
-                            setIsFetchingCandidates(true);
-                            const candidatesRes = await fetch(candidateAPI.getApplications(existingInterviewId));
-                            if (candidatesRes.ok) {
-                                const data = await candidatesRes.json();
-                                const records: CandidateRecord[] = (Array.isArray(data) ? data : (data?.data || [])).map((app: any) => ({
-                                    application_id: String(app.application_id || ""),
-                                    recruitment_post_id: String(app.recruitment_post_id || ""),
-                                    display_name: `${(app.first_name || "").trim()} ${(app.last_name || "").trim()} (${app.status || ""})`.trim(),
-                                }));
-                                setCandidatesList(records);
-                            }
-                        } catch (e) {
-                            console.error("Failed to fetch candidates list for existing doc:", e);
-                        } finally {
-                            setIsFetchingCandidates(false);
-                        }
+                        await fetchCandidatesWithPostDetails(existingInterviewId);
                     }
                 } else if (!currentDocName) {
                     // Pre-fill fields for a new form
@@ -369,6 +405,42 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                 }
                                 if (rec.upfa_department && !initialData.upfa_department) {
                                     initialData.upfa_department = rec.upfa_department;
+                                }
+                                // Debug: log all rec keys to find chairperson field names
+                                console.log("[SCR] rec keys:", Object.keys(rec));
+                                console.log("[SCR] rec chairperson candidates:", {
+                                    chairperson_webmail_id: rec.chairperson_webmail_id,
+                                    upfa_chairperson_webmail_id: rec.upfa_chairperson_webmail_id,
+                                    upfa_chairperson: rec.upfa_chairperson,
+                                    chairperson: rec.chairperson,
+                                    chairperson_name: rec.chairperson_name,
+                                    upfa_chairperson_name: rec.upfa_chairperson_name,
+                                    upfa_department: rec.upfa_department,
+                                });
+
+                                // Try to read chairperson directly from recruitment doc fields
+                                const recChairpersonEmail =
+                                    rec.chairperson_webmail_id ||
+                                    rec.upfa_chairperson_webmail_id ||
+                                    rec.upfa_chairperson ||
+                                    rec.chairperson ||
+                                    "";
+                                const recChairpersonName =
+                                    rec.chairperson_name ||
+                                    rec.upfa_chairperson_name ||
+                                    "";
+
+                                if (recChairpersonEmail) {
+                                    initialData.chairperson_webmail_id = recChairpersonEmail;
+                                    initialData.chairperson_name =
+                                        recChairpersonName ||
+                                        getChairpersonLabel(recChairpersonEmail, link_options || "") || "";
+                                } else if (rec.upfa_department) {
+                                    // Fallback: resolve from department head
+                                    Object.assign(
+                                        initialData,
+                                        await resolveChairpersonFromDepartment(rec.upfa_department, link_options || {}),
+                                    );
                                 }
                                 if (rec.owner && !initialData.principal_investigator) {
                                     initialData.principal_investigator = rec.owner;
@@ -419,23 +491,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
 
                                 // Cache recruitment doc, then load candidates list for dropdown
                                 recruitmentDocRef.current = rec;
-                                try {
-                                    setIsFetchingCandidates(true);
-                                    const candidatesRes = await fetch(candidateAPI.getApplications(interviewIdParam));
-                                    if (candidatesRes.ok) {
-                                        const candidatesData = await candidatesRes.json();
-                                        const records: CandidateRecord[] = (Array.isArray(candidatesData) ? candidatesData : (candidatesData?.data || [])).map((app: any) => ({
-                                            application_id: String(app.application_id || ""),
-                                            recruitment_post_id: String(app.recruitment_post_id || ""),
-                                            display_name: `${(app.first_name || "").trim()} ${(app.last_name || "").trim()} (${app.status || ""})`.trim(),
-                                        }));
-                                        setCandidatesList(records);
-                                    }
-                                } catch (e) {
-                                    console.error("Failed to fetch candidates list:", e);
-                                } finally {
-                                    setIsFetchingCandidates(false);
-                                }
+                                await fetchCandidatesWithPostDetails(interviewIdParam);
 
                             }
                         } catch (e) {
@@ -471,8 +527,8 @@ const SelectionCommitteeReportForm: React.FC = () => {
                         }
                     }
 
-                    // Always set chairperson_webmail_id from prefill_data.webmail_id for new forms
-                    if (prefill_data?.webmail_id) {
+                    // Fall back to the PI's webmail only if no department head was resolved
+                    if (prefill_data?.webmail_id && !initialData.chairperson_webmail_id) {
                         initialData.chairperson_webmail_id = prefill_data.webmail_id;
                     }
 
@@ -548,6 +604,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
         projectNoParam,
         interviewIdParam,
         resolveChairpersonFromDepartment,
+        fetchCandidatesWithPostDetails,
     ]);
 
     const fetchWorkflowActions = useCallback(
@@ -846,22 +903,17 @@ const SelectionCommitteeReportForm: React.FC = () => {
             return;
         }
 
-        // Use cached doc or fetch once
-        let recDoc = recruitmentDocRef.current;
-        if (!recDoc) {
-            const interviewId = interviewIdParam || formData.interview_id;
-            if (interviewId) {
-                try {
-                    const res = await fetchFrappeDoc({ doctype: "Recruitment Adhoc Contractual", name: interviewId });
-                    if (res?.message) { recruitmentDocRef.current = res.message; recDoc = res.message; }
-                } catch (e) { console.error("Failed to fetch recruitment doc:", e); }
-            }
-        }
-
-        const postDetail = recDoc?.upfa_post_details?.find((p: any) => p.name === candidate.recruitment_post_id);
-        if (!postDetail) {
-            console.warn(`Applied post details not found for recruitment_post_id: ${candidate.recruitment_post_id}`);
-        }
+        // Use post details cache (populated when candidates list loaded), fallback to Frappe doc
+        const cached = postDetailsCache[candidate.recruitment_post_id];
+        const recDoc = recruitmentDocRef.current;
+        const frappePostDetail = recDoc?.upfa_post_details?.find((p: any) => p.name === candidate.recruitment_post_id);
+        const postDetail: PostDetail | undefined = cached ?? (frappePostDetail ? {
+            upfa_designation: frappePostDetail.upfa_designation || "",
+            upfa_basic_pay: frappePostDetail.upfa_basic_pay ?? 0,
+            upfa_hra_percent: frappePostDetail.upfa_hra_percent || "",
+            upfa_medical_required: frappePostDetail.upfa_medical_required ?? 0,
+            upfa_total_amount: frappePostDetail.upfa_total_amount ?? 0,
+        } : undefined);
 
         updateCandidateRow(rowIndex, {
             candidate_name: displayName,
@@ -873,7 +925,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
             medical_required: postDetail?.upfa_medical_required ? "Yes" : "No",
             total_amount: postDetail?.upfa_total_amount ?? 0,
         });
-    }, [candidatesList, getCandidateRows, updateCandidateRow, interviewIdParam, formData.interview_id, fetchFrappeDoc]);
+    }, [candidatesList, getCandidateRows, updateCandidateRow, postDetailsCache]);
 
     // --- ACTIONS ---
     const handleSave = async (e?: React.FormEvent) => {
@@ -1160,6 +1212,26 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
+                                                        {/* Pinned chairperson row */}
+                                                        {(formData.chairperson_webmail_id || formData.chairperson_name) && (
+                                                            <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-amber-50/40 dark:bg-amber-900/10">
+                                                                <td className="px-3 py-2 text-center">
+                                                                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400">★</span>
+                                                                </td>
+                                                                <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200 text-sm">
+                                                                    {formData.chairperson_webmail_id || '—'}
+                                                                </td>
+                                                                <td className="px-3 py-2 text-zinc-800 dark:text-zinc-200 font-medium text-sm">
+                                                                    {formData.chairperson_name || '—'}
+                                                                </td>
+                                                                <td className="px-3 py-2">
+                                                                    <span className="inline-block text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700/50 px-2 py-1 rounded font-semibold">
+                                                                        Chairperson
+                                                                    </span>
+                                                                </td>
+                                                                {!committeeReadOnly && <td />}
+                                                            </tr>
+                                                        )}
                                                         {committeeRows.map((row, idx) => (
                                                             <tr key={row.id || idx} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30">
                                                                 <td className="px-3 py-2 text-zinc-500 text-center text-xs">{idx + 1}</td>
@@ -1334,11 +1406,17 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                             {row.candidate_name && !candidatesList.find(c => c.display_name === row.candidate_name) && (
                                                                                 <option value={row.candidate_name}>{row.candidate_name}</option>
                                                                             )}
-                                                                            {candidatesList.map(c => (
-                                                                                <option key={c.application_id} value={c.display_name}>
-                                                                                    {c.display_name}
-                                                                                </option>
-                                                                            ))}
+                                                                            {candidatesList.map(c => {
+                                                                                const post = postDetailsCache[c.recruitment_post_id];
+                                                                                const label = post?.upfa_designation
+                                                                                    ? `${c.display_name} — ${post.upfa_designation}`
+                                                                                    : c.display_name;
+                                                                                return (
+                                                                                    <option key={c.application_id} value={c.display_name}>
+                                                                                        {label}
+                                                                                    </option>
+                                                                                );
+                                                                            })}
                                                                         </select>
                                                                     )}
                                                                 </td>

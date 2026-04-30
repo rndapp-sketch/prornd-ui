@@ -15,12 +15,11 @@ export const useUserRoles = (user: string | null): UseUserRolesResult => {
   const { data, error, isLoading, mutate } = useFrappeGetCall(
     "rndopsapp.rndopsapp.api.get_user_roles",
     { user },
+    user ? `user-roles-${user}` : null,
     {
-      enabled: !!user,
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       refreshInterval: 0,
-      key: `user-roles-${user}` // Force unique cache key per user
     }
   );
 
