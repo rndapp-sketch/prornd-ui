@@ -118,13 +118,16 @@ const CandidateApplications: React.FC = () => {
         fetchApplications();
     }, [fetchApplications]);
 
-    // Filter logic
-    const filteredApplications =
+    // Filter + sort by name so same-name candidates appear together
+    const filteredApplications = (
         filter === "all"
             ? applications
-            : applications.filter(
-                (app) => app.status?.toLowerCase() === filter.toLowerCase()
-            );
+            : applications.filter((app) => app.status?.toLowerCase() === filter.toLowerCase())
+    ).slice().sort((a, b) => {
+        const nameA = `${a.first_name} ${a.last_name}`.trim().toLowerCase();
+        const nameB = `${b.first_name} ${b.last_name}`.trim().toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
 
     const filters = [
         { key: "all", label: "All Candidates", icon: "fas fa-list" },
