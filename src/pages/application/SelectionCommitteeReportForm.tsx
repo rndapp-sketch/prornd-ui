@@ -26,7 +26,9 @@ type LinkOptionsMap = Record<string, LinkOption[]>;
 type CandidateRecord = {
     application_id: string;
     recruitment_post_id: string;
-    display_name: string; // "FirstName LastName (Status)"
+    candidate_id: string;
+    status: string;
+    display_name: string;
 };
 
 type CommitteeMemberRow = {
@@ -48,12 +50,14 @@ type CandidateRow = {
     candidate_name: string;
     application_id: string;
     recruitment_post_id: string;
+    candidate_id: string;
     applied_post: string;
     basic_pay: number | string;
     hra: string;
     medical_required: string;
     total_amount: number | string;
     recommendation: string;
+    justification: string;
 };
 
 type PostDetail = {
@@ -188,6 +192,8 @@ const SelectionCommitteeReportForm: React.FC = () => {
             const records: CandidateRecord[] = (Array.isArray(data) ? data : (data?.data || [])).map((app: any) => ({
                 application_id: String(app.application_id || ""),
                 recruitment_post_id: String(app.recruitment_post_id || ""),
+                candidate_id: String(app.candidate_id || ""),
+                status: app.status || "",
                 display_name: `${(app.first_name || "").trim()} ${(app.last_name || "").trim()} (${app.status || ""})`.trim(),
             }));
             setCandidatesList(records);
@@ -919,6 +925,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
             candidate_name: displayName,
             application_id: candidate.application_id,
             recruitment_post_id: candidate.recruitment_post_id,
+            candidate_id: candidate.candidate_id,
             applied_post: postDetail?.upfa_designation || "",
             basic_pay: postDetail?.upfa_basic_pay ?? 0,
             hra: postDetail?.upfa_hra_percent || "",
@@ -1326,11 +1333,16 @@ const SelectionCommitteeReportForm: React.FC = () => {
 
                                     return (
                                         <div className="mt-8">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
-                                                    Candidates &amp; Recommendations
-                                                    <span className="text-red-500 ml-1">*</span>
-                                                </h3>
+                                            <div className="flex items-start justify-between mb-4">
+                                                <div>
+                                                    <h3 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
+                                                        Candidates &amp; Recommendations
+                                                        <span className="text-red-500 ml-1">*</span>
+                                                    </h3>
+                                                    <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
+                                                        Only shortlisted candidates will appear in the selection below.
+                                                    </p>
+                                                </div>
                                                 <div className="flex items-center gap-3">
                                                     {isFetchingCandidates && (
                                                         <span className="flex items-center gap-1.5 text-xs text-zinc-500">
@@ -1353,12 +1365,14 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                         candidate_name: "",
                                                                         application_id: "",
                                                                         recruitment_post_id: "",
+                                                                        candidate_id: "",
                                                                         applied_post: "",
                                                                         basic_pay: 0,
                                                                         hra: "",
                                                                         medical_required: "",
                                                                         total_amount: 0,
                                                                         recommendation: "Not Recommended",
+                                                                        justification: "",
                                                                     };
                                                                     return { ...prev, candidates: [...rows, newRow] };
                                                                 });
@@ -1383,6 +1397,8 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                             <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[80px]">Medical</th>
                                                             <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[100px]">Total</th>
                                                             <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[170px]">Recommendation <span className="text-red-500">*</span></th>
+                                                            <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[180px]">Justification</th>
+                                                            <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 w-20">Details</th>
                                                             {!isReadOnly && <th className="px-3 py-2.5 w-20" />}
                                                         </tr>
                                                     </thead>
@@ -1406,7 +1422,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                             {row.candidate_name && !candidatesList.find(c => c.display_name === row.candidate_name) && (
                                                                                 <option value={row.candidate_name}>{row.candidate_name}</option>
                                                                             )}
-                                                                            {candidatesList.map(c => {
+                                                                            {candidatesList.filter(c => c.status?.toLowerCase() === "shortlisted").map(c => {
                                                                                 const post = postDetailsCache[c.recruitment_post_id];
                                                                                 const label = post?.upfa_designation
                                                                                     ? `${c.display_name} — ${post.upfa_designation}`
@@ -1483,6 +1499,36 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                     )}
                                                                 </td>
 
+                                                                {/* Justification */}
+                                                                <td className="px-3 py-2">
+                                                                    {isReadOnly ? (
+                                                                        <span className="text-zinc-700 dark:text-zinc-300 text-xs">{row.justification || '—'}</span>
+                                                                    ) : (
+                                                                        <input
+                                                                            type="text"
+                                                                            className={cellCls}
+                                                                            placeholder="Enter justification…"
+                                                                            value={row.justification || ""}
+                                                                            onChange={e => updateCandidateRow(idx, { justification: e.target.value })}
+                                                                        />
+                                                                    )}
+                                                                </td>
+
+                                                                {/* Details */}
+                                                                <td className="px-3 py-2 text-center">
+                                                                    {row.candidate_id && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => navigate(
+                                                                                `/candidate-details/${row.candidate_id}?refNum=${encodeURIComponent(formData.interview_id || interviewIdParam || "")}&applicationId=${row.application_id}`
+                                                                            )}
+                                                                            className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30 transition-colors whitespace-nowrap"
+                                                                        >
+                                                                            View
+                                                                        </button>
+                                                                    )}
+                                                                </td>
+
                                                                 {/* Remove */}
                                                                 {!isReadOnly && (
                                                                     <td className="px-3 py-2 text-center">
@@ -1507,7 +1553,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
 
                                                         {candidateRows.length === 0 && (
                                                             <tr>
-                                                                <td colSpan={isReadOnly ? 8 : 9} className="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                                                                <td colSpan={isReadOnly ? 10 : 11} className="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">
                                                                     {isFetchingCandidates
                                                                         ? 'Loading candidates…'
                                                                         : 'No candidates added. Click "+ Add Row" to add one.'}
