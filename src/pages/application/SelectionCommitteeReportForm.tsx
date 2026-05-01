@@ -58,6 +58,7 @@ type CandidateRow = {
     medical_required: string;
     total_amount: number | string;
     recommendation: string;
+    waitlist_no: number | string;
     justification: string;
 };
 
@@ -1387,6 +1388,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                         medical_required: "",
                                                                         total_amount: 0,
                                                                         recommendation: "Not Recommended",
+                                                                        waitlist_no: "",
                                                                         justification: "",
                                                                     };
                                                                     return { ...prev, candidates: [...rows, newRow] };
@@ -1412,6 +1414,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                             <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[80px]">Medical</th>
                                                             <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[100px]">Total</th>
                                                             <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[170px]">Recommendation <span className="text-red-500">*</span></th>
+                                                            <th className="px-3 py-2.5 text-center font-semibold text-zinc-700 dark:text-zinc-300 w-20">WL No.</th>
                                                             <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 min-w-[180px]">Justification</th>
                                                             <th className="px-3 py-2.5 text-left font-semibold text-zinc-700 dark:text-zinc-300 w-20">Details</th>
                                                             {!isReadOnly && <th className="px-3 py-2.5 w-20" />}
@@ -1513,13 +1516,38 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                                         : 'border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
                                                                             )}
                                                                             value={row.recommendation || 'Not Recommended'}
-                                                                            onChange={e => updateCandidateRow(idx, { recommendation: e.target.value })}
+                                                                            onChange={e => updateCandidateRow(idx, {
+                                                                                recommendation: e.target.value,
+                                                                                ...(e.target.value !== 'Waiting List' ? { waitlist_no: "" } : {}),
+                                                                            })}
                                                                             required
                                                                         >
                                                                             <option value="Recommended">Recommended</option>
                                                                             <option value="Not Recommended">Not Recommended</option>
                                                                             <option value="Waiting List">Waiting List</option>
                                                                         </select>
+                                                                    )}
+                                                                </td>
+
+                                                                {/* Waiting List Number */}
+                                                                <td className="px-3 py-2 text-center">
+                                                                    {isReadOnly ? (
+                                                                        row.recommendation === 'Waiting List' && row.waitlist_no
+                                                                            ? <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700/50">#{row.waitlist_no}</span>
+                                                                            : <span className="text-zinc-400">—</span>
+                                                                    ) : (
+                                                                        row.recommendation === 'Waiting List' ? (
+                                                                            <input
+                                                                                type="number"
+                                                                                min={1}
+                                                                                className={cn(cellCls, "w-16 text-center text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700")}
+                                                                                placeholder="#"
+                                                                                value={row.waitlist_no || ""}
+                                                                                onChange={e => updateCandidateRow(idx, { waitlist_no: e.target.value })}
+                                                                            />
+                                                                        ) : (
+                                                                            <span className="text-zinc-400">—</span>
+                                                                        )
                                                                     )}
                                                                 </td>
 
@@ -1577,7 +1605,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
 
                                                         {candidateRows.length === 0 && (
                                                             <tr>
-                                                                <td colSpan={isReadOnly ? 10 : 11} className="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                                                                <td colSpan={isReadOnly ? 11 : 12} className="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">
                                                                     {isFetchingCandidates
                                                                         ? 'Loading candidates…'
                                                                         : 'No candidates added. Click "+ Add Row" to add one.'}
