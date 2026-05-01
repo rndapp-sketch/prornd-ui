@@ -964,7 +964,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
             return;
         }
         if (candidateRows.some(r => !r.recommendation)) {
-            alert("All candidates must have a recommendation (Recommended / Not Recommended) selected.");
+            alert("All candidates must have a recommendation (Recommended / Not Recommended / Waiting List) selected.");
             return;
         }
 
@@ -1497,7 +1497,9 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                         <span className={cn("text-xs font-semibold px-2.5 py-1 rounded-full",
                                                                             row.recommendation === 'Recommended'
                                                                                 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
-                                                                                : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
+                                                                                : row.recommendation === 'Waiting List'
+                                                                                    ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400'
+                                                                                    : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
                                                                         )}>
                                                                             {row.recommendation || 'Not Recommended'}
                                                                         </span>
@@ -1506,7 +1508,9 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                             className={cn(cellCls,
                                                                                 row.recommendation === 'Recommended'
                                                                                     ? 'border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400'
-                                                                                    : 'border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                                                                                    : row.recommendation === 'Waiting List'
+                                                                                        ? 'border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400'
+                                                                                        : 'border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
                                                                             )}
                                                                             value={row.recommendation || 'Not Recommended'}
                                                                             onChange={e => updateCandidateRow(idx, { recommendation: e.target.value })}
@@ -1514,6 +1518,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                         >
                                                                             <option value="Recommended">Recommended</option>
                                                                             <option value="Not Recommended">Not Recommended</option>
+                                                                            <option value="Waiting List">Waiting List</option>
                                                                         </select>
                                                                     )}
                                                                 </td>
