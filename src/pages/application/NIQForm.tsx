@@ -1302,7 +1302,6 @@ const Toolbar = ({ onClose, onSave, isSaving }: { onClose: () => void; onSave: (
             >
                 {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
             </button>
-            <button onClick={() => window.print()} title="Print NIQ" className="p-2 bg-[#D97757] text-white hover:bg-[#b35d41] rounded-lg transition-colors flex items-center justify-center"><Printer className="w-5 h-5" /></button>
             <button onClick={onClose} title="Close" className="p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors flex items-center justify-center"><X className="w-5 h-5" /></button>
         </div>
         <div className="flex flex-col gap-1 pb-2 border-b border-zinc-200 dark:border-zinc-700">
