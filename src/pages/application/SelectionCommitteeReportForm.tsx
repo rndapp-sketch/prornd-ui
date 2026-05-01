@@ -29,6 +29,7 @@ type CandidateRecord = {
     candidate_id: string;
     status: string;
     display_name: string;
+    post_designation: string;
 };
 
 type CommitteeMemberRow = {
@@ -189,12 +190,15 @@ const SelectionCommitteeReportForm: React.FC = () => {
             const res = await fetch(candidateAPI.getApplications(interviewId));
             if (!res.ok) return;
             const data = await res.json();
-            const records: CandidateRecord[] = (Array.isArray(data) ? data : (data?.data || [])).map((app: any) => ({
+            const rawList = Array.isArray(data) ? data : (data?.data || []);
+            console.log("[SCR] first application record keys:", rawList[0] ? Object.keys(rawList[0]) : "empty", rawList[0]);
+            const records: CandidateRecord[] = rawList.map((app: any) => ({
                 application_id: String(app.application_id || ""),
                 recruitment_post_id: String(app.recruitment_post_id || ""),
                 candidate_id: String(app.candidate_id || ""),
                 status: app.status || "",
                 display_name: `${(app.first_name || "").trim()} ${(app.last_name || "").trim()} (${app.status || ""})`.trim(),
+                post_designation: app.post_title || app.designation || app.applied_for || app.post_name || app.recruitment_post_title || app.position || "",
             }));
             setCandidatesList(records);
 
@@ -206,8 +210,9 @@ const SelectionCommitteeReportForm: React.FC = () => {
                         if (!postRes.ok) return null;
                         const postData = await postRes.json();
                         const p = postData?.data ?? postData;
+                        console.log("[SCR] post record keys:", Object.keys(p), p);
                         return [postId, {
-                            upfa_designation: p.designation || p.upfa_designation || p.post_name || p.title || "",
+                            upfa_designation: p.designation || p.upfa_designation || p.post_name || p.title || p.position || "",
                             upfa_basic_pay: p.basic_pay ?? p.upfa_basic_pay ?? 0,
                             upfa_hra_percent: p.hra_percent ?? p.upfa_hra_percent ?? p.hra ?? "",
                             upfa_medical_required: p.medical_required ?? p.upfa_medical_required ?? 0,
@@ -221,6 +226,15 @@ const SelectionCommitteeReportForm: React.FC = () => {
                 if (entry) cache[entry[0]] = entry[1];
             }
             setPostDetailsCache(cache);
+
+            // Patch post_designation from cache or recruitment doc for any candidates that didn't have it in the application response
+            setCandidatesList(prev => prev.map(r => ({
+                ...r,
+                post_designation: r.post_designation ||
+                    cache[r.recruitment_post_id]?.upfa_designation ||
+                    recruitmentDocRef.current?.upfa_post_details?.find((p: any) => p.name === r.recruitment_post_id)?.upfa_designation ||
+                    "",
+            })));
         } catch (e) {
             console.error("Failed to fetch candidates:", e);
         } finally {
@@ -897,15 +911,16 @@ const SelectionCommitteeReportForm: React.FC = () => {
         });
     }, [linkOptions, updateCommitteeRow]);
 
-    const handleCandidateSelect = useCallback(async (rowIndex: number, displayName: string) => {
-        const candidate = candidatesList.find(c => c.display_name === displayName);
+    const handleCandidateSelect = useCallback(async (rowIndex: number, applicationId: string) => {
+        const candidate = candidatesList.find(c => c.application_id === applicationId);
         if (!candidate) return;
 
-        // Deduplication check
+        // Deduplication check: same candidate + same post (same application_id) is a duplicate;
+        // same candidate applying for a different post (different application_id) is allowed.
         const rows = getCandidateRows();
         const isDuplicate = rows.some((r, i) => i !== rowIndex && r.application_id === candidate.application_id);
         if (isDuplicate) {
-            alert(`Candidate "${displayName}" is already selected in another row.`);
+            alert(`This candidate application is already selected in another row.`);
             return;
         }
 
@@ -922,7 +937,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
         } : undefined);
 
         updateCandidateRow(rowIndex, {
-            candidate_name: displayName,
+            candidate_name: candidate.display_name,
             application_id: candidate.application_id,
             recruitment_post_id: candidate.recruitment_post_id,
             candidate_id: candidate.candidate_id,
@@ -1414,21 +1429,25 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                     ) : (
                                                                         <select
                                                                             className={cellCls}
-                                                                            value={row.candidate_name}
+                                                                            value={row.application_id}
                                                                             onChange={e => handleCandidateSelect(idx, e.target.value)}
                                                                         >
                                                                             <option value="">Select candidate…</option>
                                                                             {/* Preserve saved value as option while candidatesList is still loading */}
-                                                                            {row.candidate_name && !candidatesList.find(c => c.display_name === row.candidate_name) && (
-                                                                                <option value={row.candidate_name}>{row.candidate_name}</option>
+                                                                            {row.application_id && !candidatesList.find(c => c.application_id === row.application_id) && (
+                                                                                <option value={row.application_id}>{row.candidate_name}</option>
                                                                             )}
                                                                             {candidatesList.filter(c => c.status?.toLowerCase() === "shortlisted").map(c => {
-                                                                                const post = postDetailsCache[c.recruitment_post_id];
-                                                                                const label = post?.upfa_designation
-                                                                                    ? `${c.display_name} — ${post.upfa_designation}`
+                                                                                const postDesignation =
+                                                                                    c.post_designation ||
+                                                                                    postDetailsCache[c.recruitment_post_id]?.upfa_designation ||
+                                                                                    recruitmentDocRef.current?.upfa_post_details?.find((p: any) => p.name === c.recruitment_post_id)?.upfa_designation ||
+                                                                                    "";
+                                                                                const label = postDesignation
+                                                                                    ? `${c.display_name} (${postDesignation})`
                                                                                     : c.display_name;
                                                                                 return (
-                                                                                    <option key={c.application_id} value={c.display_name}>
+                                                                                    <option key={c.application_id} value={c.application_id}>
                                                                                         {label}
                                                                                     </option>
                                                                                 );
