@@ -1375,7 +1375,9 @@ const NIQPage: React.FC = () => {
         if (!printRef.current) return;
         setIsSaving(true);
         try {
-            const niqHtml = printRef.current.outerHTML;
+            const clone = printRef.current.cloneNode(true) as HTMLElement;
+            clone.querySelectorAll('.no-print').forEach(el => el.remove());
+            const niqHtml = clone.outerHTML;
             const body = new FormData();
             body.append('project_no', igf?.igf_project_code ?? '');
             body.append('direct_purchase_ref', igf?.name ?? docId);
