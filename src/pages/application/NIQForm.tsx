@@ -1363,7 +1363,6 @@ const NIQPage: React.FC = () => {
     const [deptLabel, setDeptLabel] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [additionalTerms, setAdditionalTerms] = useState<string>('');
     const [isSaving, setIsSaving] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [existingNiqHtml, setExistingNiqHtml] = useState<string | null>(null);
@@ -1387,6 +1386,7 @@ const NIQPage: React.FC = () => {
                 { method: 'POST', credentials: 'include', headers: { Accept: 'application/json' }, body }
             );
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            setExistingNiqHtml(niqHtml);
             setShowSuccessModal(true);
         } catch (e: any) {
             alert(`Failed to save NIQ: ${e.message}`);
@@ -1572,7 +1572,7 @@ const NIQPage: React.FC = () => {
                         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-5">What would you like to do next?</p>
                         <div className="flex flex-col gap-2">
                             <button
-                                onClick={() => { setShowSuccessModal(false); window.print(); }}
+                                onClick={() => { window.print(); setShowSuccessModal(false); }}
                                 className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium bg-[#D97757] text-white hover:bg-[#c66a4e] transition-colors shadow-sm"
                             >
                                 <Printer className="w-4 h-4" /> Print NIQ
@@ -1660,21 +1660,17 @@ const NIQPage: React.FC = () => {
                                         <div contentEditable suppressContentEditableWarning style={{ outline: 'none' }}>
 
                                             {/* NIQ TITLE */}
-                                            <p style={{ fontWeight: 'bold', textAlign: 'center', fontSize: '12px', marginTop: '20px', marginBottom: '14px', lineHeight: '1.6' }}>
-                                                NOTICE INVITING QUOTATION FOR SUPPLY &amp; INSTALLATION OF{' '}
-                                                {itemSummary || '[Item Name]'}{' '}
-                                                FOR THE DEPARTMENT OF{' '}
-                                                {department || '[Department]'}{' '}
-                                                (PROJECT NO. {projectCode}), IIT GUWAHATI.
-                                            </p>
+                                            <p style={{ fontWeight: 'bold', textAlign: 'center', fontSize: '12px', marginTop: '20px', marginBottom: '14px', lineHeight: '1.6' }}
+                                               dangerouslySetInnerHTML={{ __html: `NOTICE INVITING QUOTATION FOR SUPPLY &amp; INSTALLATION OF ${itemSummary || '[Item Name]'} FOR THE DEPARTMENT OF ${department || '[Department]'} (PROJECT NO. ${projectCode}), IIT GUWAHATI.` }}
+                                            />
 
                                             {/* Submission note */}
 
                                             <div style={{ fontSize: '12px', marginTop: '14px', marginBottom: '20px', lineHeight: '1.6' }}>
                                                 <p style={{ marginBottom: '10px' }}>Dear Sir/Madam,</p>
-                                                <p style={{ marginBottom: '10px', textAlign: 'justify' }}>
-                                                    The Indian Institute of Technology Guwahati (IIT Guwahati) invites quotations for the supply and installation of <strong>{itemSummary || '[Item Name]'}</strong>, as per the specifications provided in <strong>ANNEXURE-I</strong>. The quotation should be submitted in a <strong>{igf?.igf_number_of_bids?.startsWith('Double') ? 'DOUBLE-BID' : 'SINGLE-BID'}</strong> format, in a <strong>SEALED ENVELOPE</strong>, to the undersigned on or before <F id="lastDate" placeholder="[Date]" />.
-                                                </p>
+                                                <p style={{ marginBottom: '10px', textAlign: 'justify' }}
+                                                   dangerouslySetInnerHTML={{ __html: `The Indian Institute of Technology Guwahati (IIT Guwahati) invites quotations for the supply and installation of <strong>${itemSummary || '[Item Name]'}</strong>, as per the specifications provided in <strong>ANNEXURE-I</strong>. The quotation should be submitted in a <strong>${igf?.igf_number_of_bids?.startsWith('Double') ? 'DOUBLE-BID' : 'SINGLE-BID'}</strong> format, in a <strong>SEALED ENVELOPE</strong>, to the undersigned on or before <span id="lastDate" class="niq-input" contenteditable="true" data-placeholder="[Date]" style="display:inline-block;min-width:30px"></span>.` }}
+                                                />
                                                 <p style={{ textAlign: 'justify' }}>
                                                     The envelope must clearly indicate the NIQ reference number, failing which the quotation shall not be considered for further evaluation.
                                                 </p>
@@ -1991,9 +1987,8 @@ const NIQPage: React.FC = () => {
                                             }}
                                             contentEditable
                                             suppressContentEditableWarning
-                                            data-empty={!additionalTerms}
                                             data-placeholder="[Add freeform additional rules, titles, or notes here. You can use the formatting toolbar! If left blank, this clause will not appear in print]"
-                                            onInput={(e) => setAdditionalTerms(e.currentTarget.innerHTML)}
+                                            dangerouslySetInnerHTML={{ __html: '' }}
                                         />
 
                                         {/* ═══════════════════════════
@@ -2017,8 +2012,8 @@ const NIQPage: React.FC = () => {
                         <div className="niq-annexure-page">
                             <div className="ann-title"><h2>Annexure – I</h2></div>
                             <div className="ann-header" style={{ fontSize: '11pt' }}>
-                                <div><strong>NIQ No.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">{defaultNIQNo}</span></div>
-                                <div><strong>Dated:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">{today}</span></div>
+                                <div><strong>NIQ No.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: defaultNIQNo }} /></div>
+                                <div><strong>Dated:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: today }} /></div>
                             </div>
                             <p style={{ fontWeight: 'bold', fontSize: '12pt', marginBottom: '8px' }}>Details Technical Specifications of the item with quantity:</p>
                             <table>
@@ -2030,7 +2025,7 @@ const NIQPage: React.FC = () => {
                                         <tr key={n} data-item-row="true">
                                             <td style={{ textAlign: 'center' }}>{String(n).padStart(2, '0')}</td>
                                             <td contentEditable suppressContentEditableWarning style={{ minHeight: '55px' }} dangerouslySetInnerHTML={{ __html: n === 1 ? (itemSummary || '') : '' }} />
-                                            <td contentEditable suppressContentEditableWarning style={{ textAlign: 'center', minHeight: '55px' }}>&nbsp;</td>
+                                            <td contentEditable suppressContentEditableWarning style={{ textAlign: 'center', minHeight: '55px' }} dangerouslySetInnerHTML={{ __html: ' ' }} />
                                         </tr>
                                     ))}
                                 </tbody>
@@ -2055,19 +2050,19 @@ const NIQPage: React.FC = () => {
                         <div className="niq-annexure-page">
                             <div className="ann-title"><h2>Annexure – II</h2><h3 style={{ marginTop: '6px' }}>Format for Quotation / Bid</h3></div>
                             <div className="ann-header" style={{ fontSize: '11pt' }}>
-                                <div><strong>NIQ No.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">{defaultNIQNo}</span></div>
-                                <div><strong>Dated:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">{today}</span></div>
+                                <div><strong>NIQ No.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: defaultNIQNo }} /></div>
+                                <div><strong>Dated:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: today }} /></div>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '11pt' }}>
-                                <div><strong>Bidder Ref. No:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" style={{ minWidth: '160px' }}>&nbsp;</span><br /><em style={{ fontSize: '9pt' }}>(Mandatory requirement)</em></div>
-                                <div><strong>Date:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" style={{ minWidth: '120px' }}>&nbsp;</span></div>
+                                <div><strong>Bidder Ref. No:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" style={{ minWidth: '160px' }} dangerouslySetInnerHTML={{ __html: ' ' }} /><br /><em style={{ fontSize: '9pt' }}>(Mandatory requirement)</em></div>
+                                <div><strong>Date:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" style={{ minWidth: '120px' }} dangerouslySetInnerHTML={{ __html: ' ' }} /></div>
                             </div>
                             <table>
                                 <thead>
                                     <tr style={{ background: '#facc15' }}><th style={{ width: '48px', textAlign: 'center' }}>S.N.</th><th style={{ textAlign: 'center' }}>Description of item required by IITG</th><th style={{ width: '60px', textAlign: 'center' }}>Qty</th><th style={{ width: '130px', textAlign: 'center' }}>Price</th></tr>
                                 </thead>
                                 <tbody id="annex2-item-tbody">
-                                    <tr data-item-row="true"><td style={{ textAlign: 'center' }}>01</td><td contentEditable suppressContentEditableWarning style={{ minHeight: '50px' }} dangerouslySetInnerHTML={{ __html: itemSummary || '' }} /><td contentEditable suppressContentEditableWarning style={{ textAlign: 'center' }}>&nbsp;</td><td contentEditable suppressContentEditableWarning style={{ textAlign: 'center' }}>&nbsp;</td></tr>
+                                    <tr data-item-row="true"><td style={{ textAlign: 'center' }}>01</td><td contentEditable suppressContentEditableWarning style={{ minHeight: '50px' }} dangerouslySetInnerHTML={{ __html: itemSummary || '' }} /><td contentEditable suppressContentEditableWarning style={{ textAlign: 'center' }} dangerouslySetInnerHTML={{ __html: ' ' }} /><td contentEditable suppressContentEditableWarning style={{ textAlign: 'center' }} dangerouslySetInnerHTML={{ __html: ' ' }} /></tr>
                                     {[
                                         ['', 'Basic Price (Ex work)'],
                                         ['', 'Packing / Forwarding charge up to IITG premises (if any)'],
@@ -2081,7 +2076,7 @@ const NIQPage: React.FC = () => {
                                     ].map(([cls, label], i) => (
                                         <tr key={i} style={cls.includes('bg') ? { background: '#e5e7eb' } : {}}>
                                             <td colSpan={3} style={{ textAlign: 'right', fontWeight: cls.includes('bold') ? 'bold' : 'normal' }}>{label}</td>
-                                            <td contentEditable suppressContentEditableWarning style={{ textAlign: 'center' }}>&nbsp;</td>
+                                            <td contentEditable suppressContentEditableWarning style={{ textAlign: 'center' }} dangerouslySetInnerHTML={{ __html: ' ' }} />
                                         </tr>
                                     ))}
                                 </tbody>
@@ -2099,8 +2094,8 @@ const NIQPage: React.FC = () => {
                                 >− Remove Item Row</button>
                             </div>
                             <div style={{ marginTop: '48px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                                <div><strong>Sign.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">&nbsp;</span></div>
-                                <div><strong>Vendor: M/s&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">&nbsp;</span></div>
+                                <div><strong>Sign.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: ' ' }} /></div>
+                                <div><strong>Vendor: M/s&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: ' ' }} /></div>
                                 <div style={{ fontStyle: 'italic', fontWeight: 'bold', marginTop: '12px', paddingRight: '48px' }}>Official seal of the vendor</div>
                             </div>
                         </div>
@@ -2111,12 +2106,12 @@ const NIQPage: React.FC = () => {
                         <div className="niq-annexure-page">
                             <div className="ann-title"><h2>Annexure – III</h2><h3 style={{ marginTop: '6px' }}>Bidder's Detail</h3></div>
                             <div className="ann-header" style={{ fontSize: '11pt' }}>
-                                <div><strong>NIQ No.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">{defaultNIQNo}</span></div>
-                                <div><strong>Dated:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">{today}</span></div>
+                                <div><strong>NIQ No.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: defaultNIQNo }} /></div>
+                                <div><strong>Dated:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: today }} /></div>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '11pt' }}>
-                                <div><strong>Bidder Ref. No:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" style={{ minWidth: '160px' }}>&nbsp;</span><br /><em style={{ fontSize: '9pt' }}>(Mandatory requirement)</em></div>
-                                <div><strong>Date:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" style={{ minWidth: '120px' }}>&nbsp;</span></div>
+                                <div><strong>Bidder Ref. No:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" style={{ minWidth: '160px' }} dangerouslySetInnerHTML={{ __html: ' ' }} /><br /><em style={{ fontSize: '9pt' }}>(Mandatory requirement)</em></div>
+                                <div><strong>Date:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" style={{ minWidth: '120px' }} dangerouslySetInnerHTML={{ __html: ' ' }} /></div>
                             </div>
                             <p style={{ textAlign: 'center', fontWeight: 'bold', textDecoration: 'underline', fontStyle: 'italic', fontSize: '10pt', marginBottom: '12px' }}>(Documentary Proof must be attached as applicable)</p>
                             <table>
@@ -2125,29 +2120,29 @@ const NIQPage: React.FC = () => {
                                     <tr>
                                         <td style={{ textAlign: 'center' }}>01</td>
                                         <td style={{ fontSize: '10pt', lineHeight: '1.6' }}>Registered office Name &amp; Address:<br />Contact person:<br />Name:<br />Designation:<br />Telephone number:<br />e-mail:</td>
-                                        <td contentEditable suppressContentEditableWarning style={{ minHeight: '90px' }}>&nbsp;</td>
+                                        <td contentEditable suppressContentEditableWarning style={{ minHeight: '90px' }} dangerouslySetInnerHTML={{ __html: ' ' }} />
                                     </tr>
                                     <tr>
                                         <td style={{ textAlign: 'center' }}>02</td>
                                         <td style={{ fontSize: '10pt', lineHeight: '1.6' }}>Name &amp; Address of <u>service center</u> nearest to <u>Guwahati</u> city:<br />Contact person:<br />Name:<br />Designation:<br />Telephone number:<br />e-mail:<br />Details with contact no. of staff involved in this project.</td>
-                                        <td contentEditable suppressContentEditableWarning style={{ minHeight: '105px' }}>&nbsp;</td>
+                                        <td contentEditable suppressContentEditableWarning style={{ minHeight: '105px' }} dangerouslySetInnerHTML={{ __html: ' ' }} />
                                     </tr>
                                     <tr>
                                         <td style={{ textAlign: 'center' }}>03</td>
                                         <td style={{ fontSize: '10pt' }}>Is the company/firm a registered company/firm? If yes, mention year/place and submit proof.</td>
-                                        <td contentEditable suppressContentEditableWarning style={{ minHeight: '50px' }}>&nbsp;</td>
+                                        <td contentEditable suppressContentEditableWarning style={{ minHeight: '50px' }} dangerouslySetInnerHTML={{ __html: ' ' }} />
                                     </tr>
                                     <tr>
                                         <td style={{ textAlign: 'center' }}>04</td>
                                         <td style={{ fontSize: '10pt' }}>Is the company/firm registered for GST? If yes, submit registration certificate.</td>
-                                        <td contentEditable suppressContentEditableWarning style={{ minHeight: '50px' }}>&nbsp;</td>
+                                        <td contentEditable suppressContentEditableWarning style={{ minHeight: '50px' }} dangerouslySetInnerHTML={{ __html: ' ' }} />
                                     </tr>
                                 </tbody>
                             </table>
                             <p style={{ fontSize: '9pt', fontStyle: 'italic', marginTop: '8px' }}>Note: All fields must be filled up by the bidder mandatorily along with documentary proof. Providing only contact details of service engineer will not be considered.</p>
                             <div style={{ marginTop: '32px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                                <div><strong>Sign.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">&nbsp;</span></div>
-                                <div><strong>Vendor: M/s&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">&nbsp;</span></div>
+                                <div><strong>Sign.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: ' ' }} /></div>
+                                <div><strong>Vendor: M/s&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: ' ' }} /></div>
                             </div>
                         </div>
 
@@ -2157,8 +2152,8 @@ const NIQPage: React.FC = () => {
                         <div className="niq-annexure-page">
                             <div className="ann-title"><h2>Annexure – IV</h2><h3 style={{ marginTop: '6px' }}>Compliance Certificate</h3></div>
                             <div className="ann-header" style={{ fontSize: '11pt' }}>
-                                <div><strong>NIQ No.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">{defaultNIQNo}</span></div>
-                                <div><strong>Dated:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">{today}</span></div>
+                                <div><strong>NIQ No.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: defaultNIQNo }} /></div>
+                                <div><strong>Dated:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: today }} /></div>
                             </div>
                             <p style={{ marginBottom: '16px', fontSize: '11pt' }}>Certify that we have carefully examined the NIQ terms and fully understood its implications and do hereby agree to comply with all the terms, and hereby submit this compliance certificate.</p>
                             <table>
@@ -2184,14 +2179,14 @@ const NIQPage: React.FC = () => {
                                         <tr key={i}>
                                             <td style={{ textAlign: 'center' }}>{String(i + 1).padStart(2, '0')}</td>
                                             <td style={{ fontSize: '10pt' }}>{item}</td>
-                                            <td contentEditable suppressContentEditableWarning style={{ textAlign: 'center' }}>&nbsp;</td>
+                                            <td contentEditable suppressContentEditableWarning style={{ textAlign: 'center' }} dangerouslySetInnerHTML={{ __html: ' ' }} />
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                             <div style={{ marginTop: '32px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                                <div><strong>Sign.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">&nbsp;</span></div>
-                                <div><strong>Vendor: M/s&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input">&nbsp;</span></div>
+                                <div><strong>Sign.:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: ' ' }} /></div>
+                                <div><strong>Vendor: M/s&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" dangerouslySetInnerHTML={{ __html: ' ' }} /></div>
                             </div>
                         </div>
 
@@ -2205,8 +2200,8 @@ const NIQPage: React.FC = () => {
                                 <p style={{ fontWeight: 'bold', fontSize: '12pt', textDecoration: 'underline' }}>Bid Security Declaration Form</p>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px', fontSize: '11pt' }}>
-                                <div><strong>Bidder Ref. No:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" style={{ minWidth: '160px' }}>&nbsp;</span><br /><em style={{ fontSize: '9pt' }}>(Mandatory requirement)</em></div>
-                                <div><strong>Date:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" style={{ minWidth: '120px' }}>&nbsp;</span></div>
+                                <div><strong>Bidder Ref. No:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" style={{ minWidth: '160px' }} dangerouslySetInnerHTML={{ __html: ' ' }} /><br /><em style={{ fontSize: '9pt' }}>(Mandatory requirement)</em></div>
+                                <div><strong>Date:&nbsp;</strong><span contentEditable suppressContentEditableWarning className="ann-input" style={{ minWidth: '120px' }} dangerouslySetInnerHTML={{ __html: ' ' }} /></div>
                             </div>
                             <p style={{ marginBottom: '16px' }}>To<br />The Head of Section,<br />Research &amp; Development Section<br />IIT Guwahati</p>
                             <div contentEditable suppressContentEditableWarning style={{ fontSize: '11pt', lineHeight: '1.6', textAlign: 'justify', minHeight: '200px', outline: 'none' }}
