@@ -769,6 +769,14 @@ const MemoizedBudgetTable = memo(
                                             <option value="">
                                                 Select Budget Head
                                             </option>
+                                            {row.head &&
+                                                !budgetHeadOptions.some(
+                                                    (o: any) => o.value === row.head,
+                                                ) && (
+                                                    <option value={row.head}>
+                                                        {row.head}
+                                                    </option>
+                                                )}
                                             {budgetHeadOptions.map(
                                                 (option: any) => (
                                                     <option
@@ -1278,6 +1286,74 @@ const ProjectRegistration: React.FC = () => {
         return updates;
     }, []);
 
+    const buildConsultancyBudgetRows = useCallback(
+        (currentData: FormData, numYears: number) => {
+            const category = currentData.consultancy_category;
+            if (!category) return null;
+
+            const n = Math.max(1, numYears);
+            const makeRow = (head: string, amount: number) => ({
+                head,
+                years: Array.from({ length: n }, (_, i) =>
+                    i === 0 ? amount : 0,
+                ),
+            });
+
+            if (category.startsWith("Category D")) {
+                const overhead =
+                    (parseFloat(currentData.cat_d_institute_share) || 0) +
+                    (parseFloat(currentData.cat_d_total_overhead) || 0);
+                return [
+                    makeRow("Overhead", overhead),
+                    makeRow(
+                        "Consultancy Fee",
+                        parseFloat(currentData.cat_d_cf_base) || 0,
+                    ),
+                    makeRow(
+                        "Operational",
+                        parseFloat(currentData.cat_d_oe_base) || 0,
+                    ),
+                    makeRow("Others", parseFloat(currentData.cat_d_gst_amt) || 0),
+                ];
+            } else if (
+                category.includes("Routine") &&
+                !category.includes("Non-Routine")
+            ) {
+                return [
+                    makeRow(
+                        "Overhead",
+                        parseFloat(currentData.cat_ef_institute_share) || 0,
+                    ),
+                    makeRow(
+                        "Consultancy Fee",
+                        parseFloat(currentData.cat_ef_honorarium) || 0,
+                    ),
+                    makeRow(
+                        "Others",
+                        parseFloat(currentData.cat_ef_gst) || 0,
+                    ),
+                ];
+            } else if (category.includes("Non-Routine")) {
+                return [
+                    makeRow(
+                        "Overhead",
+                        parseFloat(currentData.cat_ef_institute_share) || 0,
+                    ),
+                    makeRow(
+                        "Consultancy Fee",
+                        parseFloat(currentData.cat_ef_honorarium) || 0,
+                    ),
+                    makeRow(
+                        "Others",
+                        parseFloat(currentData.cat_ef_gst) || 0,
+                    ),
+                ];
+            }
+            return null;
+        },
+        [],
+    );
+
     const calculateParentTotals = useCallback((currentData: FormData) => {
         let total1st = 0,
             total2nd = 0,
@@ -1576,6 +1652,14 @@ const ProjectRegistration: React.FC = () => {
                 }
                 const consultancyUpdates = calculateConsultancy(updatedData);
                 updatedData = { ...updatedData, ...consultancyUpdates };
+
+                // Auto-fill proposed budget rows from calculated consultancy amounts
+                const budgetRows = buildConsultancyBudgetRows(updatedData, budgetYears.length);
+                if (budgetRows) {
+                    updatedData = { ...updatedData, proposed_budget_breakup: budgetRows };
+                    const totals = calculateParentTotals(updatedData);
+                    updatedData = { ...updatedData, ...totals };
+                }
             }
 
             // 4. Project Duration / End Date Logic
@@ -1621,6 +1705,9 @@ const ProjectRegistration: React.FC = () => {
             linkOptions,
 
             calculateConsultancy,
+            buildConsultancyBudgetRows,
+            calculateParentTotals,
+            budgetYears,
             updateApproverAndHead,
             calculateEndDate,
             controlYearFieldsVisibility,
