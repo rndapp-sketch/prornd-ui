@@ -2251,7 +2251,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                 }
 
                                 // Auto-fill Committee Members (JSON field rendered as table)
-                                if (rec.upfa_selection_committee && Array.isArray(rec.upfa_selection_committee) && rec.upfa_selection_committee.length > 0 && !initialData.committee_members) {
+                                if (rec.upfa_selection_committee && Array.isArray(rec.upfa_selection_committee) && !initialData.committee_members) {
                                     const committeeData = rec.upfa_selection_committee.map((row: any, idx: number) => ({
                                         id: String(idx),
                                         sl_no: idx + 1,
@@ -3247,19 +3247,21 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                         {committeeReadOnly ? (
                                                                             <span className="text-zinc-800 dark:text-zinc-200">{row.email || '—'}</span>
                                                                         ) : (
-                                                                            <select
-                                                                                className={cellCls}
-                                                                                value={row.email}
-                                                                                onChange={e => handleCommitteeEmailSelect(idx, e.target.value)}
-                                                                            >
-                                                                                <option value="">Select user…</option>
-                                                                                {row.email && !userOpts.find(o => o.value === row.email) && (
-                                                                                    <option value={row.email}>{row.email}</option>
-                                                                                )}
-                                                                                {userOpts.map(o => (
-                                                                                    <option key={o.value} value={o.value}>{o.value}</option>
-                                                                                ))}
-                                                                            </select>
+                                                                            <>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    list={`committee-user-options-${idx}`}
+                                                                                    className={cellCls}
+                                                                                    value={row.email}
+                                                                                    placeholder="Search user or email…"
+                                                                                    onChange={e => handleCommitteeEmailSelect(idx, e.target.value)}
+                                                                                />
+                                                                                <datalist id={`committee-user-options-${idx}`}>
+                                                                                    {userOpts.map(o => (
+                                                                                        <option key={o.value} value={o.value} label={o.label} />
+                                                                                    ))}
+                                                                                </datalist>
+                                                                            </>
                                                                         )}
                                                                     </td>
 

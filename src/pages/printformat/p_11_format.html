@@ -3,12 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>P-11 Form - Purchase Recommendation</title>
-
+    <title>P-11 Form</title>
     <style>
-        /* =========================================
-           1. RESET & BASE STYLES
-           ========================================= */
         * {
             box-sizing: border-box;
             -webkit-print-color-adjust: exact;
@@ -19,165 +15,248 @@
             margin: 0;
             padding: 0;
             font-family: "Times New Roman", Times, serif;
-            background: #e0e0e0;
+            font-size: 10pt;
+            background: #ccc;
         }
 
-        /* =========================================
-           2. A4 PAGE SETUP
-           ========================================= */
         .page {
             width: 210mm;
             min-height: 297mm;
             margin: 20px auto;
             background: #fff;
             position: relative;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 12px rgba(0, 0, 0, 0.3);
         }
 
-        /* =========================================
-           3. CONTENT LAYOUT
-           ========================================= */
-        .content {
-            position: relative;
-            z-index: 1;
-            padding: 10mm 12mm;
+        table.layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: none;
         }
 
-        /* Watermark */
+        table.layout-table>tbody>tr>td,
+        table.layout-table>tfoot>tr>td {
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .footer-space {
+            height: 15mm;
+        }
+
         .watermark {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            opacity: 0.08;
+            opacity: 0.07;
             z-index: 0;
             pointer-events: none;
         }
 
         .watermark img {
-            width: 350px;
+            width: 300px;
         }
 
-        /* =========================================
-           4. TYPOGRAPHY
-           ========================================= */
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 14mm 14mm 0 14mm;
+            /* removed bottom padding to let footer-space handle it */
+        }
+
         .header-row {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .logo-container img {
-            height: 65px;
-            width: auto;
-        }
-
-        .header-text {
-            text-align: center;
-        }
-
-        .header {
-            font-size: 22px;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin-bottom: 2px;
-        }
-
-        .sub-header {
-            font-size: 18px;
-            font-weight: bold;
-        }
-
-        .top-info {
-            display: flex;
             justify-content: space-between;
-            font-size: 16px;
-            margin-bottom: 15px;
+            margin-bottom: 3px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 6px;
+        }
+
+        .logo-left img {
+            height: 60px;
+            width: auto;
+            display: block;
+        }
+
+        .header-center {
+            text-align: center;
+            flex: 1;
+            padding: 0 10px;
+        }
+
+        .header-hindi {
+            font-size: 11pt;
+            font-weight: bold;
             line-height: 1.3;
         }
 
-        .ref {
-            text-align: right;
+        .header-english {
+            font-size: 12pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            line-height: 1.3;
         }
 
-        .title {
+        .header-sub {
+            font-size: 9.5pt;
+            line-height: 1.3;
+        }
+
+        .doc-ref-right {
+            text-align: right;
+            font-size: 8.5pt;
+            line-height: 1.5;
+            margin: 3px 0 4px 0;
+        }
+
+        .doc-ref-right .doc-ref-label {
+            font-weight: bold;
+            font-size: 8.5pt;
+            display: inline;
+        }
+
+        .doc-ref-right .doc-ref-value {
+            font-size: 8.5pt;
+            display: inline;
+        }
+
+        .form-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin: 5px 0 3px 0;
+            font-size: 9.5pt;
+        }
+
+        .form-type {
+            font-weight: bold;
+            font-size: 10pt;
+        }
+
+        .form-title {
             text-align: center;
             font-weight: bold;
             text-decoration: underline;
-            margin: 15px 0 20px 0;
-            font-size: 18px;
-            line-height: 1.3;
+            font-size: 10pt;
+            margin: 4px 0 5px 0;
+            line-height: 1.4;
         }
 
-        .details-paragraph {
-            font-size: 16px;
+        .intro-block {
+            font-size: 9.5pt;
+            margin-bottom: 5px;
             line-height: 1.5;
-            margin-bottom: 20px;
+            text-align: center;
         }
 
-        /* =========================================
-           5. TABLES
-           ========================================= */
-        table {
+        .intro-block p {
+            margin: 2px 0;
+        }
+
+        .content table.data-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 15px;
-            margin-bottom: 15px;
-            table-layout: fixed;
+            font-size: 9pt;
+            margin-bottom: 0;
         }
 
-        th,
-        td {
+        .content table.data-table th,
+        .content table.data-table td {
             border: 1px solid #000;
-            padding: 6px 8px;
+            padding: 3px 5px;
             vertical-align: middle;
             line-height: 1.3;
             word-wrap: break-word;
         }
 
-        th {
+        .content table.data-table thead th {
+            background-color: #c8c8c8;
             text-align: center;
             font-weight: bold;
-            background-color: #f0f0f0;
+            font-size: 9pt;
         }
 
-        .center {
+        .c {
             text-align: center;
         }
 
-        .right {
+        .r {
             text-align: right;
         }
 
-        /* =========================================
-           6. FOOTER ELEMENTS
-           ========================================= */
-        p {
-            font-size: 16px;
-            margin: 3px 0;
-            line-height: 1.05;
+        .b {
+            font-weight: bold;
         }
 
-        .signature-section {
-            margin-top: 60px;
+        .summary-lbl {
+            text-align: right;
+            padding-right: 8px;
+            font-size: 9pt;
+        }
+
+        .declaration {
+            margin-top: 10px;
+            font-size: 8.8pt;
+            line-height: 1.5;
+            text-align: justify;
+        }
+
+        /* SIGNATURE SECTION */
+        .sig-section {
+            margin-top: 30px;
             display: flex;
-            justify-content: space-between;
-            font-size: 15px;
-            page-break-inside: avoid;
+            flex-wrap: wrap;
+            gap: 10px 15px;
         }
 
+        /* Max 3 per row */
         .sig-block {
             text-align: center;
+            box-sizing: border-box;
+            width: calc(33.33% - 10px);
+            min-width: 130px;
+            padding: 6px 4px 8px 4px;
         }
 
-        /* =========================================
-           7. PRINT CONFIGURATION
-           ========================================= */
+        /* Circle for round seal */
+        .sig-seal {
+            width: 55px;
+            height: 55px;
+            border: 1.5px dashed #999;
+            border-radius: 50%;
+            margin: 0 auto 6px auto;
+            background: transparent;
+        }
+
+        .sig-line {
+            font-size: 9.5pt;
+            letter-spacing: 2px;
+            color: #444;
+            border-bottom: 1px solid #444;
+            width: 80%;
+            margin: 0 auto 5px auto;
+            padding-bottom: 2px;
+        }
+
+        .sig-name {
+            font-size: 9pt;
+            font-weight: bold;
+            margin-top: 4px;
+        }
+
+        .sig-desig {
+            font-size: 8.5pt;
+            margin-top: 1px;
+            color: #333;
+        }
+
         @page {
             size: A4;
-            margin: 0;
+            margin: 0mm;
+            /* 0mm forces browser headers and footers to hide */
         }
 
         @media print {
@@ -186,111 +265,229 @@
             .page {
                 margin: 0;
                 box-shadow: none;
-                background: none;
+                background: #fff;
                 width: 210mm;
-                height: auto;
-                min-height: 297mm;
             }
 
             .content {
-                padding: 10mm 15mm;
+                padding: 14mm 14mm 12mm 14mm;
             }
+
+            /* Ensure table rows do not split across pages */
+            .content table.data-table {
+                page-break-inside: auto;
+            }
+
+            .content table.data-table thead {
+                display: table-header-group;
+            }
+
+            .content table.data-table tfoot {
+                display: table-footer-group;
+            }
+
+            .content table.data-table tr {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-after: auto !important;
+                -webkit-column-break-inside: avoid !important;
+            }
+
+            .content table.data-table td,
+            .content table.data-table th {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            /* Keep declaration + signatures together if possible */
+            .declaration {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            .sig-section {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            .print-footer {
+                position: fixed;
+                bottom: 8mm;
+                right: 14mm;
+                left: 14mm;
+                font-size: 8pt;
+                color: #888;
+                text-align: right;
+                border-top: 1px solid #ddd;
+                padding-top: 4px;
+            }
+        }
+
+        /* Also show the footer in screen view */
+        .print-footer {
+            position: absolute;
+            bottom: 8mm;
+            right: 14mm;
+            left: 14mm;
+            font-size: 8pt;
+            color: #888;
+            text-align: right;
+            border-top: 1px solid #ddd;
+            padding-top: 4px;
         }
     </style>
 </head>
 
 <body>
-
     <div class="page">
 
-        <!-- WATERMARK -->
         <div class="watermark">
-            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
-                onerror="this.style.display='none'">
+            <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="" onerror="this.style.display='none'">
         </div>
 
         <div class="content">
 
-            <!-- HEADER -->
-            <div class="header-row">
-                <div class="logo-container">
-                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG Logo"
-                        onerror="this.style.display='none'">
-                </div>
-                <div class="header-text">
-                    <div class="header">Indian Institute of Technology Guwahati</div>
-                    <div class="sub-header">Purchase &amp; Stores Section</div>
-                </div>
-            </div>
-
-            <!-- TOP INFO -->
-            <div class="top-info">
-                <div>
-                    <strong>Owner:</strong> {{OWNER}}<br>
-                    <strong>Form Type:</strong> P_11 Form
-                </div>
-                <div class="ref">
-                    <strong>Doc Ref.:</strong> {{DOC_REF}}<br>
-                    <strong>Date:</strong> {{DATE}}
-                </div>
-            </div>
-
-            <!-- TITLE -->
-            <div class="title">
-                PURCHASE COMMITTEE RECOMMENDATION FORM (P-11)
-            </div>
-
-            <!-- DETAILS PARAGRAPH -->
-            <div class="details-paragraph">
-                <p>Quotation received for purchase of the items from M/s: <strong>{{QUOTATION_FROM}}</strong></p>
-                <p>The purchase committee recommends purchase of the items from M/s: <strong>{{RECOMMENDATION_FROM}}</strong></p>
-            </div>
-
-            <!-- MAIN TABLE -->
-            <table>
-                <colgroup>
-                    <col style="width: 6%;">
-                    <col style="width: 20%;">
-                    <col style="width: 34%;">
-                    <col style="width: 10%;">
-                    <col style="width: 15%;">
-                    <col style="width: 15%;">
-                </colgroup>
-                <thead>
-                    <tr>
-                        <th>Sl No.</th>
-                        <th>Item Name</th>
-                        <th>Description</th>
-                        <th>Quantity</th>
-                        <th>Unit Price (INR)</th>
-                        <th>Total Price (INR)</th>
-                    </tr>
-                </thead>
+            <table class="layout-table">
                 <tbody>
-                    {{ITEM_ROWS}}
-                    {{SUMMARY_ROWS}}
+                    <tr>
+                        <td>
+
+                            <!-- HEADER -->
+                            <div class="header-row">
+                                <div class="logo-left">
+                                    <img src="http://172.16.117.39:8000/files/IITG_logo.png" alt="IITG"
+                                        onerror="this.style.display='none'">
+                                </div>
+                                <div class="header-center">
+                                    <div class="header-hindi">भारतीय प्रौद्योगिकी संस्थान गुवाहाटी</div>
+                                    <div class="header-english">Indian Institute of Technology Guwahati</div>
+                                    <div class="header-sub">Purchase &amp; Stores Section</div>
+                                </div>
+                            </div>
+
+                            <!-- DOC REF: right-aligned, on one line, above Form Type -->
+                            <div class="doc-ref-right">
+                                <span class="doc-ref-label">Doc Ref: </span><span
+                                    class="doc-ref-value">{{DOC_REF}}</span>
+                            </div>
+
+                            <!-- FORM LINE -->
+                            <div class="form-line">
+                                <span class="form-type">Form Type: P_11 Form</span>
+                                <span><strong>Date:</strong> {{DATE}}</span>
+                            </div>
+
+                            <!-- TITLE -->
+                            <div class="form-title">
+                                [Direct Procurement by Purchase Committee] (Maximum Limit 10 lakhs)
+                            </div>
+
+                            <!-- INTRO -->
+                            <div class="intro-block">
+                                <p>Purchase committee certification (Maximum Limit 10 lakhs)</p>
+                                <p>Indenter's Name: <strong>{{INDENTER_NAME}}</strong></p>
+                                <p>The purchase committee recommends purchase of <strong>{{ITEM_CATEGORY}}</strong>,
+                                    from M/s
+                                    <strong>{{RECOMMENDATION_FROM}}</strong> as per details mentioned below.
+                                </p>
+                            </div>
+
+                            <!-- MAIN TABLE -->
+                            <table class="data-table">
+                                <colgroup>
+                                    <col style="width:4%;">
+                                    <col style="width:60%;">
+                                    <col style="width:9%;">
+                                    <col style="width:13.5%;">
+                                    <col style="width:13.5%;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2">Sl.<br>No.</th>
+                                        <th rowspan="2">Description</th>
+                                        <th rowspan="2">Qty</th>
+                                        <th colspan="2">Price</th>
+                                    </tr>
+                                    <tr>
+                                        <th>Unit</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {{ITEM_ROWS}}
+                                    <tr>
+                                        <td colspan="3" class="summary-lbl">Total Ex-Works Value</td>
+                                        <td colspan="2" class="r">{{TOTAL_EX_WORKS}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3" class="summary-lbl">Less: Discount</td>
+                                        <td colspan="2" class="r">{{TOTAL_DISCOUNT}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3" class="summary-lbl">Net Total Ex-Works Value</td>
+                                        <td colspan="2" class="r">{{NET_TOTAL_EX_WORKS}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3" class="summary-lbl">Packing, Forwarding Charges (Including GST)
+                                        </td>
+                                        <td colspan="2" class="r">{{PACKING_FORWARDING}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3" class="summary-lbl">Freight Charges</td>
+                                        <td colspan="2" class="r">{{FREIGHT}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3" class="summary-lbl">GST</td>
+                                        <td colspan="2" class="r">{{GST}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3" class="summary-lbl">Other Charges</td>
+                                        <td colspan="2" class="r">{{OTHER_CHARGES}}</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3" class="summary-lbl b">Grand total F.O.R. IIT Guwahati</td>
+                                        <td colspan="2" class="r b">{{GRAND_TOTAL}}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+
+                            <!-- DECLARATION -->
+                            <div class="declaration">
+                                "Certified that we the undersigned, members of the purchase committee are jointly and
+                                individually
+                                satisfied that the goods
+                                recommended for purchase are of the requisite specification and quality, priced at the
+                                prevailing market
+                                rate and the supplier/contractor
+                                recommended to supply the goods in question, and it is not debarred by Department of
+                                Commerce or
+                                Ministry/Department concerned."
+                            </div>
+
+                            <!-- SIGNATURE SECTION — auto-filled from table_teqd in p11Print.ts -->
+                            <div class="sig-section">
+                                {{SIGNATURE_BLOCKS}}
+                            </div>
+
+                        </td>
+                    </tr>
                 </tbody>
+                <tfoot>
+                    <tr>
+                        <td>
+                            <div class="footer-space"></div>
+                        </td>
+                    </tr>
+                </tfoot>
             </table>
-
-            <!-- SIGNATURE SECTION -->
-            <div class="signature-section">
-                <div class="sig-block">
-                    _______________________<br><br>
-                    <strong>Member 1</strong>
-                </div>
-                <div class="sig-block">
-                    _______________________<br><br>
-                    <strong>Member 2</strong>
-                </div>
-                <div class="sig-block">
-                    _______________________<br><br>
-                    <strong>Chairman, PC</strong>
-                </div>
-            </div>
-
         </div>
-    </div>
 
+        <!-- FIXED FOOTER -->
+        <div class="print-footer">
+            Printed on: {{CURRENT_TIME}}
+        </div>
+
+    </div>
 </body>
 
 </html>

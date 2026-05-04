@@ -225,7 +225,7 @@ export const fileToBase64 = (file: File): Promise<{ file_name: string; file_data
 };
 
 // Candidate APIs (External Node Server)
-export const CANDIDATE_API_BASE_URL = import.meta.env.VITE_CANDIDATE_API_URL || "http://172.16.135.27:8091";
+export const CANDIDATE_API_BASE_URL = import.meta.env.VITE_CANDIDATE_API_URL || "https://iitg.ac.in/rndproj/recruitment";
 
 export const candidateAPI = {
     getApplications: (refNum: string) => `${CANDIDATE_API_BASE_URL}/api/applications?refNumParent=${encodeURIComponent(refNum)}`,

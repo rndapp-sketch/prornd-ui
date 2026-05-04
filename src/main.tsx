@@ -83,6 +83,7 @@ import AdminLogin from './pages/AdminLogin.tsx';
 import NIQForm from './pages/application/NIQForm.tsx';
 import Profile from './pages/Profile.tsx';
 import { HeadOverview } from './pages/dashboards/HeadOverview.tsx';
+// import Messages from './pages/Messages.tsx';
 
 const router = createBrowserRouter(
     [
@@ -707,6 +708,7 @@ const router = createBrowserRouter(
                         </AuthRouteWrapper>
                     ),
                 },
+
                 {
                     path: "niq-form/:igfId?",
                     element: (

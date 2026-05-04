@@ -23,6 +23,7 @@ import {
     CreditCard,
     BarChart3,
     MessageSquare,
+    MessageCircle,
     X,
     Paperclip,
     Users as UsersIcon,
@@ -200,6 +201,11 @@ export function AppSidebar() {
             label: "Payments",
             icon: CreditCard,
             path: "/payments",
+        },
+        {
+            label: "Messages",
+            icon: MessageCircle,
+            path: "/messages",
         },
         {
             label: "Project Staff",
