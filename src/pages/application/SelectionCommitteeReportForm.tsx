@@ -2260,7 +2260,9 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                         designation: row.upfa_member_designation || "",
                                     }));
                                     initialData.committee_members = JSON.stringify(committeeData);
-                                    setIsCommitteeFromRecruitment(true);
+                                    if (committeeData.length > 0) {
+                                        setIsCommitteeFromRecruitment(true);
+                                    }
                                 }
 
                                 // Cache recruitment doc, then load candidates list for dropdown
