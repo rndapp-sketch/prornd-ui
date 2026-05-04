@@ -1212,7 +1212,7 @@ const printStyles = `
     border-radius: 2px;
 }
 .niq-input::placeholder { color: #f87171; opacity: 1; }
-.niq-input[contenteditable]:empty::before { content: attr(data-placeholder); color: #f87171; opacity: 1; cursor: text; }
+.niq-input[contenteditable]:empty::before { content: attr(data-placeholder); color: #f87171; opacity: 1; cursor: text; pointer-events: none; }
 .niq-input:focus { border-bottom: 1px solid #dc2626; background: #fecdd3; color: #7f1d1d; }
 
 .niq-field-editable {
@@ -1276,6 +1276,9 @@ const E = ({ value, className = '' }: { value: string; className?: string }) => 
 );
 
 // ─── Plain input ──────────────────────────────────────────────────────────────
+// contentEditable on the span itself so clicks reliably place the caret inside
+// the placeholder area (an empty inline child of a contentEditable parent does
+// not accept caret placement reliably across browsers).
 const F = ({ id, defaultValue = '', placeholder = '______', style }: {
     id: string; defaultValue?: string; placeholder?: string; style?: React.CSSProperties;
 }) => (
@@ -1707,10 +1710,10 @@ const NIQPage: React.FC = () => {
                                                     Any query related to Technical Specifications, Terms &amp; Conditions and request for extension for last date of submission of bids must be made in writing before 7 working days of the last date of submission of bids.<br />
                                                     In all communication to and from IIT Guwahati, the following email IDs are to be put in loop mandatorily.
                                                     <ol className="niq-ol-alpha">
-                                                        <li><E value="__________________" /></li>
-                                                        <li><E value="__________________" /></li>
-                                                        <li><E value="__________________" /></li>
-                                                        <li><E value="__________________" /></li>
+                                                        <li><E value="" /></li>
+                                                        <li><E value="" /></li>
+                                                        <li><E value="" /></li>
+                                                        <li><E value="" /></li>
                                                     </ol>
                                                 </li>
 
