@@ -1172,7 +1172,7 @@ const FundReceivedDetails = () => {
                                                     : dt === "Budget Head"
                                                         ? ["*"]
                                                         : ["name"],
-                                        limit_page_length: 500,
+                                        limit_page_length: 0,
                                     }),
                                 },
                             );
