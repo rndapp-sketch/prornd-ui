@@ -113,7 +113,7 @@ export function HeadApprovalProjects() {
     {
       fields: ["name"],
       filters: [["head_approver", "=", currentUser || ""]],
-      limit: 1000,
+      limit: 0,
     },
     // **FIX**: `enabled` is passed as a second argument (query options)
     { enabled: !!currentUser }
@@ -144,7 +144,7 @@ export function HeadApprovalProjects() {
     {
       fields: ["name", "project_title", "workflow_state", "pi_webmail", "creation", "modified", "implementation_department"],
       filters: projectFilters as any,
-      limit: 1000,
+      limit: 0,
     },
     // **FIX**: `enabled` is passed as a second argument (query options)
     { enabled: !!currentUser && !departmentsLoading && userDepartments.length > 0 }

@@ -361,6 +361,64 @@ const DepositSlipForm: React.FC = () => {
                     ...prev,
                     ...(link_options || {}),
                 }));
+
+                // Fetch missing link options for known field requirements
+                const missingDoctypes = [
+                    "Department_prornd",
+                    "User",
+                    "Budget Head",
+                ];
+                for (const dt of missingDoctypes) {
+                    if (!link_options?.[dt]) {
+                        try {
+                            const listResp = await fetch(
+                                "/api/method/frappe.client.get_list",
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                    credentials: "include",
+                                    body: JSON.stringify({
+                                        doctype: dt,
+                                        fields:
+                                            dt === "User"
+                                                ? ["name", "full_name"]
+                                                : dt === "Department_prornd"
+                                                    ? ["name", "dept_name"]
+                                                    : dt === "Budget Head"
+                                                        ? ["*"]
+                                                        : ["name"],
+                                        limit_page_length: 0,
+                                    }),
+                                },
+                            );
+                            const listJson = await listResp.json();
+                            if (listJson.message) {
+                                const opts = listJson.message.map((d: any) => ({
+                                    label:
+                                        d.dept_name ||
+                                        d.full_name ||
+                                        d.budget_head ||
+                                        d.head_name ||
+                                        d.account_head ||
+                                        d.title ||
+                                        d.name,
+                                    value: d.name,
+                                }));
+                                setLinkOptions((prev) => ({
+                                    ...prev,
+                                    [dt]: opts,
+                                }));
+                            }
+                        } catch (e) {
+                            console.error(
+                                `Failed to fetch options for ${dt}`,
+                                e,
+                            );
+                        }
+                    }
+                }
             }
         } catch (err) {
             console.error("Failed to load form fields:", err);
