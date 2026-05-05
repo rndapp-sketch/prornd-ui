@@ -358,7 +358,7 @@ const PreviewModal = ({
             await new Promise((r) => setTimeout(r, 1200));
             try {
                 await (iDoc as any).fonts?.ready;
-            } catch {}
+            } catch { }
 
             const page =
                 (iDoc.querySelector(".page") as HTMLElement) || iDoc.body;
@@ -625,8 +625,8 @@ export const POEditor: React.FC<POEditorProps> = ({
                                 {isSaving
                                     ? "Saving…"
                                     : saveSuccess
-                                      ? "Saved"
-                                      : "Save"}
+                                        ? "Saved"
+                                        : "Save"}
                             </button>
                         )}
                         <button
