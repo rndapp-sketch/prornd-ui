@@ -458,9 +458,11 @@ const DirectPurchaseWorkflowActions = ({
 const RecruitmentAdhocContractualWorkflowActions = ({
     docname,
     onActionComplete,
+    commitRequired = false,
 }: {
     docname: string;
     onActionComplete: () => void;
+    commitRequired?: boolean;
 }) => {
     const { data, isLoading: actionsLoading } = useFrappeGetCall<{
         message: string[];
@@ -489,6 +491,14 @@ const RecruitmentAdhocContractualWorkflowActions = ({
     };
 
     if (actionsLoading || !data?.message?.length) return null;
+
+    if (commitRequired) {
+        return (
+            <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
+                A commitment must be submitted before forwarding this application.
+            </div>
+        );
+    }
 
     return (
         <>
@@ -1368,6 +1378,9 @@ const PendingTaskDetails: React.FC = () => {
     const [prPreviewName, setPrPreviewName] = useState<string | null>(null);
     const [prPreviewLoading, setPrPreviewLoading] = useState(false);
 
+    // Kafka Staging Commit Status Gate
+    const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
+
     // Direct Purchase tab state — restore from sessionStorage after reload
     const [dpActiveTab, setDpActiveTab] = useState<DPTabId>(() => {
         if (name) {
@@ -2069,7 +2082,7 @@ const PendingTaskDetails: React.FC = () => {
                                 )}
                             </div>
                         </div>
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="flex gap-2 flex-wrap items-center">
                             {/* View linked Project Registration */}
                             {doctype !== "Project Registration" && data && (
                                 <button
@@ -2103,9 +2116,9 @@ const PendingTaskDetails: React.FC = () => {
                                         }
                                     }}
                                     disabled={prPreviewLoading}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-[#D97757] hover:text-[#D97757] transition-colors disabled:opacity-60"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 h-fit rounded-md text-xs font-medium border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-[#D97757] hover:text-[#D97757] transition-colors disabled:opacity-60"
                                 >
-                                    <FolderOpenIcon className="w-4 h-4" />
+                                    <FolderOpenIcon className="w-3.5 h-3.5" />
                                     {prPreviewLoading ? 'Loading…' : 'View Project'}
                                 </button>
                             )}
@@ -2172,6 +2185,7 @@ const PendingTaskDetails: React.FC = () => {
                                         onActionComplete={() =>
                                             window.location.reload()
                                         }
+                                        commitRequired={isRnDStaff && isCommittedForGate === false}
                                     />
                                 )}
                         </div>
@@ -2691,6 +2705,7 @@ const PendingTaskDetails: React.FC = () => {
                                         isStaff={true}
                                         docName={name}
                                         doctype={doctype}
+                                        onStagingStatusChange={setIsCommittedForGate}
                                     />
                                 )}
 

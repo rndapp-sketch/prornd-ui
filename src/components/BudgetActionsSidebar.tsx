@@ -16,6 +16,8 @@ interface BudgetActionsSidebarProps {
     parentAppId?: string;
     /** Pre-fill the commit amount with this value (e.g. net_claimed from TA DA Settlement) */
     billAmount?: number;
+    /** Callback to notify parent of Kafka staging status, used to gate workflow actions */
+    onStagingStatusChange?: (isCommitted: boolean) => void;
 }
 
 export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
@@ -25,6 +27,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     doctype = "Travel",
     parentAppId,
     billAmount,
+    onStagingStatusChange,
 }) => {
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -122,6 +125,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                     billAmount={billAmount}
                     parentAppId={parentAppId}
                     onCommitSuccess={(head, amount) => setCommitSuccess({ head, amount })}
+                    onStagingStatusChange={onStagingStatusChange}
                 />
 
             {/* Payment Widget */}
