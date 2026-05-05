@@ -470,7 +470,18 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     );
                                 }
                                 if (rec.owner && !initialData.principal_investigator) {
-                                    initialData.principal_investigator = rec.owner;
+                                    // rec.owner is an email; resolve to full_name
+                                    try {
+                                        const ownerRes = await fetchFrappeValue({
+                                            doctype: "User",
+                                            filters: { name: rec.owner },
+                                            fieldname: "full_name",
+                                        });
+                                        initialData.principal_investigator =
+                                            ownerRes?.message?.full_name || rec.owner;
+                                    } catch {
+                                        initialData.principal_investigator = rec.owner;
+                                    }
                                 }
                                 if (rec.upfa_project_title && !initialData.project_name) {
                                     initialData.project_name = rec.upfa_project_title;
@@ -1226,7 +1237,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                         <td style={{ width: '50%', verticalAlign: 'top', paddingRight: '3px' }}>
                                             <table style={tbl}><tbody>
                                                 <tr><td colSpan={2} style={{ ...hCell(), textAlign: 'center', background: '#ccc' }}>Applicant Details</td></tr>
-                                                <tr><td style={hCell({ width: '36%' })}>Name:</td><td style={cell()}>{formData.chairperson_name || formData.principal_investigator || '—'}</td></tr>
+                                                <tr><td style={hCell({ width: '36%' })}>Name:</td><td style={cell()}>{formData.principal_investigator || '—'}</td></tr>
                                                 <tr><td style={hCell()}>Department:</td><td style={cell()}>{(() => { const d = formData.upfa_department || formData.implementation_department; return d ? <DepartmentName name={d} /> : '—'; })()}</td></tr>
                                                 <tr><td style={hCell()}>Employee ID:</td><td style={cell()}>{formData.employee_id || formData.webmail_id || '—'}</td></tr>
                                             </tbody></table>
