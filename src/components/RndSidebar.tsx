@@ -202,11 +202,11 @@ export function AppSidebar() {
             icon: CreditCard,
             path: "/payments",
         },
-        {
-            label: "Messages",
-            icon: MessageCircle,
-            path: "/messages",
-        },
+        // {
+        //     label: "Messages",
+        //     icon: MessageCircle,
+        //     path: "/messages",
+        // },
         {
             label: "Project Staff",
             icon: UsersIcon,
