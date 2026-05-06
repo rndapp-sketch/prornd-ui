@@ -1976,9 +1976,11 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                 {/* Action Bar */}
                                 <div className="scr-action-bar bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-800 p-6 flex flex-col md:flex-row items-center justify-between gap-4">
                                     <div className="text-sm text-zinc-600 dark:text-zinc-400 max-w-2xl">
+                                        {workflowState === "Draft" && (
                                         <div className="bg-blue-50 text-blue-800 border border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800/50 px-3 py-2 rounded-lg mb-2">
-                                            <span className="font-semibold">Note:</span> Please first click on <strong>“Save Draft”</strong>, then proceed to <strong>“Print”</strong>, and finally click on <strong>“Submit Application”</strong> to complete the process.
+                                            <span className="font-semibold">Note:</span> Please first click on <strong>"Save Draft"</strong>, then proceed to <strong>"Print"</strong>, and finally click on <strong>"Submit Application"</strong> to complete the process.
                                         </div>
+                                        )}
                                         {(editDocName || savedDocName) && (
                                             <div className="text-xs text-zinc-400">
                                                 Last updated: {new Date().toLocaleTimeString()}
