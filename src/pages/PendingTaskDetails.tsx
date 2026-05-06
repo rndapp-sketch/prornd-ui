@@ -1675,8 +1675,32 @@ const PendingTaskDetails: React.FC = () => {
                             });
                         }
 
-                        setTadaFields(fields);
-                        setTadaLinkOptions(res.message.link_options || {});
+                        // Force ta_da_account_head to Link so BudgetHeadName overlay renders
+                        const processedFields = fields.map((f: any) =>
+                            f.fieldname === "ta_da_account_head"
+                                ? { ...f, fieldtype: "Link" }
+                                : f,
+                        );
+                        setTadaFields(processedFields);
+
+                        // Inject Budget Head options so the ID resolves to its name
+                        const baseLinkOptions = res.message.link_options || {};
+                        fetch(
+                            `/api/resource/Budget Head?fields=["name","budget_head"]&limit_page_length=0`,
+                            { credentials: "include" },
+                        )
+                            .then((r) => (r.ok ? r.json() : { data: [] }))
+                            .then((result) => {
+                                const opts = (result.data || []).map((h: any) => ({
+                                    value: h.name,
+                                    label: h.budget_head || h.name,
+                                }));
+                                setTadaLinkOptions({
+                                    ...baseLinkOptions,
+                                    ta_da_account_head: opts,
+                                });
+                            })
+                            .catch(() => setTadaLinkOptions(baseLinkOptions));
                     }
                 })
                 .catch((err) =>
@@ -2677,7 +2701,8 @@ const PendingTaskDetails: React.FC = () => {
                                         docName={name}
                                         doctype={doctype}
                                         parentAppId={data?.ta_da_travel_application || undefined}
-                                        billAmount={data?.net_claimed ?? data?.ta_da_net_claimed ?? undefined}
+                                        billAmount={data?.ta_da_total_claimed ?? data?.ta_da_net_claimed ?? undefined}
+                                        preselectedAccountHead={data?.ta_da_account_head || undefined}
                                     />
                                 )}
                             {/* Setup for Direct Purchase */}

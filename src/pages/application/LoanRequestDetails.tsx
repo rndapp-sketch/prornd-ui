@@ -31,6 +31,7 @@ const GROUP_C_FIELDS = new Set(['account_head_fund_breakup']);
 const GROUP_D_FIELDS = new Set([
     'loan_agreements_section', 'agreement_no_1', 'agreement_no_2', 'project_copi',
     'section_break_fqlm', 'witness_attachment',
+    'comments_if_any', 'additional_attachment',
 ]);
 
 // --- WORKFLOW STAGES ---

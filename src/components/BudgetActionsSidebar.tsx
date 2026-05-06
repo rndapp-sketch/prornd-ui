@@ -65,7 +65,7 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
     const actualBalance = (projectAmounts as any)?.message?.data?.availableCommitAmount ?? (projectAmounts as any)?.data?.availableCommitAmount ?? 0;
 
     // Fetch Budget Heads
-    const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: number | string }[]>([]);
+    const [budgetHeadList, setBudgetHeadList] = useState<{ name: string; id: number | string; docName: string }[]>([]);
     useEffect(() => {
         const fetchBudgetHeads = async () => {
             try {
@@ -74,7 +74,8 @@ export const BudgetActionsSidebar: React.FC<BudgetActionsSidebarProps> = ({
                 if (result?.data) {
                     setBudgetHeadList(result.data.map((item: any) => ({
                         name: item.title || item.budget_head || item.name,
-                        id: item.id
+                        id: item.id,
+                        docName: item.name,  // raw Frappe name (e.g. "vnacmhhbu5")
                     })));
                 }
             } catch (err) {

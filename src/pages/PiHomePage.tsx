@@ -1095,12 +1095,13 @@ export function PiHomePage() {
               description="Comprehensive repository of all your active and archived research initiatives."
               onClick={() => navigate("/projects-view")}
             />
-            <ActionCard
+   <ActionCard
               icon={<Clock />}
               title="Pending Tasks"
               description="Review items requiring your immediate attention or approval."
               onClick={() => navigate("/projects-view")}
             />
+          
           </section>
 
           {/* Analytics Section */}

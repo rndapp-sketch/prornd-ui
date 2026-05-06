@@ -408,7 +408,6 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                             existingData.chairperson_webmail_id,
                             link_options || {},
                         );
-
                         if (labelFromOptions) {
                             existingData.chairperson_name = labelFromOptions;
                         } else {
@@ -1143,7 +1142,6 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error(`Workflow Action ${action} Error:`, error);
-
             let errMsg = `An error occurred while performing action: ${action}`;
             try {
                 if (error.exc_type === "ValidationError" && error._server_messages) {

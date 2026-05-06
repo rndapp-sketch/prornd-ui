@@ -227,8 +227,35 @@ const TADASettlementForm: React.FC = () => {
           prefill_data,
           link_options,
         } = formDataResult.message;
-        setFields(apiFields || []);
-        setLinkOptions(link_options || {});
+        // Force ta_da_account_head to Link so DynamicFormRenderer uses the select+BudgetHeadName path
+        const processedFields = (apiFields || []).map((f: any) => {
+          if (f.fieldname === "ta_da_account_head") {
+            return { ...f, fieldtype: "Link" };
+          }
+          return f;
+        });
+        setFields(processedFields);
+
+        // Inject Budget Head options so ta_da_account_head shows name not ID
+        let mergedLinkOptions = { ...(link_options || {}) };
+        try {
+          const headsRes = await fetchBudgetHeadList({
+            doctype: "Budget Head",
+            fields: ["name", "budget_head"],
+            limit_page_length: 0,
+          });
+          if (headsRes?.message) {
+            mergedLinkOptions["ta_da_account_head"] = headsRes.message.map(
+              (h: any) => ({
+                value: h.name,
+                label: h.budget_head || h.name,
+              }),
+            );
+          }
+        } catch (err) {
+          console.error("Error fetching Budget Head options:", err);
+        }
+        setLinkOptions(mergedLinkOptions);
 
         let initialData = { ...prefill_data };
 
@@ -286,6 +313,11 @@ const TADASettlementForm: React.FC = () => {
                 initialData.project_no ||
                 travelDoc.travel_project_number;
 
+              // Map Account Head from Travel
+              if (travelDoc.account_head) {
+                initialData.ta_da_account_head = travelDoc.account_head;
+              }
+
               // Populate Advance Taken from the Travel app's committed amount in ledger
               const resolvedProject =
                 initialData.project_no || travelDoc.travel_project_number || "";
@@ -296,6 +328,8 @@ const TADASettlementForm: React.FC = () => {
               );
               if (advanceTaken != null) {
                 initialData.ta_da_advance_taken = advanceTaken;
+              } else if (travelDoc.total_estimate != null) {
+                initialData.ta_da_advance_taken = parseFloat(travelDoc.total_estimate) || 0;
               }
 
               if (travelDoc.webmail_id_travel) {
@@ -428,6 +462,14 @@ const TADASettlementForm: React.FC = () => {
               () => fetchBudgetHeadList({ doctype: "Budget Head", fields: ["name", "id", "uid"], limit_page_length: 50 }),
             );
 
+            const accountHeadFromTravel = travelDoc.account_head || "";
+            const advanceTakenValue =
+              advanceTaken != null
+                ? advanceTaken
+                : travelDoc.total_estimate != null
+                  ? parseFloat(travelDoc.total_estimate) || 0
+                  : undefined;
+
             if (travelDoc.webmail_id_travel) {
               // Use the robust fetcher to get user details + resolved department
               const userMapped = await fetchAndMapUserDetails(
@@ -440,7 +482,8 @@ const TADASettlementForm: React.FC = () => {
                 ...prev,
                 [fieldname]: value,
                 ...userMapped,
-                ...(advanceTaken != null ? { ta_da_advance_taken: advanceTaken } : {}),
+                ...(accountHeadFromTravel ? { ta_da_account_head: accountHeadFromTravel } : {}),
+                ...(advanceTakenValue != null ? { ta_da_advance_taken: advanceTakenValue } : {}),
               }));
             } else {
               // Fallback: resolve department from Travel doc's department ID
@@ -455,7 +498,8 @@ const TADASettlementForm: React.FC = () => {
                 ta_da_designation: travelDoc.designation_travel || "",
                 ta_da_department_section: deptName,
                 ta_da_project_code: travelDoc.travel_project_number || "",
-                ...(advanceTaken != null ? { ta_da_advance_taken: advanceTaken } : {}),
+                ...(accountHeadFromTravel ? { ta_da_account_head: accountHeadFromTravel } : {}),
+                ...(advanceTakenValue != null ? { ta_da_advance_taken: advanceTakenValue } : {}),
               }));
             }
           }

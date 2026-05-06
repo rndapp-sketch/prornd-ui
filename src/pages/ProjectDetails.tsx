@@ -1061,7 +1061,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     );
 
     const MINIO_BASE = "http://172.16.135.118:9000";
-    const attachmentsPath = `${MINIO_BASE}/prod-rnd-files/Project_Registration/${projectName}/attachments`;
+    const attachmentsPath = `${MINIO_BASE}/rnd-files/Project_Registration/${projectName}/attachments`;
 
     const { data: frappeFiles } = useFrappeGetDocList("File", {
         filters: [

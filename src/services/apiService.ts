@@ -35,6 +35,7 @@ export const travelAPI = {
     submit: `${API_BASE}.travel.travel.submit_travel`,
     getWorkflowActions: `${API_BASE}.travel.travel.get_travel_workflow_actions`,
     performAction: `${API_BASE}.travel.travel.perform_travel_action`,
+    getSclBalance: `${API_BASE}.travel.travel.get_special_leave_balance`,
 };
 
 // TA DA Settlement API endpoints

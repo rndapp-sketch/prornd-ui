@@ -29,7 +29,7 @@ export function getFileUrl(path: string | null | undefined): string {
     }
 
     // Already a MinIO proxy path — prepend the MinIO base
-    if (path.startsWith("/prod-rnd-files/")) {
+    if (path.startsWith("/rnd-files/")) {
         return `http://172.16.135.118:9000${path}`;
     }
 

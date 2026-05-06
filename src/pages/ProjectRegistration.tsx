@@ -2483,7 +2483,6 @@ const ProjectRegistration: React.FC = () => {
             // Make Equipment and Manpower default unselect as requested
             initialFormData.equipment_checkbox = 0;
             initialFormData.manpower_checkbox = 0;
-
             // Explicitly unset select defaults to prevent auto-expanding sections
             if (!initialFormData.name) {
                 initialFormData.needs_committee_clearance = "";
