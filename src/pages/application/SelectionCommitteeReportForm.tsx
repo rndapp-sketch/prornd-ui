@@ -44,6 +44,7 @@ type CommitteeMemberRow = {
     email: string;
     name: string;
     designation: string;
+    is_chairperson?: boolean;
 };
 
 const COMMITTEE_DESIGNATION_OPTIONS = [
@@ -351,6 +352,20 @@ const SelectionCommitteeReportForm: React.FC = () => {
                     // For existing docs: use saved data as-is for chairperson_webmail_id,
                     // but always re-derive chairperson_name from link_options to prevent stale values.
                     const existingData: Record<string, any> = { ...prefill_data };
+
+                    // Extract chairperson from saved committee_members (embedded as id="1")
+                    if (!existingData.chairperson_webmail_id && existingData.committee_members) {
+                        try {
+                            const cmRows: CommitteeMemberRow[] = typeof existingData.committee_members === "string"
+                                ? JSON.parse(existingData.committee_members)
+                                : existingData.committee_members;
+                            const chairRow = cmRows.find(r => r.is_chairperson);
+                            if (chairRow) {
+                                existingData.chairperson_webmail_id = chairRow.email;
+                                existingData.chairperson_name = chairRow.name;
+                            }
+                        } catch { /* ignore */ }
+                    }
 
                     // Prefer the implementation department head if chairperson was not saved.
                     const existingDepartment =
@@ -924,9 +939,8 @@ const SelectionCommitteeReportForm: React.FC = () => {
         try {
             const val = formData.committee_members;
             if (!val) return [];
-            if (Array.isArray(val)) return val as CommitteeMemberRow[];
-            if (typeof val === "string") return JSON.parse(val) as CommitteeMemberRow[];
-            return [];
+            const rows: CommitteeMemberRow[] = Array.isArray(val) ? val : JSON.parse(val);
+            return rows.filter(r => !r.is_chairperson);
         } catch { return []; }
     }, [formData.committee_members]);
 
@@ -992,6 +1006,34 @@ const SelectionCommitteeReportForm: React.FC = () => {
         });
     }, [candidatesList, getCandidateRows, updateCandidateRow, postDetailsCache]);
 
+    // Build committee_members JSON: chairperson as id="1", others as "2","3",...
+    const buildCommitteeMembersPayload = useCallback((currentFormData: Record<string, any>): string => {
+        let rows: CommitteeMemberRow[] = [];
+        try {
+            const val = currentFormData.committee_members;
+            if (val) {
+                const parsed: CommitteeMemberRow[] = Array.isArray(val) ? val : JSON.parse(val);
+                rows = parsed.filter(r => !r.is_chairperson);
+            }
+        } catch { /* keep empty */ }
+
+        const allRows: CommitteeMemberRow[] = [];
+        if (currentFormData.chairperson_webmail_id) {
+            allRows.push({
+                id: "1",
+                sl_no: 1,
+                email: currentFormData.chairperson_webmail_id,
+                name: currentFormData.chairperson_name || "",
+                designation: "Chairperson",
+                is_chairperson: true,
+            });
+        }
+        rows.forEach(r => {
+            allRows.push({ ...r, id: String(allRows.length + 1), sl_no: allRows.length + 1 });
+        });
+        return JSON.stringify(allRows);
+    }, []);
+
     // --- ACTIONS ---
     const handleSave = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -1014,16 +1056,13 @@ const SelectionCommitteeReportForm: React.FC = () => {
         setIsSubmitting(true);
         try {
             const candidatesVal = formData.candidates;
-            const committeeMembersVal = formData.committee_members;
             const preparedData = await prepareFormDataForApi({
                 ...formData,
                 name: savedDocName || editDocName,
                 candidates: Array.isArray(candidatesVal)
                     ? JSON.stringify(candidatesVal)
                     : (candidatesVal || "[]"),
-                committee_members: Array.isArray(committeeMembersVal)
-                    ? JSON.stringify(committeeMembersVal)
-                    : (committeeMembersVal || "[]"),
+                committee_members: buildCommitteeMembersPayload(formData),
             });
 
             console.log("Saving Selection Committee Report:", preparedData);
@@ -1075,16 +1114,13 @@ const SelectionCommitteeReportForm: React.FC = () => {
             let preparedData;
             if (workflowState === "Draft" || action === "Submit") {
                 const candidatesVal = formData.candidates;
-                const committeeMembersVal = formData.committee_members;
                 preparedData = await prepareFormDataForApi({
                     ...formData,
                     name: docNameToUse,
                     candidates: Array.isArray(candidatesVal)
                         ? JSON.stringify(candidatesVal)
                         : (candidatesVal || "[]"),
-                    committee_members: Array.isArray(committeeMembersVal)
-                        ? JSON.stringify(committeeMembersVal)
-                        : (committeeMembersVal || "[]"),
+                    committee_members: buildCommitteeMembersPayload(formData),
                 });
             }
 
