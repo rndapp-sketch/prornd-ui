@@ -474,7 +474,7 @@ export interface ChildTableProps {
 }
 
 // --- STYLES ---
-const inputClasses = "w-full h-11 px-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[rgba(217,119,87,0.18)] focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800";
+const inputClasses = "w-full h-10 px-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:opacity-60 disabled:bg-zinc-50 dark:disabled:bg-zinc-800/40 disabled:text-zinc-500 transition-colors duration-150";
 
 const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: {
     children: React.ReactNode;
@@ -488,9 +488,9 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "rounded-lg px-3 py-1.5 font-medium text-xs transition-all duration-200",
+            "rounded-md px-3 py-1.5 font-semibold text-[11px] uppercase tracking-wide transition-colors duration-150",
             "disabled:opacity-50 disabled:cursor-not-allowed",
-            "focus:outline-none focus:ring-2 focus:ring-zinc-100 dark:focus:ring-zinc-700",
+            "focus:outline-none focus:ring-2 focus:ring-zinc-200 dark:focus:ring-zinc-700",
             className
         )}
     >
@@ -796,15 +796,14 @@ export const ChildTableComponent = memo(({
         return totals;
     };
 
-    const totals = calculateTotals();
-    const hasNumericColumns = Object.keys(totals).length > 0;
+    calculateTotals();
 
     return (
         <div className="space-y-4">
             {label && (
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                <h3 className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-100">
                     {label}
-                    {mandatory && <span className="text-red-500 ml-1">*</span>}
+                    {mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}
                 </h3>
             )}
 
@@ -814,24 +813,24 @@ export const ChildTableComponent = memo(({
                     const isExpanded = !collapsedRows[rowKey];
 
                     return (
-                        <div key={rowKey} className="border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-800/20 relative group transition-all overflow-hidden duration-200">
+                        <div key={rowKey} className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden transition-all duration-150">
                             {isExpanded ? (
-                                <div className="p-5">
-                                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-200 dark:border-zinc-800">
-                                        <span className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+                                <div className="bg-white dark:bg-zinc-900">
+                                    <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+                                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
                                             Item #{rowIndex + 1}
                                         </span>
                                         <div className="flex items-center gap-2">
                                             <FrappeButton
                                                 onClick={() => toggleRow(rowKey)}
-                                                className="bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:border-emerald-900/50 dark:text-emerald-400 dark:hover:bg-emerald-900/30"
+                                                className="bg-[#D97757] text-white border-[#D97757] hover:bg-[#c5694d]"
                                             >
-                                                Save
+                                                Done
                                             </FrappeButton>
                                             {!readOnly && !disableDelete && (
                                                 <FrappeButton
                                                     onClick={() => onDeleteRow(tableName, rowIndex)}
-                                                    className="bg-zinc-100 text-red-600 hover:bg-red-50 dark:bg-zinc-800 dark:hover:bg-red-900/20 dark:text-red-400"
+                                                    className="bg-white text-red-500 border border-zinc-200 hover:bg-red-50 hover:border-red-200 dark:bg-zinc-900 dark:border-zinc-700 dark:text-red-400 dark:hover:bg-red-900/20"
                                                 >
                                                     Remove
                                                 </FrappeButton>
@@ -839,12 +838,12 @@ export const ChildTableComponent = memo(({
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                                    <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
                                         {visibleColumns.map(col => (
                                             <div key={col.fieldname} className="space-y-1.5 flex flex-col">
-                                                <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+                                                <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-100">
                                                     {col.label === 'Total Experience' ? 'Total Experience (Months)' : col.label}
-                                                    {!!col.mandatory && <span className="text-red-500 ml-1">*</span>}
+                                                    {!!col.mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}
                                                 </label>
                                                 <div className="flex-1">
                                                     {renderCellInput(col, row, rowIndex)}
@@ -854,33 +853,33 @@ export const ChildTableComponent = memo(({
                                     </div>
                                 </div>
                             ) : (
-                                <div className="p-4 flex items-center justify-between gap-4 bg-white dark:bg-zinc-900 shadow-sm border-l-4 border-l-emerald-500/50 dark:border-l-emerald-500/30">
+                                <div className="px-4 py-3.5 flex items-center justify-between gap-4 bg-white dark:bg-zinc-900 border-l-2 border-l-zinc-300 dark:border-l-zinc-600">
                                     <div className="flex items-center gap-4 flex-1 overflow-hidden">
-                                        <div className="shrink-0 w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+                                        <div className="shrink-0 w-7 h-7 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[11px] font-bold text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
                                             {rowIndex + 1}
                                         </div>
-                                        <div className="flex flex-wrap gap-x-8 gap-y-2 flex-1">
+                                        <div className="flex flex-wrap gap-x-8 gap-y-1.5 flex-1">
                                             {visibleColumns.slice(0, 3).map(col => (
-                                                <div key={col.fieldname} className="flex flex-col text-sm max-w-[200px] truncate">
-                                                    <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-400 dark:text-zinc-500">
-                                                        {col.label === 'Total Experience' ? 'Total Experience (Months)' : col.label}
+                                                <div key={col.fieldname} className="flex flex-col max-w-[200px]">
+                                                    <span className="text-[10px] uppercase tracking-wider font-bold text-zinc-400 dark:text-zinc-500">
+                                                        {col.label === 'Total Experience' ? 'Total Exp. (Mo.)' : col.label}
                                                     </span>
-                                                    <span className="truncate font-medium text-zinc-800 dark:text-zinc-200" title={String(row[col.fieldname] || '-')}>
-                                                        {(row[col.fieldname] !== undefined && row[col.fieldname] !== null && row[col.fieldname] !== '') ? String(row[col.fieldname]) : '-'}
+                                                    <span className="truncate text-[13px] font-medium text-zinc-700 dark:text-zinc-200" title={String(row[col.fieldname] || '-')}>
+                                                        {(row[col.fieldname] !== undefined && row[col.fieldname] !== null && row[col.fieldname] !== '') ? String(row[col.fieldname]) : '—'}
                                                     </span>
                                                 </div>
                                             ))}
                                             {visibleColumns.length > 3 && (
-                                                <div className="flex items-center text-xs text-zinc-400 font-medium pl-2">
+                                                <div className="flex items-end text-[11px] text-zinc-400 font-semibold">
                                                     +{visibleColumns.length - 3} more
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="shrink-0 flex items-center gap-2 border-l border-zinc-200 dark:border-zinc-800 pl-4">
+                                    <div className="shrink-0 flex items-center gap-2 border-l border-zinc-100 dark:border-zinc-800 pl-4">
                                         <FrappeButton
                                             onClick={() => toggleRow(rowKey)}
-                                            className="bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-900/50 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                                            className="bg-[#D97757]/10 text-[#D97757] border-[#D97757]/30 hover:bg-[#D97757]/20 hover:border-[#D97757]/50 dark:bg-[#D97757]/10 dark:text-[#D97757] dark:border-[#D97757]/30"
                                         >
                                             Edit
                                         </FrappeButton>
@@ -900,8 +899,9 @@ export const ChildTableComponent = memo(({
                 })}
 
                 {tableData.length === 0 && (
-                    <div className="p-8 text-center rounded-xl border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/10 text-zinc-500 dark:text-zinc-400">
-                        No items added yet. Click "Add Row" to add an item.
+                    <div className="py-10 text-center rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700 bg-zinc-50/30 dark:bg-zinc-800/10">
+                        <p className="text-[12px] font-medium text-zinc-400 dark:text-zinc-500">No items added yet</p>
+                        <p className="text-[11px] text-zinc-300 dark:text-zinc-600 mt-1">Click "Add Row" below to get started</p>
                     </div>
                 )}
             </div>
@@ -916,7 +916,7 @@ export const ChildTableComponent = memo(({
                             .filter(col => totals[col.fieldname] !== undefined)
                             .map(col => (
                                 <div key={`total-${col.fieldname}`} className="flex flex-col p-3 bg-white dark:bg-zinc-900 rounded-lg border border-orange-100 dark:border-orange-900/50 shadow-sm">
-                                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">{col.label}</span>
+                                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-100 mb-1">{col.label}</span>
                                     <span className="font-extrabold text-[#D97757] text-lg">
                                         {col.fieldtype === 'Currency'
                                             ? totals[col.fieldname].toLocaleString('en-IN', { style: 'currency', currency: 'INR' })
@@ -929,13 +929,14 @@ export const ChildTableComponent = memo(({
             )} */}
 
             {!readOnly && canAddRow && (
-                <div className="pt-2">
-                    <FrappeButton
+                <div className="pt-1">
+                    <button
+                        type="button"
                         onClick={handleAddClick}
-                        className="w-full py-3 text-sm bg-white dark:bg-zinc-900 border border-dashed border-[#D97757]/40 text-[#D97757] hover:bg-[#D97757]/5 hover:border-[#D97757]/80 hover:text-[#D97757] shadow-sm transition-all rounded-xl"
+                        className="w-full py-2.5 rounded-md border border-dashed border-[#D97757]/40 text-[11px] font-bold uppercase tracking-wider text-[#D97757] hover:border-[#D97757]/70 hover:bg-[#D97757]/5 dark:hover:bg-[#D97757]/10 transition-colors duration-150"
                     >
                         + Add Row
-                    </FrappeButton>
+                    </button>
                 </div>
             )}
         </div>

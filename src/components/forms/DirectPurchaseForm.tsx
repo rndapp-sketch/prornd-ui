@@ -46,7 +46,7 @@ export interface DirectPurchaseFormProps {
 
 // --- Helper Functions ---
 
-const generateId = () => Math.random().toString(36).substr(2, 9);
+const generateId = () => Math.random().toString(36).substring(2, 11);
 
 const parseOptions = (optionsStr?: string): LinkOption[] => {
     if (!optionsStr) return [];
@@ -268,51 +268,57 @@ export const DirectPurchaseForm: React.FC<DirectPurchaseFormProps> = ({ payload,
             case 'Currency':
             case 'Text':
                 return (
-                    <div className="flex flex-col gap-2" key={field.fieldname}>
-                        <Label htmlFor={field.fieldname} className="text-sm font-medium">{field.label} {field.reqd && <span className="text-red-500">*</span>}</Label>
+                    <div className="flex flex-col gap-1.5" key={field.fieldname}>
+                        <Label htmlFor={field.fieldname} className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                            {field.label} {field.reqd && <span className="text-red-500 normal-case font-bold">*</span>}
+                        </Label>
                         <Input
                             id={field.fieldname}
                             readOnly={!!field.read_only}
                             type={['Int', 'Float', 'Currency'].includes(field.fieldtype) ? 'number' : 'text'}
                             value={value || ''}
                             onChange={(e) => onChange(e.target.value)}
-                            className={errors[field.fieldname] ? 'border-red-500' : ''}
+                            className={`h-10 text-[13px] ${errors[field.fieldname] ? 'border-red-400 focus-visible:ring-red-200' : ''}`}
                         />
-                        {errors[field.fieldname] && <span className="text-xs text-red-500">{errors[field.fieldname]}</span>}
+                        {errors[field.fieldname] && <span className="text-[11px] text-red-500 font-medium">{errors[field.fieldname]}</span>}
                     </div>
                 );
 
             case 'Select':
                 return (
-                    <div className="flex flex-col gap-2" key={field.fieldname}>
-                        <Label htmlFor={field.fieldname} className="text-sm font-medium">{field.label} {field.reqd && <span className="text-red-500">*</span>}</Label>
+                    <div className="flex flex-col gap-1.5" key={field.fieldname}>
+                        <Label htmlFor={field.fieldname} className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                            {field.label} {field.reqd && <span className="text-red-500 normal-case font-bold">*</span>}
+                        </Label>
                         <Select
                             value={value || ''}
                             onValueChange={onChange}
                             disabled={!!field.read_only}
                         >
-                            <SelectTrigger className={errors[field.fieldname] ? 'border-red-500' : ''}>
+                            <SelectTrigger className={`h-10 text-[13px] ${errors[field.fieldname] ? 'border-red-400' : ''}`}>
                                 <SelectValue placeholder={`Select ${field.label}`} />
                             </SelectTrigger>
                             <SelectContent>
                                 {options.map((opt, i) => (
-                                    <SelectItem key={i} value={opt.value}>
+                                    <SelectItem key={i} value={opt.value} className="text-[13px]">
                                         {opt.label || opt.value}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
-                        {errors[field.fieldname] && <span className="text-xs text-red-500">{errors[field.fieldname]}</span>}
+                        {errors[field.fieldname] && <span className="text-[11px] text-red-500 font-medium">{errors[field.fieldname]}</span>}
                     </div>
                 );
 
             case 'Attach':
                 return (
-                    <div className="flex flex-col gap-2" key={field.fieldname}>
-                        <Label htmlFor={field.fieldname} className="text-sm font-medium">{field.label} {field.reqd && <span className="text-red-500">*</span>}</Label>
-                        <div className="flex items-center gap-4">
-                            <Button type="button" variant="outline" className="relative cursor-pointer">
-                                <UploadCloud className="mr-2 h-4 w-4" />
+                    <div className="flex flex-col gap-1.5" key={field.fieldname}>
+                        <Label htmlFor={field.fieldname} className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                            {field.label} {field.reqd && <span className="text-red-500 normal-case font-bold">*</span>}
+                        </Label>
+                        <div className="flex items-center gap-3">
+                            <Button type="button" variant="outline" className="relative cursor-pointer h-10 text-[12px] font-semibold uppercase tracking-wide">
+                                <UploadCloud className="mr-2 h-3.5 w-3.5" />
                                 Upload File
                                 <input
                                     type="file"
@@ -322,7 +328,7 @@ export const DirectPurchaseForm: React.FC<DirectPurchaseFormProps> = ({ payload,
                                 />
                             </Button>
                             {fileData[field.fieldname]?.file && (
-                                <span className="text-sm text-gray-600 font-medium">
+                                <span className="text-[12px] text-zinc-500 font-medium truncate max-w-[200px]">
                                     {fileData[field.fieldname].file.name}
                                 </span>
                             )}
@@ -332,16 +338,16 @@ export const DirectPurchaseForm: React.FC<DirectPurchaseFormProps> = ({ payload,
 
             case 'Check':
                 return (
-                    <div className="flex items-center gap-2 mt-6" key={field.fieldname}>
+                    <div className="flex items-center gap-3 mt-5" key={field.fieldname}>
                         <input
                             type="checkbox"
                             id={field.fieldname}
                             checked={!!value}
                             onChange={(e) => onChange(e.target.checked)}
                             disabled={!!field.read_only}
-                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                            className="h-4 w-4 rounded-[3px] border-zinc-300 text-zinc-800 focus:ring-zinc-200 cursor-pointer"
                         />
-                        <Label htmlFor={field.fieldname} className="text-sm font-medium cursor-pointer">{field.label}</Label>
+                        <Label htmlFor={field.fieldname} className="text-[13px] font-medium text-zinc-700 cursor-pointer">{field.label}</Label>
                     </div>
                 );
 
@@ -360,18 +366,19 @@ export const DirectPurchaseForm: React.FC<DirectPurchaseFormProps> = ({ payload,
         const rows = formData[field.fieldname] || [];
 
         return (
-            <div key={field.fieldname} className="my-8 w-full border rounded-lg overflow-hidden bg-white shadow-sm">
-                <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
-                    <h3 className="font-semibold text-lg">{field.label}</h3>
+            <div key={field.fieldname} className="my-6 w-full border border-zinc-200 rounded-lg overflow-hidden bg-white dark:bg-zinc-900 dark:border-zinc-700">
+                <div className="px-5 py-3.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700 flex justify-between items-center">
+                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{field.label}</h3>
                     {!field.read_only && (
-                        <Button type="button" variant="outline" size="sm" onClick={() => handleAddRow(field.fieldname)}>
-                            <Plus className="mr-2 h-4 w-4" /> Add Row
+                        <Button type="button" variant="outline" size="sm" onClick={() => handleAddRow(field.fieldname)}
+                            className="h-8 text-[11px] font-semibold uppercase tracking-wide">
+                            <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Row
                         </Button>
                     )}
                 </div>
 
                 {errors[field.fieldname] && (
-                    <div className="p-3 bg-red-50 text-red-600 text-sm border-b font-medium">
+                    <div className="px-5 py-2.5 bg-red-50 text-red-600 text-[12px] font-semibold border-b border-red-100">
                         {errors[field.fieldname]}
                     </div>
                 )}
@@ -379,41 +386,41 @@ export const DirectPurchaseForm: React.FC<DirectPurchaseFormProps> = ({ payload,
                 <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
-                            <TableRow>
+                            <TableRow className="bg-zinc-50/60 dark:bg-zinc-800/30">
                                 {columns.map(col => (
-                                    <TableHead key={col.fieldname} className="min-w-[150px]">{col.label}</TableHead>
+                                    <TableHead key={col.fieldname} className="min-w-[150px] text-[10px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{col.label}</TableHead>
                                 ))}
-                                {!field.read_only && <TableHead className="w-[80px]">Actions</TableHead>}
+                                {!field.read_only && <TableHead className="w-[80px] text-[10px] font-bold uppercase tracking-widest text-zinc-500">Actions</TableHead>}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {rows.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={columns.length + 1} className="text-center py-6 text-gray-500">
-                                        No items added. Click 'Add Row' to begin.
+                                    <TableCell colSpan={columns.length + 1} className="text-center py-8 text-[12px] text-zinc-400 dark:text-zinc-500">
+                                        No items added. Click "Add Row" to begin.
                                     </TableCell>
                                 </TableRow>
                             ) : rows.map((row: any, rowIndex: number) => (
-                                <TableRow key={row._id || rowIndex}>
+                                <TableRow key={row._id || rowIndex} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/20">
                                     {columns.map(col => (
-                                        <TableCell key={col.fieldname} className="align-top py-3">
+                                        <TableCell key={col.fieldname} className="align-top py-2.5">
                                             {renderField(
-                                                { ...col, label: '' }, // Hide label inside table cells
+                                                { ...col, label: '' },
                                                 row[col.fieldname],
                                                 (val) => handleTableRowChange(field.fieldname, rowIndex, col.fieldname, val)
                                             )}
                                         </TableCell>
                                     ))}
                                     {!field.read_only && (
-                                        <TableCell className="align-top py-3">
+                                        <TableCell className="align-top py-2.5">
                                             <Button
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
-                                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                className="h-8 w-8 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                                                 onClick={() => handleRemoveRow(field.fieldname, rowIndex)}
                                             >
-                                                <Trash2 className="h-4 w-4" />
+                                                <Trash2 className="h-3.5 w-3.5" />
                                             </Button>
                                         </TableCell>
                                     )}
@@ -454,16 +461,19 @@ export const DirectPurchaseForm: React.FC<DirectPurchaseFormProps> = ({ payload,
     }
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6 max-w-5xl mx-auto pb-12">
+        <form onSubmit={handleSubmit} className="space-y-5 max-w-5xl mx-auto pb-16">
             {sections.map((section, idx) => (
-                <Card key={idx} className="shadow-sm border-slate-200">
-                    <CardHeader className="bg-slate-50 border-b">
-                        <CardTitle className="text-xl font-semibold text-slate-800">{section.title}</CardTitle>
+                <Card key={idx} className="shadow-none border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                    <CardHeader className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700 py-3.5 px-5">
+                        <div className="flex items-center gap-3">
+                            <div className="w-0.5 h-4 rounded-full bg-zinc-400 dark:bg-zinc-500 shrink-0" />
+                            <CardTitle className="text-[11px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-300">{section.title}</CardTitle>
+                        </div>
                     </CardHeader>
-                    <CardContent className="pt-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full items-start">
+                    <CardContent className="pt-6 pb-6 px-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 w-full items-start">
                             {section.elements.map((el, i) => (
-                                <div key={i} className={React.isValidElement(el) && el.type === 'div' && (el.props as any).className?.includes('my-8') ? 'col-span-1 md:col-span-2' : ''}>
+                                <div key={i} className={React.isValidElement(el) && el.type === 'div' && (el.props as any).className?.includes('my-6') ? 'col-span-1 md:col-span-2' : ''}>
                                     {el}
                                 </div>
                             ))}
@@ -472,13 +482,15 @@ export const DirectPurchaseForm: React.FC<DirectPurchaseFormProps> = ({ payload,
                 </Card>
             ))}
 
-            <div className="sticky bottom-0 bg-white/80 backdrop-blur-md p-4 border-t flex justify-end gap-3 z-10 shadow-lg">
+            <div className="sticky bottom-0 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-md px-5 py-3.5 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-2.5 z-10">
                 {onCancel && (
-                    <Button type="button" variant="outline" onClick={onCancel} className="w-32">
+                    <Button type="button" variant="outline" onClick={onCancel}
+                        className="h-9 px-5 text-[12px] font-semibold uppercase tracking-wide">
                         Cancel
                     </Button>
                 )}
-                <Button type="submit" className="w-40 bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
+                <Button type="submit"
+                    className="h-9 px-6 text-[12px] font-semibold uppercase tracking-wide bg-zinc-900 hover:bg-zinc-700 text-white dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white">
                     Submit Purchase
                 </Button>
             </div>
