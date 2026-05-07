@@ -22,6 +22,8 @@ import { ProjectLedgerModal } from "../../components/ProjectLedgerModal";
 import { Textarea } from "@/components/ui/textarea"; // Assuming this exists, if not use standard textarea
 import { DeclarationFields } from "@/components/DeclarationFields";
 import { CommitPayment } from "@/components/CommitPayment";
+import { ActivityLog } from "@/components/ActivityLog";
+import ViewProjectButton from "@/components/ViewProjectButton";
 
 // --- TYPE DEFINITIONS ---
 interface ReimbursementData {
@@ -964,6 +966,7 @@ const ReimbursementDetails: React.FC = () => {
           projectNumber={projectNo || data.project_number}
         >
           <div className="flex items-center gap-4">
+            <ViewProjectButton doctype="Reimbursement" data={data} />
             <div className="text-right text-sm text-zinc-900 dark:text-zinc-100 hidden md:block">
               <div className="flex items-center gap-1 font-medium justify-end">
                 <CalendarIcon className="w-4 h-4" />
@@ -1261,6 +1264,11 @@ const ReimbursementDetails: React.FC = () => {
                 Latest Activity
               </h3>
               {id && <ActivityStream doctype="Reimbursement" docname={id} />}
+            </div>
+
+            {/* Section 1b: Document Activity Log (new endpoint) */}
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              {id && <ActivityLog doctype="Reimbursement" docname={id} />}
             </div>
 
             {/* Section 2: Add Comment */}

@@ -17,6 +17,8 @@ import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { Wallet as WalletIcon, CheckCircle2 } from "lucide-react";
 import { DeclarationFields } from "@/components/DeclarationFields";
 import { CommitPayment } from "@/components/CommitPayment";
+import { ActivityLog } from "@/components/ActivityLog";
+import ViewProjectButton from "@/components/ViewProjectButton";
 
 // --- TYPE DEFINITIONS ---
 interface AdvanceSettlementData {
@@ -652,6 +654,7 @@ const AdvanceSettlementDetails: React.FC = () => {
           projectNumber={data.project_code}
         >
           <div className="flex items-center gap-3">
+            <ViewProjectButton doctype="Advance Settlement" data={data} />
             <div className="text-right text-sm text-zinc-900 dark:text-zinc-100 mr-2 hidden md:block">
               <div className="flex items-center justify-end gap-1 font-medium">
                 <CalendarIcon className="w-4 h-4 text-zinc-400" />
@@ -866,6 +869,13 @@ const AdvanceSettlementDetails: React.FC = () => {
 
             {/* Declarations */}
             <DeclarationFields doctype="Advance Settlement" />
+
+            {/* Activity Log */}
+            {id && (
+              <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                <ActivityLog doctype="Advance Settlement" docname={id} />
+              </div>
+            )}
           </div>
         </div>
       </main>

@@ -27,6 +27,8 @@ import { CommitPayment } from "@/components/CommitPayment";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { useUserRoles } from "@/components/UserRole";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
+import { ActivityLog } from "@/components/ActivityLog";
+import ViewProjectButton from "@/components/ViewProjectButton";
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -513,6 +515,7 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                     projectName={formData.project_title}
                     projectNumber={formData.disbursal_project_number}
                 >
+                    <ViewProjectButton doctype="Disbursal of Consultancy" data={formData} />
                     {(formData.workflow_state === "Draft" ||
                         !formData.workflow_state) &&
                         id && (
@@ -649,6 +652,11 @@ const DisbursalOfConsultancyDetails: React.FC = () => {
                                     docname={id}
                                 />
                             )}
+                        </div>
+
+                        {/* Document Activity Log (new endpoint) */}
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            {id && <ActivityLog doctype="Disbursal of Consultancy" docname={id} />}
                         </div>
 
                         {/* Add Comment */}

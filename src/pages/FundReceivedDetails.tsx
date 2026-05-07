@@ -27,6 +27,8 @@ import { useDepositSlipCalculations } from "../hooks/useDepositSlipCalculations"
 import { useFrappeFetchFrom } from "../hooks/useFrappeFetchFrom";
 import { HoSApprovalView } from "./HoSApprovalView";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
+import { ActivityLog } from "@/components/ActivityLog";
+import ViewProjectButton from "@/components/ViewProjectButton";
 
 // Component to fetch and display attachment for a transaction
 const TransactionAttachment = ({
@@ -1614,6 +1616,7 @@ const FundReceivedDetails = () => {
                             )}
                         </div>
                         <div className="flex items-center gap-4">
+                            <ViewProjectButton doctype="Fund Received" data={fundData} />
                             <FundReceivedWorkflowActions
                                 docname={name || ""}
                                 onActionComplete={() => {
@@ -2150,11 +2153,13 @@ const FundReceivedDetails = () => {
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-4 bg-zinc-50 dark:bg-zinc-800/50">
-                                <ActivityStream
-                                    doctype="Fund Received"
-                                    docname={name || ""}
-                                    onRefresh={() => mutate()}
-                                />
+                                {name && (
+                                    <ActivityLog
+                                        doctype="Fund Received"
+                                        docname={name}
+                                        maxHeight="100%"
+                                    />
+                                )}
                             </div>
                         </div>
                     </div>

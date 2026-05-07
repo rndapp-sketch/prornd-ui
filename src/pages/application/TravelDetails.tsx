@@ -14,6 +14,8 @@ import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { useUserRoles } from '@/components/UserRole';
 import { ProjectLedgerModal } from '@/components/ProjectLedgerModal';
 import { CommitPayment } from '@/components/CommitPayment';
+import { ActivityLog } from '@/components/ActivityLog';
+import ViewProjectButton from '@/components/ViewProjectButton';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -490,6 +492,7 @@ const TravelDetails: React.FC = () => {
                     projectName={formData.travel_project_title}
                     projectNumber={resolvedProjectNo || formData.travel_project_number}
                 >
+                    <ViewProjectButton doctype="Travel" data={formData} />
                     {(formData.workflow_state === "Draft" || !formData.workflow_state) && docName && (
                         <>
                             <button
@@ -641,6 +644,11 @@ const TravelDetails: React.FC = () => {
                                     docname={docName}
                                 />
                             )}
+                        </div>
+
+                        {/* Document Activity Log (new endpoint) */}
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            {docName && <ActivityLog doctype="Travel" docname={docName} />}
                         </div>
 
                         {/* Add Comment */}
