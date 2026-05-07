@@ -2262,9 +2262,13 @@ const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
 const DirectPurchaseActionButtons = ({
     docname,
     onActionComplete,
+    p11DocName,
+    onP11Missing,
 }: {
     docname: string;
     onActionComplete: () => void;
+    p11DocName?: string;
+    onP11Missing?: () => void;
 }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
@@ -2287,6 +2291,15 @@ const DirectPurchaseActionButtons = ({
     }, [docname]);
 
     const handleAction = async (action: string) => {
+        // Block "Submit P-11" if P-11 form hasn't been created yet
+        if (action === "Submit P-11" && !p11DocName) {
+            alert(
+                "The P-11 Form has not been created yet.\n\nPlease go to the \"P-11 Form\" tab, fill in the P-11 Form, and then return here to submit.",
+            );
+            onP11Missing?.();
+            return;
+        }
+
         if (!confirm(`Are you sure you want to perform "${action}"?`)) return;
         setIsPerforming(true);
         try {
@@ -2319,6 +2332,11 @@ const DirectPurchaseActionButtons = ({
                     variant="action"
                     onClick={() => handleAction(action)}
                     disabled={isPerforming}
+                    className={
+                        action === "Submit P-11" && !p11DocName
+                            ? "opacity-60 cursor-not-allowed"
+                            : undefined
+                    }
                 >
                     {isPerforming ? "Processing…" : action}
                 </ClaudeButton>
@@ -2874,6 +2892,17 @@ const DirectPurchaseDetails: React.FC = () => {
         directPurchaseAPI.generateP11Form,
     );
 
+    // Check if P-11 Form exists for this Direct Purchase
+    const { data: p11ListData } = useFrappeGetCall<{
+        message: { name: string }[];
+    }>("frappe.client.get_list", {
+        doctype: "P_11 Form",
+        filters: JSON.stringify([["app_id", "=", id || ""]]),
+        fields: JSON.stringify(["name"]),
+        limit: 1,
+    });
+    const p11DocName = p11ListData?.message?.[0]?.name ?? "";
+
     // Commit Payment state
     const [commitHead, setCommitHead] = useState("");
     const [commitAmount, setCommitAmount] = useState("");
@@ -3259,6 +3288,8 @@ const DirectPurchaseDetails: React.FC = () => {
                             <DirectPurchaseActionButtons
                                 docname={id}
                                 onActionComplete={loadData}
+                                p11DocName={p11DocName}
+                                onP11Missing={() => setActiveTab("p11")}
                             />
                         )}
                     </div>
@@ -3318,12 +3349,25 @@ const DirectPurchaseDetails: React.FC = () => {
                                             Office for further processing.
                                         </span>
                                     </div>
+                                    <div className="mb-5">
+                                        <button
+                                            onClick={() =>
+                                                p11DocName
+                                                    ? navigate(`/p11-form?edit=${p11DocName}&app_id=${id}`)
+                                                    : navigate(`/p11-form?app_id=${id}`)
+                                            }
+                                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] hover:bg-[#c66a4e] text-white"
+                                        >
+                                            <ClipboardListIcon className="w-4 h-4" />
+                                            {p11DocName ? "Edit P-11 Form" : "Fill P-11 Form"}
+                                        </button>
+                                    </div>
                                     <LinkedDocTab
                                         doctype="P_11 Form"
                                         filterField="app_id"
                                         filterValue={id}
-                                        emptyTitle="No P-11 Form Generated Yet"
-                                        emptyDescription="The P-11 Form is generated after the Direct Purchase is approved."
+                                        emptyTitle="No P-11 Form Filled Yet"
+                                        emptyDescription={'Click "Fill P-11 Form" above to create and submit the P-11 Form. You must fill and submit P-11 before the "Submit P-11" workflow action becomes available.'}
                                         onDataReload={loadData}
                                         parentData={data ?? undefined}
                                     />

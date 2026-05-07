@@ -31,11 +31,19 @@ interface FormData {
 }
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
-const inputClasses = "w-full h-9 px-3 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800 read-only:bg-zinc-100 dark:bg-zinc-800";
-const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white dark:bg-zinc-900 p-4 md:p-5 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm", className)}>{children}</div>);
-const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("px-3.5 py-1.5 border border-zinc-200 dark:border-zinc-800 rounded-md font-semibold text-xs text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
+const inputClasses = "w-full h-10 px-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:opacity-60 disabled:bg-zinc-50 dark:disabled:bg-zinc-800/40 disabled:text-zinc-500 read-only:bg-zinc-50 dark:read-only:bg-zinc-800/40 transition-colors duration-150";
+const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white dark:bg-zinc-900 p-5 md:p-6 border border-zinc-200 dark:border-zinc-700 rounded-lg", className)}>{children}</div>);
+const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("h-9 px-4 border rounded-md font-semibold text-[11px] uppercase tracking-wide transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
 
-const NeoSection = ({ title, children }: any) => (<div className="space-y-4"><h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-2">{title}</h2>{children}</div>);
+const NeoSection = ({ title, children }: any) => (
+    <div className="space-y-4">
+        <div className="flex items-center gap-3 pb-3.5 border-b border-zinc-100 dark:border-zinc-800">
+            <div className="w-0.5 h-4 rounded-full bg-[#D97757]/60 shrink-0" />
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-100">{title}</h2>
+        </div>
+        {children}
+    </div>
+);
 
 /** Prevent scroll-wheel from changing number input values */
 const preventScrollChange = (e: React.WheelEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -57,7 +65,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange, readOnlyOverr
             default: return <input type="text" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
         }
     };
-    return (<div className='space-y-1'><label htmlFor={field.fieldname} className="block font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase tracking-wide">{field.label}{field.mandatory && <span className="text-red-500">*</span>}</label>{renderInput()}</div>);
+    return (<div className="space-y-1.5"><label htmlFor={field.fieldname} className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-100">{field.label}{field.mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}</label>{renderInput()}</div>);
 });
 
 const ALL_YEAR_COLUMNS = [
@@ -93,26 +101,26 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
     const grandTotal = Object.values(yearTotals).reduce((sum, total) => sum + total, 0);
 
     return (
-        <div>
-            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
-                <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+        <div className="space-y-2">
+            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700 rounded-lg">
+                <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
                     <thead className="bg-zinc-50 dark:bg-zinc-800/50">
                         <tr>
                             {[...columns, { key: 'actions', label: '' }].map((c: any) => (
-                                <th key={c.key} className="px-3 py-2 font-semibold text-zinc-600 dark:text-zinc-400 text-xs text-left uppercase tracking-wider">{c.label}</th>
+                                <th key={c.key} className="px-3 py-2.5 text-[10px] font-bold text-zinc-500 dark:text-zinc-100 text-left uppercase tracking-widest whitespace-nowrap">{c.label}</th>
                             ))}
                         </tr>
                     </thead>
 
-                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
                         {(tableData || []).map((row: any, i: number) => {
                             const rowTotal = calculateRowTotal(row);
                             return (
-                                <tr key={row.id || i} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                <tr key={row.id || i} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/20 transition-colors">
                                     {columns.map((col: any) => (
                                         <td key={col.key} className="px-2 py-1.5">
                                             {col.type === 'Select' ? (
-                                                <select className={`${inputClasses} !h-8`}
+                                                <select className={`${inputClasses} !h-9`}
                                                     value={row[col.key] || ''}
                                                     onChange={e => onRowChange(i, col.key, e.target.value)}>
                                                     <option value="">Select Head...</option>
@@ -121,74 +129,95 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                                                     ))}
                                                 </select>
                                             ) : col.type === 'Currency' ? (
-                                                <input type="number" step="0.01" className={`${inputClasses} !h-8`}
+                                                <input type="number" step="0.01" className={`${inputClasses} !h-9`}
                                                     value={row[col.key] || ''}
                                                     onChange={e => onRowChange(i, col.key, e.target.value)}
                                                     onWheel={preventScrollChange} />
                                             ) : col.type === 'ReadOnly' ? (
-                                                <input readOnly className={`${inputClasses} !h-8 bg-zinc-100 dark:bg-zinc-700 font-semibold`}
+                                                <input readOnly className={`${inputClasses} !h-9 bg-zinc-50 dark:bg-zinc-800/40 text-zinc-600 dark:text-zinc-300 font-semibold`}
                                                     value={rowTotal.toFixed(2)} />
                                             ) : null}
                                         </td>
                                     ))}
                                     <td className="px-2 py-1.5 text-center">
-                                        <FrappeButton onClick={() => onDeleteRow(i)}
-                                            className="!bg-red-200 hover:!bg-red-300 !py-1">Delete</FrappeButton>
+                                        <button type="button" onClick={() => onDeleteRow(i)}
+                                            className="h-8 px-3 rounded-md text-[11px] font-semibold uppercase tracking-wide text-red-500 border border-zinc-200 dark:border-zinc-700 hover:bg-red-50 hover:border-red-200 dark:hover:bg-red-900/20 transition-colors">
+                                            Remove
+                                        </button>
                                     </td>
                                 </tr>
                             );
                         })}
                     </tbody>
 
-                    {/* Footer with Year-wise Totals and Grand Total */}
-                    <tfoot className="bg-zinc-50 dark:bg-zinc-800 border-t border-zinc-200 dark:border-zinc-700 font-semibold text-xs">
+                    <tfoot className="bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-700">
                         <tr>
-                            <td className="px-3 py-2 text-right">Yearly Totals (₹):</td>
+                            <td className="px-3 py-2.5 text-[11px] font-bold text-zinc-500 dark:text-zinc-100 uppercase tracking-wider text-right">Yearly Totals</td>
                             {yearKeys.map(key => (
-                                <td key={key} className="px-3 py-2">{yearTotals[key]?.toFixed(2) || '0.00'}</td>
+                                <td key={key} className="px-3 py-2.5 text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{yearTotals[key]?.toFixed(2) || '0.00'}</td>
                             ))}
-                            <td className="px-3 py-2 bg-amber-100 dark:bg-amber-900/30 text-sm font-bold text-[#D97757]">{grandTotal.toFixed(2)}</td>
+                            <td className="px-3 py-2.5 bg-[#D97757]/10 dark:bg-[#D97757]/15 text-[13px] font-extrabold text-[#D97757]">{grandTotal.toFixed(2)}</td>
                             <td />
                         </tr>
                     </tfoot>
                 </table>
             </div>
 
-            <FrappeButton
+            <button
+                type="button"
                 onClick={() => {
                     const newRow: Record<string, any> = { account_head: '' };
                     yearKeys.forEach(key => { newRow[key] = 0; });
                     onAddRow(newRow);
                 }}
-                className="bg-[#D97757] hover:bg-[#c5684a] text-white border-[#D97757]/20 mt-2">
-                Add Budget Row
-            </FrappeButton>
+                className="w-full py-2.5 rounded-md border border-dashed border-[#D97757]/40 text-[11px] font-bold uppercase tracking-wider text-[#D97757] hover:border-[#D97757]/70 hover:bg-[#D97757]/5 dark:hover:bg-[#D97757]/10 transition-colors duration-150">
+                + Add Budget Row
+            </button>
         </div>
     );
 });
 
 const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => (
     <NeoSection title={title}>
-        <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700 rounded-lg">
-            <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
-                <thead className="bg-zinc-50 dark:bg-zinc-800/50"><tr>{[...columns, { key: 'actions', label: '' }].map((c: any) => (<th key={c.key} className="px-3 py-2 font-semibold text-zinc-600 dark:text-zinc-400 text-xs text-left uppercase tracking-wider">{c.label}</th>))}</tr></thead>
-                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
-                    {(tableData || []).map((row: any, i: number) => (
-                        <tr key={row.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                            {columns.map((col: any) => (<td key={col.key} className="px-2 py-1.5">
-                                {col.type === 'Attach' ? (
-                                    <input type="file" className={`${inputClasses} !h-8 file:mr-2 file:px-2 file:py-0.5 file:text-xs file:font-medium`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />
-                                ) : (
-                                    <input type="text" className={`${inputClasses} !h-8`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)} />
-                                )}
-                            </td>))}
-                            <td className="px-2 py-1.5 text-center"><FrappeButton onClick={() => onDeleteRow(tableName, i)} className="!bg-red-200 hover:!bg-red-300 !py-1">Delete</FrappeButton></td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+        <div className="space-y-2">
+            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700 rounded-lg">
+                <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
+                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                        <tr>{[...columns, { key: 'actions', label: '' }].map((c: any) => (
+                            <th key={c.key} className="px-3 py-2.5 text-[10px] font-bold text-zinc-500 dark:text-zinc-100 text-left uppercase tracking-widest whitespace-nowrap">{c.label}</th>
+                        ))}</tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                        {(tableData || []).length === 0 ? (
+                            <tr><td colSpan={columns.length + 1} className="px-4 py-8 text-center">
+                                <p className="text-[12px] font-medium text-zinc-400 dark:text-zinc-500">No files added yet</p>
+                                <p className="text-[11px] text-zinc-300 dark:text-zinc-600 mt-1">Click "+ Add Row" below to attach files</p>
+                            </td></tr>
+                        ) : (tableData || []).map((row: any, i: number) => (
+                            <tr key={row.id} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/20 transition-colors">
+                                {columns.map((col: any) => (<td key={col.key} className="px-2 py-1.5">
+                                    {col.type === 'Attach' ? (
+                                        <input type="file" className={`${inputClasses} !h-9 file:mr-2 file:px-2.5 file:py-1 file:text-[11px] file:font-semibold file:uppercase file:tracking-wide file:border-0 file:bg-zinc-100 dark:file:bg-zinc-800 file:text-zinc-600 dark:file:text-zinc-300 file:rounded`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />
+                                    ) : (
+                                        <input type="text" className={`${inputClasses} !h-9`} value={row[col.key] || ''} onChange={e => onRowChange(tableName, i, col.key, e.target.value)} />
+                                    )}
+                                </td>))}
+                                <td className="px-2 py-1.5 text-center">
+                                    <button type="button" onClick={() => onDeleteRow(tableName, i)}
+                                        className="h-8 px-3 rounded-md text-[11px] font-semibold uppercase tracking-wide text-red-500 border border-zinc-200 dark:border-zinc-700 hover:bg-red-50 hover:border-red-200 dark:hover:bg-red-900/20 transition-colors">
+                                        Remove
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <button type="button" onClick={() => onAddRow(tableName, newRow)}
+                className="w-full py-2.5 rounded-md border border-dashed border-[#D97757]/40 text-[11px] font-bold uppercase tracking-wider text-[#D97757] hover:border-[#D97757]/70 hover:bg-[#D97757]/5 dark:hover:bg-[#D97757]/10 transition-colors duration-150">
+                + Add Row
+            </button>
         </div>
-        <FrappeButton onClick={() => onAddRow(tableName, newRow)} className="bg-[#D97757] hover:bg-[#c5684a] text-white border-[#D97757]/20 mt-2">Add Row</FrappeButton>
     </NeoSection>
 ));
 
@@ -478,14 +507,14 @@ const AddFundSanction: React.FC = () => {
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
             <AppSidebar />
             <main className="flex-1 p-4 md:p-6 w-full overflow-hidden">
-                <header className="mb-6 p-4 md:p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
+                <header className="mb-5 p-4 md:p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg">
                     <div className="flex items-center gap-3">
-                        <button onClick={() => navigate(-1)} className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-50 dark:bg-zinc-800/50 active:translate-y-1 transition-transform">
-                            <ArrowLeftIcon className="h-5 w-5" />
+                        <button onClick={() => navigate(-1)} className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                            <ArrowLeftIcon className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
                         </button>
                         <div>
-                            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Add Fund Sanction</h1>
-                            <p className="text-xs text-zinc-700 dark:text-zinc-300 mt-1">For Project: {projectDisplayLabel || formData.refnum_prj_num || projectName}</p>
+                            <h1 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">Add Fund Sanction</h1>
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-100 mt-0.5 uppercase tracking-wide font-medium">Project: {projectDisplayLabel || formData.refnum_prj_num || projectName}</p>
                         </div>
                     </div>
                 </header>
@@ -493,21 +522,20 @@ const AddFundSanction: React.FC = () => {
                 <form>
                     <FrappeCard className="space-y-6">
                         <NeoSection title="Project & Sanction Details">
-                            {/* Project Registered - Read-only display showing title/number */}
-                            <div className="space-y-1">
-                                <label className="block font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase tracking-wide">
+                            <div className="space-y-1.5">
+                                <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-100">
                                     Project Registered
                                 </label>
                                 <input
                                     type="text"
-                                    className={`${inputClasses} bg-zinc-100 dark:bg-zinc-800 font-medium`}
+                                    className={`${inputClasses} bg-zinc-50 dark:bg-zinc-800/40 text-zinc-600 dark:text-zinc-300`}
                                     readOnly
                                     disabled
                                     value={projectDisplayLabel || formData.project_proposal || projectName || ''}
                                 />
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
                                 {renderField('refnum_prj_num', true)}
                                 {renderField('total_sanctioned_amount')}
                                 {renderField('sanctioned_letter_no')}
@@ -550,43 +578,43 @@ const AddFundSanction: React.FC = () => {
 
                     {/* Missing total warning */}
                     {isTotalEmpty && (
-                        <div className="mt-4 px-4 py-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-lg text-sm text-amber-700 dark:text-amber-400">
-                            <span className="font-semibold">Total Sanctioned Amount is required</span> before saving.
+                        <div className="mt-4 px-4 py-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                            <p className="text-[12px] text-amber-700 dark:text-amber-400"><span className="font-semibold">Total Sanctioned Amount is required</span> before saving.</p>
                         </div>
                     )}
 
                     {/* Budget mismatch warning */}
                     {isBudgetMismatch && (
-                        <div className="mt-4 px-4 py-3 bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-700 rounded-lg text-sm text-red-700 dark:text-red-400">
-                            <span className="font-semibold">Amount mismatch:</span> Total Sanctioned Amount (₹{totalSanctioned.toFixed(2)}) does not equal the Total Budget Break-up (₹{budgetGrandTotal.toFixed(2)}). Please reconcile before saving.
+                        <div className="mt-4 px-4 py-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 rounded-lg">
+                            <p className="text-[12px] text-red-600 dark:text-red-400"><span className="font-semibold">Amount mismatch:</span> Total Sanctioned Amount (₹{totalSanctioned.toFixed(2)}) does not equal the Total Budget Break-up (₹{budgetGrandTotal.toFixed(2)}). Please reconcile before saving.</p>
                         </div>
                     )}
 
-                    {/* Prominent Submit Buttons */}
-                    <div className="mt-6 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
-                        <div className="flex justify-end gap-3">
+                    {/* Action Buttons */}
+                    <div className="mt-5 flex items-center justify-between py-3.5 px-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg">
+                        {!savedAsDraft && !isBudgetMismatch ? (
+                            <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Save as draft first to enable Submit</p>
+                        ) : <div />}
+                        <div className="flex gap-2.5">
                             <FrappeButton
                                 type="button"
                                 onClick={handleSaveDraft}
                                 disabled={isSubmitting || isTotalEmpty || isBudgetMismatch}
-                                className="bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-600"
+                                className="bg-[#D97757]/10 text-[#D97757] border-[#D97757]/30 hover:bg-[#D97757]/20 hover:border-[#D97757]/50 inline-flex items-center gap-1.5"
                             >
-                                <Save className="h-4 w-4 mr-1.5 inline-block" />
+                                <Save className="h-3.5 w-3.5" />
                                 {isSubmitting ? 'Saving...' : 'Save as Draft'}
                             </FrappeButton>
-                            <button
+                            <FrappeButton
                                 type="button"
                                 onClick={handleSubmitSanction}
                                 disabled={isSubmitting || isBudgetMismatch || !savedAsDraft}
-                                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#D97757] hover:bg-[#c5684a] text-white font-semibold text-xs rounded-md shadow-sm hover:shadow transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="bg-[#D97757] text-white border-[#D97757] hover:bg-[#c5684a] inline-flex items-center gap-1.5"
                             >
-                                <Send className="h-4 w-4" />
+                                <Send className="h-3.5 w-3.5" />
                                 {isSubmitting ? 'Submitting...' : 'Submit Sanction'}
-                            </button>
+                            </FrappeButton>
                         </div>
-                        {!savedAsDraft && !isBudgetMismatch && (
-                            <p className="text-xs text-zinc-400 dark:text-zinc-500 text-right mt-1.5">Save as Draft first to enable Submit Sanction.</p>
-                        )}
                     </div>
                 </form>
             </main>

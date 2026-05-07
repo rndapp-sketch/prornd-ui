@@ -80,7 +80,7 @@ export interface DynamicFormRendererProps {
 
 // --- STYLES ---
 const inputClasses =
-  "flex h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-[#27272A] px-3 py-2 text-sm ring-offset-white dark:ring-offset-zinc-950 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800 focus-visible:border-zinc-400 dark:focus-visible:border-zinc-500 disabled:cursor-not-allowed disabled:bg-zinc-50 dark:disabled:bg-zinc-800/50 disabled:text-zinc-900 dark:disabled:text-zinc-100 transition-all duration-200";
+  "flex h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-zinc-900 dark:text-zinc-100 ring-offset-white dark:ring-offset-zinc-950 file:border-0 file:bg-transparent file:text-xs file:font-semibold placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757]/25 focus-visible:border-[#D97757] disabled:cursor-not-allowed disabled:bg-zinc-50 dark:disabled:bg-zinc-800/40 disabled:text-zinc-500 dark:disabled:text-zinc-400 transition-colors duration-150";
 
 // --- MEMOIZED FORM FIELD COMPONENT ---
 const MemoizedFormField = memo(
@@ -143,7 +143,7 @@ const MemoizedFormField = memo(
           if (isReadOnly) {
             const readOnlyLabel = options?.find((opt) => opt.value === value)?.label || value;
             return (
-              <div className="flex h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100">
+              <div className="flex h-10 w-full rounded-md border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 text-[13px] text-zinc-600 dark:text-zinc-300">
                 {(field.fieldname === "department" ||
                   field.fieldname === "department_for" ||
                   field.fieldname === "upfa_department" ||
@@ -395,40 +395,37 @@ const MemoizedFormField = memo(
           return (
             <label
               className={cn(
-                "flex items-start gap-2 p-3 rounded-md border transition-all duration-200 cursor-pointer",
+                "flex items-center gap-3 px-3 py-2.5 rounded-md border cursor-pointer transition-colors duration-150",
                 isChecked
-                  ? "bg-zinc-50 border-zinc-200 dark:bg-zinc-800/50 dark:border-zinc-700"
-                  : "bg-white border-zinc-200 dark:bg-[#27272A] dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50",
+                  ? "bg-[#D97757]/5 border-[#D97757]/40 dark:bg-[#D97757]/10 dark:border-[#D97757]/40"
+                  : "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-700 hover:border-[#D97757]/30 dark:hover:border-[#D97757]/30",
+                isReadOnly && "cursor-not-allowed opacity-60",
               )}
             >
-              <div className="relative flex items-center mt-0.5">
+              <div className="relative flex items-center shrink-0">
                 <input
                   type="checkbox"
-                  className="peer opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                  className="sr-only peer"
                   checked={isChecked}
                   onChange={(e) =>
                     handleChange(field.fieldname, e.target.checked ? 1 : 0)
                   }
                   disabled={isReadOnly}
                 />
-                <div className="w-4 h-4 border border-zinc-400 dark:border-zinc-500 rounded-sm peer-checked:bg-zinc-900 dark:peer-checked:bg-zinc-100 peer-checked:border-zinc-900 dark:peer-checked:border-zinc-100 transition-all focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800 focus-visible:ring-offset-2 ring-offset-white dark:ring-offset-zinc-950"></div>
-                <svg
-                  className="absolute inset-0 w-4 h-4 text-white dark:text-zinc-900 opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
+                <div className={cn(
+                  "w-4 h-4 rounded-[3px] border-2 flex items-center justify-center transition-all duration-150",
+                  isChecked
+                    ? "bg-[#D97757] border-[#D97757]"
+                    : "border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900",
+                )}>
+                  {isChecked && (
+                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 10" fill="none">
+                      <path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
               </div>
-              <span
-                className={cn(
-                  "text-sm font-medium leading-none text-zinc-700 dark:text-zinc-300 peer-disabled:cursor-not-allowed peer-disabled:opacity-70 select-none pt-0.5",
-                )}
-              >
+              <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 select-none">
                 {field.label}
               </span>
             </label>
@@ -464,7 +461,7 @@ const MemoizedFormField = memo(
                   href={getFileUrl(value)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-md text-sm font-medium transition-colors h-10 ring-offset-white dark:ring-offset-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800"
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-md text-[12px] font-semibold uppercase tracking-wide transition-colors h-10"
                 >
                   <svg
                     className="w-4 h-4"
@@ -504,7 +501,7 @@ const MemoizedFormField = memo(
           // No existing file, show file input (hidden in read-only mode)
           if (isReadOnly) {
             return (
-              <div className="text-zinc-400 dark:text-zinc-500 italic">
+              <div className="text-[12px] text-zinc-400 dark:text-zinc-500 italic tracking-wide">
                 No file uploaded
               </div>
             );
@@ -527,7 +524,7 @@ const MemoizedFormField = memo(
         case "HTML":
           return (
             <div
-              className="prose prose-sm max-w-none text-zinc-900 dark:text-zinc-100 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl dark:prose-invert"
+              className="prose prose-sm max-w-none text-zinc-800 dark:text-zinc-200 p-4 bg-amber-50/60 dark:bg-amber-900/10 border border-amber-200/70 dark:border-amber-800/50 rounded-lg text-[13px] dark:prose-invert"
               dangerouslySetInnerHTML={{ __html: field.options || "" }}
             />
           );
@@ -535,7 +532,7 @@ const MemoizedFormField = memo(
         case "Read Only":
           const readOnlyLabel = options?.find(opt => opt.value === value)?.label || value;
           return (
-            <div className="flex h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100">
+            <div className="flex h-10 w-full rounded-md border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 text-[13px] text-zinc-600 dark:text-zinc-300">
               {(field.fieldname === "department" ||
                 field.fieldname === "department_for" ||
                 field.fieldname === "upfa_department" ||
@@ -556,14 +553,17 @@ const MemoizedFormField = memo(
         case "Radio":
           const radioOpts = field.options?.split("\n").filter(Boolean) || [];
           return (
-            <div className="flex flex-col gap-3 mt-2">
+            <div className="flex flex-col gap-2 mt-1">
               {radioOpts.map((opt) => {
                 const isSelected = value === opt;
                 return (
                   <label
                     key={opt}
                     className={cn(
-                      "flex items-center gap-3 cursor-pointer",
+                      "flex items-center gap-3 px-3 py-2.5 rounded-md border cursor-pointer transition-colors duration-150",
+                      isSelected
+                        ? "border-[#D97757]/50 bg-[#D97757]/5 dark:border-[#D97757]/40 dark:bg-[#D97757]/10"
+                        : "border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900 hover:border-[#D97757]/30 dark:hover:border-[#D97757]/30",
                       isReadOnly && "cursor-not-allowed opacity-60",
                     )}
                   >
@@ -580,22 +580,22 @@ const MemoizedFormField = memo(
                     />
                     <div
                       className={cn(
-                        "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-200",
+                        "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-150 shrink-0",
                         isSelected
                           ? "border-[#D97757]"
-                          : "border-zinc-400 dark:border-zinc-500",
+                          : "border-zinc-300 dark:border-zinc-600",
                       )}
                     >
                       <div
                         className={cn(
-                          "w-2 h-2 rounded-full transition-all duration-200",
+                          "w-2 h-2 rounded-full transition-all duration-150",
                           isSelected
                             ? "bg-[#D97757] scale-100"
                             : "bg-transparent scale-0",
                         )}
                       />
                     </div>
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">
                       {opt}
                     </span>
                   </label>
@@ -653,10 +653,10 @@ const MemoizedFormField = memo(
     // Checkbox has its own label rendering but still needs description
     if (field.fieldtype === "Check") {
       return (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {renderInput()}
           {field.description && (
-            <p className="text-[0.8rem] text-zinc-500 dark:text-zinc-400 ml-6">
+            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 ml-7 leading-relaxed">
               {field.description}
             </p>
           )}
@@ -670,19 +670,19 @@ const MemoizedFormField = memo(
     }
 
     return (
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <label
           htmlFor={field.fieldname}
-          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-zinc-700 dark:text-zinc-300 block mb-2"
+          className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-100"
         >
           {field.label}
           {isMandatory && (
-            <span className="text-red-500 dark:text-red-900 ml-1">*</span>
+            <span className="text-red-500 ml-1 normal-case font-bold">*</span>
           )}
         </label>
         {renderInput()}
         {field.description && (
-          <p className="text-[0.8rem] text-zinc-500 dark:text-zinc-400 mt-1">
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 leading-relaxed">
             {field.description}
           </p>
         )}
@@ -703,19 +703,22 @@ const FormSection = ({
   description?: string | null;
   children: React.ReactNode;
 }) => (
-  <div className="space-y-4 pt-4 first:pt-0">
+  <div className="space-y-5">
     {(title || description) && (
-      <div className="border-b border-zinc-200 dark:border-zinc-800 pb-3 mb-4">
-        {title && (
-          <h2 className="text-lg font-serif font-medium text-zinc-900 dark:text-zinc-100">
-            {title}
-          </h2>
-        )}
-        {description && (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
-            {description}
-          </p>
-        )}
+      <div className="flex items-start gap-3 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="w-0.5 h-4 mt-0.5 rounded-full bg-zinc-400 dark:bg-zinc-600 shrink-0" />
+        <div>
+          {title && (
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-100">
+              {title}
+            </h2>
+          )}
+          {description && (
+            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 leading-relaxed">
+              {description}
+            </p>
+          )}
+        </div>
       </div>
     )}
     {children}
@@ -816,14 +819,14 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       return (
         <div key={field.fieldname} className="col-span-full space-y-3">
           {field.label && (
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{field.label}</h3>
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-100">{field.label}</h3>
           )}
-          <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-xl">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto border border-zinc-100 dark:border-zinc-800 rounded-lg">
+            <table className="w-full text-[12px]">
               <thead className="bg-zinc-50 dark:bg-zinc-800/50">
                 <tr>
                   {columns.map(col => (
-                    <th key={col} className="px-4 py-2.5 text-left font-semibold text-zinc-600 dark:text-zinc-400 text-xs uppercase tracking-wider whitespace-nowrap">
+                    <th key={col} className="px-4 py-2.5 text-left font-bold text-zinc-500 dark:text-zinc-100 text-[10px] uppercase tracking-widest whitespace-nowrap">
                       {col.replace(/_/g, " ")}
                     </th>
                   ))}
@@ -833,7 +836,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                 {rows.map((row, idx) => (
                   <tr key={idx} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30">
                     {columns.map(col => (
-                      <td key={col} className="px-4 py-2.5 text-zinc-700 dark:text-zinc-300">
+                      <td key={col} className="px-4 py-2.5 text-[13px] text-zinc-700 dark:text-zinc-300">
                         {String(row[col] ?? "—")}
                       </td>
                     ))}
@@ -934,7 +937,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   };
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-10">
       {sections.map((section, idx) => {
         // Check if section should be visible
         if (!isSectionVisible(section)) {
@@ -955,7 +958,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             title={section.title}
             description={section.description}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
               {section.fields.map((field) => renderField(field))}
             </div>
           </FormSection>
