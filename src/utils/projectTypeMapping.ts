@@ -123,6 +123,9 @@ export const DOCTYPE_PR_LINKS: Record<string, DoctypePRLink> = {
     'Direct Purchase': {
         primary: { type: 'pr_project_no', field: 'project_no' },
     },
+    'Disbursal of Consultancy': {
+        primary: { type: 'pr_project_no', field: 'disbursal_project_number' },
+    },
     'Disbursal of Honorarium': {
         primary: { type: 'pr_project_no', field: 'project_no' },
     },

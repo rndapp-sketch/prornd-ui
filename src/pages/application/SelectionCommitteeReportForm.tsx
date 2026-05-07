@@ -15,8 +15,10 @@ import {
     prepareFormDataForApi,
     candidateAPI,
 } from "@/services/apiService";
-import { Loader2, ArrowLeft, Save, Send, CheckCircle2, Printer } from "lucide-react";
+import { Loader2, ArrowLeft, Save, Send, CheckCircle2, Printer, EyeIcon } from "lucide-react";
+import ViewProjectButton from "@/components/ViewProjectButton";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "@/components/UserRole";
@@ -180,6 +182,9 @@ const SelectionCommitteeReportForm: React.FC = () => {
     );
     const { call: getActionsCall } = useFrappePostCall(
         selectionCommitteeReportAPI.getWorkflowActions,
+    );
+    const { call: callUpdateSendToDirector, loading: isUpdatingSendToDirector } = useFrappePostCall(
+        selectionCommitteeReportAPI.updateSendToDirector,
     );
     const { call: performActionCall } = useFrappePostCall(
         selectionCommitteeReportAPI.performAction,
@@ -1424,6 +1429,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                         >
                             <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
                         </button>
+                        <ViewProjectButton doctype="Selection Committee Report" data={formData} />
                         <div>
                             <h1 className="text-2xl font-serif font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
                                 Selection Committee Report
@@ -1987,16 +1993,58 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex gap-3">
-                                        {/* Print Button — always available */}
+                                    <div className="flex gap-3 flex-wrap">
+                                        {/* DoRND Send to Director Controls */}
+                                        {isDoRnd && workflowState !== "Draft" && workflowState !== "Approved" && workflowState !== "Rejected" && (
+                                            <div className="flex items-center gap-2 mr-2 bg-[#F0EDE4] dark:bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                                                <Checkbox
+                                                    id="send-to-director"
+                                                    checked={!!formData.send_to_director}
+                                                    onCheckedChange={async (checked) => {
+                                                        const newVal = checked ? 1 : 0;
+                                                        setFormData(prev => ({ ...prev, send_to_director: newVal }));
+                                                        if (savedDocName) {
+                                                            try {
+                                                                await callUpdateSendToDirector({
+                                                                    docname: savedDocName,
+                                                                    send_to_director: newVal
+                                                                });
+                                                            } catch (err) {
+                                                                console.error("Failed to update send to director", err);
+                                                                setFormData(prev => ({ ...prev, send_to_director: formData.send_to_director }));
+                                                            }
+                                                        }
+                                                    }}
+                                                    disabled={isUpdatingSendToDirector}
+                                                />
+                                                <label htmlFor="send-to-director" className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none">
+                                                    Send to Director
+                                                </label>
+                                                {isUpdatingSendToDirector && <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-500" />}
+                                            </div>
+                                        )}
+
+                                        {/* View Director PDF if available */}
+                                        {formData.director_signed_pdf && (
+                                            <FrappeButton
+                                                variant="outline"
+                                                onClick={() => window.open(formData.director_signed_pdf, '_blank')}
+                                                className="bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/40 shadow-sm"
+                                            >
+                                                <EyeIcon className="w-4 h-4 mr-2" />
+                                                View Director Signed PDF
+                                            </FrappeButton>
+                                        )}
+
+                                        {/* Download PDF Button — always available */}
                                         <FrappeButton
                                             variant="outline"
                                             onClick={handlePrint}
                                             className="bg-white dark:bg-zinc-800 shadow-sm"
-                                            title="Print this report"
+                                            title="Print or Download this report as PDF"
                                         >
                                             <Printer className="w-4 h-4 mr-2" />
-                                            Print
+                                            Download PDF
                                         </FrappeButton>
                                         {workflowState === "Draft" ? (
                                             <>
@@ -2049,11 +2097,15 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                             </>
                                         ) : (
                                             /* Any Other Workflow Actions */
-                                            availableActions.map((action) => (
+                                            availableActions.map((action) => {
+                                                const isApproveAction = action === "Approve" || action === "Recommend";
+                                                const isDisabledByPdf = isDoRnd && isApproveAction && !formData.director_signed_pdf;
+                                                return (
                                                 <FrappeButton
                                                     key={action}
                                                     onClick={() => handleWorkflowAction(action)}
-                                                    disabled={isActionLoading}
+                                                    disabled={isActionLoading || isDisabledByPdf}
+                                                    title={isDisabledByPdf ? "Director Signed PDF must be uploaded first" : undefined}
                                                     className={cn(
                                                         "shadow-sm",
                                                         action === "Approve"
@@ -2061,6 +2113,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                             : action === "Reject"
                                                                 ? "bg-red-600 hover:bg-red-700 text-white"
                                                                 : "bg-[#D97757] hover:opacity-90 text-white",
+                                                        isDisabledByPdf && "opacity-50 cursor-not-allowed"
                                                     )}
                                                 >
                                                     {isActionLoading ? (
@@ -2068,7 +2121,8 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                     ) : null}
                                                     {action}
                                                 </FrappeButton>
-                                            ))
+                                                );
+                                            })
                                         )}
                                     </div>
                                 </div>

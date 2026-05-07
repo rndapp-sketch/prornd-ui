@@ -121,6 +121,9 @@ export const selectionCommitteeReportAPI = {
     getWorkflowActions: `${API_BASE}.selection_committee_report.selection_committee_report.get_selection_committee_report_workflow_actions`,
     performAction: `${API_BASE}.selection_committee_report.selection_committee_report.perform_selection_committee_report_action`,
     getByWebmail: `${API_BASE}.selection_committee_report.selection_committee_report.get_selection_committee_report_by_webmail`,
+    updateSendToDirector: `${API_BASE}.selection_committee_report.selection_committee_report.update_send_to_director_scr`,
+    getPendingDirectorUploads: `${API_BASE}.selection_committee_report.selection_committee_report.get_pending_director_uploads_scr`,
+    attachDirectorPdf: `${API_BASE}.selection_committee_report.selection_committee_report.attach_director_pdf_scr`,
 };
 
 // Indent Cum Sanction Sheet API endpoints

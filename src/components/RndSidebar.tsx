@@ -202,6 +202,11 @@ export function AppSidebar() {
             icon: CreditCard,
             path: "/payments",
         },
+        {
+            label: "Upload Director PDF",
+            icon: FileText,
+            path: "/director-pdf-upload",
+        },
         // {
         //     label: "Messages",
         //     icon: MessageCircle,
@@ -223,6 +228,10 @@ export function AppSidebar() {
             },
         },
     ].filter((item) => {
+        if (item.label === "Upload Director PDF") {
+            const allowedRoles = ["staff, RnD"];
+            return roles && allowedRoles.some((role) => roles.includes(role));
+        }
         if (item.label === "Universal Forms") {
             // Visible only to staff, RnD
             const allowedRoles = ["staff, RnD"];

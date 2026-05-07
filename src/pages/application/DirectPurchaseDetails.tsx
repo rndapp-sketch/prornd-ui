@@ -1826,6 +1826,8 @@ import { P11PrintModal } from "@/components/P11PrintModal";
 import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
+import { ActivityLog } from "@/components/ActivityLog";
+import ViewProjectButton from "@/components/ViewProjectButton";
 
 // --- TYPE DEFINITIONS ---
 interface DirectPurchaseData {
@@ -1840,13 +1842,6 @@ interface DirectPurchaseData {
     applicant_designation?: string;
     account_head?: string;
     [key: string]: any;
-}
-
-interface ActivityItem {
-    owner: string;
-    creation: string;
-    content: string;
-    comment_type: string;
 }
 
 type TabId = "details" | "p11" | "sanction" | "po";
@@ -2259,55 +2254,6 @@ const DocumentViewer = ({ data }: { data: Record<string, any> }) => {
                     </div>
                 );
             })}
-        </div>
-    );
-};
-
-// --- ACTIVITY STREAM ---
-const ActivityStream = ({
-    doctype,
-    docname,
-}: {
-    doctype: string;
-    docname: string;
-}) => {
-    const { data: activityData, mutate: refetchActivity } = useFrappeGetCall<{
-        message: ActivityItem[];
-    }>("rndopsapp.rndopsapp.api.get_project_activity", { doctype, docname });
-
-    useEffect(() => {
-        refetchActivity();
-    }, [docname]);
-
-    return (
-        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-            {activityData?.message?.length ? (
-                activityData.message.map((activity, idx) => (
-                    <div key={idx} className="flex items-start gap-3">
-                        <div className="flex-shrink-0 h-7 w-7 rounded-full bg-[#FAFAF9] dark:bg-zinc-800 border border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-center font-semibold text-[#D97757] text-xs">
-                            {activity.owner?.charAt(0).toUpperCase() || "U"}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <div
-                                className="text-sm text-[#3F3F46] dark:text-[#E4E4E7] line-clamp-2 prose prose-sm max-w-none"
-                                dangerouslySetInnerHTML={{
-                                    __html: activity.content,
-                                }}
-                            />
-                            <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
-                                {activity.owner} ·{" "}
-                                {activity.creation
-                                    ? formatDate(activity.creation, "long")
-                                    : ""}
-                            </p>
-                        </div>
-                    </div>
-                ))
-            ) : (
-                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">
-                    No recent activity.
-                </p>
-            )}
         </div>
     );
 };
@@ -3265,6 +3211,7 @@ const DirectPurchaseDetails: React.FC = () => {
                     projectName={data.project_name}
                 >
                     <div className="flex items-center gap-2 flex-wrap">
+                        <ViewProjectButton doctype="Direct Purchase" data={data} />
                         {data.workflow_state === "Draft" && id && (
                             <ClaudeButton
                                 variant="outline"
@@ -3555,15 +3502,12 @@ const DirectPurchaseDetails: React.FC = () => {
                             </div>
                         </ClaudeCard>
 
-                        {/* Activity Stream */}
-                        <ClaudeCard title="Activity">
-                            {id && (
-                                <ActivityStream
-                                    doctype="Direct Purchase"
-                                    docname={id}
-                                />
-                            )}
-                        </ClaudeCard>
+                        {/* Activity Log (new endpoint) */}
+                        {id && (
+                            <ClaudeCard title="Activity Log">
+                                <ActivityLog doctype="Direct Purchase" docname={id} />
+                            </ClaudeCard>
+                        )}
 
                         {/* Commit Payment — only for Staff RnD, only when Pending Staff Approval */}
                         {isStaffRnD &&

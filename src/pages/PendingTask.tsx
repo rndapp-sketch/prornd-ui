@@ -5,6 +5,8 @@
 import React, { useState, useRef } from 'react';
 import { FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
+import { ActivityLog } from '@/components/ActivityLog';
+import { XIcon, ActivityIcon } from 'lucide-react';
 
 import { useNavigate } from 'react-router-dom';
 import { useFrappeGetCall, useFrappeAuth, useFrappeGetDocList } from 'frappe-react-sdk';
@@ -115,6 +117,8 @@ const PendingTask: React.FC = () => {
     const [selectedProjectType, setSelectedProjectType] = useState<ProjectTypeTab>('Research');
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+    // Activity peek panel state
+    const [selectedTask, setSelectedTask] = useState<{ doctype: string; docname: string; title: string } | null>(null);
 
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -380,10 +384,11 @@ const PendingTask: React.FC = () => {
     }
 
     return (
+        <>
         <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen font-sans text-zinc-900 dark:text-zinc-100">
             <GlobalLoader isLoading={isLoading} />
 
-            <main className="flex-1 p-6 md:p-12 w-full overflow-hidden">
+            <main className="flex-1 p-4 md:p-6 w-full overflow-hidden">
                 {/* Header */}
                 <div className="mb-8">
                     <button
@@ -545,7 +550,14 @@ const PendingTask: React.FC = () => {
                                                 {task.doctype}
                                             </td>
                                             <td className="p-4 align-middle font-medium text-zinc-900 dark:text-zinc-200">
-                                                {task.title.length > 40 ? `${task.title.substring(0, 40)}...` : task.title}
+                                                <button
+                                                    className="text-left hover:text-[#D97757] transition-colors flex items-center gap-1.5 group/title"
+                                                    onClick={() => setSelectedTask({ doctype: task.doctype, docname: task.id, title: task.title })}
+                                                    title="Click to preview activity log"
+                                                >
+                                                    {task.title.length > 40 ? `${task.title.substring(0, 40)}...` : task.title}
+                                                    <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
+                                                </button>
                                             </td>
                                             <td className="p-4 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
                                                 {task["Project Number"]}
@@ -659,6 +671,64 @@ const PendingTask: React.FC = () => {
                 </FrappeCard>
             </main>
         </div>
+
+        {/* Activity Log Peek Panel */}
+        {selectedTask && (
+            <div
+                className="fixed inset-0 z-40"
+                onClick={() => setSelectedTask(null)}
+            >
+                <div
+                    className="absolute right-0 top-0 h-full w-full max-w-sm bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl flex flex-col"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Panel header */}
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+                        <div className="min-w-0">
+                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-0.5">
+                                {selectedTask.doctype}
+                            </p>
+                            <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                                {selectedTask.title}
+                            </p>
+                            <p className="text-xs font-mono text-zinc-400 dark:text-zinc-500 truncate">
+                                {selectedTask.docname}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setSelectedTask(null)}
+                            className="ml-3 p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors flex-shrink-0"
+                            aria-label="Close panel"
+                        >
+                            <XIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    {/* Activity log */}
+                    <div className="flex-1 overflow-y-auto p-5">
+                        <ActivityLog
+                            doctype={selectedTask.doctype}
+                            docname={selectedTask.docname}
+                            maxHeight="100%"
+                        />
+                    </div>
+
+                    {/* Footer: View Full Details */}
+                    <div className="px-5 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+                        <button
+                            onClick={() => {
+                                setSelectedTask(null);
+                                navigate(`/pending-tasks/${encodeURIComponent(selectedTask.doctype)}/${selectedTask.docname}`);
+                            }}
+                            className="w-full py-2.5 px-4 bg-[#D97757] text-white text-sm font-bold rounded-lg hover:bg-[#c66a4e] transition-colors"
+                        >
+                            View Full Details →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 };
 
