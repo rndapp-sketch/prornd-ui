@@ -61,6 +61,7 @@ import {
 } from "@/components/forms/DynamicFormRenderer";
 import DisbursalOfHonorariumActionButtons from "@/components/DisbursalOfHonorariumActionButtons";
 import { CommitPayment } from "@/components/CommitPayment";
+import { ActivityLog } from "@/components/ActivityLog";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { useUserRoles } from "@/components/UserRole";
 import { ProjectLedgerModal } from "@/components/ProjectLedgerModal";
@@ -701,7 +702,7 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                             </button>
                         </div>
 
-                        {/* Activity Stream */}
+                        {/* Activity Stream (legacy local) */}
                         <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
                             <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
                                 Latest Activity
@@ -712,6 +713,11 @@ const DisbursalOfHonorariumDetails: React.FC = () => {
                                     docname={id}
                                 />
                             )}
+                        </div>
+
+                        {/* Activity Log (new endpoint) */}
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            {id && <ActivityLog doctype="Disbursal of Honorarium" docname={id} />}
                         </div>
 
                         {/* Add Comment */}

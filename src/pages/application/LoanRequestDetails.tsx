@@ -15,6 +15,7 @@ import { DynamicFormRenderer, type FormField, type LinkOption } from '@/componen
 import { loanRequestAPI, prepareFormDataForApi } from '@/services/apiService';
 import { DepartmentName } from '@/components/DepartmentName';
 import LoanRequestActionButtons from '@/components/LoanRequestActionButtons';
+import { ActivityLog } from '@/components/ActivityLog';
 
 // --- FIELD GROUP DEFINITIONS (same as form) ---
 const GROUP_A_FIELDS = new Set([
@@ -668,6 +669,11 @@ const LoanRequestDetails: React.FC = () => {
                                 </h3>
                             </div>
                             {id && <ActivityStream doctype="Loan Request" docname={id} onRefresh={handleRefresh} />}
+                        </div>
+
+                        {/* Document Activity Log (new endpoint) */}
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            {id && <ActivityLog doctype="Loan Request" docname={id} />}
                         </div>
                     </aside>
                 </div>

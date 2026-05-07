@@ -24,6 +24,7 @@ import { DepartmentName } from "@/components/DepartmentName";
 import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { CommitPayment } from "@/components/CommitPayment";
+import { ActivityLog } from "@/components/ActivityLog";
 
 // ---------------------------------------------------------------------------
 // Workflow pipeline
@@ -874,13 +875,7 @@ const IndentGeneralFormDetails: React.FC = () => {
 
                         {/* Activity */}
                         <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <div className="flex items-center gap-2 mb-4">
-                                <ActivityIcon className="w-4 h-4 text-zinc-400" />
-                                <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                                    Activity Log
-                                </h3>
-                            </div>
-                            {id && <ActivityStream docname={id} onRefresh={handleRefresh} />}
+                            {id && <ActivityLog doctype="Indent General Form" docname={id} />}
                         </div>
                     </aside>
                 </div>

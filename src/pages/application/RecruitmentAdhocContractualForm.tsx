@@ -17,6 +17,7 @@ import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { BudgetHeadName } from '@/components/BudgetHeadName';
 import { CommitPayment } from '@/components/CommitPayment';
+import { ActivityLog } from '@/components/ActivityLog';
 
 type LinkOption = {
     value: string;
@@ -1237,7 +1238,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                     </div>
                 </div>
 
-                <div className={cn("grid gap-6", showCommitSection ? "grid-cols-1 lg:grid-cols-[1fr_360px]" : "grid-cols-1")}>
+                <div className={cn("grid gap-6", (showCommitSection || currentDocName) ? "grid-cols-1 lg:grid-cols-[1fr_360px]" : "grid-cols-1")}>
                     {/* Main Form Content */}
                     <div className="space-y-6">
                         <FrappeCard>
@@ -1481,6 +1482,20 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                         </p>
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Activity Log — always shown at bottom of commit sidebar */}
+                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                {currentDocName && <ActivityLog doctype="Recruitment Adhoc Contractual" docname={currentDocName} />}
+                            </div>
+                        </aside>
+                    )}
+
+                    {/* Activity Log sidebar — always visible when doc exists, even without commit section */}
+                    {!showCommitSection && currentDocName && (
+                        <aside className="space-y-5">
+                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <ActivityLog doctype="Recruitment Adhoc Contractual" docname={currentDocName} />
                             </div>
                         </aside>
                     )}

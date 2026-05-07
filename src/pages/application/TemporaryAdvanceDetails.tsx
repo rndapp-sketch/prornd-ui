@@ -15,6 +15,7 @@ import { useUserRoles } from '../../components/UserRole';
 import { ProjectLedgerModal } from '../../components/ProjectLedgerModal';
 import { DeclarationFields } from '@/components/DeclarationFields';
 import { CommitPayment } from '@/components/CommitPayment';
+import { ActivityLog } from '@/components/ActivityLog';
 
 // Initialize ToWords converter
 const toWords = new ToWords({
@@ -574,6 +575,11 @@ const TemporaryAdvanceDetails: React.FC = () => {
                                 Latest Activity
                             </h3>
                             {id && <ActivityStream doctype="Temporary Advance" docname={id} />}
+                        </div>
+
+                        {/* Document Activity Log (new endpoint) */}
+                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            {id && <ActivityLog doctype="Temporary Advance" docname={id} />}
                         </div>
 
                         {/* Add Comment Section */}
