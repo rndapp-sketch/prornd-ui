@@ -293,6 +293,20 @@ const MemoizedGenericTable = memo(
         onDeleteRow,
     }: any) => {
         const renderCell = (col: any, row: any, i: number) => {
+            if (col.type === "UserAutocomplete") {
+                return (
+                    <AutocompleteEmail
+                        className={`${inputClasses} !h-8 text-xs`}
+                        value={row[col.key] || ""}
+                        onChange={(val) => onRowChange(tableName, i, col.key, val)}
+                        options={col.options || []}
+                        placeholder="Search by name or email..."
+                        searchByLabel
+                        showAllOnFocus
+                    />
+                );
+            }
+
             if (
                 col.type === "Link" ||
                 col.type === "Dynamic Link" ||

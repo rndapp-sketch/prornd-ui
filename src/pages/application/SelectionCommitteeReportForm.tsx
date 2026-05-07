@@ -212,7 +212,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                 recruitment_post_id: String(app.recruitment_post_id || ""),
                 candidate_id: String(app.candidate_id || ""),
                 status: app.status || "",
-                display_name: `${(app.first_name || "").trim()} ${(app.last_name || "").trim()} (${app.status || ""})`.trim(),
+                display_name: `${(app.first_name || "").trim()} ${(app.last_name || "").trim()}`.trim(),
                 post_designation: app.post_title || app.designation || app.applied_for || app.post_name || app.recruitment_post_title || app.position || "",
             }));
             setCandidatesList(records);
@@ -1355,7 +1355,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                     ) : rows.map((row, i) => (
                                                         <tr key={row.id || i}>
                                                             <td style={{ ...cell(), textAlign: 'center', fontSize: '7.5pt' }}>{i + 1}</td>
-                                                            <td style={{ ...cell(), fontSize: '7.5pt' }}>{row.candidate_name || '—'}</td>
+                                                            <td style={{ ...cell(), fontSize: '7.5pt' }}>{row.candidate_name?.replace(/\s*\(Shortlisted\)$/i, '') || '—'}</td>
                                                             <td style={{ ...cell(), fontSize: '7.5pt' }}>{row.applied_post || postName}</td>
                                                             <td style={{ ...cell(), textAlign: 'right', fontSize: '7.5pt' }}>{row.basic_pay ? Number(row.basic_pay).toLocaleString('en-IN') : '—'}</td>
                                                             <td style={{ ...cell(), textAlign: 'center', fontSize: '7.5pt' }}>0</td>
@@ -1371,7 +1371,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                 </tbody></table>
                                             <div style={{ fontSize: '8pt', marginTop: '4px' }}>
                                                 <strong>Wait Listed Candidates:</strong>
-                                                <span style={{ marginLeft: '8px' }}>{waitlisted.length === 0 ? 'NIL' : waitlisted.map((r, i) => `${i + 1}. ${r.candidate_name}`).join(', ')}</span>
+                                                <span style={{ marginLeft: '8px' }}>{waitlisted.length === 0 ? 'NIL' : waitlisted.map((r, i) => `${i + 1}. ${r.candidate_name?.replace(/\s*\(Shortlisted\)$/i, '')}`).join(', ')}</span>
                                             </div>
                                             <hr style={{ border: 'none', borderTop: '1px solid #999', margin: '4px 0' }} />
                                             <hr style={{ border: 'none', borderTop: '1px solid #999', margin: '0 0 2px' }} />
@@ -1747,7 +1747,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                     {/* Candidate Name */}
                                                                     <td className="px-3 py-2">
                                                                         {isReadOnly ? (
-                                                                            <span className="text-zinc-800 dark:text-zinc-200 font-medium">{row.candidate_name || '—'}</span>
+                                                                            <span className="text-zinc-800 dark:text-zinc-200 font-medium">{row.candidate_name?.replace(/\s*\(Shortlisted\)$/i, '') || '—'}</span>
                                                                         ) : (
                                                                             <select
                                                                                 className={cellCls}
@@ -1757,7 +1757,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                                                                 <option value="">Select candidate…</option>
                                                                                 {/* Preserve saved value as option while candidatesList is still loading */}
                                                                                 {row.application_id && !candidatesList.find(c => c.application_id === row.application_id) && (
-                                                                                    <option value={row.application_id}>{row.candidate_name}</option>
+                                                                                    <option value={row.application_id}>{row.candidate_name?.replace(/\s*\(Shortlisted\)$/i, '')}</option>
                                                                                 )}
                                                                                 {candidatesList.filter(c => c.status?.toLowerCase() === "shortlisted").map(c => {
                                                                                     const postDesignation =
