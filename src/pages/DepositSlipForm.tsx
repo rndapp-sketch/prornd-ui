@@ -1,5 +1,5 @@
 // Multi-Doctype Deposit Slip Form — Redesigned
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
@@ -181,6 +181,19 @@ const formatNumericInput = (value: number): string => {
 
 const roundToTwo = (value: number): number => Number(value.toFixed(2));
 
+const fuzzyMatch = (text: string, query: string): boolean => {
+    if (!query) return true;
+    const t = text.toLowerCase();
+    const q = query.toLowerCase();
+    let ti = 0;
+    for (let qi = 0; qi < q.length; qi++) {
+        while (ti < t.length && t[ti] !== q[qi]) ti++;
+        if (ti >= t.length) return false;
+        ti++;
+    }
+    return true;
+};
+
 // --- MAIN COMPONENT ---
 const DepositSlipForm: React.FC = () => {
     const navigate = useNavigate();
@@ -220,6 +233,28 @@ const DepositSlipForm: React.FC = () => {
             dpf_amount: string;
         }[]
     >([]);
+
+    const [pdfPiSearch, setPdfPiSearch] = useState<Record<number, string>>({});
+    const [pdfPiOpen, setPdfPiOpen] = useState<Record<number, boolean>>({});
+    const [pdfPiDropdownPos, setPdfPiDropdownPos] = useState<Record<number, { top: number; left: number; width: number }>>({});
+    const pdfPiInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            const openEntries = Object.entries(pdfPiOpen).filter(([, v]) => v);
+            openEntries.forEach(([idxStr]) => {
+                const inputEl = pdfPiInputRefs.current[Number(idxStr)];
+                if (inputEl && !inputEl.contains(e.target as Node)) {
+                    const target = e.target as HTMLElement;
+                    if (!target.closest(`[data-pdf-pi-dropdown="${idxStr}"]`)) {
+                        setPdfPiOpen((prev) => ({ ...prev, [idxStr]: false }));
+                    }
+                }
+            });
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [pdfPiOpen]);
 
     const generateId = () =>
         `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -395,20 +430,29 @@ const DepositSlipForm: React.FC = () => {
                             );
                             const listJson = await listResp.json();
                             if (listJson.message) {
-                                const opts = listJson.message.map((d: any) => ({
-                                    label:
-                                        d.dept_name ||
-                                        d.full_name ||
-                                        d.budget_head ||
-                                        d.head_name ||
-                                        d.account_head ||
-                                        d.title ||
-                                        d.name,
-                                    value: d.name,
-                                }));
+                                const opts = listJson.message.map((d: any) => {
+                                    if (dt === "User") {
+                                        return {
+                                            label: d.full_name || d.name,
+                                            value: d.name,
+                                        };
+                                    }
+                                    return {
+                                        label:
+                                            d.dept_name ||
+                                            d.full_name ||
+                                            d.budget_head ||
+                                            d.head_name ||
+                                            d.account_head ||
+                                            d.title ||
+                                            d.name,
+                                        value: d.name,
+                                    };
+                                });
                                 setLinkOptions((prev) => ({
                                     ...prev,
                                     [dt]: opts,
+                                    ...(dt === "User" ? { select_copi_id: opts, principal_investigator: opts } : {}),
                                 }));
                             }
                         } catch (e) {
@@ -836,7 +880,10 @@ const DepositSlipForm: React.FC = () => {
         (field) => field.fieldname === "dpf_credit_distributions",
     );
     const piOptions =
-        linkOptions.select_copi_id || linkOptions.principal_investigator || [];
+        linkOptions.select_copi_id ||
+        linkOptions.principal_investigator ||
+        linkOptions.User ||
+        [];
     const departmentOptions =
         linkOptions.select_dpf_dept_center_school ||
         linkOptions.Department_prornd ||
@@ -1290,57 +1337,76 @@ const DepositSlipForm: React.FC = () => {
                                             {pdfCreditDistribution.map(
                                                 (row, idx) => (
                                                     <tr key={row.id}>
-                                                        <td className="p-2">
-                                                            <select
-                                                                className={
-                                                                    inputClasses
-                                                                }
-                                                                value={
-                                                                    row.select_copi_id
-                                                                }
-                                                                onChange={(
-                                                                    e,
-                                                                ) => {
-                                                                    const newRows =
-                                                                        [
-                                                                            ...pdfCreditDistribution,
-                                                                        ];
-                                                                    newRows[
-                                                                        idx
-                                                                    ] = {
-                                                                        ...newRows[
-                                                                            idx
-                                                                        ],
-                                                                        select_copi_id:
-                                                                            e
-                                                                                .target
-                                                                                .value,
-                                                                    };
-                                                                    setPdfCreditDistribution(
-                                                                        newRows,
-                                                                    );
-                                                                }}
-                                                            >
-                                                                <option value="">
-                                                                    Select PI...
-                                                                </option>
-                                                                {piOptions.map(
-                                                                    (opt) => (
-                                                                        <option
-                                                                            key={
-                                                                                opt.value
-                                                                            }
-                                                                            value={
-                                                                                opt.value
-                                                                            }
-                                                                        >
-                                                                            {
-                                                                                opt.label
-                                                                            }
-                                                                        </option>
-                                                                    ),
-                                                                )}
-                                                            </select>
+                                                        <td className="p-2" style={{ minWidth: 220 }}>
+                                                            {(() => {
+                                                                const selectedOpt = piOptions.find((o) => o.value === row.select_copi_id);
+                                                                const displayValue = pdfPiOpen[idx]
+                                                                    ? (pdfPiSearch[idx] ?? "")
+                                                                    : selectedOpt
+                                                                        ? `${selectedOpt.label}${selectedOpt.label !== selectedOpt.value ? ` (${selectedOpt.value})` : ""}`
+                                                                        : (row.select_copi_id || "");
+                                                                const filtered = piOptions.filter(
+                                                                    (opt) => fuzzyMatch(opt.label, pdfPiSearch[idx] ?? "") || fuzzyMatch(opt.value, pdfPiSearch[idx] ?? "")
+                                                                );
+                                                                const pos = pdfPiDropdownPos[idx];
+                                                                return (
+                                                                    <>
+                                                                        <input
+                                                                            ref={(el) => { pdfPiInputRefs.current[idx] = el; }}
+                                                                            type="text"
+                                                                            className={inputClasses}
+                                                                            placeholder="Search by name or email..."
+                                                                            value={displayValue}
+                                                                            onFocus={() => {
+                                                                                const rect = pdfPiInputRefs.current[idx]?.getBoundingClientRect();
+                                                                                if (rect) {
+                                                                                    setPdfPiDropdownPos((prev) => ({
+                                                                                        ...prev,
+                                                                                        [idx]: { top: rect.bottom + window.scrollY + 2, left: rect.left + window.scrollX, width: rect.width },
+                                                                                    }));
+                                                                                }
+                                                                                setPdfPiSearch((prev) => ({ ...prev, [idx]: "" }));
+                                                                                setPdfPiOpen((prev) => ({ ...prev, [idx]: true }));
+                                                                            }}
+                                                                            onChange={(e) => {
+                                                                                setPdfPiSearch((prev) => ({ ...prev, [idx]: e.target.value }));
+                                                                                setPdfPiOpen((prev) => ({ ...prev, [idx]: true }));
+                                                                            }}
+                                                                        />
+                                                                        {pdfPiOpen[idx] && pos && (
+                                                                            <div
+                                                                                data-pdf-pi-dropdown={idx}
+                                                                                style={{ position: "fixed", top: pos.top, left: pos.left, width: Math.max(pos.width, 280), zIndex: 9999 }}
+                                                                                className="max-h-56 overflow-y-auto bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl"
+                                                                            >
+                                                                                {filtered.map((opt) => (
+                                                                                    <button
+                                                                                        key={opt.value}
+                                                                                        type="button"
+                                                                                        className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 flex flex-col"
+                                                                                        onMouseDown={(e) => {
+                                                                                            e.preventDefault();
+                                                                                            const newRows = [...pdfCreditDistribution];
+                                                                                            newRows[idx] = { ...newRows[idx], select_copi_id: opt.value };
+                                                                                            setPdfCreditDistribution(newRows);
+                                                                                            setPdfPiOpen((prev) => ({ ...prev, [idx]: false }));
+                                                                                            setPdfPiSearch((prev) => ({ ...prev, [idx]: "" }));
+                                                                                        }}
+                                                                                    >
+                                                                                        <span className="font-medium text-zinc-800 dark:text-zinc-100">{opt.label !== opt.value ? opt.label : opt.value}</span>
+                                                                                        {opt.label !== opt.value && (
+                                                                                            <span className="text-xs text-zinc-400 dark:text-zinc-500">{opt.value}</span>
+                                                                                        )}
+                                                                                    </button>
+                                                                                ))}
+                                                                                {filtered.length === 0 && (
+                                                                                    <p className="px-3 py-2 text-sm text-zinc-400 dark:text-zinc-500">No results found</p>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                    </>
+                                                                );
+                                                            })()}
                                                         </td>
                                                         <td className="p-2">
                                                             <input

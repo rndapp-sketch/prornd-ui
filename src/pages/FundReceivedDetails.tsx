@@ -18,7 +18,7 @@ import {
     ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AppSidebar } from "@/components/RndSidebar";
+// import { AppSidebar } from "@/components/RndSidebar";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { useUserRoleChecks } from "../components/UserRoleCheck";
 import { FormRender } from "../components/FormRender";
@@ -1194,6 +1194,7 @@ const FundReceivedDetails = () => {
                                 setLinkOptions((prev) => ({
                                     ...prev,
                                     [dt]: opts,
+                                    ...(dt === "User" ? { select_copi_id: opts, principal_investigator: opts } : {}),
                                 }));
                             }
                         } catch (e) {
@@ -1285,7 +1286,7 @@ const FundReceivedDetails = () => {
     if (error || !fundData) {
         return (
             <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
-                <AppSidebar />
+                {/* <AppSidebar /> */}
                 <main className="flex-1 p-4 md:p-8">
                     <FrappeCard className="text-center py-16">
                         <FileText className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
@@ -1320,7 +1321,7 @@ const FundReceivedDetails = () => {
     ) {
         return (
             <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
-                <AppSidebar />
+                {/* <AppSidebar /> */}
                 <main className="flex-1 p-4 md:p-8">
                     <FundReceivedWorkflowActions
                         docname={name || ""}
@@ -1564,7 +1565,7 @@ const FundReceivedDetails = () => {
     return (
         <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
             <GlobalLoader isLoading={isSubmitting} />
-            <AppSidebar />
+            {/* <AppSidebar /> */}
 
             <main className="flex-1 p-4 md:p-8">
                 {/* Header */}
@@ -1829,6 +1830,16 @@ const FundReceivedDetails = () => {
                                                                                     [];
                                                                                 let type =
                                                                                     f.fieldtype;
+
+                                                                                // Special handling for select_copi_id — use searchable autocomplete
+                                                                                if (f.fieldname === "select_copi_id") {
+                                                                                    opts =
+                                                                                        linkOptions["select_copi_id"] ||
+                                                                                        linkOptions["principal_investigator"] ||
+                                                                                        linkOptions["User"] ||
+                                                                                        [];
+                                                                                    type = "UserAutocomplete";
+                                                                                }
 
                                                                                 // Special handling for Budget Head / Account Head
                                                                                 if (
