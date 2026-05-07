@@ -45,6 +45,7 @@ import {
 import { DepartmentName } from "@/components/DepartmentName";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { ActivityStream } from "@/components/ActivityStream";
+import { ActivityLog } from "@/components/ActivityLog";
 import { BudgetActionsSidebar } from "@/components/BudgetActionsSidebar";
 import TemporaryAdvanceActionButtons from "@/components/TemporaryAdvanceActionButtons";
 import TADASettlementActionButtons from "@/components/TADASettlementActionButtons";
@@ -2709,7 +2710,12 @@ const PendingTaskDetails: React.FC = () => {
                                     />
                                 )}
 
-                            {/* <ActivityStream doctype={doctype || ""} docname={name || ""} /> */}
+                            {/* Activity Log — new endpoint (get_document_activity) */}
+                            {name && doctype && (
+                                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm mt-4">
+                                    <ActivityLog doctype={doctype} docname={name} />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

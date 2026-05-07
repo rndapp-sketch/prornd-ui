@@ -782,6 +782,7 @@ const WorkflowActions = ({
     projectNo,
     status,
     isStaffRnD,
+    accountDetails,
 }: {
     docname: string;
     onAction: (action: string) => void;
@@ -789,6 +790,13 @@ const WorkflowActions = ({
     projectNo?: string;
     status?: string;
     isStaffRnD?: boolean;
+    accountDetails?: {
+        is_the_account_type_pfms?: string;
+        scheme_name?: string;
+        enter_scheme_number?: string;
+        account_number?: string;
+        bank_name?: string;
+    };
 }) => {
     const {
         data,
@@ -809,10 +817,17 @@ const WorkflowActions = ({
         return null;
     }
 
+    const accountTypeSet = !!accountDetails?.is_the_account_type_pfms?.trim();
+    const accountDetailsFilled = accountTypeSet && (
+        accountDetails?.is_the_account_type_pfms === "Yes"
+            ? !!(accountDetails?.scheme_name?.trim() && accountDetails?.enter_scheme_number?.trim())
+            : !!(accountDetails?.account_number?.trim() && accountDetails?.bank_name?.trim())
+    );
+
     const isForwardBlocked =
         isStaffRnD &&
         status === "Pending Staff Approval" &&
-        !projectNo?.trim();
+        (!projectNo?.trim() || !accountDetailsFilled);
 
     return (
         <div className="flex items-center gap-2">
@@ -858,8 +873,13 @@ const WorkflowActions = ({
                         </Button>
                         {blocked && (
                             <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:block z-50 w-max max-w-xs">
-                                <div className="bg-zinc-900 text-white text-xs rounded px-2.5 py-1.5 shadow-lg whitespace-nowrap">
-                                    Project Number is required before forwarding.
+                                <div className="bg-zinc-900 text-white text-xs rounded px-2.5 py-1.5 shadow-lg">
+                                    {!projectNo?.trim() && (
+                                        <div>Project Number is required before forwarding.</div>
+                                    )}
+                                    {!accountDetailsFilled && (
+                                        <div>Account Details (Account Type &amp; related fields) must be saved before forwarding.</div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -1298,6 +1318,14 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                 </div>
             );
         }
+
+        const acctTypeSet = !!data?.is_the_account_type_pfms?.trim();
+        const acctDetailsFilled = acctTypeSet && (
+            data?.is_the_account_type_pfms === "Yes"
+                ? !!(data?.scheme_name?.trim() && data?.enter_scheme_number?.trim())
+                : !!(data?.account_number?.trim() && data?.bank_name?.trim())
+        );
+
         return (
             <>
                 <header className="mb-4 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
@@ -1338,6 +1366,13 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                 projectNo={data?.project_no}
                                 status={data?.workflow_state}
                                 isStaffRnD={isRnDStaff}
+                                accountDetails={{
+                                    is_the_account_type_pfms: data?.is_the_account_type_pfms,
+                                    scheme_name: data?.scheme_name,
+                                    enter_scheme_number: data?.enter_scheme_number,
+                                    account_number: data?.account_number,
+                                    bank_name: data?.bank_name,
+                                }}
                             />
                         </div>
                     </div>
@@ -1365,6 +1400,17 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                             <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Project Number Not Generated</p>
                             <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
                                 A project number must be generated before this project can be forwarded. Please generate it using the form on the right.
+                            </p>
+                        </div>
+                    </div>
+                )}
+                {isRnDStaff && data?.workflow_state === "Pending Staff Approval" && !acctDetailsFilled && (
+                    <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700">
+                        <AlertTriangleIcon className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                        <div>
+                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Account Details Incomplete</p>
+                            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                                Account Type and all related account fields must be saved before this project can be forwarded. Please fill them in using the form on the right.
                             </p>
                         </div>
                     </div>

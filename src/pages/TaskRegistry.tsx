@@ -465,6 +465,8 @@ import { AppSidebar } from '@/components/RndSidebar';
 import { useNavigate } from 'react-router-dom';
 import { useFrappeGetCall, useFrappeGetDocList } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
+import { ActivityLog } from '@/components/ActivityLog';
+import { XIcon, ActivityIcon } from 'lucide-react';
 // import { debounce } from 'lodash';
 
 // Define interfaces for the API response
@@ -562,6 +564,9 @@ const TaskRegistry: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const itemsPerPage = 10;
+
+    // Activity peek panel state
+    const [selectedTask, setSelectedTask] = useState<{ doctype: string; docname: string; title: string } | null>(null);
 
     // Debounce search input
     useEffect(() => {
@@ -737,6 +742,7 @@ const TaskRegistry: React.FC = () => {
     const indexOfFirstTask = (currentPage - 1) * itemsPerPage;
 
     return (
+        <>
         <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
             <GlobalLoader isLoading={isLoading} />
             <AppSidebar />
@@ -859,7 +865,17 @@ const TaskRegistry: React.FC = () => {
                                                 {task.doctype}
                                             </td>
                                             <td className="p-4 font-medium text-zinc-900 dark:text-zinc-100 text-sm">
-                                                {task.title.length > 30 ? `${task.title.substring(0, 30)}...` : task.title}
+                                                <button
+                                                    className="text-left hover:text-[#D97757] transition-colors flex items-center gap-1.5 group"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedTask({ doctype: task.doctype, docname: task.id, title: task.title });
+                                                    }}
+                                                    title="Click to preview activity log"
+                                                >
+                                                    {task.title.length > 30 ? `${task.title.substring(0, 30)}...` : task.title}
+                                                    <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
+                                                </button>
                                             </td>
                                             <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
                                                 {task.id.length > 25 ? `${task.id.substring(0, 25)}...` : task.id}
@@ -950,6 +966,70 @@ const TaskRegistry: React.FC = () => {
                 </FrappeCard>
             </main>
         </div>
+
+            {/* Activity Log Peek Panel */}
+            {selectedTask && (
+                <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setSelectedTask(null)}
+                >
+                    <div
+                        className="absolute right-0 top-0 h-full w-full max-w-sm bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Panel header */}
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+                            <div className="min-w-0">
+                                <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-0.5">
+                                    {selectedTask.doctype}
+                                </p>
+                                <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                                    {selectedTask.title}
+                                </p>
+                                <p className="text-xs font-mono text-zinc-400 dark:text-zinc-500 truncate">
+                                    {selectedTask.docname}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setSelectedTask(null)}
+                                className="ml-3 p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors flex-shrink-0"
+                                aria-label="Close panel"
+                            >
+                                <XIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* Activity log */}
+                        <div className="flex-1 overflow-y-auto p-5">
+                            <ActivityLog
+                                doctype={selectedTask.doctype}
+                                docname={selectedTask.docname}
+                                maxHeight="100%"
+                            />
+                        </div>
+
+                        {/* Footer action */}
+                        <div className="px-5 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+                            <button
+                                onClick={() => {
+                                    setSelectedTask(null);
+                                    // Navigate based on same logic as existing rows
+                                    const t = selectedTask;
+                                    if (t.doctype === 'Fund Received') navigate(`/fund-received/${t.docname}`);
+                                    else if (t.doctype === 'Reimbursement') navigate(`/reimbursement/${t.docname}`);
+                                    else if (t.doctype === 'Disbursal of Consultancy') navigate(`/disbursal-of-consultancy/${t.docname}`);
+                                    else if (t.doctype === 'Travel') navigate(`/travel/${t.docname}`);
+                                    else navigate(`/task-registry/${t.doctype}/${t.docname}`);
+                                }}
+                                className="w-full py-2.5 px-4 bg-[#D97757] text-white text-sm font-bold rounded-lg hover:bg-[#c66a4e] transition-colors"
+                            >
+                                View Full Details →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 };
 
