@@ -1995,7 +1995,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     </div>
                                     <div className="flex gap-3 flex-wrap">
                                         {/* DoRND Send to Director Controls */}
-                                        {isDoRnd && workflowState !== "Draft" && workflowState !== "Approved" && workflowState !== "Rejected" && (
+                                        {isDoRnd && formData.recruitment_type === "Contractual" && workflowState !== "Draft" && workflowState !== "Approved" && workflowState !== "Rejected" && (
                                             <div className="flex items-center gap-2 mr-2 bg-[#F0EDE4] dark:bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
                                                 <Checkbox
                                                     id="send-to-director"
@@ -2025,7 +2025,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                         )}
 
                                         {/* View Director PDF if available */}
-                                        {formData.director_signed_pdf && (
+                                        {formData.recruitment_type === "Contractual" && formData.director_signed_pdf && (
                                             <FrappeButton
                                                 variant="outline"
                                                 onClick={() => window.open(formData.director_signed_pdf, '_blank')}
@@ -2099,7 +2099,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                             /* Any Other Workflow Actions */
                                             availableActions.map((action) => {
                                                 const isApproveAction = action === "Approve" || action === "Recommend";
-                                                const isDisabledByPdf = isDoRnd && isApproveAction && !formData.director_signed_pdf;
+                                                const isDisabledByPdf = isDoRnd && isApproveAction && formData.recruitment_type === "Contractual" && !formData.director_signed_pdf;
                                                 return (
                                                 <FrappeButton
                                                     key={action}
