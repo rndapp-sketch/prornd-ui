@@ -716,7 +716,6 @@ import {
   ChevronsUpDown,
   CheckCircle2,
   Trash2,
-  FileTextIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "../components/UserRole";
@@ -1710,52 +1709,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex flex-col space-y-4 border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
-        <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-2 shadow-sm">
-          <nav className="flex gap-1 overflow-x-auto" aria-label="Tabs">
-            {[
-              {
-                id: "myProjects",
-                label: "My Projects",
-                count: myProjects?.length || 0,
-              },
-              // { id: "pending", label: "Pending Review", count: Object.values(allPendingTasks).flat().length },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "flex h-8 items-center whitespace-nowrap rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-colors",
-                  activeTab === tab.id
-                    ? "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]"
-                    : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]",
-                )}
-              >
-                <FileTextIcon className="mr-1.5 h-3.5 w-3.5" />
-                {tab.label}
-                {tab.count > 0 && (
-                  <span
-                    className={cn(
-                      "ml-2 py-0.5 px-2 rounded-full text-[10px] font-bold",
-                      activeTab === tab.id
-                        ? "bg-[#4A6CF7] text-white"
-                        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500",
-                    )}
-                  >
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        <div>
-          {activeTab === "pending"
-            ? renderPendingTasks()
-            : renderProjectsTable()}
-        </div>
+      <div className="border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
+        {activeTab === "pending"
+          ? renderPendingTasks()
+          : renderProjectsTable()}
       </div>
 
       {/* Delete confirmation dialog */}

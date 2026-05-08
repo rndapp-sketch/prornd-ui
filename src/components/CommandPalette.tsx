@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     SearchIcon,
@@ -12,6 +12,8 @@ import {
     ArrowRightIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFrappeAuth } from 'frappe-react-sdk';
+import { useUserRoles } from './UserRole';
 
 interface SearchItem {
     id: string;
@@ -21,26 +23,42 @@ interface SearchItem {
     path: string;
     category: 'navigation' | 'action' | 'recent';
     keywords?: string[];
+    allowedRoles?: string[];
 }
+
+const OVERVIEW_ROLES = ['Director', 'Dean, RnD', 'Ado_RnD', 'Hos, RnD (Head of Section, RnD)'];
+const PENDING_TASK_ROLES = [...OVERVIEW_ROLES, 'head_approver_1', 'staff, RnD'];
+const TASK_REGISTRY_ROLES = ['staff, RnD', 'Hos, RnD (Head of Section, RnD)', 'Dean, RnD', 'Director', 'head_approver_1'];
+const PAYMENT_ROLES = ['staff, RnD', 'Hos, RnD (Head of Section, RnD)'];
+const PROJECT_MENU_ROLES = ['Permanent Employee', 'head_approver_1', 'Dean, RnD'];
+const SUPERUSER_ROLES = ['Administrator', 'System Manager'];
 
 // Define all searchable navigation items
 const SEARCH_ITEMS: SearchItem[] = [
     // Dashboards
     { id: 'dashboard', label: 'Dashboard', description: 'Main dashboard view', icon: LayoutDashboardIcon, path: '/dashboard', category: 'navigation', keywords: ['home', 'main'] },
-    { id: 'pi-home', label: 'PI Home', description: 'Principal Investigator homepage', icon: LayoutDashboardIcon, path: '/pihomepage', category: 'navigation', keywords: ['principal', 'investigator'] },
+    { id: 'pi-home', label: 'PI Home', description: 'Principal Investigator homepage', icon: LayoutDashboardIcon, path: '/pihomepage', category: 'navigation', keywords: ['principal', 'investigator'], allowedRoles: ['Permanent Employee'] },
     { id: 'home', label: 'Home', description: 'Home page', icon: LayoutDashboardIcon, path: '/home', category: 'navigation', keywords: ['landing'] },
+    { id: 'overview', label: 'Overview', description: 'Institution project overview', icon: LayoutDashboardIcon, path: '/director-dashboard?view=Director', category: 'navigation', keywords: ['director', 'dean', 'ado', 'hos', 'overview'], allowedRoles: OVERVIEW_ROLES },
+    { id: 'department-overview', label: 'Departments', description: 'Department-wise project overview', icon: LayoutDashboardIcon, path: '/director-dashboard?view=Department', category: 'navigation', keywords: ['department', 'director', 'dean', 'overview'], allowedRoles: OVERVIEW_ROLES },
+    { id: 'overview-pi-projects', label: 'PI Projects', description: 'PI-wise project overview', icon: LayoutDashboardIcon, path: '/director-dashboard?view=PI', category: 'navigation', keywords: ['pi', 'projects', 'overview'], allowedRoles: OVERVIEW_ROLES },
+    { id: 'head-overview', label: 'Head Overview', description: 'Department head overview', icon: LayoutDashboardIcon, path: '/head-overview?view=Overview', category: 'navigation', keywords: ['head', 'hod', 'overview'], allowedRoles: ['head_approver_1'] },
+    { id: 'head-pi-projects', label: 'Head PI Projects', description: 'PI projects for department head', icon: LayoutDashboardIcon, path: '/head-overview?view=PI', category: 'navigation', keywords: ['head', 'pi', 'projects'], allowedRoles: ['head_approver_1'] },
 
     // Projects
-    { id: 'projects', label: 'Projects', description: 'View all projects', icon: FolderIcon, path: '/projects-view', category: 'navigation', keywords: ['project', 'list', 'all'] },
-    { id: 'project-registration', label: 'Project Registration', description: 'Register a new project', icon: FileTextIcon, path: '/project-registration', category: 'navigation', keywords: ['new', 'create', 'register'] },
+    { id: 'projects', label: 'Projects View', description: 'View all projects', icon: FolderIcon, path: '/projects-view', category: 'navigation', keywords: ['project', 'list', 'all'], allowedRoles: PROJECT_MENU_ROLES },
+    { id: 'project-registration', label: 'Project Registration', description: 'Register a new project', icon: FileTextIcon, path: '/project-registration', category: 'navigation', keywords: ['new', 'create', 'register'], allowedRoles: PROJECT_MENU_ROLES },
     { id: 'project-proposal', label: 'Project Proposal', description: 'Submit project proposal', icon: FileTextIcon, path: '/project-proposal', category: 'navigation', keywords: ['proposal', 'submit'] },
     { id: 'project-analytics', label: 'Project Analytics', description: 'View project analytics', icon: LayoutDashboardIcon, path: '/project-analytics', category: 'navigation', keywords: ['analytics', 'stats', 'charts'] },
+    { id: 'stakeholder-registration', label: 'Stakeholder Registration', description: 'Register stakeholders and agencies', icon: FileTextIcon, path: '/universal-registration', category: 'navigation', keywords: ['stakeholder', 'agency', 'registration', 'universal'] },
 
     // Tasks
-    { id: 'pending-tasks', label: 'Pending Tasks', description: 'View pending approvals', icon: ClipboardListIcon, path: '/pending-task', category: 'navigation', keywords: ['tasks', 'pending', 'approval', 'workflow'] },
+    { id: 'pending-tasks', label: 'Pending Tasks', description: 'View pending approvals', icon: ClipboardListIcon, path: '/pending-task', category: 'navigation', keywords: ['tasks', 'pending', 'approval', 'workflow'], allowedRoles: PENDING_TASK_ROLES },
+    { id: 'task-registry', label: 'Task Registry', description: 'View workflow task registry', icon: ClipboardListIcon, path: '/task-registry', category: 'navigation', keywords: ['task', 'registry', 'workflow'], allowedRoles: TASK_REGISTRY_ROLES },
 
     // Finance
-    { id: 'add-fund-sanction', label: 'Add Fund Sanction', description: 'Add new fund sanction', icon: CreditCardIcon, path: '/add-fund-sanction', category: 'navigation', keywords: ['fund', 'sanction', 'budget', 'finance'] },
+    { id: 'payments', label: 'Payments', description: 'Review and process payments', icon: CreditCardIcon, path: '/payments', category: 'navigation', keywords: ['payment', 'finance', 'paid'], allowedRoles: PAYMENT_ROLES },
+    { id: 'add-fund-sanction', label: 'Add Fund Sanction', description: 'Add new fund sanction', icon: CreditCardIcon, path: '/add-fund-sanction', category: 'navigation', keywords: ['fund', 'sanction', 'budget', 'finance'], allowedRoles: ['Permanent Employee'] },
 
     // HR
     { id: 'hr-portal', label: 'HR Portal', description: 'Human Resources portal', icon: UsersIcon, path: '/hr-portal', category: 'navigation', keywords: ['hr', 'human', 'resources', 'staff'] },
@@ -49,18 +67,20 @@ const SEARCH_ITEMS: SearchItem[] = [
     { id: 'reimbursement', label: 'Reimbursement', description: 'Submit reimbursement request', icon: CreditCardIcon, path: '/reimbursement', category: 'navigation', keywords: ['reimburse', 'expense', 'claim'] },
 
     // Director Dashboard
-    { id: 'director-dashboard', label: 'Director Dashboard', description: 'Director view', icon: LayoutDashboardIcon, path: '/director-dashboard', category: 'navigation', keywords: ['director'] },
+    { id: 'director-dashboard', label: 'Director Dashboard', description: 'Director view', icon: LayoutDashboardIcon, path: '/director-dashboard', category: 'navigation', keywords: ['director'], allowedRoles: OVERVIEW_ROLES },
 
     // HoS R&D
-    { id: 'hos-rnd', label: 'HoS R&D', description: 'Head of Section R&D', icon: LayoutDashboardIcon, path: '/hos-rnd', category: 'navigation', keywords: ['hos', 'rnd', 'section'] },
-    { id: 'hos-rnd-dashboard', label: 'HoS R&D Dashboard', description: 'HoS R&D dashboard view', icon: LayoutDashboardIcon, path: '/hos-rnd-dashboard', category: 'navigation', keywords: ['hos', 'rnd', 'dashboard'] },
+    { id: 'hos-rnd', label: 'HoS R&D', description: 'Head of Section R&D', icon: LayoutDashboardIcon, path: '/hos-rnd', category: 'navigation', keywords: ['hos', 'rnd', 'section'], allowedRoles: ['Hos, RnD (Head of Section, RnD)'] },
+    { id: 'hos-rnd-dashboard', label: 'HoS R&D Dashboard', description: 'HoS R&D dashboard view', icon: LayoutDashboardIcon, path: '/hos-rnd-dashboard', category: 'navigation', keywords: ['hos', 'rnd', 'dashboard'], allowedRoles: ['Hos, RnD (Head of Section, RnD)'] },
 
     // Staff Dashboards
-    { id: 'rnd-staff-dashboard', label: 'R&D Staff Dashboard', description: 'R&D Staff view', icon: LayoutDashboardIcon, path: '/rnd-staff-dashboard', category: 'navigation', keywords: ['rnd', 'staff'] },
-    { id: 'project-staff-dashboard', label: 'Project Staff Dashboard', description: 'Project Staff view', icon: LayoutDashboardIcon, path: '/project-staff-dashboard', category: 'navigation', keywords: ['project', 'staff'] },
+    { id: 'rnd-staff-dashboard', label: 'R&D Staff Dashboard', description: 'R&D Staff view', icon: LayoutDashboardIcon, path: '/rnd-staff-dashboard', category: 'navigation', keywords: ['rnd', 'staff'], allowedRoles: ['staff, RnD'] },
+    { id: 'project-staff-dashboard', label: 'Project Staff Dashboard', description: 'Project Staff view', icon: LayoutDashboardIcon, path: '/project-staff-dashboard', category: 'navigation', keywords: ['project', 'staff'], allowedRoles: ['project staff'] },
 
     // Head Dashboard
-    { id: 'head-dashboard', label: 'Head Dashboard', description: 'Head of Department view', icon: LayoutDashboardIcon, path: '/head-dashboard', category: 'navigation', keywords: ['head', 'hod', 'department'] },
+    { id: 'head-dashboard', label: 'Head Dashboard', description: 'Head of Department view', icon: LayoutDashboardIcon, path: '/head-dashboard', category: 'navigation', keywords: ['head', 'hod', 'department'], allowedRoles: ['head_approver_1'] },
+    { id: 'ado-rnd-dashboard', label: 'ADO R&D Dashboard', description: 'ADO R&D dashboard view', icon: LayoutDashboardIcon, path: '/ado-rnd-dashboard', category: 'navigation', keywords: ['ado', 'rnd', 'dashboard'], allowedRoles: ['Ado_RnD'] },
+    { id: 'director-pdf-upload', label: 'Upload Director PDF', description: 'Upload director approval PDF', icon: FileTextIcon, path: '/director-pdf-upload', category: 'navigation', keywords: ['director', 'pdf', 'upload'], allowedRoles: ['staff, RnD'] },
 ];
 
 interface CommandPaletteProps {
@@ -73,9 +93,21 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
     const navigate = useNavigate();
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+
+    const roleFilteredItems = useMemo(() => {
+        if (!currentUser) return [];
+        const hasSuperuserAccess = roles.some(role => SUPERUSER_ROLES.includes(role));
+
+        return SEARCH_ITEMS.filter(item => {
+            if (!item.allowedRoles?.length) return true;
+            return hasSuperuserAccess || item.allowedRoles.some(role => roles.includes(role));
+        });
+    }, [currentUser, roles]);
 
     // Filter items based on search query
-    const filteredItems = SEARCH_ITEMS.filter(item => {
+    const filteredItems = roleFilteredItems.filter(item => {
         if (!searchQuery) return true;
         const query = searchQuery.toLowerCase();
         return (
@@ -113,10 +145,12 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
         switch (e.key) {
             case 'ArrowDown':
                 e.preventDefault();
+                if (filteredItems.length === 0) return;
                 setSelectedIndex(i => (i + 1) % filteredItems.length);
                 break;
             case 'ArrowUp':
                 e.preventDefault();
+                if (filteredItems.length === 0) return;
                 setSelectedIndex(i => (i - 1 + filteredItems.length) % filteredItems.length);
                 break;
             case 'Enter':
