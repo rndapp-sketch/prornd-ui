@@ -84,8 +84,27 @@ interface FormDataResponse {
 }
 
 // --- STYLES ---
-const inputClasses = "w-full h-10 px-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:opacity-60 disabled:bg-zinc-50 dark:disabled:bg-zinc-800/40 disabled:text-zinc-500 read-only:bg-zinc-50 dark:read-only:bg-zinc-800/40 transition-colors duration-150";
-const tableInputClasses = "w-full h-9 px-2.5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md text-[12px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] transition-colors duration-150";
+const inputClasses = "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] disabled:opacity-55 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#71717A] read-only:bg-[#FAFAF9] dark:read-only:bg-[#27272A]/50 transition-colors duration-150";
+const tableInputClasses = "w-full h-9 px-2.5 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem] text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] transition-colors duration-150";
+
+const formatFieldLabel = (label?: string | null, fieldname?: string) => {
+    const raw = label || fieldname || "";
+    return raw
+        .replace(/^ss_/i, "")
+        .replace(/^p11_/i, "P-11 ")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
+const FieldLabel = ({ field }: { field: Pick<Field, "fieldname" | "label" | "mandatory"> }) => (
+    <label
+        htmlFor={field.fieldname}
+        className="inline-flex w-fit max-w-full items-center rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]"
+    >
+        <span className="truncate">{formatFieldLabel(field.label, field.fieldname)}</span>
+        {field.mandatory === 1 && <span className="ml-1 font-bold normal-case text-red-500">*</span>}
+    </label>
+);
 
 // --- HELPER FUNCTION: evaluateDependsOn ---
 const evaluateDependsOn = (expression: string | null | undefined, doc: any): boolean => {
@@ -226,14 +245,14 @@ const MemoizedFormField = memo(({
                     <label className={cn(
                         "flex items-center gap-3 px-3 py-2.5 rounded-md border cursor-pointer transition-colors duration-150",
                         !!value
-                            ? "bg-[#D97757]/5 border-[#D97757]/40 dark:bg-[#D97757]/10 dark:border-[#D97757]/40"
-                            : "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-700 hover:border-[#D97757]/30 dark:hover:border-[#D97757]/30",
+                            ? "bg-[#4A6CF7]/5 border-[#4A6CF7]/40 dark:bg-[#4A6CF7]/10 dark:border-[#4A6CF7]/40"
+                            : "bg-white border-[#E4E4E7] dark:bg-[#27272A] dark:border-[#3F3F46] hover:border-[#4A6CF7]/30 dark:hover:border-[#4A6CF7]/30",
                         field.read_only === 1 && "cursor-not-allowed opacity-60",
                     )}>
                         <div className={cn(
                             "w-4 h-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-all duration-150",
                             !!value
-                                ? "bg-[#D97757] border-[#D97757]"
+                                ? "bg-[#4A6CF7] border-[#4A6CF7]"
                                 : "border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900",
                         )}>
                             {!!value && (
@@ -277,12 +296,10 @@ const MemoizedFormField = memo(({
 
     return (
         <div className="space-y-1.5">
-            <label htmlFor={field.fieldname} className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-100">
-                {field.label}{field.mandatory === 1 && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}
-            </label>
+            <FieldLabel field={field} />
             {renderInput()}
             {field.description && field.fieldtype !== 'Check' && (
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 leading-relaxed">{field.description}</p>
+                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">{field.description}</p>
             )}
         </div>
     );
@@ -405,20 +422,17 @@ const ChildTableEditor = ({
 
     return (
         <div className="col-span-full">
-            <label className="block text-[11px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-100 mb-3">
-                {field.label}
-            </label>
             {field.description && (
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mb-3 leading-relaxed">{field.description}</p>
+                <p className="mb-3 text-[11px] leading-relaxed text-[#71717A] dark:text-[#A1A1AA]">{field.description}</p>
             )}
 
-            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700 rounded-lg">
+            <div className="overflow-x-auto rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
                 <table className="w-full text-[12px]">
                     <thead>
-                        <tr className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
-                            <th className="px-3 py-2.5 text-left text-[10px] font-bold text-zinc-500 dark:text-zinc-100 uppercase tracking-widest w-10">#</th>
+                        <tr className="border-b border-[#E4E4E7] bg-[#EEF2FF] dark:border-[#3F3F46] dark:bg-[#1E3A8A]/20">
+                            <th className="px-3 py-2.5 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-widest w-10">#</th>
                             {childFields.map(cf => (
-                                <th key={cf.fieldname} className="px-3 py-2.5 text-left text-[10px] font-bold text-zinc-500 dark:text-zinc-100 uppercase tracking-widest">
+                                <th key={cf.fieldname} className="px-3 py-2.5 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-widest">
                                     {cf.label}
                                     {cf.mandatory === 1 && <span className="text-red-500 ml-0.5 normal-case font-bold">*</span>}
                                 </th>
@@ -436,7 +450,7 @@ const ChildTableEditor = ({
                             </tr>
                         ) : (
                             rows.map((row, idx) => (
-                                <tr key={idx} className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50/50 dark:hover:bg-zinc-800/20">
+                                <tr key={idx} className="border-b border-[#E4E4E7] last:border-b-0 dark:border-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#3F3F46]/30">
                                     <td className="px-3 py-2 text-[11px] font-mono text-zinc-400">{idx + 1}</td>
                                     {childFields.map(cf => {
                                         const computed = isComputedField(cf.fieldname);
@@ -456,7 +470,7 @@ const ChildTableEditor = ({
                                         return (
                                             <td key={cf.fieldname} className="px-2 py-1.5">
                                                 {computed ? (
-                                                    <div className="px-2.5 py-1.5 text-[13px] font-semibold text-zinc-700 dark:text-zinc-200 bg-zinc-50 dark:bg-zinc-800/40 rounded-md border border-zinc-200 dark:border-zinc-700">
+                                                    <div className="px-2.5 py-1.5 text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] bg-[#FAFAF9] dark:bg-[#18181B] rounded-md border border-[#E4E4E7] dark:border-[#3F3F46]">
                                                         {cf.fieldtype === 'Currency' || cf.fieldtype === 'Float'
                                                             ? `₹ ${(parseFloat(row[cf.fieldname]) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                                                             : row[cf.fieldname] ?? 0
@@ -534,7 +548,7 @@ const ChildTableEditor = ({
 
 // --- REUSABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-700 rounded-lg", className)}>
+    <div className={cn("bg-white dark:bg-[#27272A] p-4 sm:p-5 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm", className)}>
         {children}
     </div>
 );
@@ -551,7 +565,7 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "h-9 px-5 border rounded-md text-[12px] font-semibold uppercase tracking-wide transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed",
+            "inline-flex h-9 items-center justify-center gap-2 rounded-[0.4375rem] border px-5 text-[12px] font-bold uppercase tracking-wide transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed",
             className
         )}
     >
@@ -560,12 +574,13 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 );
 
 const NeoSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="space-y-5">
-        <div className="flex items-center gap-3 pb-4 border-b border-zinc-100 dark:border-zinc-800">
-            <div className="w-0.5 h-4 rounded-full bg-zinc-400 dark:bg-zinc-600 shrink-0" />
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-100">{title}</h2>
+    <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+        <div className="border-b border-[#E4E4E7] bg-[#FAFAF9] px-5 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+            <h2 className="text-[13px] font-extrabold uppercase tracking-wide text-[#3F3F46] dark:text-[#E4E4E7]">{title}</h2>
         </div>
-        {children}
+        <div className="p-4 sm:p-5">
+            {children}
+        </div>
     </div>
 );
 
@@ -1164,19 +1179,19 @@ const DirectPurchase: React.FC = () => {
     const sections = groupFieldsBySection();
 
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+        <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
             <AppSidebar />
-            <main className="flex-1 p-4 md:p-8">
+            <main className="flex-1 px-5 py-6 md:px-8 md:py-7">
                 <PageHeader
                     title="Direct Purchase Application"
                     projectName={projectName}
                 />
 
                 <form onSubmit={handleFormSubmit}>
-                    <FrappeCard className="space-y-12">
+                    <div className="space-y-5">
                         {sections.map((section, index) => (
                             <NeoSection key={index} title={section.title}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-5">
                                     {section.fields.map(field => {
                                         if (field.fieldtype === 'HTML') {
                                             return renderHtmlField(field);
@@ -1252,11 +1267,11 @@ const DirectPurchase: React.FC = () => {
                                     const sourceTableInSection = section.fields.some(f => f.fieldname === agg.source_table);
                                     if (!sourceTableInSection) return null;
                                     return (
-                                        <div key={agg.target_field} className="mt-4 flex items-center justify-end gap-4 px-4 py-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-100 dark:border-zinc-700">
-                                            <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-100 uppercase tracking-wider">
+                                        <div key={agg.target_field} className="mt-4 flex items-center justify-end gap-4 rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] px-4 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                            <span className="text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-wider">
                                                 {agg.description || agg.target_field}
                                             </span>
-                                            <span className="text-base font-black text-zinc-800 dark:text-zinc-100">
+                                            <span className="text-base font-black text-[#2563EB] dark:text-blue-300">
                                                 ₹ {(computedAggregations[agg.target_field] || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                             </span>
                                         </div>
@@ -1264,20 +1279,20 @@ const DirectPurchase: React.FC = () => {
                                 })}
                             </NeoSection>
                         ))}
-                    </FrappeCard>
+                    </div>
 
                     {/* Declaration Acceptance Checkbox */}
                     {fields.some(f => f.fieldtype === 'HTML' && f.options?.trim()) && (
                         <label htmlFor="declarationAccepted" className={cn(
-                            "mt-5 flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer transition-colors duration-150",
+                            "mt-5 flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors duration-150",
                             declarationAccepted
-                                ? "bg-[#D97757]/5 border-[#D97757]/40 dark:bg-[#D97757]/10 dark:border-[#D97757]/40"
-                                : "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-700 hover:border-[#D97757]/30 dark:hover:border-[#D97757]/30",
+                                ? "bg-[#4A6CF7]/5 border-[#4A6CF7]/40 dark:bg-[#4A6CF7]/10 dark:border-[#4A6CF7]/40"
+                                : "bg-white border-[#E4E4E7] dark:bg-[#27272A] dark:border-[#3F3F46] hover:border-[#4A6CF7]/30 dark:hover:border-[#4A6CF7]/30",
                         )}>
                             <div className={cn(
                                 "w-4 h-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-all duration-150",
                                 declarationAccepted
-                                    ? "bg-[#D97757] border-[#D97757]"
+                                    ? "bg-[#4A6CF7] border-[#4A6CF7]"
                                     : "border-zinc-300 dark:border-zinc-600",
                             )}>
                                 {declarationAccepted && (
@@ -1309,7 +1324,7 @@ const DirectPurchase: React.FC = () => {
                                     state: { tab: 'quick-actions', category: 'Purchase', app: 'Direct Purchase' }
                                 });
                             }}
-                            className="bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700"
+                            className="bg-white text-[#71717A] border-[#E4E4E7] hover:bg-[#FAFAF9] dark:bg-[#27272A] dark:text-[#A1A1AA] dark:border-[#3F3F46]"
                         >
                             Cancel
                         </FrappeButton>
@@ -1317,7 +1332,7 @@ const DirectPurchase: React.FC = () => {
                             type="button"
                             onClick={handleSaveDraft}
                             disabled={isSavingDraft}
-                            className="bg-[#D97757]/10 text-[#D97757] border-[#D97757]/30 hover:bg-[#D97757]/20 hover:border-[#D97757]/50 disabled:opacity-50"
+                            className="bg-blue-50 text-[#2563EB] border-blue-200 hover:bg-blue-100 hover:border-blue-300 disabled:opacity-50 dark:bg-blue-950/25 dark:text-blue-300 dark:border-blue-900/40"
                         >
                             {isSavingDraft ? 'Saving...' : (savedDocName ? 'Update Draft' : 'Save as Draft')}
                         </FrappeButton>

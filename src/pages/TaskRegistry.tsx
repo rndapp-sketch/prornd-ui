@@ -467,6 +467,12 @@ import { useFrappeGetCall, useFrappeGetDocList } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { ActivityLog } from '@/components/ActivityLog';
 import { XIcon, ActivityIcon } from 'lucide-react';
+import {
+    resolveProjectCategory,
+    DOCTYPE_PR_LINKS,
+    type PRLinkStrategy,
+    type ProjectCategory,
+} from '@/utils/projectTypeMapping';
 // import { debounce } from 'lodash';
 
 // Define interfaces for the API response
@@ -477,6 +483,7 @@ interface TaskRecord {
     creation: string;
     modified: string;
     owner: string;
+    [key: string]: unknown;
 }
 
 interface TaskResult {
@@ -511,11 +518,17 @@ interface FlattenedTask {
     modified: string;
     owner: string;
     doctype: string;
+    project_type: ProjectCategory;
 }
+
+type ProjectTypeTab = ProjectCategory;
+
+const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'];
+const HIDDEN_OTHERS_DOCTYPES = new Set(['Kafka Commit Staging', 'Project Number Generation']);
 
 // Frappe-styled components
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-zinc-900 rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm", className)}>
         {children}
     </div>
 );
@@ -545,22 +558,11 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
     </button>
 );
 
-const DOCTYPE_OPTIONS = [
-    "Project Registration",
-    "Fund Received",
-    "Fund Sanction",
-    "Reimbursement",
-    "Rate Contract",
-    "Travel Request",
-    "Temporary Advance",
-    "Deposit Slip",
-    "Recruitment Adhoc Contractual",
-];
-
 const TaskRegistry: React.FC = () => {
     const navigate = useNavigate();
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedModule, setSelectedModule] = useState<string>('');
+    const [selectedProjectType, setSelectedProjectType] = useState<ProjectTypeTab>('Research');
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const itemsPerPage = 10;
@@ -586,17 +588,36 @@ const TaskRegistry: React.FC = () => {
         }
     );
 
+    const { data: allProjectRegistrations } = useFrappeGetDocList("Project Registration", {
+        fields: ["name", "project_no", "project_type"],
+        limit: 1000,
+    });
+
+    const { prNameToType, prNoToType } = React.useMemo(() => {
+        const prNameToType = new Map<string, string>();
+        const prNoToType = new Map<string, string>();
+        if (allProjectRegistrations) {
+            allProjectRegistrations.forEach((p: { name: string; project_no?: string; project_type?: string }) => {
+                const raw = p.project_type || '';
+                if (p.name) prNameToType.set(p.name, raw);
+                if (p.project_no) prNoToType.set(p.project_no, raw);
+            });
+        }
+        return { prNameToType, prNoToType };
+    }, [allProjectRegistrations]);
+
     // Supplemental fetch: Recruitment Adhoc Contractual is not returned by the
     // task-registry endpoint, so fetch them directly and merge below.
     const { data: recData } = useFrappeGetDocList<{
         name: string;
         upfa_project_title?: string;
+        upfa_project_code?: string;
         workflow_state?: string;
         creation: string;
         modified: string;
         owner: string;
     }>("Recruitment Adhoc Contractual", {
-        fields: ["name", "upfa_project_title", "workflow_state", "creation", "modified", "owner"],
+        fields: ["name", "upfa_project_title", "upfa_project_code", "workflow_state", "creation", "modified", "owner"],
         limit: 500,
         orderBy: { field: "modified", order: "desc" },
     });
@@ -623,6 +644,12 @@ const TaskRegistry: React.FC = () => {
                             modified: record.modified,
                             owner: record.owner,
                             doctype: group.doctype,
+                            project_type: resolveProjectCategory(
+                                record as unknown as Record<string, unknown>,
+                                group.doctype,
+                                prNameToType,
+                                prNoToType,
+                            ),
                         });
                     });
                 }
@@ -641,17 +668,94 @@ const TaskRegistry: React.FC = () => {
                         modified: rec.modified,
                         owner: rec.owner,
                         doctype: 'Recruitment Adhoc Contractual',
+                        project_type: resolveProjectCategory(
+                            rec as unknown as Record<string, unknown>,
+                            'Recruitment Adhoc Contractual',
+                            prNameToType,
+                            prNoToType,
+                        ),
                     });
                 }
             });
         }
 
         return tasks;
-    }, [data, recData]);
+    }, [data, recData, prNameToType, prNoToType]);
+
+    const [resolvedProjectTypes, setResolvedProjectTypes] = React.useState<Map<string, ProjectCategory>>(new Map());
+
+    React.useEffect(() => {
+        if (!allTasks.length) return;
+
+        const byDoctype = new Map<string, string[]>();
+        allTasks.forEach(task => {
+            const mapping = DOCTYPE_PR_LINKS[task.doctype];
+            if (!mapping || mapping.primary.type === 'self') return;
+            if (!byDoctype.has(task.doctype)) byDoctype.set(task.doctype, []);
+            byDoctype.get(task.doctype)!.push(task.id);
+        });
+
+        if (!byDoctype.size) return;
+
+        const newMap = new Map<string, ProjectCategory>();
+        const promises: Promise<void>[] = [];
+
+        byDoctype.forEach((ids, doctype) => {
+            const mapping = DOCTYPE_PR_LINKS[doctype]!;
+            const fields = new Set<string>(['name']);
+            const addField = (s: PRLinkStrategy) => { if (s.type !== 'self') fields.add(s.field); };
+            addField(mapping.primary);
+            if (mapping.fallback) addField(mapping.fallback);
+
+            const params = new URLSearchParams({
+                filters: JSON.stringify([['name', 'in', ids.join(',')]]),
+                fields: JSON.stringify([...fields]),
+                limit: String(ids.length),
+            });
+
+            const p = fetch(`/api/resource/${encodeURIComponent(doctype)}?${params}`)
+                .then(r => r.json())
+                .then(result => {
+                    (result?.data ?? result?.message ?? []).forEach((rec: Record<string, unknown>) => {
+                        const cat = resolveProjectCategory(rec, doctype, prNameToType, prNoToType);
+                        newMap.set(rec['name'] as string, cat);
+                    });
+                })
+                .catch(() => { /* keep inferred type if lookup fails */ });
+
+            promises.push(p);
+        });
+
+        Promise.all(promises).then(() => {
+            if (newMap.size > 0) setResolvedProjectTypes(new Map(newMap));
+        });
+    }, [allTasks, prNameToType, prNoToType]);
+
+    const resolvedTasks = React.useMemo(() =>
+        allTasks.map(task => {
+            const resolved = resolvedProjectTypes.get(task.id);
+            return resolved ? { ...task, project_type: resolved } : task;
+        }),
+        [allTasks, resolvedProjectTypes]);
+
+    const visibleTasks = React.useMemo(() =>
+        resolvedTasks.filter(task => !(task.project_type === 'Others' && HIDDEN_OTHERS_DOCTYPES.has(task.doctype))),
+        [resolvedTasks]);
+
+    const tabCounts = React.useMemo(() => ({
+        Research: visibleTasks.filter(t => t.project_type === 'Research').length,
+        Consultancy: visibleTasks.filter(t => t.project_type === 'Consultancy').length,
+        Others: visibleTasks.filter(t => t.project_type === 'Others').length,
+    }), [visibleTasks]);
+
+    const moduleNames = React.useMemo(() => {
+        const baseTasks = visibleTasks.filter(t => t.project_type === selectedProjectType);
+        return Array.from(new Set(baseTasks.map(task => task.doctype))).sort();
+    }, [visibleTasks, selectedProjectType]);
 
     // Client-side filtering
     const filteredTasks = React.useMemo(() => {
-        let tasks = allTasks;
+        let tasks = visibleTasks.filter(t => t.project_type === selectedProjectType);
 
         if (debouncedSearch) {
             const lowerSearch = debouncedSearch.toLowerCase();
@@ -667,7 +771,7 @@ const TaskRegistry: React.FC = () => {
         }
 
         return tasks;
-    }, [allTasks, debouncedSearch, selectedModule]);
+    }, [visibleTasks, selectedProjectType, debouncedSearch, selectedModule]);
 
     // Client-side pagination
     const paginatedTasks = React.useMemo(() => {
@@ -684,8 +788,15 @@ const TaskRegistry: React.FC = () => {
         setCurrentPage(1);
     };
 
+    const handleProjectTypeChange = (tab: ProjectTypeTab) => {
+        setSelectedProjectType(tab);
+        setSelectedModule('');
+        setCurrentPage(1);
+    };
+
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchQuery(e.target.value);
+        setCurrentPage(1);
     };
 
     const getStatusBadge = (status: string) => {
@@ -702,7 +813,7 @@ const TaskRegistry: React.FC = () => {
         } else if (s?.includes("forwarded") || s?.includes("processed")) {
             style = "bg-purple-100 text-purple-800 border-purple-300";
         }
-        return cn("px-2.5 py-1 rounded-md text-xs font-bold border", style);
+        return cn("px-2 py-0.5 rounded-md text-[10px] font-bold border", style);
     };
 
     const getPageNumbers = () => {
@@ -726,7 +837,7 @@ const TaskRegistry: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex h-screen items-center justify-center bg-zinc-100 dark:bg-zinc-800">
+            <div className="flex h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
                 <FrappeCard className="p-8 text-center">
                     <FaExclamationCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
                     <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Error Loading Task Registry</h2>
@@ -743,32 +854,69 @@ const TaskRegistry: React.FC = () => {
 
     return (
         <>
-        <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
             <GlobalLoader isLoading={isLoading} />
             <AppSidebar />
 
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
                 {/* Header */}
-                <FrappeCard className="mb-6 p-5">
-                    <div className="flex items-center gap-4">
+                <FrappeCard className="mb-5 overflow-hidden p-0">
+                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                    <div className="flex items-start gap-3 px-5 py-4">
                         <button
                             onClick={() => navigate(-1)}
-                            className="p-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg hover:bg-zinc-200 dark:bg-zinc-700 transition-colors border border-zinc-300 dark:border-zinc-700"
+                            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
                             aria-label="Go back"
                         >
-                            <FaArrowLeft className="h-5 w-5 text-zinc-900 dark:text-zinc-100" />
+                            <FaArrowLeft className="h-3.5 w-3.5" />
                         </button>
-                        <div>
-                            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">Task Registry</h1>
-                            <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-0.5">View all processed and forwarded documents.</p>
+                        <div className="min-w-0">
+                            <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Processed Documents</span>
+                            <h1 className="mt-1 text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Task Registry</h1>
+                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">View processed and forwarded documents.</p>
                         </div>
                     </div>
                 </FrappeCard>
 
+                {/* Project Type Tabs */}
+                <div className="mb-4 border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
+                    <div className="flex items-center gap-2 overflow-x-auto">
+                        {PROJECT_TYPE_TABS.map((tab) => {
+                            const active = selectedProjectType === tab;
+                            const tabColors: Record<ProjectTypeTab, string> = {
+                                Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF]',
+                                Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5]',
+                                Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5]',
+                            };
+                            const badgeColors: Record<ProjectTypeTab, string> = {
+                                Research: active ? 'bg-[#4A6CF7] text-white' : 'bg-[#DBEAFE] text-[#1E40AF]',
+                                Consultancy: active ? 'bg-[#10B981] text-white' : 'bg-[#D1FAE5] text-[#065F46]',
+                                Others: active ? 'bg-[#71717A] text-white' : 'bg-[#F4F4F5] text-[#52525B]',
+                            };
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => handleProjectTypeChange(tab)}
+                                    className={cn(
+                                        "flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150",
+                                        tabColors[tab],
+                                    )}
+                                >
+                                    {tab}
+                                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold leading-none", badgeColors[tab])}>
+                                        {tabCounts[tab]}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
                 {/* Filter & Search Section */}
-                <FrappeCard className="mb-4 p-4">
+                <div className="mb-4">
+                <FrappeCard className="p-3">
                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                        <div className="flex flex-1 items-center gap-4 w-full">
+                        <div className="flex flex-1 items-center gap-3 w-full flex-wrap">
                             {/* Search Input */}
                             <div className="relative w-full md:w-64">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -779,7 +927,7 @@ const TaskRegistry: React.FC = () => {
                                     placeholder="Search documents..."
                                     value={searchQuery}
                                     onChange={handleSearchChange}
-                                    className="w-full pl-10 pr-4 py-2 border-2 border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-0 transition-colors"
+                                    className="h-9 w-full pl-10 pr-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 transition-colors"
                                 />
                             </div>
 
@@ -792,10 +940,10 @@ const TaskRegistry: React.FC = () => {
                                     id="module-filter"
                                     value={selectedModule}
                                     onChange={(e) => handleModuleChange(e.target.value)}
-                                    className="h-10 px-4 bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 rounded-lg font-bold text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 focus:border-zinc-900 dark:focus:border-zinc-100"
+                                    className="h-9 px-3 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg font-bold text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7]"
                                 >
                                     <option value="">All Modules</option>
-                                    {DOCTYPE_OPTIONS.map((module) => (
+                                    {moduleNames.map((module) => (
                                         <option key={module} value={module}>
                                             {module}
                                         </option>
@@ -817,24 +965,25 @@ const TaskRegistry: React.FC = () => {
                         </div>
                     </div>
                 </FrappeCard>
+                </div>
 
                 {/* Table */}
-                <FrappeCard className="overflow-hidden p-0">
-                    <div className="overflow-x-auto">
-                        <table className="w-full divide-y divide-gray-300">
-                            <thead className="bg-zinc-200 dark:bg-zinc-700">
-                                <tr className="divide-x divide-gray-300">
-                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Status</th>
-                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Module</th>
-                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Title</th>
-                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Document ID</th>
-                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Created</th>
-                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Modified</th>
-                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Owner</th>
-                                    <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Action</th>
+                <FrappeCard className="overflow-hidden p-3">
+                    <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
+                        <table className="w-full">
+                            <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Document ID</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Created</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Modified</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
                                 {paginatedTasks.length > 0 ? (
                                     paginatedTasks.map((task) => (
                                         <tr
@@ -856,15 +1005,15 @@ const TaskRegistry: React.FC = () => {
                                             }}
                                             className="hover:bg-zinc-50 dark:bg-zinc-800/50 cursor-pointer transition-colors"
                                         >
-                                            <td className="p-4">
+                                            <td className="p-3">
                                                 <span className={getStatusBadge(task.status)}>
                                                     {task.status}
                                                 </span>
                                             </td>
-                                            <td className="p-4 font-bold text-zinc-900 dark:text-zinc-100 text-sm">
+                                            <td className="p-3 font-bold text-zinc-900 dark:text-zinc-100">
                                                 {task.doctype}
                                             </td>
-                                            <td className="p-4 font-medium text-zinc-900 dark:text-zinc-100 text-sm">
+                                            <td className="p-3 font-medium text-zinc-900 dark:text-zinc-100">
                                                 <button
                                                     className="text-left hover:text-[#D97757] transition-colors flex items-center gap-1.5 group"
                                                     onClick={(e) => {
@@ -877,19 +1026,19 @@ const TaskRegistry: React.FC = () => {
                                                     <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
                                                 </button>
                                             </td>
-                                            <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
+                                            <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
                                                 {task.id.length > 25 ? `${task.id.substring(0, 25)}...` : task.id}
                                             </td>
-                                            <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
+                                            <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
                                                 {task.creation ? new Date(task.creation).toLocaleDateString("en-IN") : "-"}
                                             </td>
-                                            <td className="p-4 text-sm font-mono text-zinc-900 dark:text-zinc-100">
+                                            <td className="p-3 font-mono text-zinc-900 dark:text-zinc-100">
                                                 {task.modified ? new Date(task.modified).toLocaleDateString("en-IN") : "-"}
                                             </td>
-                                            <td className="p-4 text-sm text-zinc-900 dark:text-zinc-100">
+                                            <td className="p-3 text-zinc-900 dark:text-zinc-100">
                                                 {task.owner.length > 20 ? `${task.owner.substring(0, 20)}...` : task.owner}
                                             </td>
-                                            <td className="p-4">
+                                            <td className="p-3">
                                                 <FrappeButton
                                                     variant="action"
                                                     onClick={(e) => {
@@ -908,7 +1057,7 @@ const TaskRegistry: React.FC = () => {
                                                             navigate(`/task-registry/${task.doctype}/${task.id}`);
                                                         }
                                                     }}
-                                                    className="text-xs px-4 py-2"
+                                                    className="text-[11px] px-3 py-1.5"
                                                 >
                                                     View
                                                 </FrappeButton>

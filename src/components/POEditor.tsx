@@ -594,11 +594,11 @@ export const POEditor: React.FC<POEditorProps> = ({
     ];
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5 min-w-0 overflow-x-hidden">
             {/* Action bar */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center justify-between flex-wrap gap-3 min-w-0">
                 <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                    <h3 className="text-[15px] font-extrabold text-zinc-900 dark:text-zinc-100">
                         Purchase Order
                     </h3>
                     {isPIReadOnly && (
@@ -608,12 +608,12 @@ export const POEditor: React.FC<POEditorProps> = ({
                     )}
                 </div>
                 {isStaffRnD && (
-                    <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
                         {onSave && (
                             <button
                                 onClick={handleSave}
                                 disabled={isSaving}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-60"
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-60"
                             >
                                 {isSaving ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -631,7 +631,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                         )}
                         <button
                             onClick={() => setIsPreviewOpen(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
                         >
                             <FileText className="w-4 h-4" /> Preview & Print
                         </button>
@@ -684,7 +684,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                             <button
                                 onClick={handleUploadClick}
                                 disabled={isUploading}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60"
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60"
                             >
                                 {isUploading ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -750,7 +750,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                         PO Details
                     </h4>
                 </div>
-                <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                     {editableFields.map(({ key, label, type }) => (
                         <div
                             key={key}
@@ -758,7 +758,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                                 type === "textarea" ? "md:col-span-2" : ""
                             }
                         >
-                            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+                            <label className="block text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
                                 {label}
                             </label>
                             {type === "textarea" ? (
@@ -771,7 +771,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                                         key === "terms_and_conditions" ? 6 : 3
                                     }
                                     disabled={isPIReadOnly}
-                                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-y disabled:bg-zinc-50 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-500"
+                                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[12px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-y disabled:bg-zinc-50 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-500"
                                 />
                             ) : (
                                 <input
@@ -781,7 +781,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                                         handleFieldChange(key, e.target.value)
                                     }
                                     disabled={isPIReadOnly}
-                                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:bg-zinc-50 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-500"
+                                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[12px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:bg-zinc-50 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-500"
                                 />
                             )}
                         </div>
@@ -796,7 +796,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                         Prefilled from Sanction Sheet
                     </h4>
                 </div>
-                <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-3">
                     {[
                         ["Applicant", poData.ss_applicant_name],
                         ["Department", poData.ss_department_for_purchase],
@@ -808,10 +808,10 @@ export const POEditor: React.FC<POEditorProps> = ({
                         ["Grand Total", poData.ss_grand_total],
                     ].map(([label, value]) => (
                         <div key={label as string}>
-                            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-0.5">
+                            <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-0.5">
                                 {label}
                             </p>
-                            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                            <p className="text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 break-words">
                                 {value || "—"}
                             </p>
                         </div>
@@ -821,12 +821,12 @@ export const POEditor: React.FC<POEditorProps> = ({
                 {/* Items table */}
                 {Array.isArray(poData.table_bttk) &&
                     poData.table_bttk.length > 0 && (
-                        <div className="px-5 pb-5">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
+                        <div className="px-4 pb-4">
+                            <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
                                 Items
                             </p>
-                            <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
-                                <table className="min-w-full text-sm">
+                            <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+                                <table className="w-full table-fixed text-[11px]">
                                     <thead className="bg-zinc-50 dark:bg-zinc-800">
                                         <tr>
                                             {[
@@ -842,7 +842,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                                             ].map((h) => (
                                                 <th
                                                     key={h}
-                                                    className="px-3 py-2 text-left text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400"
+                                                    className="px-2 py-2 text-left text-[10px] font-extrabold uppercase text-zinc-500 dark:text-zinc-400 break-words"
                                                 >
                                                     {h}
                                                 </th>
@@ -856,31 +856,31 @@ export const POEditor: React.FC<POEditorProps> = ({
                                                     key={i}
                                                     className="border-t border-zinc-100 dark:border-zinc-800"
                                                 >
-                                                    <td className="px-3 py-2 text-zinc-500">
+                                                    <td className="px-2 py-2 align-top text-zinc-500">
                                                         {i + 1}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_name}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_make}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_model}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_quantity}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_unit_price}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_discount}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_gst}
                                                     </td>
-                                                    <td className="px-3 py-2 font-medium">
+                                                    <td className="px-2 py-2 align-top font-medium break-words">
                                                         {row.dp_total_price}
                                                     </td>
                                                 </tr>

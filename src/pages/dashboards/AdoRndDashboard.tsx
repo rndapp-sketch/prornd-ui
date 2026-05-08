@@ -143,7 +143,7 @@ const getStatusStyle = (status: string) => {
   if (s.includes("approved"))
     return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800";
   if (s.includes("draft"))
-    return "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700";
+    return "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-[#A1A1AA] dark:border-zinc-700";
   if (s.includes("rejected"))
     return "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800";
   if (s.includes("forwarded") || s.includes("processed"))
@@ -394,7 +394,7 @@ export function AdoRndDashboard() {
   const maxModuleCount = Math.max(...moduleBreakdown.map((m) => m.count), 1);
 
   return (
-    <div className="min-h-screen bg-[#F8F6F3] dark:bg-zinc-900 font-sans">
+    <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans">
       <div className="flex-1 p-4 md:p-8">
         <div className="w-full max-w-[1600px] mx-auto">
           {/* ==================== HEADER ==================== */}
@@ -405,12 +405,12 @@ export function AdoRndDashboard() {
                   <div className="p-2.5 bg-[#D97757]/10 rounded-lg">
                     <Shield className="h-6 w-6 text-[#D97757]" />
                   </div>
-                  <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                  <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
                     Administrative Officer Dashboard
                   </h1>
                 </div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 ml-14">
-                  Welcome back, <span className="font-semibold text-zinc-800 dark:text-zinc-200">{fullName}</span>
+                <p className="text-sm text-zinc-600 dark:text-[#A1A1AA] ml-14">
+                  Welcome back, <span className="font-semibold text-[#27272A] dark:text-[#E4E4E7]">{fullName}</span>
                   {" • "}Administrative Operations & Finance Management
                 </p>
               </div>
@@ -418,7 +418,7 @@ export function AdoRndDashboard() {
                 {permissions.can_view_financials && (
                   <button
                     onClick={() => setShowSensitiveData(!showSensitiveData)}
-                    className="px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all flex items-center gap-2 shadow-sm"
+                    className="px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-medium text-zinc-700 dark:text-[#D4D4D8] hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all flex items-center gap-2 shadow-sm"
                   >
                     {showSensitiveData ? (
                       <>
@@ -445,11 +445,11 @@ export function AdoRndDashboard() {
             {/* Pending Approvals */}
             <button
               onClick={() => navigate("/pending-task")}
-              className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#D97757]/40 transition-all text-left"
+              className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#4A6CF7]/30 transition-all text-left"
             >
               <div className="flex items-center justify-between mb-3">
-                <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg group-hover:bg-[#D97757]/10 transition-colors">
-                  <ClipboardList className="h-5 w-5 text-amber-600 dark:text-amber-400 group-hover:text-[#D97757]" />
+                <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg group-hover:bg-[#4A6CF7]/10 transition-colors">
+                  <ClipboardList className="h-5 w-5 text-amber-600 dark:text-amber-400 group-hover:text-[#4A6CF7]" />
                 </div>
                 {totalPending > 0 && (
                   <span className="px-2.5 py-1 bg-[#D97757] text-white text-xs font-bold rounded-full shadow-sm animate-pulse">
@@ -457,21 +457,21 @@ export function AdoRndDashboard() {
                   </span>
                 )}
               </div>
-              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Pending Approvals</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1">Pending Approvals</h3>
+              <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
                 {totalPending > 0 ? `${totalPending} items require action` : "All caught up!"}
               </p>
-              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-zinc-300 group-hover:text-[#D97757] group-hover:translate-x-1 transition-all" />
+              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] group-hover:translate-x-1 transition-all" />
             </button>
 
             {/* Task Registry */}
             <button
               onClick={() => navigate("/task-registry")}
-              className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#D97757]/40 transition-all text-left"
+              className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#4A6CF7]/30 transition-all text-left"
             >
               <div className="flex items-center justify-between mb-3">
-                <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg group-hover:bg-[#D97757]/10 transition-colors">
-                  <FolderKanban className="h-5 w-5 text-purple-600 dark:text-purple-400 group-hover:text-[#D97757]" />
+                <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg group-hover:bg-[#4A6CF7]/10 transition-colors">
+                  <FolderKanban className="h-5 w-5 text-purple-600 dark:text-purple-400 group-hover:text-[#4A6CF7]" />
                 </div>
                 {totalProcessed > 0 && (
                   <span className="px-2.5 py-1 bg-zinc-700 text-white text-xs font-bold rounded-full">
@@ -479,22 +479,22 @@ export function AdoRndDashboard() {
                   </span>
                 )}
               </div>
-              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Processed Tasks</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1">Processed Tasks</h3>
+              <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
                 {totalProcessed > 0 ? `${totalProcessed} completed` : "No records yet"}
               </p>
-              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-zinc-300 group-hover:text-[#D97757] group-hover:translate-x-1 transition-all" />
+              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] group-hover:translate-x-1 transition-all" />
             </button>
 
             {/* Projects */}
             <PermissionBasedWidget permission={permissions.can_view_analytics}>
               <button
                 onClick={() => navigate("/projects-view")}
-                className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#D97757]/40 transition-all text-left"
+                className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#4A6CF7]/30 transition-all text-left"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg group-hover:bg-[#D97757]/10 transition-colors">
-                    <Building2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 group-hover:text-[#D97757]" />
+                  <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg group-hover:bg-[#4A6CF7]/10 transition-colors">
+                    <Building2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 group-hover:text-[#4A6CF7]" />
                   </div>
                   {data.overview.active_projects > 0 && (
                     <span className="px-2.5 py-1 bg-emerald-600 text-white text-xs font-bold rounded-full">
@@ -502,11 +502,11 @@ export function AdoRndDashboard() {
                     </span>
                   )}
                 </div>
-                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Active Projects</h3>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1">Active Projects</h3>
+                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
                   {data.overview.active_projects} projects running
                 </p>
-                <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-zinc-300 group-hover:text-[#D97757] group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] group-hover:translate-x-1 transition-all" />
               </button>
             </PermissionBasedWidget>
 
@@ -514,11 +514,11 @@ export function AdoRndDashboard() {
             <PermissionBasedWidget permission={permissions.can_process_payments}>
               <button
                 onClick={() => navigate("/payments")}
-                className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#D97757]/40 transition-all text-left"
+                className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#4A6CF7]/30 transition-all text-left"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg group-hover:bg-[#D97757]/10 transition-colors">
-                    <IndianRupee className="h-5 w-5 text-blue-600 dark:text-blue-400 group-hover:text-[#D97757]" />
+                  <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg group-hover:bg-[#4A6CF7]/10 transition-colors">
+                    <IndianRupee className="h-5 w-5 text-blue-600 dark:text-blue-400 group-hover:text-[#4A6CF7]" />
                   </div>
                   {data.overview.pending_payments > 0 && (
                     <span className="px-2.5 py-1 bg-red-600 text-white text-xs font-bold rounded-full">
@@ -526,11 +526,11 @@ export function AdoRndDashboard() {
                     </span>
                   )}
                 </div>
-                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Pending Payments</h3>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1">Pending Payments</h3>
+                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">
                   {data.overview.pending_payments} awaiting processing
                 </p>
-                <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-zinc-300 group-hover:text-[#D97757] group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] group-hover:translate-x-1 transition-all" />
               </button>
             </PermissionBasedWidget>
           </section>
@@ -630,29 +630,29 @@ export function AdoRndDashboard() {
             <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6">
               <div className="flex items-center gap-2 mb-5">
                 <BarChart3 className="h-5 w-5 text-[#D97757]" />
-                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">Pending Operations</h3>
+                <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-lg">Pending Operations</h3>
               </div>
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Reimbursements</span>
+                  <span className="text-sm font-medium text-zinc-700 dark:text-[#D4D4D8]">Reimbursements</span>
                   <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-sm font-bold rounded-full">
                     {isLoading ? "—" : data.operations.pending_reimbursements}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Temporary Advances</span>
+                  <span className="text-sm font-medium text-zinc-700 dark:text-[#D4D4D8]">Temporary Advances</span>
                   <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-sm font-bold rounded-full">
                     {isLoading ? "—" : data.operations.pending_advances}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Advance Settlements</span>
+                  <span className="text-sm font-medium text-zinc-700 dark:text-[#D4D4D8]">Advance Settlements</span>
                   <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-sm font-bold rounded-full">
                     {isLoading ? "—" : data.operations.pending_settlements}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Direct Purchases</span>
+                  <span className="text-sm font-medium text-zinc-700 dark:text-[#D4D4D8]">Direct Purchases</span>
                   <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-sm font-bold rounded-full">
                     {isLoading ? "—" : data.operations.pending_purchases}
                   </span>
@@ -666,12 +666,12 @@ export function AdoRndDashboard() {
               fallback={
                 <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6">
                   <div className="flex items-center gap-2 mb-5">
-                    <Shield className="h-5 w-5 text-zinc-400" />
-                    <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">Staff Analytics</h3>
+                    <Shield className="h-5 w-5 text-[#A1A1AA]" />
+                    <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-lg">Staff Analytics</h3>
                   </div>
-                  <div className="flex items-center justify-center h-48 text-zinc-400">
+                  <div className="flex items-center justify-center h-48 text-[#A1A1AA]">
                     <div className="text-center">
-                      <Shield className="h-12 w-12 mx-auto mb-3 text-zinc-300" />
+                      <Shield className="h-12 w-12 mx-auto mb-3 text-[#D4D4D8]" />
                       <p className="text-sm font-medium">Insufficient Permissions</p>
                       <p className="text-xs mt-1">Contact admin for access</p>
                     </div>
@@ -682,29 +682,29 @@ export function AdoRndDashboard() {
               <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6">
                 <div className="flex items-center gap-2 mb-5">
                   <Users className="h-5 w-5 text-[#D97757]" />
-                  <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">Staff Analytics</h3>
+                  <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-lg">Staff Analytics</h3>
                 </div>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Total Staff</span>
-                    <span className="px-3 py-1 bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 text-sm font-bold rounded-full">
+                    <span className="text-sm font-medium text-zinc-700 dark:text-[#D4D4D8]">Total Staff</span>
+                    <span className="px-3 py-1 bg-zinc-200 dark:bg-zinc-700 text-[#3F3F46] dark:text-[#E4E4E7] text-sm font-bold rounded-full">
                       {isLoading ? "—" : data.staff_analytics.total_staff}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Pending Recruitments</span>
+                    <span className="text-sm font-medium text-zinc-700 dark:text-[#D4D4D8]">Pending Recruitments</span>
                     <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm font-bold rounded-full">
                       {isLoading ? "—" : data.staff_analytics.pending_recruitments}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Pending Resignations</span>
+                    <span className="text-sm font-medium text-zinc-700 dark:text-[#D4D4D8]">Pending Resignations</span>
                     <span className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm font-bold rounded-full">
                       {isLoading ? "—" : data.staff_analytics.pending_resignations}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg">
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Pending Honorariums</span>
+                    <span className="text-sm font-medium text-zinc-700 dark:text-[#D4D4D8]">Pending Honorariums</span>
                     <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-sm font-bold rounded-full">
                       {isLoading ? "—" : data.staff_analytics.pending_honorariums}
                     </span>
@@ -717,29 +717,29 @@ export function AdoRndDashboard() {
           {/* ==================== PENDING & PROCESSED TASKS ==================== */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Recent Pending Tasks */}
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ClipboardList className="h-4 w-4 text-[#D97757]" />
-                  <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm uppercase tracking-wide">
+                  <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">
                     Recent Pending
                   </h3>
                 </div>
                 <button
                   onClick={() => navigate("/pending-task")}
-                  className="text-xs text-[#D97757] hover:text-[#c5684a] font-semibold flex items-center gap-1 transition-colors"
+                  className="text-xs text-[#4A6CF7] hover:text-[#3b5cf6] font-semibold flex items-center gap-1 transition-colors"
                 >
                   View All <ChevronRight className="h-3 w-3" />
                 </button>
               </div>
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-700/50 max-h-[400px] overflow-y-auto">
+              <div className="divide-y divide-[#F4F4F5] dark:divide-[#27272A] max-h-[400px] overflow-y-auto">
                 {isLoading ? (
-                  <div className="p-8 text-center text-zinc-400">
+                  <div className="p-8 text-center text-[#A1A1AA]">
                     <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin mx-auto mb-2" />
                     <p className="text-sm">Loading tasks...</p>
                   </div>
                 ) : pendingTasks.length === 0 ? (
-                  <div className="p-8 text-center text-zinc-400">
+                  <div className="p-8 text-center text-[#A1A1AA]">
                     <CheckCircle className="h-8 w-8 mx-auto mb-2 text-emerald-300" />
                     <p className="text-sm font-medium">No pending tasks</p>
                     <p className="text-xs mt-1">All caught up!</p>
@@ -749,23 +749,23 @@ export function AdoRndDashboard() {
                     <button
                       key={task.name}
                       onClick={() => navigate(getTaskRoute(task.doctype, task.name))}
-                      className="w-full px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors flex items-center gap-3 text-left group"
+                      className="w-full px-5 py-3 hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors flex items-center gap-3 text-left group"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", getStatusStyle(task.status))}>
                             {task.status}
                           </span>
-                          <span className="text-[10px] text-zinc-400 font-medium">{task.doctype}</span>
+                          <span className="text-[10px] text-[#A1A1AA] font-medium">{task.doctype}</span>
                         </div>
-                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                        <p className="text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] truncate">
                           {task.title}
                         </p>
-                        <p className="text-[11px] text-zinc-400 mt-0.5">
+                        <p className="text-[11px] text-[#A1A1AA] mt-0.5">
                           {task.owner} · {formatRelativeTime(task.modified)}
                         </p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-zinc-300 group-hover:text-[#D97757] flex-shrink-0 transition-colors" />
+                      <ChevronRight className="h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] flex-shrink-0 transition-colors" />
                     </button>
                   ))
                 )}
@@ -773,30 +773,30 @@ export function AdoRndDashboard() {
             </div>
 
             {/* Recently Processed */}
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FolderKanban className="h-4 w-4 text-[#D97757]" />
-                  <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm uppercase tracking-wide">
+                  <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">
                     Recently Processed
                   </h3>
                 </div>
                 <button
                   onClick={() => navigate("/task-registry")}
-                  className="text-xs text-[#D97757] hover:text-[#c5684a] font-semibold flex items-center gap-1 transition-colors"
+                  className="text-xs text-[#4A6CF7] hover:text-[#3b5cf6] font-semibold flex items-center gap-1 transition-colors"
                 >
                   View All <ChevronRight className="h-3 w-3" />
                 </button>
               </div>
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-700/50 max-h-[400px] overflow-y-auto">
+              <div className="divide-y divide-[#F4F4F5] dark:divide-[#27272A] max-h-[400px] overflow-y-auto">
                 {isLoading ? (
-                  <div className="p-8 text-center text-zinc-400">
+                  <div className="p-8 text-center text-[#A1A1AA]">
                     <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin mx-auto mb-2" />
                     <p className="text-sm">Loading tasks...</p>
                   </div>
                 ) : registryTasks.length === 0 ? (
-                  <div className="p-8 text-center text-zinc-400">
-                    <FolderKanban className="h-8 w-8 mx-auto mb-2 text-zinc-300" />
+                  <div className="p-8 text-center text-[#A1A1AA]">
+                    <FolderKanban className="h-8 w-8 mx-auto mb-2 text-[#D4D4D8]" />
                     <p className="text-sm font-medium">No processed documents yet</p>
                   </div>
                 ) : (
@@ -808,23 +808,23 @@ export function AdoRndDashboard() {
                         else if (task.doctype === "Reimbursement") navigate(`/reimbursement/${task.name}`);
                         else navigate(`/task-registry/${task.doctype}/${task.name}`);
                       }}
-                      className="w-full px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors flex items-center gap-3 text-left group"
+                      className="w-full px-5 py-3 hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors flex items-center gap-3 text-left group"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", getStatusStyle(task.status))}>
                             {task.status}
                           </span>
-                          <span className="text-[10px] text-zinc-400 font-medium">{task.doctype}</span>
+                          <span className="text-[10px] text-[#A1A1AA] font-medium">{task.doctype}</span>
                         </div>
-                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                        <p className="text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] truncate">
                           {task.title}
                         </p>
-                        <p className="text-[11px] text-zinc-400 mt-0.5">
+                        <p className="text-[11px] text-[#A1A1AA] mt-0.5">
                           {task.owner} · {formatRelativeTime(task.modified)}
                         </p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-zinc-300 group-hover:text-[#D97757] flex-shrink-0 transition-colors" />
+                      <ChevronRight className="h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] flex-shrink-0 transition-colors" />
                     </button>
                   ))
                 )}
@@ -837,12 +837,12 @@ export function AdoRndDashboard() {
             <section className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-6 mb-6">
               <div className="flex items-center gap-2 mb-5">
                 <Clock className="h-5 w-5 text-[#D97757]" />
-                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-lg">Pending by Module</h3>
+                <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-lg">Pending by Module</h3>
               </div>
               <div className="space-y-3">
                 {moduleBreakdown.map(({ doctype, count }) => (
                   <div key={doctype} className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 w-48 truncate flex-shrink-0">
+                    <span className="text-sm font-medium text-zinc-700 dark:text-[#D4D4D8] w-48 truncate flex-shrink-0">
                       {doctype}
                     </span>
                     <div className="flex-1 bg-zinc-100 dark:bg-zinc-700 rounded-full h-3 overflow-hidden">
@@ -851,7 +851,7 @@ export function AdoRndDashboard() {
                         style={{ width: `${(count / maxModuleCount) * 100}%` }}
                       />
                     </div>
-                    <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 w-10 text-right flex-shrink-0">
+                    <span className="text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7] w-10 text-right flex-shrink-0">
                       {count}
                     </span>
                   </div>
@@ -861,7 +861,7 @@ export function AdoRndDashboard() {
           )}
 
           {/* ==================== FOOTER ==================== */}
-          <footer className="text-center text-zinc-500 dark:text-zinc-400 mt-6 pb-4">
+          <footer className="text-center text-[#71717A] dark:text-[#A1A1AA] mt-6 pb-4">
             <div className="flex items-center justify-center space-x-2 text-xs">
               <Mail className="size-3.5" />
               <p>

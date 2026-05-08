@@ -598,6 +598,8 @@ const IndentGeneralForm: React.FC = () => {
         onTableFileChange: handleTableRowChange,
         onAddTableRow: handleAddTableRow,
         onDeleteTableRow: handleDeleteTableRow,
+        hideSectionHeaders: true,
+        hideTableLabels: true,
     };
 
     if (loading) return <GlobalLoader isLoading={true} />;

@@ -31,17 +31,17 @@ interface FormData {
 }
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
-const inputClasses = "w-full h-10 px-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:opacity-60 disabled:bg-zinc-50 dark:disabled:bg-zinc-800/40 disabled:text-zinc-500 read-only:bg-zinc-50 dark:read-only:bg-zinc-800/40 transition-colors duration-150";
-const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white dark:bg-zinc-900 p-5 md:p-6 border border-zinc-200 dark:border-zinc-700 rounded-lg", className)}>{children}</div>);
-const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("h-9 px-4 border rounded-md font-semibold text-[11px] uppercase tracking-wide transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
+const inputClasses = "w-full h-10 px-3 bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] font-medium text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/20 focus:border-[#4A6CF7] disabled:opacity-70 disabled:bg-[#F4F4F5] dark:disabled:bg-zinc-800/40 read-only:bg-[#F4F4F5] dark:read-only:bg-zinc-800/40 transition-colors duration-150";
+const FrappeCard = ({ children, className }: any) => (<div className={cn("bg-white dark:bg-[#27272A] p-5 md:p-6 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm", className)}>{children}</div>);
+const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: any) => (<button type={type} onClick={onClick} disabled={disabled} className={cn("h-10 px-4 border rounded-xl font-bold text-[11px] uppercase tracking-wide transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed", className)}>{children}</button>);
 
 const NeoSection = ({ title, children }: any) => (
-    <div className="space-y-4">
-        <div className="flex items-center gap-3 pb-3.5 border-b border-zinc-100 dark:border-zinc-800">
-            <div className="w-0.5 h-4 rounded-full bg-[#D97757]/60 shrink-0" />
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-100">{title}</h2>
+    <div className="space-y-4 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
+            <div className="w-1 h-5 rounded-full bg-[#4A6CF7] shrink-0" />
+            <h2 className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">{title}</h2>
         </div>
-        {children}
+        <div className="p-4">{children}</div>
     </div>
 );
 
@@ -65,7 +65,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange, readOnlyOverr
             default: return <input type="text" {...commonProps} value={value || ''} onChange={e => onChange(field.fieldname, e.target.value)} />;
         }
     };
-    return (<div className="space-y-1.5"><label htmlFor={field.fieldname} className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-100">{field.label}{field.mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}</label>{renderInput()}</div>);
+    return (<div className="space-y-1.5"><label htmlFor={field.fieldname} className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">{field.label}{field.mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}</label>{renderInput()}</div>);
 });
 
 const ALL_YEAR_COLUMNS = [
@@ -102,23 +102,23 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
 
     return (
         <div className="space-y-2">
-            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700 rounded-lg">
-                <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
-                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+            <div className="overflow-x-auto border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl">
+                <table className="min-w-full divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                    <thead className="bg-[#EEF2FF] dark:bg-blue-950/20">
                         <tr>
                             {[...columns, { key: 'actions', label: '' }].map((c: any) => (
-                                <th key={c.key} className="px-3 py-2.5 text-[10px] font-bold text-zinc-500 dark:text-zinc-100 text-left uppercase tracking-widest whitespace-nowrap">{c.label}</th>
+                                <th key={c.key} className="px-3 py-2.5 text-[10px] font-extrabold text-[#1E3A8A] dark:text-blue-200 text-left uppercase tracking-widest whitespace-nowrap border-r border-[#C7D2FE] dark:border-blue-900/40 last:border-r-0">{c.label}</th>
                             ))}
                         </tr>
                     </thead>
 
-                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                    <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
                         {(tableData || []).map((row: any, i: number) => {
                             const rowTotal = calculateRowTotal(row);
                             return (
                                 <tr key={row.id || i} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/20 transition-colors">
                                     {columns.map((col: any) => (
-                                        <td key={col.key} className="px-2 py-1.5">
+                                        <td key={col.key} className="px-2 py-1.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] last:border-r-0">
                                             {col.type === 'Select' ? (
                                                 <select className={`${inputClasses} !h-9`}
                                                     value={row[col.key] || ''}
@@ -150,7 +150,7 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
                         })}
                     </tbody>
 
-                    <tfoot className="bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-700">
+                    <tfoot className="bg-[#FAFAF9] dark:bg-[#18181B] border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                         <tr>
                             <td className="px-3 py-2.5 text-[11px] font-bold text-zinc-500 dark:text-zinc-100 uppercase tracking-wider text-right">Yearly Totals</td>
                             {yearKeys.map(key => (
@@ -180,22 +180,22 @@ const MemoizedBudgetTable = memo(({ tableData, onRowChange, onAddRow, onDeleteRo
 const MemoizedGenericTable = memo(({ title, tableName, columns, newRow, tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => (
     <NeoSection title={title}>
         <div className="space-y-2">
-            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700 rounded-lg">
-                <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
-                    <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+            <div className="overflow-x-auto border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl">
+                <table className="min-w-full divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                    <thead className="bg-[#EEF2FF] dark:bg-blue-950/20">
                         <tr>{[...columns, { key: 'actions', label: '' }].map((c: any) => (
-                            <th key={c.key} className="px-3 py-2.5 text-[10px] font-bold text-zinc-500 dark:text-zinc-100 text-left uppercase tracking-widest whitespace-nowrap">{c.label}</th>
+                            <th key={c.key} className="px-3 py-2.5 text-[10px] font-extrabold text-[#1E3A8A] dark:text-blue-200 text-left uppercase tracking-widest whitespace-nowrap border-r border-[#C7D2FE] dark:border-blue-900/40 last:border-r-0">{c.label}</th>
                         ))}</tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                    <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
                         {(tableData || []).length === 0 ? (
                             <tr><td colSpan={columns.length + 1} className="px-4 py-8 text-center">
                                 <p className="text-[12px] font-medium text-zinc-400 dark:text-zinc-500">No files added yet</p>
                                 <p className="text-[11px] text-zinc-300 dark:text-zinc-600 mt-1">Click "+ Add Row" below to attach files</p>
                             </td></tr>
                         ) : (tableData || []).map((row: any, i: number) => (
-                            <tr key={row.id} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/20 transition-colors">
-                                {columns.map((col: any) => (<td key={col.key} className="px-2 py-1.5">
+                            <tr key={row.id} className="hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors">
+                                {columns.map((col: any) => (<td key={col.key} className="px-2 py-1.5 border-r border-[#E4E4E7] dark:border-[#3F3F46] last:border-r-0">
                                     {col.type === 'Attach' ? (
                                         <input type="file" className={`${inputClasses} !h-9 file:mr-2 file:px-2.5 file:py-1 file:text-[11px] file:font-semibold file:uppercase file:tracking-wide file:border-0 file:bg-zinc-100 dark:file:bg-zinc-800 file:text-zinc-600 dark:file:text-zinc-300 file:rounded`} onChange={e => onFileChange(tableName, i, col.key, e.target.files?.[0] || null)} />
                                     ) : (
@@ -504,17 +504,19 @@ const AddFundSanction: React.FC = () => {
     }
 
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
             <AppSidebar />
-            <main className="flex-1 p-4 md:p-6 w-full overflow-hidden">
-                <header className="mb-5 p-4 md:p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg">
-                    <div className="flex items-center gap-3">
-                        <button onClick={() => navigate(-1)} className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
-                            <ArrowLeftIcon className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+            <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
+                <header className="mb-5 overflow-hidden bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm">
+                    <div className="h-1.5 bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
+                    <div className="p-5 flex items-center gap-3">
+                        <button onClick={() => navigate(-1)} className="h-10 w-10 flex items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl hover:text-[#D97757] transition-colors">
+                            <ArrowLeftIcon className="h-4 w-4" />
                         </button>
-                        <div>
-                            <h1 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">Add Fund Sanction</h1>
-                            <p className="text-[11px] text-zinc-500 dark:text-zinc-100 mt-0.5 uppercase tracking-wide font-medium">Project: {projectDisplayLabel || formData.refnum_prj_num || projectName}</p>
+                        <div className="min-w-0">
+                            <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#D97757] mb-1">Fund Sanction</div>
+                            <h1 className="text-[22px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-normal">Add Fund Sanction</h1>
+                            <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA] mt-1 font-medium break-words">Project: {projectDisplayLabel || formData.refnum_prj_num || projectName}</p>
                         </div>
                     </div>
                 </header>
@@ -591,7 +593,7 @@ const AddFundSanction: React.FC = () => {
                     )}
 
                     {/* Action Buttons */}
-                    <div className="mt-5 flex items-center justify-between py-3.5 px-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg">
+                    <div className="mt-5 flex items-center justify-between py-3.5 px-4 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm">
                         {!savedAsDraft && !isBudgetMismatch ? (
                             <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Save as draft first to enable Submit</p>
                         ) : <div />}

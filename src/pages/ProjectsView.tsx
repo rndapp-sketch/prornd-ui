@@ -716,6 +716,7 @@ import {
   ChevronsUpDown,
   CheckCircle2,
   Trash2,
+  FileTextIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "../components/UserRole";
@@ -1401,32 +1402,32 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   };
 
   const renderProjectsTable = () => (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-4 animate-in fade-in duration-500">
       {/* Project Type Tabs */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 overflow-x-auto">
         {PROJECT_TYPE_TABS.map((tab) => {
           const active = selectedProjectType === tab;
           const tabColors: Record<string, string> = {
-            Research: active ? 'bg-blue-600 text-white shadow-blue-200 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-blue-300 hover:text-blue-600',
-            Consultancy: active ? 'bg-emerald-600 text-white shadow-emerald-200 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-emerald-300 hover:text-emerald-600',
-            Others: active ? 'bg-zinc-700 text-white shadow-zinc-200 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 hover:text-zinc-800',
+            Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]',
+            Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]',
+            Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]',
           };
           const badgeColors: Record<string, string> = {
-            Research: active ? 'bg-blue-500 text-white' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-            Consultancy: active ? 'bg-emerald-500 text-white' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
-            Others: active ? 'bg-zinc-600 text-white' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400',
+            Research: active ? 'bg-[#4A6CF7] text-white' : 'bg-white/80 text-[#4A6CF7] dark:bg-[#18181B]/50',
+            Consultancy: active ? 'bg-[#10B981] text-white' : 'bg-white/80 text-[#059669] dark:bg-[#18181B]/50',
+            Others: active ? 'bg-[#71717A] text-white' : 'bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50',
           };
           return (
             <button
               key={tab}
               onClick={() => { setSelectedProjectType(tab); setCurrentPage(1); }}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                "flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3 text-[12px] font-extrabold uppercase tracking-wide transition-all duration-150",
                 tabColors[tab]
               )}
             >
               {tab}
-              <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold", badgeColors[tab])}>
+              <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-bold leading-none", badgeColors[tab])}>
                 {projectTypeCounts[tab]}
               </span>
             </button>
@@ -1434,9 +1435,9 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         })}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
+      <div className="flex flex-col sm:flex-row gap-3 justify-between items-center rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 shadow-sm">
         <div className="relative w-full sm:w-72">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#71717A]" />
           <Input
             placeholder="Search projects by ID, title..."
             value={searchQuery}
@@ -1444,7 +1445,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
               setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            className="pl-9 bg-white dark:bg-zinc-900"
+            className="h-9 pl-9 bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] text-[13px]"
           />
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
@@ -1452,7 +1453,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
             value={sortField}
             onValueChange={(v: any) => handleSortChange(v)}
           >
-            <SelectTrigger className="w-[180px] bg-white dark:bg-zinc-900">
+            <SelectTrigger className="h-9 w-[180px] bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] text-[13px]">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -1475,35 +1476,35 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
             onClick={() =>
               setSortOrder(sortOrder === "asc" ? "desc" : "asc")
             }
-            className="bg-white dark:bg-zinc-900 shrink-0"
+            className="h-9 w-9 bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] shrink-0"
           >
             <ChevronsUpDown className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <Card>
+      <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[80px] whitespace-nowrap">
+          <div className="overflow-x-auto p-3">
+            <Table className="border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
+              <TableHeader className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                <TableRow className="border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 hover:bg-transparent">
+                  <TableHead className="w-[80px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                     Number
                   </TableHead>
-                  <TableHead className="min-w-[150px] whitespace-nowrap">
+                  <TableHead className="min-w-[150px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                     Project Title
                   </TableHead>
-                  <TableHead className="w-[120px] whitespace-nowrap">
+                  <TableHead className="w-[120px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                     Funding Agency
                   </TableHead>
-                  <TableHead className="w-[90px] whitespace-nowrap">
+                  <TableHead className="w-[90px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                     Date
                   </TableHead>
-                  <TableHead className="w-[100px] whitespace-nowrap">
+                  <TableHead className="w-[100px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                     Status
                   </TableHead>
-                  <TableHead className="text-right w-[60px] whitespace-nowrap">
+                  <TableHead className="text-right w-[60px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
                     Action
                   </TableHead>
                 </TableRow>
@@ -1556,7 +1557,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                   paginatedProjects.map((p: any) => (
                     <TableRow
                       key={p.name}
-                      className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                      className="cursor-pointer hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-b-0"
                       onClick={() => {
                         const targetPath =
                           p.workflow_state ===
@@ -1568,10 +1569,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                         navigate(targetPath);
                       }}
                     >
-                      <TableCell className="font-mono text-xs font-medium text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                      <TableCell className="px-4 py-3 font-mono text-xs font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                         {p.project_no || p.name}
                       </TableCell>
-                      <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">
+                      <TableCell className="px-4 py-3 font-semibold text-[#3F3F46] dark:text-[#E4E4E7] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                         <div
                           className="line-clamp-2 min-w-[150px] max-w-[300px]"
                           title={p.project_title}
@@ -1579,10 +1580,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           {p.project_title}
                         </div>
                       </TableCell>
-                      <TableCell className="text-zinc-600 dark:text-zinc-400 text-xs whitespace-nowrap">
+                      <TableCell className="px-4 py-3 text-[#52525B] dark:text-[#A1A1AA] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                         {fundingAgencyNameMap.get(p.funding_agen) || p.funding_agen || "-"}
                       </TableCell>
-                      <TableCell className="text-zinc-500 text-xs whitespace-nowrap">
+                      <TableCell className="px-4 py-3 text-[#71717A] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                         {p.creation
                           ? format(
                             new Date(p.creation),
@@ -1590,7 +1591,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           )
                           : "-"}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap">
+                      <TableCell className="px-4 py-3 whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                         <div className="flex flex-col gap-0.5">
                           {getStatusBadge(p.workflow_state)}
                           {p.workflow_state === "Approved" && (
@@ -1606,7 +1607,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
+                      <TableCell className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1">
                           {p.workflow_state === "Draft" &&
                             p.owner === currentUser && (
@@ -1692,21 +1693,27 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   );
 
   return (
-    <div className="w-full mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="w-full mx-auto space-y-5 animate-in fade-in duration-500">
       {/* Page Header */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-serif font-medium text-zinc-900 dark:text-zinc-50">
-          Projects
-        </h1>
-        <p className="text-zinc-500 dark:text-zinc-400">
-          Manage and track all your research projects.
-        </p>
+      <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+        <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+        <div className="flex flex-col gap-1 px-5 py-4">
+          <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
+            Project Registry
+          </span>
+          <h1 className="font-sans text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+            Projects
+          </h1>
+          <p className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+            Manage and track all your research projects.
+          </p>
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-col space-y-4">
-        <div className="border-b border-zinc-200 dark:border-zinc-800">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+      <div className="flex flex-col space-y-4 border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
+        <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-2 shadow-sm">
+          <nav className="flex gap-1 overflow-x-auto" aria-label="Tabs">
             {[
               {
                 id: "myProjects",
@@ -1719,19 +1726,20 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors",
+                  "flex h-8 items-center whitespace-nowrap rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-colors",
                   activeTab === tab.id
-                    ? "border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
-                    : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200",
+                    ? "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]"
+                    : "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]",
                 )}
               >
+                <FileTextIcon className="mr-1.5 h-3.5 w-3.5" />
                 {tab.label}
                 {tab.count > 0 && (
                   <span
                     className={cn(
-                      "ml-2 py-0.5 px-2 rounded-full text-xs font-medium",
+                      "ml-2 py-0.5 px-2 rounded-full text-[10px] font-bold",
                       activeTab === tab.id
-                        ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                        ? "bg-[#4A6CF7] text-white"
                         : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500",
                     )}
                   >
@@ -1743,7 +1751,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
           </nav>
         </div>
 
-        <div className="pt-2">
+        <div>
           {activeTab === "pending"
             ? renderPendingTasks()
             : renderProjectsTable()}

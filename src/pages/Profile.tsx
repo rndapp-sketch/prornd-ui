@@ -152,12 +152,12 @@ const Field = ({
     icon: React.ElementType;
     children: React.ReactNode;
 }) => (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
         <Label
             htmlFor={id}
-            className="flex items-center gap-2 font-bold text-zinc-800 dark:text-zinc-200"
+            className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#E4E4E7]"
         >
-            <Icon className="h-4 w-4 text-zinc-500" />
+            <Icon className="h-3.5 w-3.5 text-[#4A6CF7]" />
             {label}
         </Label>
         {children}
@@ -173,13 +173,13 @@ const ReadOnlyDetail = ({
     label: string;
     value?: React.ReactNode;
 }) => (
-    <div className="flex items-start gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-800/50">
-        <Icon className="mt-0.5 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+    <div className="flex items-start gap-3 rounded-lg border border-[#E5E7EB] bg-zinc-50/50 p-3 dark:border-[#374151] dark:bg-[#27272A]/60">
+        <Icon className="mt-0.5 h-4 w-4 text-[#4A6CF7] dark:text-[#818CF8] flex-shrink-0" />
         <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">
                 {label}
             </p>
-            <p className="mt-1 break-words text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <p className="mt-1 break-words text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7]">
                 {value || "Not set"}
             </p>
         </div>
@@ -377,8 +377,8 @@ export default function Profile() {
             <div className="space-y-6">
                 <PageHeader title="Profile" showBack={false} />
                 <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-                    <div className="h-80 animate-pulse rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900" />
-                    <div className="h-96 animate-pulse rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900" />
+                    <div className="h-80 animate-pulse rounded-2xl border border-[#E4E4E7] bg-white dark:border-[#3F3F46] dark:bg-[#27272A]" />
+                    <div className="h-96 animate-pulse rounded-2xl border border-[#E4E4E7] bg-white dark:border-[#3F3F46] dark:bg-[#27272A]" />
                 </div>
             </div>
         );
@@ -393,7 +393,7 @@ export default function Profile() {
     }
 
     return (
-        <div className="space-y-6 text-zinc-900 dark:text-zinc-100">
+        <div className="space-y-6 text-[#3F3F46] dark:text-[#E4E4E7] min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] -m-6 p-6">
             <PageHeader title="Profile" showBack={false}>
                 <div
                     className={cn(
@@ -412,10 +412,10 @@ export default function Profile() {
                 className="grid gap-6 lg:grid-cols-[320px_1fr]"
             >
                 <div className="space-y-6">
-                    <Card className="overflow-hidden rounded-lg shadow-sm">
+                    <Card className="overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm bg-white dark:bg-[#27272A]">
                         <CardContent className="p-6">
                             <div className="flex flex-col items-center text-center">
-                                <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border border-zinc-300 bg-zinc-100 text-2xl font-bold text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                                <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border-[3px] border-[#4A6CF7]/30 bg-[#EEF2FF] text-2xl font-bold text-[#4A6CF7] dark:border-[#4A6CF7]/40 dark:bg-[#1C2434] dark:text-[#818CF8]">
                                     {form.user_image ? (
                                         <img
                                             src={getImageUrl(form.user_image)}
@@ -433,7 +433,7 @@ export default function Profile() {
                                 <h2 className="mt-4 text-xl font-bold">
                                     {form.full_name || "User"}
                                 </h2>
-                                <p className="mt-1 break-all text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                                <p className="mt-1 break-all text-sm font-medium text-[#71717A] dark:text-[#A1A1AA]">
                                     {currentUser}
                                 </p>
                                 <div
@@ -517,9 +517,10 @@ export default function Profile() {
                 </div>
 
                 <div className="space-y-6">
-                    <Card className="rounded-lg shadow-sm">
-                        <CardHeader className="border-b border-zinc-200 dark:border-zinc-800">
-                            <CardTitle className="text-lg font-bold">
+                    <Card className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm bg-white dark:bg-[#27272A]">
+                        <CardHeader className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-6 py-4">
+                            <CardTitle className="flex items-center gap-2.5 text-base font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
                                 Editable Details
                             </CardTitle>
                         </CardHeader>
@@ -599,7 +600,7 @@ export default function Profile() {
                                         id="username"
                                         value={form.username}
                                         readOnly
-                                        className="bg-zinc-100 font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                                        className="bg-[#F1F5F9] dark:bg-[#18181B] font-semibold text-[#71717A] dark:text-[#A1A1AA] cursor-not-allowed border-[#D1D5DB] dark:border-[#334155]"
                                     />
                                 </Field>
                                 <Field id="gender" label="Gender" icon={User}>
@@ -725,9 +726,10 @@ export default function Profile() {
                         </CardContent>
                     </Card>
 
-                    <Card className="rounded-lg shadow-sm">
-                        <CardHeader className="border-b border-zinc-200 dark:border-zinc-800">
-                            <CardTitle className="text-lg font-bold">
+                    <Card className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm bg-white dark:bg-[#27272A]">
+                        <CardHeader className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-6 py-4">
+                            <CardTitle className="flex items-center gap-2.5 text-base font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
                                 Account Details
                             </CardTitle>
                         </CardHeader>
@@ -771,20 +773,30 @@ export default function Profile() {
                         </CardContent>
                     </Card>
 
-                    <div className="sticky bottom-4 flex flex-col-reverse gap-3 rounded-lg border border-zinc-200 bg-white/95 p-3 shadow-sm backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/95 sm:flex-row sm:justify-end">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={resetForm}
-                            disabled={!isDirty || isSaving}
-                        >
-                            <X className="mr-2 h-4 w-4" />
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={!isDirty || isSaving}>
-                            <Save className="mr-2 h-4 w-4" />
-                            {isSaving ? "Saving..." : "Save Profile"}
-                        </Button>
+                    <div className="sticky bottom-4 flex flex-col-reverse gap-3 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white/95 dark:bg-[#27272A]/95 px-4 py-3 shadow-lg shadow-black/5 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+                        <p className="hidden sm:block text-xs font-medium text-[#A1A1AA] dark:text-[#71717A]">
+                            {isDirty ? "You have unsaved changes" : "All changes saved"}
+                        </p>
+                        <div className="flex gap-3 sm:flex-row flex-col-reverse">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={resetForm}
+                                disabled={!isDirty || isSaving}
+                                className="border-[#E4E4E7] dark:border-[#3F3F46] text-zinc-600 dark:text-zinc-300 hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] font-semibold"
+                            >
+                                <X className="mr-2 h-4 w-4" />
+                                Discard
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={!isDirty || isSaving}
+                                className="bg-[#4A6CF7] hover:bg-[#3558E8] text-white font-semibold shadow-sm hover:shadow-md hover:shadow-[#4A6CF7]/25 transition-all"
+                            >
+                                <Save className="mr-2 h-4 w-4" />
+                                {isSaving ? "Saving..." : "Save Profile"}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </form>

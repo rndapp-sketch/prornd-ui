@@ -78,14 +78,21 @@ const GroupCard = ({
     label: string;
     children: React.ReactNode;
 }) => (
-    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
-            <Icon className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
-            <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
-                {label}
-            </h3>
+    <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+        <div className="flex items-center gap-3 border-b border-[#E4E4E7] bg-[#FAFAF9] px-5 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#2563EB] dark:bg-blue-950/30 dark:text-blue-300">
+                <Icon className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#2563EB] dark:text-blue-300">
+                    Section
+                </p>
+                <h3 className="truncate text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                    {label}
+                </h3>
+            </div>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-5">{children}</div>
     </div>
 );
 
@@ -100,17 +107,17 @@ const InfoRow = ({
     isDept?: boolean;
     isBudgetHead?: boolean;
 }) => (
-    <div className="space-y-1">
-        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-            {label}
-        </p>
-        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 min-h-[1.5rem]">
+    <div className="min-w-0 rounded-xl border border-[#E4E4E7] bg-white px-3.5 py-3 dark:border-[#3F3F46] dark:bg-[#27272A]">
+        <div className="mb-2 inline-flex max-w-full items-center rounded-md bg-[#FAFAF9] px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#18181B] dark:text-blue-300 dark:ring-[#3F3F46]">
+            <span className="truncate">{label}</span>
+        </div>
+        <p className="min-h-[1.5rem] break-words text-[13px] font-semibold leading-relaxed text-[#3F3F46] dark:text-[#E4E4E7]">
             {isDept && value ? (
                 <DepartmentName name={value} />
             ) : isBudgetHead && value ? (
                 <BudgetHeadName id={value} />
             ) : (
-                value || <span className="text-zinc-400">—</span>
+                value || <span className="text-[#A1A1AA]">—</span>
             )}
         </p>
     </div>
@@ -159,10 +166,16 @@ const WorkflowTimeline: React.FC<{ currentState: string }> = ({ currentState }) 
         status === "completed" ? "bg-emerald-400" : "bg-zinc-200 dark:bg-zinc-700";
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
-            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                Workflow Progress
-            </h3>
+        <div className="rounded-2xl border border-[#E4E4E7] bg-white p-5 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+            <div className="mb-4 flex items-center gap-2.5">
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 text-[#2563EB] dark:bg-blue-950/30 dark:text-blue-300">
+                    <ActivityIcon className="h-3.5 w-3.5" />
+                </span>
+                <h3 className="text-[12px] font-extrabold uppercase tracking-[0.1em] text-[#71717A] dark:text-[#A1A1AA]">
+                    Workflow Progress
+                </h3>
+                <span className="h-px flex-1 bg-[#E4E4E7] dark:bg-[#3F3F46]" />
+            </div>
             <div className="flex items-start overflow-x-auto pb-1">
                 {stages.map((stage, idx) => (
                     <React.Fragment key={stage.label}>
@@ -568,6 +581,8 @@ const IndentGeneralFormDetails: React.FC = () => {
         onAddTableRow: noOp,
         onDeleteTableRow: noOp,
         readOnly: true,
+        hideSectionHeaders: true,
+        hideTableLabels: true,
     };
 
     const workflowState = formData.workflow_state || "Draft";
@@ -575,13 +590,23 @@ const IndentGeneralFormDetails: React.FC = () => {
 
     if (loading) return <GlobalLoader isLoading={true} />;
 
-    const fieldsFor = (names: string[]) =>
-        effectiveFields.filter((f) => names.includes(f.fieldname));
+    const fieldsFor = (names: string[], groupLabel?: string) =>
+        effectiveFields.filter((f) => {
+            if (!names.includes(f.fieldname)) return false;
+            if (
+                groupLabel &&
+                f.fieldtype === "Section Break" &&
+                (f.label || "").trim().toLowerCase() === groupLabel.trim().toLowerCase()
+            ) {
+                return false;
+            }
+            return true;
+        });
 
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+        <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
             <AppSidebar />
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="w-full overflow-hidden px-5 py-6 md:px-8 md:py-7">
                 <PageHeader
                     title={formData.name || id || "Indent General Form"}
                     status={workflowState}
@@ -634,7 +659,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                 </PageHeader>
                 
                 {isStaffRnD && isCommittedForGate === false && workflowState === "Pending Staff Approval" && (
-                    <div className="mt-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300 font-medium max-w-fit">
+                    <div className="mt-4 max-w-fit rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] font-semibold text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
                         A commitment must be submitted before forwarding this application.
                     </div>
                 )}
@@ -645,13 +670,13 @@ const IndentGeneralFormDetails: React.FC = () => {
                 </div>
 
                 {/* Main Content */}
-                <div className="mt-5 grid grid-cols-1 lg:grid-cols-4 gap-5">
+                <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
                     {/* Form sections — 3 cols */}
-                    <div className="lg:col-span-3 space-y-5">
+                    <div className="min-w-0 space-y-5">
 
                         {/* Indenter & Project Details */}
                         <GroupCard icon={UserIcon} label="Indenter & Project Details">
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                            <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                 <InfoRow label="Indenter" value={formData.igf_indenter} />
                                 <InfoRow label="Designation" value={formData.igf_indenter_designation} />
                                 <InfoRow label="Employee Code" value={formData.igf_employee_code} />
@@ -675,7 +700,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                     "igf_webmail_id",
                                     "igf_project_details",
                                     "igf_project_title",
-                                ])}
+                                ], "Indenter & Project Details")}
                                 {...rendererProps}
                             />
                         </GroupCard>
@@ -688,7 +713,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                     "igf_items",
                                     "igf_total_estimate",
                                     "igf_sanctioned_by_agency",
-                                ])}
+                                ], "Details of Items to be Purchased")}
                                 {...rendererProps}
                             />
                         </GroupCard>
@@ -705,7 +730,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                         fields={fieldsFor([
                                             "igf_details_of_vendors",
                                             "igf_vendors",
-                                        ])}
+                                        ], "Details of Vendors")}
                                         {...rendererProps}
                                     />
                                 </GroupCard>
@@ -717,7 +742,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                 fields={fieldsFor([
                                     "igf_purchase_committee",
                                     "igf_committee_members",
-                                ])}
+                                ], "Purchase Committee")}
                                 {...rendererProps}
                             />
                         </GroupCard>
@@ -729,7 +754,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                     "igf_tender_details",
                                     "igf_tender_type",
                                     "igf_number_of_bids",
-                                ])}
+                                ], "Tender Details")}
                                 {...rendererProps}
                             />
                         </GroupCard>
@@ -741,7 +766,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                                     "igf_file_upload_section",
                                     "igf_upload_detailed_specification",
                                     "igf_upload_vendor_list",
-                                ])}
+                                ], "Uploaded Files")}
                                 {...rendererProps}
                             />
                         </GroupCard>
@@ -753,20 +778,22 @@ const IndentGeneralFormDetails: React.FC = () => {
                                     "igf_declaration_section",
                                     "igf_declaration_text",
                                     "igf_decl_inr_confirmation",
-                                ])}
+                                ], "Declaration")}
                                 {...rendererProps}
                             />
                         </GroupCard>
                     </div>
 
                     {/* Sidebar — 1 col */}
-                    <aside className="lg:col-span-1 space-y-4">
+                    <aside className="min-w-0 space-y-4">
                         {/* Status card */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
-                                Status
-                            </h3>
-                            <div className="space-y-3 text-sm">
+                        <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                            <div className="border-b border-[#E4E4E7] bg-[#FAFAF9] px-5 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                <h3 className="text-[13px] font-extrabold uppercase tracking-wide text-[#3F3F46] dark:text-[#E4E4E7]">
+                                    Status
+                                </h3>
+                            </div>
+                            <div className="space-y-3 p-5 text-sm">
                                 <div className="flex justify-between items-center">
                                     <span className="text-zinc-500 dark:text-zinc-400">State</span>
                                     <StateBadge state={workflowState} />
@@ -844,7 +871,7 @@ const IndentGeneralFormDetails: React.FC = () => {
 
                         {/* Record Payment */}
                         {isStaffRnD && workflowState === "Pending Staff Approval" && isCommitted && (
-                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                            <div className="rounded-2xl border border-[#E4E4E7] bg-white p-5 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                                 <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-4">
                                     Record Payment
                                 </h3>
@@ -874,7 +901,7 @@ const IndentGeneralFormDetails: React.FC = () => {
                         )}
 
                         {/* Activity */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <div className="rounded-2xl border border-[#E4E4E7] bg-white p-5 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                             {id && <ActivityLog doctype="Indent General Form" docname={id} />}
                         </div>
                     </aside>

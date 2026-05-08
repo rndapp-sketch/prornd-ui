@@ -31,7 +31,7 @@ interface PaymentRecord {
 
 // Frappe-styled components
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-zinc-900 rounded-xl border border-zinc-300 dark:border-zinc-700 shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm", className)}>
         {children}
     </div>
 );
@@ -340,7 +340,7 @@ const Payments: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex h-screen items-center justify-center bg-zinc-100 dark:bg-zinc-800">
+            <div className="flex h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
                 <FrappeCard className="p-8 text-center">
                     <FaExclamationCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
                     <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Error Loading Payments</h2>
@@ -359,37 +359,39 @@ const Payments: React.FC = () => {
     const indexOfFirstPayment = (currentPage - 1) * itemsPerPage;
 
     return (
-        <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
             <GlobalLoader isLoading={isLoading} />
             <AppSidebar />
 
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
                 {/* Header */}
-                <FrappeCard className="mb-6 p-5">
-                    <div className="flex items-center gap-4">
+                <FrappeCard className="mb-5 overflow-hidden p-0">
+                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                    <div className="flex items-start gap-3 px-5 py-4">
                         <button
                             onClick={() => navigate(-1)}
-                            className="p-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg hover:bg-zinc-200 dark:bg-zinc-700 transition-colors border border-zinc-300 dark:border-zinc-700"
+                            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
                             aria-label="Go back"
                         >
-                            <FaArrowLeft className="h-5 w-5 text-zinc-900 dark:text-zinc-100" />
+                            <FaArrowLeft className="h-3.5 w-3.5" />
                         </button>
-                        <div>
-                            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">Payments</h1>
-                            <p className="text-sm text-zinc-900 dark:text-zinc-100 mt-0.5">View and manage all payment records.</p>
+                        <div className="min-w-0">
+                            <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Finance Operations</span>
+                            <h1 className="mt-1 text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Payments</h1>
+                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">View and manage payment records.</p>
                         </div>
                     </div>
                 </FrappeCard>
 
                 {/* Tabs */}
-                <div className="flex gap-4 mb-4 border-b border-zinc-300 dark:border-zinc-700 pb-2">
+                <div className="mb-4 flex gap-2 border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35 overflow-x-auto">
                     <button
                         onClick={() => setActiveTab('commits')}
                         className={cn(
-                            "px-4 py-2 font-bold text-sm uppercase border-b-2 transition-colors",
+                            "h-9 flex-shrink-0 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-colors",
                             activeTab === 'commits'
-                                ? "text-[#D97757] border-[#D97757]"
-                                : "text-zinc-500 dark:text-zinc-400 border-transparent hover:text-zinc-700 dark:text-zinc-300"
+                                ? "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A]"
+                                : "border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF]"
                         )}
                     >
                         Pending Commits
@@ -397,10 +399,10 @@ const Payments: React.FC = () => {
                     <button
                         onClick={() => setActiveTab('history')}
                         className={cn(
-                            "px-4 py-2 font-bold text-sm uppercase border-b-2 transition-colors",
+                            "h-9 flex-shrink-0 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-colors",
                             activeTab === 'history'
-                                ? "text-[#D97757] border-[#D97757]"
-                                : "text-zinc-500 dark:text-zinc-400 border-transparent hover:text-zinc-700 dark:text-zinc-300"
+                                ? "bg-[#ECFDF5] border-[#10B981] text-[#065F46]"
+                                : "border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5]"
                         )}
                     >
                         Payment History
@@ -409,27 +411,27 @@ const Payments: React.FC = () => {
 
                 {activeTab === 'commits' && (
                     <FrappeCard className="overflow-hidden p-0">
-                        <div className="bg-blue-50 p-4 border-b border-blue-100">
-                            <p className="text-sm text-blue-800 font-bold">
+                        <div className="bg-[#FAFAF9] dark:bg-[#27272A] p-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            <p className="text-[12px] uppercase tracking-[0.12em] text-[#1E3A8A] dark:text-[#C7D2FE] font-extrabold">
                                 Pending Commits from Ledger
                             </p>
-                            <p className="text-xs text-blue-600">
+                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
                                 These are committed funds waiting for payment or settlement.
                             </p>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full divide-y divide-gray-300">
-                                <thead className="bg-zinc-200 dark:bg-zinc-700">
+                        <div className="overflow-x-auto p-3">
+                            <table className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
+                                <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                     <tr>
-                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Project No.</th>
-                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Account Head</th>
-                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Module</th>
-                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">App ID</th>
-                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Date</th>
-                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Particulars</th>
-                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Ref Details</th>
-                                        <th className="p-3 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">Amount</th>
-                                        <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Action</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Account Head</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">App ID</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Particulars</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Ref Details</th>
+                                        <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
+                                        <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -538,7 +540,7 @@ const Payments: React.FC = () => {
                 {activeTab === 'history' && (
                     <>
                         {/* Filter & Search Section */}
-                        <FrappeCard className="mb-4 p-4">
+                        <FrappeCard className="mb-4 p-3">
                             <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
                                 <div className="flex flex-1 items-center gap-4 w-full flex-wrap">
                                     {/* Search Input */}
@@ -551,7 +553,7 @@ const Payments: React.FC = () => {
                                             placeholder="Search payments..."
                                             value={searchQuery}
                                             onChange={handleSearchChange}
-                                            className="w-full pl-10 pr-4 py-2 border-2 border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:border-zinc-900 dark:focus:border-zinc-100 focus:ring-0 transition-colors"
+                                            className="h-9 w-full pl-10 pr-4 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 transition-colors"
                                         />
                                     </div>
 
@@ -564,7 +566,7 @@ const Payments: React.FC = () => {
                                             id="doctype-filter"
                                             value={selectedDoctype}
                                             onChange={(e) => handleDoctypeChange(e.target.value)}
-                                            className="h-10 px-4 bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 rounded-lg font-bold text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 focus:border-zinc-900 dark:focus:border-zinc-100"
+                                            className="h-9 px-3 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg font-bold text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7]"
                                         >
                                             <option value="">All Modules</option>
                                             <option value="AccountHeadPayment">Account Head Payment</option>
@@ -587,7 +589,7 @@ const Payments: React.FC = () => {
                                             id="status-filter"
                                             value={selectedStatus}
                                             onChange={(e) => handleStatusChange(e.target.value)}
-                                            className="h-10 px-4 bg-white dark:bg-zinc-900 border-2 border-zinc-400 dark:border-zinc-600 rounded-lg font-bold text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 focus:border-zinc-900 dark:focus:border-zinc-100"
+                                            className="h-9 px-3 bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg font-bold text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7]"
                                         >
                                             <option value="">All Status</option>
                                             <option value="SETTLED">SETTLED</option>
@@ -618,19 +620,19 @@ const Payments: React.FC = () => {
                         </FrappeCard>
 
                         {/* Table */}
-                        <FrappeCard className="overflow-hidden p-0">
-                            <div className="overflow-x-auto">
-                                <table className="w-full divide-y divide-gray-300">
-                                    <thead className="bg-zinc-200 dark:bg-zinc-700">
-                                        <tr className="divide-x divide-gray-300">
-                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Status</th>
-                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Module</th>
-                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Particulars</th>
-                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Project No.</th>
-                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Date</th>
-                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Owner</th>
-                                            <th className="p-3 text-right font-bold text-zinc-900 dark:text-zinc-100 text-sm">Amount</th>
-                                            <th className="p-3 text-left font-bold text-zinc-900 dark:text-zinc-100 text-sm">Action</th>
+                        <FrappeCard className="overflow-hidden p-3">
+                            <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                <table className="w-full">
+                                    <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Particulars</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
+                                            <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -689,7 +691,7 @@ const Payments: React.FC = () => {
                                             ))
                                         ) : (
                                             <tr>
-                                                <td colSpan={7} className="p-8 text-center text-zinc-900 dark:text-zinc-100 font-bold">
+                                                <td colSpan={8} className="p-8 text-center text-zinc-900 dark:text-zinc-100 font-bold">
                                                     {isLoading ? "Loading payments..." : "No payments found matching your criteria."}
                                                 </td>
                                             </tr>

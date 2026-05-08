@@ -25,16 +25,16 @@ interface Project {
 const getStatusStyle = (status: string) => {
     const s = status?.toLowerCase() || "";
     if (["pending", "under review", "approval pending", "process"].some(t => s.includes(t)))
-        return "bg-amber-50 text-amber-700 border-amber-200";
+        return "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400";
     if (s.includes("approved") || s.includes("open"))
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400";
     if (s.includes("draft"))
-        return "bg-zinc-100 text-zinc-600 border-zinc-200";
+        return "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400";
     if (s.includes("rejected") || s.includes("closed"))
-        return "bg-red-50 text-red-700 border-red-200";
+        return "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400";
     if (s.includes("endorsed"))
-        return "bg-purple-50 text-purple-700 border-purple-200";
-    return "bg-blue-50 text-blue-700 border-blue-200";
+        return "bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400";
+    return "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400";
 };
 
 export default function DepartmentProjects() {
@@ -104,7 +104,7 @@ export default function DepartmentProjects() {
     }, [projects]);
 
     return (
-        <div className="min-h-screen bg-[#F8F6F3] dark:bg-zinc-900 font-sans">
+        <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans">
             <AppSidebar />
             <div className="flex-1 p-4 md:p-8">
                 <div className="w-full max-w-7xl mx-auto">
@@ -113,69 +113,60 @@ export default function DepartmentProjects() {
                     <header className="mb-6">
                         <button
                             onClick={() => navigate(-1)}
-                            className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-[#D97757] mb-3 transition-colors"
+                            className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-zinc-400 hover:text-[#4A6CF7] mb-3 transition-colors"
                         >
-                            <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+                            <ArrowLeft className="h-3.5 w-3.5" /> Back to Dashboard
                         </button>
-                        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-                            Department Projects
-                        </h1>
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+                        <div className="flex items-center gap-2 mb-1">
+                            <div className="w-1 h-6 rounded-full bg-[#4A6CF7]" />
+                            <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
+                                Department Projects
+                            </h1>
+                        </div>
+                        <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] ml-3">
                             Projects under your department's approval scope
                         </p>
                     </header>
 
                     {/* Summary Stats */}
-                    <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-4">
-                            <div className="flex items-center gap-2 mb-1">
-                                <Layers className="h-4 w-4 text-[#D97757]" />
-                                <span className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Total</span>
+                    <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+                        {[
+                            { icon: <Layers className="h-4 w-4" />, label: "Total", value: stats.total, color: "#D97757", accent: "stat-card-amber" },
+                            { icon: <CheckCircle2 className="h-4 w-4" />, label: "Approved", value: stats.approved, color: "#059669", accent: "stat-card-green" },
+                            { icon: <Clock className="h-4 w-4" />, label: "Pending", value: stats.pending, color: "#D97706", accent: "stat-card-amber" },
+                            { icon: <FileText className="h-4 w-4" />, label: "Others", value: stats.others, color: "#4A6CF7", accent: "stat-card-blue" },
+                        ].map(({ icon, label, value, color, accent }) => (
+                            <div key={label} className={cn("bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-4 stat-card", accent)}>
+                                <div className="flex items-center gap-2 mb-2 pl-1">
+                                    <span style={{ color }}>{icon}</span>
+                                    <span className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest">{label}</span>
+                                </div>
+                                <p className="text-2xl font-extrabold pl-1" style={{ color: isLoading ? undefined : color }}>
+                                    {isLoading ? "—" : value}
+                                </p>
                             </div>
-                            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                                {isLoading ? "—" : stats.total}
-                            </p>
-                        </div>
-                        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-4">
-                            <div className="flex items-center gap-2 mb-1">
-                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                <span className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Approved</span>
-                            </div>
-                            <p className="text-2xl font-bold text-emerald-700">{isLoading ? "—" : stats.approved}</p>
-                        </div>
-                        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-4">
-                            <div className="flex items-center gap-2 mb-1">
-                                <Clock className="h-4 w-4 text-amber-600" />
-                                <span className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Pending</span>
-                            </div>
-                            <p className="text-2xl font-bold text-amber-700">{isLoading ? "—" : stats.pending}</p>
-                        </div>
-                        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-4">
-                            <div className="flex items-center gap-2 mb-1">
-                                <FileText className="h-4 w-4 text-blue-600" />
-                                <span className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Others</span>
-                            </div>
-                            <p className="text-2xl font-bold text-blue-700">{isLoading ? "—" : stats.others}</p>
-                        </div>
+                        ))}
                     </section>
 
                     {/* Status Breakdown Mini Bar */}
                     {Object.keys(stats.statuses).length > 0 && (
-                        <section className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-4 mb-6">
-                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wide mb-3">Status Breakdown</h3>
-                            <div className="space-y-2">
+                        <section className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden mb-5">
+                            <div className="px-5 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+                                <h3 className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-widest">Status Breakdown</h3>
+                            </div>
+                            <div className="p-4 space-y-2.5">
                                 {Object.entries(stats.statuses).sort(([, a], [, b]) => b - a).map(([status, count]) => (
                                     <div key={status} className="flex items-center gap-3">
-                                        <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border flex-shrink-0", getStatusStyle(status))}>
+                                        <span className={cn("px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide flex-shrink-0 min-w-[80px]", getStatusStyle(status))}>
                                             {status}
                                         </span>
-                                        <div className="flex-1 bg-zinc-100 dark:bg-zinc-700 rounded-full h-2 overflow-hidden">
+                                        <div className="flex-1 bg-[#F1F5F9] dark:bg-[#1E293B] rounded-full h-2 overflow-hidden">
                                             <div
-                                                className="bg-[#D97757] h-full rounded-full transition-all duration-700"
+                                                className="bg-[#4A6CF7] h-full rounded-full transition-all duration-700"
                                                 style={{ width: `${(count / stats.total) * 100}%` }}
                                             />
                                         </div>
-                                        <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300 w-8 text-right flex-shrink-0">{count}</span>
+                                        <span className="text-[12px] font-extrabold text-zinc-700 dark:text-zinc-300 w-6 text-right flex-shrink-0">{count}</span>
                                     </div>
                                 ))}
                             </div>
@@ -191,56 +182,55 @@ export default function DepartmentProjects() {
                                 placeholder="Search by title, ID, PI, agency…"
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full h-10 pl-10 pr-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 shadow-sm"
+                                className="w-full h-10 pl-10 pr-4 bg-white dark:bg-[#1E293B] border-[1.5px] border-[#D1D5DB] dark:border-[#334155] rounded-lg text-[13px] text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] shadow-sm"
                             />
                         </div>
                         <select
                             value={statusFilter}
                             onChange={e => setStatusFilter(e.target.value)}
-                            className="h-10 pl-4 pr-10 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 appearance-none shadow-sm cursor-pointer min-w-[180px]"
+                            className="h-10 pl-4 pr-10 bg-white dark:bg-[#1E293B] border-[1.5px] border-[#D1D5DB] dark:border-[#334155] rounded-lg text-[13px] text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] appearance-none shadow-sm cursor-pointer min-w-[180px]"
                         >
                             <option value="all">All Statuses</option>
                             {uniqueStatuses.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                         <button
                             onClick={() => setSortOrder(o => o === "desc" ? "asc" : "desc")}
-                            className="h-10 px-4 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-colors"
+                            className="h-10 px-4 bg-white dark:bg-[#1E293B] border-[1.5px] border-[#D1D5DB] dark:border-[#334155] rounded-lg text-[11px] font-bold uppercase tracking-wide text-zinc-700 dark:text-zinc-300 hover:bg-[#F9FAFB] dark:hover:bg-[#334155] shadow-sm transition-colors"
                         >
-                            {sortOrder === "desc" ? "Newest first" : "Oldest first"}
+                            {sortOrder === "desc" ? "Newest First" : "Oldest First"}
                         </button>
                     </div>
 
                     {/* Project List */}
-                    <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+                    <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
                         {isLoading ? (
                             <div className="p-12 text-center text-zinc-400">
-                                <div className="w-6 h-6 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin mx-auto mb-3" />
-                                <p className="text-sm">Loading department projects…</p>
+                                <div className="w-6 h-6 border-2 border-zinc-300 border-t-[#4A6CF7] rounded-full animate-spin mx-auto mb-3" />
+                                <p className="text-xs font-bold uppercase tracking-wide">Loading department projects…</p>
                             </div>
                         ) : error ? (
                             <div className="p-12 text-center text-red-500">
-                                <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-                                <p className="text-sm font-medium">Failed to load projects</p>
+                                <AlertCircle className="h-7 w-7 mx-auto mb-2" />
+                                <p className="text-xs font-bold uppercase tracking-wide">Failed to load projects</p>
                             </div>
                         ) : filteredProjects.length === 0 ? (
                             <div className="p-12 text-center text-zinc-400">
-                                <Briefcase className="h-8 w-8 mx-auto mb-2 text-zinc-300" />
-                                <p className="text-sm font-medium">No projects found</p>
-                                {searchQuery && <p className="text-xs mt-1">Try a different search term</p>}
+                                <Briefcase className="h-7 w-7 mx-auto mb-2 text-zinc-300" />
+                                <p className="text-xs font-bold uppercase tracking-wide">No projects found</p>
+                                {searchQuery && <p className="text-xs mt-1 text-zinc-300">Try a different search term</p>}
                             </div>
                         ) : (
                             <>
                                 {/* Header Row */}
-                                <div className="hidden sm:grid grid-cols-12 gap-2 px-5 py-2.5 text-xs font-bold text-zinc-500 uppercase tracking-wide border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-                                    <span className="col-span-2">Project No</span>
-                                    <span className="col-span-3">Title</span>
-                                    <span className="col-span-2">PI</span>
-                                    <span className="col-span-1">Agency</span>
-                                    <span className="col-span-2">Status</span>
-                                    <span className="col-span-1">Date</span>
-                                    <span className="col-span-1 text-right">Action</span>
+                                <div className="hidden sm:grid grid-cols-12 gap-2 px-5 py-2.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#1C2434]">
+                                    {["Project No", "Title", "PI", "Agency", "Status", "Date", ""].map((h, i) => (
+                                        <span key={i} className={cn("text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest",
+                                            i === 0 ? "col-span-2" : i === 1 ? "col-span-3" : i === 2 ? "col-span-2" : i === 3 ? "col-span-1" : i === 4 ? "col-span-2" : i === 5 ? "col-span-1" : "col-span-1 text-right")}>
+                                            {h}
+                                        </span>
+                                    ))}
                                 </div>
-                                <div className="divide-y divide-zinc-100 dark:divide-zinc-700/50">
+                                <div className="divide-y divide-[#F4F4F5] dark:divide-[#27272A]">
                                     {filteredProjects.map(p => (
                                         <button
                                             key={p.name}
@@ -250,37 +240,37 @@ export default function DepartmentProjects() {
                                                     : `/project-details/${p.name}`;
                                                 navigate(target);
                                             }}
-                                            className="w-full sm:grid grid-cols-12 gap-2 px-5 py-3.5 hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors text-left group items-center"
+                                            className="w-full sm:grid grid-cols-12 gap-2 px-5 py-3.5 hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors text-left group items-center"
                                         >
-                                            <span className="col-span-2 text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 truncate block">
+                                            <span className="col-span-2 text-[11px] font-mono font-bold text-[#4A6CF7] dark:text-[#818CF8] truncate block">
                                                 {p.project_no || p.name}
                                             </span>
-                                            <span className="col-span-3 text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate block">
+                                            <span className="col-span-3 text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate block">
                                                 {p.project_title}
                                             </span>
-                                            <span className="col-span-2 text-xs text-zinc-500 truncate block">
+                                            <span className="col-span-2 text-[11px] text-[#71717A] dark:text-[#A1A1AA] truncate block">
                                                 {p.pi_webmail || "—"}
                                             </span>
-                                            <span className="col-span-1 text-xs text-zinc-500 truncate block">
+                                            <span className="col-span-1 text-[11px] text-[#71717A] dark:text-[#A1A1AA] truncate block">
                                                 {p.funding_agen || "—"}
                                             </span>
                                             <span className="col-span-2">
-                                                <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border inline-block", getStatusStyle(p.workflow_state))}>
+                                                <span className={cn("px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide inline-block", getStatusStyle(p.workflow_state))}>
                                                     {p.workflow_state}
                                                 </span>
                                             </span>
-                                            <span className="col-span-1 text-xs text-zinc-400 block">
+                                            <span className="col-span-1 text-[11px] text-zinc-400 block">
                                                 {p.creation ? format(new Date(p.creation), "dd MMM yy") : "—"}
                                             </span>
                                             <span className="col-span-1 flex justify-end">
-                                                <ChevronRight className="h-4 w-4 text-zinc-300 group-hover:text-[#D97757] transition-colors" />
+                                                <ChevronRight className="h-3.5 w-3.5 text-zinc-300 group-hover:text-[#4A6CF7] transition-colors" />
                                             </span>
                                         </button>
                                     ))}
                                 </div>
                                 {/* Count */}
-                                <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-                                    <p className="text-xs text-zinc-500">
+                                <div className="px-5 py-3 border-t border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+                                    <p className="text-[11px] font-bold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">
                                         Showing {filteredProjects.length} of {stats.total} projects
                                     </p>
                                 </div>
