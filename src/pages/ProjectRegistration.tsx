@@ -716,6 +716,8 @@ const MemoizedBudgetTable = memo(
         onDeleteYear,
         getYearTotal,
         totalBudgetAmount,
+        allowYearActions = true,
+        readOnly = false,
     }: any) => (
         <div className="space-y-4">
             <div className="overflow-x-auto border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl shadow-sm">
@@ -730,7 +732,7 @@ const MemoizedBudgetTable = memo(
                                     key={index}
                                     className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest border-r border-[#C7D2FE]/60 dark:border-[#4A6CF7]/20 last:border-r-0"
                                 >
-                                    Year {year} (₹)
+                                    {allowYearActions ? `Year ${year} (₹)` : "Budget (₹)"}
                                 </th>
                             ))}
                             <th className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest border-r border-[#C7D2FE]/60 dark:border-[#4A6CF7]/20">
@@ -757,6 +759,7 @@ const MemoizedBudgetTable = memo(
                                         <select
                                             className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
                                             value={row.head || ""}
+                                            disabled={readOnly}
                                             onChange={(e) =>
                                                 onRowChange(
                                                     rowIndex,
@@ -800,13 +803,17 @@ const MemoizedBudgetTable = memo(
                                                     title="Enter a positive budget amount"
                                                     className={`${inputClasses} !h-8 text-xs !border-zinc-200 focus:!border-primary`}
                                                     value={String((row.years || [])[yearIndex] ?? "")}
+                                                    readOnly={readOnly}
+                                                    disabled={readOnly}
                                                     onChange={(e) => {
+                                                        if (readOnly) return;
                                                         const v = e.target.value;
                                                         if (v === "" || /^\d*\.?\d*$/.test(v)) {
                                                             onRowChange(rowIndex, "years", v, yearIndex);
                                                         }
                                                     }}
                                                     onBlur={(e) => {
+                                                        if (readOnly) return;
                                                         const v = e.target.value;
                                                         if (v !== "") onRowChange(rowIndex, "years", parseFloat(v) || 0, yearIndex);
                                                     }}
@@ -822,6 +829,7 @@ const MemoizedBudgetTable = memo(
                                             variant="danger"
                                             type="button"
                                             className="w-full py-1.5 h-8"
+                                            disabled={readOnly}
                                             onClick={() =>
                                                 onDeleteRow(
                                                     "proposed_budget_breakup",
@@ -859,29 +867,33 @@ const MemoizedBudgetTable = memo(
                 <div className="p-3 bg-zinc-50/50 dark:bg-zinc-800/50 border-t border-zinc-100 dark:border-zinc-800 flex justify-between">
                     <FrappeButton
                         variant="secondary"
-                        onClick={() =>
+                        disabled={readOnly}
+                        onClick={() => {
+                            if (readOnly) return;
                             onAddRow("proposed_budget_breakup", {
                                 head: "",
                                 years: new Array(budgetYears.length).fill(0),
                             })
-                        }
+                        }}
                         className="border-dashed"
                     >
                         + Add Row
                     </FrappeButton>
-                    <div className="flex gap-2">
-                        {budgetYears.length > 1 && (
-                            <FrappeButton
-                                variant="danger"
-                                onClick={onDeleteYear}
-                            >
-                                Remove Year
+                    {allowYearActions && (
+                        <div className="flex gap-2">
+                            {budgetYears.length > 1 && (
+                                <FrappeButton
+                                    variant="danger"
+                                    onClick={onDeleteYear}
+                                >
+                                    Remove Year
+                                </FrappeButton>
+                            )}
+                            <FrappeButton variant="secondary" onClick={onAddYear}>
+                                + Add Year
                             </FrappeButton>
-                        )}
-                        <FrappeButton variant="secondary" onClick={onAddYear}>
-                            + Add Year
-                        </FrappeButton>
-                    </div>
+                        </div>
+                    )}
                 </div>
             </div>
             <div className="mt-6 flex justify-end">
@@ -949,6 +961,8 @@ const ProjectRegistration: React.FC = () => {
         return params.get("isApprovedEndorsement") === "true";
     }, [location.search]);
     const [budgetYears, setBudgetYears] = useState([1]);
+    const isConsultancyProject =
+        formData.project_type?.toLowerCase() === "consultancy";
     const [showEndorsementModal, setShowEndorsementModal] = useState(false);
     const endorsementCertRef = React.useRef<HTMLDivElement>(null);
     const [showSubmitInsteadModal, setShowSubmitInsteadModal] = useState(false);
@@ -1385,6 +1399,27 @@ const ProjectRegistration: React.FC = () => {
         };
     }, []);
 
+    useEffect(() => {
+        if (!isConsultancyProject) return;
+        if (budgetYears.length !== 1) {
+            setBudgetYears([1]);
+        }
+        setFormData((prev) => {
+            const rows = prev.proposed_budget_breakup || [];
+            if (!rows.some((row: any) => (row.years || []).length !== 1)) {
+                return prev;
+            }
+            const nextData = {
+                ...prev,
+                proposed_budget_breakup: rows.map((row: any) => ({
+                    ...row,
+                    years: [Number((row.years || [])[0] || 0)],
+                })),
+            };
+            return { ...nextData, ...calculateParentTotals(nextData) };
+        });
+    }, [isConsultancyProject, budgetYears.length, calculateParentTotals]);
+
     const calculateEndDate = useCallback((currentData: FormData) => {
         const startDate = currentData.prj_start_date;
         const durationMonths =
@@ -1653,7 +1688,7 @@ const ProjectRegistration: React.FC = () => {
                 updatedData = { ...updatedData, ...consultancyUpdates };
 
                 // Auto-fill proposed budget rows from calculated consultancy amounts
-                const budgetRows = buildConsultancyBudgetRows(updatedData, budgetYears.length);
+                const budgetRows = buildConsultancyBudgetRows(updatedData, 1);
                 if (budgetRows) {
                     updatedData = { ...updatedData, proposed_budget_breakup: budgetRows };
                     const totals = calculateParentTotals(updatedData);
@@ -1683,9 +1718,18 @@ const ProjectRegistration: React.FC = () => {
                 } else if (
                     updatedData.project_type === "Consultancy"
                 ) {
-                    const m = parseInt(updatedData.project_duration_months) || 0;
-                    const d = parseInt(updatedData.project_duration_days) || 0;
-                    controlYearFieldsVisibility(Math.ceil((m * 30 + d) / 30));
+                    controlYearFieldsVisibility(1);
+                    setBudgetYears([1]);
+                    updatedData.proposed_budget_breakup = (
+                        updatedData.proposed_budget_breakup || []
+                    ).map((row: any) => ({
+                        ...row,
+                        years: [Number((row.years || [])[0] || 0)],
+                    }));
+                    updatedData = {
+                        ...updatedData,
+                        ...calculateParentTotals(updatedData),
+                    };
                 } else if (
                     updatedData.project_type === "Testing" &&
                     updatedData.project_duration_days
@@ -1931,6 +1975,10 @@ const ProjectRegistration: React.FC = () => {
         [addTableRow, budgetYears],
     );
     const addBudgetYear = useCallback(() => {
+        if (isConsultancyProject) {
+            setBudgetYears([1]);
+            return;
+        }
         if (budgetYears.length < 5) {
             setBudgetYears((prev) => [...prev, prev.length + 1]);
             setFormData((prev) => ({
@@ -1942,7 +1990,7 @@ const ProjectRegistration: React.FC = () => {
         } else {
             alert("Maximum of 5 years allowed.");
         }
-    }, [budgetYears]);
+    }, [budgetYears, isConsultancyProject]);
     const deleteLastBudgetYear = useCallback(() => {
         if (budgetYears.length > 1) {
             setBudgetYears((prev) => prev.slice(0, -1));
@@ -2663,7 +2711,21 @@ const ProjectRegistration: React.FC = () => {
             if (pType === "Research") {
                 durationMonthsToParse =
                     parseInt(existingDoc.project_duration_months) || 0;
-            } else if (pType === "Consultancy" || pType === "Testing") {
+            } else if (pType === "Consultancy") {
+                durationMonthsToParse = 1;
+                if (mappedDoc.proposed_budget_breakup?.length > 0) {
+                    mappedDoc.proposed_budget_breakup =
+                        mappedDoc.proposed_budget_breakup.map((row: any) => ({
+                            ...row,
+                            years: [Number((row.years || [])[0] || 0)],
+                        }));
+                    setFormData((prev) => ({
+                        ...prev,
+                        ...mappedDoc,
+                        ...calculateParentTotals(mappedDoc),
+                    }));
+                }
+            } else if (pType === "Testing") {
                 const days = parseInt(existingDoc.project_duration_days) || 0;
                 durationMonthsToParse = Math.ceil(days / 30);
             }
@@ -3193,8 +3255,8 @@ Until then, the project is not yet eligible for submission.`);
                                                             {formData.consultancy_category?.startsWith(
                                                                 "Category D",
                                                             ) && (
-                                                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl bg-[#FAFAF9] dark:bg-[#27272A]/60">
-                                                                        <div className="space-y-4">
+                                                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl bg-[#FAFAF9] dark:bg-[#27272A]/60 min-w-0 overflow-hidden">
+                                                                        <div className="space-y-4 min-w-0">
                                                                             <h4 className="text-[12px] font-extrabold uppercase tracking-[0.07em] text-[#1E3A8A] dark:text-[#93C5FD]">
                                                                                 Category D Details
                                                                             </h4>
@@ -3229,7 +3291,7 @@ Until then, the project is not yet eligible for submission.`);
                                                                             {renderField("cat_d_gst_amt")}
                                                                             {renderField("cat_d_grand_total_calc")}
                                                                         </div>
-                                                                        <div className="space-y-4">
+                                                                        <div className="space-y-4 min-w-0 overflow-hidden">
                                                                             <h4 className="text-[12px] font-extrabold uppercase tracking-[0.07em] text-[#1E3A8A] dark:text-[#93C5FD]">
                                                                                 Calculation Breakdown
                                                                             </h4>
@@ -3249,60 +3311,65 @@ Until then, the project is not yet eligible for submission.`);
                                                                                 const gstAmt = Math.max(0, Math.round(gt - projectCostExclGst));
 
                                                                                 return (
-                                                                                    <div className="overflow-hidden shadow ring-1 ring-zinc-200 dark:ring-zinc-700 sm:rounded-lg">
-                                                                                        <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700 text-sm">
-                                                                                            <thead className="bg-zinc-100 dark:bg-zinc-800">
+                                                                                    <div className="w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                                                        <table className="w-full table-fixed divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] text-sm">
+                                                                                            <colgroup>
+                                                                                                <col className="w-[31%]" />
+                                                                                                <col className="w-[46%]" />
+                                                                                                <col className="w-[23%]" />
+                                                                                            </colgroup>
+                                                                                            <thead className="bg-[#EEF2FF] dark:bg-blue-950/20">
                                                                                                 <tr>
-                                                                                                    <th scope="col" className="px-3 py-2 text-left font-semibold text-zinc-900 dark:text-zinc-100">Step</th>
-                                                                                                    <th scope="col" className="px-3 py-2 text-left font-semibold text-zinc-900 dark:text-zinc-100">Formula</th>
-                                                                                                    <th scope="col" className="px-3 py-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">Result</th>
+                                                                                                    <th scope="col" className="px-2 py-2 text-left text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200 border-r border-[#C7D2FE] dark:border-blue-900/40 last:border-r-0">Step</th>
+                                                                                                    <th scope="col" className="px-2 py-2 text-left text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200 border-r border-[#C7D2FE] dark:border-blue-900/40 last:border-r-0">Formula</th>
+                                                                                                    <th scope="col" className="px-2 py-2 text-right text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">Result</th>
                                                                                                 </tr>
                                                                                             </thead>
-                                                                                            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700 bg-white dark:bg-zinc-900">
+                                                                                            <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
                                                                                                 <tr>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Project Cost Excl GST</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({gt.toLocaleString('en-IN', { maximumFractionDigits: 2 })} / (1 + {gstRate}/100))</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{projectCostExclGst.toLocaleString('en-IN')} ✓</td>
+                                                                                                    <td className="px-2 py-2 align-top break-words text-[12px] font-bold text-zinc-900 dark:text-zinc-100">Project Cost Excl GST</td>
+                                                                                                    <td className="px-2 py-2 align-top break-all text-[11px] text-zinc-500 dark:text-zinc-400">round({gt.toLocaleString('en-IN', { maximumFractionDigits: 2 })} / (1 + {gstRate}/100))</td>
+                                                                                                    <td className="px-2 py-2 align-top text-right break-all text-zinc-900 dark:text-zinc-100 [overflow-wrap:anywhere]">{projectCostExclGst.toLocaleString('en-IN')} ✓</td>
                                                                                                 </tr>
                                                                                                 <tr>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Operational Expense</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({projectCostExclGst.toLocaleString('en-IN')} - {cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })})</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{oe.toLocaleString('en-IN')} ✓</td>
+                                                                                                    <td className="px-2 py-2 align-top break-words text-[12px] font-bold text-zinc-900 dark:text-zinc-100">Operational Expense</td>
+                                                                                                    <td className="px-2 py-2 align-top break-all text-[11px] text-zinc-500 dark:text-zinc-400">round({projectCostExclGst.toLocaleString('en-IN')} - {cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })})</td>
+                                                                                                    <td className="px-2 py-2 align-top text-right break-all text-zinc-900 dark:text-zinc-100 [overflow-wrap:anywhere]">{oe.toLocaleString('en-IN')} ✓</td>
                                                                                                 </tr>
                                                                                                 <tr>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Institute Share</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })} × 0.20)</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{instShare.toLocaleString('en-IN')} ✓</td>
+                                                                                                    <td className="px-2 py-2 align-top break-words text-[12px] font-bold text-zinc-900 dark:text-zinc-100">Institute Share</td>
+                                                                                                    <td className="px-2 py-2 align-top break-all text-[11px] text-zinc-500 dark:text-zinc-400">round({cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })} × 0.20)</td>
+                                                                                                    <td className="px-2 py-2 align-top text-right break-all text-zinc-900 dark:text-zinc-100 [overflow-wrap:anywhere]">{instShare.toLocaleString('en-IN')} ✓</td>
                                                                                                 </tr>
                                                                                                 <tr>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Overhead on Consultancy Fee</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })} × 0.10)</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{ohCf.toLocaleString('en-IN')} ✓</td>
+                                                                                                    <td className="px-2 py-2 align-top break-words text-[12px] font-bold text-zinc-900 dark:text-zinc-100">Overhead on Consultancy Fee</td>
+                                                                                                    <td className="px-2 py-2 align-top break-all text-[11px] text-zinc-500 dark:text-zinc-400">round({cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })} × 0.10)</td>
+                                                                                                    <td className="px-2 py-2 align-top text-right break-all text-zinc-900 dark:text-zinc-100 [overflow-wrap:anywhere]">{ohCf.toLocaleString('en-IN')} ✓</td>
                                                                                                 </tr>
                                                                                                 <tr>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Overhead on Operational Expense</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({oe.toLocaleString('en-IN')} × 0.10)</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{ohOe.toLocaleString('en-IN')} ✓</td>
+                                                                                                    <td className="px-2 py-2 align-top break-words text-[12px] font-bold text-zinc-900 dark:text-zinc-100">Overhead on Operational Expense</td>
+                                                                                                    <td className="px-2 py-2 align-top break-all text-[11px] text-zinc-500 dark:text-zinc-400">round({oe.toLocaleString('en-IN')} × 0.10)</td>
+                                                                                                    <td className="px-2 py-2 align-top text-right break-all text-zinc-900 dark:text-zinc-100 [overflow-wrap:anywhere]">{ohOe.toLocaleString('en-IN')} ✓</td>
                                                                                                 </tr>
                                                                                                 <tr className="bg-zinc-50/50 dark:bg-zinc-800/50">
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-semibold text-zinc-900 dark:text-zinc-100">Total Overhead</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">{ohCf.toLocaleString('en-IN')} + {ohOe.toLocaleString('en-IN')}</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">{totalOh.toLocaleString('en-IN')} ✓</td>
+                                                                                                    <td className="px-2 py-2 align-top break-words text-[12px] font-extrabold text-zinc-900 dark:text-zinc-100">Total Overhead</td>
+                                                                                                    <td className="px-2 py-2 align-top break-all text-[11px] text-zinc-500 dark:text-zinc-400">{ohCf.toLocaleString('en-IN')} + {ohOe.toLocaleString('en-IN')}</td>
+                                                                                                    <td className="px-2 py-2 align-top text-right break-all font-semibold text-zinc-900 dark:text-zinc-100 [overflow-wrap:anywhere]">{totalOh.toLocaleString('en-IN')} ✓</td>
                                                                                                 </tr>
                                                                                                 <tr>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Net Consultancy Fee</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">r2({cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })} - {instShare.toLocaleString('en-IN')} - {ohCf.toLocaleString('en-IN')})</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{netCf.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ✓</td>
+                                                                                                    <td className="px-2 py-2 align-top break-words text-[12px] font-bold text-zinc-900 dark:text-zinc-100">Net Consultancy Fee</td>
+                                                                                                    <td className="px-2 py-2 align-top break-all text-[11px] text-zinc-500 dark:text-zinc-400">r2({cf.toLocaleString('en-IN', { maximumFractionDigits: 2 })} - {instShare.toLocaleString('en-IN')} - {ohCf.toLocaleString('en-IN')})</td>
+                                                                                                    <td className="px-2 py-2 align-top text-right break-all text-zinc-900 dark:text-zinc-100 [overflow-wrap:anywhere]">{netCf.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ✓</td>
                                                                                                 </tr>
                                                                                                 <tr>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">Net Operational Expense</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">{oe.toLocaleString('en-IN')} - {ohOe.toLocaleString('en-IN')}</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">{netOe.toLocaleString('en-IN')} ✓</td>
+                                                                                                    <td className="px-2 py-2 align-top break-words text-[12px] font-bold text-zinc-900 dark:text-zinc-100">Net Operational Expense</td>
+                                                                                                    <td className="px-2 py-2 align-top break-all text-[11px] text-zinc-500 dark:text-zinc-400">{oe.toLocaleString('en-IN')} - {ohOe.toLocaleString('en-IN')}</td>
+                                                                                                    <td className="px-2 py-2 align-top text-right break-all text-zinc-900 dark:text-zinc-100 [overflow-wrap:anywhere]">{netOe.toLocaleString('en-IN')} ✓</td>
                                                                                                 </tr>
                                                                                                 <tr className="bg-zinc-50/50 dark:bg-zinc-800/50">
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 font-semibold text-zinc-900 dark:text-zinc-100">GST Amount</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400">round({gt.toLocaleString('en-IN', { maximumFractionDigits: 2 })} - {projectCostExclGst.toLocaleString('en-IN')}) (@ {gstRate}%)</td>
-                                                                                                    <td className="whitespace-nowrap px-3 py-2 text-right font-semibold text-zinc-900 dark:text-zinc-100">{gstAmt.toLocaleString('en-IN')} ✓</td>
+                                                                                                    <td className="px-2 py-2 align-top break-words text-[12px] font-extrabold text-zinc-900 dark:text-zinc-100">GST Amount</td>
+                                                                                                    <td className="px-2 py-2 align-top break-all text-[11px] text-zinc-500 dark:text-zinc-400">round({gt.toLocaleString('en-IN', { maximumFractionDigits: 2 })} - {projectCostExclGst.toLocaleString('en-IN')}) (@ {gstRate}%)</td>
+                                                                                                    <td className="px-2 py-2 align-top text-right break-all font-semibold text-zinc-900 dark:text-zinc-100 [overflow-wrap:anywhere]">{gstAmt.toLocaleString('en-IN')} ✓</td>
                                                                                                 </tr>
                                                                                             </tbody>
                                                                                         </table>
@@ -3729,14 +3796,15 @@ Until then, the project is not yet eligible for submission.`);
                                                 3. Proposed Budget
                                             </h2>
                                             {formData.project_type?.toLowerCase() === "consultancy" && (
-                                                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-xs font-medium">
-                                                    <span>⚠️</span>
-                                                    <span>Ignore if this is a consultancy project</span>
-                                                </div>
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-xs font-medium">
+                            <span>⚠️</span>
+                            <span>Consultancy projects use a single read-only budget column calculated from consultancy inputs. Duration months/days do not split this budget into years.</span>
+                        </div>
                                             )}
                                             <p className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">
-                                                Provide a detailed year-wise
-                                                breakup of the proposed budget.
+                                                {isConsultancyProject
+                                                    ? "Provide the single proposed budget breakup for this consultancy project."
+                                                    : "Provide a detailed year-wise breakup of the proposed budget."}
                                             </p>
                                             <MemoizedBudgetTable
                                                 tableData={budgetTableData}
@@ -3773,6 +3841,8 @@ Until then, the project is not yet eligible for submission.`);
                                                 totalBudgetAmount={
                                                     totalBudgetAmount
                                                 }
+                                                allowYearActions={!isConsultancyProject}
+                                                readOnly={isConsultancyProject}
                                             />
                                             <div className="space-y-6 border-t border-zinc-300 dark:border-zinc-700 pt-8">
                                                 <p className="font-semibold text-sm text-zinc-700 dark:text-zinc-300">
