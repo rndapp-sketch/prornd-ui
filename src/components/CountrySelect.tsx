@@ -117,7 +117,7 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
     };
 
     return (
-        <div ref={containerRef} className="relative">
+        <div ref={containerRef} className="relative z-30">
             {/* Display / Trigger */}
             <div
                 onClick={handleInputClick}
@@ -178,7 +178,7 @@ export const CountrySelect: React.FC<CountrySelectProps> = ({
 
             {/* Dropdown */}
             {isOpen && !disabled && (
-                <div className="absolute z-50 mt-1 w-full bg-white dark:bg-[#27272A] border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="absolute z-[9999] mt-1 w-full bg-white dark:bg-[#27272A] border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
                     {/* Search Input */}
                     <div className="p-2 border-b border-zinc-100 dark:border-zinc-700">
                         <div className="relative">

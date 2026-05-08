@@ -5,14 +5,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, Loader2, FileText } from "lucide-react";
 // import { ArrowLeft, Save, Loader2, FileText, CheckCircle2 } from "lucide-react";
 import DynamicFormRenderer from "@/components/forms/DynamicFormRenderer";
@@ -1178,31 +1170,30 @@ export default function UniversalRegistrationForm({
     if (isLoadingFields) {
         return (
             <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-                <div className="max-w-[1240px] px-8 py-10 mx-auto">
+                <div className="max-w-[1240px] px-6 md:px-8 py-8 md:py-10 mx-auto">
                     <div className="flex items-center gap-4 mb-8">
-                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <Skeleton className="h-9 w-9 rounded-lg" />
                         <div className="space-y-2">
-                            <Skeleton className="h-8 w-[250px]" />
-                            <Skeleton className="h-4 w-[200px]" />
+                            <Skeleton className="h-7 w-[250px] rounded-xl" />
+                            <Skeleton className="h-3.5 w-[200px] rounded-lg" />
                         </div>
                     </div>
-                    <Card className="border-zinc-200 dark:border-zinc-800 shadow-sm">
-                        <CardHeader className="border-b border-zinc-100 dark:border-zinc-800 bg-[#FDFDFD] dark:bg-[#27272A]">
-                            <Skeleton className="h-6 w-[200px] mb-2" />
-                            <Skeleton className="h-4 w-[350px]" />
-                        </CardHeader>
-                        <CardContent className="p-8 space-y-8 bg-white dark:bg-zinc-900">
+                    <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-sm overflow-hidden">
+                        <div className="section-header-lg">
+                            <Skeleton className="h-5 w-[200px]" />
+                        </div>
+                        <div className="p-8 space-y-8">
                             {Array.from({ length: 3 }).map((_, i) => (
                                 <div key={i} className="space-y-4">
-                                    <Skeleton className="h-5 w-[150px]" />
+                                    <Skeleton className="h-4 w-[150px] rounded-lg" />
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        <Skeleton className="h-10 w-full rounded-lg" />
-                                        <Skeleton className="h-10 w-full rounded-lg" />
+                                        <Skeleton className="h-10 w-full rounded-[0.4375rem]" />
+                                        <Skeleton className="h-10 w-full rounded-[0.4375rem]" />
                                     </div>
                                 </div>
                             ))}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -1211,74 +1202,76 @@ export default function UniversalRegistrationForm({
     // ── Step 1: Instructions screen ─────────────────────────────────────────
     if (step === 'instructions') {
         return (
-            <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen text-zinc-900 dark:text-zinc-100">
-                <div className="max-w-[1240px] px-8 py-10 mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+            <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen text-[#3F3F46] dark:text-[#E4E4E7]">
+                <div className="max-w-[1240px] px-6 md:px-8 py-8 md:py-10 mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
                     {/* Back + Title */}
                     <div className="flex items-start gap-4 mb-8 mt-4">
-                        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}
-                            className="text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 mt-1 transition-colors">
-                            <ArrowLeft className="h-5 w-5" />
-                        </Button>
+                        <button onClick={() => navigate(-1)}
+                            className="mt-0.5 p-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 transition-all flex-shrink-0">
+                            <ArrowLeft className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
+                        </button>
                         <div>
-                            <h1 className="text-3xl font-serif font-medium text-zinc-900 dark:text-zinc-100 tracking-tight leading-none mb-2">
+                            <h1 className="text-[22px] font-extrabold tracking-[-0.02em] text-[#3F3F46] dark:text-[#E4E4E7] leading-tight mb-1">
                                 Stakeholder Registration
                             </h1>
-                            <p className="text-sm font-sans text-zinc-500 dark:text-zinc-400">
+                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-medium">
                                 Register as a new stakeholder to participate in research projects.
                             </p>
                         </div>
                     </div>
 
                     {/* Instructions Card */}
-                    <Card className="border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
-                        <CardHeader className="bg-[#FDFDFD] dark:bg-[#27272A] border-b border-zinc-100 dark:border-zinc-800 px-8 py-6">
-                            <div className="flex items-center gap-2 mb-1">
-                                <FileText className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                                <CardTitle className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-sans">
-                                    Registration Instructions
-                                </CardTitle>
+                    <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-sm overflow-hidden">
+                        {/* Card header accent */}
+                        <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-transparent" />
+                        {/* Section header */}
+                        <div className="section-header-lg">
+                            <div className="section-header-lg-accent" />
+                            <div className="section-header-lg-icon">
+                                <FileText className="h-4 w-4" />
                             </div>
-                            <p className="text-base font-semibold text-zinc-800 dark:text-zinc-200 font-serif mt-1">
-                                How to Register — Please follow the steps below:
-                            </p>
-                        </CardHeader>
+                            <div>
+                                <div className="section-header-lg-title">Registration Instructions</div>
+                                <div className="section-header-lg-subtitle">How to Register — Please follow the steps below</div>
+                            </div>
+                        </div>
 
-                        <CardContent className="px-8 py-7">
-                            <ol className="space-y-5">
+                        <div className="px-8 py-7">
+                            <ol className="space-y-6">
                                 {/* Step 1 */}
                                 <li className="flex gap-4">
-                                    <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#D97757]/10 text-[#D97757] font-bold text-sm mt-0.5">1</span>
-                                    <div className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                                        <strong className="text-zinc-800 dark:text-zinc-200 block mb-1">Select your Profile Type</strong>
+                                    <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/20 text-[#4A6CF7] dark:text-[#818CF8] font-extrabold text-[12px] mt-0.5 border border-[#C7D2FE] dark:border-[#4A6CF7]/30">1</span>
+                                    <div className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                                        <strong className="text-[#27272A] dark:text-[#E4E4E7] block mb-1 font-bold">Select your Profile Type</strong>
                                         Choose the category that best describes you:
-                                        <ul className="mt-3 ml-1 space-y-4">
+                                        <ul className="mt-3 ml-1 space-y-3">
                                             {/* Individual */}
-                                            <li className="rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 p-4">
-                                                <div className="flex gap-2 mb-1">
-                                                    <span className="text-[#D97757] font-bold mt-0.5">•</span>
-                                                    <strong className="text-zinc-800 dark:text-zinc-200">Individual (For Honorarium)</strong>
+                                            <li className="rounded-xl border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]/60 p-4">
+                                                <div className="flex gap-2 mb-1.5">
+                                                    <span className="text-[#4A6CF7] font-extrabold mt-0.5">•</span>
+                                                    <strong className="text-[#27272A] dark:text-[#E4E4E7] text-[13px]">Individual (For Honorarium)</strong>
                                                 </div>
-                                                <p className="ml-4 text-zinc-600 dark:text-zinc-400 mb-2">For individuals who are invited to participate in academic or research activities and will receive honorarium payments.</p>
-                                                <ul className="ml-4 space-y-1 text-zinc-500 dark:text-zinc-400">
-                                                    <li className="flex gap-1.5"><span className="text-zinc-400">–</span> Guest lecturers, keynote speakers, workshop facilitators</li>
-                                                    <li className="flex gap-1.5"><span className="text-zinc-400">–</span> External subject-matter experts, consultants, or reviewers</li>
-                                                    <li className="flex gap-1.5"><span className="text-zinc-400">–</span> Jury members, evaluators, or examiners</li>
-                                                    <li className="flex gap-1.5"><span className="text-zinc-400">–</span> <span><strong>Required documents:</strong> Aadhaar Card + PAN Card (Indian nationals) or valid government-issued ID (foreign nationals), bank account details for payment.</span></li>
+                                                <p className="ml-4 text-[#71717A] dark:text-[#A1A1AA] mb-2 text-[12px]">For individuals invited to participate in academic or research activities who will receive honorarium payments.</p>
+                                                <ul className="ml-4 space-y-1 text-[#71717A] dark:text-[#A1A1AA] text-[12px]">
+                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> Guest lecturers, keynote speakers, workshop facilitators</li>
+                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> External subject-matter experts, consultants, or reviewers</li>
+                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> Jury members, evaluators, or examiners</li>
+                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> <span><strong className="text-[#52525B] dark:text-[#D4D4D8]">Required documents:</strong> Aadhaar Card + PAN Card (Indian nationals) or valid government-issued ID (foreign nationals), bank account details for payment.</span></li>
                                                 </ul>
                                             </li>
 
                                             {/* PI / Co-PI External */}
-                                            <li className="rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 p-4">
-                                                <div className="flex gap-2 mb-1">
-                                                    <span className="text-[#D97757] font-bold mt-0.5">•</span>
-                                                    <strong className="text-zinc-800 dark:text-zinc-200">PI / Co-PI (External only)</strong>
+                                            <li className="rounded-xl border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]/60 p-4">
+                                                <div className="flex gap-2 mb-1.5">
+                                                    <span className="text-[#4A6CF7] font-extrabold mt-0.5">•</span>
+                                                    <strong className="text-[#27272A] dark:text-[#E4E4E7] text-[13px]">PI / Co-PI (External only)</strong>
                                                 </div>
-                                                <p className="ml-4 text-zinc-600 dark:text-zinc-400 mb-2">For Principal Investigators or Co-Principal Investigators who are employed at another institute/university and are collaborating on a research project registered at this institution.</p>
-                                                <ul className="ml-4 space-y-1 text-zinc-500 dark:text-zinc-400">
-                                                    <li className="flex gap-1.5"><span className="text-zinc-400">–</span> Faculty members or researchers from other universities/institutes</li>
-                                                    <li className="flex gap-1.5"><span className="text-zinc-400">–</span> Scientists from government labs or research organisations (e.g., CSIR, DRDO, ISRO)</li>
-                                                    <li className="flex gap-1.5"><span className="text-zinc-400">–</span> International collaborators holding a PI/Co-PI role on a funded project</li>
-                                                    <li className="flex gap-1.5"><span className="text-zinc-400">–</span> <span><strong>Required documents:</strong> Aadhaar Card + PAN Card (Indian nationals) or valid government-issued ID (foreign nationals), institutional affiliation details, bank account details.</span></li>
+                                                <p className="ml-4 text-[#71717A] dark:text-[#A1A1AA] mb-2 text-[12px]">For Principal Investigators or Co-Principal Investigators employed at another institute/university collaborating on a research project registered at this institution.</p>
+                                                <ul className="ml-4 space-y-1 text-[#71717A] dark:text-[#A1A1AA] text-[12px]">
+                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> Faculty members or researchers from other universities/institutes</li>
+                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> Scientists from government labs or research organisations (e.g., CSIR, DRDO, ISRO)</li>
+                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> International collaborators holding a PI/Co-PI role on a funded project</li>
+                                                    <li className="flex gap-1.5"><span className="text-[#A1A1AA]">–</span> <span><strong className="text-[#52525B] dark:text-[#D4D4D8]">Required documents:</strong> Aadhaar Card + PAN Card (Indian nationals) or valid government-issued ID (foreign nationals), institutional affiliation details, bank account details.</span></li>
                                                 </ul>
                                             </li>
                                         </ul>
@@ -1287,54 +1280,54 @@ export default function UniversalRegistrationForm({
 
                                 {/* Step 2 */}
                                 <li className="flex gap-4">
-                                    <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#D97757]/10 text-[#D97757] font-bold text-sm mt-0.5">2</span>
-                                    <div className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                                        <strong className="text-zinc-800 dark:text-zinc-200 block mb-1">Fill in the required details</strong>
+                                    <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/20 text-[#4A6CF7] dark:text-[#818CF8] font-extrabold text-[12px] mt-0.5 border border-[#C7D2FE] dark:border-[#4A6CF7]/30">2</span>
+                                    <div className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                                        <strong className="text-[#27272A] dark:text-[#E4E4E7] block mb-1 font-bold">Fill in the required details</strong>
                                         Complete all fields marked with a red asterisk <span className="text-red-500 font-bold">*</span>. These are mandatory for successful registration.
                                     </div>
                                 </li>
 
                                 {/* Step 3 */}
                                 <li className="flex gap-4">
-                                    <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#D97757]/10 text-[#D97757] font-bold text-sm mt-0.5">3</span>
-                                    <div className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                                        <strong className="text-zinc-800 dark:text-zinc-200 block mb-1">Upload supporting documents</strong>
+                                    <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/20 text-[#4A6CF7] dark:text-[#818CF8] font-extrabold text-[12px] mt-0.5 border border-[#C7D2FE] dark:border-[#4A6CF7]/30">3</span>
+                                    <div className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                                        <strong className="text-[#27272A] dark:text-[#E4E4E7] block mb-1 font-bold">Upload supporting documents</strong>
                                         Attach required identification documents — Aadhaar &amp; PAN for Indian nationals, or a valid government-issued ID for foreign nationals.
                                     </div>
                                 </li>
 
                                 {/* Step 4 */}
                                 <li className="flex gap-4">
-                                    <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#D97757]/10 text-[#D97757] font-bold text-sm mt-0.5">4</span>
-                                    <div className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                                        <strong className="text-zinc-800 dark:text-zinc-200 block mb-1">Submit your registration</strong>
-                                        Once all details are filled, click the <strong className="text-[#D97757]">Save &amp; Submit</strong> button at the bottom of the form to complete your registration.
+                                    <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/20 text-[#4A6CF7] dark:text-[#818CF8] font-extrabold text-[12px] mt-0.5 border border-[#C7D2FE] dark:border-[#4A6CF7]/30">4</span>
+                                    <div className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                                        <strong className="text-[#27272A] dark:text-[#E4E4E7] block mb-1 font-bold">Submit your registration</strong>
+                                        Once all details are filled, click the <strong className="text-[#4A6CF7]">Save &amp; Submit</strong> button at the bottom of the form to complete your registration.
                                     </div>
                                 </li>
                             </ol>
 
                             {/* CTA */}
-                            <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
-                                <Button
+                            <div className="mt-8 pt-6 border-t border-[#E4E4E7] dark:border-[#3F3F46] flex justify-end">
+                                <button
                                     onClick={() => setStep('form')}
                                     disabled={isLoadingFields}
-                                    className="bg-[#D97757] text-white hover:bg-[#C2654A] font-medium shadow-sm transition-all px-6"
+                                    className="btn-primary-accent disabled:opacity-50"
                                 >
                                     {isLoadingFields ? (
                                         <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                             Loading Form...
                                         </>
                                     ) : (
                                         <>
                                             Next: Start Registration
-                                            <ArrowLeft className="ml-2 h-4 w-4 rotate-180" />
+                                            <ArrowLeft className="h-3.5 w-3.5 rotate-180" />
                                         </>
                                     )}
-                                </Button>
+                                </button>
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -1342,29 +1335,27 @@ export default function UniversalRegistrationForm({
 
     // ── Step 2: The Registration Form ────────────────────────────────────────
     return (
-        <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen text-zinc-900 dark:text-zinc-100">
-            <div className="max-w-[1240px] px-8 py-10 mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+        <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen text-[#3F3F46] dark:text-[#E4E4E7]">
+            <div className="max-w-[1240px] px-6 md:px-8 py-8 md:py-10 mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
                 {/* --- Header Section --- */}
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8 mt-4">
                     <div className="flex items-start gap-4">
-                        <Button
-                            variant="ghost"
-                            size="icon"
+                        <button
                             onClick={() => setStep('instructions')}
-                            className="text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200/50 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 mt-1 transition-colors"
+                            className="mt-0.5 p-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 transition-all flex-shrink-0"
                         >
-                            <ArrowLeft className="h-5 w-5" />
-                        </Button>
+                            <ArrowLeft className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
+                        </button>
                         <div>
-                            <h1 className="text-3xl font-serif font-medium text-zinc-900 dark:text-zinc-100 tracking-tight leading-none mb-2 flex items-center gap-3">
+                            <h1 className="text-[22px] font-extrabold tracking-[-0.02em] text-[#3F3F46] dark:text-[#E4E4E7] leading-tight mb-1 flex items-center gap-3">
                                 Stakeholder Registration
                                 {formData.status_u_r && (
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-sans font-medium bg-zinc-100 text-zinc-600 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
+                                    <span className="status-progress text-[9px]">
                                         {formData.status_u_r}
                                     </span>
                                 )}
                             </h1>
-                            <p className="text-sm font-sans text-zinc-500 dark:text-zinc-400 max-w-2xl">
+                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-medium max-w-2xl">
                                 {savedDocName
                                     ? `Editing universal registration document ${savedDocName}`
                                     : "Select your profile type below, then fill in the required details."}
@@ -1374,20 +1365,24 @@ export default function UniversalRegistrationForm({
                 </div>
 
                 {/* --- Main Application Form Card --- */}
-                <Card className="border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
-                    <CardHeader className="bg-[#FDFDFD] dark:bg-[#27272A] border-b border-zinc-100 dark:border-zinc-800 px-8 py-5">
-                        <div className="flex items-center gap-2 mb-1">
-                            <FileText className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                            <CardTitle className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider font-sans">
-                                Registration Details
-                            </CardTitle>
+                <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-sm overflow-visible">
+                    {/* Card header accent */}
+                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-transparent" />
+                    {/* Section header */}
+                    <div className="section-header-lg">
+                        <div className="section-header-lg-accent" />
+                        <div className="section-header-lg-icon">
+                            <FileText className="h-4 w-4" />
                         </div>
-                        <CardDescription className="text-sm text-zinc-500 dark:text-zinc-400 font-sans mt-0.5">
-                            Fields marked with a red asterisk <span className="text-red-500 font-bold">*</span> are mandatory.
-                        </CardDescription>
-                    </CardHeader>
+                        <div>
+                            <div className="section-header-lg-title">Registration Details</div>
+                            <div className="section-header-lg-subtitle">
+                                Fields marked with a red asterisk <span className="text-red-500">*</span> are mandatory.
+                            </div>
+                        </div>
+                    </div>
 
-                    <CardContent className="p-0">
+                    <div className="p-0">
                         <div className="p-8">
                             <DynamicFormRenderer
                                 fields={filteredFields}
@@ -1422,41 +1417,40 @@ export default function UniversalRegistrationForm({
 
                         {/* Sticky Action Footer */}
                         {!isReadOnly && (
-                            <div className="sticky bottom-0 border-t border-zinc-200 dark:border-zinc-800 bg-[#FDFDFD]/95 dark:bg-zinc-900/95 backdrop-blur-md px-8 py-5 flex items-center justify-between z-10 transition-all shadow-[0_-4px_24px_-12px_rgba(0,0,0,0.1)]">
-                                <div className="space-x-3">
-                                    <Button
-                                        variant="outline"
+                            <div className="form-action-bar">
+                                <div className="flex items-center gap-3">
+                                    <button
                                         onClick={() => {
                                             const draftKey = savedDocName ? `universal_reg_draft_${savedDocName}` : 'universal_reg_draft_new';
                                             localStorage.removeItem(draftKey);
                                             navigate(-1);
                                         }}
-                                        className="bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-medium transition-colors dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                        className="btn-neutral"
                                     >
                                         Clear Draft
-                                    </Button>
-                                    <Button
-                                        onClick={handleSave}
-                                        disabled={isSaving}
-                                        className="bg-[#D97757] text-white hover:bg-[#C2654A] font-medium shadow-sm transition-all min-w-[120px]"
-                                    >
-                                        {isSaving ? (
-                                            <>
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                Processing...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Save className="mr-2 h-4 w-4" />
-                                                Save & Submit
-                                            </>
-                                        )}
-                                    </Button>
+                                    </button>
                                 </div>
+                                <button
+                                    onClick={handleSave}
+                                    disabled={isSaving}
+                                    className="btn-primary-accent disabled:opacity-50"
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            Processing...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Save className="h-3.5 w-3.5" />
+                                            Save & Submit
+                                        </>
+                                    )}
+                                </button>
                             </div>
                         )}
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             </div>
         </div>
     );

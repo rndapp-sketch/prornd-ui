@@ -236,7 +236,7 @@ import { FrappeProvider, useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/RndSidebar";
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
-import { MenuIcon, UserIcon, SearchIcon, MoonIcon, SunIcon, LogOutIcon, UserCircle } from "lucide-react";
+import { UserIcon, SearchIcon, MoonIcon, SunIcon, LogOutIcon, UserCircle } from "lucide-react";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { SWRConfig, useSWRConfig } from "swr";
 import { useRef, useEffect, useState } from "react";
@@ -247,8 +247,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -329,7 +327,7 @@ function AppContent() {
   const userImageUrl = actualUserData?.user_image || null;
 
   return (
-    <div className="App bg-[#FDFCF9] dark:bg-zinc-950 min-h-screen">
+    <div className="App bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
       <GlobalLoader isLoading={showGlobalLoader} />
 
       <SWRConfig
@@ -343,118 +341,151 @@ function AppContent() {
         {isPublicPage ? (
           <Outlet />
         ) : (
-          <SidebarProvider className="flex min-h-screen bg-[#FDFCF9] dark:bg-zinc-950">
+          <SidebarProvider className="flex min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
             {currentUser && <AppSidebar />}
 
-            <SidebarInset className="bg-[#FDFCF9] dark:bg-zinc-950 flex flex-col min-h-screen">
+            <SidebarInset className="bg-[#FAFAF9] dark:bg-[#18181B] flex flex-col min-h-screen">
 
-              {/* --- REDESIGNED NAVBAR --- */}
-              <header className="sticky top-0 z-40 w-full border-b border-zinc-200/60 bg-[#FDFCF9]/70 backdrop-blur-lg dark:bg-zinc-950/70 dark:border-zinc-800/60">
-                <div className="flex h-16 items-center justify-between px-6">
+              {/* ── Premium Enterprise Navbar ── */}
+              <header className="enterprise-navbar">
+                {/* 2px indigo accent line at very top */}
+                <div className="h-[2px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-transparent" />
 
-                  {/* Left Section: Navigation Toggle */}
-                  <div className="flex items-center gap-4 flex-1">
-                    <SidebarTrigger className="h-9 w-9 text-zinc-500 hover:text-[#D97757] hover:bg-[#D97757]/10 transition-all rounded-lg" />
-                    <div className="hidden md:block h-6 w-px bg-zinc-200 dark:bg-zinc-800" />
+                <div className="flex h-[3.25rem] items-center justify-between px-5">
+
+                  {/* Left: Sidebar toggle + divider */}
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <SidebarTrigger className="h-8 w-8 flex items-center justify-center text-[#71717A] hover:text-[#D97757] hover:bg-[#D97757]/10 dark:text-[#71717A] dark:hover:text-[#E88B6A] dark:hover:bg-[#D97757]/10 transition-all rounded-lg border border-transparent hover:border-[#D97757]/20" />
+                    <div className="hidden md:block h-5 w-px bg-[#E4E4E7] dark:bg-[#3F3F46]" />
+                    {/* Optional: App name chip on small screens */}
+                    <div className="flex md:hidden items-center gap-1.5">
+                      <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#D97757]">ProRnD</span>
+                      <span className="text-[10px] text-[#A1A1AA] font-medium">· IIT Guwahati</span>
+                    </div>
                   </div>
 
-                  {/* Center Section: Institutional Branding (Cleaned Hierarchy) */}
-                  <div className="hidden lg:flex flex-col items-center justify-center gap-0.5 px-4">
-                    <div className="flex items-center gap-4">
-                      <span className="assamese-text font-bold text-[11px] text-zinc-800 dark:text-zinc-200 uppercase tracking-tight">
+                  {/* Center: Institutional Branding */}
+                  <div className="hidden lg:flex flex-col items-center justify-center gap-0.5 px-6 flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                      <span className="assamese-text navbar-brand-multilang">
                         ভাৰতীয় প্ৰযুক্তিবিদ্যা প্ৰতিষ্ঠান গুৱাহাটী
                       </span>
-                      <div className="w-1 h-1 rounded-full bg-[#D97757]/40" />
-                      <span className="hindi-text font-bold text-[11px] text-zinc-800 dark:text-zinc-200 uppercase tracking-tight">
+                      <span className="navbar-brand-divider" />
+                      <span className="hindi-text navbar-brand-multilang">
                         भारतीय प्रौद्योगिकी संस्थान गुवाहाटी
                       </span>
                     </div>
-                    <span className="english-text font-serif text-sm font-bold text-[#D97757] dark:text-[#E88B6A] tracking-tight">
+                    <span className="english-text navbar-brand-english">
                       Indian Institute of Technology Guwahati
                     </span>
                   </div>
 
-                  {/* Right Section: Actions & Profile */}
-                  <div className="flex items-center justify-end gap-3 flex-1">
+                  {/* Right: Search + Theme + Profile */}
+                  <div className="flex items-center justify-end gap-2.5 flex-1">
                     {currentUser && (
-                      <div className="flex items-center gap-2">
-
-                        {/* Redesigned Command Trigger */}
+                      <>
+                        {/* Premium Search trigger */}
                         <button
                           onClick={openPalette}
-                          className="hidden md:flex items-center gap-3 w-48 xl:w-64 px-3 py-1.5 text-sm text-zinc-500 bg-zinc-100/50 hover:bg-zinc-100 dark:bg-zinc-900/50 dark:hover:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg transition-all"
+                          className="hidden md:flex items-center gap-2.5 w-44 xl:w-56 px-3 py-1.5 text-[#71717A] hover:text-[#3F3F46] dark:text-[#71717A] dark:hover:text-[#A1A1AA] bg-[#F4F4F5] hover:bg-white dark:bg-[#27272A]/60 dark:hover:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] hover:border-[#D4D4D8] dark:hover:border-[#52525B] rounded-lg transition-all shadow-sm"
+                          title="Search (⌘K)"
                         >
-                          <SearchIcon className="h-4 w-4 shrink-0" />
-                          <span className="flex-1 text-left font-medium">Quick search...</span>
-                          <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-white px-1.5 font-mono text-[10px] font-medium text-zinc-400 dark:bg-zinc-800 dark:border-zinc-700">
+                          <SearchIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                          <span className="flex-1 text-left text-[12px] font-medium">Search...</span>
+                          <kbd className="hidden xl:inline-flex items-center h-4 px-1.5 font-mono text-[9px] font-semibold bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded text-[#A1A1AA]">
                             ⌘K
                           </kbd>
                         </button>
 
+                        {/* Theme toggle */}
                         <ThemeToggle />
 
+                        {/* Divider */}
+                        <div className="h-5 w-px bg-[#E4E4E7] dark:bg-[#3F3F46]" />
+
+                        {/* Profile avatar + dropdown */}
                         {isUserLoading ? (
-                          <div className="h-8 w-8 rounded-full bg-zinc-200 animate-pulse dark:bg-zinc-800 ml-2" />
+                          <div className="h-8 w-8 rounded-full bg-[#E4E4E7] animate-pulse dark:bg-[#3F3F46]" />
                         ) : (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <button className="relative flex items-center justify-center rounded-full ml-1 focus:outline-none group">
-                                {/* Visual Ring on Hover */}
-                                <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-[#D97757] to-orange-300 opacity-0 group-hover:opacity-100 transition-opacity blur-[2px]" />
-                                {userImageUrl ? (
-                                  <img
-                                    src={userImageUrl}
-                                    alt="User"
-                                    className="relative h-8 w-8 rounded-full object-cover border-2 border-[#FDFCF9] dark:border-zinc-950 shadow-sm"
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.onerror = null;
-                                      target.src = 'https://placehold.co/36x36/E4E4E7/3F3F46?text=U';
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="relative h-8 w-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border-2 border-[#FDFCF9] dark:border-zinc-950 text-zinc-600 transition-colors group-hover:bg-zinc-200 dark:text-zinc-400">
-                                    <UserIcon className="h-4 w-4" />
-                                  </div>
-                                )}
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-60 mt-2 shadow-xl border-zinc-200 dark:border-zinc-800">
-                              <DropdownMenuLabel className="font-normal py-3">
-                                <div className="flex flex-col space-y-1">
-                                  <p className="text-sm font-semibold leading-none text-zinc-900 dark:text-zinc-100">
-                                    {actualUserData?.full_name || "User"}
-                                  </p>
-                                  <p className="text-xs leading-none text-zinc-500 dark:text-zinc-400 truncate">
-                                    {currentUser}
+                              <button className="group flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-lg hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] border border-transparent hover:border-[#E4E4E7] dark:hover:border-[#3F3F46] transition-all focus:outline-none">
+                                <div className="relative flex-shrink-0">
+                                  {userImageUrl ? (
+                                    <img
+                                      src={userImageUrl}
+                                      alt="User"
+                                      className="h-7 w-7 rounded-full object-cover border-2 border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm group-hover:border-[#4A6CF7]/40 transition-colors"
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.onerror = null;
+                                        target.src = 'https://placehold.co/36x36/E4E4E7/3F3F46?text=U';
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="h-7 w-7 rounded-full bg-gradient-to-br from-[#4A6CF7] to-[#2563EB] flex items-center justify-center border-2 border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+                                      <UserIcon className="h-3.5 w-3.5 text-white" />
+                                    </div>
+                                  )}
+                                  {/* Online dot */}
+                                  <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 border-[1.5px] border-[#FAFAF9] dark:border-[#18181B]" />
+                                </div>
+                                <div className="hidden xl:block text-left">
+                                  <p className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
+                                    {actualUserData?.full_name?.split(' ')[0] || "User"}
                                   </p>
                                 </div>
-                              </DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer py-2">
-                                <UserCircle className="mr-2 h-4 w-4 text-zinc-500" />
-                                <span>Profile</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={handleLogout}
-                                className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-400 dark:focus:bg-red-950/30 cursor-pointer py-2"
-                              >
-                                <LogOutIcon className="mr-2 h-4 w-4" />
-                                <span>Log out</span>
-                              </DropdownMenuItem>
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-64 mt-2 shadow-xl border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] rounded-xl overflow-hidden p-0">
+                              {/* Header panel */}
+                              <div className="bg-gradient-to-br from-[#EEF2FF] to-[#F5F3FF] dark:from-[#27272A] dark:to-[#1F1F24] px-4 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                                <div className="flex items-center gap-3">
+                                  {userImageUrl ? (
+                                    <img src={userImageUrl} alt="" className="h-9 w-9 rounded-full object-cover border-2 border-white/80 shadow-sm" />
+                                  ) : (
+                                    <div className="h-9 w-9 rounded-full bg-gradient-to-br from-[#4A6CF7] to-[#2563EB] flex items-center justify-center shadow-sm">
+                                      <UserIcon className="h-4 w-4 text-white" />
+                                    </div>
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="text-[13px] font-semibold text-[#18181B] dark:text-[#E4E4E7] truncate leading-none mb-0.5">
+                                      {actualUserData?.full_name || "User"}
+                                    </p>
+                                    <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] truncate font-medium">
+                                      {currentUser}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Menu items */}
+                              <div className="p-1.5">
+                                <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer py-2 px-3 rounded-lg text-[13px] font-medium text-[#3F3F46] dark:text-[#D4D4D8] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] focus:bg-[#F4F4F5] dark:focus:bg-[#3F3F46] gap-2.5">
+                                  <UserCircle className="h-4 w-4 text-[#71717A] dark:text-[#A1A1AA]" />
+                                  <span>My Profile</span>
+                                </DropdownMenuItem>
+                              </div>
+                              <div className="border-t border-[#F4F4F5] dark:border-[#3F3F46] p-1.5">
+                                <DropdownMenuItem
+                                  onClick={handleLogout}
+                                  className="cursor-pointer py-2 px-3 rounded-lg text-[13px] font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 focus:bg-red-50 dark:focus:bg-red-950/30 gap-2.5"
+                                >
+                                  <LogOutIcon className="h-4 w-4" />
+                                  <span>Sign out</span>
+                                </DropdownMenuItem>
+                              </div>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}
-                      </div>
+                      </>
                     )}
                   </div>
                 </div>
               </header>
 
               {/* Main Content Area */}
-              <main className="flex-1 p-6 lg:p-8">
-                <div className="mx-auto w-full max-w-7xl animate-in fade-in slide-in-from-bottom-3 duration-700">
+              <main className="flex-1 px-5 py-6 lg:px-7 lg:py-7">
+                <div className="mx-auto w-full max-w-[1600px] animate-in fade-in slide-in-from-bottom-2 duration-500">
                   <Outlet />
                 </div>
               </main>

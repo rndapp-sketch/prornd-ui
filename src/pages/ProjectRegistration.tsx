@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from "react";
-import { AppSidebar } from "../components/RndSidebar";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
     Sheet,
@@ -78,9 +77,9 @@ interface FormData {
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const inputClasses =
-    "w-full h-9 px-3 bg-white dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-600 rounded-lg font-medium text-sm text-zinc-900 dark:text-zinc-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800 read-only:bg-zinc-50 dark:bg-zinc-800/50";
+    "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-[0.4375rem] font-medium text-[13px] text-[#18181B] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 disabled:opacity-60 disabled:bg-[#F4F4F5] dark:disabled:bg-[#27272A]/50 disabled:cursor-not-allowed read-only:bg-[#F4F4F5] dark:read-only:bg-[#27272A]/60 read-only:text-[#52525B] dark:read-only:text-[#A1A1AA] transition-colors duration-150";
 const checkboxClasses =
-    "size-5 shrink-0 appearance-none bg-white dark:bg-zinc-900 border border-zinc-400 dark:border-zinc-600 rounded checked:bg-[#D97757] checked:border-[#D97757] checked:bg-[url('data:image/svg+xml,%3csvg%20viewBox%3d%270%200%2016%2016%27%20fill%3d%27white%27%20xmlns%3d%27http%3a//www.w3.org/2000/svg%27%3e%3cpath%20d%3d%27M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%27/%3e%3c/svg%3e')] bg-center bg-no-repeat cursor-pointer";
+    "size-5 shrink-0 appearance-none bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded checked:bg-[#4A6CF7] checked:border-[#4A6CF7] checked:bg-[url('data:image/svg+xml,%3csvg%20viewBox%3d%270%200%2016%2016%27%20fill%3d%27white%27%20xmlns%3d%27http%3a//www.w3.org/2000/svg%27%3e%3cpath%20d%3d%27M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%27/%3e%3c/svg%3e')] bg-center bg-no-repeat cursor-pointer transition-colors";
 const FrappeCard = ({
     children,
     className,
@@ -90,7 +89,7 @@ const FrappeCard = ({
 }) => (
     <div
         className={cn(
-            "bg-white dark:bg-zinc-900 p-5 md:p-6 border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm",
+            "bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-sm",
             className,
         )}
     >
@@ -114,11 +113,11 @@ const FrappeButton = ({
 }) => {
     const variants = {
         primary:
-            "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
+            "bg-[#4A6CF7] hover:bg-[#3558E8] text-white shadow-sm hover:shadow-md hover:shadow-[#4A6CF7]/25 border border-[#4A6CF7]",
         secondary:
-            "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-sm",
-        danger: "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50",
-        ghost: "bg-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800",
+            "bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] text-[#3F3F46] dark:text-[#D4D4D8] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] shadow-sm",
+        danger: "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/40",
+        ghost: "bg-transparent text-[#71717A] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] border border-transparent",
     };
     return (
         <button
@@ -126,7 +125,7 @@ const FrappeButton = ({
             onClick={onClick}
             disabled={disabled}
             className={cn(
-                "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium text-xs transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 disabled:cursor-not-allowed",
+                "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-[11px] uppercase tracking-wide transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/20 disabled:opacity-50 disabled:cursor-not-allowed",
                 variants[variant],
                 className,
             )}
@@ -351,14 +350,14 @@ const MemoizedFormField = memo(
             <div className="space-y-1.5">
                 <label
                     htmlFor={field.fieldname}
-                    className="block font-semibold text-sm text-zinc-700 dark:text-zinc-300"
+                    className="block text-[11px] font-bold uppercase tracking-widest text-[#27272A] dark:text-[#E4E4E7]"
                 >
                     {field.label}
-                    {field.mandatory && <span className="text-red-500">*</span>}
+                    {field.mandatory && <span className="text-red-500 ml-0.5 normal-case">*</span>}
                 </label>
                 {renderInput()}
                 {field.description && field.fieldtype !== "Check" && (
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                    <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
                         {field.description}
                     </p>
                 )}
@@ -379,9 +378,9 @@ const MemoizedGenericTable = memo(
         onDeleteRow,
         onOpenQuickEntry, // EDITED BY MKY | 2026-04-14 14:52 IST: Added Quick Entry hook prop
     }: any) => (
-        <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-lg">
+        <div className="overflow-x-auto border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl shadow-sm">
             <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
-                <thead className="bg-[#D97757]/10 dark:bg-[#D97757]/20">
+                <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/20">
                     <tr>
                         {[
                             ...columns,
@@ -393,7 +392,7 @@ const MemoizedGenericTable = memo(
                         ].map((c: any) => (
                             <th
                                 key={c.key}
-                                className="px-4 py-3 font-semibold text-[#D97757] text-xs text-left uppercase tracking-wider"
+                                className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest border-r border-[#C7D2FE]/60 dark:border-[#4A6CF7]/20 last:border-r-0"
                             >
                                 {c.label}
                             </th>
@@ -404,7 +403,7 @@ const MemoizedGenericTable = memo(
                     {(tableData || []).map((row: any, i: number) => (
                         <tr
                             key={row.id}
-                            className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50"
+                            className="hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors"
                         >
                             {columns.map((col: any) => (
                                 <td key={col.key} className="px-4 py-2.5">
@@ -521,7 +520,7 @@ const MemoizedGenericTable = memo(
                     ))}
                 </tbody>
             </table>
-            <div className="p-3 bg-zinc-50/50 dark:bg-zinc-800/50 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="p-3 bg-[#FAFAF9] dark:bg-[#27272A]/60 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                 <FrappeButton
                     variant="secondary"
                     onClick={() => onAddRow(tableName, newRow)}
@@ -559,9 +558,9 @@ const MemoizedCollaboratorTable = memo(
                 <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
                     {title}
                 </h3>
-                <div className="border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                <div className="border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl shadow-sm">
                     <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
-                        <thead className="bg-[#D97757]/10 dark:bg-[#D97757]/20">
+                        <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/20">
                             <tr>
                                 {[
                                     "Name*",
@@ -574,18 +573,18 @@ const MemoizedCollaboratorTable = memo(
                                 ].map((h) => (
                                     <th
                                         key={h}
-                                        className="px-4 py-3 font-semibold text-[#D97757] text-xs text-left uppercase tracking-wider"
+                                        className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest border-r border-[#C7D2FE]/60 dark:border-[#4A6CF7]/20 last:border-r-0"
                                     >
                                         {h}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
-                        <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800">
+                        <tbody className="bg-white dark:bg-[#27272A] divide-y divide-[#F4F4F5] dark:divide-[#27272A]">
                             {(tableData || []).map((row: any, i: number) => (
                                 <tr
                                     key={row.id}
-                                    className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50"
+                                    className="hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors"
                                 >
                                     <td className="px-4 py-2.5">
                                         <AutocompleteEmail
@@ -690,7 +689,7 @@ const MemoizedCollaboratorTable = memo(
                             ))}
                         </tbody>
                     </table>
-                    <div className="p-3 bg-zinc-50/50 dark:bg-zinc-800/50 border-t border-zinc-100 dark:border-zinc-800">
+                    <div className="p-3 bg-[#FAFAF9] dark:bg-[#27272A]/60 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                         <FrappeButton
                             variant="secondary"
                             onClick={() => onAddRow(tableName, newRow)}
@@ -719,25 +718,25 @@ const MemoizedBudgetTable = memo(
         totalBudgetAmount,
     }: any) => (
         <div className="space-y-4">
-            <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-lg">
+            <div className="overflow-x-auto border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl shadow-sm">
                 <table className="min-w-full divide-y divide-zinc-100 dark:divide-zinc-800">
-                    <thead className="bg-[#D97757]/10 dark:bg-[#D97757]/20">
+                    <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/20">
                         <tr>
-                            <th className="px-4 py-3 font-semibold text-[#D97757] text-xs text-left uppercase tracking-wider">
+                            <th className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest border-r border-[#C7D2FE]/60 dark:border-[#4A6CF7]/20">
                                 Account Head
                             </th>
                             {budgetYears.map((year: number, index: number) => (
                                 <th
                                     key={index}
-                                    className="px-4 py-3 font-semibold text-[#D97757] text-xs text-left uppercase tracking-wider"
+                                    className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest border-r border-[#C7D2FE]/60 dark:border-[#4A6CF7]/20 last:border-r-0"
                                 >
                                     Year {year} (₹)
                                 </th>
                             ))}
-                            <th className="px-4 py-3 font-semibold text-[#D97757] text-xs text-left uppercase tracking-wider">
+                            <th className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest border-r border-[#C7D2FE]/60 dark:border-[#4A6CF7]/20">
                                 Total (₹)
                             </th>
-                            <th className="px-4 py-3 font-semibold text-[#D97757] text-xs text-left uppercase tracking-wider">
+                            <th className="px-4 py-3 font-bold text-[#1E3A8A] dark:text-[#93C5FD] text-[10px] text-left uppercase tracking-widest">
                                 Actions
                             </th>
                         </tr>
@@ -752,7 +751,7 @@ const MemoizedBudgetTable = memo(
                             return (
                                 <tr
                                     key={row.id}
-                                    className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50"
+                                    className="hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors"
                                 >
                                     <td className="px-4 py-2.5">
                                         <select
@@ -837,20 +836,20 @@ const MemoizedBudgetTable = memo(
                             );
                         })}
                     </tbody>
-                    <tfoot className="bg-zinc-50/50 dark:bg-zinc-800/50 border-t border-zinc-100 dark:border-zinc-800">
+                    <tfoot className="bg-[#F4F4F5] dark:bg-[#27272A]/60 border-t-[1.5px] border-[#D4D4D8] dark:border-[#52525B]">
                         <tr>
-                            <th className="px-4 py-3 text-right font-medium text-zinc-900 dark:text-zinc-100 text-xs">
+                            <th className="px-4 py-3 text-right font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-[11px] uppercase tracking-wide">
                                 Yearly Total
                             </th>
                             {budgetYears.map((_: any, yearIndex: number) => (
                                 <td
                                     key={yearIndex}
-                                    className="px-4 py-3 font-bold text-zinc-900 dark:text-zinc-100 text-right pr-6 text-xs"
+                                    className="px-4 py-3 font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-right pr-6 text-[12px]"
                                 >
                                     {Number(getYearTotal(yearIndex)).toFixed(2)}
                                 </td>
                             ))}
-                            <td className="px-4 py-3 font-bold text-primary text-right pr-6 text-xs">
+                            <td className="px-4 py-3 font-extrabold text-[#4A6CF7] dark:text-[#818CF8] text-right pr-6 text-[12px]">
                                 {totalBudgetAmount.toFixed(2)}
                             </td>
                             <td className="px-4 py-3"></td>
@@ -2760,7 +2759,7 @@ Until then, the project is not yet eligible for submission.`);
     // --- RENDER LOGIC ---
     if (loading)
         return (
-            <div className="min-h-screen bg-zinc-100 dark:bg-zinc-800 p-4 sm:p-6">
+            <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] p-4 sm:p-6">
                 {/* Skeleton header bar */}
                 <div className="max-w-5xl mx-auto mb-4 flex items-center justify-between">
                     <div className="h-6 w-48 rounded-lg bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
@@ -2812,17 +2811,17 @@ Until then, the project is not yet eligible for submission.`);
     if (docname && !formData.project_title) {
         return (
             <div className="min-h-screen bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center p-6">
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-8 max-w-md w-full text-center space-y-4">
+                <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-sm p-8 max-w-md w-full text-center space-y-4">
                     <div className="text-3xl">⚠️</div>
-                    <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                    <h2 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
                         Data failed to load
                     </h2>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                        The form data did not load correctly. Please go back and click <span className="font-semibold text-[#D97757]">Edit</span> again to reload.
+                    <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA]">
+                        The form data did not load correctly. Please go back and click <span className="font-semibold text-[#4A6CF7]">Edit</span> again to reload.
                     </p>
                     <button
                         onClick={() => window.history.back()}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#D97757] hover:bg-[#c66a4e] text-white text-sm font-semibold transition-colors"
+                        className="btn-primary-accent justify-center"
                     >
                         Go Back
                     </button>
@@ -2849,17 +2848,41 @@ Until then, the project is not yet eligible for submission.`);
         );
 
     const tabs = [
-        { label: "Project Details", icon: FileText },
-        { label: "PI & Collaborators", icon: Users },
-        { label: "Budget", icon: IndianRupee },
-        { label: "Clearance", icon: Shield },
+        {
+            label: "Project Details",
+            icon: FileText,
+            activeClass: "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]",
+            inactiveClass: "border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]",
+            iconClass: "text-[#4A6CF7] dark:text-[#A5B4FC]",
+        },
+        {
+            label: "PI & Collaborators",
+            icon: Users,
+            activeClass: "bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]",
+            inactiveClass: "border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]",
+            iconClass: "text-[#059669] dark:text-[#6EE7B7]",
+        },
+        {
+            label: "Budget",
+            icon: IndianRupee,
+            activeClass: "bg-[#FFF7ED] border-[#F97316] text-[#9A3412] shadow-sm shadow-[#F97316]/10 dark:bg-[#F97316]/15 dark:border-[#FB923C] dark:text-[#FED7AA]",
+            inactiveClass: "border-[#FED7AA] bg-[#FFF7ED]/65 text-[#C2410C] hover:bg-[#FFF7ED] dark:border-[#F97316]/30 dark:bg-[#F97316]/10 dark:text-[#FED7AA]",
+            iconClass: "text-[#EA580C] dark:text-[#FDBA74]",
+        },
+        {
+            label: "Clearance",
+            icon: Shield,
+            activeClass: "bg-[#FDF2F8] border-[#DB2777] text-[#9D174D] shadow-sm shadow-[#DB2777]/10 dark:bg-[#DB2777]/15 dark:border-[#F472B6] dark:text-[#FBCFE8]",
+            inactiveClass: "border-[#FBCFE8] bg-[#FDF2F8]/65 text-[#BE185D] hover:bg-[#FDF2F8] dark:border-[#DB2777]/30 dark:bg-[#DB2777]/10 dark:text-[#FBCFE8]",
+            iconClass: "text-[#DB2777] dark:text-[#F9A8D4]",
+        },
     ];
     const renderNextPrevButtons = (
         showPrev: boolean,
         showNext: boolean,
         isLast = false,
     ) => (
-        <div className="mt-8 flex justify-between items-center bg-white dark:bg-zinc-900 p-4 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-sm">
+        <div className="mt-8 flex justify-between items-center bg-white dark:bg-[#27272A] p-4 border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl shadow-sm">
             {/* Previous Button */}
             <FrappeButton
                 variant="secondary"
@@ -2948,37 +2971,38 @@ Until then, the project is not yet eligible for submission.`);
     };
 
     return (
-        <div className="bg-zinc-100 dark:bg-zinc-800">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B]">
             {/* Mandatory fields validation modal */}
             {validationErrors.length > 0 && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
-                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md">
-                        <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-zinc-100 dark:border-zinc-800">
-                            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4">
+                    <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                        {/* Modal top accent */}
+                        <div className="h-[3px] bg-gradient-to-r from-red-500 to-red-400" />
+                        <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-[#F4F4F5] dark:border-[#3F3F46]">
+                            <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 flex items-center justify-center">
                                 <X className="w-4 h-4 text-red-600 dark:text-red-400" />
                             </div>
                             <div className="flex-1">
-                                <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                                <h3 className="text-[13px] font-bold text-[#18181B] dark:text-[#E4E4E7]">
                                     Required Fields Missing
                                 </h3>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                    Please fill in all mandatory fields before
-                                    proceeding.
+                                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
+                                    Please fill in all mandatory fields before proceeding.
                                 </p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setValidationErrors([])}
-                                className="flex-shrink-0 p-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                className="flex-shrink-0 p-1.5 rounded-lg hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] transition-colors"
                             >
-                                <X className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
+                                <X className="w-4 h-4 text-[#71717A] dark:text-[#A1A1AA]" />
                             </button>
                         </div>
-                        <ul className="px-6 py-4 space-y-1.5 max-h-60 overflow-y-auto">
+                        <ul className="px-6 py-4 space-y-2 max-h-60 overflow-y-auto">
                             {validationErrors.map((err, i) => (
                                 <li
                                     key={i}
-                                    className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300"
+                                    className="flex items-center gap-2 text-[13px] font-medium text-[#3F3F46] dark:text-[#D4D4D8]"
                                 >
                                     <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
                                     {err}
@@ -2988,7 +3012,7 @@ Until then, the project is not yet eligible for submission.`);
                         <div className="px-6 pb-6">
                             <button
                                 onClick={() => setValidationErrors([])}
-                                className="w-full py-2.5 rounded-lg bg-[#D97757] hover:bg-[#c66a4e] text-white text-sm font-semibold transition-colors"
+                                className="btn-primary-accent w-full justify-center py-2.5 text-[12px]"
                             >
                                 OK, I'll fix these
                             </button>
@@ -2996,16 +3020,14 @@ Until then, the project is not yet eligible for submission.`);
                     </div>
                 </div>
             )}
-            <AppSidebar />
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-                <header className="mb-3 flex items-start justify-between gap-4">
+            <main className="w-full overflow-hidden bg-[#FAFAF9] dark:bg-[#18181B]">
+                {/* Page header */}
+                <header className="mb-5 flex items-start justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-100 tracking-tight uppercase">
-                            {docname
-                                ? "Project Registration"
-                                : "New Project Registration"}
+                        <h1 className="font-sans text-[21px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7]">
+                            {docname ? "Project Registration" : "New Project Registration"}
                         </h1>
-                        <p className="text-zinc-600 dark:text-zinc-400 mt-1 font-medium text-sm">
+                        <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] mt-1 font-medium">
                             {isEditMode
                                 ? "Fill all sections to register a new project."
                                 : "Viewing saved draft — click Edit to make changes."}
@@ -3015,28 +3037,28 @@ Until then, the project is not yet eligible for submission.`);
                         <button
                             type="button"
                             onClick={() => setIsEditMode(true)}
-                            className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#D97757] hover:bg-[#c66a4e] text-white text-sm font-semibold shadow-sm transition-colors"
+                            className="flex-shrink-0 btn-primary-accent"
                         >
-                            <Pencil className="w-4 h-4" /> Edit
+                            <Pencil className="w-3.5 h-3.5" /> Edit
                         </button>
                     )}
                 </header>
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm">
-                    <div className="border-b border-zinc-300 dark:border-zinc-700">
-                        <nav className="flex space-x-2 p-2 overflow-x-auto">
+
+                {/* Tab navigation card */}
+                <div className="bg-white dark:bg-[#27272A] border border-[#D4D4D8] dark:border-[#52525B] rounded-xl shadow-sm overflow-hidden">
+                    <div className="border-b border-[#D4D4D8] dark:border-[#52525B] bg-[#FAFAF9] dark:bg-[#27272A]">
+                        <nav className="flex items-center gap-1 p-2 overflow-x-auto">
                             {tabs.map((tab, index) => (
                                 <button
                                     key={index}
                                     type="button"
                                     onClick={() => setActiveTab(index)}
                                     className={cn(
-                                        "flex-shrink-0 flex items-center gap-2 py-2 px-3 font-bold text-xs rounded-md border border-transparent transition-all",
-                                        activeTab === index
-                                            ? "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 shadow-sm text-zinc-900 dark:text-zinc-100"
-                                            : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800",
+                                        "flex-shrink-0 flex h-8 items-center gap-1.5 px-2.5 font-bold text-[11px] uppercase tracking-wide rounded-lg border transition-all",
+                                        activeTab === index ? tab.activeClass : tab.inactiveClass,
                                     )}
                                 >
-                                    <tab.icon className="h-4 w-4" /> {tab.label}
+                                    <tab.icon className={cn("h-3.5 w-3.5", tab.iconClass)} /> {tab.label}
                                 </button>
                             ))}
                             {/* Endorsement Button */}
@@ -3047,7 +3069,7 @@ Until then, the project is not yet eligible for submission.`);
                                         onClick={() => setShowEndorsementModal(true)}
                                         disabled={!isEndorsementEnabled}
                                         className={cn(
-                                            "flex-shrink-0 flex items-center gap-2 py-2 px-3 font-medium text-xs rounded-md border transition-all",
+                                            "flex-shrink-0 flex h-8 items-center gap-1.5 px-2.5 font-semibold text-[11px] rounded-lg border transition-all",
                                             isEndorsementEnabled
                                                 ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 cursor-pointer"
                                                 : "bg-zinc-50 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 border-zinc-200 dark:border-zinc-800 cursor-not-allowed",
@@ -3071,7 +3093,7 @@ Until then, the project is not yet eligible for submission.`);
                         </nav>
                     </div>
 
-                    <div className="bg-zinc-100 dark:bg-zinc-800 p-4 md:p-6">
+                    <div className="bg-zinc-100 dark:bg-zinc-800 p-4 md:p-5">
                         {/* Form loading skeleton — shown until fields arrive */}
                         {(loading || fields.length === 0) && (
                             <div className="space-y-4">
@@ -3109,8 +3131,9 @@ Until then, the project is not yet eligible for submission.`);
                                             activeTab === 0 ? "block" : "hidden"
                                         }
                                     >
-                                        <FrappeCard className="space-y-6">
-                                            <h2 className="text-xl font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                        <FrappeCard className="overflow-hidden p-5 space-y-5">
+                                            <h2 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 font-sans text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD] flex items-center gap-3">
+                                                <span className="inline-block w-1 h-5 bg-[#4A6CF7] rounded-full flex-shrink-0" />
                                                 1. Project Description
                                             </h2>
                                             {renderField("project_no")}
@@ -3120,9 +3143,9 @@ Until then, the project is not yet eligible for submission.`);
                                                 "Research" && (
                                                     <div className="space-y-8">
                                                         {renderField("involves_international_travel")}
-                                                        <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                        <FrappeCard className="overflow-hidden p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
                                                             <div className="flex items-center justify-between flex-wrap gap-4">
-                                                                <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
+                                                                <h3 className="-mx-5 -mt-5 px-5 py-3 mb-0 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/20 text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">Funding Details</h3>
                                                                 <button
                                                                     type="button"
                                                                     onClick={(e) => {
@@ -3140,8 +3163,8 @@ Until then, the project is not yet eligible for submission.`);
                                                                 )}
                                                             </div>
                                                         </FrappeCard>
-                                                        <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                            <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                                        <FrappeCard className="overflow-hidden p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                            <h3 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/20 text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">
                                                                 Agency Address
                                                             </h3>
                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3170,9 +3193,9 @@ Until then, the project is not yet eligible for submission.`);
                                                             {formData.consultancy_category?.startsWith(
                                                                 "Category D",
                                                             ) && (
-                                                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
+                                                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-4 border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl bg-[#FAFAF9] dark:bg-[#27272A]/60">
                                                                         <div className="space-y-4">
-                                                                            <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
+                                                                            <h4 className="text-[12px] font-extrabold uppercase tracking-[0.07em] text-[#1E3A8A] dark:text-[#93C5FD]">
                                                                                 Category D Details
                                                                             </h4>
                                                                             {renderField("category_d_note")}
@@ -3207,7 +3230,7 @@ Until then, the project is not yet eligible for submission.`);
                                                                             {renderField("cat_d_grand_total_calc")}
                                                                         </div>
                                                                         <div className="space-y-4">
-                                                                            <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
+                                                                            <h4 className="text-[12px] font-extrabold uppercase tracking-[0.07em] text-[#1E3A8A] dark:text-[#93C5FD]">
                                                                                 Calculation Breakdown
                                                                             </h4>
                                                                             {(() => {
@@ -3295,7 +3318,7 @@ Until then, the project is not yet eligible for submission.`);
                                                                 "Category D",
                                                             ) &&
                                                                 formData.consultancy_category && (
-                                                                    <div className="space-y-4 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
+                                                                    <div className="space-y-4 p-4 border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-xl bg-[#FAFAF9] dark:bg-[#27272A]/60">
                                                                         <h4 className="font-bold text-base text-zinc-700 dark:text-zinc-300">
                                                                             {formData.consultancy_category?.includes(
                                                                                 "Routine",
@@ -3336,9 +3359,9 @@ Until then, the project is not yet eligible for submission.`);
                                                                     </div>
                                                                 )}
                                                         </div>
-                                                        <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                        <FrappeCard className="overflow-hidden p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
                                                             <div className="flex items-center justify-between flex-wrap gap-4">
-                                                                <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">Funding Details</h3>
+                                                                <h3 className="-mx-5 -mt-5 px-5 py-3 mb-0 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/20 text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">Funding Details</h3>
                                                                 <button
                                                                     type="button"
                                                                     onClick={(e) => {
@@ -3356,8 +3379,8 @@ Until then, the project is not yet eligible for submission.`);
                                                                 )}
                                                             </div>
                                                         </FrappeCard>
-                                                        <FrappeCard className="p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                            <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                                        <FrappeCard className="overflow-hidden p-5 space-y-5 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                            <h3 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/20 text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">
                                                                 Agency Address
                                                             </h3>
                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3546,13 +3569,14 @@ Until then, the project is not yet eligible for submission.`);
                                             activeTab === 1 ? "block" : "hidden"
                                         }
                                     >
-                                        <FrappeCard className="space-y-6">
-                                            <h2 className="text-xl font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                        <FrappeCard className="overflow-hidden p-5 space-y-5">
+                                            <h2 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 font-sans text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD] flex items-center gap-3">
+                                                <span className="inline-block w-1 h-5 bg-[#4A6CF7] rounded-full flex-shrink-0" />
                                                 2. Investigators & Collaborators
                                             </h2>
-                                            <div className="p-5 space-y-5 border border-zinc-300 dark:border-zinc-700 rounded-md shadow-sm bg-white dark:bg-zinc-900">
-                                                <div className="flex items-center gap-3">
-                                                    <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                            <div className="overflow-hidden border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm bg-white dark:bg-zinc-900">
+                                                <div className="px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/20 flex items-center gap-3">
+                                                    <h3 className="text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">
                                                         Principal Investigator (PI)
                                                     </h3>
                                                     {isFetchingPiDetails && (
@@ -3562,7 +3586,7 @@ Until then, the project is not yet eligible for submission.`);
                                                         </span>
                                                     )}
                                                 </div>
-                                                <div className="space-y-8">
+                                                <div className="p-5 space-y-8">
                                                     {renderField("pi_webmail")}
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-dashed border-zinc-400 dark:border-zinc-600">
                                                         {renderField(
@@ -3699,8 +3723,9 @@ Until then, the project is not yet eligible for submission.`);
                                             activeTab === 2 ? "block" : "hidden"
                                         }
                                     >
-                                        <FrappeCard className="space-y-6">
-                                            <h2 className="text-xl font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                        <FrappeCard className="overflow-hidden p-5 space-y-5">
+                                            <h2 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 font-sans text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD] flex items-center gap-3">
+                                                <span className="inline-block w-1 h-5 bg-[#4A6CF7] rounded-full flex-shrink-0" />
                                                 3. Proposed Budget
                                             </h2>
                                             {formData.project_type?.toLowerCase() === "consultancy" && (
@@ -3909,8 +3934,9 @@ Until then, the project is not yet eligible for submission.`);
                                             activeTab === 3 ? "block" : "hidden"
                                         }
                                     >
-                                        <FrappeCard className="space-y-6">
-                                            <h2 className="text-xl font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                        <FrappeCard className="overflow-hidden p-5 space-y-5">
+                                            <h2 className="-mx-5 -mt-5 mb-2 px-5 py-3 bg-[#EEF2FF]/80 dark:bg-[#1E3A8A]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 font-sans text-[13px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD] flex items-center gap-3">
+                                                <span className="inline-block w-1 h-5 bg-[#4A6CF7] rounded-full flex-shrink-0" />
                                                 4. Clearance & Declaration
                                             </h2>
                                             {renderField(
@@ -3965,8 +3991,8 @@ Until then, the project is not yet eligible for submission.`);
 
                                                 {formData.have_sanction_details ===
                                                     "Yes" && (
-                                                        <FrappeCard className="space-y-6 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                            <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                                        <FrappeCard className="overflow-hidden p-6 space-y-6 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                            <h3 className="-mx-6 -mt-6 mb-2 px-6 py-4 bg-gradient-to-r from-[#EEF2FF] to-[#F5F3FF] dark:from-[#1E3A8A]/15 dark:to-[#4A6CF7]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">
                                                                 Sanction Details
                                                             </h3>
 
@@ -4058,8 +4084,8 @@ Until then, the project is not yet eligible for submission.`);
 
                                                 {formData.have_fund_details ===
                                                     "Yes" && (
-                                                        <FrappeCard className="space-y-6 !shadow-sm border-zinc-300 dark:border-zinc-700">
-                                                            <h3 className="text-lg font-bold uppercase text-zinc-900 dark:text-zinc-100">
+                                                        <FrappeCard className="overflow-hidden p-6 space-y-6 !shadow-sm border-zinc-300 dark:border-zinc-700">
+                                                            <h3 className="-mx-6 -mt-6 mb-2 px-6 py-4 bg-gradient-to-r from-[#EEF2FF] to-[#F5F3FF] dark:from-[#1E3A8A]/15 dark:to-[#4A6CF7]/10 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 text-[14px] font-extrabold uppercase tracking-[0.08em] text-[#1E3A8A] dark:text-[#93C5FD]">
                                                                 Fund Details
                                                             </h3>
 
@@ -4159,11 +4185,11 @@ Until then, the project is not yet eligible for submission.`);
                                     The endorsement certificate <strong>must</strong> be filled in before you can submit the project. Please complete the endorsement certificate and try again.
                                 </p>
                             </div>
-                            <div className="px-6 py-4 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-end gap-3">
+                            <div className="px-6 py-4 border-t border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-end gap-3">
                                 <button
                                     type="button"
                                     onClick={() => setShowSubmitInsteadModal(false)}
-                                    className="px-4 py-2 rounded-md text-sm font-medium border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                                    className="btn-neutral"
                                 >
                                     Close
                                 </button>
@@ -4173,7 +4199,7 @@ Until then, the project is not yet eligible for submission.`);
                                         setShowSubmitInsteadModal(false);
                                         endorsementCertRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
                                     }}
-                                    className="px-4 py-2 rounded-md text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                                    className="btn-primary-accent"
                                 >
                                     Go to Endorsement
                                 </button>
@@ -4184,21 +4210,22 @@ Until then, the project is not yet eligible for submission.`);
 
                 {/* Endorsement Certificate Modal */}
                 {showEndorsementModal && (
-                    <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center overflow-y-auto py-8">
-                        <div className="relative bg-white dark:bg-zinc-900 rounded-lg shadow-2xl max-w-[240mm] w-full mx-4 border border-zinc-400 dark:border-zinc-600">
+                    <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center overflow-y-auto py-8">
+                        <div className="relative bg-white dark:bg-[#27272A] rounded-2xl shadow-2xl max-w-[240mm] w-full mx-4 border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] overflow-hidden">
                             {/* Modal Header */}
-                            <div className="bg-white dark:bg-zinc-900 border-b border-zinc-300 dark:border-zinc-700 px-6 py-4 flex items-center justify-between rounded-t-lg">
-                                <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+                            <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-transparent" />
+                            <div className="bg-[#FAFAF9] dark:bg-[#27272A] border-b border-[#E4E4E7] dark:border-[#3F3F46] px-6 py-4 flex items-center justify-between">
+                                <h2 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
                                     Endorsement Certificate
                                 </h2>
                                 <button
                                     onClick={() =>
                                         setShowEndorsementModal(false)
                                     }
-                                    className="p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-full transition-colors"
+                                    className="p-2 hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] rounded-lg transition-colors"
                                     title="Close"
                                 >
-                                    <X className="h-6 w-6 text-zinc-900 dark:text-zinc-100" />
+                                    <X className="h-5 w-5 text-[#71717A] dark:text-[#A1A1AA]" />
                                 </button>
                             </div>
                             {/* Guidance message */}
@@ -4323,25 +4350,27 @@ Until then, the project is not yet eligible for submission.`);
                 {/* Preview Modal */}
                 {showPreviewModal && docname && (
                     <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 p-4 sm:p-6 overflow-hidden">
-                        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl flex flex-col w-full max-w-7xl h-full max-h-screen border border-zinc-200 dark:border-zinc-800">
+                        <div className="bg-white dark:bg-[#27272A] rounded-2xl shadow-2xl flex flex-col w-full max-w-7xl h-full max-h-screen border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] overflow-hidden">
+                            {/* Header accent */}
+                            <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-transparent shrink-0" />
                             {/* Header */}
-                            <div className="flex justify-between items-center px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm z-10 shrink-0">
+                            <div className="flex justify-between items-center px-6 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] z-10 shrink-0">
                                 <div>
-                                    <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-rose-600">
+                                    <h2 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
                                         Project Preview
                                     </h2>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Review your draft. Click Submit when you are ready to finalize Registration.</p>
+                                    <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-0.5">Review your draft. Click Submit when ready to finalize Registration.</p>
                                 </div>
                                 <button
                                     onClick={() => setShowPreviewModal(false)}
-                                    className="p-2 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+                                    className="p-2 text-[#71717A] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] rounded-lg transition-colors"
                                 >
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
 
                             {/* Body */}
-                            <div className="flex-1 overflow-y-auto w-full relative bg-zinc-50 dark:bg-zinc-950 project-preview-wrapper">
+                            <div className="flex-1 overflow-y-auto w-full relative bg-[#FAFAF9] dark:bg-[#18181B] project-preview-wrapper">
                                 <style>
                                     {`
                                     .project-preview-wrapper header button {
@@ -4355,10 +4384,10 @@ Until then, the project is not yet eligible for submission.`);
                             </div>
 
                             {/* Footer */}
-                            <div className="flex justify-end gap-3 px-6 py-4 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                            <div className="form-action-bar shrink-0 justify-end gap-3">
                                 <button
                                     onClick={() => setShowPreviewModal(false)}
-                                    className="px-6 py-2.5 rounded-md font-bold text-sm bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                    className="btn-neutral"
                                 >
                                     Continue Editing
                                 </button>
@@ -4367,7 +4396,7 @@ Until then, the project is not yet eligible for submission.`);
                                         setShowSubmitCommentModal(true);
                                     }}
                                     disabled={isSubmitting || isFinalSubmitting}
-                                    className="px-8 py-2.5 rounded-md font-bold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="btn-primary-accent disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {isFinalSubmitting ? "Submitting..." : "Submit Project"}
                                 </button>
@@ -4381,9 +4410,10 @@ Until then, the project is not yet eligible for submission.`);
                 {/* START OF EDIT — Quick Entry Modal                            */}
                 {/* ============================================================ */}
                 {quickEntryState?.isOpen && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999999] p-4">
-                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-sm relative">
-                            <h3 className="text-sm font-bold mb-4 text-zinc-900 dark:text-zinc-100">
+                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999999] p-4">
+                        <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] p-6 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+                            <div className="h-[2px] -mx-6 -mt-6 mb-5 bg-gradient-to-r from-[#4A6CF7] to-transparent" />
+                            <h3 className="text-[13px] font-bold mb-4 text-[#3F3F46] dark:text-[#E4E4E7]">
                                 Create New Designation
                             </h3>
                             <input
@@ -4392,20 +4422,20 @@ Until then, the project is not yet eligible for submission.`);
                                 placeholder="Enter designation name..."
                                 value={quickEntryState.pendingValue}
                                 onChange={(e) => setQuickEntryState(prev => prev ? { ...prev, pendingValue: e.target.value } : null)}
-                                className={`${inputClasses} w-full mb-4 !h-10 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100`}
+                                className={`${inputClasses} w-full mb-4`}
                             />
                             <div className="flex justify-end gap-2">
                                 <button
                                     onClick={() => setQuickEntryState(null)}
                                     disabled={quickEntryState.isSubmitting}
-                                    className="px-4 py-2 rounded-md text-sm font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                    className="btn-neutral"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={handleQuickEntrySave}
                                     disabled={quickEntryState.isSubmitting || !quickEntryState.pendingValue.trim()}
-                                    className="px-4 py-2 rounded-md text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                                    className="btn-primary-accent disabled:opacity-50"
                                 >
                                     {quickEntryState.isSubmitting ? "Saving..." : "Save"}
                                 </button>
@@ -4418,29 +4448,30 @@ Until then, the project is not yet eligible for submission.`);
 
                 {/* Final Submission Comment Modal */}
                 {showSubmitCommentModal && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999999] p-4">
-                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md relative">
-                            <h3 className="text-sm font-bold mb-4 capitalize text-zinc-900 dark:text-zinc-100">
+                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999999] p-4">
+                        <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] p-6 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+                            <div className="h-[2px] -mx-6 -mt-6 mb-5 bg-gradient-to-r from-[#4A6CF7] to-transparent" />
+                            <h3 className="text-[13px] font-bold mb-1.5 text-[#3F3F46] dark:text-[#E4E4E7]">
                                 Confirm Submit
                             </h3>
-                            <p className="mb-4 text-zinc-600 dark:text-zinc-400">
-                                Please provide a comment for this action.
+                            <p className="mb-4 text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
+                                Please provide a comment for this submission.
                             </p>
                             <textarea
                                 id="finalSubmitComment"
                                 placeholder="Enter your comment here..."
-                                className="w-full mb-4 min-h-[100px] border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 p-3 rounded-md"
+                                className="w-full mb-4 min-h-[100px] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] bg-white dark:bg-[#27272A] text-[#18181B] dark:text-[#E4E4E7] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 p-3 rounded-lg text-[13px] font-medium resize-none"
                             />
                             <div className="flex justify-end gap-3">
                                 <button
-                                    className="px-4 py-2 border border-zinc-200 dark:border-zinc-700 rounded-md text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors"
+                                    className="btn-neutral"
                                     onClick={() => setShowSubmitCommentModal(false)}
                                     disabled={isFinalSubmitting}
                                 >
                                     Cancel
                                 </button>
                                 <button
-                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-bold disabled:opacity-50 transition-colors cursor-pointer"
+                                    className="btn-primary-accent disabled:opacity-50 cursor-pointer"
                                     onClick={async () => {
                                         const commentEl = document.getElementById("finalSubmitComment") as HTMLTextAreaElement;
                                         const comment = commentEl ? commentEl.value : "";

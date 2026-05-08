@@ -77,9 +77,10 @@ interface FlattenedTask {
 type ProjectTypeTab = ProjectCategory;
 
 const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'];
+const HIDDEN_OTHERS_DOCTYPES = new Set(['Kafka Commit Staging', 'Project Number Generation']);
 
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm", className)}>
         {children}
     </div>
 );
@@ -266,21 +267,25 @@ const PendingTask: React.FC = () => {
         }),
         [allTasks, resolvedProjectTypes]);
 
+    const visibleTasks = React.useMemo(() =>
+        resolvedTasks.filter(task => !(task.project_type === 'Others' && HIDDEN_OTHERS_DOCTYPES.has(task.doctype))),
+        [resolvedTasks]);
+
     const tabCounts = React.useMemo(() => ({
-        Research: resolvedTasks.filter(t => t.project_type === 'Research').length,
-        Consultancy: resolvedTasks.filter(t => t.project_type === 'Consultancy').length,
-        Others: resolvedTasks.filter(t => t.project_type === 'Others').length,
-    }), [resolvedTasks]);
+        Research: visibleTasks.filter(t => t.project_type === 'Research').length,
+        Consultancy: visibleTasks.filter(t => t.project_type === 'Consultancy').length,
+        Others: visibleTasks.filter(t => t.project_type === 'Others').length,
+    }), [visibleTasks]);
 
     // Module names scoped to current project type tab
     const moduleNames = React.useMemo(() => {
-        const baseTasks = resolvedTasks.filter(t => t.project_type === selectedProjectType);
+        const baseTasks = visibleTasks.filter(t => t.project_type === selectedProjectType);
         const uniqueModules = new Set(baseTasks.map(task => task.doctype));
         return Array.from(uniqueModules).sort();
-    }, [resolvedTasks, selectedProjectType]);
+    }, [visibleTasks, selectedProjectType]);
 
     const filteredTasks = React.useMemo(() => {
-        let tasks = resolvedTasks.filter(t => t.project_type === selectedProjectType);
+        let tasks = visibleTasks.filter(t => t.project_type === selectedProjectType);
 
         if (selectedModule !== 'all') {
             tasks = tasks.filter(task => task.doctype === selectedModule);
@@ -295,7 +300,7 @@ const PendingTask: React.FC = () => {
             );
         }
         return tasks;
-    }, [resolvedTasks, selectedProjectType, selectedModule, searchQuery]);
+    }, [visibleTasks, selectedProjectType, selectedModule, searchQuery]);
 
     const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
     const indexOfLastTask = currentPage * itemsPerPage;
@@ -331,7 +336,7 @@ const PendingTask: React.FC = () => {
             Medium: 'bg-amber-50 text-amber-700 border-amber-200',
             Low: 'bg-emerald-50 text-emerald-700 border-emerald-200',
         };
-        return cn("px-2.5 py-0.5 rounded-full text-xs font-medium border", styles[priority] || 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700');
+        return cn("px-2 py-0.5 rounded-full text-[10px] font-medium border", styles[priority] || 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700');
     };
 
     const getStatusBadge = (status: string) => {
@@ -346,7 +351,7 @@ const PendingTask: React.FC = () => {
         } else if (s?.includes("rejected")) {
             style = "bg-red-50 text-red-700 border-red-200";
         }
-        return cn("px-2.5 py-0.5 rounded-full text-xs font-medium border", style);
+        return cn("px-2 py-0.5 rounded-full text-[10px] font-medium border", style);
     };
 
     const getPageNumbers = () => {
@@ -368,12 +373,12 @@ const PendingTask: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex h-screen items-center justify-center bg-claude-bg dark:bg-zinc-900">
+            <div className="flex h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
                 <FrappeCard className="p-12 text-center max-w-md w-full">
                     <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
                         <FaExclamationCircle className="h-6 w-6 text-red-600" />
                     </div>
-                    <h2 className="text-xl font-serif font-medium text-zinc-900 dark:text-zinc-100 mb-2">Unable to Load Tasks</h2>
+                    <h2 className="text-[18px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] mb-2">Unable to Load Tasks</h2>
                     <p className="text-zinc-500 dark:text-zinc-400">{error.message}</p>
                     <FrappeButton onClick={() => window.location.reload()} variant="outline" className="mt-6">
                         Retry
@@ -385,33 +390,37 @@ const PendingTask: React.FC = () => {
 
     return (
         <>
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen font-sans text-zinc-900 dark:text-zinc-100">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
             <GlobalLoader isLoading={isLoading} />
 
-            <main className="flex-1 p-4 md:p-6 w-full overflow-hidden">
+            <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
                 {/* Header */}
-                <div className="mb-8">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="mb-6 flex items-center gap-2 text-zinc-500 hover:text-zinc-800 transition-colors text-sm font-medium"
-                    >
-                        <FaArrowLeft className="h-4 w-4" />
-                        Back to Dashboard
-                    </button>
-                    <div className="flex flex-col gap-2">
-                        <h1 className="text-3xl md:text-4xl font-serif text-zinc-900 dark:text-zinc-50 tracking-tight">Pending Tasks</h1>
-                        <p className="text-zinc-500 dark:text-zinc-400 text-lg">Manage and track your pending tasks and approvals.</p>
+                <div className="mb-5 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                    <div className="flex items-start gap-3 px-5 py-4">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
+                            aria-label="Back to dashboard"
+                        >
+                            <FaArrowLeft className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="min-w-0">
+                            <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Workflow Inbox</span>
+                            <h1 className="mt-1 font-sans text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Pending Tasks</h1>
+                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">Manage and track pending approvals.</p>
+                        </div>
                     </div>
                 </div>
 
                 {/* Project Type Tabs */}
-                <div className="mb-6 flex items-center gap-2">
+                <div className="mb-4 flex items-center gap-2 border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35 overflow-x-auto">
                     {PROJECT_TYPE_TABS.map((tab) => {
                         const active = selectedProjectType === tab;
                         const tabColors: Record<string, string> = {
-                            Research: active ? 'bg-blue-600 text-white shadow-blue-200 dark:shadow-blue-900/40 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-blue-300 hover:text-blue-600',
-                            Consultancy: active ? 'bg-emerald-600 text-white shadow-emerald-200 dark:shadow-emerald-900/40 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-emerald-300 hover:text-emerald-600',
-                            Others: active ? 'bg-zinc-700 text-white shadow-zinc-200 dark:shadow-zinc-900/40 shadow-md' : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 hover:text-zinc-800',
+                            Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF]',
+                            Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5]',
+                            Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5]',
                         };
                         const badgeColors: Record<string, string> = {
                             Research: active ? 'bg-blue-500 text-white' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
@@ -423,7 +432,7 @@ const PendingTask: React.FC = () => {
                                 key={tab}
                                 onClick={() => handleProjectTypeChange(tab)}
                                 className={cn(
-                                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                                    "flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150",
                                     tabColors[tab]
                                 )}
                             >
@@ -437,7 +446,7 @@ const PendingTask: React.FC = () => {
                 </div>
 
                 {/* Filter Section */}
-                <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 shadow-sm">
                     <div className="flex items-center gap-3">
                         <div className="relative">
                             <select
@@ -462,7 +471,7 @@ const PendingTask: React.FC = () => {
                             <>
                                 <div className="h-6 w-px bg-zinc-300 dark:bg-zinc-700" />
                                 <div className="flex items-center gap-1.5">
-                                    <span className="text-xl font-medium text-zinc-700 dark:text-zinc-300 font-serif">{selectedModule}</span>
+                                    <span className="text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{selectedModule}</span>
                                     <button
                                         onClick={() => handleModuleChange('all')}
                                         className="ml-1 text-zinc-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50 p-0.5"
@@ -522,34 +531,34 @@ const PendingTask: React.FC = () => {
                 </div>
 
                 {/* Table */}
-                <FrappeCard className="overflow-hidden">
-                    <div className="overflow-x-auto">
+                <FrappeCard className="overflow-hidden p-3">
+                    <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
                         <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Status</th>
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Module</th>
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Title</th>
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Project No.</th>
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Date</th>
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Owner</th>
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Priority</th>
-                                    <th className="p-4 text-end font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Action</th>
+                            <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Priority</th>
+                                    <th className="px-4 py-3 text-end text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-800 text-xs">
                                 {currentTasks.length > 0 ? (
                                     currentTasks.map((task) => (
                                         <tr key={task.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors group">
-                                            <td className="p-4 align-middle">
+                                            <td className="p-3 align-middle">
                                                 <span className={getStatusBadge(task.status)}>
                                                     {task.status}
                                                 </span>
                                             </td>
-                                            <td className="p-4 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
+                                            <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
                                                 {task.doctype}
                                             </td>
-                                            <td className="p-4 align-middle font-medium text-zinc-900 dark:text-zinc-200">
+                                            <td className="p-3 align-middle font-medium text-zinc-900 dark:text-zinc-200">
                                                 <button
                                                     className="text-left hover:text-[#D97757] transition-colors flex items-center gap-1.5 group/title"
                                                     onClick={() => setSelectedTask({ doctype: task.doctype, docname: task.id, title: task.title })}
@@ -559,13 +568,13 @@ const PendingTask: React.FC = () => {
                                                     <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
                                                 </button>
                                             </td>
-                                            <td className="p-4 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
+                                            <td className="p-3 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
                                                 {task["Project Number"]}
                                             </td>
-                                            <td className="p-4 align-middle text-zinc-500 dark:text-zinc-400">
+                                            <td className="p-3 align-middle text-zinc-500 dark:text-zinc-400">
                                                 {task.creation ? new Date(task.creation).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"}
                                             </td>
-                                            <td className="p-4 align-middle text-zinc-600 dark:text-zinc-400">
+                                            <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-6 h-6 rounded-full bg-zinc-100 flex items-center justify-center text-xs font-bold text-zinc-500">
                                                         {task.owner.charAt(0).toUpperCase()}
@@ -573,12 +582,12 @@ const PendingTask: React.FC = () => {
                                                     <span className="truncate max-w-[100px]">{task.owner}</span>
                                                 </div>
                                             </td>
-                                            <td className="p-4 align-middle">
+                                            <td className="p-3 align-middle">
                                                 <span className={getPriorityBadge(task.priority)}>
                                                     {task.priority}
                                                 </span>
                                             </td>
-                                            <td className="p-4 align-middle text-right">
+                                            <td className="p-3 align-middle text-right">
                                                 <FrappeButton
                                                     variant="primary"
                                                     onClick={() => {

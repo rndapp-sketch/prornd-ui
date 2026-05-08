@@ -43,11 +43,11 @@ interface FormData {
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const inputClasses =
-    "w-full h-9 px-3 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800 read-only:bg-zinc-100 dark:bg-zinc-800";
+    "w-full h-10 px-3 bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl text-[13px] font-medium text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#4A6CF7]/20 focus:border-[#4A6CF7] disabled:opacity-70 disabled:bg-[#F4F4F5] dark:disabled:bg-zinc-800/40 read-only:bg-[#F4F4F5] dark:read-only:bg-zinc-800/40";
 const FrappeCard = ({ children, className }: any) => (
     <div
         className={cn(
-            "bg-white dark:bg-zinc-900 p-4 md:p-5 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm",
+            "bg-white dark:bg-[#27272A] p-5 md:p-6 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm",
             className,
         )}
     >
@@ -66,7 +66,7 @@ const FrappeButton = ({
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "px-3.5 py-1.5 border border-zinc-200 dark:border-zinc-800 rounded-md font-semibold text-xs text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed",
+            "h-10 px-4 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl font-bold text-[11px] uppercase tracking-wide text-[#3F3F46] dark:text-[#E4E4E7] bg-white dark:bg-[#27272A] shadow-sm transition-all hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] disabled:opacity-50 disabled:cursor-not-allowed",
             className,
         )}
     >
@@ -74,11 +74,12 @@ const FrappeButton = ({
     </button>
 );
 const NeoSection = ({ title, children }: any) => (
-    <div className="space-y-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-2">
-            {title}
-        </h2>
-        {children}
+    <div className="space-y-4 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
+            <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
+            <h2 className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">{title}</h2>
+        </div>
+        <div className="p-4">{children}</div>
     </div>
 );
 
@@ -87,13 +88,13 @@ const MemoizedTransactionsTable = memo(
     ({ tableData, onRowChange, onFileChange, onAddRow, onDeleteRow }: any) => {
         return (
             <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-900 dark:text-zinc-100 mb-3">
+                <h3 className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200 mb-3">
                     Transaction Details
                 </h3>
-                <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
-                    <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                        <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                            <tr className="divide-x divide-zinc-100 dark:divide-zinc-800">
+                <div className="overflow-x-auto border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl">
+                    <table className="min-w-full divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                        <thead className="bg-[#EEF2FF] dark:bg-blue-950/20">
+                            <tr className="divide-x divide-[#C7D2FE] dark:divide-blue-900/40">
                                 {[
                                     "Transaction Number",
                                     "Date",
@@ -103,18 +104,18 @@ const MemoizedTransactionsTable = memo(
                                 ].map((h) => (
                                     <th
                                         key={h}
-                                        className="px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase tracking-wide text-left"
+                                        className="px-3 py-2.5 font-extrabold text-[#1E3A8A] dark:text-blue-200 text-[10px] uppercase tracking-widest text-left"
                                     >
                                         {h}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                        <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
                             {(tableData || []).map((row: any, i: number) => (
                                 <tr
                                     key={row.id || i}
-                                    className="divide-x divide-zinc-100 dark:divide-zinc-800"
+                                    className="divide-x divide-[#E4E4E7] dark:divide-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]"
                                 >
                                     <td className="px-2 py-1.5">
                                         <input
@@ -203,7 +204,7 @@ const MemoizedTransactionsTable = memo(
                             attachment: null,
                         })
                     }
-                    className="bg-[#D97757] hover:bg-[#D97757] text-white mt-3"
+                    className="bg-[#D97757] hover:bg-[#c5684a] text-white border-[#D97757] mt-3"
                 >
                     + Add Transaction
                 </FrappeButton>
@@ -305,13 +306,13 @@ const MemoizedBudgetBreakupTable = memo(
         const options = budgetHeadOptions || [];
         return (
             <div>
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-900 dark:text-zinc-100 mb-3">
+                <h3 className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200 mb-3">
                     Budget Breakup of Received Amount
                 </h3>
-                <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-md">
-                    <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-                        <thead className="bg-zinc-50 dark:bg-zinc-800/50">
-                            <tr className="divide-x divide-zinc-100 dark:divide-zinc-800">
+                <div className="overflow-x-auto border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl">
+                    <table className="min-w-full divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                        <thead className="bg-[#EEF2FF] dark:bg-blue-950/20">
+                            <tr className="divide-x divide-[#C7D2FE] dark:divide-blue-900/40">
                                 {[
                                     "Account Head",
                                     "Amount (₹)",
@@ -320,18 +321,18 @@ const MemoizedBudgetBreakupTable = memo(
                                 ].map((h) => (
                                     <th
                                         key={h}
-                                        className="px-3 py-2 font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase tracking-wide text-left"
+                                        className="px-3 py-2.5 font-extrabold text-[#1E3A8A] dark:text-blue-200 text-[10px] uppercase tracking-widest text-left"
                                     >
                                         {h}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800 bg-white dark:bg-zinc-900">
+                        <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
                             {(tableData || []).map((row: any, i: number) => (
                                 <tr
                                     key={row.id || i}
-                                    className="divide-x divide-zinc-100 dark:divide-zinc-800"
+                                    className="divide-x divide-[#E4E4E7] dark:divide-[#3F3F46] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B]"
                                 >
                                     <td className="px-2 py-1.5">
                                         <select
@@ -409,7 +410,7 @@ const MemoizedBudgetBreakupTable = memo(
                             remarks: "",
                         })
                     }
-                    className="bg-[#D97757] hover:bg-[#D97757] text-white mt-3"
+                    className="bg-[#D97757] hover:bg-[#c5684a] text-white border-[#D97757] mt-3"
                 >
                     + Add Budget Item
                 </FrappeButton>
@@ -1303,7 +1304,7 @@ const AddFundReceived: React.FC = () => {
             <div key={field.fieldname} className="space-y-1.5">
                 <label
                     htmlFor={field.fieldname}
-                    className="block font-semibold text-zinc-900 dark:text-zinc-100 text-xs uppercase tracking-wide"
+                    className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200"
                 >
                     {field.label}
                     {field.mandatory === 1 && (
@@ -1363,7 +1364,7 @@ const AddFundReceived: React.FC = () => {
         return (
             <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b border-zinc-200 dark:border-zinc-800 mx-auto"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b border-[#E4E4E7] dark:border-[#3F3F46] mx-auto"></div>
                     <p className="mt-3 text-sm font-semibold">
                         Loading form data...
                     </p>
@@ -1394,24 +1395,26 @@ const AddFundReceived: React.FC = () => {
             : [];
 
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
             <AppSidebar />
-            <main className="flex-1 p-4 md:p-6">
-                <header className="mb-6 p-4 md:p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-sm">
-                    <div className="flex items-center gap-3">
+            <main className="flex-1 px-6 md:px-8 pt-7 pb-10">
+                <header className="mb-6 overflow-hidden bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm">
+                    <div className="h-1.5 bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
+                    <div className="p-5 flex items-center gap-3">
                         <button
                             onClick={() => navigate(-1)}
-                            className="p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md hover:bg-zinc-50 dark:bg-zinc-800/50 active:translate-y-1 transition-transform"
+                            className="h-10 w-10 flex items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl hover:text-[#D97757] transition-colors"
                         >
-                            <ArrowLeftIcon className="h-5 w-5" />
+                            <ArrowLeftIcon className="h-4 w-4" />
                         </button>
-                        <div>
-                            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+                        <div className="min-w-0">
+                            <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#D97757] mb-1">Fund Received</div>
+                            <h1 className="text-[22px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-normal">
                                 {editDocName
                                     ? "Edit Received Fund"
                                     : "Record Received Fund"}
                             </h1>
-                            <p className="text-xs text-zinc-700 dark:text-zinc-300 mt-1">
+                            <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA] font-medium mt-1 break-words">
                                 For Project:{" "}
                                 {projectNoFromUrl && (
                                     <strong>{projectNoFromUrl}</strong>
@@ -1512,18 +1515,18 @@ const AddFundReceived: React.FC = () => {
                                 ))}
                             </FrappeCard>
 
-                            <div className="mt-6 flex justify-end gap-3">
+                            <div className="mt-6 flex justify-end gap-3 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-3 shadow-sm">
                                 <FrappeButton
                                     type="button"
                                     onClick={() => navigate(-1)}
-                                    className="bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:bg-zinc-600"
+                                    className="bg-white dark:bg-[#27272A] hover:bg-[#FAFAF9]"
                                 >
                                     Cancel
                                 </FrappeButton>
                                 <FrappeButton
                                     type="submit"
                                     disabled={isSubmitting || !isFundAmtBreakupValid}
-                                    className="bg-green-300 hover:bg-green-400 disabled:bg-zinc-300 dark:bg-zinc-600"
+                                    className="bg-[#D97757] text-white border-[#D97757] hover:bg-[#c5684a] disabled:bg-zinc-300"
                                 >
                                     {isSubmitting
                                         ? "Submitting..."
@@ -1536,8 +1539,8 @@ const AddFundReceived: React.FC = () => {
                     {/* Right: Sanction Details Panel */}
                     <div className="lg:col-span-1">
                         <div className="sticky top-4 space-y-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
-                            <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
-                                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-800 dark:text-zinc-200 mb-3 flex items-center gap-2">
+                            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-4">
+                                <h3 className="inline-flex items-center gap-2 rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200 mb-3">
                                     <span className="p-1 rounded-md bg-zinc-50 dark:bg-zinc-800">
                                         📋
                                     </span>
@@ -1630,7 +1633,7 @@ const AddFundReceived: React.FC = () => {
                                                     );
 
                                                 return (
-                                                    <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
+                                                    <div className="pt-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                                                         <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
                                                             Budget Breakup
                                                             (Year-wise)
@@ -1638,7 +1641,7 @@ const AddFundReceived: React.FC = () => {
                                                         <div className="overflow-x-auto">
                                                             <table className="w-full text-xs">
                                                                 <thead>
-                                                                    <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                                                                    <tr className="border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                                                                         <th className="text-left py-2 font-semibold text-zinc-600 dark:text-zinc-400">
                                                                             Head
                                                                         </th>
@@ -1838,8 +1841,8 @@ const AddFundReceived: React.FC = () => {
                             </div>
 
                             {/* Validation Summary Panel */}
-                            <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm p-4">
-                                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-800 dark:text-zinc-200 mb-3 flex items-center gap-2">
+                            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-4">
+                                <h3 className="inline-flex items-center gap-2 rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200 mb-3">
                                     <span className="p-1 rounded-md bg-blue-100">
                                         ✓
                                     </span>
@@ -1849,7 +1852,7 @@ const AddFundReceived: React.FC = () => {
                                 {/* Fund Received Amt vs Breakup Total */}
                                 {!isNaN(fundReceivedAmt) &&
                                     fundReceivedAmt > 0 && (
-                                        <div className="space-y-2 mb-4 pb-4 border-b border-zinc-200 dark:border-zinc-800">
+                                        <div className="space-y-2 mb-4 pb-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                                             <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase">
                                                 Fund Received Amount
                                             </p>
@@ -1860,7 +1863,7 @@ const AddFundReceived: React.FC = () => {
                                                 showWarning={true}
                                             />
                                             <div className="grid grid-cols-2 gap-2 text-[11px] mt-1">
-                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-md">
+                                                <div className="bg-[#FAFAF9] dark:bg-[#18181B] p-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
                                                     <p className="text-zinc-500 dark:text-zinc-400">
                                                         Fund Received Amt
                                                     </p>
@@ -1871,7 +1874,7 @@ const AddFundReceived: React.FC = () => {
                                                         )}
                                                     </p>
                                                 </div>
-                                                <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-md">
+                                                <div className="bg-[#FAFAF9] dark:bg-[#18181B] p-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
                                                     <p className="text-zinc-500 dark:text-zinc-400">
                                                         Breakup Total
                                                     </p>
@@ -1943,7 +1946,7 @@ const AddFundReceived: React.FC = () => {
                                         }
                                     />
                                     <div className="grid grid-cols-2 gap-2 text-[11px] mt-2">
-                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-md">
+                                        <div className="bg-[#FAFAF9] dark:bg-[#18181B] p-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
                                             <p className="text-zinc-500 dark:text-zinc-400">
                                                 Previously Received
                                             </p>
@@ -1952,7 +1955,7 @@ const AddFundReceived: React.FC = () => {
                                                 {validationState.totalValidation.previousTotal.toLocaleString()}
                                             </p>
                                         </div>
-                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-md">
+                                        <div className="bg-[#FAFAF9] dark:bg-[#18181B] p-2 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
                                             <p className="text-zinc-500 dark:text-zinc-400">
                                                 Current Entry
                                             </p>
@@ -1967,7 +1970,7 @@ const AddFundReceived: React.FC = () => {
                                 {/* Budget Head-wise Validation */}
                                 {Object.keys(validationState.headValidations)
                                     .length > 0 && (
-                                    <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                                    <div className="pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                                         <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase mb-3">
                                             Budget Head Status
                                         </p>
@@ -2017,7 +2020,7 @@ const AddFundReceived: React.FC = () => {
                                 )}
 
                                 {/* Overall Status Badge */}
-                                <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                                <div className="mt-4 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                                     {validationState.totalValidation.isValid &&
                                     isFundAmtBreakupValid &&
                                     Object.values(

@@ -190,23 +190,23 @@ const FrappeCard = ({
 }) => (
     <div
         className={cn(
-            "bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm",
+            "bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm",
             className,
         )}
     >
         {title && (
-            <div className="px-6 py-4 border-b border-zinc-300 dark:border-zinc-700 flex items-center gap-3">
+            <div className="px-5 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] flex items-center gap-3">
                 {icon && (
-                    <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
+                    <div className="p-2 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18 rounded-lg">
                         {icon}
                     </div>
                 )}
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">
+                <h3 className="text-[12px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-[0.12em]">
                     {title}
                 </h3>
             </div>
         )}
-        <div className="p-6">{children}</div>
+        <div className="p-5">{children}</div>
     </div>
 );
 
@@ -1285,7 +1285,7 @@ const FundReceivedDetails = () => {
 
     if (error || !fundData) {
         return (
-            <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
+            <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
                 {/* <AppSidebar /> */}
                 <main className="flex-1 p-4 md:p-8">
                     <FrappeCard className="text-center py-16">
@@ -1320,7 +1320,7 @@ const FundReceivedDetails = () => {
         workflow_state === "Approved"
     ) {
         return (
-            <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
+            <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
                 {/* <AppSidebar /> */}
                 <main className="flex-1 p-4 md:p-8">
                     <FundReceivedWorkflowActions
@@ -1432,27 +1432,27 @@ const FundReceivedDetails = () => {
                 title="Budget Breakup"
                 icon={<FileText className="h-4 w-4 text-[#D97757]" />}
             >
-                <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
-                    <table className="min-w-full divide-y divide-gray-300">
-                        <thead className="bg-zinc-200 dark:bg-zinc-700">
-                            <tr className="divide-x divide-gray-300">
-                                <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <table className="min-w-full">
+                        <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                     Account Head
                                 </th>
-                                <th className="px-3 py-2 text-right text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                                <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                     Amount
                                 </th>
-                                <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                                <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
                                     Remarks
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-300 bg-white dark:bg-zinc-900">
+                        <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
                             {received_amt_breakup?.map(
                                 (item: any, idx: number) => (
                                     <tr
                                         key={item.name || idx}
-                                        className="divide-x divide-gray-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                                        className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40"
                                     >
                                         <td className="px-3 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
                                             <BudgetHeadName value={item.account_head} />
@@ -1493,30 +1493,30 @@ const FundReceivedDetails = () => {
                 title="Transactions"
                 icon={<CreditCard className="h-4 w-4 text-[#D97757]" />}
             >
-                <div className="overflow-x-auto border border-zinc-300 dark:border-zinc-700 rounded-lg">
-                    <table className="min-w-full divide-y divide-gray-300">
-                        <thead className="bg-zinc-200 dark:bg-zinc-700">
-                            <tr className="divide-x divide-gray-300">
-                                <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
+                    <table className="min-w-full">
+                        <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                     Date
                                 </th>
-                                <th className="px-3 py-2 text-left text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                                <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                     Transaction No
                                 </th>
-                                <th className="px-3 py-2 text-right text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                                <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
                                     Amount
                                 </th>
-                                <th className="px-3 py-2 text-center text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase">
+                                <th className="px-4 py-3 text-center text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
                                     Attachments
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-300 bg-white dark:bg-zinc-900">
+                        <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
                             {fund_transactions?.map(
                                 (item: any, idx: number) => (
                                     <tr
                                         key={item.name || idx}
-                                        className="divide-x divide-gray-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                                        className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40"
                                     >
                                         <td className="px-3 py-2 text-sm font-mono text-zinc-900 dark:text-zinc-100">
                                             {item.transaction_date}
@@ -1563,39 +1563,43 @@ const FundReceivedDetails = () => {
     );
 
     return (
-        <div className="bg-zinc-100 dark:bg-zinc-800 min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
             <GlobalLoader isLoading={isSubmitting} />
             {/* <AppSidebar /> */}
 
-            <main className="flex-1 p-4 md:p-8">
+            <main className="flex-1 px-6 md:px-8 pt-7 pb-10">
                 {/* Header */}
-                <FrappeCard className="mb-6 px-5 py-0">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                <div className="mb-5 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                    <div className="flex items-start justify-between gap-4 px-5 py-4">
+                        <div className="flex items-start gap-3 min-w-0">
                             <button
                                 onClick={() => navigate(-1)}
-                                className="p-2.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg hover:bg-zinc-200 dark:bg-zinc-700 transition-colors border border-zinc-300 dark:border-zinc-700"
+                                className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
                             >
-                                <ArrowLeft className="h-5 w-5 text-zinc-900 dark:text-zinc-100" />
+                                <ArrowLeft className="h-4 w-4" />
                             </button>
-                            <div>
-                                <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">
+                            <div className="min-w-0">
+                                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
+                                    Fund Received
+                                </span>
+                                <h1 className="mt-1 text-[18px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-normal leading-tight">
                                     Fund Details & Deposit Slip
                                 </h1>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                                <p className="mt-0.5 text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-medium font-mono">
                                     {name}
                                 </p>
                                 <span
                                     className={cn(
-                                        "inline-block mt-1 px-2 py-0.5 rounded border font-semibold text-[10px]",
+                                        "inline-block mt-1.5 px-2 py-0.5 rounded-full font-bold text-[9px] uppercase tracking-wide",
                                         {
-                                            "bg-amber-100 text-amber-800 border-amber-300":
+                                            "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400":
                                                 workflow_state === "Draft",
-                                            "bg-blue-100 text-blue-800 border-blue-300":
+                                            "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400":
                                                 workflow_state === "Submitted",
-                                            "bg-emerald-100 text-emerald-800 border-emerald-300":
+                                            "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400":
                                                 workflow_state === "Approved",
-                                            "bg-red-100 text-red-800 border-red-300":
+                                            "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400":
                                                 workflow_state === "Rejected",
                                         },
                                     )}
@@ -1661,7 +1665,7 @@ const FundReceivedDetails = () => {
                             )} */}
                         </div>
                     </div>
-                </FrappeCard>
+                </div>
 
                 {/* Deposit Slip Form - Full Width (Fund Details moved to floating Summary panel) */}
                 {showDepositSlip && (
@@ -2084,10 +2088,12 @@ const FundReceivedDetails = () => {
                 {showDepositSlip && (
                     <button
                         onClick={() => setShowSummary(true)}
-                        className="fixed bottom-24 right-8 p-4 bg-[#D97757] text-white rounded-full shadow-lg hover:bg-[#c5684a] transition-all z-40 flex items-center gap-2"
+                        className="fixed bottom-[86px] right-7 z-40 flex h-11 items-center gap-2 rounded-full border border-[#D97757]/30 bg-white/95 px-3.5 text-[#D97757] shadow-lg shadow-[#18181B]/10 backdrop-blur hover:-translate-y-0.5 hover:border-[#D97757]/50 hover:bg-[#FFF7ED] transition-all dark:bg-[#27272A]/95 dark:text-[#FDBA74] dark:border-[#D97757]/35"
                     >
-                        <IndianRupee className="h-6 w-6" />
-                        <span className="font-semibold hidden md:block">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#D97757] text-white shadow-sm">
+                            <IndianRupee className="h-4 w-4" />
+                        </span>
+                        <span className="text-[12px] font-extrabold uppercase tracking-wide hidden md:block">
                             Summary
                         </span>
                     </button>
@@ -2096,10 +2102,12 @@ const FundReceivedDetails = () => {
                 {/* Floating Activity Log Button */}
                 <button
                     onClick={() => setShowActivityLog(true)}
-                    className="fixed bottom-8 right-8 p-4 bg-[#D97757] text-white rounded-full shadow-lg hover:bg-[#c5684a] transition-all z-40 flex items-center gap-2"
+                    className="fixed bottom-8 right-7 z-40 flex h-11 items-center gap-2 rounded-full border border-[#4A6CF7]/30 bg-white/95 px-3.5 text-[#1E3A8A] shadow-lg shadow-[#18181B]/10 backdrop-blur hover:-translate-y-0.5 hover:border-[#4A6CF7]/50 hover:bg-[#EEF2FF] transition-all dark:bg-[#27272A]/95 dark:text-[#C7D2FE] dark:border-[#4A6CF7]/35"
                 >
-                    <MessageSquare className="h-6 w-6" />
-                    <span className="font-semibold hidden md:block">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#4A6CF7] text-white shadow-sm">
+                        <MessageSquare className="h-4 w-4" />
+                    </span>
+                    <span className="text-[12px] font-extrabold uppercase tracking-wide hidden md:block">
                         Activity Log
                     </span>
                 </button>

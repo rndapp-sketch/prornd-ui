@@ -160,22 +160,22 @@ const SectionWrapper = ({
 }) => (
     <Card
         className={cn(
-            "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm",
+            "border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl",
             className,
         )}
     >
-        <CardHeader className="py-3 px-3 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/50">
+        <CardHeader className="py-3 px-5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
             <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                    {Icon && <Icon className="h-3.5 w-3.5 text-[#D97757]" />}
-                    <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">
+                    {Icon && <Icon className="h-3.5 w-3.5 text-[#4A6CF7] dark:text-[#93C5FD]" />}
+                    <CardTitle className="font-sans text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-[0.1em]">
                         {title}
                     </CardTitle>
                 </div>
                 {action && <div>{action}</div>}
             </div>
         </CardHeader>
-        <CardContent className="pt-4 px-3">{children}</CardContent>
+        <CardContent className="p-5">{children}</CardContent>
     </Card>
 );
 
@@ -190,19 +190,36 @@ const FieldDisplay = ({
 }) => {
     if (!value && value !== 0 && value !== "No") return null;
     return (
-        <div className="py-3 px-1">
-            <div className="flex items-center gap-2 mb-1.5">
+        <div className="rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2 min-h-[60px]">
+            <div className="flex items-center gap-2 mb-1">
                 {Icon && (
-                    <Icon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
+                    <Icon className="h-3.5 w-3.5 text-[#4A6CF7] dark:text-[#93C5FD]" />
                 )}
-                <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide font-sans">
+                <p className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-[0.12em] font-sans">
                     {label}
                 </p>
             </div>
-            <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100 pl-0.5">
+            <div className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] leading-snug break-words">
                 {value}
-            </p>
+            </div>
         </div>
+    );
+};
+
+const ProjectStatusBadge = ({ status }: { status?: string }) => {
+    const normalized = (status || "Draft").toLowerCase();
+    const className = normalized.includes("approved")
+        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+        : normalized.includes("reject") || normalized.includes("correction")
+          ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+          : normalized.includes("draft")
+            ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+            : "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400";
+
+    return (
+        <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold leading-none", className)}>
+            {status || "Draft"}
+        </span>
     );
 };
 
@@ -231,7 +248,7 @@ const HtmlContent = ({
     return (
         <SectionWrapper title={title} icon={Icon}>
             <div
-                className="prose prose-sm max-w-none text-zinc-600 dark:text-zinc-300 leading-relaxed dark:prose-invert"
+                className="prose prose-sm max-w-none text-[#3F3F46] dark:text-[#D4D4D8] leading-relaxed dark:prose-invert"
                 dangerouslySetInnerHTML={{ __html: htmlString }}
             />
         </SectionWrapper>
@@ -256,14 +273,14 @@ const TableDisplay = ({
     if (!data || data.length === 0) return null;
     return (
         <SectionWrapper title={label} icon={Icon}>
-            <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-                <Table>
-                    <TableHeader className="bg-zinc-50 dark:bg-zinc-900">
-                        <TableRow className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-transparent">
+            <div className="overflow-x-auto p-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
+                <Table className="border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
+                    <TableHeader className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                        <TableRow className="border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 hover:bg-transparent">
                             {columns.map((col) => (
                                 <TableHead
                                     key={col.fieldname}
-                                    className="px-6 py-3 h-10 text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider"
+                                    className="px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25 last:border-r-0"
                                 >
                                     {col.label}
                                 </TableHead>
@@ -274,12 +291,12 @@ const TableDisplay = ({
                         {data.map((row, index) => (
                             <TableRow
                                 key={index}
-                                className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 border-b border-zinc-100 dark:border-zinc-800"
+                                className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-b-0"
                             >
                                 {columns.map((col) => (
                                     <TableCell
                                         key={col.fieldname}
-                                        className="px-4 py-2 text-xs text-zinc-700 dark:text-zinc-300"
+                                        className="px-4 py-3 text-xs text-zinc-700 dark:text-zinc-300 border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 last:border-r-0 align-top"
                                     >
                                         {col.render
                                             ? col.render(row[col.fieldname])
@@ -2436,14 +2453,17 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
 
         return (
             <div className="space-y-5">
-                <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-                    <CardContent className="p-4">
+                <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm rounded-2xl overflow-hidden">
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
+                        <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
                         <label
                             htmlFor="comment-textarea"
-                            className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3 block"
+                            className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200"
                         >
                             Add a comment
                         </label>
+                    </div>
+                    <CardContent className="p-4">
                         <Textarea
                             id="comment-textarea"
                             placeholder="Type here... (Ctrl+Enter to submit)"
@@ -2451,11 +2471,11 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                             onChange={(e) => setNewComment(e.target.value)}
                             onKeyDown={handleKeyPress}
                             disabled={isSubmitting}
-                            className="min-h-[100px] border-zinc-200 dark:border-zinc-800"
+                            className="min-h-[110px] rounded-xl border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#18181B] text-[13px] font-medium text-[#3F3F46] dark:text-[#E4E4E7] focus:border-[#4A6CF7] focus:ring-[#4A6CF7]/20"
                             rows={4}
                         />
                         <div className="flex items-center justify-between mt-4">
-                            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                            <span className="text-[11px] font-bold text-[#A1A1AA] dark:text-zinc-500">
                                 {newComment.length}/1000
                             </span>
                             <FrappeButton
@@ -2467,39 +2487,65 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                         </div>
                     </CardContent>
                 </Card>
-                <div className="space-y-3">
-                    {activityData?.message?.map((item, index) => (
-                        <div
-                            key={`${item.creation} -${index} `}
-                            className="flex items-start gap-4 p-4 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-100 dark:border-zinc-800 shadow-sm"
-                        >
-                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center font-semibold text-zinc-600 dark:text-zinc-300 text-lg">
-                                {item.owner?.charAt(0).toUpperCase() || "U"}
+
+                <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm rounded-2xl overflow-hidden">
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
+                        <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
+                        <h2 className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">
+                            Activity Timeline
+                        </h2>
+                        <span className="ml-auto rounded-full bg-white/80 dark:bg-[#27272A] px-2 py-0.5 text-[10px] font-extrabold text-[#1E3A8A] dark:text-blue-200">
+                            {activityData?.message?.length ?? 0}
+                        </span>
+                    </div>
+
+                    <div className="p-4">
+                        {!activityData?.message?.length ? (
+                            <div className="rounded-xl border border-dashed border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] py-10 text-center">
+                                <p className="text-[13px] font-bold text-[#71717A] dark:text-[#A1A1AA]">
+                                    No activity yet.
+                                </p>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center mb-1">
-                                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                                        {item.owner || "Unknown User"}
-                                    </p>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1">
-                                        <ClockIcon className="h-3.5 w-3.5" />
-                                        {item.creation
-                                            ? new Date(
-                                                  item.creation,
-                                              ).toLocaleString()
-                                            : "N/A"}
-                                    </p>
+                        ) : (
+                            <div className="relative">
+                                <div className="absolute left-5 top-0 bottom-0 w-px bg-[#E4E4E7] dark:bg-[#3F3F46]" />
+                                <div className="space-y-3">
+                                    {activityData.message.map((item, index) => (
+                                        <div
+                                            key={`${item.creation} -${index} `}
+                                            className="relative flex items-start gap-4 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-4 ml-0"
+                                        >
+                                            <div className="relative z-10 flex-shrink-0 h-10 w-10 rounded-xl bg-[#EEF2FF] dark:bg-blue-950/20 border border-[#C7D2FE] dark:border-blue-900/40 flex items-center justify-center font-extrabold text-[#1E3A8A] dark:text-blue-200 text-sm">
+                                                {item.owner?.charAt(0).toUpperCase() || "U"}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 mb-2">
+                                                    <p className="inline-flex w-fit items-center rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                        {item.owner || "Unknown User"}
+                                                    </p>
+                                                    <p className="text-[11px] font-bold text-[#A1A1AA] dark:text-zinc-500 flex items-center gap-1">
+                                                        <ClockIcon className="h-3.5 w-3.5" />
+                                                        {item.creation
+                                                            ? new Date(
+                                                                  item.creation,
+                                                              ).toLocaleString()
+                                                            : "N/A"}
+                                                    </p>
+                                                </div>
+                                                <div
+                                                    className="rounded-xl bg-[#FAFAF9] dark:bg-[#18181B] border border-[#F4F4F5] dark:border-[#3F3F46] px-3 py-2 text-[13px] font-medium text-[#3F3F46] dark:text-[#E4E4E7] prose prose-sm max-w-none leading-relaxed dark:prose-invert"
+                                                    dangerouslySetInnerHTML={{
+                                                        __html: item.content || "No content",
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                                <div
-                                    className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed dark:prose-invert"
-                                    dangerouslySetInnerHTML={{
-                                        __html: item.content || "No content",
-                                    }}
-                                />
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        )}
+                    </div>
+                </Card>
             </div>
         );
     },
@@ -3526,17 +3572,48 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     };
 
     const tabs = [
-        { id: "overview", label: "Overview", icon: FileTextIcon },
+        {
+            id: "overview",
+            label: "Overview",
+            icon: FileTextIcon,
+            activeClass: "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]",
+            inactiveClass: "border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]",
+            iconClass: "text-[#4A6CF7] dark:text-[#A5B4FC]",
+        },
         {
             id: "sanction-details",
             label: "Sanction Details",
             icon: CreditCardIcon,
+            activeClass: "bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]",
+            inactiveClass: "border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]",
+            iconClass: "text-[#059669] dark:text-[#6EE7B7]",
         },
-        { id: "ledger", label: "Ledger", icon: LedgerIcon },
+        {
+            id: "ledger",
+            label: "Ledger",
+            icon: LedgerIcon,
+            activeClass: "bg-[#FFF7ED] border-[#F97316] text-[#9A3412] shadow-sm shadow-[#F97316]/10 dark:bg-[#F97316]/15 dark:border-[#FB923C] dark:text-[#FED7AA]",
+            inactiveClass: "border-[#FED7AA] bg-[#FFF7ED]/65 text-[#C2410C] hover:bg-[#FFF7ED] dark:border-[#F97316]/30 dark:bg-[#F97316]/10 dark:text-[#FED7AA]",
+            iconClass: "text-[#EA580C] dark:text-[#FDBA74]",
+        },
         ...(!embedded
-            ? [{ id: "quick-actions", label: "Applications", icon: ZapIcon }]
+            ? [{
+                id: "quick-actions",
+                label: "Applications",
+                icon: ZapIcon,
+                activeClass: "bg-[#F5F3FF] border-[#8B5CF6] text-[#5B21B6] shadow-sm shadow-[#8B5CF6]/10 dark:bg-[#8B5CF6]/15 dark:border-[#A78BFA] dark:text-[#DDD6FE]",
+                inactiveClass: "border-[#DDD6FE] bg-[#F5F3FF]/65 text-[#6D28D9] hover:bg-[#F5F3FF] dark:border-[#8B5CF6]/30 dark:bg-[#8B5CF6]/10 dark:text-[#DDD6FE]",
+                iconClass: "text-[#7C3AED] dark:text-[#C4B5FD]",
+            }]
             : []),
-        { id: "activity", label: "Activity Log", icon: MessageSquareIcon },
+        {
+            id: "activity",
+            label: "Activity Log",
+            icon: MessageSquareIcon,
+            activeClass: "bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]",
+            inactiveClass: "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]",
+            iconClass: "text-[#71717A] dark:text-[#A1A1AA]",
+        },
     ];
 
     const getMimeType = (fileName = "") => {
@@ -3615,74 +3692,38 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
 
         return (
             <>
-                <header className="sticky top-0 z-50 mb-4 p-4 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm transition-all duration-200">
-                    <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
-                        <div className="flex items-center gap-4">
+                <header className="mb-4 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                    <div className="px-5 py-4">
+                    <div className="flex items-start justify-between flex-col xl:flex-row gap-4">
+                        <div className="flex items-start gap-3 min-w-0">
                             {!embedded && (
                                 <button
                                     onClick={() => navigate("/projects-view")}
                                     aria-label="Back to projects"
-                                    className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:bg-zinc-800 transition-colors"
+                                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
                                 >
-                                    <ArrowLeftIcon className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+                                    <ArrowLeftIcon className="h-4 w-4" />
                                 </button>
                             )}
-                            <div>
-                                <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                            <div className="min-w-0">
+                                <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                                    <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
+                                        Project Overview
+                                    </span>
+                                    <ProjectStatusBadge status={data?.workflow_state} />
+                                </div>
+                                <h1 className="font-sans text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
                                     {data?.project_title || "Project Details"}
                                 </h1>
-                                <p className="text-xs text-[#6B7280] dark:text-zinc-400 mt-0.5">
-                                    ID: {data?.project_no || projectName} ·{" "}
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757]">
-                                        {data?.workflow_state || "Draft"}
-                                    </span>
+                                <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                    ID: <span className="font-mono text-[#3F3F46] dark:text-[#E4E4E7]">{data?.project_no || projectName}</span>
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3 flex-wrap">
-                            {/* Budget Summary in Header */}
-                            <div className="hidden lg:flex items-center gap-6 mr-6 border-r border-zinc-200 dark:border-zinc-800 pr-6">
-                                <div className="text-right">
-                                    <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 dark:text-zinc-400 mb-0.5">
-                                        Commitable Balance
-                                    </p>
-                                    {isBalanceLoading ? (
-                                        <div className="h-6 w-20 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" />
-                                    ) : (
-                                        <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300 leading-none">
-                                            ₹{" "}
-                                            {commitableBalance.toLocaleString(
-                                                "en-IN",
-                                            )}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-[10px] uppercase tracking-wider font-bold text-zinc-500 dark:text-zinc-400 mb-0.5">
-                                        Actual Balance
-                                    </p>
-                                    {isBalanceLoading ? (
-                                        <div className="h-6 w-20 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" />
-                                    ) : (
-                                        <p className="text-sm font-bold text-[#D97757] leading-none">
-                                            ₹{" "}
-                                            {actualBalance.toLocaleString(
-                                                "en-IN",
-                                            )}
-                                        </p>
-                                    )}
-                                </div>
-                                {/* <button
-                  onClick={() => setActiveTab('ledger')}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#D97757] bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 hover:bg-[#B2DFDB] rounded-lg transition-colors"
-                >
-                  <LedgerIcon className="w-3.5 h-3.5" />
-                  View Ledger
-                </button> */}
-                            </div>
-
+                        <div className="flex items-center gap-2 flex-wrap">
                             {isCurrentUserPI && (
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 [&_button]:h-8 [&_button]:px-3 [&_button]:text-[12px]">
                                     <FrappeButton
                                         onClick={handleAddFunds}
                                         aria-label="Add funds to project"
@@ -3740,13 +3781,19 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             />
                         </div>
                     </div>
+                    </div>
                 </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
                     {/* Main Content Column */}
-                    <div className="lg:col-span-3 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-                        <div className="border-b border-zinc-200 dark:border-zinc-800 p-2">
-                            <nav className="frappe-tabs" aria-label="Page tabs">
+                    <div
+                        className={cn(
+                            "bg-white dark:bg-[#27272A] rounded-xl border border-[#D4D4D8] dark:border-[#52525B] shadow-sm overflow-hidden",
+                            activeTab === "ledger" ? "lg:col-span-4" : "lg:col-span-3",
+                        )}
+                    >
+                        <div className="border-b border-[#D4D4D8] dark:border-[#52525B] bg-[#FAFAF9] dark:bg-[#27272A]">
+                            <nav className="flex items-center gap-1 p-2 overflow-x-auto" aria-label="Page tabs">
                                 {tabs.map((tab) => (
                                     <button
                                         key={tab.id}
@@ -3756,12 +3803,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         }}
                                         aria-selected={activeTab === tab.id}
                                         className={cn(
-                                            "frappe-tab flex items-center gap-2 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-bold",
-                                            activeTab === tab.id &&
-                                                "active bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757] dark:bg-[#D97757]/20",
+                                            "flex-shrink-0 flex h-8 items-center gap-1.5 px-2.5 font-bold text-[11px] uppercase tracking-wide rounded-lg border transition-all",
+                                            activeTab === tab.id ? tab.activeClass : tab.inactiveClass,
                                         )}
                                     >
-                                        <tab.icon className="h-3.5 w-3.5" />{" "}
+                                        <tab.icon className={cn("h-3.5 w-3.5", tab.iconClass)} />{" "}
                                         {tab.label}
                                         {tab.id === "sanction-details" &&
                                             (() => {
@@ -3801,7 +3847,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                 ))}
                             </nav>
                         </div>
-                        <div className="bg-zinc-50/50 dark:bg-zinc-900/50 p-4">
+                        <div className="bg-[#F4F4F5] dark:bg-[#18181B] p-4 md:p-5">
                             {activeTab === "overview" && (
                                 <div className="space-y-5">
                                     {/* ... existing overview content ... */}
@@ -6014,10 +6060,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                 <div className="space-y-6">
                                     {/* Ledger Head Tabs */}
                                     {/* Ledger Head Tabs and Actions */}
-                                    <div className="bg-white dark:bg-zinc-900 p-2 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between gap-4">
-                                        <div className="flex space-x-2 overflow-x-auto hide-scrollbar">
+                                    <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm p-3 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3 min-w-0">
+                                        <div className="flex flex-wrap gap-2 min-w-0">
                                             {isCheckingHeads ? (
-                                                <div className="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2">
+                                                <div className="px-3 py-2 text-[13px] text-[#71717A] dark:text-[#A1A1AA] flex items-center gap-2">
                                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#D97757]"></div>
                                                     Checking account heads...
                                                 </div>
@@ -6035,11 +6081,11 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                 )
                                                             }
                                                             className={cn(
-                                                                "px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
+                                                                "px-3 py-2 rounded-xl text-[12px] font-bold transition-colors",
                                                                 activeLedgerHeadId ===
                                                                     head.id
-                                                                    ? "bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757]"
-                                                                    : "bg-zinc-50 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:bg-zinc-800",
+                                                                    ? "bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400"
+                                                                    : "bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] dark:text-[#A1A1AA] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7]",
                                                             )}
                                                         >
                                                             {head.name}
@@ -6047,7 +6093,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                     ),
                                                 )
                                             ) : (
-                                                <div className="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400">
+                                                <div className="px-3 py-2 text-[13px] text-[#71717A] dark:text-[#A1A1AA]">
                                                     No account heads with
                                                     transactions found
                                                 </div>
@@ -6064,7 +6110,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                 : "newest",
                                                     )
                                                 }
-                                                className="inline-flex items-center gap-1.5 px-3 h-9 text-xs font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                                                className="inline-flex items-center gap-1.5 px-3 h-9 text-[12px] font-bold rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#71717A] dark:text-[#A1A1AA] hover:text-[#2563EB] transition-colors"
                                             >
                                                 <ArrowUpDown className="w-3.5 h-3.5" />
                                                 {ledgerSortOrder === "newest"
@@ -6088,7 +6134,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                     </div>
 
                                     {/* Ledger Table */}
-                                    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden min-h-[300px]">
+                                    <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden min-h-[300px] min-w-0">
                                         {isLedgerLoading ? (
                                             <div className="flex flex-col items-center justify-center py-20">
                                                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757] mb-4"></div>
@@ -6123,150 +6169,57 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                 </p>
                                             </div>
                                         ) : (
-                                            <div className="overflow-auto max-h-[70vh]">
-                                                <table className="w-full text-sm text-left">
-                                                    <thead className="sticky top-0 z-10 bg-zinc-50 dark:bg-zinc-800/50 shadow-sm">
-                                                        <tr>
-                                                            <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px]">
-                                                                TID
-                                                            </th>
-                                                            <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px]">
-                                                                Module Name
-                                                            </th>
-                                                            <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px]">
-                                                                App ID
-                                                            </th>
-                                                            <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px]">
-                                                                Date
-                                                            </th>
-                                                            <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px]">
-                                                                Particulars
-                                                            </th>
-                                                            <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px]">
-                                                                BMR
-                                                            </th>
-                                                            <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px] text-right">
-                                                                Fund Received
-                                                            </th>
-                                                            <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px] text-right">
-                                                                Commit Amt
-                                                            </th>
-                                                            <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px] text-right">
-                                                                Commitable Bal
-                                                            </th>
-                                                            <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px] text-right">
-                                                                Payment Amt
-                                                            </th>
-                                                            <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px] text-right">
-                                                                Payment Bal
-                                                            </th>
-                                                            <th className="px-3 py-1.5 font-semibold text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 uppercase text-[10px] text-center">
-                                                                Status
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                                        {sortedTransactions.map(
-                                                            (txn, idx) => (
-                                                                <tr
-                                                                    key={`${txn.transactionId}-${idx}`}
-                                                                    className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                                                                >
-                                                                    <td className="px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-mono whitespace-nowrap">
-                                                                        {txn.transactionId ||
-                                                                            "-"}
-                                                                    </td>
-                                                                    <td className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
-                                                                        {txn.moduleCode ||
-                                                                            "-"}
-                                                                    </td>
-                                                                    <td className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 whitespace-nowrap font-mono">
-                                                                        {txn.frapAppId ||
-                                                                            "-"}
-                                                                    </td>
-                                                                    <td className="px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-                                                                        {txn.transactionDate
-                                                                            ? new Date(
-                                                                                  txn.transactionDate,
-                                                                              ).toLocaleDateString(
-                                                                                  "en-IN",
-                                                                              )
-                                                                            : "-"}
-                                                                    </td>
-                                                                    <td className="px-3 py-1.5 text-xs text-zinc-900 dark:text-zinc-100">
-                                                                        <div
-                                                                            className="max-w-[180px] truncate"
-                                                                            title={
-                                                                                txn.particulars
-                                                                            }
-                                                                        >
-                                                                            {
-                                                                                txn.particulars
-                                                                            }
-                                                                        </div>
-                                                                        {txn.refDetails && (
-                                                                            <div className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5 truncate max-w-[180px]">
-                                                                                {
-                                                                                    txn.refDetails
-                                                                                }
-                                                                            </div>
-                                                                        )}
-                                                                    </td>
-                                                                    <td className="px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
-                                                                        {txn.bmr ||
-                                                                            "-"}
-                                                                    </td>
-                                                                    <td className="px-3 py-1.5 text-xs text-right font-medium text-green-600 whitespace-nowrap">
-                                                                        {txn.fundReceivedAmount
-                                                                            ? `₹${txn.fundReceivedAmount.toLocaleString("en-IN")}`
-                                                                            : "-"}
-                                                                    </td>
-                                                                    <td className="px-3 py-1.5 text-xs text-right font-medium text-red-600 whitespace-nowrap">
-                                                                        {txn.commitAmount
-                                                                            ? `₹${txn.commitAmount.toLocaleString("en-IN")}`
-                                                                            : "-"}
-                                                                    </td>
-                                                                    <td className="px-3 py-1.5 text-xs text-right font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-                                                                        {txn.commitableBalance
-                                                                            ? `₹${txn.commitableBalance.toLocaleString("en-IN")}`
-                                                                            : "-"}
-                                                                    </td>
-                                                                    <td className="px-3 py-1.5 text-xs text-right font-medium text-red-600 whitespace-nowrap">
-                                                                        {txn.paymentAmount
-                                                                            ? `₹${txn.paymentAmount.toLocaleString("en-IN")}`
-                                                                            : "-"}
-                                                                    </td>
-                                                                    <td className="px-3 py-1.5 text-xs text-right font-bold text-[#D97757] whitespace-nowrap">
-                                                                        {txn.paymentBalance
-                                                                            ? `₹${txn.paymentBalance.toLocaleString("en-IN")}`
-                                                                            : "0"}
-                                                                    </td>
-                                                                    <td className="px-3 py-1.5 text-center">
-                                                                        <span
-                                                                            className={cn(
-                                                                                "inline-flex px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap",
-                                                                                txn.status ===
-                                                                                    "PAID"
-                                                                                    ? "bg-green-100 text-green-700"
-                                                                                    : txn.status ===
-                                                                                        "PARTIALLY_PAID"
-                                                                                      ? "bg-yellow-100 text-yellow-700"
-                                                                                      : txn.status ===
-                                                                                          "PENDING"
-                                                                                        ? "bg-orange-100 text-orange-700"
-                                                                                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
-                                                                            )}
-                                                                        >
-                                                                            {
-                                                                                txn.status
-                                                                            }
-                                                                        </span>
-                                                                    </td>
-                                                                </tr>
-                                                            ),
-                                                        )}
-                                                    </tbody>
-                                                </table>
+                                            <div className="max-h-[70vh] overflow-y-auto p-1 min-w-0">
+                                                <div className="hidden xl:grid grid-cols-[repeat(11,minmax(0,1fr))] rounded-t-lg bg-[#EEF2FF] dark:bg-blue-950/20 border border-[#C7D2FE] dark:border-blue-900/40 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200 overflow-hidden">
+                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">Date / TID</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">Particulars</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">Module</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">App ID</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">BMR</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Received</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Commit</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Commit Bal</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Paid</div>
+                                                    <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Pay Bal</div>
+                                                    <div className="px-1.5 py-1.5 text-center">Status</div>
+                                                </div>
+                                                {sortedTransactions.map((txn, idx) => (
+                                                    <div
+                                                        key={`${txn.transactionId}-${idx}`}
+                                                        className="grid grid-cols-2 xl:grid-cols-[repeat(11,minmax(0,1fr))] items-center border-x border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] min-w-0"
+                                                    >
+                                                        <div className="min-w-0 px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                            <div className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{txn.transactionDate ? new Date(txn.transactionDate).toLocaleDateString("en-IN") : "-"}</div>
+                                                            <div className="text-[10px] font-semibold text-[#A1A1AA] break-words leading-tight">TID {txn.transactionId || "-"}</div>
+                                                        </div>
+                                                        <div className="col-span-2 xl:col-span-1 min-w-0 px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                            <div className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-tight">{txn.particulars || "-"}</div>
+                                                            {txn.refDetails && <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] break-words leading-tight">{txn.refDetails}</div>}
+                                                        </div>
+                                                        <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] break-words">{txn.moduleCode || "-"}</div>
+                                                        <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] break-words">{txn.frapAppId || "-"}</div>
+                                                        <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] break-words">{txn.bmr || "-"}</div>
+                                                        <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] xl:text-right font-extrabold text-emerald-700 break-words">{txn.fundReceivedAmount ? `₹${txn.fundReceivedAmount.toLocaleString("en-IN")}` : "-"}</div>
+                                                        <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] xl:text-right font-extrabold text-orange-700 break-words">{txn.commitAmount ? `₹${txn.commitAmount.toLocaleString("en-IN")}` : "-"}</div>
+                                                        <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] xl:text-right font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] break-words">{txn.commitableBalance ? `₹${txn.commitableBalance.toLocaleString("en-IN")}` : "-"}</div>
+                                                        <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] xl:text-right font-extrabold text-red-700 break-words">{txn.paymentAmount ? `₹${txn.paymentAmount.toLocaleString("en-IN")}` : "-"}</div>
+                                                        <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] xl:text-right font-extrabold text-[#2563EB] dark:text-blue-400 break-words">{txn.paymentBalance ? `₹${txn.paymentBalance.toLocaleString("en-IN")}` : "0"}</div>
+                                                        <div className="px-1.5 py-1.5 xl:text-center">
+                                                            <span className={cn(
+                                                                "inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold",
+                                                                txn.status === "PAID"
+                                                                    ? "bg-emerald-50 text-emerald-700"
+                                                                    : txn.status === "PARTIALLY_PAID"
+                                                                      ? "bg-amber-50 text-amber-700"
+                                                                      : txn.status === "PENDING"
+                                                                        ? "bg-orange-50 text-orange-700"
+                                                                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
+                                                            )}>
+                                                                {txn.status || "Completed"}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
                                         )}
                                     </div>
@@ -6292,57 +6245,112 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                     </div>
 
                     {/* Right Sidebar Column */}
-                    <aside className="lg:col-span-1 space-y-4 lg:sticky lg:top-28 lg:self-start">
-                        {/* Section 1: Latest Activity */}
-                        <div className="frappe-widget">
-                            <h3 className="frappe-widget-title mb-3 flex items-center justify-between">
-                                Latest Activity
-                                <span
-                                    className="text-xs font-normal text-zinc-500 dark:text-zinc-400 cursor-pointer hover:text-[#D97757]"
-                                    onClick={() => setActiveTab("activity")}
+                    <aside
+                        className={cn(
+                            "lg:col-span-1 space-y-4 lg:sticky lg:top-28 lg:self-start",
+                            activeTab === "ledger" && "hidden",
+                        )}
+                    >
+                        <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
+                            <div className="flex items-center gap-2 px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
+                                <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
+                                <h3 className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">
+                                    Balances
+                                </h3>
+                            </div>
+                            <div className="p-4 space-y-3">
+                                <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] p-3">
+                                    <div className="inline-flex items-center rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">
+                                        Commitable Balance
+                                    </div>
+                                    <div className="mt-2 text-[20px] font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7]">
+                                        ₹{" "}
+                                        {commitableBalance.toLocaleString(
+                                            "en-IN",
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] p-3">
+                                    <div className="inline-flex items-center rounded-md border border-orange-200 bg-orange-50 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#C2410C]">
+                                        Actual Balance
+                                    </div>
+                                    <div className="mt-2 text-[20px] font-extrabold tracking-tight text-[#D97757]">
+                                        ₹{" "}
+                                        {actualBalance.toLocaleString(
+                                            "en-IN",
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
+                            <div className="flex items-center gap-2 px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
+                                <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
+                                <h3 className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">
+                                    Latest Activity
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setActiveTab("activity");
+                                        setSearchParams({ tab: "activity" });
+                                    }}
+                                    className="ml-auto text-[10px] font-extrabold uppercase tracking-widest text-[#2563EB] hover:text-[#D97757]"
                                 >
                                     View All
-                                </span>
-                            </h3>
-                            {activityData?.message &&
-                            activityData.message.length > 0 ? (
-                                <div className="space-y-3 max-h-[100px] overflow-y-auto pr-1 custom-scrollbar">
-                                    {activityData.message.map(
-                                        (activity, idx) => (
-                                            <div
-                                                key={idx}
-                                                className="flex items-start gap-3"
-                                            >
-                                                <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 flex items-center justify-center font-bold text-[#D97757] text-xs">
-                                                    {activity.owner
-                                                        ?.charAt(0)
-                                                        .toUpperCase() || "U"}
-                                                </div>
-                                                <div className="min-w-0">
+                                </button>
+                            </div>
+                            <div className="p-4">
+                                {activityData?.message?.length ? (
+                                    <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1">
+                                        {activityData.message
+                                            .slice(0, 4)
+                                            .map((activity, idx) => (
+                                                <div
+                                                    key={`${activity.creation}-${idx}`}
+                                                    className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] p-3"
+                                                >
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <div className="h-7 w-7 rounded-lg bg-[#EEF2FF] dark:bg-blue-950/20 border border-[#C7D2FE] dark:border-blue-900/40 flex items-center justify-center text-[11px] font-extrabold text-[#1E3A8A] dark:text-blue-200">
+                                                            {activity.owner
+                                                                ?.charAt(0)
+                                                                .toUpperCase() ||
+                                                                "U"}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="truncate text-[12px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                                {activity.owner ||
+                                                                    "Unknown User"}
+                                                            </p>
+                                                            <p className="text-[10px] font-medium text-[#A1A1AA]">
+                                                                {activity.creation
+                                                                    ? new Date(
+                                                                          activity.creation,
+                                                                      ).toLocaleString()
+                                                                    : ""}
+                                                            </p>
+                                                        </div>
+                                                    </div>
                                                     <div
-                                                        className="text-sm text-zinc-800 dark:text-zinc-200 line-clamp-2 prose prose-sm max-w-none"
+                                                        className="line-clamp-2 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] prose prose-sm max-w-none dark:prose-invert"
                                                         dangerouslySetInnerHTML={{
-                                                            __html: activity.content,
+                                                            __html:
+                                                                activity.content ||
+                                                                "",
                                                         }}
                                                     />
-                                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                                        {activity.owner} ·{" "}
-                                                        {activity.creation
-                                                            ? new Date(
-                                                                  activity.creation,
-                                                              ).toLocaleString()
-                                                            : ""}
-                                                    </p>
                                                 </div>
-                                            </div>
-                                        ),
-                                    )}
-                                </div>
-                            ) : (
-                                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">
-                                    No recent activity found.
-                                </p>
-                            )}
+                                            ))}
+                                    </div>
+                                ) : (
+                                    <div className="rounded-xl border border-dashed border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] p-5 text-center">
+                                        <p className="text-[12px] font-bold text-[#71717A] dark:text-[#A1A1AA]">
+                                            No recent activity.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Section 2: Add Comment (Moved Up) */}
@@ -6879,8 +6887,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     };
 
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-            <main className="flex-1 p-3 md:p-6 w-full">{renderContent()}</main>
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
+            <main className="flex-1 w-full">{renderContent()}</main>
 
             {/* Sanction Submit Comment Modal */}
             <CommentModal

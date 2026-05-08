@@ -472,11 +472,40 @@ const Card = ({
 }) => (
   <div
     className={cn(
-      "bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-sm transition-all overflow-hidden",
+      "bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm transition-all overflow-hidden",
       className,
     )}
   >
     {children}
+  </div>
+);
+
+const SectionDivider = ({ title }: { title: string }) => (
+  <div className="flex items-center gap-2.5 mb-3 mt-1">
+    <span className="text-[12px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-[0.1em] whitespace-nowrap">
+      {title}
+    </span>
+    <div className="flex-1 h-px bg-[#E4E4E7] dark:bg-[#3F3F46]" />
+  </div>
+);
+
+const PanelHeader = ({
+  icon,
+  title,
+  action,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  action?: React.ReactNode;
+}) => (
+  <div className="flex items-center justify-between px-[22px] py-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+    <div className="flex items-center gap-2 text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+      <div className="w-7 h-7 rounded-md flex items-center justify-center bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400">
+        {React.cloneElement(icon as React.ReactElement<any>, { size: 15 })}
+      </div>
+      {title}
+    </div>
+    {action}
   </div>
 );
 
@@ -489,14 +518,14 @@ const CurrentTime = () => {
 
   return (
     <div className="text-right hidden sm:block">
-      <div className="font-sans text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-semibold">
+      <div className="text-[11px] uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] font-bold">
         {time.toLocaleDateString("en-US", {
           weekday: "short",
           month: "short",
           day: "numeric",
         })}
       </div>
-      <div className="text-zinc-800 dark:text-zinc-200 font-serif text-lg leading-tight">
+      <div className="text-[#3F3F46] dark:text-[#E4E4E7] text-[15px] font-extrabold leading-tight">
         {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
       </div>
     </div>
@@ -516,20 +545,23 @@ const ActionCard: React.FC<ActionCardProps> = ({
   description,
   onClick,
 }) => (
-  <Card className="hover:border-zinc-300 dark:hover:border-zinc-500 cursor-pointer group">
+  <Card className="hover:-translate-y-0.5 hover:shadow-md cursor-pointer group">
     <button
       onClick={onClick}
-      className="w-full text-left p-6 flex flex-col h-full"
+      className="w-full text-left p-5 flex items-start gap-4 h-full"
     >
-      <div className="size-10 flex items-center justify-center rounded-lg bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 mb-5 group:bg-[#D97757] group:text-white transition-all duration-300">
-        {React.cloneElement(icon as React.ReactElement<any>, { size: 20 })}
+      <div className="size-10 flex items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400 group-hover:bg-[#D97757] group-hover:text-white transition-all duration-200 shrink-0">
+        {React.cloneElement(icon as React.ReactElement<any>, { size: 19 })}
       </div>
-      <h3 className="font-serif text-xl text-zinc-800 dark:text-zinc-100 font-medium mb-2">
-        {title}
-      </h3>
-      <p className="font-sans text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-        {description}
-      </p>
+      <div className="min-w-0">
+        <h3 className="text-[15px] text-[#3F3F46] dark:text-[#E4E4E7] font-extrabold mb-1">
+          {title}
+        </h3>
+        <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-medium leading-relaxed">
+          {description}
+        </p>
+      </div>
+      <ChevronRight className="size-4 ml-auto mt-1 text-zinc-300 group-hover:text-[#D97757] shrink-0" />
     </button>
   </Card>
 );
@@ -545,21 +577,24 @@ const AnalyticsCard: React.FC<{
   <div
     onClick={onClick}
     className={cn(
-      "p-4 rounded-lg border border-zinc-100 dark:border-zinc-700/50 bg-zinc-50/30 dark:bg-zinc-900/20 transition-all",
-      onClick ? "cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800" : "",
+      "p-4 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] transition-all relative overflow-hidden",
+      onClick ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-sm" : "",
     )}
   >
+    <div className="absolute bottom-0 right-0 w-16 h-16 rounded-full translate-x-5 translate-y-5 bg-blue-500/5 pointer-events-none" />
     <div className="flex items-center justify-between mb-2">
-      <span className="text-[10px] font-sans uppercase tracking-widest text-zinc-500 dark:text-zinc-400 font-bold">
+      <span className="text-[11px] uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] font-extrabold">
         {title}
       </span>
-      <div className="text-zinc-400 dark:text-zinc-500">{icon}</div>
+      <div className="w-7 h-7 rounded-md bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400 flex items-center justify-center">
+        {icon}
+      </div>
     </div>
-    <div className="text-xl font-serif text-zinc-800 dark:text-zinc-100 mb-1">
+    <div className="text-[28px] font-extrabold tracking-tight leading-none text-[#2563EB] dark:text-blue-400 mb-2">
       {value}
     </div>
     <div className="flex items-center justify-between">
-      <span className="text-[11px] font-sans text-zinc-400 dark:text-zinc-500">
+      <span className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-semibold">
         {subtitle}
       </span>
       {trend && (
@@ -1042,37 +1077,43 @@ export function PiHomePage() {
   const recentUpdates = dashboardData?.message?.recent_updates ?? [];
 
   return (
-    <div className="min-h-screen dark:bg-zinc-900  transition-colors duration-300">
-      <main className="p-4 md:p-8 overflow-y-auto w-full">
-        <div className="w-full mx-auto">
+    <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans transition-colors duration-300">
+      <main className="px-6 md:px-8 pt-7 pb-10 overflow-y-auto w-full">
+        <div className="w-full max-w-[1600px] mx-auto">
           {/* Header Section */}
-          <header className="mb-12 flex justify-between items-end">
-            <div className="space-y-1">
-              <h1 className="font-serif text-3xl text-zinc-800 dark:text-zinc-100 font-medium tracking-tight">
-                Dashboard
-              </h1>
-              <p className="font-sans text-sm text-zinc-500 dark:text-zinc-400">
-                Welcome back,{" "}
-                <span className="text-claude-accent font-medium">
-                  {fullName}
-                </span>
-              </p>
-            </div>
+          <header className="mb-7">
+            <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+              <div className="h-1.5 bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
+              <div className="px-5 md:px-6 py-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                    PI Workspace
+                  </div>
+                  <h1 className="text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+                    Dashboard
+                  </h1>
+                  <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA] font-medium mt-1">
+                    Welcome back,{" "}
+                    <span className="text-[#2563EB] dark:text-blue-400 font-bold">
+                      {fullName}
+                    </span>
+                  </p>
+                </div>
 
-            <div className="flex items-center gap-6">
-              <div className="relative group">
-                <button
-                  onClick={openPalette}
-                  className="flex items-center gap-2.5 px-3.5 py-2 text-xs text-zinc-500 dark:text-zinc-400 bg-white dark:bg-zinc-900 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-sm hover:border-zinc-300 dark:hover:border-zinc-600 transition-all"
-                >
-                  <SearchIcon className="size-4" />
-                  <span className="pr-8">Search projects...</span>
-                  <kbd className="absolute right-3 hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded text-zinc-400">
-                    ⌘K
-                  </kbd>
-                </button>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
+                  <button
+                    onClick={openPalette}
+                    className="relative flex items-center gap-2.5 w-full sm:w-[320px] px-3.5 py-2.5 text-[13px] text-[#71717A] dark:text-[#A1A1AA] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl shadow-sm hover:border-[#2563EB]/40 transition-all"
+                  >
+                    <SearchIcon className="size-4 text-[#A1A1AA]" />
+                    <span className="pr-8">Search projects...</span>
+                    <kbd className="absolute right-3 hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded text-[#A1A1AA]">
+                      ⌘K
+                    </kbd>
+                  </button>
+                  <CurrentTime />
+                </div>
               </div>
-              <CurrentTime />
             </div>
           </header>
 
@@ -1081,8 +1122,8 @@ export function PiHomePage() {
             onClose={closePalette}
           />
 
-          {/* Quick Actions */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
+          <SectionDivider title="Quick Actions" />
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <ActionCard
               icon={<PlusCircle />}
               title="New Project"
@@ -1103,25 +1144,23 @@ export function PiHomePage() {
             />
           </section>
 
-          {/* Analytics Section */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+          <SectionDivider title="Overview" />
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
             {/* Project Analytics */}
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2.5">
-                  <BarChart className="size-4 text-zinc-400" />
-                  <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium">
-                    Project Overview
-                  </h3>
-                </div>
+            <Card>
+              <PanelHeader
+                icon={<BarChart />}
+                title="Project Overview"
+                action={
                 <button
                   onClick={() => navigate("/project-analytics")}
-                  className="text-xs font-sans font-semibold uppercase tracking-wider text-zinc-400 hover:text-claude-accent transition-colors"
+                  className="text-[11px] text-[#2563EB] dark:text-blue-400 font-bold uppercase tracking-wide hover:text-[#D97757] transition-colors"
                 >
                   View Detail
                 </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                }
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-[18px]">
                 <AnalyticsCard
                   title="Total Projects"
                   value={
@@ -1164,22 +1203,20 @@ export function PiHomePage() {
             </Card>
 
             {/* Fund Analytics */}
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-2.5">
-                  <PieChart className="size-4 text-zinc-400" />
-                  <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium">
-                    Financial Summary
-                  </h3>
-                </div>
+            <Card>
+              <PanelHeader
+                icon={<PieChart />}
+                title="Financial Summary"
+                action={
                 <button
                   onClick={() => navigate("/fund-analytics")}
-                  className="text-xs font-sans font-semibold uppercase tracking-wider text-zinc-400 hover:text-claude-accent transition-colors"
+                  className="text-[11px] text-[#2563EB] dark:text-blue-400 font-bold uppercase tracking-wide hover:text-[#D97757] transition-colors"
                 >
                   View Detail
                 </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                }
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-[18px]">
                 <AnalyticsCard
                   title="Total Allocation"
                   value={
@@ -1225,35 +1262,38 @@ export function PiHomePage() {
           </section>
 
           {/* Secondary Information */}
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-10">
-            <Card className="lg:col-span-2 p-6">
-              <div className="flex items-center gap-2.5 mb-5">
-                <Megaphone className="size-4 text-zinc-400" />
-                <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium">
-                  Recent Updates
-                </h3>
-              </div>
-              <div className="space-y-4">
+          <SectionDivider title="Updates & Resources" />
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-5 pb-8">
+            <Card className="lg:col-span-2">
+              <PanelHeader icon={<Megaphone />} title="Recent Updates" />
+              <div className="p-[18px] space-y-3">
                 {dashboardLoading ? (
-                  <p className="text-xs text-zinc-400">Loading updates...</p>
+                  <p className="text-[12px] text-[#A1A1AA] font-medium">
+                    Loading updates...
+                  </p>
                 ) : recentUpdates.length === 0 ? (
-                  <p className="text-xs text-zinc-400">No recent updates.</p>
+                  <p className="text-[12px] text-[#A1A1AA] font-medium">
+                    No recent updates.
+                  </p>
                 ) : (
                   recentUpdates.map((update, i) => (
-                    <div key={i} className="flex items-start gap-4 group">
+                    <div
+                      key={i}
+                      className="flex items-start gap-4 group border-b border-[#F4F4F5] dark:border-zinc-800 last:border-0 pb-3 last:pb-0"
+                    >
                       <div
                         className={cn(
-                          "size-1.5 rounded-full mt-2.5",
+                          "size-2 rounded-full mt-2",
                           update.type === "announcement"
-                            ? "bg-[#9A7D5A]"
-                            : "bg-zinc-400",
+                            ? "bg-[#D97757]"
+                            : "bg-[#2563EB]",
                         )}
                       ></div>
-                      <div className="border-b border-zinc-100 dark:border-zinc-700/50 pb-4 w-full last:border-0">
-                        <p className="font-sans text-xs font-medium text-zinc-800 dark:text-zinc-200">
+                      <div className="w-full">
+                        <p className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
                           {update.title}
                         </p>
-                        <p className="font-sans text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                        <p className="text-[11px] text-[#A1A1AA] dark:text-zinc-500 font-medium mt-0.5">
                           {update.meta}
                         </p>
                       </div>
@@ -1263,11 +1303,9 @@ export function PiHomePage() {
               </div>
             </Card>
 
-            <Card className="p-6">
-              <h3 className="font-serif text-base text-zinc-800 dark:text-zinc-100 font-medium mb-5">
-                Quick Resources
-              </h3>
-              <ul className="space-y-1.5">
+            <Card>
+              <PanelHeader icon={<LifeBuoy />} title="Quick Resources" />
+              <ul className="p-[18px] space-y-1.5">
                 {[
                   { icon: <FileText />, label: "Project Guidelines" },
                   { icon: <LifeBuoy />, label: "Support Portal" },
@@ -1277,15 +1315,16 @@ export function PiHomePage() {
                   <li key={i}>
                     <a
                       href="#"
-                      className="flex items-center gap-2.5 p-2 rounded-lg text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all"
+                      className="flex items-center gap-2.5 p-2.5 rounded-xl text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] font-semibold hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-all group"
                     >
-                      <span className="text-zinc-400">
+                      <span className="w-7 h-7 rounded-md bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400 flex items-center justify-center group-hover:bg-[#D97757] group-hover:text-white transition-colors">
                         {React.cloneElement(
                           item.icon as React.ReactElement<any>,
-                          { size: 15 },
+                          { size: 14 },
                         )}
                       </span>
                       {item.label}
+                      <ChevronRight className="size-4 ml-auto text-zinc-300 group-hover:text-[#D97757]" />
                     </a>
                   </li>
                 ))}
@@ -1294,13 +1333,13 @@ export function PiHomePage() {
           </section>
 
           {/* Footer */}
-          <footer className="pt-10 border-t border-zinc-200 dark:border-zinc-800 text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-100 dark:bg-zinc-800/50 text-xs font-sans text-zinc-500 dark:text-zinc-400">
+          <footer className="pt-6 border-t border-[#E4E4E7] dark:border-[#3F3F46] text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
               <Mail className="size-3.5" />
               <span>For assistance, reach out to</span>
               <a
                 href="mailto:ernd@iitg.ac.in"
-                className="text-claude-accent hover:text-[#D97757] font-medium transition-colors"
+                className="text-[#2563EB] hover:text-[#D97757] font-bold transition-colors"
               >
                 ernd@iitg.ac.in
               </a>
@@ -1310,10 +1349,10 @@ export function PiHomePage() {
       </main>
       <button
         onClick={() => window.open("/User_manual/User_manual.pdf", "_blank")}
-        className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-50 flex items-center gap-2 sm:gap-3 px-5 py-3 sm:px-8 sm:py-5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-full shadow-2xl shadow-indigo-500/40 hover:from-indigo-500 hover:to-violet-500 hover:scale-105 hover:shadow-indigo-500/60 transition-all duration-300 active:scale-95 ring-2 ring-white/20"
+        className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-50 flex items-center gap-2 px-4 py-3 bg-[#3F3F46] dark:bg-[#E4E4E7] text-white dark:text-[#18181B] rounded-full shadow-lg hover:bg-[#D97757] dark:hover:bg-[#D97757] dark:hover:text-white transition-all duration-200 active:scale-95"
       >
-        <HelpCircle className="size-5 sm:size-7" />
-        <span className="font-sans text-sm sm:text-lg font-bold tracking-tight">User Guide</span>
+        <HelpCircle className="size-5" />
+        <span className="text-sm font-bold tracking-tight">User Guide</span>
       </button>
     </div>
   );

@@ -106,7 +106,7 @@ const Clock = () => {
   }, []);
 
   return (
-    <div className="text-sm text-zinc-900 dark:text-zinc-100 font-bold border border-zinc-400 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-1 rounded-lg shadow-sm">
+    <div className="text-sm text-[#3F3F46] dark:text-[#E4E4E7] font-bold border border-zinc-400 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-1 rounded-lg shadow-sm">
       {time.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} <span className="mx-1">|</span> {time.toLocaleTimeString()}
     </div>
   );
@@ -122,14 +122,13 @@ interface ActionCardProps {
 const ActionCard: React.FC<ActionCardProps> = ({ icon, title, description, onClick }) => (
   <div
     onClick={onClick}
-    className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-300 dark:border-zinc-700 shadow-sm hover:shadow-[3px_3px_0px_rgba(0,0,0,0.15)] hover:translate-y-[-2px] transition-all duration-150 cursor-pointer group flex flex-col h-full"
+    className="bg-white dark:bg-[#27272A] p-6 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 cursor-pointer group flex flex-col h-full"
   >
-    {/* Icon Container: Added border and bg-blue-50 instead of standard sky-100 for better contrast */}
-    <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg mb-4 group:bg-gray-800 group:text-white transition-colors duration-150">
+    <div className="flex-shrink-0 flex items-center justify-center w-11 h-11 bg-[#4A6CF7]/10 dark:bg-[#4A6CF7]/15 text-[#4A6CF7] dark:text-[#818CF8] rounded-lg mb-4 group-hover:bg-[#4A6CF7]/20 transition-colors duration-150">
       {icon}
     </div>
-    <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">{title}</h3>
-    <p className="text-zinc-900 dark:text-zinc-100 flex-grow text-sm font-bold">{description}</p>
+    <h3 className="text-sm font-semibold mb-1 text-[#3F3F46] dark:text-[#E4E4E7]">{title}</h3>
+    <p className="text-[#71717A] dark:text-[#A1A1AA] flex-grow text-xs leading-relaxed">{description}</p>
   </div>
 );
 
@@ -196,101 +195,100 @@ export function Home() {
   }
 
   return (
-    <div className="min-h-screen dark:bg-zinc-800 font-sans text-zinc-900 dark:text-zinc-100">
+    <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
       <div className="flex-1 p-4 sm:p-6 md:p-8">
-        <div className="w-full mx-auto">
+        <div className="w-full max-w-5xl mx-auto">
 
           {/* Header */}
-          <header className="mb-10">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+          <header className="mb-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-5 gap-4">
               <div>
-                {/* No gradients on text, solid colors for brutalism */}
-                <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">R&D Portal</h1>
-                <p className="text-zinc-500 dark:text-zinc-400 mt-1 font-bold">Your hub for innovation and project management.</p>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-1 h-6 rounded-full bg-[#4A6CF7]" />
+                  <h1 className="text-2xl font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7]">R&D Portal</h1>
+                </div>
+                <p className="text-[#71717A] dark:text-[#A1A1AA] ml-3 text-sm">Your hub for research and project management.</p>
               </div>
               <Clock />
             </div>
 
-            {/* Welcome Banner: Hard borders, solid colors */}
-            <div className="bg-emerald-50 border border-zinc-400 dark:border-zinc-600 text-emerald-900 p-4 rounded-lg shadow-sm flex items-center">
-              <div className="w-2 h-2 bg-emerald-600 rounded-full mr-3 animate-pulse"></div>
-              <p className="font-bold text-lg">Welcome back, {fullName || userName}!</p>
+            {/* Welcome Banner */}
+            <div className="bg-gradient-to-r from-[#EEF2FF] to-[#F0F9FF] dark:from-[#4A6CF7]/10 dark:to-[#0EA5E9]/5 border border-[#4A6CF7]/20 dark:border-[#4A6CF7]/15 p-4 rounded-xl flex items-center gap-3">
+              <div className="w-2 h-2 bg-[#4A6CF7] rounded-full animate-pulse flex-shrink-0" />
+              <p className="font-bold text-sm text-[#1E3A8A] dark:text-[#93C5FD]">Welcome back, {fullName || userName}!</p>
+              <div className="ml-auto text-[10px] font-bold uppercase tracking-widest text-[#4A6CF7]/60 dark:text-[#60A5FA]/50 hidden md:block">
+                IIT Guwahati · R&D Operations
+              </div>
             </div>
           </header>
 
           {/* User Information Section */}
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          <section className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
 
             {/* Card 1: Your Information */}
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-300 dark:border-zinc-700 shadow-sm">
-              <div className="flex items-center mb-5 pb-4 border-b-2 border-zinc-300 dark:border-zinc-700">
-                <div className="w-10 h-10 mr-4 text-zinc-900 dark:text-zinc-100 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg">
-                  <User className="w-5 h-5" />
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] flex items-center gap-2.5">
+                <div className="w-7 h-7 flex items-center justify-center bg-[#4A6CF7]/10 text-[#4A6CF7] rounded-lg flex-shrink-0">
+                  <User className="w-3.5 h-3.5" />
                 </div>
-                <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Your Information</h3>
+                <h3 className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-widest">Your Information</h3>
               </div>
 
-              <div className="text-zinc-900 dark:text-zinc-100 space-y-4 font-bold">
-                <div className="flex justify-between items-center p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors">
-                  <span className="text-zinc-700 dark:text-zinc-300">Term Completion</span>
-                  <span className="font-bold">2026-04-21</span>
+              <div className="divide-y divide-[#F4F4F5] dark:divide-[#27272A] px-5">
+                <div className="flex justify-between items-center py-3">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Term Completion</span>
+                  <span className="text-[13px] font-semibold text-[#27272A] dark:text-[#E4E4E7] font-mono">2026-04-21</span>
                 </div>
-
-                <div className="flex justify-between items-center p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors">
-                  <span className="text-zinc-700 dark:text-zinc-300">Account Number</span>
-                  <span className="flex items-center gap-3 font-mono font-bold">
+                <div className="flex justify-between items-center py-3">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Account Number</span>
+                  <span className="flex items-center gap-2 text-[13px] font-mono text-[#27272A] dark:text-[#E4E4E7]">
                     {showAccountNumber ? '123456781234' : '•••• •••• 1234'}
-                    <button onClick={() => setShowAccountNumber(!showAccountNumber)} className="text-zinc-900 dark:text-zinc-100 hover:bg-white dark:bg-zinc-900 p-1 rounded-md border border-zinc-300 dark:border-zinc-700 transition-all">
-                      {showAccountNumber ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <button onClick={() => setShowAccountNumber(!showAccountNumber)} className="text-zinc-400 hover:text-[#4A6CF7] transition-colors">
+                      {showAccountNumber ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </span>
                 </div>
-
-                <div className="flex justify-between items-center p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors">
-                  <span className="text-zinc-700 dark:text-zinc-300">Salary Basic</span>
-                  <span className="flex items-center gap-3 font-mono font-bold">
+                <div className="flex justify-between items-center py-3">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Salary Basic</span>
+                  <span className="flex items-center gap-2 text-[13px] font-mono text-[#27272A] dark:text-[#E4E4E7]">
                     {showSalary ? '₹ 50,000.00' : '₹ ••••••'}
-                    <button onClick={() => setShowSalary(!showSalary)} className="text-zinc-900 dark:text-zinc-100 hover:bg-white dark:bg-zinc-900 p-1 rounded-md border border-zinc-300 dark:border-zinc-700 transition-all">
-                      {showSalary ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <button onClick={() => setShowSalary(!showSalary)} className="text-zinc-400 hover:text-[#4A6CF7] transition-colors">
+                      {showSalary ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </span>
                 </div>
-
-                <div className="flex justify-between items-center p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors">
-                  <span className="text-zinc-700 dark:text-zinc-300">Hostel</span>
-                  <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-400 dark:border-zinc-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">No</span>
+                <div className="flex justify-between items-center py-3">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Hostel</span>
+                  <span className="status-neutral">No</span>
                 </div>
-
-                <div className="flex justify-between items-center p-2 hover:bg-zinc-100 dark:bg-zinc-800 rounded-lg transition-colors">
-                  <span className="text-zinc-700 dark:text-zinc-300">HRA</span>
-                  <span className="bg-emerald-100 text-emerald-900 border border-emerald-400 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Yes</span>
+                <div className="flex justify-between items-center py-3">
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">HRA</span>
+                  <span className="status-success">Yes</span>
                 </div>
               </div>
 
-              <div className="mt-6 p-4 bg-amber-50 border-2 border-amber-300 rounded-lg text-sm text-amber-900 font-bold flex items-start">
-                <Info className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
-                <p>For discrepancies, please contact the R&D Staff immediately.</p>
+              <div className="mx-5 mb-4 mt-3 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-lg flex items-start gap-2">
+                <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <p className="text-[11px] text-amber-800 dark:text-amber-400">For discrepancies, please contact the R&D Staff immediately.</p>
               </div>
             </div>
 
             {/* Card 2: Leave & Policies */}
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-300 dark:border-zinc-700 shadow-sm flex flex-col">
-              <div className="flex items-center mb-5 pb-4 border-b-2 border-zinc-300 dark:border-zinc-700">
-                <div className="w-10 h-10 mr-4 text-zinc-900 dark:text-zinc-100 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 rounded-lg">
-                  <Info className="w-5 h-5" />
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden flex flex-col">
+              <div className="px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] flex items-center gap-2.5">
+                <div className="w-7 h-7 flex items-center justify-center bg-[#4A6CF7]/10 text-[#4A6CF7] rounded-lg flex-shrink-0">
+                  <Info className="w-3.5 h-3.5" />
                 </div>
-                <h3 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Leave & Policies</h3>
+                <h3 className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-widest">Leave & Policies</h3>
               </div>
-
-              <div className="text-zinc-900 dark:text-zinc-100 flex-grow flex flex-col justify-center text-center py-6">
-                <div className="mb-8 p-6 bg-blue-50 border-2 border-dashed border-blue-300 rounded-lg">
-                  <p className="font-bold text-blue-900">Need to take time off?</p>
-                  <p className="text-sm text-blue-800 mt-1 font-bold">Review your balance and apply below.</p>
+              <div className="flex-grow flex flex-col justify-center p-6">
+                <div className="mb-5 p-4 bg-[#EEF2FF] dark:bg-[#4A6CF7]/8 border border-[#4A6CF7]/20 rounded-xl text-center">
+                  <p className="font-bold text-sm text-[#1E3A8A] dark:text-[#93C5FD]">Need to take time off?</p>
+                  <p className="text-xs text-[#3B5CF5] dark:text-[#93C5FD]/80 mt-1 font-medium">Review your balance and apply below.</p>
                 </div>
-
                 <button
                   onClick={() => navigate("/leave-application")}
-                  className="w-full bg-gray-800 text-white font-bold py-4 px-4 rounded-lg border-2 border-gray-800 shadow-sm hover:shadow-[3px_3px_0px_rgba(0,0,0,0.15)] hover:translate-y-[-2px] transition-all duration-150 active:translate-y-0 active:shadow-none"
+                  className="btn-primary-accent w-full justify-center h-10 text-sm"
                 >
                   Apply for Leave
                 </button>
@@ -299,72 +297,73 @@ export function Home() {
           </section>
 
           {/* Main Action Cards */}
-          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            <ActionCard
-              icon={<PlusCircle className="w-6 h-6" />}
-              title="Register Project"
-              description="Start a new research or development initiative by registering it."
-              onClick={() => navigate("/project-registration")}
-            />
-            <ActionCard
-              icon={<LayoutGrid className="w-6 h-6" />}
-              title="View Projects"
-              description="Browse, track, and manage all ongoing and completed projects."
-              onClick={() => navigate("/projects")}
-            />
-            <ActionCard
-              icon={<UserPlus className="w-6 h-6" />}
-              title="Create User"
-              description="Add new team members to the portal and assign roles."
-              onClick={() => navigate("/user-creation")}
-            />
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+            {[
+              { icon: <PlusCircle className="w-5 h-5" />, title: "Register Project", desc: "Start a new research or development initiative.", route: "/project-registration", color: "#4A6CF7" },
+              { icon: <LayoutGrid className="w-5 h-5" />, title: "View Projects", desc: "Browse, track, and manage all ongoing projects.", route: "/projects", color: "#059669" },
+              { icon: <UserPlus className="w-5 h-5" />, title: "Create User", desc: "Add team members and assign roles to the portal.", route: "/user-creation", color: "#D97757" },
+            ].map(({ icon, title, desc, route, color }) => (
+              <div
+                key={title}
+                onClick={() => navigate(route)}
+                className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-[#4A6CF7]/30 transition-all cursor-pointer p-5 group"
+              >
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-3.5 transition-transform group-hover:scale-105"
+                  style={{ background: `color-mix(in srgb, ${color} 10%, transparent)`, color }}
+                >
+                  {icon}
+                </div>
+                <h3 className="text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5 tracking-tight">{title}</h3>
+                <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] leading-relaxed">{desc}</p>
+              </div>
+            ))}
           </section>
 
           {/* Secondary Information Section */}
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-300 dark:border-zinc-700 shadow-sm">
-              <div className="flex items-center mb-4">
-                <div className="w-8 h-8 mr-3 text-zinc-900 dark:text-zinc-100"><Megaphone /></div>
-                <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">Announcements</h3>
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-8">
+            <div className="lg:col-span-2 bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] flex items-center gap-2">
+                <Megaphone className="w-4 h-4 text-[#D97757]" />
+                <h3 className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-widest">Announcements</h3>
               </div>
-              <div className="text-zinc-700 dark:text-zinc-300 space-y-2 border-t-2 border-zinc-300 dark:border-zinc-700 pt-4 font-bold italic">
-                <p>No new announcements. Please check back later for updates.</p>
+              <div className="px-5 py-6 text-[#71717A] dark:text-[#A1A1AA] text-sm italic">
+                No new announcements. Please check back later for updates.
               </div>
             </div>
 
-            <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-300 dark:border-zinc-700 shadow-sm">
-              <h3 className="text-xl font-bold mb-4 text-zinc-900 dark:text-zinc-100">Resources</h3>
-              <ul className="space-y-3 border-t-2 border-zinc-200 dark:border-zinc-800 pt-4">
-                <li>
-                  <a href="#" className="flex items-center text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:bg-zinc-800 p-2 rounded-lg transition-colors group font-bold">
-                    <FileText className="w-5 h-5 mr-3 text-zinc-500 dark:text-zinc-400 group:text-zinc-900 dark:text-zinc-100" />
-                    <span>Portal Docs</span>
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+                <h3 className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-widest">Resources</h3>
+              </div>
+              <div className="p-3">
+                {[
+                  { icon: FileText, label: "Portal Docs" },
+                  { icon: LifeBuoy, label: "Contact Support" },
+                ].map(({ icon: Icon, label }) => (
+                  <a key={label} href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-700 dark:text-zinc-300 hover:bg-[#EEF2FF] dark:hover:bg-[#4A6CF7]/8 hover:text-[#4A6CF7] transition-colors group">
+                    <Icon className="w-4 h-4 text-zinc-400 group-hover:text-[#4A6CF7] flex-shrink-0 transition-colors" />
+                    <span className="text-[13px] font-semibold">{label}</span>
                   </a>
-                </li>
-                <li>
-                  <a href="#" className="flex items-center text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:bg-zinc-800 p-2 rounded-lg transition-colors group font-bold">
-                    <LifeBuoy className="w-5 h-5 mr-3 text-zinc-500 dark:text-zinc-400 group:text-zinc-900 dark:text-zinc-100" />
-                    <span>Contact Support</span>
-                  </a>
-                </li>
-              </ul>
+                ))}
+              </div>
             </div>
           </section>
 
           {/* Bottom Banner */}
-          <section className="bg-gray-800 text-white p-8 rounded-lg border border-zinc-400 dark:border-zinc-600 shadow-sm text-center my-12 relative overflow-hidden">
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 2000 1500\'%3e%3crect fill=\'%23ffffff\' width=\'2000\' height=\'1500\'/%3e%3cdefs%3e%3cpath fill=\'none\' stroke-width=\'2\' stroke-opacity=\'1\' id=\'a\' d=\'M0 750c250 0 250 0 500 0s250 0 500 0s250 0 500 0s250 0 500 0\'/%3e%3c/defs%3e%3cg transform=\'translate(0 0)\'%3e%3cuse xlink:href=\'%23a\' y=\'-150\' transform=\'rotate(5 1000 750)\' stroke=\'%23000000\'/%3e%3cuse xlink:href=\'%23a\' y=\'-100\' transform=\'rotate(10 1000 750)\' stroke=\'%23000000\'/%3e%3c/g%3e%3c/svg%3e")' }}></div>
-
+          <section className="bg-[#1C2434] p-7 rounded-xl text-center relative overflow-hidden mb-6">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#4A6CF7]/20 via-transparent to-[#D97757]/10 pointer-events-none" />
             <div className="relative z-10">
-              <h2 className="text-3xl font-bold mb-2 tracking-tight">RnDOPs Automation System</h2>
-              <p className="text-zinc-300 dark:text-zinc-600 font-bold">The Research & Development Section welcomes you to the future of project management.</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#4A6CF7]/70 mb-1">IIT Guwahati</p>
+              <h2 className="text-lg font-extrabold mb-2 tracking-tight text-white">RnDOPs Automation System</h2>
+              <p className="text-zinc-400 text-xs leading-relaxed max-w-sm mx-auto">The Research & Development Section — managing the complete lifecycle of research projects and funding.</p>
             </div>
           </section>
 
-          <footer className="text-center text-zinc-700 dark:text-zinc-300 mt-12 pb-8 font-bold">
-            <div className="flex items-center justify-center space-x-2">
-              <Mail className="w-5 h-5" />
-              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-zinc-900 dark:text-zinc-100 hover:underline decoration-2">ernd@iitg.ac.in</a></p>
+          <footer className="text-center mt-4 pb-6">
+            <div className="flex items-center justify-center gap-1.5 text-[11px] text-[#A1A1AA] dark:text-[#71717A]">
+              <Mail className="w-3 h-3" />
+              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#D97757] hover:underline font-bold">ernd@iitg.ac.in</a></p>
             </div>
           </footer>
         </div>

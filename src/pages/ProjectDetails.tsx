@@ -258,19 +258,36 @@ const FieldDisplay = ({
 }) => {
     if (!value && value !== 0 && value !== "No") return null;
     return (
-        <div className="py-3 px-1">
+        <div className="rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3 py-2.5 min-h-[74px]">
             <div className="flex items-center gap-2 mb-1.5">
                 {Icon && (
-                    <Icon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
+                    <Icon className="h-3.5 w-3.5 text-[#4A6CF7] dark:text-[#93C5FD]" />
                 )}
-                <p className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide font-sans">
+                <p className="text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-[0.12em] font-sans">
                     {label}
                 </p>
             </div>
-            <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100 pl-0.5">
+            <div className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] leading-snug break-words">
                 {value}
-            </p>
+            </div>
         </div>
+    );
+};
+
+const ProjectStatusBadge = ({ status }: { status?: string }) => {
+    const normalized = (status || "Draft").toLowerCase();
+    const className = normalized.includes("approved")
+        ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+        : normalized.includes("reject") || normalized.includes("correction")
+            ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+            : normalized.includes("draft")
+                ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                : "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400";
+
+    return (
+        <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold leading-none", className)}>
+            {status || "Draft"}
+        </span>
     );
 };
 
@@ -286,18 +303,18 @@ const HtmlContent = ({
 }) => {
     if (!htmlString) return null;
     return (
-        <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
-            <CardHeader className="pb-3 border-b border-zinc-100 dark:border-zinc-800/50">
+        <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
+            <CardHeader className="py-3 px-5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
                 <div className="flex items-center gap-2">
-                    {Icon && <Icon className="h-3.5 w-3.5 text-[#D97757]" />}
-                    <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">
+                    {Icon && <Icon className="h-3.5 w-3.5 text-[#4A6CF7] dark:text-[#93C5FD]" />}
+                    <CardTitle className="font-sans text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-[0.1em]">
                         {title}
                     </CardTitle>
                 </div>
             </CardHeader>
-            <CardContent className="pt-4">
+            <CardContent className="p-5">
                 <div
-                    className="prose prose-sm max-w-none text-zinc-600 dark:text-zinc-300 leading-relaxed dark:prose-invert"
+                    className="prose prose-sm max-w-none text-[#3F3F46] dark:text-[#D4D4D8] leading-relaxed dark:prose-invert"
                     dangerouslySetInnerHTML={{ __html: htmlString }}
                 />
             </CardContent>
@@ -374,24 +391,24 @@ const TableDisplay = ({
         : null;
 
     return (
-        <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm overflow-hidden">
-            <CardHeader className="py-3 px-5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-900/50">
+        <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
+            <CardHeader className="py-3 px-5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
                 <div className="flex items-center gap-2">
-                    {Icon && <Icon className="h-3.5 w-3.5 text-[#D97757]" />}
-                    <CardTitle className="text-xs font-semibold font-serif text-zinc-900 dark:text-zinc-100 uppercase tracking-wide">
+                    {Icon && <Icon className="h-3.5 w-3.5 text-[#4A6CF7] dark:text-[#93C5FD]" />}
+                    <CardTitle className="font-sans text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-[0.1em]">
                         {label}
                     </CardTitle>
                 </div>
             </CardHeader>
-            <div className="overflow-x-auto">
-                <Table>
-                    <TableHeader className="bg-zinc-50 dark:bg-zinc-900">
-                        <TableRow className="border-b border-zinc-200 dark:border-zinc-800 hover:bg-transparent">
+            <div className="overflow-x-auto p-3">
+                <Table className="border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
+                    <TableHeader className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                        <TableRow className="border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 hover:bg-transparent">
                             {columns.map((col) => (
                                 <TableHead
                                     key={col.fieldname}
                                     className={cn(
-                                        "px-3 py-1.5 text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider h-8",
+                                        "px-4 py-3 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider h-9 border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25 last:border-r-0",
                                         col.fieldname === "account_head" ||
                                             !isBudgetTable
                                             ? "text-left"
@@ -402,7 +419,7 @@ const TableDisplay = ({
                                 </TableHead>
                             ))}
                             {isBudgetTable && (
-                                <TableHead className="px-3 py-1.5 text-right text-[10px] font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider h-8">
+                                <TableHead className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider h-9">
                                     Total
                                 </TableHead>
                             )}
@@ -414,13 +431,13 @@ const TableDisplay = ({
                             return (
                                 <TableRow
                                     key={index}
-                                    className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 transition-colors border-b border-zinc-100 dark:border-zinc-800"
+                                    className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 transition-colors border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-b-0"
                                 >
                                     {columns.map((col) => (
                                         <TableCell
                                             key={col.fieldname}
                                             className={cn(
-                                                "px-3 py-1.5 text-xs",
+                                                "px-4 py-3 text-xs border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 last:border-r-0 align-top",
                                                 col.fieldname === "account_head"
                                                     ? "text-zinc-900 dark:text-zinc-100 font-medium text-left font-mono"
                                                     : isBudgetTable
@@ -444,7 +461,7 @@ const TableDisplay = ({
                                         </TableCell>
                                     ))}
                                     {isBudgetTable && rowTotal !== null && (
-                                        <TableCell className="px-3 py-1.5 text-xs font-bold text-zinc-900 dark:text-zinc-100 text-right tabular-nums font-mono">
+                                        <TableCell className="px-4 py-3 text-xs font-bold text-zinc-900 dark:text-zinc-100 text-right tabular-nums font-mono align-top">
                                             {rowTotal.toLocaleString("en-IN")}
                                         </TableCell>
                                     )}
@@ -453,9 +470,9 @@ const TableDisplay = ({
                         })}
                     </TableBody>
                     {isBudgetTable && (
-                        <tfoot className="bg-zinc-50/50 dark:bg-zinc-800/30 border-t border-zinc-200 dark:border-zinc-800">
+                        <tfoot className="bg-[#FAFAF9] dark:bg-[#18181B] border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                             <tr>
-                                <td className="px-3 py-1.5 text-xs font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
+                                <td className="px-4 py-3 text-xs font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
                                     TOTAL
                                 </td>
                                 {columns
@@ -470,7 +487,7 @@ const TableDisplay = ({
                                         return (
                                             <td
                                                 key={col.fieldname}
-                                                className="px-3 py-1.5 text-xs font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap tabular-nums"
+                                                className="px-4 py-3 text-xs font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap tabular-nums border-r border-[#F4F4F5] dark:border-[#3F3F46]/80"
                                             >
                                                 {colTotal !== null
                                                     ? colTotal.toLocaleString(
@@ -480,7 +497,7 @@ const TableDisplay = ({
                                             </td>
                                         );
                                     })}
-                                <td className="px-3 py-1.5 text-xs font-bold text-[#D97757] text-right whitespace-nowrap tabular-nums font-mono">
+                                <td className="px-4 py-3 text-xs font-bold text-[#D97757] text-right whitespace-nowrap tabular-nums font-mono">
                                     ₹{" "}
                                     {grandTotal !== null
                                         ? grandTotal.toLocaleString("en-IN")
@@ -952,7 +969,16 @@ function useProjectWorkflowStages() {
     return { mainStages, isLoading };
 }
 
-const WorkflowTimeline: React.FC<{ currentState: string, userRoles?: string[], rolesLoading?: boolean }> = ({ currentState, userRoles = [], rolesLoading = false }) => {
+const getPendingAgeLabel = (createdAt?: string) => {
+    if (!createdAt) return null;
+    const normalized = createdAt.includes("T") ? createdAt : createdAt.replace(" ", "T");
+    const createdTime = new Date(normalized).getTime();
+    if (Number.isNaN(createdTime)) return null;
+    const days = Math.max(0, Math.floor((Date.now() - createdTime) / (1000 * 60 * 60 * 24)));
+    return `${days} ${days === 1 ? "day" : "days"}`;
+};
+
+const WorkflowTimeline: React.FC<{ currentState: string, createdAt?: string, userRoles?: string[], rolesLoading?: boolean }> = ({ currentState, createdAt, userRoles = [], rolesLoading = false }) => {
     const { mainStages, isLoading } = useProjectWorkflowStages();
 
     // Fallback if loading or empty
@@ -981,6 +1007,7 @@ const WorkflowTimeline: React.FC<{ currentState: string, userRoles?: string[], r
     });
 
     const stages = buildTimelineStages(currentState, stagesToUse);
+    const pendingAgeLabel = getPendingAgeLabel(createdAt);
 
     const iconForStatus = (status: StageStatus) => {
         if (status === 'completed') return <CheckCircle2 className="w-2.5 h-2.5 text-white" />;
@@ -1004,22 +1031,22 @@ const WorkflowTimeline: React.FC<{ currentState: string, userRoles?: string[], r
     }
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm px-4 py-2.5 w-full">
-            <h3 className="text-[9px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2.5">
+        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl shadow-sm px-4 py-2 w-full overflow-hidden">
+            <h3 className="text-[9px] font-extrabold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-[0.12em] mb-2">
                 Workflow Progress
             </h3>
-            <div className="flex items-start overflow-x-auto pb-1 scrollbar-thin">
+            <div className="flex items-start overflow-x-auto scrollbar-thin">
                 {stages.map((stage, idx) => (
                     <React.Fragment key={stage.label + idx}>
-                        <div className="flex flex-col items-center min-w-[60px] max-w-[80px]">
+                        <div className="flex flex-col items-center min-w-[54px] max-w-[72px]">
                             <div className={cn(
-                                'w-5 h-5 rounded-full flex items-center justify-center shadow-sm flex-shrink-0 transition-all duration-300',
+                                'w-5 h-5 rounded-full flex items-center justify-center shadow-sm ring-2 ring-white dark:ring-[#27272A] flex-shrink-0 transition-all duration-300',
                                 bgForStatus(stage.status),
                             )}>
                                 {iconForStatus(stage.status)}
                             </div>
                             <p className={cn(
-                                'mt-1.5 text-center text-[9px] leading-tight px-1 transition-all duration-300',
+                                'mt-1 text-center text-[9px] leading-tight px-1 transition-all duration-300',
                                 stage.status === 'in-progress' ? 'font-bold text-[#D97757]' : '',
                                 stage.status === 'completed' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : '',
                                 stage.status === 'pending' ? 'text-zinc-400 dark:text-zinc-500' : '',
@@ -1028,8 +1055,8 @@ const WorkflowTimeline: React.FC<{ currentState: string, userRoles?: string[], r
                                 {stage.label}
                             </p>
                             {stage.status === 'in-progress' && (
-                                <span className="mt-1 flex-shrink-0 text-[8px] font-bold text-white bg-[#D97757] px-1.5 py-[2px] rounded-full leading-none">
-                                    Pending
+                                <span className="mt-0.5 flex-shrink-0 text-[8px] font-bold text-white bg-[#D97757] px-1.5 py-[1px] rounded-full leading-none">
+                                    {pendingAgeLabel ? `${pendingAgeLabel}` : "Pending"}
                                 </span>
                             )}
                         </div>
@@ -1044,10 +1071,13 @@ const WorkflowTimeline: React.FC<{ currentState: string, userRoles?: string[], r
             </div>
             {/* Pending at text */}
             {currentState && currentState !== 'Draft' && currentState !== 'Approved' && currentState !== 'Rejected' && (
-                <div className="mt-2 pt-1.5 border-t border-zinc-100 dark:border-zinc-800">
-                    <p className="text-[9px] text-zinc-500 dark:text-zinc-400 transition-all duration-300">
+                <div className="mt-1.5 pt-1.5 border-t border-[#F4F4F5] dark:border-[#3F3F46]">
+                    <p className="text-[9px] text-[#71717A] dark:text-[#A1A1AA] transition-all duration-300">
                         Currently pending at:{' '}
                         <span className="font-semibold text-[#D97757]">{currentState}</span>
+                        {pendingAgeLabel && (
+                            <span className="font-semibold text-[#D97757]"> · {pendingAgeLabel} pending</span>
+                        )}
                     </p>
                 </div>
             )}
@@ -1252,13 +1282,62 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
 
     const tabs = [
         // { id: "quick-actions", label: "Available Services", icon: SettingsIcon },
-        { id: "overview", label: "Overview", icon: FileTextIcon },
-        { id: "investigators", label: "Investigators", icon: UsersIcon },
-        { id: "funding", label: "Funding & Budget", icon: IndianRupeeIcon },
-        { id: "clearance", label: "Clearance", icon: ShieldIcon },
-        { id: "endorsement", label: "Endorsement", icon: FileBadge },
-        { id: "files", label: "Files", icon: FolderOpenIcon },
-        { id: "activity", label: "Activity Log", icon: MessageSquareIcon },
+        {
+            id: "overview",
+            label: "Overview",
+            icon: FileTextIcon,
+            activeClass: "bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]",
+            inactiveClass: "border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]",
+            iconClass: "text-[#4A6CF7] dark:text-[#A5B4FC]",
+        },
+        {
+            id: "investigators",
+            label: "Investigators",
+            icon: UsersIcon,
+            activeClass: "bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]",
+            inactiveClass: "border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]",
+            iconClass: "text-[#059669] dark:text-[#6EE7B7]",
+        },
+        {
+            id: "funding",
+            label: "Funding & Budget",
+            icon: IndianRupeeIcon,
+            activeClass: "bg-[#FFF7ED] border-[#F97316] text-[#9A3412] shadow-sm shadow-[#F97316]/10 dark:bg-[#F97316]/15 dark:border-[#FB923C] dark:text-[#FED7AA]",
+            inactiveClass: "border-[#FED7AA] bg-[#FFF7ED]/65 text-[#C2410C] hover:bg-[#FFF7ED] dark:border-[#F97316]/30 dark:bg-[#F97316]/10 dark:text-[#FED7AA]",
+            iconClass: "text-[#EA580C] dark:text-[#FDBA74]",
+        },
+        {
+            id: "clearance",
+            label: "Clearance",
+            icon: ShieldIcon,
+            activeClass: "bg-[#FDF2F8] border-[#DB2777] text-[#9D174D] shadow-sm shadow-[#DB2777]/10 dark:bg-[#DB2777]/15 dark:border-[#F472B6] dark:text-[#FBCFE8]",
+            inactiveClass: "border-[#FBCFE8] bg-[#FDF2F8]/65 text-[#BE185D] hover:bg-[#FDF2F8] dark:border-[#DB2777]/30 dark:bg-[#DB2777]/10 dark:text-[#FBCFE8]",
+            iconClass: "text-[#DB2777] dark:text-[#F9A8D4]",
+        },
+        {
+            id: "endorsement",
+            label: "Endorsement",
+            icon: FileBadge,
+            activeClass: "bg-[#F5F3FF] border-[#8B5CF6] text-[#5B21B6] shadow-sm shadow-[#8B5CF6]/10 dark:bg-[#8B5CF6]/15 dark:border-[#A78BFA] dark:text-[#DDD6FE]",
+            inactiveClass: "border-[#DDD6FE] bg-[#F5F3FF]/65 text-[#6D28D9] hover:bg-[#F5F3FF] dark:border-[#8B5CF6]/30 dark:bg-[#8B5CF6]/10 dark:text-[#DDD6FE]",
+            iconClass: "text-[#7C3AED] dark:text-[#C4B5FD]",
+        },
+        {
+            id: "files",
+            label: "Files",
+            icon: FolderOpenIcon,
+            activeClass: "bg-[#F0FDFA] border-[#14B8A6] text-[#115E59] shadow-sm shadow-[#14B8A6]/10 dark:bg-[#14B8A6]/15 dark:border-[#2DD4BF] dark:text-[#99F6E4]",
+            inactiveClass: "border-[#99F6E4] bg-[#F0FDFA]/65 text-[#0F766E] hover:bg-[#F0FDFA] dark:border-[#14B8A6]/30 dark:bg-[#14B8A6]/10 dark:text-[#99F6E4]",
+            iconClass: "text-[#0D9488] dark:text-[#5EEAD4]",
+        },
+        {
+            id: "activity",
+            label: "Activity Log",
+            icon: MessageSquareIcon,
+            activeClass: "bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]",
+            inactiveClass: "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]",
+            iconClass: "text-[#71717A] dark:text-[#A1A1AA]",
+        },
     ];
 
     const needsProjectNumberGeneration =
@@ -1328,24 +1407,29 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
 
         return (
             <>
-                <header className="mb-4 p-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
-                    <div className="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
-                        <div className="flex items-center gap-4">
+                <header className="mb-5 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                    <div className="p-5">
+                    <div className="flex items-start justify-between flex-col xl:flex-row gap-5">
+                        <div className="flex items-start gap-4 min-w-0">
                             <button
                                 onClick={() => navigate(backUrl)}
-                                className="p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
                             >
-                                <ArrowLeftIcon className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
+                                <ArrowLeftIcon className="h-4 w-4" />
                             </button>
-                            <div>
-                                <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                            <div className="min-w-0">
+                                <div className="mb-2 flex flex-wrap items-center gap-2">
+                                    <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
+                                        Project Details
+                                    </span>
+                                    <ProjectStatusBadge status={data?.workflow_state} />
+                                </div>
+                                <h1 className="font-sans text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
                                     {data?.project_title || "Project Details"}
                                 </h1>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                    ID: {projectName} ·{" "}
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757]">
-                                        {data?.workflow_state || "Draft"}
-                                    </span>
+                                <p className="mt-1 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                    ID: <span className="font-mono text-[#3F3F46] dark:text-[#E4E4E7]">{projectName}</span>
                                 </p>
                             </div>
                         </div>
@@ -1354,7 +1438,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                 (data?.workflow_state === 'Needs Correction (PE)' && currentUser === data?.pi_userid)) && (
                                     <button
                                         onClick={() => navigate(`/project-registration?docname=${projectName}&edit=true`)}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#D97757] hover:bg-[#c66a4e] text-white text-xs font-semibold shadow-sm transition-colors"
+                                        className="inline-flex h-8 items-center gap-1.5 px-3 rounded-lg bg-[#D97757] hover:bg-[#c66a4e] text-white text-[12px] font-semibold shadow-sm transition-colors"
                                     >
                                         <PencilIcon className="h-3.5 w-3.5" /> Edit
                                     </button>
@@ -1376,6 +1460,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                             />
                         </div>
                     </div>
+                    </div>
                 </header>
                 <CommentModal
                     isOpen={modalOpen}
@@ -1390,8 +1475,8 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                     html={endorsementHtml}
                     isLoading={isFetchingEndorsementHtml}
                 />
-                <div className="mb-6">
-                    <WorkflowTimeline currentState={data?.workflow_state || 'Draft'} userRoles={roles} rolesLoading={isRolesLoading} />
+                <div className="mb-5">
+                    <WorkflowTimeline currentState={data?.workflow_state || 'Draft'} createdAt={data?.creation} userRoles={roles} rolesLoading={isRolesLoading} />
                 </div>
                 {isRnDStaff && data?.workflow_state === "Pending Staff Approval" && !data?.project_no?.trim() && (
                     <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700">
@@ -1415,27 +1500,26 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                         </div>
                     </div>
                 )}
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
-                    <div className="border-b border-zinc-200 dark:border-zinc-800">
-                        <nav className="flex space-x-1 p-1 overflow-x-auto">
+                <div className="border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
+                <div className="bg-white dark:bg-[#27272A] border border-[#D4D4D8] dark:border-[#52525B] rounded-xl shadow-sm overflow-hidden">
+                    <div className="border-b border-[#D4D4D8] dark:border-[#52525B] bg-[#FAFAF9] dark:bg-[#27272A]">
+                        <nav className="flex items-center gap-1 p-2 overflow-x-auto">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={cn(
-                                        "flex-shrink-0 flex items-center gap-1.5 py-1.5 px-3 font-medium text-xs rounded-lg transition-all",
-                                        activeTab === tab.id
-                                            ? "bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 text-[#D97757]"
-                                            : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800",
+                                        "flex-shrink-0 flex h-8 items-center gap-1.5 px-2.5 font-bold text-[11px] uppercase tracking-wide rounded-lg border transition-all",
+                                        activeTab === tab.id ? tab.activeClass : tab.inactiveClass,
                                     )}
                                 >
-                                    <tab.icon className="h-3.5 w-3.5" />
+                                    <tab.icon className={cn("h-3.5 w-3.5", tab.iconClass)} />
                                     {tab.label}
                                 </button>
                             ))}
                         </nav>
                     </div>
-                    <div className="bg-zinc-50/50 dark:bg-zinc-900/50 p-4">
+                    <div className="bg-[#F4F4F5] dark:bg-[#18181B] p-4 md:p-5">
                         <div
                             className={`grid grid-cols-1 ${(needsProjectNumberGeneration || isRnDStaff) ? "lg:grid-cols-3" : "lg:grid-cols-1"} gap-6`}
                         >
@@ -2548,14 +2632,15 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                         </div>
                     </div>
                 </div>
+                </div>
             </>
         );
     };
 
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
             {/*<AppSidebar />*/}
-            <main className="flex-1 p-3 md:p-6 w-full overflow-hidden">
+            <main className="flex-1 w-full overflow-hidden">
                 {renderContent()}
             </main>
         </div>
@@ -2563,4 +2648,3 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
 };
 
 export default ProjectDetailsView;
-

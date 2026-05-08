@@ -76,11 +76,73 @@ export interface DynamicFormRendererProps {
   autocompleteFields?: string[];
   /** Field-level validation messages to display below specific fields */
   fieldMessages?: Record<string, FieldMessage>;
+  /** Hide section-break headers when this renderer is embedded inside an already titled card */
+  hideSectionHeaders?: boolean;
+  /** Hide child table field labels when the surrounding card already provides the title */
+  hideTableLabels?: boolean;
 }
 
 // --- STYLES ---
 const inputClasses =
-  "flex h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-[13px] text-zinc-900 dark:text-zinc-100 ring-offset-white dark:ring-offset-zinc-950 file:border-0 file:bg-transparent file:text-xs file:font-semibold placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D97757]/25 focus-visible:border-[#D97757] disabled:cursor-not-allowed disabled:bg-zinc-50 dark:disabled:bg-zinc-800/40 disabled:text-zinc-500 dark:disabled:text-zinc-400 transition-colors duration-150";
+  "flex h-10 w-full rounded-[0.4375rem] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] ring-offset-white dark:ring-offset-zinc-950 file:border-0 file:bg-transparent file:text-xs file:font-semibold placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#4A6CF7]/12 focus-visible:border-[#4A6CF7] disabled:cursor-not-allowed disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#71717A] dark:disabled:text-[#A1A1AA] transition-colors duration-150";
+
+const FIELD_LABEL_OVERRIDES: Record<string, string> = {
+  app_id: "Application ID",
+  p11_no: "P-11 Number",
+  project_no: "Project Number",
+  ss_file_number: "File Number",
+  ss_applicant_name: "Applicant Name",
+  ss_year_period_of_sanction: "Year / Period Of Sanction",
+  ss_department_for_purchase: "Department For Purchase",
+  ss_account_head: "Account Head",
+  ss_funding_agency: "Funding Agency",
+  ss_funds_allocated: "Funds Allocated",
+  ss_balance_available: "Balance Available",
+  ss_actual_expenditure: "Actual Expenditure",
+  ss_name_of_firms: "Name Of Firms",
+  ss_pack_forward: "Packing And Forwarding",
+  ss_freight: "Freight",
+  ss_other_charges: "Other Charges",
+  ss_warranty: "Warranty",
+  ss_delivery: "Delivery",
+  ss_payment: "Payment",
+  file_path: "File Path",
+  check_the_below_declaration: "Declaration",
+  the_purchase_committe_recommends_purchase_of_the_items_from_ms:
+    "Purchase Committee Recommendation",
+  quotation_recieved_for_purchase_of_the_items_from_ms:
+    "Quotation Received From",
+  packing_and_forwarding: "Packing And Forwarding",
+};
+
+const formatFieldLabel = (field: Pick<FormField, "fieldname" | "label">) => {
+  const raw = FIELD_LABEL_OVERRIDES[field.fieldname] || field.label || field.fieldname;
+  if (FIELD_LABEL_OVERRIDES[field.fieldname]) return raw;
+
+  return raw
+    .replace(/^ss_/i, "")
+    .replace(/^p11_/i, "P-11 ")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
+const FieldLabel = ({
+  field,
+  isMandatory,
+}: {
+  field: Pick<FormField, "fieldname" | "label">;
+  isMandatory?: boolean;
+}) => (
+  <label
+    htmlFor={field.fieldname}
+    className="inline-flex w-fit max-w-full items-center rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]"
+  >
+    <span className="truncate">{formatFieldLabel(field)}</span>
+    {isMandatory && (
+      <span className="ml-1 font-bold normal-case text-red-500">*</span>
+    )}
+  </label>
+);
 
 // --- MEMOIZED FORM FIELD COMPONENT ---
 const MemoizedFormField = memo(
@@ -120,6 +182,8 @@ const MemoizedFormField = memo(
       }
     };
 
+    const displayLabel = formatFieldLabel(field);
+
     const commonProps = {
       id: field.fieldname,
       name: field.fieldname,
@@ -143,7 +207,7 @@ const MemoizedFormField = memo(
           if (isReadOnly) {
             const readOnlyLabel = options?.find((opt) => opt.value === value)?.label || value;
             return (
-              <div className="flex h-10 w-full rounded-md border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 text-[13px] text-zinc-600 dark:text-zinc-300">
+              <div className="flex h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] text-[#3F3F46] dark:text-[#E4E4E7]">
                 {(field.fieldname === "department" ||
                   field.fieldname === "department_for" ||
                   field.fieldname === "upfa_department" ||
@@ -171,7 +235,7 @@ const MemoizedFormField = memo(
                   onChange={(val) => handleChange(field.fieldname, val)}
                   options={options}
                   searchByLabel
-                  placeholder={`Enter ${field.label}...`}
+                  placeholder={`Enter ${displayLabel}...`}
                   disabled={isReadOnly}
                 />
               </div>
@@ -245,7 +309,7 @@ const MemoizedFormField = memo(
                     "pr-10",
                   )}
                   placeholder={
-                    field.fieldtype === "Link" ? `Enter ${field.label}...` : ""
+                    field.fieldtype === "Link" ? `Enter ${displayLabel}...` : ""
                   }
                 />
 
@@ -397,8 +461,8 @@ const MemoizedFormField = memo(
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-md border cursor-pointer transition-colors duration-150",
                 isChecked
-                  ? "bg-[#D97757]/5 border-[#D97757]/40 dark:bg-[#D97757]/10 dark:border-[#D97757]/40"
-                  : "bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-700 hover:border-[#D97757]/30 dark:hover:border-[#D97757]/30",
+                  ? "bg-[#4A6CF7]/5 border-[#4A6CF7]/40 dark:bg-[#4A6CF7]/10 dark:border-[#4A6CF7]/40"
+                  : "bg-white border-[#E5E7EB] dark:bg-zinc-900 dark:border-[#374151] hover:border-[#4A6CF7]/30 dark:hover:border-[#4A6CF7]/30",
                 isReadOnly && "cursor-not-allowed opacity-60",
               )}
             >
@@ -415,7 +479,7 @@ const MemoizedFormField = memo(
                 <div className={cn(
                   "w-4 h-4 rounded-[3px] border-2 flex items-center justify-center transition-all duration-150",
                   isChecked
-                    ? "bg-[#D97757] border-[#D97757]"
+                    ? "bg-[#4A6CF7] border-[#4A6CF7]"
                     : "border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900",
                 )}>
                   {isChecked && (
@@ -426,7 +490,7 @@ const MemoizedFormField = memo(
                 </div>
               </div>
               <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 select-none">
-                {field.label}
+                {displayLabel}
               </span>
             </label>
           );
@@ -501,7 +565,7 @@ const MemoizedFormField = memo(
           // No existing file, show file input (hidden in read-only mode)
           if (isReadOnly) {
             return (
-              <div className="text-[12px] text-zinc-400 dark:text-zinc-500 italic tracking-wide">
+              <div className="text-[12px] text-[#A1A1AA] dark:text-[#71717A] italic tracking-wide">
                 No file uploaded
               </div>
             );
@@ -562,8 +626,8 @@ const MemoizedFormField = memo(
                     className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-md border cursor-pointer transition-colors duration-150",
                       isSelected
-                        ? "border-[#D97757]/50 bg-[#D97757]/5 dark:border-[#D97757]/40 dark:bg-[#D97757]/10"
-                        : "border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900 hover:border-[#D97757]/30 dark:hover:border-[#D97757]/30",
+                        ? "border-[#4A6CF7]/50 bg-[#4A6CF7]/5 dark:border-[#4A6CF7]/40 dark:bg-[#4A6CF7]/10"
+                        : "border-[#E5E7EB] bg-white dark:border-[#374151] dark:bg-zinc-900 hover:border-[#4A6CF7]/30 dark:hover:border-[#4A6CF7]/30",
                       isReadOnly && "cursor-not-allowed opacity-60",
                     )}
                   >
@@ -582,7 +646,7 @@ const MemoizedFormField = memo(
                       className={cn(
                         "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-150 shrink-0",
                         isSelected
-                          ? "border-[#D97757]"
+                          ? "border-[#4A6CF7]"
                           : "border-zinc-300 dark:border-zinc-600",
                       )}
                     >
@@ -590,7 +654,7 @@ const MemoizedFormField = memo(
                         className={cn(
                           "w-2 h-2 rounded-full transition-all duration-150",
                           isSelected
-                            ? "bg-[#D97757] scale-100"
+                            ? "bg-[#4A6CF7] scale-100"
                             : "bg-transparent scale-0",
                         )}
                       />
@@ -653,10 +717,10 @@ const MemoizedFormField = memo(
     // Checkbox has its own label rendering but still needs description
     if (field.fieldtype === "Check") {
       return (
-        <div className="space-y-1.5">
+        <div className="min-w-0 space-y-2">
           {renderInput()}
           {field.description && (
-            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 ml-7 leading-relaxed">
+            <p className="text-[11px] text-[#A1A1AA] dark:text-[#71717A] ml-7 leading-relaxed">
               {field.description}
             </p>
           )}
@@ -670,19 +734,11 @@ const MemoizedFormField = memo(
     }
 
     return (
-      <div className="space-y-1.5">
-        <label
-          htmlFor={field.fieldname}
-          className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-100"
-        >
-          {field.label}
-          {isMandatory && (
-            <span className="text-red-500 ml-1 normal-case font-bold">*</span>
-          )}
-        </label>
+      <div className="min-w-0 space-y-2">
+        <FieldLabel field={field} isMandatory={isMandatory} />
         {renderInput()}
         {field.description && (
-          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 leading-relaxed">
+          <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
             {field.description}
           </p>
         )}
@@ -703,26 +759,28 @@ const FormSection = ({
   description?: string | null;
   children: React.ReactNode;
 }) => (
-  <div className="space-y-5">
-    {(title || description) && (
-      <div className="flex items-start gap-3 pb-4 border-b border-zinc-100 dark:border-zinc-800">
-        <div className="w-0.5 h-4 mt-0.5 rounded-full bg-zinc-400 dark:bg-zinc-600 shrink-0" />
+  !title && !description ? (
+    <>{children}</>
+  ) : (
+    <div className="form-section-card">
+      <div className="form-section-header">
+        <div className="form-section-header-accent" />
         <div>
           {title && (
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-100">
-              {title}
-            </h2>
+            <h2 className="form-section-title">{title}</h2>
           )}
           {description && (
-            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 leading-relaxed">
+            <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-0.5 leading-relaxed">
               {description}
             </p>
           )}
         </div>
       </div>
-    )}
-    {children}
-  </div>
+      <div className="form-section-body">
+        {children}
+      </div>
+    </div>
+  )
 );
 
 // --- MAIN DYNAMIC FORM RENDERER ---
@@ -741,6 +799,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   readOnly = false,
   autocompleteFields,
   fieldMessages,
+  hideSectionHeaders = false,
+  hideTableLabels = false,
 }) => {
   // Group fields by sections
   const groupFieldsBySection = useCallback((): FormSection[] => {
@@ -819,22 +879,22 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       return (
         <div key={field.fieldname} className="col-span-full space-y-3">
           {field.label && (
-            <h3 className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-100">{field.label}</h3>
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#E4E4E7]">{field.label}</h3>
           )}
-          <div className="overflow-x-auto border border-zinc-100 dark:border-zinc-800 rounded-lg">
-            <table className="w-full text-[12px]">
-              <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+          <div className="overflow-x-auto border border-[#E2E8F0] dark:border-[#2D3748] rounded-lg shadow-sm">
+            <table className="frappe-table w-full text-[12px]">
+              <thead>
                 <tr>
                   {columns.map(col => (
-                    <th key={col} className="px-4 py-2.5 text-left font-bold text-zinc-500 dark:text-zinc-100 text-[10px] uppercase tracking-widest whitespace-nowrap">
+                    <th key={col} className="px-4 py-2.5 text-left">
                       {col.replace(/_/g, " ")}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              <tbody>
                 {rows.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30">
+                  <tr key={idx}>
                     {columns.map(col => (
                       <td key={col} className="px-4 py-2.5 text-[13px] text-zinc-700 dark:text-zinc-300">
                         {String(row[col] ?? "—")}
@@ -855,7 +915,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         <div key={field.fieldname} className="col-span-full">
           <ChildTableComponent
             tableName={field.fieldname}
-            label={field.label || undefined}
+            label={hideTableLabels ? undefined : field.label || undefined}
             columns={field.child_fields}
             tableData={formData[field.fieldname] || []}
             onRowChange={onTableRowChange}
@@ -937,7 +997,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   };
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       {sections.map((section, idx) => {
         // Check if section should be visible
         if (!isSectionVisible(section)) {
@@ -955,10 +1015,10 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         return (
           <FormSection
             key={idx}
-            title={section.title}
-            description={section.description}
+            title={hideSectionHeaders ? "" : section.title}
+            description={hideSectionHeaders ? null : section.description}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-5">
               {section.fields.map((field) => renderField(field))}
             </div>
           </FormSection>

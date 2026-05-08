@@ -55,14 +55,75 @@ interface TableConfig {
     newRowTemplate: Record<string, any>;
 }
 
-// --- STYLES & REUSABLE UI COMPONENTS (REFINED NEO-BRUTALISM) ---
+// --- STYLES & REUSABLE UI COMPONENTS ---
 const inputClasses =
-    "w-full h-9 px-3 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500 disabled:opacity-70 disabled:bg-zinc-100 dark:disabled:bg-zinc-700 read-only:bg-zinc-100 dark:read-only:bg-zinc-700 text-zinc-900 dark:text-zinc-100";
+    "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] " +
+    "rounded-[0.4375rem] text-[13px] text-zinc-900 dark:text-zinc-100 " +
+    "placeholder:text-zinc-400 dark:placeholder:text-zinc-500 " +
+    "focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] " +
+    "disabled:opacity-55 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#71717A] " +
+    "transition-colors duration-150";
+
+const FIELD_LABEL_OVERRIDES: Record<string, string> = {
+    app_id: "Application ID",
+    p11_no: "P-11 Number",
+    project_no: "Project Number",
+    ss_file_number: "File Number",
+    ss_applicant_name: "Applicant Name",
+    ss_year_period_of_sanction: "Year / Period Of Sanction",
+    ss_department_for_purchase: "Department For Purchase",
+    ss_account_head: "Account Head",
+    ss_funding_agency: "Funding Agency",
+    ss_funds_allocated: "Funds Allocated",
+    ss_balance_available: "Balance Available",
+    ss_actual_expenditure: "Actual Expenditure",
+    ss_name_of_firms: "Name Of Firms",
+    ss_pack_forward: "Packing And Forwarding",
+    ss_freight: "Freight",
+    ss_other_charges: "Other Charges",
+    ss_warranty: "Warranty",
+    ss_delivery: "Delivery",
+    ss_payment: "Payment",
+    file_path: "File Path",
+    check_the_below_declaration: "Declaration",
+    the_purchase_committe_recommends_purchase_of_the_items_from_ms:
+        "Purchase Committee Recommendation",
+    quotation_recieved_for_purchase_of_the_items_from_ms:
+        "Quotation Received From",
+    packing_and_forwarding: "Packing And Forwarding",
+};
+
+const formatFieldLabel = (field: Pick<Field, "fieldname" | "label">) => {
+    const raw = FIELD_LABEL_OVERRIDES[field.fieldname] || field.label || field.fieldname;
+    if (FIELD_LABEL_OVERRIDES[field.fieldname]) return raw;
+
+    return raw
+        .replace(/^ss_/i, "")
+        .replace(/^p11_/i, "P-11 ")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
+const FieldLabel = ({
+    field,
+}: {
+    field: Pick<Field, "fieldname" | "label" | "mandatory">;
+}) => (
+    <label
+        htmlFor={field.fieldname}
+        className="inline-flex w-fit max-w-full items-center rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]"
+    >
+        <span className="truncate">{formatFieldLabel(field)}</span>
+        {!!field.mandatory && (
+            <span className="text-red-500 ml-1 normal-case font-bold">*</span>
+        )}
+    </label>
+);
 
 const FrappeCard = ({ children, className }: any) => (
     <div
         className={cn(
-            "bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-300 dark:border-zinc-700 rounded-lg shadow-sm",
+            "bg-white dark:bg-[#27272A] p-6 md:p-8 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm",
             className,
         )}
     >
@@ -82,10 +143,14 @@ const FrappeButton = ({
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "px-5 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg font-bold text-zinc-900 dark:text-zinc-100 shadow-sm transition-all duration-150",
-            "hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:-translate-y-0.5",
-            "active:shadow-none active:translate-y-0",
-            "disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 disabled:bg-zinc-200 dark:disabled:bg-zinc-700",
+            "inline-flex items-center justify-center gap-1.5 h-9 px-5",
+            "border border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem]",
+            "text-[11px] font-bold uppercase tracking-wide",
+            "text-[#3F3F46] dark:text-[#E4E4E7] bg-white dark:bg-[#27272A]",
+            "transition-all duration-150",
+            "hover:bg-[#FAFAF9] dark:hover:bg-[#3F3F46] hover:border-zinc-400 hover:shadow-sm",
+            "active:translate-y-0 active:shadow-none",
+            "disabled:opacity-45 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none",
             className,
         )}
     >
@@ -93,35 +158,31 @@ const FrappeButton = ({
     </button>
 );
 
-const NeoSection = ({ title, children }: any) => (
-    <div className="space-y-4">
-        <h2 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tracking-tight border-b border-zinc-300 dark:border-zinc-600 pb-2 uppercase">
-            {title}
-        </h2>
-        {children}
-    </div>
-);
+const NeoSection = ({ title, children }: any) => {
+    if (!title) return <>{children}</>;
+
+    return (
+        <div className="form-section-card">
+            <div className="form-section-header">
+                <div className="form-section-header-accent" />
+                <h2 className="form-section-title">{title}</h2>
+            </div>
+            <div className="form-section-body">{children}</div>
+        </div>
+    );
+};
 
 // --- MEMOIZED FORM FIELD COMPONENT (WITH HTML RENDERING) ---
 const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
     if (!field || field.hidden) return null;
 
-    // Handle Section Break - render as a section header spanning full width
+    // Section breaks are structural here. Section titles are rendered by NeoSection,
+    // so rendering the field itself creates duplicate headers.
     if (field.fieldtype === "Section Break") {
-        if (!field.label) return null; // Skip unnamed section breaks
-        return (
-            <div className="col-span-full pt-3 pb-1.5 border-b border-zinc-300 dark:border-zinc-700 mt-3 first:mt-0">
-                <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">
-                    {field.label}
-                </h3>
-                {!!field.description && (
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                        {field.description}
-                    </p>
-                )}
-            </div>
-        );
+        return null;
     }
+
+    const displayLabel = formatFieldLabel(field);
 
     // Handle Column Break - skip rendering
     if (field.fieldtype === "Column Break") {
@@ -161,7 +222,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
                             value={value || ""}
                             onChange={(val) => onChange(field.fieldname, val)}
                             options={options || []}
-                            placeholder="Search principal investigator..."
+                            placeholder={`Search ${displayLabel.toLowerCase()}...`}
                             readOnly={field.read_only}
                             required={field.mandatory}
                             disabled={field.read_only}
@@ -235,7 +296,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
                 return (
                     <input
                         type="file"
-                        className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-zinc-200 dark:file:bg-zinc-700 file:text-zinc-900 dark:file:text-zinc-100 hover:file:bg-zinc-300 dark:hover:file:bg-zinc-600`}
+                        className={`${inputClasses} p-2.5 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-[#F4F4F5] dark:file:bg-[#3F3F46] file:text-[#3F3F46] dark:file:text-[#E4E4E7] hover:file:bg-[#E4E4E7] dark:hover:file:bg-[#52525B]`}
                         onChange={(e) =>
                             onChange(
                                 field.fieldname,
@@ -253,26 +314,18 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
                         onChange={(e) =>
                             onChange(field.fieldname, e.target.value)
                         }
-                        placeholder={`${field.label}...`}
+                        placeholder={`${displayLabel}...`}
                     />
                 );
         }
     };
 
     return (
-        <div className="space-y-1">
-            <label
-                htmlFor={field.fieldname}
-                className="block font-semibold text-zinc-700 dark:text-zinc-300 text-xs uppercase"
-            >
-                {field.label}
-                {!!field.mandatory && (
-                    <span className="text-red-500 ml-1">*</span>
-                )}
-            </label>
+        <div className="min-w-0 space-y-2">
+            <FieldLabel field={field} />
             {renderInput()}
             {!!field.description && (
-                <p className="text-sm text-zinc-700 dark:text-zinc-300 font-bold font-mono mt-1">
+                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
                     {field.description}
                 </p>
             )}
@@ -369,9 +422,9 @@ const MemoizedGenericTable = memo(
 
         return (
             <NeoSection title={title}>
-                <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-700 rounded-lg">
-                    <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
-                        <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                <div className="overflow-x-auto rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+                    <table className="min-w-full">
+                        <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                             <tr>
                                 {[
                                     ...columns,
@@ -379,28 +432,28 @@ const MemoizedGenericTable = memo(
                                 ].map((c: any) => (
                                     <th
                                         key={c.key}
-                                        className="px-3 py-2 font-semibold text-zinc-600 dark:text-zinc-400 text-xs text-left uppercase tracking-wider"
+                                        className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25 last:border-r-0"
                                     >
                                         {c.label}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700 bg-white dark:bg-zinc-900">
+                        <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
                             {(tableData || []).map((row: any, i: number) => (
                                 <tr
                                     key={row.id || i}
-                                    className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                                    className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 transition-colors"
                                 >
                                     {columns.map((col: any) => (
                                         <td
                                             key={col.key}
-                                            className="px-2 py-1.5 min-w-[140px]"
+                                            className="px-3 py-2 min-w-[140px] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80 last:border-r-0"
                                         >
                                             {renderCell(col, row, i)}
                                         </td>
                                     ))}
-                                    <td className="px-2 py-1.5 text-center w-[80px]">
+                                    <td className="px-3 py-2 text-center w-[80px]">
                                         <FrappeButton
                                             onClick={() =>
                                                 onDeleteRow(tableName, i)
@@ -417,9 +470,9 @@ const MemoizedGenericTable = memo(
                 </div>
                 <FrappeButton
                     onClick={() => onAddRow(tableName, newRow)}
-                    className="mt-0 bg-[#D97757] hover:bg-[#c5684a] text-white border-[#D97757]/20"
+                    className="mt-3 h-9 px-4 bg-[#EEF2FF] hover:bg-[#E0E7FF] text-[#1E3A8A] border border-[#C7D2FE] shadow-none text-[11px] font-extrabold uppercase tracking-wide"
                 >
-                    Add Row
+                    + Add Row
                 </FrappeButton>
             </NeoSection>
         );
@@ -629,12 +682,11 @@ export const FormRender: React.FC<
             )}
 
             {!hideActions && (
-                <div className="mt-8 flex justify-end gap-4">
+                <div className="mt-8 flex justify-end gap-3">
                     {onCancel && (
                         <FrappeButton
                             onClick={onCancel}
-                            variant="outline"
-                            className="border-red-200 text-red-700 hover:bg-red-50"
+                            className="border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A] dark:text-[#A1A1AA] hover:bg-[#FAFAF9] dark:hover:bg-[#3F3F46]"
                         >
                             Cancel
                         </FrappeButton>
@@ -642,7 +694,7 @@ export const FormRender: React.FC<
                     <FrappeButton
                         onClick={handleSubmitClick}
                         disabled={isSubmitting}
-                        className="bg-[#D97757] text-white hover:bg-[#0D9494] border-[#D97757]/20"
+                        className="bg-[#4A6CF7] hover:bg-blue-700 text-white border-[#4A6CF7]/20 shadow-sm hover:shadow-md hover:shadow-blue-500/20"
                     >
                         {isSubmitting ? "Submitting..." : submitButtonText}
                     </FrappeButton>

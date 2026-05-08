@@ -46,7 +46,24 @@ interface FormDataResponse {
 }
 
 // --- STYLES ---
-const inputClasses = "w-full h-12 px-4 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:opacity-70 disabled:bg-zinc-100 dark:bg-zinc-800 read-only:bg-zinc-100 dark:bg-zinc-800";
+const inputClasses = "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] disabled:opacity-55 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#71717A] read-only:bg-[#FAFAF9] dark:read-only:bg-[#27272A]/50 transition-colors duration-150";
+
+const formatFieldLabel = (label?: string | null, fieldname?: string) => {
+    const raw = label || fieldname || "";
+    return raw
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
+const FieldLabel = ({ field }: { field: Pick<Field, "fieldname" | "label" | "mandatory"> }) => (
+    <label
+        htmlFor={field.fieldname}
+        className="inline-flex w-fit max-w-full items-center rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]"
+    >
+        <span className="truncate">{formatFieldLabel(field.label, field.fieldname)}</span>
+        {field.mandatory === 1 && <span className="ml-1 font-bold normal-case text-red-500">*</span>}
+    </label>
+);
 
 // --- HELPER FUNCTION: evaluateDependsOn ---
 const evaluateDependsOn = (expression: string | null | undefined, doc: any): boolean => {
@@ -167,7 +184,7 @@ const MemoizedFormField = memo(({
                 return <textarea {...commonInputProps} rows={4} className={`${inputClasses} h-auto py-3`} />;
             case "Check":
                 return (
-                    <label className="flex items-start gap-3 mt-4 cursor-pointer">
+                    <label className="flex items-start gap-3 rounded-md border border-[#E4E4E7] bg-white px-3 py-2.5 cursor-pointer dark:border-[#3F3F46] dark:bg-[#27272A]">
                         <input
                             type="checkbox"
                             id={field.fieldname}
@@ -175,9 +192,9 @@ const MemoizedFormField = memo(({
                             checked={!!value}
                             onChange={(e) => onChange(field.fieldname, e.target.checked ? 1 : 0)}
                             disabled={field.read_only === 1}
-                            className="mt-1 w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 text-[#D97757] focus:ring-[#D97757]"
+                            className="mt-1 w-5 h-5 rounded border-zinc-300 dark:border-zinc-700 text-[#4A6CF7] focus:ring-[#4A6CF7]"
                         />
-                        <span className="text-zinc-700 dark:text-zinc-300 text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: field.description || field.label || '' }} />
+                        <span className="text-[#3F3F46] dark:text-[#E4E4E7] text-[13px] font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: field.description || field.label || '' }} />
                     </label>
                 );
             case "Attach":
@@ -202,12 +219,10 @@ const MemoizedFormField = memo(({
 
     return (
         <div className='space-y-2'>
-            <label htmlFor={field.fieldname} className="block font-bold text-zinc-900 dark:text-zinc-100 text-lg uppercase">
-                {field.label}{field.mandatory === 1 && <span className="text-red-500">*</span>}
-            </label>
+            <FieldLabel field={field} />
             {renderInput()}
             {field.description && field.fieldtype !== 'Check' && (
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">{field.description}</p>
+                <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">{field.description}</p>
             )}
         </div>
     );
@@ -215,7 +230,7 @@ const MemoizedFormField = memo(({
 
 // --- REUSABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-zinc-900 p-6 md:p-8 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-[#27272A] p-4 sm:p-5 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm", className)}>
         {children}
     </div>
 );
@@ -232,7 +247,7 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
         onClick={onClick}
         disabled={disabled}
         className={cn(
-            "px-5 py-2.5 border border-zinc-200 dark:border-zinc-800 rounded-lg font-semibold text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 shadow-sm transition-all hover:bg-zinc-50 dark:bg-zinc-800/50 hover:shadow disabled:opacity-50 disabled:cursor-not-allowed",
+            "inline-flex h-9 items-center justify-center gap-2 rounded-[0.4375rem] border px-5 text-[12px] font-bold uppercase tracking-wide transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed",
             className
         )}
     >
@@ -241,9 +256,13 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 );
 
 const NeoSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div className="space-y-6">
-        <h2 className="text-xl font-semibold text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-800 pb-3">{title}</h2>
-        {children}
+    <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+        <div className="border-b border-[#E4E4E7] bg-[#FAFAF9] px-5 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+            <h2 className="text-[13px] font-extrabold uppercase tracking-wide text-[#3F3F46] dark:text-[#E4E4E7]">{title}</h2>
+        </div>
+        <div className="p-4 sm:p-5">
+            {children}
+        </div>
     </div>
 );
 
@@ -665,9 +684,9 @@ const TemporaryAdvance: React.FC = () => {
     const sections = groupFieldsBySection();
 
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+        <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
             <AppSidebar />
-            <main className="flex-1 p-4 md:p-8">
+            <main className="flex-1 px-5 py-6 md:px-8 md:py-7">
                 <PageHeader
                     title="Temporary Advance Application"
                     projectName={formData.project_name || projectTitle || ''}
@@ -675,10 +694,10 @@ const TemporaryAdvance: React.FC = () => {
                 />
 
                 <form onSubmit={handleSubmit}>
-                    <FrappeCard className="space-y-12">
+                    <div className="space-y-5">
                         {sections.map((section, index) => (
                             <NeoSection key={index} title={section.title}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-5">
                                     {section.fields.map(field => {
                                         if (field.fieldtype === 'HTML') {
                                             return renderHtmlField(field);
@@ -733,21 +752,21 @@ const TemporaryAdvance: React.FC = () => {
                                 </div>
                             </NeoSection>
                         ))}
-                    </FrappeCard>
+                    </div>
 
                     {/* Submit Button */}
-                    <div className="mt-8 flex justify-end gap-4">
+                    <div className="mt-8 flex justify-end gap-3">
                         <FrappeButton
                             type="button"
                             onClick={() => navigate(-1)}
-                            className="bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:bg-zinc-600"
+                            className="bg-white text-[#71717A] border-[#E4E4E7] hover:bg-[#FAFAF9] dark:bg-[#27272A] dark:text-[#A1A1AA] dark:border-[#3F3F46]"
                         >
                             Cancel
                         </FrappeButton>
                         <FrappeButton
                             type="submit"
                             disabled={isSubmitting}
-                            className="bg-green-300 hover:bg-green-400 disabled:bg-zinc-300 dark:bg-zinc-600"
+                            className="bg-[#D97757] text-white border-[#D97757] hover:bg-[#c5694d] disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             {isSubmitting ? 'Saving...' : 'Submit Temporary Advance'}
                         </FrappeButton>
