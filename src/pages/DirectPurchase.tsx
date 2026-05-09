@@ -84,8 +84,8 @@ interface FormDataResponse {
 }
 
 // --- STYLES ---
-const inputClasses = "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] disabled:opacity-55 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#71717A] read-only:bg-[#FAFAF9] dark:read-only:bg-[#27272A]/50 transition-colors duration-150";
-const tableInputClasses = "w-full h-9 px-2.5 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem] text-[12px] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] transition-colors duration-150";
+const inputClasses = "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem] text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] disabled:opacity-100 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#27272A] dark:disabled:text-[#F4F4F5] read-only:bg-[#FAFAF9] dark:read-only:bg-[#27272A]/50 read-only:text-[#27272A] dark:read-only:text-[#F4F4F5] transition-colors duration-150";
+const tableInputClasses = "w-full h-9 px-2.5 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem] text-[12px] font-semibold text-[#27272A] dark:text-[#F4F4F5] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] disabled:opacity-100 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#27272A] dark:disabled:text-[#F4F4F5] read-only:bg-[#FAFAF9] dark:read-only:bg-[#27272A]/50 read-only:text-[#27272A] dark:read-only:text-[#F4F4F5] transition-colors duration-150";
 
 const formatFieldLabel = (label?: string | null, fieldname?: string) => {
     const raw = label || fieldname || "";
@@ -99,9 +99,9 @@ const formatFieldLabel = (label?: string | null, fieldname?: string) => {
 const FieldLabel = ({ field }: { field: Pick<Field, "fieldname" | "label" | "mandatory"> }) => (
     <label
         htmlFor={field.fieldname}
-        className="inline-flex w-fit max-w-full items-center rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]"
+        className="inline-flex w-fit max-w-full items-start rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]"
     >
-        <span className="truncate">{formatFieldLabel(field.label, field.fieldname)}</span>
+        <span className="whitespace-normal break-words leading-snug">{formatFieldLabel(field.label, field.fieldname)}</span>
         {field.mandatory === 1 && <span className="ml-1 font-bold normal-case text-red-500">*</span>}
     </label>
 );
@@ -177,7 +177,7 @@ const MemoizedFormField = memo(({
     const renderInput = () => {
         if (field.fieldname === 'applicant_department' || field.fieldname === 'department' || field.fieldname === 'applying_for_department') {
             return (
-                <div className={cn(inputClasses, "flex items-center bg-zinc-50 dark:bg-zinc-800/40 text-zinc-600 dark:text-zinc-300 overflow-hidden text-ellipsis whitespace-nowrap")}>
+                <div className={cn(inputClasses, "flex items-center bg-zinc-50 dark:bg-zinc-800/40 text-[#27272A] dark:text-[#F4F4F5] overflow-hidden text-ellipsis whitespace-nowrap")}>
                     {value ? <DepartmentName name={value} /> : <span className="text-[12px] text-zinc-400 dark:text-zinc-500 italic">Not provided</span>}
                 </div>
             );
@@ -247,7 +247,7 @@ const MemoizedFormField = memo(({
                         !!value
                             ? "bg-[#4A6CF7]/5 border-[#4A6CF7]/40 dark:bg-[#4A6CF7]/10 dark:border-[#4A6CF7]/40"
                             : "bg-white border-[#E4E4E7] dark:bg-[#27272A] dark:border-[#3F3F46] hover:border-[#4A6CF7]/30 dark:hover:border-[#4A6CF7]/30",
-                        field.read_only === 1 && "cursor-not-allowed opacity-60",
+                        field.read_only === 1 && "cursor-not-allowed opacity-100",
                     )}>
                         <div className={cn(
                             "w-4 h-4 rounded-[3px] border-2 flex items-center justify-center shrink-0 transition-all duration-150",
@@ -270,7 +270,7 @@ const MemoizedFormField = memo(({
                                 className="sr-only"
                             />
                         </div>
-                        <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 leading-relaxed select-none" dangerouslySetInnerHTML={{ __html: field.description || field.label || '' }} />
+                        <span className="text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] leading-relaxed select-none" dangerouslySetInnerHTML={{ __html: field.description || field.label || '' }} />
                     </label>
                 );
             case "Attach":

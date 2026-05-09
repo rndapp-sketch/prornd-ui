@@ -72,7 +72,7 @@ const GroupCard = ({
         )}
     >
         <div className="px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
-            <h3 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
+            <h3 className="text-xs font-extrabold text-[#27272A] dark:text-[#F4F4F5] uppercase tracking-widest">
                 {label}
             </h3>
         </div>

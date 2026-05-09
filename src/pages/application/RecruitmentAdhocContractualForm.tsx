@@ -9,7 +9,7 @@ import {
     recruitmentAdhocContractualAPI,
     prepareFormDataForApi,
 } from "@/services/apiService";
-import { Loader2, ArrowLeft, Save, Send, CheckCircle2 } from "lucide-react";
+import { Loader2, ArrowLeft, Save, Send, CheckCircle2, MessageSquare, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -99,6 +99,7 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     const [linkOptions, setLinkOptions] = useState<LinkOptionsMap>({});
     const [isLoadingFields, setIsLoadingFields] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isActivityOpen, setIsActivityOpen] = useState(false);
     const isSavingRef = useRef(false);
     const [savedDocName, setSavedDocName] = useState<string | null>(
         editDocName || null,
@@ -1205,40 +1206,51 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
             <main className="max-w-8xl mx-auto p-4 md:p-8 w-full overflow-hidden">
-                <div className="flex items-center gap-4 mb-8">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="p-2 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
-                    >
-                        <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                    </button>
-                    <div>
-                        <h1 className="text-2xl font-serif font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
-                            Recruitment Adhoc Contractual
-                            {(editDocName || savedDocName) && (
-                                <span
-                                    className={cn(
-                                        "text-xs font-sans px-2.5 py-1 rounded-full border",
-                                        workflowState === "Approved"
-                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800/50"
-                                            : workflowState === "Draft"
-                                                ? "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
-                                                : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800/50",
+                <div className="mb-6 overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                    <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 items-start gap-3">
+                            <button
+                                onClick={() => navigate(-1)}
+                                className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] text-[#71717A] transition-colors hover:border-[#C7D2FE] hover:bg-[#EEF2FF] hover:text-[#2563EB] dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:bg-[#1E3A8A]/18 dark:hover:text-[#C7D2FE]"
+                                aria-label="Go back"
+                            >
+                                <ArrowLeft className="h-5 w-5" />
+                            </button>
+                            <div className="min-w-0">
+                                <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                                    <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#D97757]">
+                                        Application Form
+                                    </span>
+                                    {(editDocName || savedDocName) && (
+                                        <span
+                                            className={cn(
+                                                "inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide",
+                                                workflowState === "Approved"
+                                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-900/20 dark:text-emerald-300"
+                                                    : workflowState === "Draft"
+                                                        ? "border-[#E4E4E7] bg-[#F4F4F5] text-[#52525B] dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-[#D4D4D8]"
+                                                        : "border-[#C7D2FE] bg-[#EEF2FF] text-[#1E3A8A] dark:border-[#4A6CF7]/40 dark:bg-[#1E3A8A]/18 dark:text-[#C7D2FE]",
+                                            )}
+                                        >
+                                            {workflowState}
+                                        </span>
                                     )}
-                                >
-                                    {workflowState}
-                                </span>
-                            )}
-                        </h1>
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                            {editDocName || savedDocName
-                                ? `Application ID: ${editDocName || savedDocName}`
-                                : "New Application"}
-                        </p>
+                                </div>
+                                <h1 className="text-[22px] font-extrabold leading-tight tracking-normal text-[#27272A] dark:text-[#F4F4F5]">
+                                    Recruitment Adhoc Contractual
+                                </h1>
+                                <p className="mt-1 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                    {editDocName || savedDocName
+                                        ? `Application ID: ${editDocName || savedDocName}`
+                                        : "New Application"}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div className={cn("grid gap-6", (showCommitSection || currentDocName) ? "grid-cols-1 lg:grid-cols-[1fr_360px]" : "grid-cols-1")}>
+                <div className="grid grid-cols-1 gap-6">
                     {/* Main Form Content */}
                     <div className="space-y-6">
                         <FrappeCard>
@@ -1387,9 +1399,9 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                         </FrappeCard>
                     </div>
 
-                    {/* Commit Payment Sidebar — visible to staff, RnD only */}
+                    {/* Commit Payment — visible to staff, RnD only */}
                     {showCommitSection && (
-                        <aside className="space-y-5">
+                        <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
                             {/* Commit Payment — centralised component handles staging check + form/display card */}
                             <CommitPayment
                                 doctype="Recruitment Adhoc Contractual"
@@ -1484,22 +1496,53 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                 )}
                             </div>
 
-                            {/* Activity Log — always shown at bottom of commit sidebar */}
-                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                {currentDocName && <ActivityLog doctype="Recruitment Adhoc Contractual" docname={currentDocName} />}
-                            </div>
-                        </aside>
-                    )}
-
-                    {/* Activity Log sidebar — always visible when doc exists, even without commit section */}
-                    {!showCommitSection && currentDocName && (
-                        <aside className="space-y-5">
-                            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                                <ActivityLog doctype="Recruitment Adhoc Contractual" docname={currentDocName} />
-                            </div>
-                        </aside>
+                        </div>
                     )}
                 </div>
+
+                {currentDocName && (
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => setIsActivityOpen(true)}
+                            className="fixed bottom-6 right-6 z-40 inline-flex h-12 items-center gap-2 rounded-full border border-[#C7D2FE] bg-[#2563EB] px-4 text-[12px] font-extrabold uppercase tracking-wider text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-[#1D4ED8] focus:outline-none focus:ring-4 focus:ring-[#4A6CF7]/20 dark:border-[#4A6CF7]/40"
+                            aria-label="Open Activity Log"
+                        >
+                            <MessageSquare className="h-4 w-4" />
+                            Activity Log
+                        </button>
+
+                        {isActivityOpen && (
+                            <div className="fixed inset-0 z-50 flex justify-end">
+                                <div
+                                    className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
+                                    onClick={() => setIsActivityOpen(false)}
+                                />
+                                <div className="relative h-full w-full max-w-[420px] overflow-y-auto border-l border-[#E4E4E7] bg-white p-5 shadow-2xl dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                    <div className="mb-4 flex items-center justify-between gap-4">
+                                        <div>
+                                            <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#D97757]">
+                                                Application
+                                            </p>
+                                            <h2 className="text-lg font-extrabold text-[#27272A] dark:text-[#F4F4F5]">
+                                                Activity Log
+                                            </h2>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsActivityOpen(false)}
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#E4E4E7] text-[#71717A] transition-colors hover:bg-[#F4F4F5] hover:text-[#27272A] dark:border-[#3F3F46] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#F4F4F5]"
+                                            aria-label="Close Activity Log"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                    <ActivityLog doctype="Recruitment Adhoc Contractual" docname={currentDocName} />
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
 
                 {/* ============================================================
                     EDITED BY MKY | 2026-04-14 15:35 IST

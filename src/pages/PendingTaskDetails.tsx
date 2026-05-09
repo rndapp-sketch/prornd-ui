@@ -21,6 +21,7 @@ import {
     SaveIcon,
     XIcon,
     FolderOpenIcon,
+    MessageSquareIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 // import { AppSidebar } from '@/components/RndSidebar';
@@ -1378,6 +1379,7 @@ const PendingTaskDetails: React.FC = () => {
     // Project preview modal state
     const [prPreviewName, setPrPreviewName] = useState<string | null>(null);
     const [prPreviewLoading, setPrPreviewLoading] = useState(false);
+    const [isActivityOpen, setIsActivityOpen] = useState(false);
 
     // Kafka Staging Commit Status Gate
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
@@ -2710,15 +2712,53 @@ const PendingTaskDetails: React.FC = () => {
                                     />
                                 )}
 
-                            {/* Activity Log — new endpoint (get_document_activity) */}
-                            {name && doctype && (
-                                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm mt-4">
-                                    <ActivityLog doctype={doctype} docname={name} />
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
+
+                {name && doctype && (
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => setIsActivityOpen(true)}
+                            className="fixed bottom-6 right-6 z-40 inline-flex h-12 items-center gap-2 rounded-full border border-[#C7D2FE] bg-[#2563EB] px-4 text-[12px] font-extrabold uppercase tracking-wider text-white shadow-lg shadow-blue-900/20 transition-all hover:bg-[#1D4ED8] focus:outline-none focus:ring-4 focus:ring-[#4A6CF7]/20 dark:border-[#4A6CF7]/40"
+                            aria-label="Open Activity Log"
+                        >
+                            <MessageSquareIcon className="h-4 w-4" />
+                            Activity Log
+                        </button>
+
+                        {isActivityOpen && (
+                            <div className="fixed inset-0 z-50 flex justify-end">
+                                <div
+                                    className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
+                                    onClick={() => setIsActivityOpen(false)}
+                                />
+                                <div className="relative h-full w-full max-w-[420px] overflow-y-auto border-l border-[#E4E4E7] bg-white p-5 shadow-2xl dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                    <div className="mb-4 flex items-center justify-between gap-4">
+                                        <div>
+                                            <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#D97757]">
+                                                Pending Task
+                                            </p>
+                                            <h2 className="text-lg font-extrabold text-[#27272A] dark:text-[#F4F4F5]">
+                                                Activity Log
+                                            </h2>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsActivityOpen(false)}
+                                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#E4E4E7] text-[#71717A] transition-colors hover:bg-[#F4F4F5] hover:text-[#27272A] dark:border-[#3F3F46] dark:text-[#A1A1AA] dark:hover:bg-[#27272A] dark:hover:text-[#F4F4F5]"
+                                            aria-label="Close Activity Log"
+                                        >
+                                            <XIcon className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                    <ActivityLog doctype={doctype} docname={name} />
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
 
                 <div className="flex justify-end gap-3 pb-8 mt-6">
                     <FrappeButton
