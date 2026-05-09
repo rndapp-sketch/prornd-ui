@@ -58,10 +58,10 @@ interface TableConfig {
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const inputClasses =
     "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] " +
-    "rounded-[0.4375rem] text-[13px] text-zinc-900 dark:text-zinc-100 " +
+    "rounded-[0.4375rem] text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] " +
     "placeholder:text-zinc-400 dark:placeholder:text-zinc-500 " +
     "focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] " +
-    "disabled:opacity-55 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#71717A] " +
+    "disabled:opacity-100 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#27272A] dark:disabled:text-[#F4F4F5] " +
     "transition-colors duration-150";
 
 const FIELD_LABEL_OVERRIDES: Record<string, string> = {

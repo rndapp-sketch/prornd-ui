@@ -49,7 +49,7 @@ export interface ChildTableProps {
 }
 
 // --- STYLES ---
-const inputClasses = "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem] text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] disabled:opacity-55 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#71717A] transition-colors duration-150";
+const inputClasses = "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] rounded-[0.4375rem] text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] disabled:opacity-100 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#27272A] dark:disabled:text-[#F4F4F5] transition-colors duration-150";
 
 const FrappeButton = ({ children, onClick, disabled, className, type = "button" }: {
     children: React.ReactNode;
@@ -419,8 +419,10 @@ export const ChildTableComponent = memo(({
                                     <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-5">
                                         {visibleColumns.map(col => (
                                             <div key={col.fieldname} className="space-y-1.5 flex flex-col">
-                                                <label className="block text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#E4E4E7]">
-                                                    {col.label === 'Total Experience' ? 'Total Experience (Months)' : col.label}
+                                                <label className="inline-flex w-fit max-w-full items-start rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]">
+                                                    <span className="whitespace-normal break-words leading-snug">
+                                                        {col.label === 'Total Experience' ? 'Total Experience (Months)' : col.label}
+                                                    </span>
                                                     {!!col.mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}
                                                 </label>
                                                 <div className="flex-1">
