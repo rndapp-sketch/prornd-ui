@@ -7,6 +7,7 @@ import {
   CalendarIcon,
   UserIcon,
   DownloadIcon,
+  IndianRupeeIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -17,7 +18,7 @@ import { useProjectBudget } from "@/hooks/useProjectBudget";
 import { Wallet as WalletIcon, CheckCircle2 } from "lucide-react";
 import { DeclarationFields } from "@/components/DeclarationFields";
 import { CommitPayment } from "@/components/CommitPayment";
-import { ActivityLog } from "@/components/ActivityLog";
+import { FloatingActivityLogButton } from "@/components/FloatingActivityLogButton";
 import ViewProjectButton from "@/components/ViewProjectButton";
 
 // --- TYPE DEFINITIONS ---
@@ -58,18 +59,18 @@ const FrappeCard = ({
 }) => (
   <div
     className={cn(
-      "bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm",
+      "bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm overflow-hidden",
       className,
     )}
   >
     {title && (
-      <div className="px-6 py-4 border-b border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30">
-        <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+      <div className="px-[22px] py-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+        <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
           {title}
         </h3>
       </div>
     )}
-    <div className="p-6">{children}</div>
+    <div className="p-[18px] md:p-6">{children}</div>
   </div>
 );
 
@@ -95,9 +96,9 @@ const FrappeButton = ({
       variant === "primary" &&
         "bg-[#D97757] text-white hover:bg-[#D97757] shadow-sm hover:shadow-md",
       variant === "ghost" &&
-        "bg-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100",
+        "bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]",
       variant === "outline" &&
-        "bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
+        "bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-[#FAFAF9] dark:hover:bg-[#3F3F46]",
       variant === "action" &&
         "bg-[#18181B] dark:bg-[#E4E4E7] text-white dark:text-[#18181B] hover:opacity-90 shadow-sm rounded-lg",
       className,
@@ -128,7 +129,7 @@ const CommentModal = ({
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-[#FFFFFF] dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-6 rounded-lg shadow-lg w-full max-w-md">
-        <h3 className="font-serif text-lg font-medium text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight mb-4">
+        <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-4">
           Confirm {action}
         </h3>
         <textarea
@@ -611,14 +612,14 @@ const AdvanceSettlementDetails: React.FC = () => {
 
   if (error || !data) {
     return (
-      <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+      <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
         <main className="flex-1 p-4 md:p-8">
           <FrappeCard className="text-center py-16">
             <FileTextIcon className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
-            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2 uppercase">
+            <h2 className="text-xl font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-2 uppercase">
               Error Loading Settlement
             </h2>
-            <p className="text-zinc-900 dark:text-zinc-100 mb-6">
+            <p className="text-[#3F3F46] dark:text-[#E4E4E7] mb-6">
               {error || "Settlement not found"}
             </p>
             <FrappeButton variant="primary" onClick={() => navigate(-1)}>
@@ -643,9 +644,8 @@ const AdvanceSettlementDetails: React.FC = () => {
     data.docstatus === 0;
 
   return (
-    <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
-      <main className="flex-1 p-4 md:p-8">
-        {/* Header */}
+    <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
+      <main className="flex-1 px-4 py-6 md:px-8 md:py-8 max-w-[1600px] mx-auto">
         {/* Header */}
         <PageHeader
           title={data.name}
@@ -655,30 +655,16 @@ const AdvanceSettlementDetails: React.FC = () => {
         >
           <div className="flex items-center gap-3">
             <ViewProjectButton doctype="Advance Settlement" data={data} />
-            <div className="text-right text-sm text-zinc-900 dark:text-zinc-100 mr-2 hidden md:block">
+            <div className="text-right text-sm text-[#3F3F46] dark:text-[#E4E4E7] mr-2 hidden md:block">
               <div className="flex items-center justify-end gap-1 font-medium">
                 <CalendarIcon className="w-4 h-4 text-zinc-400" />
                 {formatDate(data.creation)}
               </div>
-              <div className="flex items-center justify-end gap-1 mt-1 font-medium text-zinc-500">
+              <div className="flex items-center justify-end gap-1 mt-1 font-medium text-[#71717A] dark:text-[#A1A1AA]">
                 <UserIcon className="w-4 h-4 text-zinc-400" />
                 {data.owner}
               </div>
             </div>
-
-            {/* Make a Commitment via CommitPayment component */}
-            {isRnDStaff &&
-              data.workflow_state === "Pending Staff Approval" && (
-                <CommitPayment
-                    doctype="Advance Settlement"
-                    docName={id || ""}
-                    projectName={data.project_code}
-                    budgetHeads={budgetHeads}
-                    parentAppId={data.temporary_advance_application}
-                    onCommitSuccess={() => window.location.reload()}
-                    onStagingStatusChange={(status) => setIsCommittedForGate(status)}
-                />
-              )}
 
             {/* Submit Button - only for Draft */}
             {isDraft && (
@@ -724,42 +710,70 @@ const AdvanceSettlementDetails: React.FC = () => {
           />
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 shadow-sm">
+                <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
+                  Total Settlement
+                </p>
+                <p className="mt-2 flex items-center text-[30px] font-extrabold leading-none text-[#D97757]">
+                  <IndianRupeeIcon className="h-6 w-6" />
+                  {(data.total_amount || 0).toLocaleString("en-IN")}
+                </p>
+              </div>
+              <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 shadow-sm">
+                <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
+                  Temporary Advance
+                </p>
+                <p className="mt-2 text-[15px] font-bold text-[#2563EB] dark:text-blue-300 break-all">
+                  {data.temporary_advance_application || "-"}
+                </p>
+              </div>
+              <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 shadow-sm">
+                <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
+                  Budget Head
+                </p>
+                <p className="mt-2 text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                  {budgetHeadName || data.account_head || "-"}
+                </p>
+              </div>
+            </div>
+
             {/* Project & Advance Info */}
             <FrappeCard title="Details">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
                     Project Name
                   </label>
-                  <p className="text-zinc-900 dark:text-zinc-100 font-medium text-sm leading-relaxed">
+                  <p className="text-[#3F3F46] dark:text-[#E4E4E7] font-semibold text-sm leading-relaxed">
                     {data.project_name}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
                     Project Code
                   </label>
-                  <p className="text-zinc-900 dark:text-zinc-100 font-medium font-mono text-sm">
+                  <p className="text-[#3F3F46] dark:text-[#E4E4E7] font-semibold font-mono text-sm">
                     {data.project_code || "-"}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
                     Temporary Advance Ref
                   </label>
-                  <p className="text-zinc-900 dark:text-zinc-100 font-medium text-sm text-blue-600 dark:text-blue-400">
+                  <p className="text-[#3F3F46] dark:text-[#E4E4E7] font-semibold text-sm text-blue-600 dark:text-blue-400">
                     {data.temporary_advance_application || "-"}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
                     Budget Head
                   </label>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-zinc-400"></div>
-                    <p className="text-zinc-900 dark:text-zinc-100 font-medium">
+                    <p className="text-[#3F3F46] dark:text-[#E4E4E7] font-semibold">
                       {budgetHeadName || data.account_head || "-"}
                     </p>
                   </div>
@@ -770,18 +784,18 @@ const AdvanceSettlementDetails: React.FC = () => {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
                     Account Holder
                   </label>
-                  <p className="text-zinc-900 dark:text-zinc-100 font-medium">
+                  <p className="text-[#3F3F46] dark:text-[#E4E4E7] font-semibold">
                     {data.bank_account_holders_name || "-"}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                  <label className="text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">
                     Account Number
                   </label>
-                  <p className="text-zinc-900 dark:text-zinc-100 font-medium font-mono tracking-wide">
+                  <p className="text-[#3F3F46] dark:text-[#E4E4E7] font-semibold font-mono tracking-wide">
                     {data.bank_account_number || "-"}
                   </p>
                 </div>
@@ -791,36 +805,36 @@ const AdvanceSettlementDetails: React.FC = () => {
             {/* Expenditure Table */}
             <FrappeCard title="Expenditure Breakdown">
               {data.expenditure_details?.length > 0 ? (
-                <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+                <div className="overflow-hidden rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
                   <table className="w-full text-sm text-left">
-                    <thead className="bg-zinc-50 dark:bg-zinc-800/80 text-zinc-500 dark:text-zinc-400 uppercase font-semibold text-xs">
+                    <thead className="bg-[#EEF2FF] dark:bg-blue-950/20 text-[#71717A] dark:text-[#A1A1AA] uppercase font-semibold text-xs">
                       <tr>
-                        <th className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
+                        <th className="px-4 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                           Date
                         </th>
-                        <th className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
+                        <th className="px-4 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                           Particulars
                         </th>
-                        <th className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 text-right">
+                        <th className="px-4 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] text-right">
                           Amount
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                    <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
                       {data.expenditure_details.map((item, idx) => (
                         <tr
                           key={idx}
-                          className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+                          className="hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors"
                         >
-                          <td className="px-4 py-3 text-zinc-900 dark:text-zinc-100 font-medium whitespace-nowrap">
+                          <td className="px-4 py-3 text-[#3F3F46] dark:text-[#E4E4E7] font-semibold whitespace-nowrap">
                             {item.expenditure_date
                               ? formatDate(item.expenditure_date)
                               : "-"}
                           </td>
-                          <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">
+                          <td className="px-4 py-3 text-[#71717A] dark:text-[#A1A1AA]">
                             {item.description || item.particulars}
                           </td>
-                          <td className="px-4 py-3 text-right font-bold text-zinc-900 dark:text-zinc-100 font-mono">
+                          <td className="px-4 py-3 text-right font-bold text-[#3F3F46] dark:text-[#E4E4E7] font-mono">
                             ₹{" "}
                             {Number(
                               item.amount || item.amount_in_rs || 0,
@@ -828,10 +842,10 @@ const AdvanceSettlementDetails: React.FC = () => {
                           </td>
                         </tr>
                       ))}
-                      <tr className="bg-zinc-50/80 dark:bg-zinc-800/30 font-bold">
+                      <tr className="bg-[#FAFAF9] dark:bg-[#18181B] font-bold">
                         <td
                           colSpan={2}
-                          className="px-4 py-3 text-right text-zinc-600 dark:text-zinc-400 uppercase text-xs tracking-wider"
+                          className="px-4 py-3 text-right text-[#71717A] dark:text-[#A1A1AA] uppercase text-xs tracking-wider"
                         >
                           Total Expenditure
                         </td>
@@ -843,8 +857,8 @@ const AdvanceSettlementDetails: React.FC = () => {
                   </table>
                 </div>
               ) : (
-                <div className="text-center py-12 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-dashed border-zinc-200 dark:border-zinc-700">
-                  <p className="text-zinc-500 dark:text-zinc-400">
+                <div className="text-center py-12 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg border border-dashed border-[#E4E4E7] dark:border-[#3F3F46]">
+                  <p className="text-[#71717A] dark:text-[#A1A1AA]">
                     No expenditure details recorded.
                   </p>
                 </div>
@@ -869,16 +883,10 @@ const AdvanceSettlementDetails: React.FC = () => {
 
             {/* Declarations */}
             <DeclarationFields doctype="Advance Settlement" />
-
-            {/* Activity Log */}
-            {id && (
-              <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                <ActivityLog doctype="Advance Settlement" docname={id} />
-              </div>
-            )}
           </div>
         </div>
       </main>
+      {id && <FloatingActivityLogButton doctype="Advance Settlement" docname={id} />}
     </div>
   );
 };

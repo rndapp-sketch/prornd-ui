@@ -2253,7 +2253,9 @@ const QuickActions = ({
                                                     {selectedApplication ===
                                                         "Travel" &&
                                                         item.type ===
-                                                            "Travel Apply" && (
+                                                            "Travel Apply" &&
+                                                        item.workflow_state ===
+                                                            "Approved" && (
                                                             <button
                                                                 onClick={() =>
                                                                     handleTravelSettleClick(

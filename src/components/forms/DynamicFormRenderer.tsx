@@ -84,7 +84,7 @@ export interface DynamicFormRendererProps {
 
 // --- STYLES ---
 const inputClasses =
-  "flex h-10 w-full rounded-[0.4375rem] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] ring-offset-white dark:ring-offset-zinc-950 file:border-0 file:bg-transparent file:text-xs file:font-semibold placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#4A6CF7]/12 focus-visible:border-[#4A6CF7] disabled:cursor-not-allowed disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#71717A] dark:disabled:text-[#A1A1AA] transition-colors duration-150";
+  "flex h-10 w-full rounded-[0.4375rem] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] ring-offset-white dark:ring-offset-zinc-950 file:border-0 file:bg-transparent file:text-xs file:font-semibold placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#4A6CF7]/12 focus-visible:border-[#4A6CF7] disabled:cursor-not-allowed disabled:opacity-100 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#27272A] dark:disabled:text-[#F4F4F5] transition-colors duration-150";
 
 const FIELD_LABEL_OVERRIDES: Record<string, string> = {
   app_id: "Application ID",
@@ -135,14 +135,24 @@ const FieldLabel = ({
 }) => (
   <label
     htmlFor={field.fieldname}
-    className="inline-flex w-fit max-w-full items-center rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]"
+    className="inline-flex w-fit max-w-full items-start rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]"
   >
-    <span className="truncate">{formatFieldLabel(field)}</span>
+    <span className="whitespace-normal break-words leading-snug">{formatFieldLabel(field)}</span>
     {isMandatory && (
       <span className="ml-1 font-bold normal-case text-red-500">*</span>
     )}
   </label>
 );
+
+const FULL_WIDTH_FIELDNAMES = new Set([
+  "travel_declaration_text",
+  "travel_declaration_accepted",
+]);
+
+const shouldRenderFullWidth = (field: FormField) =>
+  FULL_WIDTH_FIELDNAMES.has(field.fieldname) ||
+  (field.fieldtype === "HTML" &&
+    /declaration/i.test(`${field.fieldname} ${field.label || ""}`));
 
 // --- MEMOIZED FORM FIELD COMPONENT ---
 const MemoizedFormField = memo(
@@ -207,7 +217,7 @@ const MemoizedFormField = memo(
           if (isReadOnly) {
             const readOnlyLabel = options?.find((opt) => opt.value === value)?.label || value;
             return (
-              <div className="flex h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] text-[#3F3F46] dark:text-[#E4E4E7]">
+              <div className="flex h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5]">
                 {(field.fieldname === "department" ||
                   field.fieldname === "department_for" ||
                   field.fieldname === "upfa_department" ||
@@ -596,7 +606,7 @@ const MemoizedFormField = memo(
         case "Read Only":
           const readOnlyLabel = options?.find(opt => opt.value === value)?.label || value;
           return (
-            <div className="flex h-10 w-full rounded-md border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 text-[13px] text-zinc-600 dark:text-zinc-300">
+            <div className="flex h-10 w-full rounded-md border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5]">
               {(field.fieldname === "department" ||
                 field.fieldname === "department_for" ||
                 field.fieldname === "upfa_department" ||
@@ -933,7 +943,10 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const fieldMsg = fieldMessages?.[field.fieldname];
 
     return (
-      <div key={field.fieldname}>
+      <div
+        key={field.fieldname}
+        className={cn(shouldRenderFullWidth(field) && "col-span-full")}
+      >
         <MemoizedFormField
           field={field}
           value={formData[field.fieldname]}
