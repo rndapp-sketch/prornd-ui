@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppSidebar } from "../../components/RndSidebar";
-import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
 import { CalendarIcon, UserIcon, EditIcon, Wallet as WalletIcon } from "lucide-react";
 import { PageHeader } from '@/components/common/PageHeader';
@@ -15,7 +15,7 @@ import { useUserRoles } from '../../components/UserRole';
 import { ProjectLedgerModal } from '../../components/ProjectLedgerModal';
 import { DeclarationFields } from '@/components/DeclarationFields';
 import { CommitPayment } from '@/components/CommitPayment';
-import { ActivityLog } from '@/components/ActivityLog';
+import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
 
 // Initialize ToWords converter
 const toWords = new ToWords({
@@ -46,22 +46,15 @@ interface TemporaryAdvanceData {
     [key: string]: any;
 }
 
-interface ActivityItem {
-    owner: string;
-    creation: string;
-    content: string;
-    comment_type: string;
-}
-
 // Frappe-styled components
 const FrappeCard = ({ title, children, className = '' }: { title?: string; children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm overflow-hidden", className)}>
         {title && (
-            <div className="px-6 py-4 border-b border-zinc-300 dark:border-zinc-700">
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-tight">{title}</h3>
+            <div className="px-[22px] py-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+                <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">{title}</h3>
             </div>
         )}
-        <div className="p-6">
+        <div className="p-[18px] md:p-6">
             {children}
         </div>
     </div>
@@ -81,8 +74,8 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
             "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
             "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
             variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
-            variant === 'ghost' && "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
-            variant === 'outline' && "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
+            variant === 'ghost' && "bg-transparent text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]",
+            variant === 'outline' && "bg-white border border-[#E4E4E7] text-[#3F3F46] hover:bg-[#FAFAF9] rounded-lg dark:bg-[#27272A] dark:border-[#3F3F46] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46]",
             variant === 'action' && "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
             className
@@ -91,43 +84,6 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
         {children}
     </button>
 );
-
-const ActivityStream = ({ doctype, docname }: { doctype: string; docname: string }) => {
-    const { data: activityData, mutate: refetchActivity } = useFrappeGetCall<{ message: ActivityItem[] }>(
-        "rndopsapp.rndopsapp.api.get_project_activity",
-        { doctype, docname }
-    );
-
-    // Initial refetch when mounted
-    useEffect(() => {
-        refetchActivity();
-    }, [docname]);
-
-    return (
-        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-            {activityData?.message && activityData.message.length > 0 ? (
-                activityData.message.map((activity, idx) => (
-                    <div key={idx} className="flex items-start gap-3">
-                        <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center font-bold text-[#D97757] text-xs">
-                            {activity.owner?.charAt(0).toUpperCase() || "U"}
-                        </div>
-                        <div className="min-w-0">
-                            <div
-                                className="text-sm text-zinc-800 dark:text-zinc-200 line-clamp-2 prose prose-sm max-w-none"
-                                dangerouslySetInnerHTML={{ __html: activity.content }}
-                            />
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                {activity.owner} · {activity.creation ? new Date(activity.creation).toLocaleString() : ''}
-                            </p>
-                        </div>
-                    </div>
-                ))
-            ) : (
-                <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">No recent activity found.</p>
-            )}
-        </div>
-    );
-};
 
 const TemporaryAdvanceDetails: React.FC = () => {
     const navigate = useNavigate();
@@ -349,10 +305,10 @@ const TemporaryAdvanceDetails: React.FC = () => {
 
     if (error || !data) {
         return (
-            <div className="flex h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-800/50">
+            <div className="flex h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
                 <div className="text-center">
                     <h2 className="text-xl font-bold text-red-600 mb-2">Error</h2>
-                    <p className="text-zinc-600 dark:text-zinc-400">{error || "Document not found"}</p>
+                    <p className="text-[#71717A] dark:text-[#A1A1AA]">{error || "Document not found"}</p>
                     <button onClick={() => navigate(-1)} className="mt-4 text-[#D97757] hover:underline">Go Back</button>
                 </div>
             </div>
@@ -360,10 +316,10 @@ const TemporaryAdvanceDetails: React.FC = () => {
     }
 
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen font-sans">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
             <AppSidebar />
 
-            <main className="transition-all duration-300 ease-in-out p-6 md:p-10">
+            <main className="transition-all duration-300 ease-in-out px-4 py-6 md:px-8 md:py-8 max-w-[1600px] mx-auto">
                 {/* Header Actions */}
                 <PageHeader
                     title={data.name}
@@ -393,19 +349,35 @@ const TemporaryAdvanceDetails: React.FC = () => {
 
 
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Main Content - Left Column (2/3 width) */}
-                    <div className="lg:col-span-2 space-y-8">
+                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6">
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 shadow-sm">
+                                <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Advance Amount</p>
+                                <p className="mt-2 text-[30px] font-extrabold leading-none text-[#D97757]">
+                                    ₹ {(data.amount || data.amount_applied || 0).toLocaleString('en-IN')}
+                                </p>
+                            </div>
+                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 shadow-sm">
+                                <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Account Head</p>
+                                <p className="mt-2 text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{resolvedAccountHead || data.account_head || "-"}</p>
+                            </div>
+                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 shadow-sm">
+                                <p className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA]">Requested By</p>
+                                <p className="mt-2 text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] break-all">{data.owner || "-"}</p>
+                            </div>
+                        </div>
+
                         {/* Project Details Card */}
-                        <FrappeCard title="Project Details" className="border-t-4 border-t-[#D97757]">
+                        <FrappeCard title="Project Details">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Project Code</label>
-                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100">{data.project_code || "-"}</div>
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Project Code</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.project_code || "-"}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Project Name</label>
-                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100">{projectTitle || data.project_name || "-"}</div>
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Project Name</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{projectTitle || data.project_name || "-"}</div>
                                 </div>
                             </div>
                         </FrappeCard>
@@ -414,33 +386,33 @@ const TemporaryAdvanceDetails: React.FC = () => {
                         <FrappeCard title="Advance Information">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Amount</label>
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Amount</label>
                                     <div className="text-2xl font-black text-[#D97757]">
                                         ₹ {(data.amount || data.amount_applied || 0).toLocaleString('en-IN')}
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Amount in Words</label>
-                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100 capitalize">
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Amount in Words</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7] capitalize">
                                         {data.amount_in_words || (data.amount || data.amount_applied ? toWords.convert(data.amount || data.amount_applied) : '-')}
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Account Head</label>
-                                    <div className="font-semibold text-gray-900">{resolvedAccountHead || data.account_head || "-"}</div>
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Account Head</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{resolvedAccountHead || data.account_head || "-"}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Requested By</label>
-                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100">{data.owner}</div>
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Requested By</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.owner}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Applying For</label>
-                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100">{data.appplying_for_select || "-"}</div>
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Applying For</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.appplying_for_select || "-"}</div>
                                 </div>
                             </div>
 
                             {/* Declarations */}
-                            <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                            <div className="mt-6 pt-4 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
                                 <DeclarationFields doctype="Temporary Advance" />
                             </div>
 
@@ -448,16 +420,16 @@ const TemporaryAdvanceDetails: React.FC = () => {
                             <div className="space-y-4 mt-6">
                                 {(data.justification || data.reason || data.purpose) && (
                                     <div>
-                                        <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Justification</label>
-                                        <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm whitespace-pre-wrap">
+                                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Justification</label>
+                                        <div className="p-4 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] text-sm whitespace-pre-wrap">
                                             {data.justification || data.reason || data.purpose || "-"}
                                         </div>
                                     </div>
                                 )}
                                 {data.comments && (
                                     <div>
-                                        <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Comments</label>
-                                        <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm whitespace-pre-wrap">
+                                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Comments</label>
+                                        <div className="p-4 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] text-sm whitespace-pre-wrap">
                                             {data.comments}
                                         </div>
                                     </div>
@@ -469,21 +441,21 @@ const TemporaryAdvanceDetails: React.FC = () => {
                         <FrappeCard title="Applicant Details">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Applicant Webmail</label>
-                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Applicant Webmail</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
                                         <UserIcon className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
                                         {data.applicant_webmail || "-"}
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Applicant Department</label>
-                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Applicant Department</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
                                         {data.applicant_department ? <DepartmentName name={data.applicant_department} /> : "-"}
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Applicant Designation</label>
-                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100">{data.applicant_designation || "-"}</div>
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Applicant Designation</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.applicant_designation || "-"}</div>
                                 </div>
                             </div>
                         </FrappeCard>
@@ -492,20 +464,20 @@ const TemporaryAdvanceDetails: React.FC = () => {
                         <FrappeCard title="Bank Details">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Bank Name</label>
-                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100">{data.bank_name || "-"}</div>
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Bank Name</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.bank_name || "-"}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Account Holder Name</label>
-                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100">{data.account || "-"}</div>
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Account Holder Name</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.account || "-"}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Account Number</label>
-                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100 font-mono">{data.bank_account_number || "-"}</div>
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Account Number</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7] font-mono">{data.bank_account_number || "-"}</div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">IFSC Code</label>
-                                    <div className="font-semibold text-zinc-900 dark:text-zinc-100 font-mono">{data.ifsc_code || "-"}</div>
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">IFSC Code</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7] font-mono">{data.ifsc_code || "-"}</div>
                                 </div>
                             </div>
                         </FrappeCard>
@@ -517,18 +489,18 @@ const TemporaryAdvanceDetails: React.FC = () => {
                             <FrappeCard title="Advance For (Beneficiary)">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Beneficiary ID</label>
-                                        <div className="font-semibold text-zinc-900 dark:text-zinc-100">{data.advance_for_id || "-"}</div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Beneficiary ID</label>
+                                        <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.advance_for_id || "-"}</div>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Department</label>
-                                        <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+                                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Department</label>
+                                        <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
                                             {data.advance_for_department ? <DepartmentName name={data.advance_for_department} /> : "-"}
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Designation</label>
-                                        <div className="font-semibold text-zinc-900 dark:text-zinc-100">{data.advance_for_designation || "-"}</div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Designation</label>
+                                        <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{data.advance_for_designation || "-"}</div>
                                     </div>
                                 </div>
                             </FrappeCard>
@@ -540,8 +512,8 @@ const TemporaryAdvanceDetails: React.FC = () => {
                                 <div className="space-y-3">
                                     {Array.isArray(data.documents) ? (
                                         data.documents.map((doc: any, idx: number) => (
-                                            <div key={idx} className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                                                <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{doc.file_name || doc.name || `Document ${idx + 1}`}</span>
+                                            <div key={idx} className="flex items-center justify-between p-3 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                <span className="text-sm font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">{doc.file_name || doc.name || `Document ${idx + 1}`}</span>
                                                 {doc.file_url && (
                                                     <a
                                                         href={doc.file_url}
@@ -555,38 +527,23 @@ const TemporaryAdvanceDetails: React.FC = () => {
                                             </div>
                                         ))
                                     ) : typeof data.documents === 'string' ? (
-                                        <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 text-sm">
+                                        <div className="p-4 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] text-sm">
                                             {data.documents}
                                         </div>
                                     ) : (
-                                        <p className="text-sm text-zinc-500 dark:text-zinc-400 italic">No documents attached</p>
+                                        <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] italic">No documents attached</p>
                                     )}
                                 </div>
                             </FrappeCard>
                         )}
                     </div>
 
-                    {/* Sidebar - Right Column (1/3 width) - Restored and Enhanced */}
                     <div className="space-y-6">
-
-                        {/* Latest Activity Stream */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center justify-between">
-                                Latest Activity
-                            </h3>
-                            {id && <ActivityStream doctype="Temporary Advance" docname={id} />}
-                        </div>
-
-                        {/* Document Activity Log (new endpoint) */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            {id && <ActivityLog doctype="Temporary Advance" docname={id} />}
-                        </div>
-
                         {/* Add Comment Section */}
-                        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3">Add Comment</h3>
+                        <div className="bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+                            <h3 className="text-[12px] font-extrabold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-3">Add Comment</h3>
                             <Textarea
-                                className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                                 rows={3}
                                 placeholder="Type your comment here..."
                                 value={sidebarComment}
@@ -629,8 +586,8 @@ const TemporaryAdvanceDetails: React.FC = () => {
                                     />
 
                                     {/* Payment Section */}
-                                    {/* <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                                        <h4 className="font-bold text-zinc-900 dark:text-zinc-100 mb-3">2. Payment Processing</h4>
+                                    {/* <div className="p-4 bg-[#FAFAF9] dark:bg-[#18181B] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
+                                        <h4 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-3">2. Payment Processing</h4>
                                         <div className="space-y-3">
                                             <div>
                                                 <label className="text-xs font-semibold text-zinc-500 mb-1 block">Budget Head</label>
@@ -670,8 +627,8 @@ const TemporaryAdvanceDetails: React.FC = () => {
                         <FrappeCard>
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Created On</label>
-                                    <div className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Created On</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
                                         <CalendarIcon className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
                                         {data.creation ? new Date(data.creation).toLocaleDateString('en-IN', {
                                             day: 'numeric', month: 'long', year: 'numeric',
@@ -680,8 +637,8 @@ const TemporaryAdvanceDetails: React.FC = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-1">Last Modified</label>
-                                    <div className="font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                                    <label className="block text-[11px] font-bold uppercase tracking-widest text-[#2563EB] dark:text-[#60A5FA] mb-1">Last Modified</label>
+                                    <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
                                         <CalendarIcon className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
                                         {data.modified ? new Date(data.modified).toLocaleDateString('en-IN', {
                                             day: 'numeric', month: 'short', year: 'numeric'
@@ -703,6 +660,7 @@ const TemporaryAdvanceDetails: React.FC = () => {
                     budgetHeadList={budgetHeadList}
                 />
             )}
+            {id && <FloatingActivityLogButton doctype="Temporary Advance" docname={id} />}
         </div>
     );
 };

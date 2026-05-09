@@ -482,7 +482,7 @@ const TravelDetails: React.FC = () => {
     if (loading) return <GlobalLoader isLoading={true} />;
 
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
             
             <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
                 {/* Header */}
