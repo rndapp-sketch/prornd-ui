@@ -9,9 +9,10 @@ import { ActivityLog } from '@/components/ActivityLog';
 import { XIcon, ActivityIcon } from 'lucide-react';
 
 import { useNavigate } from 'react-router-dom';
-import { useFrappeGetCall, useFrappeAuth, useFrappeGetDocList } from 'frappe-react-sdk';
+import { useFrappeGetCall, useFrappeAuth, useFrappeGetDocList, useFrappePostCall } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useUserRoles } from '../components/UserRole';
+import { selectionCommitteeReportAPI } from '@/services/apiService';
 import {
     resolveProjectCategory,
     DOCTYPE_PR_LINKS,
@@ -76,6 +77,19 @@ interface FlattenedTask {
 
 type ProjectTypeTab = ProjectCategory;
 
+type SCRCandidate = {
+    id: string;
+    candidate_name: string;
+    application_id: string;
+    recruitment_post_id: string;
+    candidate_id: string;
+    applied_post: string;
+    basic_pay: number;
+    hra: string;
+    total_amount: number;
+    recommendation: string;
+};
+
 const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'];
 const HIDDEN_OTHERS_DOCTYPES = new Set(['Kafka Commit Staging', 'Project Number Generation']);
 
@@ -124,6 +138,27 @@ const PendingTask: React.FC = () => {
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
     const isHeadApprover = roles?.includes("head_approver_1") ?? false;
+    const isStaffRnD = roles?.includes("staff, RnD") ?? false;
+    const [orderModal, setOrderModal] = useState<{
+        open: boolean;
+        loading: boolean;
+        scrName: string;
+        candidates: SCRCandidate[];
+    }>({ open: false, loading: false, scrName: '', candidates: [] });
+
+    const { call: fetchSCRFields } = useFrappePostCall(selectionCommitteeReportAPI.getFields);
+
+    const handleOrderClick = async (taskId: string) => {
+        setOrderModal({ open: true, loading: true, scrName: taskId, candidates: [] });
+        try {
+            const response = await fetchSCRFields({ doc_name: taskId });
+            const raw = response?.message?.prefill_data?.candidates;
+            const candidates: SCRCandidate[] = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : []);
+            setOrderModal(prev => ({ ...prev, loading: false, candidates }));
+        } catch {
+            setOrderModal(prev => ({ ...prev, loading: false }));
+        }
+    };
 
     const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
         filters: [["head_approver", "=", currentUser ?? ""]],
@@ -588,33 +623,46 @@ const PendingTask: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="p-3 align-middle text-right">
-                                                <FrappeButton
-                                                    variant="primary"
-                                                    onClick={() => {
-                                                        if (task.doctype === "Fund Received") {
-                                                            navigate(`/fund-received/${task.id}`);
-                                                        } else if (task.doctype === "Reimbursement") {
-                                                            navigate(`/reimbursement/${task.id}`);
-                                                        } else if (task.doctype === "Advance Settlement") {
-                                                            navigate(`/advance-settlement/${task.id}`);
-                                                        } else if (task.doctype === "Temporary Advance") {
-                                                            navigate(`/pending-tasks/${encodeURIComponent(task.doctype)}/${task.id}`);
-                                                        } else if (task.doctype === "Direct Purchase") {
-                                                            navigate(`/direct-purchase/${task.id}`);
-                                                        } else if (task.doctype === "Disbursal of Consultancy") {
-                                                            navigate(`/disbursal-of-consultancy/${task.id}`);
-                                                        } else if (task.doctype === "Travel") {
-                                                            navigate(`/travel/${task.id}`);
-                                                        } else if (task.doctype === "Selection Committee Report") {
-                                                            navigate(`/selection-committee-report/${task.id}`);
-                                                        } else {
-                                                            navigate(`/pending-tasks/${task.doctype}/${task.id}`);
-                                                        }
-                                                    }}
-                                                    className="px-3 py-1.5 text-xs h-8 shadow-sm"
-                                                >
-                                                    View
-                                                </FrappeButton>
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <FrappeButton
+                                                        variant="primary"
+                                                        onClick={() => {
+                                                            if (task.doctype === "Fund Received") {
+                                                                navigate(`/fund-received/${task.id}`);
+                                                            } else if (task.doctype === "Reimbursement") {
+                                                                navigate(`/reimbursement/${task.id}`);
+                                                            } else if (task.doctype === "Advance Settlement") {
+                                                                navigate(`/advance-settlement/${task.id}`);
+                                                            } else if (task.doctype === "Temporary Advance") {
+                                                                navigate(`/pending-tasks/${encodeURIComponent(task.doctype)}/${task.id}`);
+                                                            } else if (task.doctype === "Direct Purchase") {
+                                                                navigate(`/direct-purchase/${task.id}`);
+                                                            } else if (task.doctype === "Disbursal of Consultancy") {
+                                                                navigate(`/disbursal-of-consultancy/${task.id}`);
+                                                            } else if (task.doctype === "Travel") {
+                                                                navigate(`/travel/${task.id}`);
+                                                            } else if (task.doctype === "Selection Committee Report") {
+                                                                navigate(`/selection-committee-report/${task.id}`);
+                                                            } else {
+                                                                navigate(`/pending-tasks/${task.doctype}/${task.id}`);
+                                                            }
+                                                        }}
+                                                        className="px-3 py-1.5 text-xs h-8 shadow-sm"
+                                                    >
+                                                        View
+                                                    </FrappeButton>
+                                                    {isStaffRnD &&
+                                                        task.doctype === "Selection Committee Report" &&
+                                                        task.status === "Approved" && (
+                                                        <FrappeButton
+                                                            variant="action"
+                                                            onClick={() => handleOrderClick(task.id)}
+                                                            className="px-3 py-1.5 text-xs h-8 shadow-sm"
+                                                        >
+                                                            Order
+                                                        </FrappeButton>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
@@ -680,6 +728,81 @@ const PendingTask: React.FC = () => {
                 </FrappeCard>
             </main>
         </div>
+
+        {/* Order Modal — Candidates from Approved SCR */}
+        {orderModal.open && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-lg mx-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
+                        <div>
+                            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Candidates</h2>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                {orderModal.scrName}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setOrderModal(prev => ({ ...prev, open: false }))}
+                            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        </button>
+                    </div>
+
+                    {/* Body */}
+                    <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+                        {orderModal.loading ? (
+                            <div className="flex flex-col items-center gap-2 py-8 text-zinc-400">
+                                <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
+                                <p className="text-sm">Loading candidates...</p>
+                            </div>
+                        ) : orderModal.candidates.length === 0 ? (
+                            <p className="text-sm text-zinc-500 text-center py-8">No candidates found.</p>
+                        ) : (
+                            orderModal.candidates.map((candidate) => (
+                                <div
+                                    key={candidate.id}
+                                    className="flex items-center justify-between gap-4 p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
+                                >
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                                            {candidate.candidate_name}
+                                        </p>
+                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                            {candidate.applied_post}
+                                        </p>
+                                        <span className={cn(
+                                            "inline-block mt-1.5 px-2 py-0.5 rounded text-[10px] font-bold border",
+                                            candidate.recommendation === "Recommended"
+                                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                : "bg-red-50 text-red-700 border-red-200"
+                                        )}>
+                                            {candidate.recommendation}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <FrappeButton
+                                            variant="primary"
+                                            onClick={() => navigate(`/appointment-order?scr=${orderModal.scrName}&candidate_id=${candidate.candidate_id}&application_id=${candidate.application_id}`)}
+                                            className="px-3 py-1.5 text-xs h-8 shadow-sm"
+                                        >
+                                            View
+                                        </FrappeButton>
+                                        <FrappeButton
+                                            variant="action"
+                                            onClick={() => navigate(`/project-staff-joining?scr=${orderModal.scrName}&candidate_id=${candidate.candidate_id}&application_id=${candidate.application_id}`)}
+                                            className="px-3 py-1.5 text-xs h-8 shadow-sm"
+                                        >
+                                            Join
+                                        </FrappeButton>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
 
         {/* Activity Log Peek Panel */}
         {selectedTask && (

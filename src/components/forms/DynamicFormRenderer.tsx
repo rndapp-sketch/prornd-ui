@@ -221,6 +221,7 @@ const MemoizedFormField = memo(
                 {(field.fieldname === "department" ||
                   field.fieldname === "department_for" ||
                   field.fieldname === "upfa_department" ||
+                  field.fieldname === "ps_department" ||
                   field.fieldname === "implementation_department" ||
                   field.fieldname === "applicant_department" ||
                   field.fieldname === "igf_department_centre_section") &&
@@ -263,6 +264,7 @@ const MemoizedFormField = memo(
                       ((field.fieldname === "department" ||
                         field.fieldname === "department_for" ||
                         field.fieldname === "upfa_department" ||
+                        field.fieldname === "ps_department" ||
                         field.fieldname === "implementation_department" ||
                         field.fieldname === "applicant_department" ||
                         field.fieldname === "account_head") &&
@@ -281,6 +283,7 @@ const MemoizedFormField = memo(
                   {(field.fieldname === "department" ||
                     field.fieldname === "department_for" ||
                     field.fieldname === "upfa_department" ||
+                    field.fieldname === "ps_department" ||
                     field.fieldname === "implementation_department" ||
                     field.fieldname === "applicant_department") &&
                     value && (
@@ -310,6 +313,7 @@ const MemoizedFormField = memo(
                     ((field.fieldname === "department" ||
                       field.fieldname === "department_for" ||
                       field.fieldname === "upfa_department" ||
+                      field.fieldname === "ps_department" ||
                       field.fieldname === "implementation_department" ||
                       field.fieldname === "applicant_department" ||
                       field.fieldname === "account_head") &&
@@ -330,6 +334,7 @@ const MemoizedFormField = memo(
                 ) : (field.fieldname === "department" ||
                   field.fieldname === "department_for" ||
                   field.fieldname === "upfa_department" ||
+                  field.fieldname === "ps_department" ||
                   field.fieldname === "implementation_department" ||
                   field.fieldname === "applicant_department") &&
                 value ? (
@@ -610,6 +615,7 @@ const MemoizedFormField = memo(
               {(field.fieldname === "department" ||
                 field.fieldname === "department_for" ||
                 field.fieldname === "upfa_department" ||
+                field.fieldname === "ps_department" ||
                 field.fieldname === "implementation_department" ||
                 field.fieldname === "applicant_department") &&
               value ? (
@@ -701,6 +707,7 @@ const MemoizedFormField = memo(
                     (field.fieldname === "department" ||
                       field.fieldname === "department_for" ||
                       field.fieldname === "upfa_department" ||
+                      field.fieldname === "ps_department" ||
                       field.fieldname === "implementation_department" ||
                       field.fieldname === "applicant_department") &&
                       value
@@ -711,6 +718,7 @@ const MemoizedFormField = memo(
                 {(field.fieldname === "department" ||
                   field.fieldname === "department_for" ||
                   field.fieldname === "upfa_department" ||
+                  field.fieldname === "ps_department" ||
                   field.fieldname === "implementation_department" ||
                   field.fieldname === "applicant_department") &&
                   value && (

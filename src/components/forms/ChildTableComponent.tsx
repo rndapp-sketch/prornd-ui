@@ -94,6 +94,7 @@ export const ChildTableComponent = memo(({
 }: ChildTableProps) => {
     const canAddRow = !maxRows || tableData.length < maxRows;
     const isOfficialIdentification = label && String(label).includes('Official Identification');
+    const rowLabel = label?.replace(/\b(details|table|section)\b/gi, '').trim() || 'Row';
 
     // Filter visible columns - exclude hidden columns AND columns without labels
     const visibleColumns = columns.filter(col =>
@@ -396,7 +397,7 @@ export const ChildTableComponent = memo(({
                                 <div className="bg-white dark:bg-[#27272A]">
                                     <div className="flex items-center justify-between px-5 py-3 border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                         <span className="text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-widest">
-                                            Item #{rowIndex + 1}
+                                            {rowLabel} #{rowIndex + 1}
                                         </span>
                                         <div className="flex items-center gap-2">
                                             <FrappeButton
@@ -480,7 +481,7 @@ export const ChildTableComponent = memo(({
 
                 {tableData.length === 0 && (
                     <div className="py-10 text-center rounded-lg border border-dashed border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/30">
-                        <p className="text-[12px] font-bold uppercase tracking-wide text-[#A1A1AA] dark:text-[#71717A]">No items added yet</p>
+                        <p className="text-[12px] font-bold uppercase tracking-wide text-[#A1A1AA] dark:text-[#71717A]">No {rowLabel.toLowerCase()} records added yet</p>
                         <p className="text-[11px] text-[#D4D4D8] dark:text-[#52525B] mt-1">Click "Add Row" below to get started</p>
                     </div>
                 )}
