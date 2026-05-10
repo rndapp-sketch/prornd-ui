@@ -127,6 +127,15 @@ export const selectionCommitteeReportAPI = {
     attachDirectorPdf: `${API_BASE}.selection_committee_report.selection_committee_report.attach_director_pdf_scr`,
 };
 
+// Project Staff Details (Joining) API endpoints
+export const projectStaffDetailsAPI = {
+    getFields: `${API_BASE}.project_staff_details.project_staff_details.get_project_staff_details_fields`,
+    save: `${API_BASE}.project_staff_details.project_staff_details.save_project_staff_details_data`,
+    getList: `${API_BASE}.project_staff_details.project_staff_details.get_project_staff_details_list`,
+    delete: `${API_BASE}.project_staff_details.project_staff_details.delete_project_staff_details`,
+    getNextEmpId: `${API_BASE}.project_staff_details.project_staff_details.get_next_emp_id`,
+};
+
 // Indent Cum Sanction Sheet API endpoints
 export const icssAPI = {
     getIndentTypes: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_indent_types`,

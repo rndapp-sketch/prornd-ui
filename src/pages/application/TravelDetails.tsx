@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { Textarea } from '@/components/ui/textarea';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { travelAPI, prepareFormDataForApi } from '@/services/apiService';
+import { travelAPI } from '@/services/apiService';
 import TravelActionButtons from '@/components/TravelActionButtons';
 import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { useUserRoles } from '@/components/UserRole';
@@ -176,7 +176,6 @@ const TravelDetails: React.FC = () => {
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(travelAPI.getFields);
     const { call: fetchDocument } = useFrappePostCall<{ message: any }>('frappe.client.get');
-    const { call: saveForm } = useFrappePostCall<{ message: any }>(travelAPI.save);
     const { call: submitDocument } = useFrappePostCall<{ message: any }>(travelAPI.submit);
     const { call: addComment } = useFrappePostCall('rndopsapp.rndopsapp.api.add_project_comment');
 
@@ -402,21 +401,11 @@ const TravelDetails: React.FC = () => {
     }, []);
 
     // --- SUBMIT DRAFT ---
-    // Mirrors TravelForm.handleSubmit: save first (to satisfy backend), then submit
     const handleSubmitDraft = async () => {
         if (!docName || isSubmitting) return;
         setIsSubmitting(true);
         try {
-            // 1. Save existing doc data first (same as TravelForm does before submit)
-            const data = await prepareFormDataForApi({ ...formData, name: docName });
-            const saveRes = await saveForm({ doc_data: JSON.stringify(data) });
-            if (saveRes?.message?.status !== 'success') {
-                throw new Error(saveRes?.message?.message || "Save failed");
-            }
-            const docname = saveRes.message.docname || docName;
-
-            // 2. Submit
-            const submitRes = await submitDocument({ docname });
+            const submitRes = await submitDocument({ docname: docName });
             if (submitRes?.message?.status === 'success') {
                 alert("Travel application submitted successfully!");
                 handleRefresh();

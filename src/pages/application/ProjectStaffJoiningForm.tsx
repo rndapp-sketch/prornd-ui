@@ -1,0 +1,476 @@
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { useFrappePostCall } from "frappe-react-sdk";
+import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { DepartmentName } from "@/components/DepartmentName";
+import { AppSidebar } from "@/components/RndSidebar";
+import {
+    DynamicFormRenderer,
+    type FormField,
+    type LinkOption,
+} from "@/components/forms/DynamicFormRenderer";
+import {
+    prepareFormDataForApi,
+    projectStaffDetailsAPI,
+    selectionCommitteeReportAPI,
+} from "@/services/apiService";
+
+const fallbackFields: FormField[] = [
+    { fieldname: "appointment_details_section", label: "Appointment Details", fieldtype: "Section Break" },
+    { fieldname: "ps_emp_id", label: "Employee ID", fieldtype: "Data", read_only: 1 },
+    { fieldname: "ps_aon", label: "Appointment Order No.", fieldtype: "Data" },
+    { fieldname: "ps_designation", label: "Designation", fieldtype: "Data", mandatory: 1 },
+    { fieldname: "ps_department", label: "Department", fieldtype: "Data" },
+    { fieldname: "ps_mro", label: "MRO", fieldtype: "Data" },
+    { fieldname: "personal_details_section", label: "Personal Details", fieldtype: "Section Break" },
+    { fieldname: "ps_first_name", label: "First Name", fieldtype: "Data", mandatory: 1 },
+    { fieldname: "ps_middle_name", label: "Middle Name", fieldtype: "Data" },
+    { fieldname: "ps_last_name", label: "Last Name", fieldtype: "Data", mandatory: 1 },
+    { fieldname: "ps_date_of_birth", label: "Date of Birth", fieldtype: "Date" },
+    { fieldname: "ps_fathers_name", label: "Father's Name", fieldtype: "Data" },
+    { fieldname: "ps_blood_group", label: "Blood Group", fieldtype: "Select", options: "\nA+\nA-\nB+\nB-\nAB+\nAB-\nO+\nO-" },
+    { fieldname: "ps_maritial_status", label: "Marital Status", fieldtype: "Select", options: "\nSingle\nMarried\nDivorced\nWidowed" },
+    { fieldname: "ps_citizenship", label: "Citizenship", fieldtype: "Data" },
+    { fieldname: "contact_details_section", label: "Contact Details", fieldtype: "Section Break" },
+    { fieldname: "ps_email_id", label: "Email ID", fieldtype: "Data" },
+    { fieldname: "ps_phone_number", label: "Phone Number", fieldtype: "Data" },
+    { fieldname: "ps_present_address", label: "Present Address", fieldtype: "Small Text" },
+    { fieldname: "ps_permanent_address", label: "Permanent Address", fieldtype: "Small Text" },
+    { fieldname: "identity_documents_section", label: "Identity Documents", fieldtype: "Section Break" },
+    { fieldname: "ps_pan", label: "PAN", fieldtype: "Data" },
+    { fieldname: "ps_aadhar_number", label: "Aadhar Number", fieldtype: "Data" },
+    { fieldname: "salary_details_section", label: "Salary Details", fieldtype: "Section Break" },
+    { fieldname: "ps_basic_salary", label: "Basic Salary", fieldtype: "Currency" },
+    { fieldname: "ps_hra", label: "HRA", fieldtype: "Data" },
+    { fieldname: "ps_ma", label: "MA", fieldtype: "Data" },
+    { fieldname: "ps_hostel", label: "Hostel", fieldtype: "Data" },
+    {
+        fieldname: "table_ymed",
+        label: "Tenure Details",
+        fieldtype: "Table",
+        child_fields: [
+            { fieldname: "pstd_joining_date", label: "Joining Date", fieldtype: "Date" },
+            { fieldname: "pstd_term_completion_date", label: "Term Completion Date", fieldtype: "Date" },
+            { fieldname: "pstd_basic_salary", label: "Basic Salary", fieldtype: "Currency" },
+            { fieldname: "pstd_increment", label: "Increment", fieldtype: "Data" },
+            { fieldname: "pstd_hra", label: "HRA", fieldtype: "Data" },
+            { fieldname: "pstd_extension_sought", label: "Extension Sought", fieldtype: "Data" },
+            { fieldname: "pstd_joining_number", label: "Joining Number", fieldtype: "Data" },
+            { fieldname: "pstd_pi_extension_sought", label: "PI Extension Sought", fieldtype: "Data" },
+            { fieldname: "pstd_staff_extension_sought", label: "Staff Extension Sought", fieldtype: "Data" },
+            { fieldname: "pstd_tentative_joining_date", label: "Tentative Joining Date", fieldtype: "Date" },
+        ],
+    },
+];
+
+const GroupCard = ({
+    label,
+    children,
+}: {
+    label: string;
+    children: React.ReactNode;
+}) => (
+    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-[#27272A]">
+        <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-3 dark:border-zinc-800 dark:bg-zinc-800/50">
+            <h3 className="text-xs font-extrabold uppercase tracking-widest text-[#27272A] dark:text-[#F4F4F5]">
+                {label}
+            </h3>
+        </div>
+        <div className="p-6">{children}</div>
+    </div>
+);
+
+const normalizeRows = (value: unknown): Record<string, unknown>[] => {
+    if (Array.isArray(value)) return value as Record<string, unknown>[];
+    if (typeof value === "string" && value.trim()) {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+};
+
+const normalizeFields = (fields: FormField[]): FormField[] =>
+    fields.map((field) => {
+        if (field.fieldname === "ps_emp_id") return { ...field, read_only: 1 };
+        if (field.fieldname === "table_ymed") {
+            return {
+                ...field,
+                label: field.label || "Tenure Details",
+                fieldtype: "Table",
+                child_fields: field.child_fields?.length
+                    ? field.child_fields
+                    : fallbackFields.find((f) => f.fieldname === "table_ymed")?.child_fields,
+            };
+        }
+        return field;
+    });
+
+const ProjectStaffJoiningForm: React.FC = () => {
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+
+    const scrName = searchParams.get("scr") || "";
+    const candidateId = searchParams.get("candidate_id") || "";
+    const applicationId = searchParams.get("application_id") || "";
+
+    const [fields, setFields] = useState<FormField[]>(fallbackFields);
+    const [formData, setFormData] = useState<Record<string, any>>({});
+    const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [savedDocName, setSavedDocName] = useState<string | null>(null);
+    const [candidateName, setCandidateName] = useState("");
+    const [nextEmpId, setNextEmpId] = useState("Auto-generated");
+
+    const { call: fetchFields } = useFrappePostCall<{ message: any }>(projectStaffDetailsAPI.getFields);
+    const { call: fetchSCRFields } = useFrappePostCall<{ message: any }>(selectionCommitteeReportAPI.getFields);
+    const { call: saveData } = useFrappePostCall<{ message: any }>(projectStaffDetailsAPI.save);
+    const { call: fetchNextEmpId } = useFrappePostCall<{ message: string }>(projectStaffDetailsAPI.getNextEmpId);
+
+    useEffect(() => {
+        let mounted = true;
+
+        const load = async () => {
+            setLoading(true);
+            let nextId = "Auto-generated";
+            let nextData: Record<string, any> = {};
+
+            try {
+                const empRes = await fetchNextEmpId({});
+                nextId = empRes?.message || nextId;
+                if (mounted) setNextEmpId(nextId);
+            } catch {
+                if (mounted) setNextEmpId(nextId);
+            }
+
+            try {
+                const res = await fetchFields({ doc_name: savedDocName });
+                const msg = res?.message || {};
+                if (Array.isArray(msg.fields) && msg.fields.length) {
+                    setFields(normalizeFields(msg.fields));
+                }
+                if (msg.link_options && typeof msg.link_options === "object") {
+                    setLinkOptions(msg.link_options);
+                }
+                if (msg.prefill_data && typeof msg.prefill_data === "object") {
+                    nextData = {
+                        ...nextData,
+                        ...msg.prefill_data,
+                        table_ymed: normalizeRows(msg.prefill_data.table_ymed),
+                    };
+                }
+            } catch {
+                setFields(fallbackFields);
+            }
+
+            if (scrName) {
+                try {
+                    const res = await fetchSCRFields({ doc_name: scrName });
+                    const prefill = res?.message?.prefill_data;
+                    const candidates = normalizeRows(prefill?.candidates);
+                    const candidate = candidates.find((c) => String(c.candidate_id) === String(candidateId));
+
+                    if (candidate) {
+                        const fullName = String(candidate.candidate_name || "");
+                        const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+                        const firstName = nameParts[0] || "";
+                        const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : "";
+                        const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(" ") : "";
+
+                        if (mounted) setCandidateName(fullName);
+                        nextData = {
+                            ...nextData,
+                            ps_first_name: nextData.ps_first_name || firstName,
+                            ps_middle_name: nextData.ps_middle_name || middleName,
+                            ps_last_name: nextData.ps_last_name || lastName,
+                            ps_designation: nextData.ps_designation || candidate.applied_post || "",
+                            ps_basic_salary: nextData.ps_basic_salary || candidate.basic_pay || "",
+                            ps_hra: nextData.ps_hra || candidate.hra || "",
+                            ps_department: nextData.ps_department || prefill?.upfa_department || "",
+                        };
+                    }
+                } catch (e) {
+                    console.error("ProjectStaffJoiningForm SCR prefill error:", e);
+                }
+            }
+
+            nextData = {
+                ps_emp_id: nextData.ps_emp_id || nextId,
+                table_ymed: normalizeRows(nextData.table_ymed),
+                ...nextData,
+            };
+
+            if (mounted) {
+                setFormData(nextData);
+                setLoading(false);
+            }
+        };
+
+        load();
+        return () => {
+            mounted = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [scrName, candidateId, savedDocName]);
+
+    const handleFieldChange = useCallback((fieldname: string, value: any) => {
+        setFormData((prev) => ({ ...prev, [fieldname]: value }));
+    }, []);
+
+    const handleFileChange = useCallback((fieldname: string, file: File | null) => {
+        setFormData((prev) => ({ ...prev, [fieldname]: file }));
+    }, []);
+
+    const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
+        setFormData((prev) => {
+            const rows = Array.isArray(prev[tableName]) ? [...prev[tableName]] : [];
+            rows[rowIndex] = { ...(rows[rowIndex] || {}), [fieldname]: value };
+            return { ...prev, [tableName]: rows };
+        });
+    }, []);
+
+    const handleTableFileChange = useCallback((tableName: string, rowIndex: number, fieldname: string, file: File | null) => {
+        handleTableRowChange(tableName, rowIndex, fieldname, file);
+    }, [handleTableRowChange]);
+
+    const handleAddTableRow = useCallback((tableName: string, newRow: Record<string, any>) => {
+        setFormData((prev) => ({
+            ...prev,
+            [tableName]: [...(Array.isArray(prev[tableName]) ? prev[tableName] : []), newRow],
+        }));
+    }, []);
+
+    const handleDeleteTableRow = useCallback((tableName: string, rowIndex: number) => {
+        setFormData((prev) => ({
+            ...prev,
+            [tableName]: (Array.isArray(prev[tableName]) ? prev[tableName] : []).filter((_: unknown, idx: number) => idx !== rowIndex),
+        }));
+    }, []);
+
+    const commonRendererProps = useMemo(() => ({
+        formData,
+        linkOptions,
+        onChange: handleFieldChange,
+        onFileChange: handleFileChange,
+        onTableRowChange: handleTableRowChange,
+        onTableFileChange: handleTableFileChange,
+        onAddTableRow: handleAddTableRow,
+        onDeleteTableRow: handleDeleteTableRow,
+        hideSectionHeaders: true,
+        hideTableLabels: false,
+    }), [
+        formData,
+        linkOptions,
+        handleFieldChange,
+        handleFileChange,
+        handleTableRowChange,
+        handleTableFileChange,
+        handleAddTableRow,
+        handleDeleteTableRow,
+    ]);
+
+    const section = useCallback((names: string[]) =>
+        fields.filter((field) => names.includes(field.fieldname)),
+        [fields],
+    );
+
+    const handleSave = async () => {
+        if (!formData.ps_first_name || !formData.ps_last_name) {
+            alert("First Name and Last Name are required.");
+            return;
+        }
+
+        setSaving(true);
+        try {
+            const prepared = await prepareFormDataForApi({
+                ...formData,
+                table_ymed: normalizeRows(formData.table_ymed),
+            });
+            if (savedDocName) prepared.name = savedDocName;
+
+            const res = await saveData({ data: prepared });
+            if (res?.message?.status === "success") {
+                const docname = res.message.docname || savedDocName;
+                setSavedDocName(docname);
+                alert("Saved successfully!");
+            } else {
+                alert(res?.message?.message || "Failed to save.");
+            }
+        } catch (e: any) {
+            console.error("Project Staff Joining save error:", e);
+            alert(e?.message || "An error occurred while saving.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
+                <AppSidebar />
+                <main className="flex min-h-screen items-center justify-center p-6 md:p-10">
+                    <div className="flex items-center gap-3 rounded-2xl border border-[#E4E4E7] bg-white px-5 py-4 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                        <Loader2 className="h-5 w-5 animate-spin text-[#D97757]" />
+                        <span className="text-sm font-semibold text-[#71717A] dark:text-[#A1A1AA]">Loading joining details</span>
+                    </div>
+                </main>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-[#FAFAF9] font-sans dark:bg-[#18181B]">
+            <AppSidebar />
+
+            <main className="mx-auto max-w-[1600px] p-6 md:p-8">
+                <div className="mb-6 overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                    <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <button
+                                onClick={() => navigate(-1)}
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] text-[#71717A] transition-colors hover:border-[#D97757]/30 hover:bg-[#D97757]/10 hover:text-[#D97757] dark:border-[#3F3F46] dark:bg-[#18181B]"
+                                aria-label="Back"
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                            </button>
+                            <div className="min-w-0">
+                                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Joining Form</span>
+                                <h1 className="mt-1 text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7]">
+                                    Project Staff Joining Details
+                                </h1>
+                                {candidateName && (
+                                    <p className="mt-0.5 truncate text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                        {candidateName}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            {savedDocName && (
+                                <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
+                                    Saved: {savedDocName}
+                                </span>
+                            )}
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className={cn(
+                                    "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-bold shadow-sm transition-colors",
+                                    saving
+                                        ? "bg-zinc-300 text-zinc-500 cursor-not-allowed"
+                                        : "bg-[#D97757] text-white hover:bg-[#c5684a]",
+                                )}
+                            >
+                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                {saving ? "Saving..." : "Save"}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="grid gap-3 border-t border-[#E4E4E7] bg-[#FAFAF9]/70 px-5 py-4 text-sm dark:border-[#3F3F46] dark:bg-[#18181B]/40 sm:grid-cols-2 lg:grid-cols-5">
+                        {[
+                            ["SCR", scrName || "-"],
+                            ["Application ID", applicationId || "-"],
+                            ["Employee ID", formData.ps_emp_id || nextEmpId],
+                            ["Designation", formData.ps_designation || "-"],
+                        ].map(([label, value]) => (
+                            <div key={label} className="min-w-0">
+                                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
+                                <p className="mt-1 truncate font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{value}</p>
+                            </div>
+                        ))}
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">Department</p>
+                            <p className="mt-1 truncate font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                {formData.ps_department ? <DepartmentName name={formData.ps_department} /> : "-"}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-5">
+                    <GroupCard label="Appointment Details">
+                        <DynamicFormRenderer
+                            fields={section(["appointment_details_section", "ps_emp_id", "ps_aon", "ps_designation", "ps_department", "ps_mro"])}
+                            {...commonRendererProps}
+                        />
+                    </GroupCard>
+
+                    <GroupCard label="Personal Details">
+                        <DynamicFormRenderer
+                            fields={section([
+                                "personal_details_section",
+                                "ps_first_name",
+                                "ps_middle_name",
+                                "ps_last_name",
+                                "ps_date_of_birth",
+                                "ps_fathers_name",
+                                "ps_blood_group",
+                                "ps_maritial_status",
+                                "ps_citizenship",
+                            ])}
+                            {...commonRendererProps}
+                        />
+                    </GroupCard>
+
+                    <GroupCard label="Contact Details">
+                        <DynamicFormRenderer
+                            fields={section([
+                                "contact_details_section",
+                                "ps_email_id",
+                                "ps_phone_number",
+                                "ps_present_address",
+                                "ps_permanent_address",
+                            ])}
+                            {...commonRendererProps}
+                        />
+                    </GroupCard>
+
+                    <GroupCard label="Identity Documents">
+                        <DynamicFormRenderer
+                            fields={section(["identity_documents_section", "ps_pan", "ps_aadhar_number"])}
+                            {...commonRendererProps}
+                        />
+                    </GroupCard>
+
+                    <GroupCard label="Salary & Tenure Details">
+                        <DynamicFormRenderer
+                            fields={section([
+                                "salary_details_section",
+                                "ps_basic_salary",
+                                "ps_hra",
+                                "ps_ma",
+                                "ps_hostel",
+                                "table_ymed",
+                            ])}
+                            {...commonRendererProps}
+                        />
+                    </GroupCard>
+
+                    <div className="flex justify-end pb-4">
+                        <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className={cn(
+                                "flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold shadow-sm transition-colors",
+                                saving
+                                    ? "bg-zinc-300 text-zinc-500 cursor-not-allowed"
+                                    : "bg-[#D97757] text-white hover:bg-[#c5684a]",
+                            )}
+                        >
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            {saving ? "Saving..." : "Save"}
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    );
+};
+
+export default ProjectStaffJoiningForm;

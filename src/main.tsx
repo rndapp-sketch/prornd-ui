@@ -78,6 +78,8 @@ import IndentGeneralFormDetails from './pages/application/IndentGeneralFormDetai
 import UniversalRegistrationForm from './pages/application/UniversalRegistrationForm.tsx';
 import UniversalUserForm from './pages/application/UniversalUserForm.tsx';
 import SelectionCommitteeReportForm from './pages/application/SelectionCommitteeReportForm.tsx';
+import AppointmentOrderPage from './pages/application/AppointmentOrderPage.tsx';
+import ProjectStaffJoiningForm from './pages/application/ProjectStaffJoiningForm.tsx';
 import DepartmentProjects from './pages/DepartmentProjects.tsx';
 import AdminLogin from './pages/AdminLogin.tsx';
 import NIQForm from './pages/application/NIQForm.tsx';
@@ -634,6 +636,22 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <SelectionCommitteeReportForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "appointment-order",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <AppointmentOrderPage />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "project-staff-joining",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <ProjectStaffJoiningForm />
                         </AuthRouteWrapper>
                     )
                 },
