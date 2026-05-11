@@ -45,6 +45,8 @@ import { useUserRoles } from "./UserRole";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { useAppwriteSession } from "@/hooks/useAppwriteSession";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
 
 // --- LOGIC: Interfaces (Unchanged) ---
 interface SubMenuItem {
@@ -111,6 +113,10 @@ export function AppSidebar() {
         { page_name: "pending-task" },
         currentUser ? undefined : null,
     );
+
+    // Appwrite messaging — unread count for the sidebar badge.
+    const appwriteSession = useAppwriteSession();
+    const { unreadCount } = useUnreadCount(appwriteSession.user?.$id ?? null);
 
     // Calculate count matching PendingTask.tsx filter logic
     const pendingTaskCount = React.useMemo(() => {
@@ -214,11 +220,11 @@ export function AppSidebar() {
             icon: FileText,
             path: "/director-pdf-upload",
         },
-        // {
-        //     label: "Messages",
-        //     icon: MessageCircle,
-        //     path: "/messages",
-        // },
+        {
+            label: "Messages",
+            icon: MessageCircle,
+            path: "/messages",
+        },
         {
             label: "Project Staff",
             icon: UsersIcon,
@@ -491,6 +497,17 @@ export function AppSidebar() {
                                                         : "bg-[#D97757] text-white",
                                                 )}>
                                                     {pendingTaskCount > 99 ? "99+" : pendingTaskCount}
+                                                </span>
+                                            )}
+
+                                            {item.label === "Messages" && unreadCount > 0 && state === "expanded" && (
+                                                <span className={cn(
+                                                    "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
+                                                    isActive
+                                                        ? "bg-[#4A6CF7] text-white"
+                                                        : "bg-[#D97757] text-white",
+                                                )}>
+                                                    {unreadCount > 99 ? "99+" : unreadCount}
                                                 </span>
                                             )}
 
