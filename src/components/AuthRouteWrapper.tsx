@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFrappeAuth } from 'frappe-react-sdk';
 import { useUserRoles } from './UserRole';
+import { GlobalLoader } from '@/components/ui/global-loader';
 
 // Type definition remains the same
 type AllowedRole =
@@ -114,12 +115,7 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
   // Show loading while authentication is being verified
   // If we have a last known user, assume we're still logged in during initial load
   if (isAuthLoading || (isRolesLoading && !hasInitialized.current)) {
-    // Show a minimal loading state instead of null
-    return (
-      <div className="flex items-center justify-center h-screen bg-[#F9F7F2] dark:bg-zinc-950">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-      </div>
-    );
+    return <GlobalLoader isLoading delay={0} />;
   }
 
   // Don't render until we have confirmed auth

@@ -274,7 +274,7 @@ const FundDetails: React.FC<FundDetailsProps> = ({ project_title, sanction_ref_n
                                 <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">{fund.modified?.split(" ")[0] || "-"}</td>
                                 <td className="px-4 py-3 text-center">
                                     <button
-                                        onClick={() => navigate(`/fund-received/${fund.name}`, { state: { prjreg_title: prjregTitle } })}
+                                        onClick={() => navigate(`/fund-received/${fund.name}`, { state: { prjreg_title: prjregTitle, sanction_ref_no: fund.sanction_ref_no || sanction_ref_no } })}
                                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-[#D97757] hover:bg-[#D97757] rounded-lg shadow-sm transition-all"
                                     >
                                         View <ArrowRight className="h-3 w-3" />

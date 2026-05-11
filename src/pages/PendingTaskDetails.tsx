@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 // import { AppSidebar } from '@/components/RndSidebar';
 import { FrappeButton } from "@/components/ui/neo-brutalism";
+import { GlobalLoader } from "@/components/ui/global-loader";
 import ProjectDetailsView from "./ProjectDetails";
 import ProjectDetailsOverview from "./ProjectDetailsOverview";
 import { DOCTYPE_PR_LINKS, type PRLinkStrategy } from "@/utils/projectTypeMapping";
@@ -1740,14 +1741,6 @@ const PendingTaskDetails: React.FC = () => {
         }
     }, [doctype, name, fetchRecruitmentFields]);
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent"></div>
-            </div>
-        );
-    }
-
     if (doctype === "Project Registration") {
         return (
             <ProjectDetailsView
@@ -1756,6 +1749,10 @@ const PendingTaskDetails: React.FC = () => {
                 backLabel="Back to Pending Tasks"
             />
         );
+    }
+
+    if (isLoading) {
+        return <GlobalLoader isLoading delay={0} />;
     }
 
     if (doctype === "Temporary Advance") {

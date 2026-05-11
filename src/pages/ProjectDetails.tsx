@@ -8,6 +8,8 @@ import React, {
     forwardRef,
     useRef,
 } from "react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     useFrappeGetDoc,
@@ -54,6 +56,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { GlobalLoader } from "@/components/ui/global-loader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -90,6 +93,241 @@ interface ProjectDetailsProps {
     backLabel?: string;
 }
 
+const DORND_SIGNATURE_SEAL_URL = "http://172.16.131.206:8000/files/Sign_dornd_stamp_rnd.jpg";
+
+const waitForDocumentAssets = async (document: Document) => {
+    if (document.fonts?.ready) {
+        await document.fonts.ready.catch(() => undefined);
+    }
+
+    const images = Array.from(document.images);
+    await Promise.all(
+        images.map((image) =>
+            image.complete
+                ? Promise.resolve()
+                : new Promise<void>((resolve) => {
+                    image.onload = () => resolve();
+                    image.onerror = () => resolve();
+                }),
+        ),
+    );
+};
+
+const printEndorsementDocument = async (document: Document) => {
+    await waitForDocumentAssets(document);
+    document.defaultView?.focus();
+    document.defaultView?.print();
+};
+
+const findWhitespaceCut = (
+    canvas: HTMLCanvasElement,
+    startY: number,
+    targetY: number,
+    maxY: number,
+) => {
+    if (maxY >= canvas.height) return canvas.height;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return Math.min(targetY, maxY);
+
+    const searchStart = Math.max(startY + 180, targetY - 180);
+    const searchEnd = Math.min(maxY - 40, targetY + 180);
+    if (searchEnd <= searchStart) return Math.min(targetY, maxY);
+
+    const width = canvas.width;
+    const height = searchEnd - searchStart;
+    const data = ctx.getImageData(0, searchStart, width, height).data;
+    let bestY = targetY;
+    let bestScore = Number.POSITIVE_INFINITY;
+
+    for (let localY = 0; localY < height; localY += 4) {
+        let inkScore = 0;
+        for (let x = 0; x < width; x += 12) {
+            const index = (localY * width + x) * 4;
+            const r = data[index];
+            const g = data[index + 1];
+            const b = data[index + 2];
+            const a = data[index + 3];
+            if (a > 12 && (r < 245 || g < 245 || b < 245)) {
+                inkScore += 1;
+            }
+        }
+
+        const absoluteY = searchStart + localY;
+        const distancePenalty = Math.abs(absoluteY - targetY) / 60;
+        const score = inkScore + distancePenalty;
+        if (score < bestScore) {
+            bestScore = score;
+            bestY = absoluteY;
+        }
+    }
+
+    return Math.max(startY + 120, Math.min(bestY, maxY));
+};
+
+const downloadEndorsementDocumentPdf = async (document: Document, fileName: string) => {
+    await waitForDocumentAssets(document);
+    const target = document.querySelector(".print-container") as HTMLElement | null;
+    if (!target) throw new Error("Printable endorsement container not found.");
+
+    const style = document.createElement("style");
+    style.setAttribute("data-download-print-emulation", "true");
+    style.textContent = `
+        body {
+            background: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+        }
+        .print-container {
+            box-shadow: none !important;
+            width: 210mm !important;
+            min-height: 297mm !important;
+            margin: 0 auto !important;
+        }
+    `;
+    document.head.appendChild(style);
+
+    try {
+        const canvas = await html2canvas(target, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            windowWidth: target.scrollWidth,
+            windowHeight: target.scrollHeight,
+            scrollX: 0,
+            scrollY: 0,
+        });
+
+        const pdf = new jsPDF("p", "mm", "a4");
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const marginX = 15;
+        const marginY = 18;
+        const imgWidth = pageWidth - marginX * 2;
+        const pageContentHeight = pageHeight - marginY * 2;
+        const pixelsPerMm = canvas.width / imgWidth;
+        const targetSliceHeight = Math.floor(pageContentHeight * pixelsPerMm);
+
+        let sourceY = 0;
+        let pageIndex = 0;
+
+        while (sourceY < canvas.height) {
+            const remaining = canvas.height - sourceY;
+            const idealCut = sourceY + Math.min(targetSliceHeight, remaining);
+            const cutY =
+                remaining <= targetSliceHeight
+                    ? canvas.height
+                    : findWhitespaceCut(
+                        canvas,
+                        sourceY,
+                        idealCut,
+                        Math.min(canvas.height, sourceY + Math.floor(targetSliceHeight * 1.12)),
+                    );
+            const sliceHeight = Math.max(1, cutY - sourceY);
+
+            const pageCanvas = document.createElement("canvas");
+            pageCanvas.width = canvas.width;
+            pageCanvas.height = sliceHeight;
+            const pageCtx = pageCanvas.getContext("2d");
+            if (!pageCtx) throw new Error("Could not prepare PDF page.");
+            pageCtx.fillStyle = "#ffffff";
+            pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+            pageCtx.drawImage(
+                canvas,
+                0,
+                sourceY,
+                canvas.width,
+                sliceHeight,
+                0,
+                0,
+                canvas.width,
+                sliceHeight,
+            );
+
+            if (pageIndex > 0) {
+                pdf.addPage();
+            }
+
+            const sliceHeightMm = sliceHeight / pixelsPerMm;
+            pdf.addImage(
+                pageCanvas.toDataURL("image/png"),
+                "PNG",
+                marginX,
+                marginY,
+                imgWidth,
+                Math.min(sliceHeightMm, pageContentHeight),
+            );
+
+            sourceY = cutY;
+            pageIndex += 1;
+        }
+
+        if (pageIndex === 0) {
+            pdf.addPage();
+        }
+
+        pdf.save(fileName);
+    } finally {
+        style.remove();
+    }
+};
+
+const getIframeSrcDoc = (html: string) =>
+    /<html[\s>]/i.test(html)
+        ? html
+        : `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>body{margin:0;padding:16px;}@media print{@page{margin:10mm;}}</style></head><body>${html}</body></html>`;
+
+const printEndorsementHtml = async (html: string) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.left = "0";
+    iframe.style.top = "0";
+    iframe.style.width = "794px";
+    iframe.style.height = "1123px";
+    iframe.style.opacity = "0";
+    iframe.style.pointerEvents = "none";
+    iframe.setAttribute("sandbox", "allow-same-origin allow-modals");
+    iframe.srcdoc = getIframeSrcDoc(html);
+    document.body.appendChild(iframe);
+
+    try {
+        await new Promise<void>((resolve) => {
+            iframe.onload = () => resolve();
+        });
+        const iframeDocument = iframe.contentDocument;
+        if (!iframeDocument) throw new Error("Unable to prepare endorsement PDF.");
+        await printEndorsementDocument(iframeDocument);
+    } finally {
+        setTimeout(() => iframe.remove(), 1000);
+    }
+};
+
+const downloadEndorsementPdfFromHtml = async (html: string, fileName: string) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.left = "-10000px";
+    iframe.style.top = "0";
+    iframe.style.width = "794px";
+    iframe.style.height = "1123px";
+    iframe.style.opacity = "0";
+    iframe.style.pointerEvents = "none";
+    iframe.setAttribute("sandbox", "allow-same-origin allow-modals");
+    iframe.srcdoc = getIframeSrcDoc(html);
+    document.body.appendChild(iframe);
+
+    try {
+        await new Promise<void>((resolve) => {
+            iframe.onload = () => resolve();
+        });
+        const iframeDocument = iframe.contentDocument;
+        if (!iframeDocument) throw new Error("Unable to prepare endorsement PDF.");
+        await downloadEndorsementDocumentPdf(iframeDocument, fileName);
+    } finally {
+        iframe.remove();
+    }
+};
+
 const EndorsementModal = ({
     isOpen,
     onClose,
@@ -102,15 +340,29 @@ const EndorsementModal = ({
     isLoading: boolean;
 }) => {
     const iframeRef = React.useRef<HTMLIFrameElement>(null);
+    const [isDownloadingPdf, setIsDownloadingPdf] = React.useState(false);
 
     if (!isOpen) return null;
 
-    const srcDoc = html
-        ? `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>body{margin:0;padding:16px;}@media print{@page{margin:10mm;}}</style></head><body>${html}</body></html>`
-        : "";
+    const srcDoc = html ? getIframeSrcDoc(html) : "";
 
     const handlePrint = () => {
         iframeRef.current?.contentWindow?.print();
+    };
+
+    const handleDownloadPdf = async () => {
+        const iframeDocument = iframeRef.current?.contentDocument;
+        if (!iframeDocument) return;
+
+        setIsDownloadingPdf(true);
+        try {
+            await downloadEndorsementDocumentPdf(iframeDocument, "Endorsement_Certificate.pdf");
+        } catch (error) {
+            console.error("Endorsement PDF download failed:", error);
+            alert("Could not generate PDF. Please use Print and save as PDF.");
+        } finally {
+            setIsDownloadingPdf(false);
+        }
     };
 
     return (
@@ -180,18 +432,118 @@ const EndorsementModal = ({
                         Close
                     </button>
                     {html && (
-                        <button
-                            onClick={handlePrint}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-[#D97757] hover:bg-[#c4673e] text-white transition-colors"
-                        >
-                            <ExternalLinkIcon className="h-3 w-3" />
-                            Print
-                        </button>
+                        <>
+                            <button
+                                onClick={handleDownloadPdf}
+                                disabled={isDownloadingPdf}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-white dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-600 transition-colors disabled:opacity-60"
+                            >
+                                <DownloadIcon className="h-3 w-3" />
+                                {isDownloadingPdf ? "Generating..." : "Download PDF"}
+                            </button>
+                            <button
+                                onClick={handlePrint}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-[#D97757] hover:bg-[#c4673e] text-white transition-colors"
+                            >
+                                <ExternalLinkIcon className="h-3 w-3" />
+                                Print
+                            </button>
+                        </>
                     )}
                 </div>
             </div>
         </div>
     );
+};
+
+const toSameOriginFileUrl = (src: string) => {
+    try {
+        const url = new URL(src, window.location.origin);
+        if (
+            url.hostname === "172.16.131.206" ||
+            url.hostname === window.location.hostname
+        ) {
+            return `${url.pathname}${url.search}${url.hash}`;
+        }
+    } catch {
+        return src;
+    }
+    return src;
+};
+
+const normalizeEndorsementHtmlForProject = (html: string, projectName?: string, workflowState?: string) => {
+    if (!projectName) return html;
+    const refNo = `IITG-${projectName}`;
+    const shouldShowSignatureSeal = workflowState === "Endorsement Approved";
+    const isFullDocument = /<html[\s>]/i.test(html);
+    const parser = new DOMParser();
+    const document = parser.parseFromString(html, "text/html");
+
+    const refValue = document.querySelector(".ref-no .value");
+    if (refValue) {
+        refValue.textContent = refNo;
+    }
+
+    document.querySelectorAll("img").forEach((image) => {
+        const src = image.getAttribute("src") || "";
+        const alt = image.getAttribute("alt") || "";
+        if (
+            src.includes("Sign_dornd_stamp_rnd.jpg") ||
+            src.includes("rohit_fake_sign") ||
+            alt.toLowerCase() === "signature"
+        ) {
+            image.remove();
+            return;
+        }
+        image.setAttribute("src", toSameOriginFileUrl(src));
+    });
+
+    document.querySelectorAll(".signature").forEach((signature) => {
+        if (!shouldShowSignatureSeal) {
+            signature.remove();
+            return;
+        }
+
+        signature.innerHTML = "";
+        const image = document.createElement("img");
+        image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
+        image.alt = "Signature with seal";
+        image.style.height = "112px";
+        image.style.width = "auto";
+        image.style.objectFit = "contain";
+        image.style.marginBottom = "8px";
+
+        const label = document.createElement("div");
+        label.textContent = "Signature of the Dean (R&D)";
+        label.style.fontWeight = "bold";
+
+        signature.appendChild(image);
+        signature.appendChild(label);
+    });
+
+    if (shouldShowSignatureSeal && !document.querySelector(".signature")) {
+        const container = document.querySelector(".print-container") || document.body;
+        const signature = document.createElement("div");
+        signature.className = "signature";
+        signature.setAttribute("style", "margin-top:72px;display:flex;flex-direction:column;align-items:flex-end;");
+
+        const image = document.createElement("img");
+        image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
+        image.alt = "Signature with seal";
+        image.setAttribute("style", "height:112px;width:auto;object-fit:contain;margin-bottom:8px;");
+
+        const label = document.createElement("div");
+        label.textContent = "Signature of the Dean (R&D)";
+        label.setAttribute("style", "font-weight:bold;");
+
+        signature.appendChild(image);
+        signature.appendChild(label);
+        container.appendChild(signature);
+    }
+
+    return isFullDocument
+        ? `<!DOCTYPE html>\n${document.documentElement.outerHTML}`
+        : document.body.innerHTML;
 };
 
 const CommentModal = ({
@@ -1244,6 +1596,28 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const [selectedAction, setSelectedAction] = useState("");
     const [endorsementModalOpen, setEndorsementModalOpen] = useState(false);
     const [endorsementHtml, setEndorsementHtml] = useState<string | null>(null);
+    const [isDownloadingEndorsementCertificate, setIsDownloadingEndorsementCertificate] = useState(false);
+
+    const fetchNormalizedEndorsementHtml = useCallback(async () => {
+        if (!projectName) return null;
+        const res = await fetchEndorsementData({
+            doctype: "Endorsement Data",
+            filters: JSON.stringify([
+                ["project_ref_num", "=", projectName],
+            ]),
+            fields: JSON.stringify(["endorsement_html"]),
+            limit_page_length: 1,
+        });
+        const records = res?.message;
+        if (records?.length > 0 && records[0].endorsement_html) {
+            return normalizeEndorsementHtmlForProject(
+                records[0].endorsement_html,
+                projectName,
+                data?.workflow_state,
+            );
+        }
+        return null;
+    }, [data?.workflow_state, fetchEndorsementData, projectName]);
 
     const handleWorkflowAction = useCallback((action: string) => {
         setSelectedAction(action);
@@ -1366,16 +1740,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
             );
         }
         if (isLoading) {
-            return (
-                <div className="flex items-center justify-center min-h-screen">
-                    <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent mx-auto mb-4"></div>
-                        <p className="text-zinc-600 dark:text-zinc-400">
-                            Loading Project...
-                        </p>
-                    </div>
-                </div>
-            );
+            return <GlobalLoader isLoading delay={0} />;
         }
         if (error) {
             return (
@@ -2412,18 +2777,7 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                             setEndorsementHtml(null);
                                                             setEndorsementModalOpen(true);
                                                             try {
-                                                                const res = await fetchEndorsementData({
-                                                                    doctype: "Endorsement Data",
-                                                                    filters: JSON.stringify([
-                                                                        ["project_ref_num", "=", projectName],
-                                                                    ]),
-                                                                    fields: JSON.stringify(["endorsement_html"]),
-                                                                    limit_page_length: 1,
-                                                                });
-                                                                const records = res?.message;
-                                                                if (records?.length > 0 && records[0].endorsement_html) {
-                                                                    setEndorsementHtml(records[0].endorsement_html);
-                                                                }
+                                                                setEndorsementHtml(await fetchNormalizedEndorsementHtml());
                                                             } catch (e: any) {
                                                                 console.error("Fetch endorsement error:", e);
                                                             }
@@ -2435,36 +2789,33 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                         {isFetchingEndorsementHtml ? "Loading..." : "View Endorsement"}
                                                     </button>
                                                     <button
-                                                        onClick={() => {
-                                                            let baseUrl =
-                                                                import.meta.env
-                                                                    .VITE_FRAPPE_URL;
-                                                            if (!baseUrl) {
-                                                                baseUrl =
-                                                                    window
-                                                                        .location
-                                                                        .origin;
-                                                            } else if (
-                                                                baseUrl.startsWith(
-                                                                    "/",
-                                                                )
-                                                            ) {
-                                                                baseUrl = `${window.location.origin}${baseUrl}`;
+                                                        onClick={async () => {
+                                                            setIsDownloadingEndorsementCertificate(true);
+                                                            try {
+                                                                const html = await fetchNormalizedEndorsementHtml();
+                                                                if (!html) {
+                                                                    alert("No endorsement certificate found for this project.");
+                                                                    return;
+                                                                }
+                                                                await downloadEndorsementPdfFromHtml(
+                                                                    html,
+                                                                    `Endorsement_${projectName || "Certificate"}.pdf`,
+                                                                );
+                                                            } catch (error) {
+                                                                console.error("Download endorsement certificate error:", error);
+                                                                alert("Could not download endorsement certificate. Please open the preview and use Print.");
+                                                            } finally {
+                                                                setIsDownloadingEndorsementCertificate(false);
                                                             }
-
-                                                            const downloadUrl = `${baseUrl.replace(/\/$/, "")}/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.download_endorsement_file?docname=${projectName}&file_type=pdf`;
-                                                            window.open(
-                                                                downloadUrl,
-                                                                "_blank",
-                                                            );
                                                         }}
                                                         disabled={
-                                                            !data?.endorsement_status
+                                                            isFetchingEndorsementHtml ||
+                                                            isDownloadingEndorsementCertificate
                                                         }
                                                         className="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 hover:bg-[#B2EBF2] text-[#D97757] rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
                                                         <DownloadIcon className="h-4 w-4" />
-                                                        Download Certificate
+                                                        {isDownloadingEndorsementCertificate ? "Downloading..." : "Download Certificate"}
                                                     </button>
                                                 </div>
                                             </div>

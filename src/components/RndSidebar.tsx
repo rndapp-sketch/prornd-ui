@@ -27,6 +27,7 @@ import {
     X,
     Paperclip,
     Users as UsersIcon,
+    UserCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -169,6 +170,7 @@ export function AppSidebar() {
             alwaysOpen: true,
             subMenu: [
                 { label: "Projects View", path: "/projects-view" },
+                { label: "Co-Projects", path: "/co-projects" },
                 { label: "Registration", path: "/project-registration" },
             ],
         },
@@ -186,6 +188,11 @@ export function AppSidebar() {
             label: "Stakeholder Registration",
             icon: FileText,
             path: "/universal-registration",
+        },
+        {
+            label: "Delegate User",
+            icon: UserCheck,
+            path: "/delegate-user",
         },
         {
             label: "Pending Task",
@@ -275,6 +282,9 @@ export function AppSidebar() {
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
         if (item.label === "Project Staff") {
+            return roles?.includes("Permanent Employee") ?? false;
+        }
+        if (item.label === "Delegate User") {
             return roles?.includes("Permanent Employee") ?? false;
         }
         return true;

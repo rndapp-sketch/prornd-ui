@@ -684,6 +684,8 @@
 
 
 import * as React from "react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import {
   useFrappeGetDocList,
   useFrappeAuth,
@@ -715,6 +717,7 @@ import {
   SearchIcon,
   ChevronsUpDown,
   CheckCircle2,
+  DownloadIcon,
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -745,6 +748,33 @@ interface Project {
   project_type?: string;
 }
 
+interface UserDelegation {
+  name: string;
+  delegator_user?: string;
+  delegate_user?: string;
+  delegation_type?: string;
+  scope_type?: string;
+  project_names?: string;
+  applications?: string;
+  enabled?: number;
+}
+
+interface DelegatedApplicationRef {
+  doctype: string;
+  name: string;
+}
+
+interface DelegatedApplicationRecord extends DelegatedApplicationRef {
+  title?: string;
+  workflow_state?: string;
+  owner?: string;
+  creation?: string;
+  modified?: string;
+  project_name?: string;
+  project_no?: string;
+  load_error?: string;
+}
+
 type ProjectTypeTab = 'Research' | 'Consultancy' | 'Others';
 const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'];
 
@@ -754,6 +784,273 @@ const normalizeProjectType = (raw?: string): ProjectTypeTab => {
   if (lower.includes('research')) return 'Research';
   if (lower.includes('consult')) return 'Consultancy';
   return 'Others';
+};
+
+const DORND_SIGNATURE_SEAL_URL = "http://172.16.131.206:8000/files/Sign_dornd_stamp_rnd.jpg";
+
+const toSameOriginFileUrl = (src: string) => {
+  try {
+    const url = new URL(src, window.location.origin);
+    if (url.hostname === "172.16.131.206" || url.hostname === window.location.hostname) {
+      return `${url.pathname}${url.search}${url.hash}`;
+    }
+  } catch {
+    return src;
+  }
+  return src;
+};
+
+const normalizeEndorsementHtmlForDownload = (html: string, projectName: string) => {
+  const parser = new DOMParser();
+  const document = parser.parseFromString(html, "text/html");
+  const refValue = document.querySelector(".ref-no .value");
+  if (refValue) refValue.textContent = `IITG-${projectName}`;
+
+  document.querySelectorAll("img").forEach((image) => {
+    const src = image.getAttribute("src") || "";
+    const alt = image.getAttribute("alt") || "";
+    if (src.includes("Sign_dornd_stamp_rnd.jpg") || src.includes("rohit_fake_sign") || alt.toLowerCase() === "signature") {
+      image.remove();
+      return;
+    }
+    image.setAttribute("src", toSameOriginFileUrl(src));
+  });
+
+  document.querySelectorAll(".signature").forEach((signature) => {
+    signature.innerHTML = "";
+    const image = document.createElement("img");
+    image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
+    image.alt = "Signature with seal";
+    image.setAttribute("style", "height:112px;width:auto;object-fit:contain;margin-bottom:8px;");
+    const label = document.createElement("div");
+    label.textContent = "Signature of the Dean (R&D)";
+    label.setAttribute("style", "font-weight:bold;");
+    signature.appendChild(image);
+    signature.appendChild(label);
+  });
+
+  if (!document.querySelector(".signature")) {
+    const container = document.querySelector(".print-container") || document.body;
+    const signature = document.createElement("div");
+    signature.className = "signature";
+    signature.setAttribute("style", "margin-top:72px;display:flex;flex-direction:column;align-items:flex-end;");
+    const image = document.createElement("img");
+    image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
+    image.alt = "Signature with seal";
+    image.setAttribute("style", "height:112px;width:auto;object-fit:contain;margin-bottom:8px;");
+    const label = document.createElement("div");
+    label.textContent = "Signature of the Dean (R&D)";
+    label.setAttribute("style", "font-weight:bold;");
+    signature.appendChild(image);
+    signature.appendChild(label);
+    container.appendChild(signature);
+  }
+
+  return /<html[\s>]/i.test(html) ? `<!DOCTYPE html>\n${document.documentElement.outerHTML}` : document.body.innerHTML;
+};
+
+const getEndorsementSrcDoc = (html: string) =>
+  /<html[\s>]/i.test(html)
+    ? html
+    : `<!DOCTYPE html><html><head><meta charset="utf-8"/><style>body{margin:0;padding:16px;}@media print{@page{margin:10mm;}}</style></head><body>${html}</body></html>`;
+
+const waitForDocumentAssets = async (document: Document) => {
+  if (document.fonts?.ready) await document.fonts.ready.catch(() => undefined);
+  await Promise.all(
+    Array.from(document.images).map((image) =>
+      image.complete
+        ? Promise.resolve()
+        : new Promise<void>((resolve) => {
+          image.onload = () => resolve();
+          image.onerror = () => resolve();
+        }),
+    ),
+  );
+};
+
+const findWhitespaceCut = (
+  canvas: HTMLCanvasElement,
+  startY: number,
+  targetY: number,
+  maxY: number,
+) => {
+  if (maxY >= canvas.height) return canvas.height;
+
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return Math.min(targetY, maxY);
+
+  const searchStart = Math.max(startY + 180, targetY - 220);
+  const searchEnd = Math.min(maxY - 40, targetY + 220);
+  if (searchEnd <= searchStart) return Math.min(targetY, maxY);
+
+  const width = canvas.width;
+  const height = searchEnd - searchStart;
+  const data = ctx.getImageData(0, searchStart, width, height).data;
+  let bestY = targetY;
+  let bestScore = Number.POSITIVE_INFINITY;
+
+  for (let localY = 0; localY < height; localY += 4) {
+    let inkScore = 0;
+    for (let x = 0; x < width; x += 12) {
+      const index = (localY * width + x) * 4;
+      const r = data[index];
+      const g = data[index + 1];
+      const b = data[index + 2];
+      const a = data[index + 3];
+      if (a > 12 && (r < 245 || g < 245 || b < 245)) {
+        inkScore += 1;
+      }
+    }
+
+    const absoluteY = searchStart + localY;
+    const distancePenalty = Math.abs(absoluteY - targetY) / 60;
+    const score = inkScore + distancePenalty;
+    if (score < bestScore) {
+      bestScore = score;
+      bestY = absoluteY;
+    }
+  }
+
+  return Math.max(startY + 120, Math.min(bestY, maxY));
+};
+
+const downloadEndorsementPdfFromHtml = async (html: string, projectName: string) => {
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.left = "-10000px";
+  iframe.style.top = "0";
+  iframe.style.width = "794px";
+  iframe.style.height = "1123px";
+  iframe.style.opacity = "0";
+  iframe.style.pointerEvents = "none";
+  iframe.setAttribute("sandbox", "allow-same-origin allow-modals");
+  iframe.srcdoc = getEndorsementSrcDoc(html);
+  document.body.appendChild(iframe);
+
+  try {
+    await new Promise<void>((resolve) => {
+      iframe.onload = () => resolve();
+    });
+    const iframeDocument = iframe.contentDocument;
+    const target = iframeDocument?.querySelector(".print-container") as HTMLElement | null;
+    if (!iframeDocument || !target) throw new Error("Printable endorsement container not found.");
+    await waitForDocumentAssets(iframeDocument);
+
+    const style = iframeDocument.createElement("style");
+    style.textContent = `body{background:#fff!important;padding:0!important;margin:0!important;display:block!important}.print-container{box-shadow:none!important;width:210mm!important;min-height:297mm!important;margin:0 auto!important}`;
+    iframeDocument.head.appendChild(style);
+
+    const canvas = await html2canvas(target, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      windowWidth: target.scrollWidth,
+      windowHeight: target.scrollHeight,
+      scrollX: 0,
+      scrollY: 0,
+    });
+
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const marginX = 15;
+    const marginY = 18;
+    const imgWidth = pageWidth - marginX * 2;
+    const pageContentHeight = pageHeight - marginY * 2;
+    const pixelsPerMm = canvas.width / imgWidth;
+    const targetSliceHeight = Math.floor(pageContentHeight * pixelsPerMm);
+    let sourceY = 0;
+    let pageIndex = 0;
+
+    while (sourceY < canvas.height) {
+      const remaining = canvas.height - sourceY;
+      const idealCut = sourceY + Math.min(targetSliceHeight, remaining);
+      const cutY =
+        remaining <= targetSliceHeight
+          ? canvas.height
+          : findWhitespaceCut(
+            canvas,
+            sourceY,
+            idealCut,
+            Math.min(canvas.height, sourceY + Math.floor(targetSliceHeight * 1.12)),
+          );
+      const sliceHeight = Math.max(1, cutY - sourceY);
+      const pageCanvas = document.createElement("canvas");
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sliceHeight;
+      const ctx = pageCanvas.getContext("2d");
+      if (!ctx) throw new Error("Could not prepare PDF page.");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+      ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+      if (pageIndex > 0) pdf.addPage();
+      pdf.addImage(
+        pageCanvas.toDataURL("image/png"),
+        "PNG",
+        marginX,
+        marginY,
+        imgWidth,
+        Math.min(sliceHeight / pixelsPerMm, pageContentHeight),
+      );
+      sourceY = cutY;
+      pageIndex += 1;
+    }
+
+    pdf.save(`Endorsement_${projectName}.pdf`);
+  } finally {
+    iframe.remove();
+  }
+};
+
+const parseDelegatedProjectNames = (raw?: string): string[] => {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+    }
+  } catch {
+    return [];
+  }
+  return [];
+};
+
+const parseDelegatedApplications = (raw?: string): DelegatedApplicationRef[] => {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((value): value is string => typeof value === "string" && value.includes(":"))
+      .map((value) => {
+        const separatorIndex = value.indexOf(":");
+        return {
+          doctype: value.slice(0, separatorIndex).trim(),
+          name: value.slice(separatorIndex + 1).trim(),
+        };
+      })
+      .filter((value) => value.doctype && value.name);
+  } catch {
+    return [];
+  }
+};
+
+const getDelegatedApplicationPath = (doctype: string, name: string) => {
+  const encoded = encodeURIComponent(name);
+  const routeMap: Record<string, string> = {
+    Travel: `/travel/${encoded}`,
+    "Temporary Advance": `/temporary-advance/${encoded}`,
+    "Advance Settlement": `/advance-settlement/${encoded}`,
+    "Direct Purchase": `/direct-purchase/${encoded}`,
+    "Disbursal of Consultancy": `/disbursal-of-consultancy/${encoded}`,
+    "Disbursal of Honorarium": `/disbursal-of-honorarium/${encoded}`,
+    "Loan Request": `/loan-request/${encoded}`,
+    "Indent General Form": `/indent-general-form-details/${encoded}`,
+    "Recruitment Adhoc Contractual": `/recruitment-adhoc-contractual/${encoded}`,
+    "Selection Committee Report": `/selection-committee-report/${encoded}`,
+    Reimbursement: `/reimbursement/${encoded}`,
+  };
+  return routeMap[doctype] || `/pending-tasks/${encodeURIComponent(doctype)}/${encoded}`;
 };
 
 interface ProjectsViewProps {
@@ -829,6 +1126,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     Object.keys(pendingTasksData)[0],
   );
   const [selectedProjectType, setSelectedProjectType] = React.useState<ProjectTypeTab>('Research');
+  const [delegatedView, setDelegatedView] = React.useState<"projects" | "applications">("projects");
+  const [delegatedApplications, setDelegatedApplications] = React.useState<DelegatedApplicationRecord[]>([]);
+	  const [delegatedApplicationsLoading, setDelegatedApplicationsLoading] = React.useState(false);
+	  const [delegatedApplicationsError, setDelegatedApplicationsError] = React.useState<string | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -871,7 +1172,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     filters: currentUser
       ? [["pi_webmail", "=", currentUser]]
       : [["name", "=", "NON_EXISTENT_DOC"]],
-    limit: 1000,
+	    limit: 1000,
   });
 
   const {
@@ -883,7 +1184,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     filters: currentUser
       ? [["head_approver", "=", currentUser]]
       : [["name", "=", "NON_EXISTENT_DOC"]],
-    limit: 1000,
+	    limit: 1000,
   });
 
   const {
@@ -893,7 +1194,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   } = useFrappeGetDocList<Project>("Project Registration", {
     fields: ["*"],
     filters: [],
-    limit: 1000,
+	    limit: 1000,
   });
 
   const isHosRnd = fetchedRoles?.includes("Hos, RnD (Head of Section, RnD)");
@@ -909,7 +1210,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     filters: isHosRnd
       ? [["workflow_state", "=", "Pending HoS Approval"]]
       : [["name", "=", "NON_EXISTENT_DOC"]],
-    limit: 1000,
+	    limit: 1000,
   });
 
   const {
@@ -921,7 +1222,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     filters: isDoRnd
       ? [["workflow_state", "=", "Pending Dean Approval"]]
       : [["name", "=", "NON_EXISTENT_DOC"]],
-    limit: 1000,
+	    limit: 1000,
   });
 
   const {
@@ -933,30 +1234,188 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     filters: isRndStaff
       ? [["workflow_state", "=", "Pending Staff Approval"]]
       : [["name", "=", "NON_EXISTENT_DOC"]],
-    limit: 1000,
+	    limit: 1000,
   });
 
-  const {
-    data: myOwnedProjects,
-    isLoading: ownedLoading,
-    error: ownedError,
-    mutate: mutateOwned,
+	  const {
+	    data: myOwnedProjects,
+	    isLoading: ownedLoading,
+	    error: ownedError,
+	    mutate: mutateOwned,
   } = useFrappeGetDocList<Project>("Project Registration", {
     fields: ["*"],
     filters: currentUser
       ? [["owner", "=", currentUser]]
       : [["name", "=", "NON_EXISTENT_DOC"]],
-    limit: 1000,
-  });
+	    limit: 1000,
+	  });
+
+	  const {
+	    data: receivedDelegations,
+	    isLoading: delegatedRecordsLoading,
+	    error: delegatedRecordsError,
+	  } = useFrappeGetDocList<UserDelegation>("User Delegation", {
+	    fields: ["name", "delegator_user", "delegate_user", "delegation_type", "scope_type", "project_names", "applications", "enabled"],
+	    filters: currentUser
+	      ? [
+	          ["delegate_user", "=", currentUser],
+	          ["enabled", "=", 1],
+	        ]
+	      : [["name", "=", "NON_EXISTENT_DOC"]],
+	    limit: 1000,
+	  });
+
+	  const delegatedProjectNames = React.useMemo(() => {
+	    const names = new Set<string>();
+	    (receivedDelegations ?? []).forEach((delegation) => {
+	      parseDelegatedProjectNames(delegation.project_names).forEach((name) => names.add(name));
+	    });
+	    return Array.from(names);
+	  }, [receivedDelegations]);
+
+	  const delegatedApplicationRefs = React.useMemo(() => {
+	    const refs = new Map<string, DelegatedApplicationRef>();
+	    (receivedDelegations ?? []).forEach((delegation) => {
+	      parseDelegatedApplications(delegation.applications).forEach((ref) => {
+	        refs.set(`${ref.doctype}:${ref.name}`, ref);
+	      });
+	    });
+	    return Array.from(refs.values());
+	  }, [receivedDelegations]);
+
+	  const {
+	    data: delegatedProjects,
+	    isLoading: delegatedProjectsLoading,
+	    error: delegatedProjectsError,
+	  } = useFrappeGetDocList<Project>("Project Registration", {
+	    fields: ["*"],
+	    filters: delegatedProjectNames.length
+	      ? [["name", "in", delegatedProjectNames]]
+	      : [["name", "=", "NON_EXISTENT_DOC"]],
+	    limit: 1000,
+	  });
+
+	  React.useEffect(() => {
+	    let cancelled = false;
+
+	    const fetchDelegatedApplications = async () => {
+	      if (!delegatedApplicationRefs.length) {
+	        setDelegatedApplications([]);
+	        setDelegatedApplicationsError(null);
+	        setDelegatedApplicationsLoading(false);
+	        return;
+	      }
+
+	      setDelegatedApplicationsLoading(true);
+	      setDelegatedApplicationsError(null);
+
+	      try {
+	        const docs = await Promise.all(
+	          delegatedApplicationRefs.map(async (ref) => {
+	            try {
+	              const response = await fetch(
+	                `/api/resource/${encodeURIComponent(ref.doctype)}/${encodeURIComponent(ref.name)}`,
+	                { credentials: "include" },
+	              );
+	              if (!response.ok) {
+	                throw new Error(`HTTP ${response.status}`);
+	              }
+	              const result = await response.json();
+	              const data = result?.data || {};
+	              return {
+	                doctype: ref.doctype,
+	                name: ref.name,
+	                title:
+	                  data.project_title ||
+	                  data.title ||
+	                  data.applicant_name ||
+	                  data.name_of_applicant ||
+	                  data.name,
+	                workflow_state: data.workflow_state,
+	                owner: data.owner,
+	                creation: data.creation,
+	                modified: data.modified,
+	                project_name:
+	                  data.project_name ||
+	                  data.project_title ||
+	                  data.travel_project_title ||
+	                  data.prjreg_title ||
+	                  data.project,
+	                project_no:
+	                  data.project_no ||
+	                  data.project_number ||
+	                  data.travel_project_number ||
+	                  data.ta_da_project_code ||
+	                  data.upfa_project_code ||
+	                  data.igf_project_code ||
+	                  data.project_code,
+	              } as DelegatedApplicationRecord;
+	            } catch (error: any) {
+	              return {
+	                doctype: ref.doctype,
+	                name: ref.name,
+	                title: ref.name,
+	                workflow_state: "Shared",
+	                load_error: error?.message || "Unable to load details",
+	              } as DelegatedApplicationRecord;
+	            }
+	          }),
+	        );
+
+	        if (!cancelled) setDelegatedApplications(docs);
+	      } catch (error: any) {
+	        if (!cancelled) {
+	          setDelegatedApplications([]);
+	          setDelegatedApplicationsError(error?.message || "Failed to load delegated applications.");
+	        }
+	      } finally {
+	        if (!cancelled) setDelegatedApplicationsLoading(false);
+	      }
+	    };
+
+	    fetchDelegatedApplications();
+
+	    return () => {
+	      cancelled = true;
+	    };
+	  }, [delegatedApplicationRefs]);
 
   // --- Delete draft state ---
   const [confirmDeleteProject, setConfirmDeleteProject] = React.useState<Project | null>(null);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
+  const [downloadingEndorsementProject, setDownloadingEndorsementProject] = React.useState<string | null>(null);
 
   const { call: deleteDraft } = useFrappePostCall(
     "rndopsapp.rndopsapp.doctype.project_registration.project_registration.delete_draft_project",
   );
+  const { call: fetchEndorsementData } = useFrappePostCall("frappe.client.get_list");
+
+  const handleDownloadEndorsement = async (project: Project) => {
+    setDownloadingEndorsementProject(project.name);
+    try {
+      const res = await fetchEndorsementData({
+        doctype: "Endorsement Data",
+        filters: JSON.stringify([["project_ref_num", "=", project.name]]),
+        fields: JSON.stringify(["endorsement_html"]),
+        limit_page_length: 1,
+      });
+      const html = res?.message?.[0]?.endorsement_html;
+      if (!html) {
+        alert("No endorsement certificate found for this project.");
+        return;
+      }
+      await downloadEndorsementPdfFromHtml(
+        normalizeEndorsementHtmlForDownload(html, project.name),
+        project.name,
+      );
+    } catch (error) {
+      console.error("Download endorsement certificate error:", error);
+      alert("Could not download endorsement certificate.");
+    } finally {
+      setDownloadingEndorsementProject(null);
+    }
+  };
 
   const handleDeleteDraft = async () => {
     if (!confirmDeleteProject) return;
@@ -1004,18 +1463,18 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         error: adminError,
       };
     }
-    if (isDoRnd) {
-      return {
-        myProjects: doRndApprovalProjects,
-        isLoading: doRndLoading,
-        error: doRndError,
-      };
-    }
+	    if (isDoRnd) {
+	      return {
+	        myProjects: doRndApprovalProjects,
+	        isLoading: doRndLoading,
+	        error: doRndError,
+	      };
+	    }
 
-    const combined = [
-      ...(myCreatedProjects ?? []),
-      ...(myOwnedProjects ?? []),
-    ];
+	    const combined = [
+	      ...(myCreatedProjects ?? []),
+	      ...(myOwnedProjects ?? []),
+	    ];
     const uniqueProjectsMap = new Map<string, Project>();
     combined.forEach((project) => {
       // Allow all project applications to be listed so their progress can be tracked
@@ -1041,12 +1500,12 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     myApprovalProjects,
     approvalLoading,
     approvalError,
-    myOwnedProjects,
-    ownedLoading,
-    ownedError,
-    isHosRnd,
-    hosAprovalProjects,
-    hosLoading,
+	    myOwnedProjects,
+	    ownedLoading,
+	    ownedError,
+	    isHosRnd,
+	    hosAprovalProjects,
+	    hosLoading,
     hosError,
     isRndStaff,
     rndstaffAprovalProjects,
@@ -1054,19 +1513,27 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     rndstaffError,
   ]);
 
-  const projectTypeCounts = React.useMemo(() => ({
-    Research: (myProjects ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Research').length,
-    Consultancy: (myProjects ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Consultancy').length,
-    Others: (myProjects ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Others').length,
-  }), [myProjects]);
+	  const projectTypeCounts = React.useMemo(() => ({
+	    Research: ((activeTab === "delegated" ? delegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Research').length,
+	    Consultancy: ((activeTab === "delegated" ? delegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Consultancy').length,
+	    Others: ((activeTab === "delegated" ? delegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Others').length,
+	  }), [activeTab, delegatedProjects, myProjects]);
 
-  const filteredAndSortedProjects = React.useMemo(() => {
-    if (!myProjects) return [];
-    let filtered = myProjects.filter((p) =>
-      normalizeProjectType((p as any).project_type) === selectedProjectType &&
-      Object.values(p).some((val) =>
-        String(val).toLowerCase().includes(searchQuery.toLowerCase()),
-      ),
+	  const visibleProjects = activeTab === "delegated" ? delegatedProjects : myProjects;
+	  const visibleProjectsLoading = activeTab === "delegated"
+	    ? delegatedRecordsLoading || delegatedProjectsLoading
+	    : myProjectsLoading;
+	  const visibleProjectsError = activeTab === "delegated"
+	    ? delegatedRecordsError || delegatedProjectsError
+	    : myProjectsError;
+
+	  const filteredAndSortedProjects = React.useMemo(() => {
+	    if (!visibleProjects) return [];
+	    let filtered = visibleProjects.filter((p) =>
+	      normalizeProjectType((p as any).project_type) === selectedProjectType &&
+	      Object.values(p).some((val) =>
+	        String(val).toLowerCase().includes(searchQuery.toLowerCase()),
+	      ),
     );
     filtered.sort((a, b) => {
       const aVal = (a as any)[sortField] ?? "";
@@ -1074,17 +1541,32 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
       if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
       return 0;
-    });
-    return filtered;
-  }, [myProjects, searchQuery, sortField, sortOrder, selectedProjectType]);
+	    });
+	    return filtered;
+	  }, [visibleProjects, searchQuery, sortField, sortOrder, selectedProjectType]);
 
   const totalPages = Math.ceil(
     filteredAndSortedProjects.length / itemsPerPage,
   );
-  const paginatedProjects = filteredAndSortedProjects.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
-  );
+	  const paginatedProjects = filteredAndSortedProjects.slice(
+	    (currentPage - 1) * itemsPerPage,
+	    currentPage * itemsPerPage,
+	  );
+
+	  const filteredDelegatedApplications = React.useMemo(() => {
+	    const q = searchQuery.toLowerCase();
+	    return delegatedApplications.filter((application) =>
+	      [
+	        application.doctype,
+	        application.name,
+	        application.title,
+	        application.workflow_state,
+	        application.owner,
+	        application.project_name,
+	        application.project_no,
+	      ].some((value) => String(value || "").toLowerCase().includes(q)),
+	    );
+	  }, [delegatedApplications, searchQuery]);
 
   const handleSortChange = (
     field:
@@ -1177,7 +1659,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       filters: currentUser
         ? [["pi_webmail", "=", currentUser]]
         : [["name", "=", "NON_EXISTENT_DOC"]],
-      limit: 100,
+	      limit: 100,
     });
 
   // --- Fetch all Funding Agencies for name lookup ---
@@ -1400,10 +1882,50 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     );
   };
 
-  const renderProjectsTable = () => (
-    <div className="space-y-4 animate-in fade-in duration-500">
-      {/* Project Type Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto">
+	  const renderProjectsTable = () => (
+	    <div className="space-y-4 animate-in fade-in duration-500">
+	      {activeTab === "delegated" && (
+	        <div className="flex flex-wrap gap-2 rounded-xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+	          {[
+	            { id: "projects", label: "Projects", count: delegatedProjects?.length || 0 },
+	            { id: "applications", label: "Applications", count: delegatedApplications.length },
+	          ].map((tab) => {
+	            const active = delegatedView === tab.id;
+	            return (
+	              <button
+	                key={tab.id}
+	                onClick={() => {
+	                  setDelegatedView(tab.id as "projects" | "applications");
+	                  setCurrentPage(1);
+	                }}
+	                className={cn(
+	                  "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-[12px] font-extrabold uppercase tracking-wide transition-all",
+	                  active
+	                    ? "bg-[#EEF2FF] text-[#1E3A8A] shadow-sm dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]"
+	                    : "text-[#52525B] hover:bg-[#F4F4F5] dark:text-[#A1A1AA] dark:hover:bg-[#3F3F46]",
+	                )}
+	              >
+	                {tab.label}
+	                <span
+	                  className={cn(
+	                    "rounded-full px-2 py-0.5 text-[11px] font-bold",
+	                    active
+	                      ? "bg-[#4A6CF7] text-white"
+	                      : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]",
+	                  )}
+	                >
+	                  {tab.count}
+	                </span>
+	              </button>
+	            );
+	          })}
+	        </div>
+	      )}
+
+	      {(activeTab !== "delegated" || delegatedView === "projects") && (
+	        <>
+	      {/* Project Type Tabs */}
+	      <div className="flex items-center gap-2 overflow-x-auto">
         {PROJECT_TYPE_TABS.map((tab) => {
           const active = selectedProjectType === tab;
           const tabColors: Record<string, string> = {
@@ -1509,7 +2031,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {myProjectsLoading ? (
+	                {visibleProjectsLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
                       <TableCell>
@@ -1532,7 +2054,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                       </TableCell>
                     </TableRow>
                   ))
-                ) : myProjectsError ? (
+	                ) : visibleProjectsError ? (
                   <TableRow>
                     <TableCell
                       colSpan={8}
@@ -1624,18 +2146,33 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
                               </Button>
                             )}
                           {p.workflow_state === "Endorsement Approved" ? (
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(
-                                  `/project-registration?docname=${p.name}&isApprovedEndorsement=true`,
-                                );
-                              }}
-                            >
-                              Register Project
-                            </Button>
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2 text-xs"
+                                disabled={downloadingEndorsementProject === p.name}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadEndorsement(p);
+                                }}
+                              >
+                                <DownloadIcon className="mr-1 h-3.5 w-3.5" />
+                                {downloadingEndorsementProject === p.name ? "Downloading..." : "Download"}
+                              </Button>
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(
+                                    `/project-registration?docname=${p.name}&isApprovedEndorsement=true`,
+                                  );
+                                }}
+                              >
+                                Register Project
+                              </Button>
+                            </>
                           ) : (
                             <Button
                               variant="ghost"
@@ -1657,8 +2194,8 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         </CardContent>
       </Card>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between py-4">
+	      {totalPages > 1 && (
+	        <div className="flex items-center justify-between py-4">
           <div className="text-sm text-zinc-500">
             Page {currentPage} of {totalPages}
           </div>
@@ -1686,10 +2223,105 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
               Next
             </Button>
           </div>
-        </div>
-      )}
-    </div>
-  );
+	        </div>
+	      )}
+	        </>
+	      )}
+
+	      {activeTab === "delegated" && delegatedView === "applications" && (
+	        <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
+	          <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-4 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
+	            <div>
+	              <h2 className="text-[14px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">
+	                Delegated Applications
+	              </h2>
+	              <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+	                Applications shared with you through delegation.
+	              </p>
+	            </div>
+	            <Badge variant="outline">{filteredDelegatedApplications.length}</Badge>
+	          </div>
+	          <CardContent className="p-0">
+	            <div className="overflow-x-auto p-3">
+	              <Table className="border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
+	                <TableHeader className="bg-[#F4F4F5] dark:bg-[#18181B]">
+	                  <TableRow>
+	                    <TableHead className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-wider">Application</TableHead>
+	                    <TableHead className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-wider">Project</TableHead>
+	                    <TableHead className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-wider">Date</TableHead>
+	                    <TableHead className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-wider">Status</TableHead>
+	                    <TableHead className="px-4 py-3 text-right text-[10px] font-extrabold uppercase tracking-wider">Action</TableHead>
+	                  </TableRow>
+	                </TableHeader>
+	                <TableBody>
+	                  {delegatedApplicationsLoading ? (
+	                    Array.from({ length: 2 }).map((_, i) => (
+	                      <TableRow key={i}>
+	                        <TableCell><div className="h-4 w-48 animate-pulse rounded bg-zinc-100" /></TableCell>
+	                        <TableCell><div className="h-4 w-32 animate-pulse rounded bg-zinc-100" /></TableCell>
+	                        <TableCell><div className="h-4 w-24 animate-pulse rounded bg-zinc-100" /></TableCell>
+	                        <TableCell><div className="h-4 w-20 animate-pulse rounded bg-zinc-100" /></TableCell>
+	                        <TableCell><div className="ml-auto h-8 w-8 animate-pulse rounded bg-zinc-100" /></TableCell>
+	                      </TableRow>
+	                    ))
+	                  ) : delegatedApplicationsError ? (
+	                    <TableRow>
+	                      <TableCell colSpan={5} className="h-20 text-center text-red-500">
+	                        {delegatedApplicationsError}
+	                      </TableCell>
+	                    </TableRow>
+	                  ) : filteredDelegatedApplications.length === 0 ? (
+	                    <TableRow>
+	                      <TableCell colSpan={5} className="h-20 text-center text-zinc-500">
+	                        No delegated applications found.
+	                      </TableCell>
+	                    </TableRow>
+	                  ) : (
+	                    filteredDelegatedApplications.map((application) => (
+	                      <TableRow
+	                        key={`${application.doctype}:${application.name}`}
+	                        className="cursor-pointer hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40"
+	                        onClick={() => navigate(getDelegatedApplicationPath(application.doctype, application.name))}
+	                      >
+	                        <TableCell className="px-4 py-3">
+	                          <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
+	                            {application.title || application.name}
+	                          </div>
+	                          <div className="mt-0.5 text-[11px] font-mono text-[#71717A]">
+	                            {application.doctype}: {application.name}
+	                          </div>
+	                          {application.load_error && (
+	                            <div className="mt-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+	                              Details unavailable: {application.load_error}
+	                            </div>
+	                          )}
+	                        </TableCell>
+	                        <TableCell className="px-4 py-3 text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA]">
+	                          {application.project_no || application.project_name || "-"}
+	                        </TableCell>
+	                        <TableCell className="px-4 py-3 text-[12px] text-[#71717A]">
+	                          {application.creation ? format(new Date(application.creation), "MMM dd, yyyy") : "-"}
+	                        </TableCell>
+	                        <TableCell className="px-4 py-3">
+	                          {getStatusBadge(application.workflow_state || "Draft")}
+	                        </TableCell>
+	                        <TableCell className="px-4 py-3 text-right">
+	                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+	                            <ChevronRight className="h-4 w-4" />
+	                            <span className="sr-only">View</span>
+	                          </Button>
+	                        </TableCell>
+	                      </TableRow>
+	                    ))
+	                  )}
+	                </TableBody>
+	              </Table>
+	            </div>
+	          </CardContent>
+	        </Card>
+	      )}
+	    </div>
+	  );
 
   return (
     <div className="w-full mx-auto space-y-5 animate-in fade-in duration-500">
@@ -1707,12 +2339,48 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
             Manage and track all your research projects.
           </p>
         </div>
-      </div>
+	      </div>
+	
+	      <div className="flex flex-wrap gap-2 rounded-xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+	        {[
+	          { id: "myProjects", label: "My Projects", count: myProjects?.length || 0 },
+	          { id: "delegated", label: "Delegated", count: (delegatedProjects?.length || 0) + delegatedApplications.length },
+	        ].map((tab) => {
+	          const active = activeTab === tab.id;
+	          return (
+	            <button
+	              key={tab.id}
+	              onClick={() => {
+	                setActiveTab(tab.id);
+	                setCurrentPage(1);
+	              }}
+	              className={cn(
+	                "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-[12px] font-extrabold uppercase tracking-wide transition-all",
+	                active
+	                  ? "bg-[#EEF2FF] text-[#1E3A8A] shadow-sm dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]"
+	                  : "text-[#52525B] hover:bg-[#F4F4F5] dark:text-[#A1A1AA] dark:hover:bg-[#3F3F46]",
+	              )}
+	            >
+	              {tab.label}
+	              <span
+	                className={cn(
+	                  "rounded-full px-2 py-0.5 text-[11px] font-bold",
+	                  active
+	                    ? "bg-[#4A6CF7] text-white"
+	                    : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]",
+	                )}
+	              >
+	                {tab.count}
+	              </span>
+	            </button>
+	          );
+	        })}
+	      </div>
 
-      <div className="border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
-        {activeTab === "pending"
-          ? renderPendingTasks()
-          : renderProjectsTable()}
+	      <div className="border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
+	        {activeTab === "pending"
+	          ? renderPendingTasks()
+	          : renderProjectsTable()}
       </div>
 
       {/* Delete confirmation dialog */}

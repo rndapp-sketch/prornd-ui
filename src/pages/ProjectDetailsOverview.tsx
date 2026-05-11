@@ -3533,13 +3533,26 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     };
 
     const [searchParams, setSearchParams] = useSearchParams();
+    const isCoProjectView = searchParams.get("coProject") === "1";
+    const setProjectTabParam = (tabId: string) => {
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.set("tab", tabId);
+        if (isCoProjectView) nextParams.set("coProject", "1");
+        setSearchParams(nextParams);
+    };
 
     useEffect(() => {
         const tabParam = searchParams.get("tab");
+        if (isCoProjectView && tabParam === "quick-actions") {
+            setActiveTab("overview");
+            return;
+        }
         if (tabParam) {
             setActiveTab(tabParam);
+        } else if (isCoProjectView && activeTab === "quick-actions") {
+            setActiveTab("overview");
         }
-    }, [searchParams]);
+    }, [activeTab, isCoProjectView, searchParams]);
 
     const handleAddFunds = () =>
         navigate(
@@ -3598,7 +3611,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             inactiveClass: "border-[#FED7AA] bg-[#FFF7ED]/65 text-[#C2410C] hover:bg-[#FFF7ED] dark:border-[#F97316]/30 dark:bg-[#F97316]/10 dark:text-[#FED7AA]",
             iconClass: "text-[#EA580C] dark:text-[#FDBA74]",
         },
-        ...(!embedded
+        ...(!embedded && !isCoProjectView
             ? [{
                 id: "quick-actions",
                 label: "Applications",
@@ -3701,7 +3714,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                         <div className="flex items-start gap-3 min-w-0">
                             {!embedded && (
                                 <button
-                                    onClick={() => navigate("/projects-view")}
+                                    onClick={() => navigate(isCoProjectView ? "/co-projects" : "/projects-view")}
                                     aria-label="Back to projects"
                                     className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
                                 >
@@ -3724,7 +3737,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
-                            {isCurrentUserPI && (
+                            {isCurrentUserPI && !isCoProjectView && (
                                 <div className="flex gap-2 [&_button]:h-8 [&_button]:px-3 [&_button]:text-[12px]">
                                     <FrappeButton
                                         onClick={handleAddFunds}
@@ -3801,7 +3814,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         key={tab.id}
                                         onClick={() => {
                                             setActiveTab(tab.id);
-                                            setSearchParams({ tab: tab.id });
+                                            setProjectTabParam(tab.id);
                                         }}
                                         aria-selected={activeTab === tab.id}
                                         className={cn(
@@ -6296,7 +6309,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                     type="button"
                                     onClick={() => {
                                         setActiveTab("activity");
-                                        setSearchParams({ tab: "activity" });
+                                        setProjectTabParam("activity");
                                     }}
                                     className="ml-auto text-[10px] font-extrabold uppercase tracking-widest text-[#2563EB] hover:text-[#D97757]"
                                 >
