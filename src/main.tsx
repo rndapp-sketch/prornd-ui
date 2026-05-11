@@ -85,7 +85,7 @@ import AdminLogin from './pages/AdminLogin.tsx';
 import NIQForm from './pages/application/NIQForm.tsx';
 import Profile from './pages/Profile.tsx';
 import { HeadOverview } from './pages/dashboards/HeadOverview.tsx';
-// import Messages from './pages/Messages.tsx';
+import MessagesPage from './pages/messages/MessagesPage.tsx';
 import DirectorPdfUpload from './pages/application/DirectorPdfUpload.tsx';
 import DelegateUser from './pages/DelegateUser.tsx';
 import CoProjectView from './pages/CoProjectView.tsx';
@@ -759,6 +759,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="staff, RnD">
                             <DirectorPdfUpload />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "messages",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <MessagesPage />
                         </AuthRouteWrapper>
                     ),
                 },

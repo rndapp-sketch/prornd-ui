@@ -32,7 +32,7 @@ const common_site_config = require("./common_site_config.json");
 const { webserver_port } = common_site_config;
 
 export default {
-  "^/(app|api|assets|files|private)": {
+  "^/(app|api|assets|files|private)(/|$)": {
     // target: `http://172.16.117.39:${webserver_port}`,
     target: `http://172.16.131.206:${webserver_port}`,
     ws: true,
@@ -60,6 +60,14 @@ export default {
   "/prod-rnd-files": {
     target: "http://172.16.135.118:9000",
     changeOrigin: true,
+  },
+  // Proxy for Appwrite (messaging backend) to avoid CORS in dev
+  // Browser hits /appwrite/v1/... and Vite forwards to the Appwrite endpoint
+  "/appwrite": {
+    target: "http://172.16.134.179:9080",
+    changeOrigin: true,
+    ws: true,
+    rewrite: (path: string) => path.replace(/^\/appwrite/, ""),
   },
 };
 
