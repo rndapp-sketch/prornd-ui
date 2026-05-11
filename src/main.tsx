@@ -87,6 +87,8 @@ import Profile from './pages/Profile.tsx';
 import { HeadOverview } from './pages/dashboards/HeadOverview.tsx';
 // import Messages from './pages/Messages.tsx';
 import DirectorPdfUpload from './pages/application/DirectorPdfUpload.tsx';
+import DelegateUser from './pages/DelegateUser.tsx';
+import CoProjectView from './pages/CoProjectView.tsx';
 
 const router = createBrowserRouter(
     [
@@ -247,6 +249,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User"> {/* Adjust role as needed */}
                             <ProjectsView />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "co-projects",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <CoProjectView />
                         </AuthRouteWrapper>
                     ),
                 },
@@ -724,6 +734,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <Profile />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "delegate-user",
+                    element: (
+                        <AuthRouteWrapper allowedRole="Permanent Employee">
+                            <DelegateUser />
                         </AuthRouteWrapper>
                     ),
                 },

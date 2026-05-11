@@ -11,14 +11,16 @@ import {
     FileText,
     CreditCard,
     Calculator,
-    Building2,
     MessageSquare,
-    Clock,
     X,
     ChevronDown,
+    ReceiptText,
+    Landmark,
+    BadgeCheck,
+    ExternalLink,
+    PencilLine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-// import { AppSidebar } from "@/components/RndSidebar";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { useUserRoleChecks } from "../components/UserRoleCheck";
 import { FormRender } from "../components/FormRender";
@@ -30,7 +32,7 @@ import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 
-// Component to fetch and display attachment for a transaction
+// ── Attachment helper ──────────────────────────────────────────────────────────
 const TransactionAttachment = ({
     transactionName,
     fallbackFile,
@@ -38,2152 +40,821 @@ const TransactionAttachment = ({
     transactionName: string;
     fallbackFile?: string;
 }) => {
-    // Attempt to find a File document attached to this transaction row
     const { data } = useFrappeGetCall<{ message: any[] }>(
         "frappe.client.get_list",
-        {
-            doctype: "File",
-            filters: {
-                attached_to_name: transactionName,
-            },
-            fields: ["file_url", "file_name"],
-            limit_page_length: 1,
-        },
+        { doctype: "File", filters: { attached_to_name: transactionName }, fields: ["file_url", "file_name"], limit_page_length: 1 },
     );
-
     const file = data?.message?.[0];
     const fileUrl = file?.file_url || fallbackFile;
     const fileName = file?.file_name || "Attachment";
-
-    if (!fileUrl)
-        return <span className="text-zinc-400 dark:text-zinc-500">-</span>;
-
+    if (!fileUrl) return <span className="text-[#A1A1AA]">—</span>;
     return (
-        <a
-            href={fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
-            title={fileName}
-        >
-            <FileText className="h-4 w-4" />
+        <a href={fileUrl} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-[#4A6CF7] hover:text-[#2563EB] transition-colors"
+            title={fileName}>
+            <ExternalLink className="h-3 w-3" />
+            View
         </a>
     );
 };
 
-// --- DEPOSIT SLIP TYPE CONFIGURATION ---
-const DEPOSIT_SLIP_TYPES: Record<
-    string,
-    {
-        label: string;
-        getFields: string;
-        save: string;
-        submit: string;
-        getWorkflowActions: string;
-        performAction: string;
-    }
-> = {
-    t_testing: {
-        label: "T Testing Deposit Slip",
-        getFields:
-            "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.get_t_testing_deposit_slip_fields",
-        save: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.save_t_testing_deposit_slip",
-        submit: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.submit_t_testing_deposit_slip",
-        getWorkflowActions:
-            "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.get_t_testing_deposit_slip_workflow_actions",
-        performAction:
-            "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.perform_t_testing_deposit_slip_workflow_action",
-    },
-    research_consultancy: {
-        label: "Research Consultancy Deposit Slip",
-        getFields:
-            "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.get_research_consultancy_deposit_slip_fields",
-        save: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.save_research_consultancy_deposit_slip",
-        submit: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.submit_research_consultancy_deposit_slip",
-        getWorkflowActions:
-            "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.get_research_consultancy_deposit_slip_workflow_actions",
-        performAction:
-            "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.perform_research_consultancy_deposit_slip_workflow_action",
-    },
-    other_event: {
-        label: "Other Event Deposit Slip",
-        getFields:
-            "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.get_other_event_deposit_slip_fields",
-        save: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.save_other_event_deposit_slip",
-        submit: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.submit_other_event_deposit_slip",
-        getWorkflowActions:
-            "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.get_other_event_deposit_slip_workflow_actions",
-        performAction:
-            "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.perform_other_event_deposit_slip_workflow_action",
-    },
-    e_non_routine: {
-        label: "E Non Routine Deposit Slip",
-        getFields:
-            "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.get_e_non_routine_deposit_slip_fields",
-        save: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.save_e_non_routine_deposit_slip",
-        submit: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.submit_e_non_routine_deposit_slip",
-        getWorkflowActions:
-            "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.get_e_non_routine_deposit_slip_workflow_actions",
-        performAction:
-            "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.perform_e_non_routine_deposit_slip_workflow_action",
-    },
-    d_consultancy: {
-        label: "D Consultancy Deposit Slip",
-        getFields:
-            "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.get_d_consultancy_deposit_slip_fields",
-        save: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.save_d_consultancy_deposit_slip",
-        submit: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.submit_d_consultancy_deposit_slip",
-        getWorkflowActions:
-            "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.get_d_consultancy_deposit_slip_workflow_actions",
-        performAction:
-            "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.perform_d_consultancy_deposit_slip_workflow_action",
-    },
-    research_deposit_slip: {
-        label: "Research Deposit Slip",
-        getFields:
-            "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.get_research_deposit_slip_fields",
-        save: "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.save_research_deposit_slip",
-        submit: "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.submit_research_deposit_slip",
-        getWorkflowActions:
-            "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.get_research_deposit_slip_workflow_actions",
-        performAction:
-            "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.perform_research_deposit_slip_workflow_action",
-    },
+// ── Deposit slip type config ───────────────────────────────────────────────────
+const DEPOSIT_SLIP_TYPES: Record<string, { label: string; getFields: string; save: string; submit: string; getWorkflowActions: string; performAction: string }> = {
+    t_testing: { label: "T Testing Deposit Slip", getFields: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.get_t_testing_deposit_slip_fields", save: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.save_t_testing_deposit_slip", submit: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.submit_t_testing_deposit_slip", getWorkflowActions: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.get_t_testing_deposit_slip_workflow_actions", performAction: "rndopsapp.rndopsapp.doctype.t_testing_deposit_slip.t_testing_deposit_slip.perform_t_testing_deposit_slip_workflow_action" },
+    research_consultancy: { label: "Research Consultancy Deposit Slip", getFields: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.get_research_consultancy_deposit_slip_fields", save: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.save_research_consultancy_deposit_slip", submit: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.submit_research_consultancy_deposit_slip", getWorkflowActions: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.get_research_consultancy_deposit_slip_workflow_actions", performAction: "rndopsapp.rndopsapp.doctype.research_consultancy_deposit_slip.research_consultancy_deposit_slip.perform_research_consultancy_deposit_slip_workflow_action" },
+    other_event: { label: "Other Event Deposit Slip", getFields: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.get_other_event_deposit_slip_fields", save: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.save_other_event_deposit_slip", submit: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.submit_other_event_deposit_slip", getWorkflowActions: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.get_other_event_deposit_slip_workflow_actions", performAction: "rndopsapp.rndopsapp.doctype.other_event_deposit_slip.other_event_deposit_slip.perform_other_event_deposit_slip_workflow_action" },
+    e_non_routine: { label: "E Non Routine Deposit Slip", getFields: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.get_e_non_routine_deposit_slip_fields", save: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.save_e_non_routine_deposit_slip", submit: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.submit_e_non_routine_deposit_slip", getWorkflowActions: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.get_e_non_routine_deposit_slip_workflow_actions", performAction: "rndopsapp.rndopsapp.doctype.e_non_routine_deposit_slip.e_non_routine_deposit_slip.perform_e_non_routine_deposit_slip_workflow_action" },
+    d_consultancy: { label: "D Consultancy Deposit Slip", getFields: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.get_d_consultancy_deposit_slip_fields", save: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.save_d_consultancy_deposit_slip", submit: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.submit_d_consultancy_deposit_slip", getWorkflowActions: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.get_d_consultancy_deposit_slip_workflow_actions", performAction: "rndopsapp.rndopsapp.doctype.d_consultancy_deposit_slip.d_consultancy_deposit_slip.perform_d_consultancy_deposit_slip_workflow_action" },
+    research_deposit_slip: { label: "Research Deposit Slip", getFields: "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.get_research_deposit_slip_fields", save: "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.save_research_deposit_slip", submit: "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.submit_research_deposit_slip", getWorkflowActions: "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.get_research_deposit_slip_workflow_actions", performAction: "rndopsapp.rndopsapp.doctype.research_deposit_slip.research_deposit_slip.perform_research_deposit_slip_workflow_action" },
 };
 
-// --- TYPE DEFINITIONS ---
-interface Field {
-    fieldname: string;
-    label: string | null;
-    fieldtype: string;
-    options?: string | null;
-    mandatory: boolean;
-    hidden: boolean;
-    read_only: boolean;
-    description?: string | null;
-    default?: any;
-    depends_on?: string | null;
-    depends_on_eval?: string | null;
-    fetch_from?: string;
-}
+interface Field { fieldname: string; label: string | null; fieldtype: string; options?: string | null; mandatory: boolean; hidden: boolean; read_only: boolean; description?: string | null; default?: any; depends_on?: string | null; depends_on_eval?: string | null; fetch_from?: string }
+interface LinkOption { value: string; label: string }
+interface FormData { [key: string]: any }
 
-interface LinkOption {
-    value: string;
-    label: string;
-}
+// ── Status badge ───────────────────────────────────────────────────────────────
+const statusStyle = (state: string) => {
+    const s = state?.toLowerCase() ?? "";
+    if (s.includes("approved") || s.includes("received")) return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400";
+    if (s.includes("pending") || s.includes("review")) return "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400";
+    if (s.includes("reject") || s.includes("cancel")) return "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400";
+    if (s.includes("draft")) return "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400";
+    if (s.includes("submitted") || s.includes("forward")) return "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400";
+    return "bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400";
+};
 
-interface FormData {
-    [key: string]: any;
-}
-
-// --- STYLED COMPONENTS ---
-const FrappeCard = ({
-    title,
-    children,
-    className,
-    icon,
-}: {
-    title?: string;
-    children: React.ReactNode;
-    className?: string;
-    icon?: React.ReactNode;
-}) => (
-    <div
-        className={cn(
-            "bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl shadow-sm",
-            className,
-        )}
-    >
-        {title && (
-            <div className="px-5 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] flex items-center gap-3">
-                {icon && (
-                    <div className="p-2 bg-[#EEF2FF] dark:bg-[#1E3A8A]/18 rounded-lg">
-                        {icon}
-                    </div>
-                )}
-                <h3 className="text-[12px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-[0.12em]">
-                    {title}
-                </h3>
-            </div>
-        )}
-        <div className="p-5">{children}</div>
-    </div>
+const StatusBadge = ({ state }: { state: string }) => (
+    <span className={cn("inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide whitespace-nowrap", statusStyle(state))}>
+        <span className={cn("w-[5px] h-[5px] rounded-full shrink-0",
+            state?.toLowerCase().includes("approved") || state?.toLowerCase().includes("received") ? "bg-emerald-500" :
+            state?.toLowerCase().includes("pending") ? "bg-amber-500" :
+            state?.toLowerCase().includes("reject") ? "bg-red-500" :
+            state?.toLowerCase().includes("submitted") ? "bg-blue-500" : "bg-violet-500"
+        )} />
+        {state}
+    </span>
 );
 
-const FrappeButton = ({
-    children,
-    onClick,
-    disabled,
-    className,
-    variant = "primary",
-    type = "button",
-}: {
-    children: React.ReactNode;
-    onClick?: () => void;
-    disabled?: boolean;
-    className?: string;
-    variant?: "primary" | "ghost" | "outline" | "action";
-    type?: "button" | "submit";
-}) => (
-    <button
-        type={type}
-        onClick={onClick}
-        disabled={disabled}
-        className={cn(
-            "inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-all duration-150",
-            "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
-            variant === "primary" &&
-            "bg-[#D97757] text-white hover:bg-[#D97757] shadow-md hover:shadow-lg border border-[#C66A4E]",
-            variant === "ghost" &&
-            "bg-transparent text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200 dark:bg-zinc-700 hover:text-zinc-900 dark:text-zinc-100",
-            variant === "outline" &&
-            "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg dark:bg-zinc-900 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800",
-            variant === "action" &&
-            "bg-[#D97757] text-white font-bold hover:bg-[#D97757] shadow-md hover:shadow-lg border-2 border-[#C66A4E]",
-            "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
-            className,
-        )}
-    >
-        {children}
-    </button>
-);
-
-// --- COMMENT MODAL ---
-const CommentModal = ({
-    isOpen,
-    onClose,
-    onSubmit,
-    action,
-    isLoading,
-}: {
-    isOpen: boolean;
-    onClose: () => void;
-    onSubmit: (comment: string) => void;
-    action: string;
-    isLoading: boolean;
-}) => {
+// ── Comment modal ──────────────────────────────────────────────────────────────
+const CommentModal = ({ isOpen, onClose, onSubmit, action, isLoading }: { isOpen: boolean; onClose: () => void; onSubmit: (comment: string) => void; action: string; isLoading: boolean }) => {
     const [comment, setComment] = useState("");
-
     if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 rounded-xl shadow-lg w-full max-w-md">
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-                    Confirm {action}
-                </h3>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-6 rounded-2xl shadow-xl w-full max-w-md mx-4">
+                <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1">Confirm Action</h3>
+                <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] mb-4">You are about to perform: <span className="font-bold text-[#D97757]">{action}</span></p>
                 <textarea
-                    className="w-full border border-zinc-300 dark:border-zinc-700 p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                    rows={4}
+                    className="w-full border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 rounded-lg text-[13px] text-[#3F3F46] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] mb-4 resize-none focus:outline-none focus:ring-[3px] focus:ring-[#4A6CF7]/12 focus:border-[#4A6CF7] transition-colors"
+                    rows={3}
                     placeholder="Add a comment (optional)..."
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                 />
                 <div className="flex justify-end gap-2">
-                    <FrappeButton
-                        variant="outline"
-                        onClick={onClose}
-                        disabled={isLoading}
-                    >
-                        Cancel
-                    </FrappeButton>
-                    <FrappeButton
-                        variant="primary"
-                        onClick={() => {
-                            onSubmit(comment);
-                            setComment("");
-                        }}
-                        disabled={isLoading}
-                    >
-                        {isLoading ? "Processing..." : "Confirm"}
-                    </FrappeButton>
+                    <button onClick={onClose} disabled={isLoading} className="btn-neutral text-sm px-4 py-2 rounded-lg font-semibold">Cancel</button>
+                    <button onClick={() => { onSubmit(comment); setComment(""); }} disabled={isLoading} className="btn-primary-accent text-sm px-4 py-2 rounded-lg font-semibold">
+                        {isLoading ? "Processing…" : "Confirm"}
+                    </button>
                 </div>
             </div>
         </div>
     );
 };
 
-// --- INPUT STYLES ---
-
-// --- HELPER: Evaluate depends_on condition ---
-const evaluateDependsOn = (
-    dependsOn: string | null | undefined,
-    formData: FormData,
-): boolean => {
+// ── depends_on evaluator ───────────────────────────────────────────────────────
+const evaluateDependsOn = (dependsOn: string | null | undefined, formData: FormData): boolean => {
     if (!dependsOn) return true;
-
     try {
-        // Remove 'eval:' prefix if present
-        let expression = dependsOn;
-        if (expression.startsWith("eval:")) {
-            expression = expression.substring(5);
-        }
-
-        // Create a safe evaluation context with 'doc' as formData
+        let expression = dependsOn.startsWith("eval:") ? dependsOn.substring(5) : dependsOn;
         const doc = formData;
-
-        // Handle common patterns safely
-        // Pattern: doc.fieldname=='value' or doc.fieldname=="value"
-        const equalityMatch = expression.match(
-            /doc\.([\w_]+)\s*[==]+\s*['"]([^'"]*)['"]/,
-        );
-        if (equalityMatch) {
-            const [, fieldName, expectedValue] = equalityMatch;
-            return doc[fieldName] === expectedValue;
-        }
-
-        // Pattern: doc.fieldname!='value' or doc.fieldname!=="value"
-        const notEqualMatch = expression.match(
-            /doc\.([\w_]+)\s*!==?\s*['"]([^'"]*)['"]/,
-        );
-        if (notEqualMatch) {
-            const [, fieldName, expectedValue] = notEqualMatch;
-            return doc[fieldName] !== expectedValue;
-        }
-
-        // Pattern: doc.fieldname.includes('value')
-        const includesMatch = expression.match(
-            /doc\.([\w_]+)\.includes\(['"]([^'"]*)['"]\)/,
-        );
-        if (includesMatch) {
-            const [, fieldName, searchValue] = includesMatch;
-            const fieldValue = doc[fieldName];
-            return (
-                typeof fieldValue === "string" &&
-                fieldValue.includes(searchValue)
-            );
-        }
-
-        // Fallback: try eval (use with caution)
+        const equalityMatch = expression.match(/doc\.([\w_]+)\s*[==]+\s*['"]([^'"]*)['"]/);
+        if (equalityMatch) return doc[equalityMatch[1]] === equalityMatch[2];
+        const notEqualMatch = expression.match(/doc\.([\w_]+)\s*!==?\s*['"]([^'"]*)['"]/);
+        if (notEqualMatch) return doc[notEqualMatch[1]] !== notEqualMatch[2];
+        const includesMatch = expression.match(/doc\.([\w_]+)\.includes\(['"]([^'"]*)['"]\)/);
+        if (includesMatch) { const v = doc[includesMatch[1]]; return typeof v === "string" && v.includes(includesMatch[2]); }
         return eval(expression);
-    } catch (e) {
-        console.warn("Failed to evaluate depends_on:", dependsOn, e);
-        return true; // Show field if evaluation fails
-    }
+    } catch { return true; }
 };
 
-// --- WORKFLOW ACTIONS COMPONENT ---
+// ── Workflow actions ───────────────────────────────────────────────────────────
 interface FundReceivedWorkflowActionsProps {
     docname: string;
     onActionComplete: () => void;
-    // Callback that returns additional args to send to the API, or null to cancel the action
     onBeforeAction?: (action: string) => Promise<{ [key: string]: any } | null>;
-    // Callback to determine if an action button should be disabled
     disabledCondition?: (action: string) => boolean;
 }
 
-const FundReceivedWorkflowActions = ({
-    docname,
-    onActionComplete,
-    onBeforeAction,
-    disabledCondition,
-}: FundReceivedWorkflowActionsProps) => {
-    const { data, isLoading: actionsLoading } = useFrappeGetCall<{
-        message: string[];
-    }>(
-        "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_workflow_actions",
-        { docname },
+const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction, disabledCondition }: FundReceivedWorkflowActionsProps) => {
+    const { data, isLoading: actionsLoading } = useFrappeGetCall<{ message: string[] }>(
+        "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_workflow_actions", { docname },
     );
-
     const { call: performAction, loading: actionLoading } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.perform_fund_received_action",
     );
-
-    const { call: addComment } = useFrappePostCall(
-        "rndopsapp.rndopsapp.api.add_project_comment",
-    );
-
+    const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedAction, setSelectedAction] = useState("");
 
     const handleActionClick = (action: string) => {
         if (disabledCondition && disabledCondition(action)) return;
-        setSelectedAction(action);
-        setModalOpen(true);
+        setSelectedAction(action); setModalOpen(true);
     };
-
     const handleConfirmAction = async (comment: string) => {
         try {
             let additionalArgs: { [key: string]: any } = {};
-
-            // If callback exists, get extra data (e.g., deposit slip form data)
             if (onBeforeAction) {
                 const result = await onBeforeAction(selectedAction);
-                if (result === null) {
-                    setModalOpen(false);
-                    return; // Action cancelled (e.g., validation failed)
-                }
+                if (result === null) { setModalOpen(false); return; }
                 additionalArgs = result;
             }
-
-            // Perform the action (without comment in API call)
-            await performAction({
-                docname,
-                action: selectedAction,
-                ...additionalArgs,
-            });
-
-            // Add comment as activity if provided
-            if (comment && comment.trim()) {
-                try {
-                    await addComment({
-                        doctype: "Fund Received",
-                        docname: docname,
-                        content: `[${selectedAction}] ${comment.trim()}`,
-                    });
-                } catch (commentError) {
-                    console.error("Error adding comment:", commentError);
-                    // Don't fail the whole operation if comment fails
-                }
+            await performAction({ docname, action: selectedAction, ...additionalArgs });
+            if (comment?.trim()) {
+                try { await addComment({ doctype: "Fund Received", docname, content: `[${selectedAction}] ${comment.trim()}` }); } catch {}
             }
-
-            setModalOpen(false);
-            onActionComplete();
-        } catch (error) {
-            console.error("Error performing action:", error);
-            alert("Failed to perform action. Please try again.");
-        }
+            setModalOpen(false); onActionComplete();
+        } catch { alert("Failed to perform action. Please try again."); }
     };
 
     if (actionsLoading || !data?.message?.length) return null;
-
     return (
         <>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
                 {data.message.map((action) => {
-                    const isDisabled = disabledCondition
-                        ? disabledCondition(action)
-                        : false;
+                    const isDisabled = disabledCondition ? disabledCondition(action) : false;
                     return (
-                        <FrappeButton
-                            key={action}
-                            onClick={() => handleActionClick(action)}
+                        <button key={action} onClick={() => handleActionClick(action)}
                             disabled={actionLoading || isDisabled}
-                            variant={isDisabled ? "outline" : "action"} // Visual feedback
-                            className={
-                                isDisabled
-                                    ? "opacity-50 cursor-not-allowed"
-                                    : ""
-                            }
-                        >
+                            className={cn("inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold uppercase tracking-wide transition-all",
+                                isDisabled ? "opacity-40 cursor-not-allowed bg-[#FAFAF9] dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#71717A]"
+                                           : "bg-[#D97757] hover:bg-[#c66a4e] text-white shadow-sm hover:shadow-md"
+                            )}>
                             {action}
-                        </FrappeButton>
+                        </button>
                     );
                 })}
             </div>
-            <CommentModal
-                isOpen={modalOpen}
-                onClose={() => setModalOpen(false)}
-                onSubmit={handleConfirmAction}
-                action={selectedAction}
-                isLoading={actionLoading}
-            />
+            <CommentModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleConfirmAction} action={selectedAction} isLoading={actionLoading} />
         </>
     );
 };
 
-// --- DETAIL ROW COMPONENT ---
-const DetailRow = ({
-    label,
-    value,
-    isCurrency = false,
-}: {
-    label: string;
-    value: any;
-    isCurrency?: boolean;
-}) => (
-    <div className="flex justify-between py-3 border-b border-zinc-200 dark:border-zinc-800 last:border-0">
-        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            {label}
-        </span>
-        <span
-            className={cn(
-                "text-sm font-bold",
-                isCurrency
-                    ? "text-[#D97757]"
-                    : "text-zinc-900 dark:text-zinc-100",
-            )}
-        >
-            {isCurrency && value != null
-                ? value.toLocaleString("en-IN", {
-                    style: "currency",
-                    currency: "INR",
-                })
-                : value || "-"}
-        </span>
+// ── KPI mini card ──────────────────────────────────────────────────────────────
+const KpiMini = ({ label, value, icon, accent }: { label: string; value: React.ReactNode; icon: React.ReactNode; accent: string }) => (
+    <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-5 relative overflow-hidden flex flex-col gap-3">
+        <div className="absolute bottom-0 right-0 w-20 h-20 rounded-full translate-x-4 translate-y-4 pointer-events-none" style={{ backgroundColor: accent, opacity: 0.07 }} />
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `color-mix(in srgb, ${accent} 12%, transparent)`, color: accent }}>
+            {icon}
+        </div>
+        <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-0.5">{label}</p>
+            <div className="text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">{value || "—"}</div>
+        </div>
     </div>
 );
 
-// --- ACTIVITY STREAM COMPONENT ---
-interface ActivityItem {
-    owner: string;
-    creation: string;
-    content: string;
-    comment_type: string;
-}
-
-const ActivityStream = ({
-    doctype,
-    docname,
-    onRefresh,
-}: {
-    doctype: string;
-    docname: string;
-    onRefresh?: () => void;
-}) => {
-    const [newComment, setNewComment] = useState("");
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const {
-        data: activityData,
-        mutate: refetchActivity,
-        isLoading: isActivityLoading,
-        error: activityError,
-    } = useFrappeGetCall<{ message: ActivityItem[] }>(
-        "rndopsapp.rndopsapp.api.get_project_activity",
-        { doctype, docname },
-        docname ? undefined : null, // Don't fetch if no docname
-    );
-
-    const { call: addComment } = useFrappePostCall(
-        "rndopsapp.rndopsapp.api.add_project_comment",
-    );
-
-    const handleCommentSubmit = async () => {
-        if (!newComment.trim()) return;
-        setIsSubmitting(true);
-        try {
-            await addComment({ doctype, docname, content: newComment.trim() });
-            setNewComment("");
-            await refetchActivity();
-            onRefresh?.();
-        } catch (err: any) {
-            console.error("Failed to add comment:", err);
-            alert("Error: Could not post comment.");
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-            handleCommentSubmit();
-        }
-    };
-
-    return (
-        <div className="space-y-4">
-            {/* Add Comment Section */}
-            <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-lg">
-                <label
-                    htmlFor="fund-comment-textarea"
-                    className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2"
-                >
-                    Add a comment
-                </label>
-                <textarea
-                    id="fund-comment-textarea"
-                    placeholder="Type here... (Ctrl+Enter to submit)"
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    onKeyDown={handleKeyPress}
-                    disabled={isSubmitting}
-                    className="w-full resize-none bg-white dark:bg-zinc-900 p-3 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] text-sm"
-                    rows={3}
-                />
-                <div className="flex items-center justify-between mt-3">
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {newComment.length}/1000
-                    </span>
-                    <FrappeButton
-                        variant="primary"
-                        onClick={handleCommentSubmit}
-                        disabled={isSubmitting || !newComment.trim()}
-                    >
-                        {isSubmitting ? "Posting..." : "Post Comment"}
-                    </FrappeButton>
-                </div>
-            </div>
-
-            {/* Activity List */}
-            <div className="space-y-3">
-                {isActivityLoading && (
-                    <div className="flex justify-center py-6">
-                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#D97757] border-t-transparent"></div>
-                    </div>
-                )}
-                {activityError && (
-                    <div className="text-center p-4 text-red-700 border border-red-200 rounded-lg bg-red-50">
-                        <p className="text-sm font-medium">
-                            Failed to load activity
-                        </p>
-                    </div>
-                )}
-                {activityData?.message && activityData.message.length > 0
-                    ? activityData.message.map((item, index) => (
-                        <div
-                            key={`${item.creation}-${index}`}
-                            className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg"
-                        >
-                            <div className="flex-shrink-0 h-8 w-8 rounded-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 flex items-center justify-center font-semibold text-[#D97757] text-xs">
-                                {item.owner?.charAt(0).toUpperCase() || "U"}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center mb-1">
-                                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                                        {item.owner || "Unknown User"}
-                                    </p>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center gap-1 flex-shrink-0">
-                                        <Clock className="h-3 w-3" />
-                                        {item.creation
-                                            ? new Date(
-                                                item.creation,
-                                            ).toLocaleString()
-                                            : "N/A"}
-                                    </p>
-                                </div>
-                                <div
-                                    className="text-sm text-zinc-700 dark:text-zinc-300 prose prose-sm max-w-none leading-relaxed"
-                                    dangerouslySetInnerHTML={{
-                                        __html: item.content || "No content",
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    ))
-                    : !isActivityLoading && (
-                        <div className="text-center py-8 text-zinc-500 dark:text-zinc-400 border border-dashed border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900">
-                            <MessageSquare className="h-10 w-10 text-zinc-300 dark:text-zinc-600 mx-auto mb-3" />
-                            <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                                No activity yet.
-                            </p>
-                            <p className="text-xs mt-1">
-                                Be the first to add a comment.
-                            </p>
-                        </div>
-                    )}
-            </div>
-        </div>
-    );
-};
-
-// --- MAIN COMPONENT ---
+// ── Main component ─────────────────────────────────────────────────────────────
 const FundReceivedDetails = () => {
     const { name } = useParams<{ name: string }>();
     const navigate = useNavigate();
     const location = useLocation();
     const prjreg_title = location.state?.prjreg_title;
-
-    // Check user roles - show deposit form only for RnD Miscellaneous
+    const routeSanctionName = location.state?.sanction_ref_no || "";
     const { isRndMiscellaneous } = useUserRoleChecks();
 
-    // Form state
     const [fields, setFields] = useState<Field[]>([]);
     const [formData, setFormData] = useState<FormData>({});
-    const [linkOptions, setLinkOptions] = useState<
-        Record<string, LinkOption[]>
-    >({});
+    const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [selectedDepositSlipType, setSelectedDepositSlipType] =
-        useState<string>("");
+    const [selectedDepositSlipType, setSelectedDepositSlipType] = useState<string>("");
     const [depositFormLoading, setDepositFormLoading] = useState(false);
     const [showActivityLog, setShowActivityLog] = useState(false);
     const [showSummary, setShowSummary] = useState(false);
-    const [childTableMeta, setChildTableMeta] = useState<Record<string, any>>(
-        {},
-    );
-    // Fetch the full document first (always available from URL param)
-    const {
-        data: docData,
-        isLoading: docLoading,
-        error: docError,
-    } = useFrappeGetDoc("Fund Received", name || "");
+    const [childTableMeta, setChildTableMeta] = useState<Record<string, any>>({});
 
-    // Use prjreg_title from navigation state, or fall back to the loaded document's field.
-    // This ensures the enriched list API fires even when navigating from pending tasks.
+    const { data: docData, isLoading: docLoading, error: docError } = useFrappeGetDoc("Fund Received", name || "");
     const effectivePrjregTitle = prjreg_title || docData?.prjreg_title;
-
-    const {
-        data: apiData,
-        isLoading: listLoading,
-        error: listError,
-        mutate,
-    } = useFrappeGetCall(
+    const { data: apiData, isLoading: listLoading, error: listError, mutate } = useFrappeGetCall(
         "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
-        effectivePrjregTitle
-            ? { prjreg_title: effectivePrjregTitle, limit: 0, start: 0 }
-            : undefined,
+        effectivePrjregTitle ? { prjreg_title: effectivePrjregTitle, limit: 0, start: 0 } : undefined,
         effectivePrjregTitle || null,
     );
-
-    // Resolve sanction_ref_no from all available sources
-    const resolvedSanctionRef =
-        docData?.sanction_ref_no ||
-        docData?.fund_transactions?.[0]?.sanction_ref_no ||
-        docData?.received_amt_breakup?.[0]?.sanction_ref_no ||
-        "";
-
-    // Fetch linked Fund Sanction document for full details
-    const { data: sanctionDoc } = useFrappeGetDoc(
-        "Fund Sanction",
-        resolvedSanctionRef || "NONE",
-    );
-
-    // Normalize fund data
     const normalizeResponse = (raw: any) => {
         if (!raw) return [];
-        if (raw.message?.message && Array.isArray(raw.message.message))
-            return raw.message.message;
+        if (raw.message?.message && Array.isArray(raw.message.message)) return raw.message.message;
         if (raw.message && Array.isArray(raw.message)) return raw.message;
         if (Array.isArray(raw)) return raw;
         return [];
     };
-
     const funds = normalizeResponse(apiData);
     const listData = funds.find((f: any) => f.name === name);
-    // Use enriched listData when available (has joined fields like sanction_ref_no),
-    // merge with docData so no fields are lost. Fall back to docData only.
-    const fundData = listData
-        ? { ...docData, ...listData }
-        : docData
-            ? {
-                ...docData,
-                sanction_ref_no: resolvedSanctionRef,
-            }
-            : null;
-
-    const isLoading =
-        docLoading || (effectivePrjregTitle ? listLoading : false);
+    const fundData = listData ? { ...docData, ...listData } : docData ?? null;
+    const findChildSanctionName = (doc: any) => {
+        const childTables = [doc?.fund_transactions, doc?.received_amt_breakup];
+        for (const table of childTables) {
+            const rowWithSanction = Array.isArray(table)
+                ? table.find((row: any) => row?.sanction_ref_no)
+                : null;
+            if (rowWithSanction?.sanction_ref_no) return rowWithSanction.sanction_ref_no;
+        }
+        return "";
+    };
+    const savedSanctionName =
+        fundData?.sanction_ref_no ||
+        docData?.sanction_ref_no ||
+        findChildSanctionName(fundData) ||
+        findChildSanctionName(docData) ||
+        routeSanctionName ||
+        "";
+    const { data: projectRegLookup } = useFrappeGetCall<{ message: any[] }>(
+        "frappe.client.get_list",
+        {
+            doctype: "Project Registration",
+            filters: { project_no: effectivePrjregTitle },
+            fields: ["name"],
+            limit_page_length: 1,
+        },
+        savedSanctionName || !effectivePrjregTitle ? null : `project-registration-for-${effectivePrjregTitle}`,
+        { revalidateOnFocus: false },
+    );
+    const sanctionLookupProjectName = projectRegLookup?.message?.[0]?.name || effectivePrjregTitle;
+    // Fund Received stores the selected sanction in sanction_ref_no. Prefer that exact
+    // document name; project lookups are only a fallback for older/incomplete records.
+    const { data: sanctionsForProject } = useFrappeGetCall<{ message: any[] }>(
+        "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
+        { project_name: sanctionLookupProjectName },
+        savedSanctionName ? null : sanctionLookupProjectName || null,
+        { revalidateOnFocus: false },
+    );
+    const fallbackSanction = sanctionsForProject?.message?.[0];
+    const sanctionName = savedSanctionName || fallbackSanction?.name || "";
+    const { data: sanctionDoc } = useFrappeGetDoc(
+        "Fund Sanction",
+        sanctionName,
+        sanctionName ? undefined : null,
+        { revalidateOnFocus: false },
+    );
+    const sanctionDetails = sanctionDoc || fallbackSanction;
+    const isLoading = docLoading || (effectivePrjregTitle ? listLoading : false);
     const error = docError || (effectivePrjregTitle ? listError : null);
+    const showDepositSlip = isRndMiscellaneous && (
+        docData?.workflow_state === "Pending Misc. Staff Approval(Deposit Slip Pending)" ||
+        listData?.workflow_state === "Pending Misc. Staff Approval(Deposit Slip Pending)"
+    );
 
-    const showDepositSlip =
-        isRndMiscellaneous &&
-        (docData?.workflow_state ===
-            "Pending Misc. Staff Approval(Deposit Slip Pending)" ||
-            listData?.workflow_state ===
-            "Pending Misc. Staff Approval(Deposit Slip Pending)");
-
-    // State for client script
     const [clientScript, setClientScript] = useState<string>("");
-
-    // Initialize dynamic client script engine (fallback/legacy)
     useFrappeClientScript(clientScript, formData, setFormData);
-
-    // Initialize native calculations hook (primary)
     useDepositSlipCalculations(formData, setFormData, selectedDepositSlipType);
-
-    // Initialize fetch_from logic (auto-fill)
     useFrappeFetchFrom(formData, setFormData, fields);
 
-    // Child table fetch_from logic: auto-fill linked fields in child table rows
     const childFetchRef = React.useRef<Set<string>>(new Set());
     React.useEffect(() => {
         if (!childTableMeta || Object.keys(childTableMeta).length === 0) return;
-
-        Object.entries(childTableMeta).forEach(
-            ([tableName, meta]: [string, any]) => {
-                const rows = formData[tableName];
-                if (!Array.isArray(rows)) return;
-
-                // Find fields with fetch_from in this child table
-                const fetchFields = (meta.fields || []).filter(
-                    (f: any) => f.fetch_from && f.fetch_from.includes("."),
-                );
-                if (fetchFields.length === 0) return;
-
-                rows.forEach((row: any, rowIndex: number) => {
-                    fetchFields.forEach((targetField: any) => {
-                        const [sourceFieldName, sourceProperty] =
-                            targetField.fetch_from.split(".");
-                        const sourceValue = row[sourceFieldName];
-
-                        if (!sourceValue) return; // Skip if no source value
-
-                        // Use row id + source value as key to allow re-fetch when source changes
-                        const rowId = row.id || row.name || rowIndex;
-                        const fetchKey = `${tableName}:${rowId}:${targetField.fieldname}:${sourceValue}`;
-                        if (childFetchRef.current.has(fetchKey)) return;
-                        childFetchRef.current.add(fetchKey);
-
-                        // Find the source field definition to get the doctype
-                        const sourceFieldDef = (meta.fields || []).find(
-                            (f: any) => f.fieldname === sourceFieldName,
-                        );
-                        const doctype = sourceFieldDef?.options;
-                        if (!doctype) return;
-
-                        fetch("/api/method/frappe.client.get_value", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            credentials: "include",
-                            body: JSON.stringify({
-                                doctype,
-                                filters: { name: sourceValue },
-                                fieldname: [sourceProperty],
-                            }),
-                        })
-                            .then((res) => res.json())
-                            .then((data) => {
-                                if (
-                                    data.message?.[sourceProperty] !== undefined
-                                ) {
-                                    setFormData((prev) => {
-                                        const table = [
-                                            ...(prev[tableName] || []),
-                                        ];
-                                        if (table[rowIndex]) {
-                                            table[rowIndex] = {
-                                                ...table[rowIndex],
-                                                [targetField.fieldname]:
-                                                    data.message[
-                                                    sourceProperty
-                                                    ],
-                                            };
-                                        }
-                                        return { ...prev, [tableName]: table };
-                                    });
-                                }
-                            })
-                            .catch((err) =>
-                                console.error(
-                                    "Child table fetch_from error:",
-                                    err,
-                                ),
-                            );
-                    });
+        Object.entries(childTableMeta).forEach(([tableName, meta]: [string, any]) => {
+            const rows = formData[tableName];
+            if (!Array.isArray(rows)) return;
+            const fetchFields = (meta.fields || []).filter((f: any) => f.fetch_from && f.fetch_from.includes("."));
+            if (fetchFields.length === 0) return;
+            rows.forEach((row: any, rowIndex: number) => {
+                fetchFields.forEach((targetField: any) => {
+                    const [sourceFieldName, sourceProperty] = targetField.fetch_from.split(".");
+                    const sourceValue = row[sourceFieldName];
+                    if (!sourceValue) return;
+                    const rowId = row.id || row.name || rowIndex;
+                    const fetchKey = `${tableName}:${rowId}:${targetField.fieldname}:${sourceValue}`;
+                    if (childFetchRef.current.has(fetchKey)) return;
+                    childFetchRef.current.add(fetchKey);
+                    const sourceFieldDef = (meta.fields || []).find((f: any) => f.fieldname === sourceFieldName);
+                    const doctype = sourceFieldDef?.options;
+                    if (!doctype) return;
+                    fetch("/api/method/frappe.client.get_value", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype, filters: { name: sourceValue }, fieldname: [sourceProperty] }) })
+                        .then(r => r.json()).then(data => {
+                            if (data.message?.[sourceProperty] !== undefined) {
+                                setFormData(prev => {
+                                    const table = [...(prev[tableName] || [])];
+                                    if (table[rowIndex]) table[rowIndex] = { ...table[rowIndex], [targetField.fieldname]: data.message[sourceProperty] };
+                                    return { ...prev, [tableName]: table };
+                                });
+                            }
+                        }).catch(() => {});
                 });
-            },
-        );
+            });
+        });
     }, [formData, childTableMeta]);
 
-    // Handle deposit slip type change - fetch fields from appropriate API
     const handleDepositSlipTypeChange = async (type: string) => {
-        setSelectedDepositSlipType(type);
-        setFields([]);
-        setFormData({});
-        setClientScript(""); // Reset script
-        setChildTableMeta({}); // Reset child table metadata
-
-        if (!type || !DEPOSIT_SLIP_TYPES[type]) {
-            return;
-        }
-
+        setSelectedDepositSlipType(type); setFields([]); setFormData({}); setClientScript(""); setChildTableMeta({});
+        if (!type || !DEPOSIT_SLIP_TYPES[type]) return;
         setDepositFormLoading(true);
         try {
-            const response = await fetch(
-                `/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({ doc_name: name || undefined }),
-                },
-            );
+            const response = await fetch(`/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doc_name: name || undefined }) });
             const result = await response.json();
-
-            console.log("Deposit slip API response for type:", type, result);
-            console.log("Response status:", response.status, response.ok);
-
-            if (!response.ok) {
-                console.error("API error response:", result?.exc || result);
-            }
-
-            // Normalize: backend may return { fields: [...], ... } or the fields array directly
             const messagePayload = result?.message;
-            const normalizedPayload =
-                Array.isArray(messagePayload)
-                    ? { fields: messagePayload }
-                    : messagePayload;
-
+            const normalizedPayload = Array.isArray(messagePayload) ? { fields: messagePayload } : messagePayload;
             if (normalizedPayload) {
-                const {
-                    fields: apiFields,
-                    link_options,
-                    prefill_data,
-                    client_scripts,
-                    child_table_meta,
-                    related_data,
-                } = normalizedPayload;
-
-                console.log("apiFields:", apiFields);
-                console.log("Number of fields:", apiFields?.length);
-
-                // Store child table metadata for dynamic table rendering
-                if (child_table_meta) {
-                    setChildTableMeta(child_table_meta);
-                }
-
+                const { fields: apiFields, link_options, prefill_data, client_scripts, child_table_meta, related_data } = normalizedPayload;
+                if (child_table_meta) setChildTableMeta(child_table_meta);
                 if (Array.isArray(apiFields)) {
                     const processedFields = apiFields.map((field: any) => {
-                        if (
-                            field.fieldtype === "Section Break" ||
-                            field.fieldtype === "SectionBreak"
-                        )
-                            return field;
-
-                        const processed: Field = {
-                            ...field,
-                            mandatory: !!field.mandatory,
-                            hidden: !!field.hidden,
-                            read_only: !!field.read_only,
-                        };
-
-                        if (
-                            prefill_data &&
-                            prefill_data[field.fieldname] !== undefined
-                        ) {
-                            processed.default = prefill_data[field.fieldname];
-                        }
-                        return processed;
+                        if (field.fieldtype === "Section Break" || field.fieldtype === "SectionBreak") return field;
+                        return { ...field, mandatory: !!field.mandatory, hidden: !!field.hidden, read_only: !!field.read_only, ...(prefill_data && prefill_data[field.fieldname] !== undefined ? { default: prefill_data[field.fieldname] } : {}) };
                     });
                     setFields(processedFields);
-
-                    // Initialize form data with defaults
                     const initialData: FormData = {};
-                    processedFields.forEach((f: Field) => {
-                        if (f.default) initialData[f.fieldname] = f.default;
-                    });
-
-                    // Auto-fill project details from related_data (Project Registration lookup)
-                    // prjreg_title may be either a Project Registration `name` or `project_no`
+                    processedFields.forEach((f: Field) => { if (f.default) initialData[f.fieldname] = f.default; });
                     if (related_data?.prjreg_title) {
-                        const prjFields = [
-                            "name",
-                            "pi_userid",
-                            "project_no",
-                            "fund_agen_initials",
-                            "funding_agen",
-                        ];
+                        const prjFields = ["name", "pi_userid", "project_no", "fund_agen_initials", "funding_agen"];
                         let prjDoc: any = null;
-
                         try {
-                            // First try: lookup by name (prjreg_title might be the PR name directly)
-                            const byNameResp = await fetch(
-                                "/api/method/frappe.client.get_list",
-                                {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json",
-                                    },
-                                    credentials: "include",
-                                    body: JSON.stringify({
-                                        doctype: "Project Registration",
-                                        filters: {
-                                            name: related_data.prjreg_title,
-                                        },
-                                        fields: prjFields,
-                                        limit_page_length: 1,
-                                    }),
-                                },
-                            );
+                            const byNameResp = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", filters: { name: related_data.prjreg_title }, fields: prjFields, limit_page_length: 1 }) });
                             const byNameResult = await byNameResp.json();
-                            if (byNameResult?.message?.length > 0) {
-                                prjDoc = byNameResult.message[0];
-                            }
-
-                            // Second try: lookup by project_no if name lookup returned nothing
+                            if (byNameResult?.message?.length > 0) prjDoc = byNameResult.message[0];
                             if (!prjDoc) {
-                                const byProjNoResp = await fetch(
-                                    "/api/method/frappe.client.get_list",
-                                    {
-                                        method: "POST",
-                                        headers: {
-                                            "Content-Type": "application/json",
-                                        },
-                                        credentials: "include",
-                                        body: JSON.stringify({
-                                            doctype: "Project Registration",
-                                            filters: {
-                                                project_no:
-                                                    related_data.prjreg_title,
-                                            },
-                                            fields: prjFields,
-                                            limit_page_length: 1,
-                                        }),
-                                    },
-                                );
-                                const byProjNoResult =
-                                    await byProjNoResp.json();
-                                if (byProjNoResult?.message?.length > 0) {
-                                    prjDoc = byProjNoResult.message[0];
-                                }
+                                const byProjNoResp = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: related_data.prjreg_title }, fields: prjFields, limit_page_length: 1 }) });
+                                const byProjNoResult = await byProjNoResp.json();
+                                if (byProjNoResult?.message?.length > 0) prjDoc = byProjNoResult.message[0];
                             }
-
                             if (prjDoc) {
-                                console.log(
-                                    "Auto-fill from Project Registration:",
-                                    prjDoc,
-                                );
-                                if (prjDoc.name)
-                                    initialData.project_title = prjDoc.name;
-                                if (prjDoc.pi_userid)
-                                    initialData.principal_investigator =
-                                        prjDoc.pi_userid;
-                                if (prjDoc.funding_agen)
-                                    initialData.funding_agency =
-                                        prjDoc.funding_agen;
-                                else if (prjDoc.fund_agen_initials)
-                                    initialData.funding_agency =
-                                        prjDoc.fund_agen_initials;
-                                if (prjDoc.project_no)
-                                    initialData.project_no = prjDoc.project_no;
+                                if (prjDoc.name) initialData.project_title = prjDoc.name;
+                                if (prjDoc.pi_userid) initialData.principal_investigator = prjDoc.pi_userid;
+                                if (prjDoc.funding_agen) initialData.funding_agency = prjDoc.funding_agen;
+                                else if (prjDoc.fund_agen_initials) initialData.funding_agency = prjDoc.fund_agen_initials;
+                                if (prjDoc.project_no) initialData.project_no = prjDoc.project_no;
                             }
-                        } catch (err) {
-                            console.error(
-                                "Failed to fetch Project Registration for autofill:",
-                                err,
-                            );
-                        }
+                        } catch {}
                     }
-
                     setFormData(initialData);
-
-                    // Set Client Scripts
                     if (client_scripts && Array.isArray(client_scripts)) {
-                        console.log(
-                            "API returned client_scripts:",
-                            client_scripts.length,
-                            "scripts",
-                        );
-                        console.log(
-                            "Script doctypes:",
-                            client_scripts.map(
-                                (cs: any) => cs.dt || cs.doctype || "unknown",
-                            ),
-                        );
-                        // Concatenate all scripts
-                        let combinedScript = client_scripts
-                            .map((cs: any) => cs.script)
-                            .join("\n\n");
-
-                        // --- PATCH: Fix logic when amount is 0 ---
-                        // Strategy: We append a re-definition of `calculate_deposit_slip` at the end of the script.
-                        // In JavaScript, the last function declaration overrides previous ones with the same name.
-                        // This bypasses the need for fragile regex/string replacement.
-
-                        // We define the function with the SAME NAME as the original.
-                        const _fixedFunction = `
-                            function calculate_deposit_slip(frm) {
-                                let total_inclusive = flt(frm.doc.amount_inclusive_gst_capital);
-                                let multiplier = flt(frm.doc.overhead_multiplier) || 15;
-
-                                if (total_inclusive > 0) {
-                                    // Base and GST
-                                    let project_balance = total_inclusive / 1.18;
-                                    let cgst = project_balance * 0.09;
-                                    let sgst = project_balance * 0.09;
-
-                                    // Overhead Calculation
-                                    let overhead_amount = project_balance * (multiplier / (100 + multiplier));
-                                    let project_amount = project_balance - overhead_amount;
-
-                                    // Static Credits
-                                    let idf_amt = overhead_amount * (40.0 / 100);
-                                    let dpf_amt = overhead_amount * (25.0 / 100);
-                                    let staff_amt = overhead_amount * (5.0 / 100);
-                                    let student_amt = overhead_amount * (5.0 / 100);
-
-                                    frm.set_value({
-                                        'project_balance_after_gst': project_balance,
-                                        'cgst_9': cgst,
-                                        'sgst_9': sgst,
-                                        'total_gst': cgst + sgst,
-                                        'total_budget': total_inclusive,
-                                        'overhead_amount': overhead_amount,
-                                        'overhead_amount_label': '<b>Overhead Amount @ ' + multiplier + '% (inclusive)</b>',
-                                        'prj_amount': project_amount,
-                                        'idf_amount': flt(idf_amt, 2),
-                                        'dpf_cle_amount': flt(dpf_amt, 2),
-                                        'staff_welfare_amount': flt(staff_amt, 2),
-                                        'student_welfare_amount': flt(student_amt, 2)
-                                    }).then(() => {
-                                        distribute_pool_share(frm, overhead_amount);
-                                    });
-
-                                } else {
-                                    // --- CORRECT ZERO LOGIC ---
-                                    // Explicitly clear all calculated fields
-                                    frm.set_value({
-                                        'project_balance_after_gst': 0,
-                                        'cgst_9': 0,
-                                        'sgst_9': 0,
-                                        'total_gst': 0,
-                                        'total_budget': 0,
-                                        'overhead_amount': 0,
-                                        'overhead_amount_label': '',
-                                        'prj_amount': 0,
-                                        'idf_amount': 0,
-                                        'dpf_cle_amount': 0,
-                                        'staff_welfare_amount': 0,
-                                        'student_welfare_amount': 0
-                                    }).then(() => {
-                                         distribute_pool_share(frm, 0);
-                                    });
-                                }
-                            }
-                        `;
-
-                        // Just append it
+                        let combinedScript = client_scripts.map((cs: any) => cs.script).join("\n\n");
+                        const _fixedFunction = `function calculate_deposit_slip(frm){let total_inclusive=flt(frm.doc.amount_inclusive_gst_capital);let multiplier=flt(frm.doc.overhead_multiplier)||15;if(total_inclusive>0){let project_balance=total_inclusive/1.18;let cgst=project_balance*0.09;let sgst=project_balance*0.09;let overhead_amount=project_balance*(multiplier/(100+multiplier));let project_amount=project_balance-overhead_amount;let idf_amt=overhead_amount*(40.0/100);let dpf_amt=overhead_amount*(25.0/100);let staff_amt=overhead_amount*(5.0/100);let student_amt=overhead_amount*(5.0/100);frm.set_value({'project_balance_after_gst':project_balance,'cgst_9':cgst,'sgst_9':sgst,'total_gst':cgst+sgst,'total_budget':total_inclusive,'overhead_amount':overhead_amount,'overhead_amount_label':'<b>Overhead Amount @ '+multiplier+'% (inclusive)</b>','prj_amount':project_amount,'idf_amount':flt(idf_amt,2),'dpf_cle_amount':flt(dpf_amt,2),'staff_welfare_amount':flt(staff_amt,2),'student_welfare_amount':flt(student_amt,2)}).then(()=>{distribute_pool_share(frm,overhead_amount);});}else{frm.set_value({'project_balance_after_gst':0,'cgst_9':0,'sgst_9':0,'total_gst':0,'total_budget':0,'overhead_amount':0,'overhead_amount_label':'','prj_amount':0,'idf_amount':0,'dpf_cle_amount':0,'staff_welfare_amount':0,'student_welfare_amount':0}).then(()=>{distribute_pool_share(frm,0);});}}`;
                         combinedScript += "\n\n" + _fixedFunction;
-                        console.log(
-                            "Patched client script: Appended fixed calculation function (override).",
-                        );
-                        console.log(
-                            "FINAL SCRIPT TO LOAD (first 500 chars):",
-                            combinedScript.substring(0, 500),
-                        );
-
                         setClientScript(combinedScript);
-                    } else {
-                        console.warn(
-                            "No client_scripts returned from API for this deposit slip type!",
-                        );
                     }
                 }
-                setLinkOptions((prev) => ({
-                    ...prev,
-                    ...(link_options || {}),
-                }));
-
-                // Fetch missing link options for known child table requirements
-                const missingDoctypes = [
-                    "Department_prornd",
-                    "User",
-                    "Budget Head",
-                ];
+                setLinkOptions(prev => ({ ...prev, ...(link_options || {}) }));
+                const missingDoctypes = ["Department_prornd", "User", "Budget Head"];
                 for (const dt of missingDoctypes) {
-                    // Check if we already have options for this Doctype (either from API response or previous fetch)
-                    // We check link_options (from API) and the key itself
                     if (!link_options?.[dt]) {
                         try {
-                            const listResp = await fetch(
-                                "/api/method/frappe.client.get_list",
-                                {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json",
-                                    },
-                                    credentials: "include",
-                                    body: JSON.stringify({
-                                        doctype: dt,
-                                        fields:
-                                            dt === "User"
-                                                ? ["name", "full_name"]
-                                                : dt === "Department_prornd"
-                                                    ? ["name", "dept_name"]
-                                                    : dt === "Budget Head"
-                                                        ? ["*"]
-                                                        : ["name"],
-                                        limit_page_length: 0,
-                                    }),
-                                },
-                            );
+                            const listResp = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: dt, fields: dt === "User" ? ["name", "full_name"] : dt === "Department_prornd" ? ["name", "dept_name"] : ["*"], limit_page_length: 0 }) });
                             const listJson = await listResp.json();
                             if (listJson.message) {
-                                const opts = listJson.message.map((d: any) => ({
-                                    label:
-                                        d.dept_name ||
-                                        d.full_name ||
-                                        d.budget_head ||
-                                        d.head_name ||
-                                        d.account_head ||
-                                        d.title ||
-                                        d.name,
-                                    value: d.name,
-                                }));
-                                setLinkOptions((prev) => ({
-                                    ...prev,
-                                    [dt]: opts,
-                                    ...(dt === "User" ? { select_copi_id: opts, principal_investigator: opts } : {}),
-                                }));
+                                const opts = listJson.message.map((d: any) => ({ label: d.dept_name || d.full_name || d.budget_head || d.head_name || d.account_head || d.title || d.name, value: d.name }));
+                                setLinkOptions(prev => ({ ...prev, [dt]: opts, ...(dt === "User" ? { select_copi_id: opts, principal_investigator: opts } : {}) }));
                             }
-                        } catch (e) {
-                            console.error(
-                                `Failed to fetch options for ${dt}`,
-                                e,
-                            );
-                        }
+                        } catch {}
                     }
                 }
             }
-        } catch (err) {
-            console.error("Failed to load deposit slip fields:", err);
-        } finally {
-            setDepositFormLoading(false);
-        }
+        } catch {} finally { setDepositFormLoading(false); }
     };
 
-    // Handle saving the deposit slip
     const handleSaveDepositSlip = async () => {
         if (isSubmitting || !selectedDepositSlipType) return;
         setIsSubmitting(true);
-
         try {
-            const dataToSubmit: { [key: string]: any } = { ...formData };
-
-            const response = await fetch(
-                `/api/method/${DEPOSIT_SLIP_TYPES[selectedDepositSlipType].save}`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({
-                        doc_data: JSON.stringify(dataToSubmit),
-                    }),
-                },
-            );
+            const response = await fetch(`/api/method/${DEPOSIT_SLIP_TYPES[selectedDepositSlipType].save}`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doc_data: JSON.stringify({ ...formData }) }) });
             const result = await response.json();
-            console.log("Deposit Slip Save result:", result);
-
-            if (result?.message?.name) {
-                alert(
-                    `Deposit Slip saved successfully! Document: ${result.message.name}`,
-                );
-            } else {
-                alert("Deposit Slip saved successfully!");
-            }
-            mutate(); // Refresh data
-        } catch (err: any) {
-            console.error("Deposit Slip Submission error:", err);
-            alert(`Submission Failed: ${err.message || "Unknown Error"}`);
-        } finally {
-            setIsSubmitting(false);
-        }
+            alert(result?.message?.name ? `Deposit Slip saved: ${result.message.name}` : "Deposit Slip saved successfully!");
+            mutate();
+        } catch (err: any) { alert(`Submission Failed: ${err.message || "Unknown Error"}`); } finally { setIsSubmitting(false); }
     };
 
-    // Handler for workflow actions - attaches deposit slip data when "Forward" or "Generate Deposit Slip" is clicked
-    const handleBeforeAction = useCallback(
-        async (action: string): Promise<{ [key: string]: any } | null> => {
-            // Only attach deposit slip data if action is "Forward" or "Generate Deposit Slip" and user is RnD Miscellaneous
-            if (
-                (action === "Forward" || action === "Generate Deposit Slip") &&
-                isRndMiscellaneous
-            ) {
-                // Optional: Add validation here
-                // const requiredFields = fields.filter(f => f.mandatory);
-                // const missingFields = requiredFields.filter(f => !formData[f.fieldname]);
-                // if (missingFields.length > 0) {
-                //     alert(`Please fill required fields: ${missingFields.map(f => f.label).join(', ')}`);
-                //     return null; // Cancel action
-                // }
+    const handleBeforeAction = useCallback(async (action: string): Promise<{ [key: string]: any } | null> => {
+        if ((action === "Forward" || action === "Generate Deposit Slip") && isRndMiscellaneous) {
+            return { deposit_slip_data: JSON.stringify(formData), deposit_slip_type: selectedDepositSlipType };
+        }
+        return {};
+    }, [isRndMiscellaneous, formData, selectedDepositSlipType]);
 
-                console.log(
-                    "Generate Deposit Slip - formData being sent:",
-                    JSON.stringify(formData, null, 2),
-                );
-                return {
-                    deposit_slip_data: JSON.stringify(formData),
-                    deposit_slip_type: selectedDepositSlipType,
-                };
-            }
-            return {}; // No extra data for other actions
-        },
-        [isRndMiscellaneous, formData, selectedDepositSlipType],
-    );
-
-    if (isLoading) return <GlobalLoader isLoading={true} />;
+    if (isLoading) return <GlobalLoader isLoading delay={0} />;
 
     if (error || !fundData) {
         return (
-            <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-                {/* <AppSidebar /> */}
-                <main className="flex-1 p-4 md:p-8">
-                    <FrappeCard className="text-center py-16">
-                        <FileText className="w-16 h-16 mx-auto text-zinc-400 dark:text-zinc-500 mb-4" />
-                        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-2 uppercase">
-                            Fund Details Not Found
-                        </h2>
-                        <p className="text-zinc-900 dark:text-zinc-100 mb-6">
-                            The requested fund details could not be loaded.
-                        </p>
-                        <FrappeButton onClick={() => navigate(-1)}>
-                            Go Back
-                        </FrappeButton>
-                    </FrappeCard>
-                </main>
+            <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] flex items-center justify-center p-8">
+                <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl p-12 text-center max-w-md w-full">
+                    <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <FileText className="w-6 h-6 text-red-500" />
+                    </div>
+                    <h2 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-2">Fund Details Not Found</h2>
+                    <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA] mb-6">The requested fund details could not be loaded.</p>
+                    <button onClick={() => navigate(-1)} className="btn-neutral px-4 py-2 rounded-lg text-sm font-semibold">Go Back</button>
+                </div>
             </div>
         );
     }
 
-    const {
-        workflow_state,
-        fund_received_amt,
-        bank_account,
-        received_amt_breakup,
-        fund_transactions,
-        sanction_ref_no,
-    } = fundData;
+    const { workflow_state, fund_received_amt, bank_account, received_amt_breakup, fund_transactions } = fundData;
 
-    // --- NEW: HoS Approval View ---
-    if (
-        // workflow_state === "Pending HoS Approval" ||
-        workflow_state === "Approved"
-    ) {
+    if (workflow_state === "Approved") {
         return (
-            <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
-                {/* <AppSidebar /> */}
-                <main className="flex-1 p-4 md:p-8">
-                    <FundReceivedWorkflowActions
-                        docname={name || ""}
-                        onActionComplete={() => {
-                            mutate();
-                            window.location.reload();
-                        }}
-                        onBeforeAction={handleBeforeAction}
-                    />
-                    <div className="mb-6"></div>
+            <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
+                <main className="px-6 md:px-8 pt-7 pb-10">
+                    <div className="mb-4 flex items-center gap-3 flex-wrap">
+                        <FundReceivedWorkflowActions docname={name || ""} onActionComplete={() => { mutate(); window.location.reload(); }} onBeforeAction={handleBeforeAction} />
+                    </div>
                     <HoSApprovalView fundReceivedName={name || ""} />
                 </main>
             </div>
         );
     }
 
-    const isFundReceived = workflow_state === "Fund Received";
-
-    const renderSummaryContent = () => (
-        <div className="space-y-4">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 gap-4">
-                <FrappeCard className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                        <div className="p-2 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                            <IndianRupee className="h-4 w-4 text-[#D97757]" />
-                        </div>
-                        <span className="font-bold text-zinc-700 dark:text-zinc-300 text-xs uppercase">
-                            Total Amount
-                        </span>
-                    </div>
-                    <p className="text-2xl font-extrabold text-[#D97757]">
-                        {(fund_received_amt || 0).toLocaleString("en-IN", {
-                            style: "currency",
-                            currency: "INR",
-                        })}
-                    </p>
-                </FrappeCard>
-                <FrappeCard className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                        <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-                            <Building2 className="h-4 w-4 text-zinc-600 dark:text-zinc-400" />
-                        </div>
-                        <span className="font-bold text-zinc-700 dark:text-zinc-300 text-xs uppercase">
-                            Bank Account
-                        </span>
-                    </div>
-                    <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
-                        {bank_account || "-"}
-                    </p>
-                </FrappeCard>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-                {/* Sanction Reference */}
-                <FrappeCard
-                    title="Sanction Reference"
-                    icon={<Calculator className="h-4 w-4 text-[#D97757]" />}
-                >
-                    <div className="space-y-1">
-                        <DetailRow label="Sanction" value={sanction_ref_no} />
-                        {sanctionDoc && (
-                            <>
-                                <DetailRow
-                                    label="Status"
-                                    value={sanctionDoc.workflow_state}
-                                />
-                                <DetailRow
-                                    label="Letter No"
-                                    value={sanctionDoc.sanction_letter_no}
-                                />
-                                <DetailRow
-                                    label="Date"
-                                    value={sanctionDoc.sanction_date}
-                                />
-                                <DetailRow
-                                    label="Amount"
-                                    value={sanctionDoc.total_sanctioned_amount}
-                                    isCurrency
-                                />
-                            </>
-                        )}
-                    </div>
-                </FrappeCard>
-
-                {/* Fund Info */}
-                <FrappeCard
-                    title="Fund Information"
-                    icon={<Calculator className="h-4 w-4 text-[#D97757]" />}
-                >
-                    <div className="space-y-1">
-                        <DetailRow
-                            label="Total Amount Received"
-                            value={fund_received_amt}
-                            isCurrency
-                        />
-                        <DetailRow label="Bank Account" value={bank_account} />
-                        <DetailRow
-                            label="Workflow State"
-                            value={workflow_state}
-                        />
-                    </div>
-                </FrappeCard>
-            </div>
-
-            {/* Budget Breakup */}
-            <FrappeCard
-                title="Budget Breakup"
-                icon={<FileText className="h-4 w-4 text-[#D97757]" />}
-            >
-                <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
-                    <table className="min-w-full">
-                        <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
-                                    Account Head
-                                </th>
-                                <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
-                                    Amount
-                                </th>
-                                <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
-                                    Remarks
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
-                            {received_amt_breakup?.map(
-                                (item: any, idx: number) => (
-                                    <tr
-                                        key={item.name || idx}
-                                        className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40"
-                                    >
-                                        <td className="px-3 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                            <BudgetHeadName value={item.account_head} />
-                                        </td>
-                                        <td className="px-3 py-2 text-sm text-right font-bold text-[#D97757]">
-                                            {item.amount_received?.toLocaleString(
-                                                "en-IN",
-                                                {
-                                                    style: "currency",
-                                                    currency: "INR",
-                                                },
-                                            )}
-                                        </td>
-                                        <td className="px-3 py-2 text-sm text-left text-zinc-500 dark:text-zinc-400">
-                                            {item.remarks}
-                                        </td>
-                                    </tr>
-                                ),
-                            )}
-                            {(!received_amt_breakup ||
-                                received_amt_breakup.length === 0) && (
-                                    <tr>
-                                        <td
-                                            colSpan={3}
-                                            className="px-3 py-6 text-center text-zinc-500 dark:text-zinc-400"
-                                        >
-                                            No breakup details
-                                        </td>
-                                    </tr>
-                                )}
-                        </tbody>
-                    </table>
-                </div>
-            </FrappeCard>
-
-            {/* Transactions */}
-            <FrappeCard
-                title="Transactions"
-                icon={<CreditCard className="h-4 w-4 text-[#D97757]" />}
-            >
-                <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
-                    <table className="min-w-full">
-                        <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
-                                    Date
-                                </th>
-                                <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
-                                    Transaction No
-                                </th>
-                                <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
-                                    Amount
-                                </th>
-                                <th className="px-4 py-3 text-center text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
-                                    Attachments
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
-                            {fund_transactions?.map(
-                                (item: any, idx: number) => (
-                                    <tr
-                                        key={item.name || idx}
-                                        className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40"
-                                    >
-                                        <td className="px-3 py-2 text-sm font-mono text-zinc-900 dark:text-zinc-100">
-                                            {item.transaction_date}
-                                        </td>
-                                        <td className="px-3 py-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                                            {item.transaction_number}
-                                        </td>
-                                        <td className="px-3 py-2 text-sm text-right font-bold text-[#D97757]">
-                                            {item.amount?.toLocaleString(
-                                                "en-IN",
-                                                {
-                                                    style: "currency",
-                                                    currency: "INR",
-                                                },
-                                            )}
-                                        </td>
-                                        <td className="px-3 py-2 text-sm text-center">
-                                            <TransactionAttachment
-                                                transactionName={item.name}
-                                                fallbackFile={
-                                                    item.attachment || item.file
-                                                }
-                                            />
-                                        </td>
-                                    </tr>
-                                ),
-                            )}
-                            {(!fund_transactions ||
-                                fund_transactions.length === 0) && (
-                                    <tr>
-                                        <td
-                                            colSpan={4}
-                                            className="px-3 py-6 text-center text-zinc-500 dark:text-zinc-400"
-                                        >
-                                            No transactions
-                                        </td>
-                                    </tr>
-                                )}
-                        </tbody>
-                    </table>
-                </div>
-            </FrappeCard>
-        </div>
-    );
 
     return (
-        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
             <GlobalLoader isLoading={isSubmitting} />
-            {/* <AppSidebar /> */}
 
-            <main className="flex-1 px-6 md:px-8 pt-7 pb-10">
-                {/* Header */}
-                <div className="mb-5 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+            <main className="px-6 md:px-8 pt-7 pb-16">
+
+                {/* ── Page Header ── */}
+                <header className="mb-5 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
-                    <div className="flex items-start justify-between gap-4 px-5 py-4">
+                    <div className="flex items-start justify-between gap-4 px-5 py-4 flex-wrap">
+                        {/* Left: back + title */}
                         <div className="flex items-start gap-3 min-w-0">
-                            <button
-                                onClick={() => navigate(-1)}
-                                className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
-                            >
+                            <button onClick={() => navigate(-1)}
+                                className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors">
                                 <ArrowLeft className="h-4 w-4" />
                             </button>
                             <div className="min-w-0">
-                                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
-                                    Fund Received
-                                </span>
-                                <h1 className="mt-1 text-[18px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-normal leading-tight">
+                                <div className="flex flex-wrap items-center gap-2 mb-1">
+                                    <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Fund Received</span>
+                                    <StatusBadge state={workflow_state || "—"} />
+                                </div>
+                                <h1 className="font-sans text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
                                     Fund Details & Deposit Slip
                                 </h1>
-                                <p className="mt-0.5 text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-medium font-mono">
-                                    {name}
-                                </p>
-                                <span
-                                    className={cn(
-                                        "inline-block mt-1.5 px-2 py-0.5 rounded-full font-bold text-[9px] uppercase tracking-wide",
-                                        {
-                                            "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400":
-                                                workflow_state === "Draft",
-                                            "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400":
-                                                workflow_state === "Submitted",
-                                            "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400":
-                                                workflow_state === "Approved",
-                                            "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400":
-                                                workflow_state === "Rejected",
-                                        },
-                                    )}
-                                >
-                                    {workflow_state}
-                                </span>
+                                <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA] font-mono">{name}</p>
                             </div>
-                            {fundData?.workflow_state === "Draft" && (
-                                <FrappeButton
-                                    onClick={() =>
-                                        navigate(
-                                            `/add-fund-received/${fundData.prjreg_title}?id=${name}`,
-                                        )
-                                    }
-                                    className="bg-blue-100 text-blue-800 hover:bg-blue-200 border border-blue-200 shadow-sm ml-2 h-8 px-3 text-xs"
-                                >
-                                    ✏️ Edit
-                                </FrappeButton>
-                            )}
                         </div>
-                        <div className="flex items-center gap-4">
+
+                        {/* Right: actions */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {fundData?.workflow_state === "Draft" && (
+                                <button onClick={() => navigate(`/add-fund-received/${fundData.prjreg_title}?id=${name}`)}
+                                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#4A6CF7] hover:border-[#4A6CF7]/30 hover:bg-[#EEF2FF] text-[11px] font-bold uppercase tracking-wide transition-colors">
+                                    <PencilLine className="h-3 w-3" /> Edit
+                                </button>
+                            )}
                             <ViewProjectButton doctype="Fund Received" data={fundData} />
                             <FundReceivedWorkflowActions
                                 docname={name || ""}
-                                onActionComplete={() => {
-                                    mutate();
-                                    window.location.reload();
-                                }}
+                                onActionComplete={() => { mutate(); window.location.reload(); }}
                                 onBeforeAction={handleBeforeAction}
                                 disabledCondition={(action) => {
-                                    // Disable "Generate Deposit Slip" if form is incomplete
                                     if (action === "Generate Deposit Slip") {
-                                        if (
-                                            !showDepositSlip ||
-                                            !selectedDepositSlipType
-                                        )
-                                            return true;
-                                        // Check mandatory fields
-                                        const mandatoryFields = fields.filter(
-                                            (f) => f.mandatory && !f.hidden,
-                                        );
-                                        const hasEmptyMandatory =
-                                            mandatoryFields.some((f) => {
-                                                const val =
-                                                    formData[f.fieldname];
-                                                return (
-                                                    val === undefined ||
-                                                    val === null ||
-                                                    val === ""
-                                                );
-                                            });
-                                        return hasEmptyMandatory;
+                                        if (!showDepositSlip || !selectedDepositSlipType) return true;
+                                        return fields.filter(f => f.mandatory && !f.hidden).some(f => { const v = formData[f.fieldname]; return v === undefined || v === null || v === ""; });
                                     }
                                     return false;
                                 }}
                             />
-                            {/* Hide Generate Deposit Slip button for Permanent Employees */}
-                            {/* {!isPermanentEmployee && (
-                                <FrappeButton onClick={() => navigate(`/deposit-slip-new/${name}`)}>
-                                    <FileText className="h-4 w-4" />
-                                    Generate Deposit Slip
-                                </FrappeButton>
-                            )} */}
                         </div>
                     </div>
+                </header>
+
+                {/* ── KPI strip ── */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                    <KpiMini label="Total Amount" icon={<IndianRupee className="h-4 w-4" />} accent="#D97757"
+                        value={fund_received_amt != null ? fund_received_amt.toLocaleString("en-IN", { style: "currency", currency: "INR" }) : "—"} />
+                    <KpiMini label="Bank Account" icon={<Landmark className="h-4 w-4" />} accent="#4A6CF7"
+                        value={<span className="text-[13px]">{bank_account || "—"}</span>} />
+                    <KpiMini label="Sanction Ref" icon={<Calculator className="h-4 w-4" />} accent="#10B981"
+                        value={<span className="text-[13px] font-mono">{sanctionName || "—"}</span>} />
+                    <KpiMini label="Transactions" icon={<CreditCard className="h-4 w-4" />} accent="#8B5CF6"
+                        value={fund_transactions?.length ?? 0} />
                 </div>
 
-                {/* Deposit Slip Form - Full Width (Fund Details moved to floating Summary panel) */}
+                {/* ── Section separator ── */}
+                <div className="border-t-2 border-[#4A6CF7]/35 dark:border-[#818CF8]/35 pt-4 mb-4" />
+
+                {/* ── Deposit Slip Form (when applicable) ── */}
                 {showDepositSlip && (
-                    <div className="space-y-6">
-                        <FrappeCard
-                            title="Deposit Slip Form"
-                            icon={
-                                <FileText className="h-4 w-4 text-[#D97757]" />
-                            }
-                        >
-                            <div className="space-y-6">
-                                {/* Deposit Slip Type Selector */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                                        Select Deposit Slip Type{" "}
-                                        <span className="text-red-500">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <select
-                                            value={selectedDepositSlipType}
-                                            onChange={(e) =>
-                                                handleDepositSlipTypeChange(
-                                                    e.target.value,
-                                                )
-                                            }
-                                            className="w-full h-11 px-4 pr-10 bg-white dark:bg-zinc-900 border-2 border-zinc-300 dark:border-zinc-700 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] appearance-none"
-                                        >
-                                            <option value="">
-                                                -- Select Type --
-                                            </option>
-                                            {Object.entries(
-                                                DEPOSIT_SLIP_TYPES,
-                                            ).map(([key, config]) => (
-                                                <option key={key} value={key}>
-                                                    {config.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-zinc-400 dark:text-zinc-500 pointer-events-none" />
-                                    </div>
-                                </div>
-
-                                {/* Loading State */}
-                                {depositFormLoading && (
-                                    <div className="flex items-center justify-center py-8">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D97757]"></div>
-                                    </div>
-                                )}
-
-                                {/* Dynamic Form via FormRender */}
-                                {!depositFormLoading &&
-                                    selectedDepositSlipType &&
-                                    fields.length > 0 && (
-                                        <FormRender
-                                            fields={fields.map((f) => ({
-                                                ...f,
-                                                hidden:
-                                                    !!f.hidden ||
-                                                    !evaluateDependsOn(
-                                                        f.depends_on ||
-                                                        f.depends_on_eval,
-                                                        formData,
-                                                    ),
-                                            }))}
-                                            linkOptions={linkOptions}
-                                            sections={(() => {
-                                                const processed: any[] = [];
-                                                let currentSection: any = {
-                                                    title: "",
-                                                    fields: [],
-                                                    type: "default",
-                                                };
-
-                                                fields.forEach((field) => {
-                                                    const isVisible =
-                                                        evaluateDependsOn(
-                                                            field.depends_on ||
-                                                            field.depends_on_eval,
-                                                            formData,
-                                                        );
-
-                                                    if (
-                                                        field.fieldtype ===
-                                                        "Section Break"
-                                                    ) {
-                                                        if (
-                                                            currentSection
-                                                                .fields.length >
-                                                            0
-                                                        )
-                                                            processed.push(
-                                                                currentSection,
-                                                            );
-
-                                                        // For Section Break, hide if condition fails
-                                                        if (isVisible) {
-                                                            currentSection = {
-                                                                title:
-                                                                    field.label ||
-                                                                    "",
-                                                                fields: [],
-                                                                type: "default",
-                                                            };
-                                                        } else {
-                                                            // If section is hidden, we use a dummy hidden section or null
-                                                            // Fields that follow usually belong to this section.
-                                                            // If we set currentSection to null, we can skip adding fields.
-                                                            currentSection =
-                                                                null;
-                                                        }
-                                                    } else if (
-                                                        field.fieldtype ===
-                                                        "Table"
-                                                    ) {
-                                                        if (
-                                                            currentSection &&
-                                                            currentSection
-                                                                .fields.length >
-                                                            0
-                                                        ) {
-                                                            processed.push(
-                                                                currentSection,
-                                                            );
-                                                            currentSection = {
-                                                                title: "",
-                                                                fields: [],
-                                                                type: "default",
-                                                            };
-                                                        }
-
-                                                        if (isVisible) {
-                                                            // Build table config dynamically from childTableMeta
-                                                            let tableConfig: any =
-                                                                null;
-                                                            const meta =
-                                                                childTableMeta[
-                                                                field
-                                                                    .fieldname
-                                                                ];
-
-                                                            if (
-                                                                meta &&
-                                                                meta.fields
-                                                            ) {
-                                                                // Build columns from child_table_meta.fields
-                                                                const columns =
-                                                                    meta.fields
-                                                                        .filter(
-                                                                            (
-                                                                                f: any,
-                                                                            ) =>
-                                                                                ![
-                                                                                    "Section Break",
-                                                                                    "Column Break",
-                                                                                    "SectionBreak",
-                                                                                    "ColumnBreak",
-                                                                                ].includes(
-                                                                                    f.fieldtype,
-                                                                                ),
-                                                                        )
-                                                                        .map(
-                                                                            (
-                                                                                f: any,
-                                                                            ) => {
-                                                                                let opts: any[] =
-                                                                                    [];
-                                                                                let type =
-                                                                                    f.fieldtype;
-
-                                                                                // Special handling for select_copi_id — use searchable autocomplete
-                                                                                if (f.fieldname === "select_copi_id") {
-                                                                                    opts =
-                                                                                        linkOptions["select_copi_id"] ||
-                                                                                        linkOptions["principal_investigator"] ||
-                                                                                        linkOptions["User"] ||
-                                                                                        [];
-                                                                                    type = "UserAutocomplete";
-                                                                                }
-
-                                                                                // Special handling for Budget Head / Account Head
-                                                                                if (
-                                                                                    [
-                                                                                        "account_head",
-                                                                                        "budget_head",
-                                                                                        "head",
-                                                                                    ].includes(
-                                                                                        f.fieldname,
-                                                                                    )
-                                                                                ) {
-                                                                                    opts =
-                                                                                        linkOptions[
-                                                                                        "Budget Head"
-                                                                                        ] ||
-                                                                                        linkOptions[
-                                                                                        "budget_head"
-                                                                                        ] ||
-                                                                                        [];
-                                                                                    if (
-                                                                                        opts.length >
-                                                                                        0
-                                                                                    )
-                                                                                        type =
-                                                                                            "Link"; // Force Select rendering
-                                                                                }
-
-                                                                                if (
-                                                                                    opts.length ===
-                                                                                    0
-                                                                                ) {
-                                                                                    if (
-                                                                                        f.fieldtype ===
-                                                                                        "Select" &&
-                                                                                        typeof f.options ===
-                                                                                        "string"
-                                                                                    ) {
-                                                                                        opts =
-                                                                                            f.options
-                                                                                                .split(
-                                                                                                    "\n",
-                                                                                                )
-                                                                                                .filter(
-                                                                                                    (
-                                                                                                        o: string,
-                                                                                                    ) =>
-                                                                                                        o.trim() !==
-                                                                                                        "",
-                                                                                                )
-                                                                                                .map(
-                                                                                                    (
-                                                                                                        o: string,
-                                                                                                    ) => ({
-                                                                                                        label: o,
-                                                                                                        value: o,
-                                                                                                    }),
-                                                                                                );
-                                                                                    } else if (
-                                                                                        f.options
-                                                                                    ) {
-                                                                                        opts =
-                                                                                            linkOptions[
-                                                                                            f
-                                                                                                .fieldname
-                                                                                            ] ||
-                                                                                            linkOptions[
-                                                                                            f
-                                                                                                .options
-                                                                                            ] ||
-                                                                                            [];
-                                                                                    }
-                                                                                }
-
-                                                                                return {
-                                                                                    key: f.fieldname,
-                                                                                    label:
-                                                                                        f.label ||
-                                                                                        f.fieldname,
-                                                                                    type: type,
-                                                                                    options:
-                                                                                        opts,
-                                                                                };
-                                                                            },
-                                                                        );
-
-                                                                // Build newRowTemplate with default values
-                                                                const newRowTemplate: Record<
-                                                                    string,
-                                                                    any
-                                                                > = {
-                                                                    doctype:
-                                                                        meta.doctype, // Required for locals[cdt][cdn] in scripts
-                                                                    name: `new-${Date.now()}`, // Temporary unique ID
-                                                                };
-                                                                meta.fields.forEach(
-                                                                    (
-                                                                        f: any,
-                                                                    ) => {
-                                                                        if (
-                                                                            f.default !==
-                                                                            null &&
-                                                                            f.default !==
-                                                                            undefined
-                                                                        ) {
-                                                                            newRowTemplate[
-                                                                                f.fieldname
-                                                                            ] =
-                                                                                f.default;
-                                                                        } else if (
-                                                                            f.fieldtype ===
-                                                                            "Currency" ||
-                                                                            f.fieldtype ===
-                                                                            "Float" ||
-                                                                            f.fieldtype ===
-                                                                            "Int"
-                                                                        ) {
-                                                                            newRowTemplate[
-                                                                                f.fieldname
-                                                                            ] =
-                                                                                0;
-                                                                        } else {
-                                                                            newRowTemplate[
-                                                                                f.fieldname
-                                                                            ] =
-                                                                                "";
-                                                                        }
-                                                                    },
-                                                                );
-
-                                                                tableConfig = {
-                                                                    fieldname:
-                                                                        field.fieldname,
-                                                                    columns,
-                                                                    newRowTemplate,
-                                                                };
-                                                            } else {
-                                                                // Fallback if no metadata found
-                                                                tableConfig = {
-                                                                    fieldname:
-                                                                        field.fieldname,
-                                                                    columns: [
-                                                                        {
-                                                                            key: "name",
-                                                                            label: "Name",
-                                                                            type: "Data",
-                                                                        },
-                                                                    ],
-                                                                    newRowTemplate:
-                                                                        {},
-                                                                };
-                                                            }
-
-                                                            processed.push({
-                                                                title: field.label,
-                                                                fields: [],
-                                                                type: "table",
-                                                                tableConfig,
-                                                            });
-                                                        }
-                                                    } else if (
-                                                        field.fieldtype ===
-                                                        "Column Break" ||
-                                                        field.fieldtype ===
-                                                        "ColumnBreak"
-                                                    ) {
-                                                        // Explicitly ignore Column Break when adding to fields list
-                                                        // (In a grid layout we might use it, but here we just want to hide it from being a text input)
-                                                        // do nothing
-                                                    } else {
-                                                        // Only add field if current section is visible
-                                                        if (currentSection) {
-                                                            currentSection.fields.push(
-                                                                field.fieldname,
-                                                            );
-                                                        }
-                                                    }
-                                                });
-                                                if (
-                                                    currentSection &&
-                                                    currentSection.fields
-                                                        .length > 0
-                                                )
-                                                    processed.push(
-                                                        currentSection,
-                                                    );
-                                                return processed;
-                                            })()}
-                                            initialData={formData}
-                                            onSubmit={handleSaveDepositSlip}
-                                            onFormChange={(data) =>
-                                                setFormData(data)
-                                            }
-                                            onCancel={() =>
-                                                setSelectedDepositSlipType("")
-                                            }
-                                            submitButtonText="Save Deposit Slip"
-                                            isSubmitting={isSubmitting}
-                                            noCard
-                                            hideActions={true}
-                                        />
-                                    )}
-
-                                {/* No Type Selected */}
-                                {!depositFormLoading &&
-                                    !selectedDepositSlipType && (
-                                        <div className="text-center py-8 text-zinc-500 dark:text-zinc-400">
-                                            <p className="text-sm">
-                                                Select a deposit slip type to
-                                                load the form.
-                                            </p>
-                                        </div>
-                                    )}
-
-                                {/* No Fields */}
-                                {!depositFormLoading &&
-                                    selectedDepositSlipType &&
-                                    fields.length === 0 && (
-                                        <div className="text-center py-8 text-yellow-600">
-                                            <p className="text-sm font-semibold">
-                                                No form fields found for this
-                                                type.
-                                            </p>
-                                        </div>
-                                    )}
+                    <div className="mb-6 bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden shadow-sm">
+                        {/* Panel header */}
+                        <div className="flex items-center gap-2 px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+                            <div className="w-7 h-7 rounded-md flex items-center justify-center bg-[#FFF7ED] dark:bg-[#D97757]/20 text-[#D97757]">
+                                <FileText className="w-3.5 h-3.5" />
                             </div>
-                        </FrappeCard>
+                            <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Deposit Slip Form</h3>
+                        </div>
+
+                        <div className="p-5 space-y-5">
+                            {/* Type selector */}
+                            <div>
+                                <label className="block text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#E4E4E7] mb-1.5">
+                                    Select Deposit Slip Type <span className="text-red-500 normal-case font-bold">*</span>
+                                </label>
+                                <div className="relative">
+                                    <select value={selectedDepositSlipType} onChange={e => handleDepositSlipTypeChange(e.target.value)}
+                                        className="design-input pr-10 appearance-none cursor-pointer">
+                                        <option value="">— Select Type —</option>
+                                        {Object.entries(DEPOSIT_SLIP_TYPES).map(([key, cfg]) => (
+                                            <option key={key} value={key}>{cfg.label}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A1A1AA] pointer-events-none" />
+                                </div>
+                            </div>
+
+                            {depositFormLoading && (
+                                <div className="flex flex-col items-center gap-2 py-10 text-[#71717A]">
+                                    <div className="w-8 h-8 rounded-full border-2 border-[#E4E4E7] border-t-[#4A6CF7] animate-spin" />
+                                    <p className="text-[12px] font-semibold">Loading form fields…</p>
+                                </div>
+                            )}
+
+                            {!depositFormLoading && !selectedDepositSlipType && (
+                                <div className="py-10 text-center text-[13px] text-[#A1A1AA]">
+                                    Select a deposit slip type above to load the form.
+                                </div>
+                            )}
+
+                            {!depositFormLoading && selectedDepositSlipType && fields.length === 0 && (
+                                <div className="py-10 text-center text-[13px] text-amber-600 font-semibold">
+                                    No form fields found for this type.
+                                </div>
+                            )}
+
+                            {!depositFormLoading && selectedDepositSlipType && fields.length > 0 && (
+                                <FormRender
+                                    fields={fields.map(f => ({ ...f, hidden: !!f.hidden || !evaluateDependsOn(f.depends_on || f.depends_on_eval, formData) }))}
+                                    linkOptions={linkOptions}
+                                    sections={(() => {
+                                        const processed: any[] = [];
+                                        let currentSection: any = { title: "", fields: [], type: "default" };
+                                        fields.forEach(field => {
+                                            const isVisible = evaluateDependsOn(field.depends_on || field.depends_on_eval, formData);
+                                            if (field.fieldtype === "Section Break" || field.fieldtype === "SectionBreak") {
+                                                if (currentSection?.fields.length > 0) processed.push(currentSection);
+                                                currentSection = isVisible ? { title: field.label || "", fields: [], type: "default" } : null;
+                                            } else if (field.fieldtype === "Table") {
+                                                if (currentSection?.fields.length > 0) { processed.push(currentSection); currentSection = { title: "", fields: [], type: "default" }; }
+                                                if (isVisible) {
+                                                    const meta = childTableMeta[field.fieldname];
+                                                    let tableConfig: any = null;
+                                                    if (meta?.fields) {
+                                                        const columns = meta.fields.filter((f: any) => !["Section Break","Column Break","SectionBreak","ColumnBreak"].includes(f.fieldtype)).map((f: any) => {
+                                                            let opts: any[] = [], type = f.fieldtype;
+                                                            if (f.fieldname === "select_copi_id") { opts = linkOptions["select_copi_id"] || linkOptions["principal_investigator"] || linkOptions["User"] || []; type = "UserAutocomplete"; }
+                                                            if (["account_head","budget_head","head"].includes(f.fieldname)) { opts = linkOptions["Budget Head"] || linkOptions["budget_head"] || []; if (opts.length > 0) type = "Link"; }
+                                                            if (opts.length === 0) { if (f.fieldtype === "Select" && typeof f.options === "string") opts = f.options.split("\n").filter((o: string) => o.trim()).map((o: string) => ({ label: o, value: o })); else if (f.options) opts = linkOptions[f.fieldname] || linkOptions[f.options] || []; }
+                                                            return { key: f.fieldname, label: f.label || f.fieldname, type, options: opts };
+                                                        });
+                                                        const newRowTemplate: Record<string, any> = { doctype: meta.doctype, name: `new-${Date.now()}` };
+                                                        meta.fields.forEach((f: any) => { newRowTemplate[f.fieldname] = f.default ?? (["Currency","Float","Int"].includes(f.fieldtype) ? 0 : ""); });
+                                                        tableConfig = { fieldname: field.fieldname, columns, newRowTemplate };
+                                                    } else { tableConfig = { fieldname: field.fieldname, columns: [{ key: "name", label: "Name", type: "Data" }], newRowTemplate: {} }; }
+                                                    processed.push({ title: field.label, fields: [], type: "table", tableConfig });
+                                                }
+                                            } else if (field.fieldtype !== "Column Break" && field.fieldtype !== "ColumnBreak") {
+                                                if (currentSection) currentSection.fields.push(field.fieldname);
+                                            }
+                                        });
+                                        if (currentSection?.fields.length > 0) processed.push(currentSection);
+                                        return processed;
+                                    })()}
+                                    initialData={formData}
+                                    onSubmit={handleSaveDepositSlip}
+                                    onFormChange={data => setFormData(data)}
+                                    onCancel={() => setSelectedDepositSlipType("")}
+                                    submitButtonText="Save Deposit Slip"
+                                    isSubmitting={isSubmitting}
+                                    noCard
+                                    hideActions={true}
+                                />
+                            )}
+                        </div>
                     </div>
                 )}
 
-                {/* INLINE SUMMARY — shown when deposit slip form is not active */}
+                {/* ── Main content: stacked sections ── */}
                 {!showDepositSlip && (
-                    <div className="mt-8 animate-in fade-in duration-500 max-w-7xl">
-                        <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mb-6 flex items-center gap-2">
-                            <IndianRupee className="h-6 w-6 text-[#D97757]" />
-                            Fund Summary
-                        </h2>
-                        {renderSummaryContent()}
+                    <div className="space-y-4">
+
+                        {/* ── Budget Breakup ── */}
+                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden shadow-sm">
+                            <div className="flex items-center gap-2 px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+                                <div className="w-7 h-7 rounded-md bg-[#EEF2FF] flex items-center justify-center text-[#4A6CF7]">
+                                    <ReceiptText className="w-3.5 h-3.5" />
+                                </div>
+                                <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Budget Breakup</h3>
+                                {received_amt_breakup?.length > 0 && (
+                                    <span className="ml-auto text-[11px] font-bold text-[#4A6CF7] bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 dark:text-[#818CF8] px-2 py-0.5 rounded-md">
+                                        {received_amt_breakup.length} {received_amt_breakup.length === 1 ? "item" : "items"}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Account Head</th>
+                                            <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Remarks</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
+                                        {received_amt_breakup?.length > 0 ? received_amt_breakup.map((item: any, idx: number) => (
+                                            <tr key={item.name || idx} className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 transition-colors">
+                                                <td className="px-4 py-3 text-[13px] text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80"><BudgetHeadName value={item.account_head} /></td>
+                                                <td className="px-4 py-3 text-[13px] text-right font-bold text-[#D97757] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{item.amount_received?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>
+                                                <td className="px-4 py-3 text-[13px] text-[#71717A] dark:text-[#A1A1AA]">{item.remarks || "—"}</td>
+                                            </tr>
+                                        )) : (
+                                            <tr><td colSpan={3} className="px-4 py-10 text-center text-[13px] text-[#A1A1AA]">No breakup details available.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* ── Transactions ── */}
+                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden shadow-sm">
+                            <div className="flex items-center gap-2 px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+                                <div className="w-7 h-7 rounded-md bg-[#FFF7ED] flex items-center justify-center text-[#D97757]">
+                                    <CreditCard className="w-3.5 h-3.5" />
+                                </div>
+                                <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Transactions</h3>
+                                {fund_transactions?.length > 0 && (
+                                    <span className="ml-auto text-[11px] font-bold text-[#D97757] bg-[#FFF7ED] dark:bg-[#D97757]/15 px-2 py-0.5 rounded-md">
+                                        {fund_transactions.length} {fund_transactions.length === 1 ? "entry" : "entries"}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Transaction No.</th>
+                                            <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
+                                            <th className="px-4 py-3 text-center text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Attachment</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
+                                        {fund_transactions?.length > 0 ? fund_transactions.map((item: any, idx: number) => (
+                                            <tr key={item.name || idx} className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 transition-colors">
+                                                <td className="px-4 py-3 text-[13px] font-mono text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{item.date || item.transaction_date || "—"}</td>
+                                                <td className="px-4 py-3 text-[13px] font-bold text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{item.transaction_number || "—"}</td>
+                                                <td className="px-4 py-3 text-[13px] text-right font-bold text-[#D97757] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{item.amount?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>
+                                                <td className="px-4 py-3 text-center"><TransactionAttachment transactionName={item.name} fallbackFile={item.attachment || item.file} /></td>
+                                            </tr>
+                                        )) : (
+                                            <tr><td colSpan={4} className="px-4 py-10 text-center text-[13px] text-[#A1A1AA]">No transactions recorded.</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* ── Sanction Details ── */}
+                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden shadow-sm">
+                            <div className="flex items-center gap-2 px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+                                <div className="w-7 h-7 rounded-md bg-[#ECFDF5] flex items-center justify-center text-emerald-600">
+                                    <BadgeCheck className="w-3.5 h-3.5" />
+                                </div>
+                                <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Sanction Details</h3>
+                                {sanctionName && (
+                                    <span className="ml-auto text-[11px] font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-[#ECFDF5] dark:bg-emerald-950/30 px-2.5 py-1 rounded-lg">
+                                        {sanctionName}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-12">
+                                {[
+                                    { label: "Sanction Reference No.", value: sanctionName },
+                                    { label: "Sanction Letter No.", value: sanctionDetails?.sanctioned_letter_no || sanctionDetails?.sanction_letter_no },
+                                    { label: "Sanction Date", value: sanctionDetails?.sanctioned_letter_date || sanctionDetails?.sanction_date },
+                                    { label: "Total Sanctioned Amount", value: sanctionDetails?.total_sanctioned_amount != null ? sanctionDetails.total_sanctioned_amount.toLocaleString("en-IN", { style: "currency", currency: "INR" }) : null },
+                                    { label: "Workflow Status", value: sanctionDetails?.sanction_workflow_status || sanctionDetails?.workflow_state },
+                                ].map(({ label, value }) => (
+                                    <div key={label} className="flex items-start justify-between gap-4 py-3 border-b border-[#F4F4F5] dark:border-[#3F3F46] last:border-0">
+                                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] shrink-0">{label}</span>
+                                        <span className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] text-right">
+                                            {label === "Workflow Status" && value ? <StatusBadge state={value} /> : (value || "—")}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
                     </div>
                 )}
 
-                {/* Floating Summary Button — only shown when deposit slip form is active */}
+                {/* ── Floating: Summary (when deposit slip is shown) ── */}
                 {showDepositSlip && (
-                    <button
-                        onClick={() => setShowSummary(true)}
-                        className="fixed bottom-[86px] right-7 z-40 flex h-11 items-center gap-2 rounded-full border border-[#D97757]/30 bg-white/95 px-3.5 text-[#D97757] shadow-lg shadow-[#18181B]/10 backdrop-blur hover:-translate-y-0.5 hover:border-[#D97757]/50 hover:bg-[#FFF7ED] transition-all dark:bg-[#27272A]/95 dark:text-[#FDBA74] dark:border-[#D97757]/35"
-                    >
+                    <button onClick={() => setShowSummary(true)}
+                        className="fixed bottom-[86px] right-7 z-40 flex h-11 items-center gap-2 rounded-full border border-[#D97757]/30 bg-white/95 dark:bg-[#27272A]/95 px-3.5 text-[#D97757] dark:text-[#FDBA74] shadow-lg backdrop-blur hover:-translate-y-0.5 hover:border-[#D97757]/50 hover:bg-[#FFF7ED] dark:border-[#D97757]/35 transition-all">
                         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#D97757] text-white shadow-sm">
                             <IndianRupee className="h-4 w-4" />
                         </span>
-                        <span className="text-[12px] font-extrabold uppercase tracking-wide hidden md:block">
-                            Summary
-                        </span>
+                        <span className="text-[12px] font-extrabold uppercase tracking-wide hidden md:block">Summary</span>
                     </button>
                 )}
 
-                {/* Floating Activity Log Button */}
-                <button
-                    onClick={() => setShowActivityLog(true)}
-                    className="fixed bottom-8 right-7 z-40 flex h-11 items-center gap-2 rounded-full border border-[#4A6CF7]/30 bg-white/95 px-3.5 text-[#1E3A8A] shadow-lg shadow-[#18181B]/10 backdrop-blur hover:-translate-y-0.5 hover:border-[#4A6CF7]/50 hover:bg-[#EEF2FF] transition-all dark:bg-[#27272A]/95 dark:text-[#C7D2FE] dark:border-[#4A6CF7]/35"
-                >
+                {/* ── Floating: Activity Log ── */}
+                <button onClick={() => setShowActivityLog(true)}
+                    className="fixed bottom-8 right-7 z-40 flex h-11 items-center gap-2 rounded-full border border-[#4A6CF7]/30 bg-white/95 dark:bg-[#27272A]/95 px-3.5 text-[#1E3A8A] dark:text-[#C7D2FE] shadow-lg backdrop-blur hover:-translate-y-0.5 hover:border-[#4A6CF7]/50 hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/35 transition-all">
                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#4A6CF7] text-white shadow-sm">
                         <MessageSquare className="h-4 w-4" />
                     </span>
-                    <span className="text-[12px] font-extrabold uppercase tracking-wide hidden md:block">
-                        Activity Log
-                    </span>
+                    <span className="text-[12px] font-extrabold uppercase tracking-wide hidden md:block">Activity Log</span>
                 </button>
-
-                {/* Summary Panel (Slide Over) */}
-                {showSummary && (
-                    <div className="fixed inset-0 z-50 flex justify-end">
-                        {/* Backdrop */}
-                        <div
-                            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
-                            onClick={() => setShowSummary(false)}
-                        ></div>
-
-                        {/* Panel */}
-                        <div className="relative w-full max-w-xl bg-white dark:bg-zinc-900 h-full shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-right duration-300">
-                            <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-                                <div className="flex items-center gap-2">
-                                    <IndianRupee className="h-5 w-5 text-[#D97757]" />
-                                    <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">
-                                        Fund Summary
-                                    </h3>
-                                </div>
-                                <button
-                                    onClick={() => setShowSummary(false)}
-                                    className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors"
-                                >
-                                    <X className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
-                                </button>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto p-4 bg-zinc-50 dark:bg-zinc-800/50">
-                                {renderSummaryContent()}
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Activity Log Panel (Slide Over) */}
-                {showActivityLog && (
-                    <div className="fixed inset-0 z-50 flex justify-end">
-                        {/* Backdrop */}
-                        <div
-                            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
-                            onClick={() => setShowActivityLog(false)}
-                        ></div>
-
-                        {/* Panel */}
-                        <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 h-full shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-right duration-300">
-                            <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-                                <div className="flex items-center gap-2">
-                                    <MessageSquare className="h-5 w-5 text-[#D97757]" />
-                                    <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">
-                                        Activity Log
-                                    </h3>
-                                </div>
-                                <button
-                                    onClick={() => setShowActivityLog(false)}
-                                    className="p-2 hover:bg-zinc-200 dark:bg-zinc-700 rounded-lg transition-colors"
-                                >
-                                    <X className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
-                                </button>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto p-4 bg-zinc-50 dark:bg-zinc-800/50">
-                                {name && (
-                                    <ActivityLog
-                                        doctype="Fund Received"
-                                        docname={name}
-                                        maxHeight="100%"
-                                    />
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
             </main>
+
+            {/* ── Summary slide-over ── */}
+            {showSummary && (
+                <div className="fixed inset-0 z-50 flex justify-end">
+                    <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" onClick={() => setShowSummary(false)} />
+                    <div className="relative w-full max-w-lg bg-white dark:bg-[#27272A] h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+                        <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-md bg-[#FFF7ED] flex items-center justify-center text-[#D97757]"><IndianRupee className="h-3.5 w-3.5" /></div>
+                                <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Fund Summary</h3>
+                            </div>
+                            <button onClick={() => setShowSummary(false)} className="p-1.5 rounded-lg hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] text-[#71717A] transition-colors"><X className="h-4 w-4" /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-[#FAFAF9] dark:bg-[#18181B]">
+                            {/* KPI recap */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl p-4">
+                                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#71717A] mb-1">Total Amount</p>
+                                    <p className="text-[18px] font-extrabold text-[#D97757]">{fund_received_amt?.toLocaleString("en-IN", { style: "currency", currency: "INR" }) || "—"}</p>
+                                </div>
+                                <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl p-4">
+                                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#71717A] mb-1">Bank Account</p>
+                                    <p className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] truncate">{bank_account || "—"}</p>
+                                </div>
+                            </div>
+
+                            {/* Sanction info */}
+                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl overflow-hidden">
+                                <div className="flex items-center gap-2 px-4 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+                                    <div className="w-6 h-6 rounded-md bg-[#ECFDF5] flex items-center justify-center text-emerald-600"><BadgeCheck className="h-3.5 w-3.5" /></div>
+                                    <span className="text-[12px] font-bold uppercase tracking-wider text-[#3F3F46] dark:text-[#E4E4E7]">Sanction Details</span>
+                                </div>
+                                <div className="p-4 space-y-2">
+                                    {[["Reference", sanctionName], ["Letter No.", sanctionDetails?.sanctioned_letter_no || sanctionDetails?.sanction_letter_no], ["Date", sanctionDetails?.sanctioned_letter_date || sanctionDetails?.sanction_date], ["Sanctioned Amt", sanctionDetails?.total_sanctioned_amount?.toLocaleString("en-IN", { style: "currency", currency: "INR" })], ["Status", sanctionDetails?.sanction_workflow_status || sanctionDetails?.workflow_state]].map(([l, v]) => (
+                                        <div key={l as string} className="flex justify-between gap-2 py-1.5 border-b border-[#F4F4F5] dark:border-[#3F3F46] last:border-0">
+                                            <span className="text-[11px] font-bold uppercase tracking-wider text-[#71717A]">{l as string}</span>
+                                            <span className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] text-right">{(v as string) || "—"}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Budget breakup */}
+                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl overflow-hidden">
+                                <div className="flex items-center gap-2 px-4 py-3 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+                                    <div className="w-6 h-6 rounded-md bg-[#EEF2FF] flex items-center justify-center text-[#4A6CF7]"><ReceiptText className="h-3.5 w-3.5" /></div>
+                                    <span className="text-[12px] font-bold uppercase tracking-wider text-[#3F3F46] dark:text-[#E4E4E7]">Budget Breakup</span>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full">
+                                        <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Account Head</th>
+                                                <th className="px-4 py-2 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46]">
+                                            {received_amt_breakup?.length > 0 ? received_amt_breakup.map((item: any, idx: number) => (
+                                                <tr key={idx} className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40">
+                                                    <td className="px-4 py-2 text-[12px] text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80"><BudgetHeadName value={item.account_head} /></td>
+                                                    <td className="px-4 py-2 text-[12px] text-right font-bold text-[#D97757]">{item.amount_received?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>
+                                                </tr>
+                                            )) : <tr><td colSpan={2} className="px-4 py-6 text-center text-[12px] text-[#A1A1AA]">No breakup.</td></tr>}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Activity Log slide-over ── */}
+            {showActivityLog && (
+                <div className="fixed inset-0 z-50 flex justify-end">
+                    <div className="absolute inset-0 bg-black/25 backdrop-blur-sm" onClick={() => setShowActivityLog(false)} />
+                    <div className="relative w-full max-w-md bg-white dark:bg-[#27272A] h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+                        <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                            <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-md bg-[#EEF2FF] flex items-center justify-center text-[#4A6CF7]"><MessageSquare className="h-3.5 w-3.5" /></div>
+                                <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Activity Log</h3>
+                            </div>
+                            <button onClick={() => setShowActivityLog(false)} className="p-1.5 rounded-lg hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] text-[#71717A] transition-colors"><X className="h-4 w-4" /></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-5 bg-[#FAFAF9] dark:bg-[#18181B]">
+                            {name && <ActivityLog doctype="Fund Received" docname={name} maxHeight="100%" />}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

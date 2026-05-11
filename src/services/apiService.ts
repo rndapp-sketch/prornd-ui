@@ -227,6 +227,16 @@ export const commonAPI = {
     getUserDetailsByEmail: `rndopsapp.rndopsapp.api.get_user_details`,
 };
 
+// Delegate User API endpoints
+export const delegateUserAPI = {
+    searchUsers: `rndopsapp.rndopsapp.api.search_delegate_users`,
+    getScope: `rndopsapp.rndopsapp.api.get_delegate_scope`,
+    getActiveDelegations: `rndopsapp.rndopsapp.api.get_active_delegations`,
+    delegate: `rndopsapp.rndopsapp.api.delegate_user`,
+    undelegate: `rndopsapp.rndopsapp.api.undelegate_user`,
+    removeItem: `rndopsapp.rndopsapp.api.remove_delegated_item`,
+};
+
 // Helper to convert file to base64
 export const fileToBase64 = (file: File): Promise<{ file_name: string; file_data: string }> => {
     return new Promise((resolve, reject) => {

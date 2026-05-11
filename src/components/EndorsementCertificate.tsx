@@ -27,8 +27,16 @@ interface EndorsementCertificateProps {
     fundingAgency?: string;
     duration?: string;
     totalCost?: string;
+    showSignatureSeal?: boolean;
     onHtmlChange?: (html: string) => void;
 }
+
+const DORND_SIGNATURE_SEAL_URL = "http://172.16.131.206:8000/files/Sign_dornd_stamp_rnd.jpg";
+
+const getEndorsementRefNo = (proposalId?: string) => {
+    if (!proposalId) return "IITG/RND/____";
+    return proposalId.startsWith("IITG-") ? proposalId : `IITG-${proposalId}`;
+};
 
 // Print styles for A4 pagination with footer margin
 const printStyles = `
@@ -198,6 +206,13 @@ const Toolbar = ({ onDownload }: { onDownload: () => void }) => {
  */
 export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHtml?: string }): string => {
     const currentDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+    const refNo = getEndorsementRefNo(props.proposalId);
+    const signatureSealHtml = props.showSignatureSeal
+        ? `<div class="signature">
+                <img src="${DORND_SIGNATURE_SEAL_URL}" alt="Signature with seal"/>
+                <div class="label">Signature of the Dean (R&D)</div>
+            </div>`
+        : "";
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -255,9 +270,9 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
         .cert-body p { margin-bottom: 16px; }
         .cert-body ol { padding-left: 32px; margin: 0; }
         .cert-body li { margin-bottom: 16px; text-align: justify; }
-        .signature { margin-top: 96px; display: flex; flex-direction: column; align-items: flex-end; }
+        .signature { margin-top: 72px; display: flex; flex-direction: column; align-items: flex-end; }
         .signature .label { font-weight: bold; }
-        .signature img { height: 64px; width: auto; margin-top: 16px; }
+        .signature img { height: 112px; width: auto; margin-top: 8px; object-fit: contain; }
         @media print {
             body { background: white; padding: 0; }
             .print-container { box-shadow: none; width: 100%; min-height: auto; padding: 0; margin: 0; }
@@ -292,7 +307,7 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
             <div>Dean (Research and Development),</div>
             <div>Professor of Electronics and Electrical Engineering</div>
             <div class="ref-no">
-                <span class="label">Ref. No.:</span> <span class="value">${props.proposalId || "IITG/RND/____"}</span>
+                <span class="label">Ref. No.:</span> <span class="value">${refNo}</span>
             </div>
             <div class="date">Date: ${currentDate}</div>
         </div>
@@ -303,10 +318,7 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
             ${props.bodyHtml || ""}
         </div>
 
-        <div class="signature">
-            <div class="label">Signature of the Dean (R&D)</div>
-            <img src="http://172.16.117.39:8000/files/rohit_fake_sign.png" alt="Signature"/>
-        </div>
+        ${signatureSealHtml}
     </div>
 </body>
 </html>`;
@@ -324,6 +336,7 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
     const storageKeyRef = useRef<string>('');
 
     const { currentUser } = useFrappeAuth();
+    const refNo = getEndorsementRefNo(props.proposalId);
 
     // Keep the key ref up to date every render
     storageKeyRef.current = currentUser
@@ -491,7 +504,7 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                             {/* Reference Number */}
                             <div className="mt-3 font-semibold">
                                 <span className="text-zinc-600 dark:text-zinc-400">Ref. No.:</span>{" "}
-                                <span className="font-bold">{props.proposalId || "IITG/RND/____"}</span>
+                                <span className="font-bold">{refNo}</span>
                             </div>
                             <div className="text-sm text-zinc-600 dark:text-zinc-400">
                                 Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
@@ -521,16 +534,16 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                         />
 
                         {/* Signatures */}
-                        <div className="mt-24 flex flex-col items-end avoid-break">
+                        {props.showSignatureSeal && (
+                        <div className="mt-20 flex flex-col items-end avoid-break">
+                            <img
+                                src={DORND_SIGNATURE_SEAL_URL}
+                                alt="Signature with seal"
+                                className="h-28 w-auto object-contain mb-2"
+                            />
                             <div className="font-bold">Signature of the Dean (R&D)</div>
-                            {/* <div className="mt-4">
-                                <img
-                                    src="http://172.16.131.206:8000/files/rohit_fake_sign.png"
-                                    alt="Signature"
-                                    className="h-16 w-auto"
-                                />
-                            </div> */}
                         </div>
+                        )}
                     </div>
                 </div>
             </main>

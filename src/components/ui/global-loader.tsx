@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 
 interface GlobalLoaderProps {
@@ -11,7 +12,7 @@ interface GlobalLoaderProps {
 export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
     isLoading,
     className,
-    delay = 1000 // Only show loader if loading takes longer than 500ms
+    delay = 650
 }) => {
     const [showLoader, setShowLoader] = useState(false);
 
@@ -36,25 +37,42 @@ export const GlobalLoader: React.FC<GlobalLoaderProps> = ({
     // Don't render anything if we shouldn't show the loader
     if (!showLoader || !isLoading) return null;
 
-    return (
+    return createPortal(
         <div className={cn(
-            "fixed inset-0 z-[100] flex items-center justify-center bg-claude-bg/80 dark:bg-zinc-900/80 backdrop-blur-sm transition-opacity duration-500",
+            "fixed inset-0 z-[100] flex items-center justify-center bg-[#FAFAF9]/88 dark:bg-[#18181B]/88 backdrop-blur-md transition-opacity duration-500",
             className
         )}>
-            <div className="flex flex-col items-center gap-4 animate-pulse">
-                {/* Replaced Spinner with a custom subtle one or just text if Spinner is too heavy. 
-                     Assuming Spinner is adaptable or we can use a simple SVG here for maximum control. 
-                     Let's use a very clean SVG spinner to ensure it matches the vibe. */}
-                <svg className="animate-spin h-8 w-8 text-zinc-400 dark:text-zinc-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <div className="flex flex-col items-center gap-1">
-                    <p className="text-zinc-500 dark:text-zinc-400 font-medium text-sm tracking-wide">
-                        Loading...
+            <div className="prornd-loader-shell">
+                <div className="prornd-loader-mark" aria-hidden="true">
+                    <div className="prornd-loader-orbit prornd-loader-orbit-blue" />
+                    <div className="prornd-loader-orbit prornd-loader-orbit-orange" />
+                    <div className="prornd-loader-node prornd-loader-node-blue" />
+                    <div className="prornd-loader-node prornd-loader-node-orange" />
+                    <div className="prornd-loader-core">
+                        <span className="prornd-loader-core-line" />
+                        <span className="prornd-loader-core-line" />
+                        <span className="prornd-loader-core-line" />
+                    </div>
+                    <div className="prornd-loader-spark prornd-loader-spark-a" />
+                    <div className="prornd-loader-spark prornd-loader-spark-b" />
+                    <div className="prornd-loader-spark prornd-loader-spark-c" />
+                </div>
+
+                <div className="flex flex-col items-center gap-1 font-sans">
+                    <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-[#D97757]">
+                        ProRnD
                     </p>
+                    <p className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                        Preparing your workspace
+                    </p>
+                    <div className="mt-2 flex items-center gap-1.5" aria-label="Loading">
+                        <span className="prornd-loader-dot" />
+                        <span className="prornd-loader-dot" />
+                        <span className="prornd-loader-dot" />
+                    </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
