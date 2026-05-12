@@ -102,6 +102,16 @@ export function useAppwriteSession(): AppwriteSessionState {
     const connectingRef = useRef(false);
 
     useEffect(() => {
+        if (!appwriteConfig.endpoint || !appwriteConfig.projectId) {
+            setState({
+                status: "error",
+                user: null,
+                error:
+                    "Messaging is not configured. Set VITE_APPWRITE_ENDPOINT and VITE_APPWRITE_PROJECT_ID, then rebuild the app.",
+            });
+            return;
+        }
+
         if (!currentUser) {
             setState({ status: "idle", user: null, error: null });
             return;
