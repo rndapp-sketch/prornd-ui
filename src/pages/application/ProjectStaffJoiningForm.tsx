@@ -14,6 +14,7 @@ import {
     prepareFormDataForApi,
     projectStaffDetailsAPI,
     selectionCommitteeReportAPI,
+    selectionCandidateDetailsAPI,
 } from "@/services/apiService";
 
 const fallbackFields: FormField[] = [
@@ -94,6 +95,19 @@ const normalizeRows = (value: unknown): Record<string, unknown>[] => {
     return [];
 };
 
+type ProjectStaffMessage = {
+    fields?: FormField[];
+    link_options?: Record<string, LinkOption[]>;
+    prefill_data?: Record<string, unknown>;
+    status?: string;
+    docname?: string;
+    message?: string;
+};
+
+type SelectionCandidateDetailsMessage = {
+    data?: Record<string, unknown>[];
+};
+
 const normalizeFields = (fields: FormField[]): FormField[] =>
     fields.map((field) => {
         if (field.fieldname === "ps_emp_id") return { ...field, read_only: 1 };
@@ -119,7 +133,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
     const applicationId = searchParams.get("application_id") || "";
 
     const [fields, setFields] = useState<FormField[]>(fallbackFields);
-    const [formData, setFormData] = useState<Record<string, any>>({});
+    const [formData, setFormData] = useState<Record<string, unknown>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -127,9 +141,10 @@ const ProjectStaffJoiningForm: React.FC = () => {
     const [candidateName, setCandidateName] = useState("");
     const [nextEmpId, setNextEmpId] = useState("Auto-generated");
 
-    const { call: fetchFields } = useFrappePostCall<{ message: any }>(projectStaffDetailsAPI.getFields);
-    const { call: fetchSCRFields } = useFrappePostCall<{ message: any }>(selectionCommitteeReportAPI.getFields);
-    const { call: saveData } = useFrappePostCall<{ message: any }>(projectStaffDetailsAPI.save);
+    const { call: fetchFields } = useFrappePostCall<{ message: ProjectStaffMessage }>(projectStaffDetailsAPI.getFields);
+    const { call: fetchSCRFields } = useFrappePostCall<{ message: ProjectStaffMessage }>(selectionCommitteeReportAPI.getFields);
+    const { call: fetchCandidateByApplication } = useFrappePostCall<{ message: SelectionCandidateDetailsMessage }>(selectionCandidateDetailsAPI.getByApplication);
+    const { call: saveData } = useFrappePostCall<{ message: ProjectStaffMessage }>(projectStaffDetailsAPI.save);
     const { call: fetchNextEmpId } = useFrappePostCall<{ message: string }>(projectStaffDetailsAPI.getNextEmpId);
 
     useEffect(() => {
@@ -138,7 +153,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
         const load = async () => {
             setLoading(true);
             let nextId = "Auto-generated";
-            let nextData: Record<string, any> = {};
+            let nextData: Record<string, unknown> = {};
 
             try {
                 const empRes = await fetchNextEmpId({});
@@ -168,10 +183,14 @@ const ProjectStaffJoiningForm: React.FC = () => {
                 setFields(fallbackFields);
             }
 
-            if (scrName) {
+            const [scrRes, scdRes] = await Promise.all([
+                scrName ? fetchSCRFields({ doc_name: scrName }).catch(() => null) : Promise.resolve(null),
+                applicationId ? fetchCandidateByApplication({ application_id: applicationId }).catch(() => null) : Promise.resolve(null),
+            ]);
+
+            if (scrRes) {
                 try {
-                    const res = await fetchSCRFields({ doc_name: scrName });
-                    const prefill = res?.message?.prefill_data;
+                    const prefill = scrRes?.message?.prefill_data;
                     const candidates = normalizeRows(prefill?.candidates);
                     const candidate = candidates.find((c) => String(c.candidate_id) === String(candidateId));
 
@@ -199,6 +218,36 @@ const ProjectStaffJoiningForm: React.FC = () => {
                 }
             }
 
+            const scdDocs = scdRes?.message?.data;
+            if (Array.isArray(scdDocs) && scdDocs.length > 0) {
+                const scd = scdDocs[0];
+                const scdFirst = scd.candidate_name || "";
+                const scdLast = scd.candidate_surname || "";
+                if (scdFirst || scdLast) {
+                    if (mounted) setCandidateName([scdFirst, scdLast].filter(Boolean).join(" "));
+                }
+                nextData = {
+                    ...nextData,
+                    ...(scdFirst && { ps_first_name: scdFirst }),
+                    ...(scdLast && { ps_last_name: scdLast }),
+                    ...(scd.email && { ps_email_id: scd.email }),
+                    ...(scd.phone_number && { ps_phone_number: scd.phone_number }),
+                    ...(scd.correspondence_address && { ps_present_address: scd.correspondence_address }),
+                    ...(scd.permanent_address && { ps_permanent_address: scd.permanent_address }),
+                    ...(scd.date_of_birth && { ps_date_of_birth: scd.date_of_birth }),
+                    ...(scd.fathers_name && { ps_fathers_name: scd.fathers_name }),
+                    ...(scd.blood_group && { ps_blood_group: scd.blood_group }),
+                    ...(scd.marital_status && { ps_maritial_status: scd.marital_status }),
+                    ...(scd.citizenship && { ps_citizenship: scd.citizenship }),
+                    ...(scd.pan && { ps_pan: scd.pan }),
+                    ...(scd.aadhar_number && { ps_aadhar_number: scd.aadhar_number }),
+                    ...(scd.appointment_order_number && { ps_aon: scd.appointment_order_number }),
+                    ...(scd.basic_pay && { ps_basic_salary: scd.basic_pay }),
+                    ...(scd.hra && { ps_hra: scd.hra }),
+                    ...(scd.applied_post && { ps_designation: scd.applied_post }),
+                };
+            }
+
             nextData = {
                 ps_emp_id: nextData.ps_emp_id || nextId,
                 table_ymed: normalizeRows(nextData.table_ymed),
@@ -216,9 +265,9 @@ const ProjectStaffJoiningForm: React.FC = () => {
             mounted = false;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [scrName, candidateId, savedDocName]);
+    }, [scrName, candidateId, applicationId, savedDocName]);
 
-    const handleFieldChange = useCallback((fieldname: string, value: any) => {
+    const handleFieldChange = useCallback((fieldname: string, value: unknown) => {
         setFormData((prev) => ({ ...prev, [fieldname]: value }));
     }, []);
 
@@ -226,7 +275,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
         setFormData((prev) => ({ ...prev, [fieldname]: file }));
     }, []);
 
-    const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
+    const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: unknown) => {
         setFormData((prev) => {
             const rows = Array.isArray(prev[tableName]) ? [...prev[tableName]] : [];
             rows[rowIndex] = { ...(rows[rowIndex] || {}), [fieldname]: value };
@@ -238,7 +287,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
         handleTableRowChange(tableName, rowIndex, fieldname, file);
     }, [handleTableRowChange]);
 
-    const handleAddTableRow = useCallback((tableName: string, newRow: Record<string, any>) => {
+    const handleAddTableRow = useCallback((tableName: string, newRow: Record<string, unknown>) => {
         setFormData((prev) => ({
             ...prev,
             [tableName]: [...(Array.isArray(prev[tableName]) ? prev[tableName] : []), newRow],
@@ -301,9 +350,9 @@ const ProjectStaffJoiningForm: React.FC = () => {
             } else {
                 alert(res?.message?.message || "Failed to save.");
             }
-        } catch (e: any) {
+        } catch (e: unknown) {
             console.error("Project Staff Joining save error:", e);
-            alert(e?.message || "An error occurred while saving.");
+            alert(e instanceof Error ? e.message : "An error occurred while saving.");
         } finally {
             setSaving(false);
         }

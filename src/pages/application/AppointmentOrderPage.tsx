@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useFrappePostCall } from 'frappe-react-sdk';
-import { selectionCommitteeReportAPI } from '@/services/apiService';
+import { selectionCommitteeReportAPI, selectionCandidateDetailsAPI } from '@/services/apiService';
 import { Loader2, Printer, ArrowLeft } from 'lucide-react';
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -88,17 +88,15 @@ textarea.ao-input { display: block; width: 100%; resize: none; }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Candidate = {
-    id: string;
     candidate_name: string;
+    candidate_surname: string;
     application_id: string;
     recruitment_post_id: string;
     candidate_id: string;
     applied_post: string;
     basic_pay: number;
     hra: string;
-    medical_required: string;
     total_amount: number;
-    recommendation: string;
 };
 
 type PostDetail = {
@@ -115,6 +113,7 @@ const AppointmentOrderPage: React.FC = () => {
 
     const scrName = searchParams.get('scr') || '';
     const candidateId = searchParams.get('candidate_id') || '';
+    const applicationId = searchParams.get('application_id') || '';
 
     // Fetched
     const [loading, setLoading] = useState(true);
@@ -122,6 +121,7 @@ const AppointmentOrderPage: React.FC = () => {
     const [projectName, setProjectName] = useState('');
     const [recruitmentType, setRecruitmentType] = useState('');
     const [piName, setPiName] = useState('');
+    const [piDept, setPiDept] = useState('');
     const [candidate, setCandidate] = useState<Candidate | null>(null);
     const [duration, setDuration] = useState(0);
 
@@ -131,51 +131,85 @@ const AppointmentOrderPage: React.FC = () => {
     const [candidateEmail, setCandidateEmail] = useState('');
     const [joiningText, setJoiningText] = useState('within 15 days of receipt of this letter');
     const [extraNote, setExtraNote] = useState('');
+    const [scdDocName, setScdDocName] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
     const { call: fetchSCRFields } = useFrappePostCall(selectionCommitteeReportAPI.getFields);
-    const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
+    const { call: fetchCandidateByApplication } = useFrappePostCall(selectionCandidateDetailsAPI.getByApplication);
+    const { call: updateAppointmentOrderNumber } = useFrappePostCall(selectionCandidateDetailsAPI.updateAppointmentOrderNumber);
+    const { call: fetchFrappeValue } = useFrappePostCall<{ message: Record<string, string> }>('frappe.client.get_value');
 
     useEffect(() => {
-        if (!scrName) return;
+        if (!scrName && !applicationId) { setLoading(false); return; }
         (async () => {
             setLoading(true);
             try {
-                const res = await fetchSCRFields({ doc_name: scrName });
-                const prefill = res?.message?.prefill_data;
-                if (!prefill) return;
+                const [scrRes, scdRes] = await Promise.all([
+                    scrName ? fetchSCRFields({ doc_name: scrName }) : Promise.resolve(null),
+                    applicationId ? fetchCandidateByApplication({ application_id: applicationId }) : Promise.resolve(null),
+                ]);
 
-                setProjectNumber(prefill.project_number || '');
-                setProjectName(prefill.project_name || '');
-                setRecruitmentType(prefill.recruitment_type || '');
+                const prefill = scrRes?.message?.prefill_data;
+                if (prefill) {
+                    setProjectNumber(prefill.project_number || '');
+                    setProjectName(prefill.project_name || '');
+                    setRecruitmentType(prefill.recruitment_type || '');
 
-                const candidates: Candidate[] =
-                    typeof prefill.candidates === 'string'
-                        ? JSON.parse(prefill.candidates)
-                        : (prefill.candidates || []);
+                    const candidates: Candidate[] =
+                        typeof prefill.candidates === 'string'
+                            ? JSON.parse(prefill.candidates)
+                            : (prefill.candidates || []);
 
-                const postDetails: PostDetail[] = Array.isArray(prefill.post_details)
-                    ? prefill.post_details : [];
+                    const postDetails: PostDetail[] = Array.isArray(prefill.post_details)
+                        ? prefill.post_details : [];
 
-                const found = candidates.find(c => String(c.candidate_id) === String(candidateId));
-                if (found) {
-                    setCandidate(found);
-                    const post = postDetails.find(
-                        p => p.name === found.recruitment_post_id ||
-                            p.upfa_designation?.toLowerCase() === found.applied_post?.toLowerCase()
+                    const found = candidates.find(c =>
+                        String(c.application_id) === String(applicationId) ||
+                        String(c.candidate_id) === String(candidateId)
                     );
-                    setDuration(post?.upfa_duration_months ?? 0);
+                    if (found) {
+                        setCandidate({ ...found, candidate_surname: found.candidate_surname || '' });
+                        const post = postDetails.find(
+                            p => p.name === found.recruitment_post_id ||
+                                p.upfa_designation?.toLowerCase() === found.applied_post?.toLowerCase()
+                        );
+                        setDuration(post?.upfa_duration_months ?? 0);
+                    }
+
+                    const piLookup = prefill.principal_investigator
+                        ? fetchFrappeValue({ doctype: 'User', filters: prefill.principal_investigator, fieldname: 'full_name' }).catch(() => null)
+                        : Promise.resolve(null);
+                    const deptLookup = prefill.upfa_department
+                        ? fetchFrappeValue({ doctype: 'Department_prornd', filters: prefill.upfa_department, fieldname: 'dept_name' }).catch(() => null)
+                        : Promise.resolve(null);
+                    const [piRes, deptRes] = await Promise.all([piLookup, deptLookup]);
+                    setPiName(piRes?.message?.full_name || prefill.principal_investigator || '');
+                    setPiDept(deptRes?.message?.dept_name || prefill.upfa_department || '');
                 }
 
-                if (prefill.principal_investigator) {
-                    try {
-                        const ur = await fetchFrappeValue({
-                            doctype: 'User',
-                            name: prefill.principal_investigator,
-                            fieldname: 'full_name',
-                        });
-                        setPiName(ur?.message?.full_name || prefill.principal_investigator);
-                    } catch {
-                        setPiName(prefill.principal_investigator);
+                const scdDocs = scdRes?.message?.data;
+                if (Array.isArray(scdDocs) && scdDocs.length > 0) {
+                    const scd = scdDocs[0];
+                    if (scd.name) setScdDocName(scd.name);
+                    setCandidate(prev => prev ? {
+                        ...prev,
+                        candidate_name: scd.candidate_name || prev.candidate_name,
+                        candidate_surname: scd.candidate_surname || '',
+                        basic_pay: scd.basic_pay || prev.basic_pay,
+                        hra: scd.hra || prev.hra,
+                        applied_post: scd.applied_post || prev.applied_post,
+                    } : prev);
+                    if (scd.email) setCandidateEmail(scd.email);
+                    if (scd.correspondence_address) setAddress(scd.correspondence_address);
+                    if (scd.recruitment_type) setRecruitmentType(scd.recruitment_type);
+                    if (scd.appointment_order_number) {
+                        const projNum = scrRes?.message?.prefill_data?.project_number || '';
+                        const raw = String(scd.appointment_order_number);
+                        const stripped = projNum && raw.startsWith(`${projNum}/`)
+                            ? raw.slice(projNum.length + 1)
+                            : raw.includes('/') ? raw.split('/').slice(1).join('/') : raw;
+                        setIssueNumber(stripped);
                     }
                 }
             } catch (e) {
@@ -185,11 +219,23 @@ const AppointmentOrderPage: React.FC = () => {
             }
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [scrName, candidateId]);
+    }, [scrName, candidateId, applicationId]);
 
-    const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+    const fullName = candidate
+        ? [candidate.candidate_name, candidate.candidate_surname].filter(Boolean).join(' ')
+        : '';
+    const today = (() => {
+        const d = new Date();
+        const dd = String(d.getDate()).padStart(2, '0');
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        return `${dd}-${mm}-${d.getFullYear()}`;
+    })();
     const isAdhoc = recruitmentType?.toLowerCase() === 'adhoc';
     const signatory = isAdhoc ? 'Associate Dean, R&D' : 'Dean, R&D';
+    const deanName = isAdhoc ? 'Prof. Subhendu S. Bag' : 'Prof. Rohit Sinha';
+    const deanTitle = isAdhoc ? 'Associate Dean' : 'Dean';
+    const deanPhone = isAdhoc ? '+91-361-2582132' : '+91-361-2582082';
+    const deanEmail = isAdhoc ? 'adornd@iitg.ac.in' : 'dornd@iitg.ac.in';
 
     if (loading) {
         return (
@@ -229,15 +275,41 @@ const AppointmentOrderPage: React.FC = () => {
                 </button>
                     <div className="min-w-0 text-center">
                         <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Appointment Order</p>
-                        <p className="truncate text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{candidate.candidate_name}</p>
+                        <p className="truncate text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{fullName}</p>
                     </div>
-                <button
-                    onClick={() => window.print()}
-                    className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#D97757] px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#c66a4e]"
-                >
-                    <Printer size={15} />
-                    Print
-                </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={async () => {
+                                if (!issueNumber) return;
+                                if (!scdDocName) { setSaveStatus('error'); return; }
+                                setSaving(true);
+                                setSaveStatus('idle');
+                                try {
+                                    const res = await updateAppointmentOrderNumber({
+                                        docname: scdDocName,
+                                        appointment_order_number: `${projectNumber}/${issueNumber}`,
+                                    });
+                                    setSaveStatus(res?.message?.status === 'success' ? 'success' : 'error');
+                                } catch {
+                                    setSaveStatus('error');
+                                } finally {
+                                    setSaving(false);
+                                }
+                            }}
+                            disabled={saving || !issueNumber}
+                            className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-4 text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7] shadow-sm transition-colors hover:border-[#D97757]/40 hover:bg-[#D97757]/10 hover:text-[#D97757] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {saving ? <Loader2 size={14} className="animate-spin" /> : null}
+                            {saving ? 'Saving...' : saveStatus === 'success' ? 'Saved' : saveStatus === 'error' ? 'Error' : 'Save Ref'}
+                        </button>
+                        <button
+                            onClick={() => window.print()}
+                            className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#D97757] px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#c66a4e]"
+                        >
+                            <Printer size={15} />
+                            Print
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -303,9 +375,14 @@ const AppointmentOrderPage: React.FC = () => {
                                                 <td>+91-361-258-2089</td>
                                             </tr>
                                             <tr>
+                                                <td style={{ fontWeight: 'bold' }}>Phone</td>
+                                                <td>:</td>
+                                                <td>{deanPhone}</td>
+                                            </tr>
+                                            <tr>
                                                 <td style={{ fontWeight: 'bold' }}>Email</td>
                                                 <td>:</td>
-                                                <td>dornd@iitg.ac.in</td>
+                                                <td>{deanEmail}</td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -333,7 +410,7 @@ const AppointmentOrderPage: React.FC = () => {
                     {/* ── To block ── */}
                     <div style={{ marginTop: '20px' }}>
                         <div><strong>To,</strong></div>
-                        <div><strong>{candidate.candidate_name}</strong></div>
+                        <div><strong>{fullName}</strong></div>
                         <textarea
                             value={address}
                             onChange={e => setAddress(e.target.value)}
@@ -360,12 +437,21 @@ const AppointmentOrderPage: React.FC = () => {
                         <strong>Sub:</strong>{' '}
                         Temporary {recruitmentType} engagement for the post of{' '}
                         <strong>{candidate.applied_post}</strong> in the project titled{' '}
-                        "<strong>{projectName}</strong>" under Dr. {piName}.
+                        "<strong>{projectName}</strong>" in the Dept. of{' '}
+                        <input
+                            type="text"
+                            value={piDept}
+                            onChange={e => setPiDept(e.target.value)}
+                            placeholder="Dept. Name"
+                            className="ao-input"
+                            style={{ width: '180px' }}
+                        />{' '}
+                        under Dr. {piName}.
                     </div>
 
                     {/* ── Salutation ── */}
                     <div style={{ marginTop: '18px' }}>
-                        <p style={{ marginBottom: '10px' }}>Dear <strong>{candidate.candidate_name}</strong>,</p>
+                        <p style={{ marginBottom: '10px' }}>Dear <strong>{fullName}</strong>,</p>
                         <p style={{ textAlign: 'justify', lineHeight: '1.6' }}>
                             With reference to your application and subsequent interview, you are hereby
                             offered the post of <strong>{candidate.applied_post}</strong> under the
@@ -422,22 +508,21 @@ const AppointmentOrderPage: React.FC = () => {
                     </div>
 
                     {/* ── Extra note (optional) ── */}
-                    {(extraNote || true) && (
-                        <div style={{ marginTop: '8px' }}>
-                            <textarea
-                                value={extraNote}
-                                onChange={e => setExtraNote(e.target.value)}
-                                placeholder="Additional note (optional)…"
-                                rows={2}
-                                className="ao-input"
-                            />
-                        </div>
-                    )}
+                    <div style={{ marginTop: '8px' }}>
+                        <textarea
+                            value={extraNote}
+                            onChange={e => setExtraNote(e.target.value)}
+                            placeholder="Additional note (optional)…"
+                            rows={2}
+                            className="ao-input"
+                        />
+                    </div>
 
                     {/* ── Signatory ── */}
                     <div style={{ marginTop: '50px' }}>
                         <p>Yours sincerely,</p>
                         <div style={{ marginTop: '42px' }}>
+                            <p style={{ fontWeight: 'bold', marginBottom: '4px' }}>{deanName}</p>
                             <p style={{
                                 fontWeight: 'bold',
                                 borderTop: '1px solid black',
@@ -447,7 +532,7 @@ const AppointmentOrderPage: React.FC = () => {
                             }}>
                                 {signatory}
                             </p>
-                            <p style={{ fontSize: '11px', color: '#555', marginTop: '2px' }}>IIT Guwahati</p>
+                            <p style={{ fontSize: '11px', color: '#555', marginTop: '2px' }}>{deanTitle}, IIT Guwahati</p>
                         </div>
                     </div>
 

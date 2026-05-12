@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { useFrappeGetCall, useFrappeAuth, useFrappeGetDocList, useFrappePostCall } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useUserRoles } from '../components/UserRole';
-import { selectionCommitteeReportAPI } from '@/services/apiService';
+import { selectionCandidateDetailsAPI } from '@/services/apiService';
 import {
     resolveProjectCategory,
     DOCTYPE_PR_LINKS,
@@ -78,16 +78,15 @@ interface FlattenedTask {
 type ProjectTypeTab = ProjectCategory;
 
 type SCRCandidate = {
-    id: string;
+    name: string;
     candidate_name: string;
     application_id: string;
-    recruitment_post_id: string;
     candidate_id: string;
-    applied_post: string;
-    basic_pay: number;
-    hra: string;
-    total_amount: number;
-    recommendation: string;
+    category: string;
+    selection_status: string;
+    appointment_order_number: string;
+    medical_report_number: string;
+    wl_number: string;
 };
 
 const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'];
@@ -142,21 +141,25 @@ const PendingTask: React.FC = () => {
     const [orderModal, setOrderModal] = useState<{
         open: boolean;
         loading: boolean;
+        error: string | null;
         scrName: string;
         candidates: SCRCandidate[];
-    }>({ open: false, loading: false, scrName: '', candidates: [] });
+    }>({ open: false, loading: false, error: null, scrName: '', candidates: [] });
 
-    const { call: fetchSCRFields } = useFrappePostCall(selectionCommitteeReportAPI.getFields);
+    const { call: fetchCandidatesByInterview } = useFrappePostCall(selectionCandidateDetailsAPI.getByInterview);
 
     const handleOrderClick = async (taskId: string) => {
-        setOrderModal({ open: true, loading: true, scrName: taskId, candidates: [] });
+        setOrderModal({ open: true, loading: true, error: null, scrName: taskId, candidates: [] });
         try {
-            const response = await fetchSCRFields({ doc_name: taskId });
-            const raw = response?.message?.prefill_data?.candidates;
-            const candidates: SCRCandidate[] = typeof raw === 'string' ? JSON.parse(raw) : (Array.isArray(raw) ? raw : []);
+            const res = await fetchCandidatesByInterview({ interview_id: taskId, selection_status: 'Recommended' });
+            if (res?.message?.status === 'error') {
+                setOrderModal(prev => ({ ...prev, loading: false, error: res.message.message || 'Failed to fetch candidates.' }));
+                return;
+            }
+            const candidates: SCRCandidate[] = Array.isArray(res?.message?.data) ? res.message.data : [];
             setOrderModal(prev => ({ ...prev, loading: false, candidates }));
         } catch {
-            setOrderModal(prev => ({ ...prev, loading: false }));
+            setOrderModal(prev => ({ ...prev, loading: false, error: 'Failed to fetch candidates. Please try again.' }));
         }
     };
 
@@ -664,7 +667,7 @@ const PendingTask: React.FC = () => {
                                                             onClick={() => handleOrderClick(task.id)}
                                                             className="px-3 py-1.5 text-xs h-8 shadow-sm"
                                                         >
-                                                            Order
+                                                            More
                                                         </FrappeButton>
                                                     )}
                                                 </div>
@@ -754,28 +757,37 @@ const PendingTask: React.FC = () => {
                                 <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
                                 <p className="text-sm">Loading candidates...</p>
                             </div>
+                        ) : orderModal.error ? (
+                            <p className="text-sm text-red-500 text-center py-8">{orderModal.error}</p>
                         ) : orderModal.candidates.length === 0 ? (
-                            <p className="text-sm text-zinc-500 text-center py-8">No candidates found.</p>
+                            <p className="text-sm text-zinc-500 text-center py-8">No recommended candidates found.</p>
                         ) : (
-                            orderModal.candidates.map((candidate) => (
+                            orderModal.candidates.map((candidate, idx) => (
                                 <div
-                                    key={candidate.id}
+                                    key={candidate.name || idx}
                                     className="flex items-center justify-between gap-4 p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
                                 >
-                                    <div className="min-w-0 flex-1">
+                                    <div className="min-w-0 flex-1 space-y-0.5">
                                         <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
                                             {candidate.candidate_name}
                                         </p>
-                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                                            {candidate.applied_post}
-                                        </p>
-                                        <span className={cn(
-                                            "inline-block mt-1.5 px-2 py-0.5 rounded text-[10px] font-bold border",
-                                            candidate.recommendation === "Recommended"
-                                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                                : "bg-red-50 text-red-700 border-red-200"
-                                        )}>
-                                            {candidate.recommendation}
+                                        {candidate.application_id && (
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">App ID: {candidate.application_id}</p>
+                                        )}
+                                        {candidate.category && (
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">Category: {candidate.category}</p>
+                                        )}
+                                        {candidate.wl_number && (
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">WL No: {candidate.wl_number}</p>
+                                        )}
+                                        {candidate.appointment_order_number && (
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">Order No: {candidate.appointment_order_number}</p>
+                                        )}
+                                        {candidate.medical_report_number && (
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">Medical Report: {candidate.medical_report_number}</p>
+                                        )}
+                                        <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-200">
+                                            {candidate.selection_status}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-2 flex-shrink-0">
