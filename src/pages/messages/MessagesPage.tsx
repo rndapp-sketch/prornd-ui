@@ -5,10 +5,10 @@ import {
     ArrowLeftIcon,
     Bell,
     BellRing,
-    Loader2,
     MessageCircle,
     Trash2,
 } from "lucide-react";
+import { GlobalLoader } from "@/components/ui/global-loader";
 import { useAppwriteSession } from "@/hooks/useAppwriteSession";
 import { useConversations } from "@/hooks/useConversations";
 import { useConversationUnreadCounts } from "@/hooks/useConversationUnreadCounts";
@@ -232,7 +232,7 @@ export default function MessagesPage() {
     );
 
     const handleDeleteChat = async () => {
-        if (!activeConversation) return;
+        if (!activeConversation || !myUserId) return;
         const ok = window.confirm("Delete this chat from your conversation list?");
         if (!ok) return;
         setIsDeletingChat(true);
@@ -351,12 +351,7 @@ export default function MessagesPage() {
     /* ───── Session lifecycle states ───── */
 
     if (session.status === "connecting" || session.status === "idle") {
-        return (
-            <div className="min-h-[60vh] flex items-center justify-center text-[#71717A]">
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                <span className="text-[13px] font-medium">Connecting to messaging…</span>
-            </div>
-        );
+        return <GlobalLoader isLoading={true} />;
     }
 
     if (session.status === "error") {
