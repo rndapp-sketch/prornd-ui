@@ -3,7 +3,6 @@ import { useFrappeAuth, useFrappeGetDocList, useFrappePostCall } from "frappe-re
 import {
     CheckCircle2,
     Clock,
-    FileText,
     FolderKanban,
     Loader2,
     Search,
@@ -35,16 +34,6 @@ type DelegationProject = {
     owner?: string;
 };
 
-type DelegationApplication = {
-    doctype: string;
-    name: string;
-    title?: string;
-    project_name?: string;
-    project_no?: string;
-    workflow_state?: string;
-    owner?: string;
-};
-
 type ActiveDelegation = {
     name: string;
     delegator_user?: string;
@@ -64,7 +53,6 @@ type ActiveDelegation = {
 type ScopeResponse = {
     users?: DelegateUserOption[];
     projects?: DelegationProject[];
-    applications?: DelegationApplication[];
 };
 
 const inputClasses =
@@ -110,11 +98,8 @@ const DelegateUser: React.FC = () => {
     const [userOptions, setUserOptions] = React.useState<DelegateUserOption[]>([]);
     const [delegateEmail, setDelegateEmail] = React.useState("");
     const [delegationType, setDelegationType] = React.useState<"View Only" | "View and Edit" | "Workflow Action">("View Only");
-    const [scopeType, setScopeType] = React.useState<"all" | "project" | "application">("all");
     const [projects, setProjects] = React.useState<DelegationProject[]>([]);
-    const [applications, setApplications] = React.useState<DelegationApplication[]>([]);
     const [selectedProjects, setSelectedProjects] = React.useState<Set<string>>(new Set());
-    const [selectedApplications, setSelectedApplications] = React.useState<Set<string>>(new Set());
     const [activeDelegations, setActiveDelegations] = React.useState<ActiveDelegation[]>([]);
     const [query, setQuery] = React.useState("");
     const [loading, setLoading] = React.useState(true);
@@ -159,7 +144,6 @@ const DelegateUser: React.FC = () => {
             ]);
 
             setProjects(scopeRes?.message?.projects || []);
-            setApplications(scopeRes?.message?.applications || []);
             setActiveDelegations(activeRes?.message || []);
             setUserOptions(usersRes?.message || []);
         } catch (e: any) {
@@ -224,33 +208,13 @@ const DelegateUser: React.FC = () => {
         );
     }, [projects, query]);
 
-    const filteredApplications = React.useMemo(() => {
-        const q = query.trim().toLowerCase();
-        if (!q) return applications;
-        return applications.filter((application) =>
-            [application.name, application.doctype, application.title, application.project_no, application.project_name, application.workflow_state]
-                .filter(Boolean)
-                .some((value) => String(value).toLowerCase().includes(q)),
-        );
-    }, [applications, query]);
-
     const selectedProjectCount = selectedProjects.size;
-    const selectedApplicationCount = selectedApplications.size;
 
     const projectLookup = React.useMemo(() => {
         const map = new Map<string, DelegationProject>();
         projects.forEach((project) => map.set(project.name, project));
         return map;
     }, [projects]);
-
-    const applicationLookup = React.useMemo(() => {
-        const map = new Map<string, DelegationApplication>();
-        applications.forEach((application) => {
-            map.set(`${application.doctype}:${application.name}`, application);
-            map.set(application.name, application);
-        });
-        return map;
-    }, [applications]);
 
     const enrichedActiveDelegations = React.useMemo(() => {
         const docMap = new Map<string, ActiveDelegation>();
@@ -264,20 +228,11 @@ const DelegateUser: React.FC = () => {
                 delegation.project_names ||
                 activeDelegationDetails[delegation.name]?.project_names ||
                 docMap.get(delegation.name)?.project_names,
-            applications:
-                delegation.applications ||
-                activeDelegationDetails[delegation.name]?.applications ||
-                docMap.get(delegation.name)?.applications,
         }));
     }, [activeDelegationDetails, activeDelegationDocs, activeDelegations]);
 
     const totalDelegatedProjects = React.useMemo(
         () => enrichedActiveDelegations.reduce((sum, delegation) => sum + parseJsonStringArray(delegation.project_names).length, 0),
-        [enrichedActiveDelegations],
-    );
-
-    const totalDelegatedApplications = React.useMemo(
-        () => enrichedActiveDelegations.reduce((sum, delegation) => sum + parseJsonStringArray(delegation.applications).length, 0),
         [enrichedActiveDelegations],
     );
 
@@ -294,14 +249,6 @@ const DelegateUser: React.FC = () => {
         });
     };
 
-    const toggleApplication = (name: string) => {
-        setSelectedApplications((prev) => {
-            const next = new Set(prev);
-            next.has(name) ? next.delete(name) : next.add(name);
-            return next;
-        });
-    };
-
     const handleDelegate = async () => {
         if (!delegateEmail) {
             setError("Select a user to delegate to.");
@@ -311,12 +258,8 @@ const DelegateUser: React.FC = () => {
             setError("You cannot delegate to yourself.");
             return;
         }
-        if (scopeType === "project" && selectedProjectCount === 0) {
-            setError("Select at least one project, or choose All scope.");
-            return;
-        }
-        if (scopeType === "application" && selectedApplicationCount === 0) {
-            setError("Select at least one application, or choose All scope.");
+        if (selectedProjectCount === 0) {
+            setError("Select at least one project to delegate.");
             return;
         }
 
@@ -327,14 +270,14 @@ const DelegateUser: React.FC = () => {
             await delegateUser({
                 delegate_user: delegateEmail,
                 delegation_type: delegationType,
-                scope_type: scopeType,
+                // Application-level delegation is paused for now. Keep every new delegation project-scoped.
+                scope_type: "project",
                 project_names: JSON.stringify(Array.from(selectedProjects)),
-                applications: JSON.stringify(Array.from(selectedApplications)),
+                applications: JSON.stringify([]),
             });
             setSuccess(`Delegation created for ${delegateEmail}.`);
             setDelegateEmail("");
             setSelectedProjects(new Set());
-            setSelectedApplications(new Set());
             await loadPage();
         } catch (e: any) {
             setError(e?.message || "Failed to create delegation.");
@@ -359,11 +302,7 @@ const DelegateUser: React.FC = () => {
         }
     };
 
-    const handleRemoveDelegatedItem = async (
-        delegationName: string,
-        itemType: "project" | "application",
-        itemValue: string,
-    ) => {
+    const handleRemoveDelegatedItem = async (delegationName: string, itemValue: string) => {
         if (!confirm(`Remove ${itemValue} from this delegation?`)) return;
         setSaving(true);
         setError(null);
@@ -374,14 +313,12 @@ const DelegateUser: React.FC = () => {
                 throw new Error("Delegation record is not loaded.");
             }
 
-            const fieldname = itemType === "project" ? "project_names" : "applications";
-            const currentValue = itemType === "project" ? existing.project_names : existing.applications;
-            const updatedValue = removeFromJsonArray(currentValue, itemValue);
+            const updatedValue = removeFromJsonArray(existing.project_names, itemValue);
 
             await updateDelegationField({
                 doctype: "User Delegation",
                 name: delegationName,
-                fieldname,
+                fieldname: "project_names",
                 value: updatedValue,
             });
             setActiveDelegationDetails((prev) => {
@@ -389,7 +326,7 @@ const DelegateUser: React.FC = () => {
                     ...prev,
                     [delegationName]: {
                         ...existing,
-                        [fieldname]: updatedValue,
+                        project_names: updatedValue,
                     },
                 };
             });
@@ -441,7 +378,7 @@ const DelegateUser: React.FC = () => {
                             Delegate User Access
                         </h1>
                         <p className="mt-1 max-w-3xl text-[13px] font-medium leading-6 text-[#71717A] dark:text-[#A1A1AA]">
-                            Delegate your projects and related applications to another user. Visibility follows the visible-as model: your delegate can see records assigned to you.
+                            Delegate your projects to another user. Visibility follows the visible-as model: your delegate can see project records assigned to you.
                         </p>
                     </div>
                     <div className="rounded-lg border border-[#C7D2FE] bg-[#EEF2FF] px-3 py-2 text-[12px] font-semibold text-[#1E3A8A] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]">
@@ -463,10 +400,9 @@ const DelegateUser: React.FC = () => {
                 </div>
             )}
 
-            <section className="grid gap-4 md:grid-cols-3">
+            <section className="grid gap-4 md:grid-cols-2">
                 <SummaryCard icon={Users} label="Active Delegates" value={enrichedActiveDelegations.length} />
                 <SummaryCard icon={FolderKanban} label="Delegated Projects" value={totalDelegatedProjects} />
-                <SummaryCard icon={FileText} label="Delegated Applications" value={totalDelegatedApplications} />
             </section>
 
             <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
@@ -476,10 +412,10 @@ const DelegateUser: React.FC = () => {
                             Create or Update Delegation
                         </h2>
                         <p className="mt-1 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
-                            Pick a user, choose the access level, then select the projects or applications to share.
+                            Pick a user, choose the access level, then select the projects to share.
                         </p>
                     </div>
-                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem_13rem]">
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14rem]">
                         <div>
                             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#D4D4D8]">
                                 Delegate to user
@@ -505,16 +441,6 @@ const DelegateUser: React.FC = () => {
                                 <option>Workflow Action</option>
                             </select>
                         </div>
-                        <div>
-                            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#D4D4D8]">
-                                Scope
-                            </label>
-                            <select className={cn(inputClasses, "w-full")} value={scopeType} onChange={(e) => setScopeType(e.target.value as any)}>
-                                <option value="all">All</option>
-                                <option value="project">Projects</option>
-                                <option value="application">Applications</option>
-                            </select>
-                        </div>
                     </div>
 
                     <div className="mt-5 flex flex-col gap-3 border-t border-[#E4E4E7] pt-4 dark:border-[#3F3F46] sm:flex-row sm:items-center sm:justify-between">
@@ -524,7 +450,7 @@ const DelegateUser: React.FC = () => {
                                 className={cn(inputClasses, "w-full pl-9")}
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
-                                placeholder="Search projects or applications"
+                                placeholder="Search projects"
                             />
                         </div>
                         <button
@@ -537,13 +463,12 @@ const DelegateUser: React.FC = () => {
                         </button>
                     </div>
 
-                    <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                    <div className="mt-5">
                         <ScopePanel
                             title="Projects"
                             icon={FolderKanban}
                             count={filteredProjects.length}
                             selectedCount={selectedProjectCount}
-                            muted={scopeType === "application"}
                         >
                             {filteredProjects.length === 0 ? (
                                 <EmptyState label="No projects found" />
@@ -553,7 +478,6 @@ const DelegateUser: React.FC = () => {
                                         <input
                                             type="checkbox"
                                             checked={selectedProjects.has(project.name)}
-                                            disabled={scopeType === "application"}
                                             onChange={() => toggleProject(project.name)}
                                             className="mt-1 h-4 w-4 accent-[#4A6CF7]"
                                         />
@@ -564,40 +488,6 @@ const DelegateUser: React.FC = () => {
                                             <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
                                                 <span>{project.project_no || project.name}</span>
                                                 {project.workflow_state && <span>{project.workflow_state}</span>}
-                                            </div>
-                                        </div>
-                                    </label>
-                                ))
-                            )}
-                        </ScopePanel>
-
-                        <ScopePanel
-                            title="Applications"
-                            icon={FileText}
-                            count={filteredApplications.length}
-                            selectedCount={selectedApplicationCount}
-                            muted={scopeType === "project"}
-                        >
-                            {filteredApplications.length === 0 ? (
-                                <EmptyState label="No applications found" />
-                            ) : (
-                                filteredApplications.map((application) => (
-                                    <label key={`${application.doctype}:${application.name}`} className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] p-3 transition-colors hover:bg-white dark:border-[#3F3F46] dark:bg-[#18181B] dark:hover:bg-[#27272A]">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedApplications.has(`${application.doctype}:${application.name}`)}
-                                            disabled={scopeType === "project"}
-                                            onChange={() => toggleApplication(`${application.doctype}:${application.name}`)}
-                                            className="mt-1 h-4 w-4 accent-[#4A6CF7]"
-                                        />
-                                        <div className="min-w-0">
-                                            <div className="truncate text-[13px] font-bold text-[#18181B] dark:text-[#E4E4E7]">
-                                                {application.title || application.name}
-                                            </div>
-                                            <div className="mt-1 flex flex-wrap gap-2 text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
-                                                <span>{application.doctype}</span>
-                                                <span>{application.project_no || application.project_name || "No project"}</span>
-                                                {application.workflow_state && <span>{application.workflow_state}</span>}
                                             </div>
                                         </div>
                                     </label>
@@ -623,7 +513,6 @@ const DelegateUser: React.FC = () => {
                         ) : (
                             enrichedActiveDelegations.map((delegation) => {
                                 const projectCount = parseJsonStringArray(delegation.project_names).length || delegation.project_count || 0;
-                                const applicationCount = parseJsonStringArray(delegation.applications).length || delegation.application_count || 0;
                                 const active = selectedDelegationName === delegation.name;
 
                                 return (
@@ -652,7 +541,6 @@ const DelegateUser: React.FC = () => {
                                                 <div className="mt-2 flex flex-wrap gap-1.5">
                                                     <Badge>{delegation.delegation_type || "View Only"}</Badge>
                                                     <Badge>{projectCount} projects</Badge>
-                                                    <Badge>{applicationCount} apps</Badge>
                                                 </div>
                                             </div>
                                         </div>
@@ -668,11 +556,10 @@ const DelegateUser: React.FC = () => {
                 <DelegationDetailsModal
                     delegation={selectedDelegation}
                     projectLookup={projectLookup}
-                    applicationLookup={applicationLookup}
                     saving={saving}
                     onClose={() => setSelectedDelegationName(null)}
                     onRevoke={() => handleUndelegate(selectedDelegation.name)}
-                    onRemoveItem={(type, value) => handleRemoveDelegatedItem(selectedDelegation.name, type, value)}
+                    onRemoveItem={(value) => handleRemoveDelegatedItem(selectedDelegation.name, value)}
                 />
             )}
         </div>
@@ -682,7 +569,6 @@ const DelegateUser: React.FC = () => {
 const DelegationDetailsModal = ({
     delegation,
     projectLookup,
-    applicationLookup,
     saving,
     onClose,
     onRevoke,
@@ -690,14 +576,12 @@ const DelegationDetailsModal = ({
 }: {
     delegation: ActiveDelegation;
     projectLookup: Map<string, DelegationProject>;
-    applicationLookup: Map<string, DelegationApplication>;
     saving: boolean;
     onClose: () => void;
     onRevoke: () => void;
-    onRemoveItem: (type: "project" | "application", value: string) => void;
+    onRemoveItem: (value: string) => void;
 }) => {
     const projectNames = parseJsonStringArray(delegation.project_names);
-    const applicationNames = parseJsonStringArray(delegation.applications);
 
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 px-4 py-6 backdrop-blur-[2px]">
@@ -717,9 +601,8 @@ const DelegationDetailsModal = ({
                             </p>
                             <div className="mt-2 flex flex-wrap gap-2">
                                 <Badge>{delegation.delegation_type || "View Only"}</Badge>
-                                <Badge>{delegation.scope_type || "all"}</Badge>
+                                <Badge>project</Badge>
                                 <Badge>{projectNames.length || delegation.project_count || 0} projects</Badge>
-                                <Badge>{applicationNames.length || delegation.application_count || 0} applications</Badge>
                             </div>
                         </div>
                     </div>
@@ -734,7 +617,7 @@ const DelegationDetailsModal = ({
                 </div>
 
                 <div className="space-y-5 overflow-y-auto p-5">
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid gap-3">
                         <div className="rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] px-4 py-3 dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/15">
                             <div className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wide text-[#1E3A8A] dark:text-[#C7D2FE]">
                                 <FolderKanban className="h-4 w-4" />
@@ -742,15 +625,6 @@ const DelegationDetailsModal = ({
                             </div>
                             <div className="mt-2 text-[24px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">
                                 {projectNames.length || delegation.project_count || 0}
-                            </div>
-                        </div>
-                        <div className="rounded-xl border border-[#A7F3D0] bg-[#ECFDF5] px-4 py-3 dark:border-[#10B981]/30 dark:bg-[#10B981]/15">
-                            <div className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wide text-[#065F46] dark:text-[#A7F3D0]">
-                                <FileText className="h-4 w-4" />
-                                Delegated Applications
-                            </div>
-                            <div className="mt-2 text-[24px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">
-                                {applicationNames.length || delegation.application_count || 0}
                             </div>
                         </div>
                     </div>
@@ -771,30 +645,7 @@ const DelegationDetailsModal = ({
                                 meta: [project?.project_no, project?.workflow_state].filter(Boolean).join(" · "),
                             };
                         })}
-                        onRemove={(projectName) => onRemoveItem("project", projectName)}
-                    />
-
-                    <DelegatedDetailList
-                        title="Applications"
-                        icon={FileText}
-                        emptyLabel={
-                            (delegation.application_count || 0) > 0
-                                ? "Application ids are not available from the backend response"
-                                : "No application ids in this delegation"
-                        }
-                        items={applicationNames.map((applicationName) => {
-                            const application = applicationLookup.get(applicationName);
-                            return {
-                                id: applicationName,
-                                title: application?.title || application?.name || applicationName,
-                                meta: [
-                                    application?.doctype,
-                                    application?.project_no || application?.project_name,
-                                    application?.workflow_state,
-                                ].filter(Boolean).join(" · "),
-                            };
-                        })}
-                        onRemove={(applicationName) => onRemoveItem("application", applicationName)}
+                        onRemove={onRemoveItem}
                     />
                 </div>
 
