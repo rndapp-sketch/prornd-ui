@@ -755,24 +755,7 @@ interface UserDelegation {
   delegation_type?: string;
   scope_type?: string;
   project_names?: string;
-  applications?: string;
   enabled?: number;
-}
-
-interface DelegatedApplicationRef {
-  doctype: string;
-  name: string;
-}
-
-interface DelegatedApplicationRecord extends DelegatedApplicationRef {
-  title?: string;
-  workflow_state?: string;
-  owner?: string;
-  creation?: string;
-  modified?: string;
-  project_name?: string;
-  project_no?: string;
-  load_error?: string;
 }
 
 type ProjectTypeTab = 'Research' | 'Consultancy' | 'Others';
@@ -1015,43 +998,6 @@ const parseDelegatedProjectNames = (raw?: string): string[] => {
   return [];
 };
 
-const parseDelegatedApplications = (raw?: string): DelegatedApplicationRef[] => {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((value): value is string => typeof value === "string" && value.includes(":"))
-      .map((value) => {
-        const separatorIndex = value.indexOf(":");
-        return {
-          doctype: value.slice(0, separatorIndex).trim(),
-          name: value.slice(separatorIndex + 1).trim(),
-        };
-      })
-      .filter((value) => value.doctype && value.name);
-  } catch {
-    return [];
-  }
-};
-
-const getDelegatedApplicationPath = (doctype: string, name: string) => {
-  const encoded = encodeURIComponent(name);
-  const routeMap: Record<string, string> = {
-    Travel: `/travel/${encoded}`,
-    "Temporary Advance": `/temporary-advance/${encoded}`,
-    "Advance Settlement": `/advance-settlement/${encoded}`,
-    "Direct Purchase": `/direct-purchase/${encoded}`,
-    "Disbursal of Consultancy": `/disbursal-of-consultancy/${encoded}`,
-    "Disbursal of Honorarium": `/disbursal-of-honorarium/${encoded}`,
-    "Loan Request": `/loan-request/${encoded}`,
-    "Indent General Form": `/indent-general-form-details/${encoded}`,
-    "Recruitment Adhoc Contractual": `/recruitment-adhoc-contractual/${encoded}`,
-    "Selection Committee Report": `/selection-committee-report/${encoded}`,
-    Reimbursement: `/reimbursement/${encoded}`,
-  };
-  return routeMap[doctype] || `/pending-tasks/${encodeURIComponent(doctype)}/${encoded}`;
-};
 
 interface ProjectsViewProps {
   initialTab?: string;
@@ -1126,10 +1072,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     Object.keys(pendingTasksData)[0],
   );
   const [selectedProjectType, setSelectedProjectType] = React.useState<ProjectTypeTab>('Research');
-  const [delegatedView, setDelegatedView] = React.useState<"projects" | "applications">("projects");
-  const [delegatedApplications, setDelegatedApplications] = React.useState<DelegatedApplicationRecord[]>([]);
-	  const [delegatedApplicationsLoading, setDelegatedApplicationsLoading] = React.useState(false);
-	  const [delegatedApplicationsError, setDelegatedApplicationsError] = React.useState<string | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -1255,11 +1197,12 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 	    isLoading: delegatedRecordsLoading,
 	    error: delegatedRecordsError,
 	  } = useFrappeGetDocList<UserDelegation>("User Delegation", {
-	    fields: ["name", "delegator_user", "delegate_user", "delegation_type", "scope_type", "project_names", "applications", "enabled"],
+	    fields: ["name", "delegator_user", "delegate_user", "delegation_type", "scope_type", "project_names", "enabled"],
 	    filters: currentUser
 	      ? [
 	          ["delegate_user", "=", currentUser],
 	          ["enabled", "=", 1],
+	          ["scope_type", "=", "project"],
 	        ]
 	      : [["name", "=", "NON_EXISTENT_DOC"]],
 	    limit: 1000,
@@ -1273,16 +1216,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 	    return Array.from(names);
 	  }, [receivedDelegations]);
 
-	  const delegatedApplicationRefs = React.useMemo(() => {
-	    const refs = new Map<string, DelegatedApplicationRef>();
-	    (receivedDelegations ?? []).forEach((delegation) => {
-	      parseDelegatedApplications(delegation.applications).forEach((ref) => {
-	        refs.set(`${ref.doctype}:${ref.name}`, ref);
-	      });
-	    });
-	    return Array.from(refs.values());
-	  }, [receivedDelegations]);
-
 	  const {
 	    data: delegatedProjects,
 	    isLoading: delegatedProjectsLoading,
@@ -1294,91 +1227,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 	      : [["name", "=", "NON_EXISTENT_DOC"]],
 	    limit: 1000,
 	  });
-
-	  React.useEffect(() => {
-	    let cancelled = false;
-
-	    const fetchDelegatedApplications = async () => {
-	      if (!delegatedApplicationRefs.length) {
-	        setDelegatedApplications([]);
-	        setDelegatedApplicationsError(null);
-	        setDelegatedApplicationsLoading(false);
-	        return;
-	      }
-
-	      setDelegatedApplicationsLoading(true);
-	      setDelegatedApplicationsError(null);
-
-	      try {
-	        const docs = await Promise.all(
-	          delegatedApplicationRefs.map(async (ref) => {
-	            try {
-	              const response = await fetch(
-	                `/api/resource/${encodeURIComponent(ref.doctype)}/${encodeURIComponent(ref.name)}`,
-	                { credentials: "include" },
-	              );
-	              if (!response.ok) {
-	                throw new Error(`HTTP ${response.status}`);
-	              }
-	              const result = await response.json();
-	              const data = result?.data || {};
-	              return {
-	                doctype: ref.doctype,
-	                name: ref.name,
-	                title:
-	                  data.project_title ||
-	                  data.title ||
-	                  data.applicant_name ||
-	                  data.name_of_applicant ||
-	                  data.name,
-	                workflow_state: data.workflow_state,
-	                owner: data.owner,
-	                creation: data.creation,
-	                modified: data.modified,
-	                project_name:
-	                  data.project_name ||
-	                  data.project_title ||
-	                  data.travel_project_title ||
-	                  data.prjreg_title ||
-	                  data.project,
-	                project_no:
-	                  data.project_no ||
-	                  data.project_number ||
-	                  data.travel_project_number ||
-	                  data.ta_da_project_code ||
-	                  data.upfa_project_code ||
-	                  data.igf_project_code ||
-	                  data.project_code,
-	              } as DelegatedApplicationRecord;
-	            } catch (error: any) {
-	              return {
-	                doctype: ref.doctype,
-	                name: ref.name,
-	                title: ref.name,
-	                workflow_state: "Shared",
-	                load_error: error?.message || "Unable to load details",
-	              } as DelegatedApplicationRecord;
-	            }
-	          }),
-	        );
-
-	        if (!cancelled) setDelegatedApplications(docs);
-	      } catch (error: any) {
-	        if (!cancelled) {
-	          setDelegatedApplications([]);
-	          setDelegatedApplicationsError(error?.message || "Failed to load delegated applications.");
-	        }
-	      } finally {
-	        if (!cancelled) setDelegatedApplicationsLoading(false);
-	      }
-	    };
-
-	    fetchDelegatedApplications();
-
-	    return () => {
-	      cancelled = true;
-	    };
-	  }, [delegatedApplicationRefs]);
 
   // --- Delete draft state ---
   const [confirmDeleteProject, setConfirmDeleteProject] = React.useState<Project | null>(null);
@@ -1552,21 +1400,6 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 	    (currentPage - 1) * itemsPerPage,
 	    currentPage * itemsPerPage,
 	  );
-
-	  const filteredDelegatedApplications = React.useMemo(() => {
-	    const q = searchQuery.toLowerCase();
-	    return delegatedApplications.filter((application) =>
-	      [
-	        application.doctype,
-	        application.name,
-	        application.title,
-	        application.workflow_state,
-	        application.owner,
-	        application.project_name,
-	        application.project_no,
-	      ].some((value) => String(value || "").toLowerCase().includes(q)),
-	    );
-	  }, [delegatedApplications, searchQuery]);
 
   const handleSortChange = (
     field:
@@ -1884,46 +1717,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 
 	  const renderProjectsTable = () => (
 	    <div className="space-y-4 animate-in fade-in duration-500">
-	      {activeTab === "delegated" && (
-	        <div className="flex flex-wrap gap-2 rounded-xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-	          {[
-	            { id: "projects", label: "Projects", count: delegatedProjects?.length || 0 },
-	            { id: "applications", label: "Applications", count: delegatedApplications.length },
-	          ].map((tab) => {
-	            const active = delegatedView === tab.id;
-	            return (
-	              <button
-	                key={tab.id}
-	                onClick={() => {
-	                  setDelegatedView(tab.id as "projects" | "applications");
-	                  setCurrentPage(1);
-	                }}
-	                className={cn(
-	                  "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-[12px] font-extrabold uppercase tracking-wide transition-all",
-	                  active
-	                    ? "bg-[#EEF2FF] text-[#1E3A8A] shadow-sm dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]"
-	                    : "text-[#52525B] hover:bg-[#F4F4F5] dark:text-[#A1A1AA] dark:hover:bg-[#3F3F46]",
-	                )}
-	              >
-	                {tab.label}
-	                <span
-	                  className={cn(
-	                    "rounded-full px-2 py-0.5 text-[11px] font-bold",
-	                    active
-	                      ? "bg-[#4A6CF7] text-white"
-	                      : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]",
-	                  )}
-	                >
-	                  {tab.count}
-	                </span>
-	              </button>
-	            );
-	          })}
-	        </div>
-	      )}
-
-	      {(activeTab !== "delegated" || delegatedView === "projects") && (
-	        <>
+	      <>
 	      {/* Project Type Tabs */}
 	      <div className="flex items-center gap-2 overflow-x-auto">
         {PROJECT_TYPE_TABS.map((tab) => {
@@ -2225,101 +2019,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
           </div>
 	        </div>
 	      )}
-	        </>
-	      )}
-
-	      {activeTab === "delegated" && delegatedView === "applications" && (
-	        <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
-	          <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-4 py-3 dark:border-[#3F3F46] dark:bg-[#18181B]">
-	            <div>
-	              <h2 className="text-[14px] font-extrabold text-[#18181B] dark:text-[#E4E4E7]">
-	                Delegated Applications
-	              </h2>
-	              <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
-	                Applications shared with you through delegation.
-	              </p>
-	            </div>
-	            <Badge variant="outline">{filteredDelegatedApplications.length}</Badge>
-	          </div>
-	          <CardContent className="p-0">
-	            <div className="overflow-x-auto p-3">
-	              <Table className="border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
-	                <TableHeader className="bg-[#F4F4F5] dark:bg-[#18181B]">
-	                  <TableRow>
-	                    <TableHead className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-wider">Application</TableHead>
-	                    <TableHead className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-wider">Project</TableHead>
-	                    <TableHead className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-wider">Date</TableHead>
-	                    <TableHead className="px-4 py-3 text-[10px] font-extrabold uppercase tracking-wider">Status</TableHead>
-	                    <TableHead className="px-4 py-3 text-right text-[10px] font-extrabold uppercase tracking-wider">Action</TableHead>
-	                  </TableRow>
-	                </TableHeader>
-	                <TableBody>
-	                  {delegatedApplicationsLoading ? (
-	                    Array.from({ length: 2 }).map((_, i) => (
-	                      <TableRow key={i}>
-	                        <TableCell><div className="h-4 w-48 animate-pulse rounded bg-zinc-100" /></TableCell>
-	                        <TableCell><div className="h-4 w-32 animate-pulse rounded bg-zinc-100" /></TableCell>
-	                        <TableCell><div className="h-4 w-24 animate-pulse rounded bg-zinc-100" /></TableCell>
-	                        <TableCell><div className="h-4 w-20 animate-pulse rounded bg-zinc-100" /></TableCell>
-	                        <TableCell><div className="ml-auto h-8 w-8 animate-pulse rounded bg-zinc-100" /></TableCell>
-	                      </TableRow>
-	                    ))
-	                  ) : delegatedApplicationsError ? (
-	                    <TableRow>
-	                      <TableCell colSpan={5} className="h-20 text-center text-red-500">
-	                        {delegatedApplicationsError}
-	                      </TableCell>
-	                    </TableRow>
-	                  ) : filteredDelegatedApplications.length === 0 ? (
-	                    <TableRow>
-	                      <TableCell colSpan={5} className="h-20 text-center text-zinc-500">
-	                        No delegated applications found.
-	                      </TableCell>
-	                    </TableRow>
-	                  ) : (
-	                    filteredDelegatedApplications.map((application) => (
-	                      <TableRow
-	                        key={`${application.doctype}:${application.name}`}
-	                        className="cursor-pointer hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40"
-	                        onClick={() => navigate(getDelegatedApplicationPath(application.doctype, application.name))}
-	                      >
-	                        <TableCell className="px-4 py-3">
-	                          <div className="font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
-	                            {application.title || application.name}
-	                          </div>
-	                          <div className="mt-0.5 text-[11px] font-mono text-[#71717A]">
-	                            {application.doctype}: {application.name}
-	                          </div>
-	                          {application.load_error && (
-	                            <div className="mt-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-	                              Details unavailable: {application.load_error}
-	                            </div>
-	                          )}
-	                        </TableCell>
-	                        <TableCell className="px-4 py-3 text-[12px] font-medium text-[#52525B] dark:text-[#A1A1AA]">
-	                          {application.project_no || application.project_name || "-"}
-	                        </TableCell>
-	                        <TableCell className="px-4 py-3 text-[12px] text-[#71717A]">
-	                          {application.creation ? format(new Date(application.creation), "MMM dd, yyyy") : "-"}
-	                        </TableCell>
-	                        <TableCell className="px-4 py-3">
-	                          {getStatusBadge(application.workflow_state || "Draft")}
-	                        </TableCell>
-	                        <TableCell className="px-4 py-3 text-right">
-	                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-	                            <ChevronRight className="h-4 w-4" />
-	                            <span className="sr-only">View</span>
-	                          </Button>
-	                        </TableCell>
-	                      </TableRow>
-	                    ))
-	                  )}
-	                </TableBody>
-	              </Table>
-	            </div>
-	          </CardContent>
-	        </Card>
-	      )}
+	      </>
 	    </div>
 	  );
 
@@ -2344,7 +2044,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 	      <div className="flex flex-wrap gap-2 rounded-xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
 	        {[
 	          { id: "myProjects", label: "My Projects", count: myProjects?.length || 0 },
-	          { id: "delegated", label: "Delegated", count: (delegatedProjects?.length || 0) + delegatedApplications.length },
+	          { id: "delegated", label: "Delegated", count: delegatedProjects?.length || 0 },
 	        ].map((tab) => {
 	          const active = activeTab === tab.id;
 	          return (
