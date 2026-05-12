@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFrappeAuth, useFrappeGetDoc } from "frappe-react-sdk";
 import type { Models } from "appwrite";
 import { appwriteAccount, appwriteConfig } from "@/lib/appwrite";
+import { sha256Hex } from "@/lib/sha256";
 
 type Status = "idle" | "connecting" | "ready" | "error";
 
@@ -55,11 +56,7 @@ async function withTimeout<T>(label: string, promise: Promise<T>, ms = 8000): Pr
  * so we hash to keep it deterministic and within limits.
  */
 async function deriveAppwriteUserId(email: string): Promise<string> {
-    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(email.toLowerCase()));
-    return Array.from(new Uint8Array(buf))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("")
-        .slice(0, 36);
+    return (await sha256Hex(email.toLowerCase())).slice(0, 36);
 }
 
 /**
@@ -76,13 +73,7 @@ async function deriveAppwriteUserId(email: string): Promise<string> {
  */
 async function deriveDevPassword(email: string): Promise<string> {
     const salt = `prornd-messaging-${appwriteConfig.projectId}`;
-    const buf = await crypto.subtle.digest(
-        "SHA-256",
-        new TextEncoder().encode(`${salt}:${email.toLowerCase()}`),
-    );
-    return Array.from(new Uint8Array(buf))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
+    return sha256Hex(`${salt}:${email.toLowerCase()}`);
 }
 
 export function useAppwriteSession(): AppwriteSessionState {

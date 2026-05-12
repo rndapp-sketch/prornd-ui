@@ -4,6 +4,7 @@ import type { Filter, FrappeDoc } from "frappe-js-sdk/lib/db/types";
 import { useDebounce } from "use-debounce";
 import { Check, Forward, SearchIcon, SendHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { sha256Hex } from "@/lib/sha256";
 import type { MessageUserProfile } from "@/hooks/useMessageUserProfiles";
 import {
     createConversation,
@@ -39,14 +40,7 @@ interface ForwardMessageDialogProps {
 }
 
 async function deriveAppwriteUserId(email: string): Promise<string> {
-    const buf = await crypto.subtle.digest(
-        "SHA-256",
-        new TextEncoder().encode(email.toLowerCase()),
-    );
-    return Array.from(new Uint8Array(buf))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("")
-        .slice(0, 36);
+    return (await sha256Hex(email.toLowerCase())).slice(0, 36);
 }
 
 function getConversationTitle(
