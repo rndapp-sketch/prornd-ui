@@ -127,6 +127,13 @@ export const selectionCommitteeReportAPI = {
     attachDirectorPdf: `${API_BASE}.selection_committee_report.selection_committee_report.attach_director_pdf_scr`,
 };
 
+// Selection Candidate Details API endpoints
+export const selectionCandidateDetailsAPI = {
+    getByInterview: `${API_BASE}.selection_candidate_details.selection_candidate_details.get_selection_candidate_details_by_interview`,
+    getByApplication: `${API_BASE}.selection_candidate_details.selection_candidate_details.get_selection_candidate_details_by_application`,
+    updateAppointmentOrderNumber: `${API_BASE}.selection_candidate_details.selection_candidate_details.update_appointment_order_number`,
+};
+
 // Project Staff Details (Joining) API endpoints
 export const projectStaffDetailsAPI = {
     getFields: `${API_BASE}.project_staff_details.project_staff_details.get_project_staff_details_fields`,
@@ -260,8 +267,8 @@ export const candidateAPI = {
 };
 
 // Helper to prepare form data with file conversions for API submission
-export const prepareFormDataForApi = async (formData: Record<string, any>): Promise<Record<string, any>> => {
-    const data = JSON.parse(JSON.stringify(formData));
+export const prepareFormDataForApi = async (formData: Record<string, unknown>): Promise<Record<string, unknown>> => {
+    const data = JSON.parse(JSON.stringify(formData)) as Record<string, unknown>;
 
     for (const key in formData) {
         const value = formData[key];
@@ -270,9 +277,13 @@ export const prepareFormDataForApi = async (formData: Record<string, any>): Prom
             data[key] = await fileToBase64(value);
         } else if (Array.isArray(value)) {
             for (let i = 0; i < value.length; i++) {
-                for (const rowKey in value[i]) {
-                    if (value[i][rowKey] instanceof File) {
-                        data[key][i][rowKey] = await fileToBase64(value[i][rowKey]);
+                const row = value[i];
+                const dataRows = data[key];
+                if (!row || typeof row !== 'object' || !Array.isArray(dataRows)) continue;
+                for (const rowKey in row) {
+                    const rowValue = (row as Record<string, unknown>)[rowKey];
+                    if (rowValue instanceof File) {
+                        (dataRows[i] as Record<string, unknown>)[rowKey] = await fileToBase64(rowValue);
                     }
                 }
             }
