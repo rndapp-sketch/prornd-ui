@@ -1,688 +1,3 @@
-// import * as React from "react";
-// import {
-//   useFrappeGetDocList,
-//   useFrappeAuth,
-//   useFrappeGetDoc,
-// } from "frappe-react-sdk";
-// import {
-//   Table,
-//   TableBody,
-//   TableCell,
-//   TableHead,
-//   TableHeader,
-//   TableRow,
-// } from "@/components/ui/table";
-// import { Input } from "@/components/ui/input";
-// import {
-//   Select,
-//   SelectContent,
-//   SelectItem,
-//   SelectTrigger,
-//   SelectValue,
-// } from "@/components/ui/select";
-// import { Button } from "@/components/ui/button";
-// import { Card, CardContent } from "@/components/ui/card";
-// import { Badge } from "@/components/ui/badge";
-// import { useNavigate, useLocation } from "react-router-dom";
-// import {
-//   ChevronRightIcon as ChevronRight,
-//   SearchIcon,
-//   ChevronsUpDown,
-//   CheckCircle2,
-// } from "lucide-react";
-// import { cn } from "@/lib/utils";
-// import { useUserRoles } from '../components/UserRole';
-// import { format } from "date-fns";
-
-// // --- LOGIC: Interfaces & Data ---
-// interface Task {
-//   id: string;
-//   projectNumber: string;
-//   projectTitle: string;
-//   status?: string;
-//   actionDate: string;
-//   assignedTo?: string;
-//   priority?: "Low" | "Medium" | "High" | "Urgent";
-// }
-
-// interface Project {
-//   name: string;
-//   project_title: string;
-//   workflow_state: string;
-//   pi_webmail: string;
-//   creation?: string;
-//   modified?: string;
-//   head_approver?: string;
-//   owner?: string;
-//   project_no?: string; // Added field
-// }
-
-// interface ProjectsViewProps {
-//   initialTab?: string;
-// }
-
-// const pendingTasksData: Record<string, Task[]> = {
-//   "Temp Adv": [
-//     {
-//       id: "TA-001",
-//       projectNumber: "PRJ-2024-001",
-//       projectTitle: "Research Equipment Purchase",
-//       status: "Pending Approval",
-//       actionDate: "2024-01-15",
-//       assignedTo: "Finance Dept",
-//       priority: "High",
-//     },
-//   ],
-//   Travel: [
-//     {
-//       id: "TR-001",
-//       projectNumber: "PRJ-2024-003",
-//       projectTitle: "International Conference - Singapore",
-//       status: "Approval Pending",
-//       actionDate: "2024-01-20",
-//       assignedTo: "Travel Desk",
-//       priority: "High",
-//     },
-//   ],
-//   Leave: [
-//     {
-//       id: "LV-001",
-//       projectNumber: "N/A",
-//       projectTitle: "Medical Leave Application",
-//       status: "Pending",
-//       actionDate: "2024-01-12",
-//       assignedTo: "HR Manager",
-//       priority: "Medium",
-//     },
-//   ],
-//   "Rate Contract": [
-//     {
-//       id: "RC-001",
-//       projectNumber: "CON-2024-001",
-//       projectTitle: "Software License Renewal",
-//       status: "Under Negotiation",
-//       actionDate: "2024-01-18",
-//       assignedTo: "Procurement",
-//       priority: "High",
-//     },
-//   ],
-// };
-
-// export function ProjectsView({ initialTab }: ProjectsViewProps) {
-//   // --- LOGIC: All hooks and state management remain UNCHANGED ---
-//   const [activeTab, setActiveTab] = React.useState(initialTab || "myProjects");
-//   // const [openPipeline, setOpenPipeline] = React.useState<string | null>(null); // Unused
-//   const [searchQuery, setSearchQuery] = React.useState("");
-//   const [sortField, setSortField] = React.useState<
-//     "creation" | "name" | "project_title" | "workflow_state" | "modified" | "owner"
-//   >("creation");
-//   const [sortOrder, setSortOrder] = React.useState<"asc" | "desc">("desc");
-//   const [currentPage, setCurrentPage] = React.useState(1);
-//   const [itemsPerPage, setItemsPerPage] = React.useState(10); // Unused set, but kept for future or consistency
-//   const [activeTaskTab, setActiveTaskTab] = React.useState(
-//     Object.keys(pendingTasksData)[0]
-//   );
-
-//   const navigate = useNavigate();
-//   const location = useLocation();
-//   const { currentUser } = useFrappeAuth();
-//   const { data: userData } = useFrappeGetDoc("User", currentUser ?? "", {
-//     fields: ["*"],
-//     enabled: !!currentUser,
-//   });
-//   const { roles: fetchedRoles, isLoading: isRolesLoading, error: rolesError } = useUserRoles(currentUser ?? null);
-
-//   const { isAdministrator, isPermanentEmployee } = React.useMemo(() => {
-//     const roles = fetchedRoles?.length > 0 ? fetchedRoles : userData?.roles?.map((r: any) => r.role) ?? [];
-//     return {
-//       isAdministrator: roles.includes("Administrator"),
-//       isPermanentEmployee: roles.includes("Permanent Employee"),
-//     };
-//   }, [userData, fetchedRoles]);
-
-//   React.useEffect(() => {
-//     if (initialTab) setActiveTab(initialTab);
-//     if ((location.state as any)?.filter === "Application Under Process") {
-//       setActiveTab("pending");
-//     }
-//   }, [initialTab, location.state]);
-
-//   const {
-//     data: myCreatedProjects,
-//     isLoading: createdLoading,
-//     error: createdError,
-//   } = useFrappeGetDocList<Project>("Project Registration", {
-//     fields: ["*"],
-//     filters: currentUser ? [["pi_webmail", "=", currentUser]] : [["name", "=", "NON_EXISTENT_DOC"]],
-//     limit: 1000,
-//   });
-
-//   const {
-//     data: myApprovalProjects,
-//     isLoading: approvalLoading,
-//     error: approvalError,
-//   } = useFrappeGetDocList<Project>("Project Registration", {
-//     fields: ["*"],
-//     filters: currentUser ? [["head_approver", "=", currentUser]] : [["name", "=", "NON_EXISTENT_DOC"]],
-//     limit: 1000,
-//   });
-
-//   const {
-//     data: allProjectsForAdmin,
-//     isLoading: adminLoading,
-//     error: adminError,
-//   } = useFrappeGetDocList<Project>("Project Registration", {
-//     fields: ["*"],
-//     filters: [],
-//     limit: 1000,
-//   });
-
-//   const isHosRnd = fetchedRoles?.includes("Hos, RnD (Head of Section, RnD)");
-//   const isRndStaff = fetchedRoles?.includes("staff, RnD");
-//   const isDoRnd = fetchedRoles?.includes("Dean, RnD");
-
-//   const {
-//     data: hosAprovalProjects,
-//     isLoading: hosLoading,
-//     error: hosError,
-//   } = useFrappeGetDocList<Project>("Project Registration", {
-//     fields: ["*"],
-//     filters: isHosRnd ? [["workflow_state", "=", "Pending HoS Approval"]] : [["name", "=", "NON_EXISTENT_DOC"]],
-//     limit: 1000,
-//   });
-
-//   const {
-//     data: doRndApprovalProjects,
-//     isLoading: doRndLoading,
-//     error: doRndError,
-//   } = useFrappeGetDocList<Project>("Project Registration", {
-//     fields: ["*"],
-//     filters: isDoRnd
-//       ? [["workflow_state", "=", "Pending Dean Approval"]]
-//       : [["name", "=", "NON_EXISTENT_DOC"]],
-//     limit: 1000,
-//   });
-
-//   const {
-//     data: rndstaffAprovalProjects,
-//     isLoading: rndstaffLoading,
-//     error: rndstaffError,
-//   } = useFrappeGetDocList<Project>("Project Registration", {
-//     fields: ["*"],
-//     filters: isRndStaff ? [["workflow_state", "=", "Pending Staff Approval"]] : [["name", "=", "NON_EXISTENT_DOC"]],
-//     limit: 1000,
-//   });
-
-//   const {
-//     data: myOwnedProjects,
-//     isLoading: ownedLoading,
-//     error: ownedError,
-//   } = useFrappeGetDocList<Project>("Project Registration", {
-//     fields: ["*"],
-//     filters: currentUser ? [["owner", "=", currentUser]] : [["name", "=", "NON_EXISTENT_DOC"]],
-//     limit: 1000,
-//   });
-
-//   const { myProjects, isLoading: myProjectsLoading, error: myProjectsError } = React.useMemo(() => {
-//     if (isHosRnd) {
-//       return { myProjects: hosAprovalProjects, isLoading: hosLoading, error: hosError };
-//     }
-//     if (isRndStaff) {
-//       return { myProjects: rndstaffAprovalProjects, isLoading: rndstaffLoading, error: rndstaffError };
-//     }
-//     if (isAdministrator) {
-//       return { myProjects: allProjectsForAdmin, isLoading: adminLoading, error: adminError };
-//     }
-//     if (isDoRnd) {
-//       return { myProjects: doRndApprovalProjects, isLoading: doRndLoading, error: doRndError };
-//     }
-
-//     const combined = [...(myCreatedProjects ?? []), ...(myApprovalProjects ?? []), ...(myOwnedProjects ?? [])];
-//     const uniqueProjectsMap = new Map<string, Project>();
-//     combined.forEach(project => {
-//       // Allow all project applications to be listed so their progress can be tracked
-//       // from endorsement phase to project registration phase.
-//       uniqueProjectsMap.set(project.name, project);
-//     });
-
-//     const uniqueProjects = Array.from(uniqueProjectsMap.values());
-
-//     return {
-//       myProjects: uniqueProjects,
-//       isLoading: createdLoading || approvalLoading,
-//       error: createdError || approvalError,
-//     };
-//   }, [
-//     isAdministrator,
-//     allProjectsForAdmin, adminLoading, adminError,
-//     myCreatedProjects, createdLoading, createdError,
-//     myApprovalProjects, approvalLoading, approvalError,
-//     myOwnedProjects, ownedLoading, ownedError,
-//     isHosRnd, hosAprovalProjects, hosLoading, hosError,
-//     isRndStaff, rndstaffAprovalProjects, rndstaffLoading, rndstaffError
-//   ]);
-
-//   const filteredAndSortedProjects = React.useMemo(() => {
-//     if (!myProjects) return [];
-//     let filtered = myProjects.filter((p) =>
-//       Object.values(p).some((val) =>
-//         String(val).toLowerCase().includes(searchQuery.toLowerCase())
-//       )
-//     );
-//     filtered.sort((a, b) => {
-//       const aVal = (a as any)[sortField] ?? "";
-//       const bVal = (b as any)[sortField] ?? "";
-//       if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
-//       if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
-//       return 0;
-//     });
-//     return filtered;
-//   }, [myProjects, searchQuery, sortField, sortOrder]);
-
-//   const totalPages = Math.ceil(filteredAndSortedProjects.length / itemsPerPage);
-//   const paginatedProjects = filteredAndSortedProjects.slice(
-//     (currentPage - 1) * itemsPerPage,
-//     currentPage * itemsPerPage
-//   );
-
-//   const handleSortChange = (
-//     field: "creation" | "name" | "project_title" | "workflow_state" | "modified" | "owner"
-//   ) => {
-//     setSortField(field);
-//     setSortOrder(sortField === field && sortOrder === "desc" ? "asc" : "desc");
-//     setCurrentPage(1);
-//   };
-
-//   // --- DESIGN: Badge Color Logic ---
-//   const getPriorityBadge = (priority: string) => {
-//     let variant = "outline";
-//     if (priority === "High" || priority === "Urgent") variant = "destructive";
-//     if (priority === "Medium") variant = "secondary";
-//     return <Badge variant={variant as any}>{priority}</Badge>;
-//   };
-
-//   const getStatusBadge = (status: string) => {
-//     const s = status?.toLowerCase();
-//     let className = "bg-zinc-100 text-zinc-800 hover:bg-zinc-200 border-zinc-200"; // Default/Draft
-
-//     if (["pending", "under review", "approval pending", "process"].some((t) => s?.includes(t))) {
-//       className = "bg-amber-100 text-amber-800 hover:bg-amber-200 border-amber-200"; // Pending
-//     } else if (s?.includes("approved") || s?.includes("open")) {
-//       className = "bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-200"; // Success
-//     } else if (s?.includes("rejected") || s?.includes("closed")) {
-//       className = "bg-rose-100 text-rose-800 hover:bg-rose-200 border-rose-200"; // Error/Closed
-//     }
-
-//     return <Badge variant="outline" className={cn("border", className)}>{status}</Badge>;
-//   };
-
-//   // --- Fetch Project Proposals ---
-//   const { data: projectProposals, isLoading: proposalsLoading } = useFrappeGetDocList("Project Proposal", {
-//     fields: ["name", "project_title", "workflow_state", "creation", "modified", "owner"],
-//     filters: currentUser ? [["owner", "=", currentUser]] : [["name", "=", "NON_EXISTENT_DOC"]],
-//     limit: 100,
-//   });
-
-//   const allPendingTasks: Record<string, Task[]> = React.useMemo(() => {
-//     const proposals: Task[] = (projectProposals || []).map((p: any) => ({
-//       id: p.name,
-//       projectNumber: p.name,
-//       projectTitle: p.project_title || "Untitled Proposal",
-//       status: p.workflow_state || "Draft",
-//       actionDate: p.modified || p.creation,
-//       assignedTo: "R&D Admin", // Default or derived
-//       priority: "Medium",
-//     }));
-
-//     return {
-//       "Endorsement": proposals,
-//       ...pendingTasksData,
-//     };
-//   }, [projectProposals]);
-
-//   // Ensure activeTaskTab is valid
-//   React.useEffect(() => {
-//     if (!allPendingTasks[activeTaskTab] && Object.keys(allPendingTasks).length > 0) {
-//       setActiveTaskTab(Object.keys(allPendingTasks)[0]);
-//     }
-//   }, [allPendingTasks, activeTaskTab]);
-
-
-//   // --- Render Functions ---
-//   const renderPendingTasks = () => {
-//     if (proposalsLoading) {
-//       return (
-//         <Card className="text-center py-12">
-//           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900 mx-auto mb-4"></div>
-//           <p className="text-zinc-500 text-sm">Loading tasks...</p>
-//         </Card>
-//       );
-//     }
-
-//     const totalTasks = Object.values(allPendingTasks).flat().length;
-//     const taskCategories = Object.keys(allPendingTasks);
-//     const activeTasks = allPendingTasks[activeTaskTab] || [];
-
-//     if (totalTasks === 0) {
-//       return (
-//         <Card className="text-center py-12">
-//           <CheckCircle2 className="h-12 w-12 text-zinc-300 mx-auto mb-4" />
-//           <h3 className="text-lg font-medium text-zinc-900">No Pending Tasks</h3>
-//           <p className="text-zinc-500 text-sm mt-1">You're all caught up!</p>
-//         </Card>
-//       );
-//     }
-
-//     return (
-//       <div className="space-y-6 animate-in fade-in duration-500">
-//         <div className="flex items-center justify-between">
-//           <div>
-//             <h2 className="text-lg font-serif font-medium text-zinc-900 dark:text-zinc-100">Pending Actions</h2>
-//             <p className="text-sm text-zinc-500 dark:text-zinc-400">Review and approve requests.</p>
-//           </div>
-//           <Badge variant="secondary">{totalTasks} Total</Badge>
-//         </div>
-
-//         <Card>
-//           <div className="border-b border-zinc-200 dark:border-zinc-800">
-//             <div className="flex overflow-x-auto">
-//               {taskCategories.map((category) => (
-//                 <button
-//                   key={category}
-//                   onClick={() => setActiveTaskTab(category)}
-//                   className={cn(
-//                     "px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap",
-//                     activeTaskTab === category
-//                       ? "border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
-//                       : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200"
-//                   )}
-//                 >
-//                   {category}
-//                   <span className="ml-2 text-xs bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded-full text-zinc-600 dark:text-zinc-400">
-//                     {allPendingTasks[category]?.length || 0}
-//                   </span>
-//                 </button>
-//               ))}
-//             </div>
-//           </div>
-//           <CardContent className="p-0">
-//             <div className="overflow-x-auto">
-//               <Table>
-//                 <TableHeader>
-//                   <TableRow>
-//                     <TableHead className="w-[80px] whitespace-nowrap">Task ID</TableHead>
-//                     <TableHead className="min-w-[150px]">Details</TableHead>
-//                     <TableHead className="w-[100px] whitespace-nowrap">Status</TableHead>
-//                     <TableHead className="w-[80px] whitespace-nowrap">Priority</TableHead>
-//                     <TableHead className="w-[100px] whitespace-nowrap">Assigned To</TableHead>
-//                     <TableHead className="w-[90px] whitespace-nowrap">Date</TableHead>
-//                     <TableHead className="text-right w-[60px] whitespace-nowrap">Action</TableHead>
-//                   </TableRow>
-//                 </TableHeader>
-//                 <TableBody>
-//                   {activeTasks.length === 0 ? (
-//                     <TableRow>
-//                       <TableCell colSpan={7} className="h-24 text-center text-zinc-500">
-//                         No active tasks in this category.
-//                       </TableCell>
-//                     </TableRow>
-//                   ) : (
-//                     activeTasks.map((task) => (
-//                       <TableRow key={task.id}>
-//                         <TableCell className="font-mono text-xs whitespace-nowrap">{task.id}</TableCell>
-//                         <TableCell>
-//                           <div className="font-medium whitespace-normal min-w-[150px] max-w-[300px]">{task.projectTitle}</div>
-//                           <div className="text-xs text-zinc-500 font-mono mt-0.5 whitespace-nowrap">{task.projectNumber}</div>
-//                         </TableCell>
-//                         <TableCell className="whitespace-nowrap">{getStatusBadge(task.status!)}</TableCell>
-//                         <TableCell className="whitespace-nowrap">{getPriorityBadge(task.priority!)}</TableCell>
-//                         <TableCell className="text-zinc-500 text-xs whitespace-nowrap">{task.assignedTo}</TableCell>
-//                         <TableCell className="text-zinc-500 text-xs whitespace-nowrap">
-//                           {task.actionDate ? format(new Date(task.actionDate), "MMM dd, yyyy") : "-"}
-//                         </TableCell>
-//                         <TableCell className="text-right whitespace-nowrap">
-//                           <Button
-//                             variant="default"
-//                             size="sm"
-//                             className="h-8 text-xs bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:text-zinc-900"
-//                             onClick={() => {
-//                               if (activeTaskTab === "Endorsement") {
-//                                 navigate(`/project-proposal-details/${task.id}`);
-//                               } else {
-//                                 console.log("View clicked for", task.id);
-//                               }
-//                             }}
-//                           >
-//                             Review
-//                           </Button>
-//                         </TableCell>
-//                       </TableRow>
-//                     ))
-//                   )}
-//                 </TableBody>
-//               </Table>
-//             </div>
-//           </CardContent>
-//         </Card>
-//       </div>
-//     );
-//   };
-
-//   const renderProjectsTable = () => (
-//     <div className="space-y-6 animate-in fade-in duration-500">
-//       <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
-//         <div className="relative w-full sm:w-72">
-//           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-//           <Input
-//             placeholder="Search projects by ID, title..."
-//             value={searchQuery}
-//             onChange={(e) => {
-//               setSearchQuery(e.target.value);
-//               setCurrentPage(1);
-//             }}
-//             className="pl-9 bg-white dark:bg-zinc-900"
-//           />
-//         </div>
-//         <div className="flex gap-2 w-full sm:w-auto">
-//           <Select value={sortField} onValueChange={(v: any) => handleSortChange(v)}>
-//             <SelectTrigger className="w-[180px] bg-white dark:bg-zinc-900">
-//               <SelectValue placeholder="Sort by" />
-//             </SelectTrigger>
-//             <SelectContent>
-//               <SelectItem value="creation">Creation Date</SelectItem>
-//               <SelectItem value="modified">Modified Date</SelectItem>
-//               <SelectItem value="name">Project Number</SelectItem>
-//               <SelectItem value="project_title">Title</SelectItem>
-//               <SelectItem value="workflow_state">Status</SelectItem>
-//             </SelectContent>
-//           </Select>
-//           <Button
-//             variant="outline"
-//             size="icon"
-//             onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-//             className="bg-white dark:bg-zinc-900 shrink-0"
-//           >
-//             <ChevronsUpDown className="h-4 w-4" />
-//           </Button>
-//         </div>
-//       </div>
-
-//       <Card>
-//         <CardContent className="p-0">
-//           <div className="overflow-x-auto">
-//             <Table>
-//               <TableHeader>
-//                 <TableRow>
-//                   <TableHead className="w-[80px] whitespace-nowrap">Number</TableHead>
-//                   <TableHead className="min-w-[150px] whitespace-nowrap">Project Title</TableHead>
-//                   <TableHead className="w-[120px] whitespace-nowrap">Funding Agency</TableHead>
-//                   <TableHead className="w-[90px] whitespace-nowrap">Date</TableHead>
-//                   <TableHead className="w-[100px] whitespace-nowrap">Status</TableHead>
-//                   <TableHead className="text-right w-[60px] whitespace-nowrap">Action</TableHead>
-//                 </TableRow>
-//               </TableHeader>
-//               <TableBody>
-//                 {myProjectsLoading ? (
-//                   Array.from({ length: 5 }).map((_, i) => (
-//                     <TableRow key={i}>
-//                       <TableCell><div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" /></TableCell>
-//                       <TableCell><div className="h-4 w-48 bg-zinc-100 rounded animate-pulse" /></TableCell>
-//                       <TableCell><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></TableCell>
-//                       <TableCell><div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" /></TableCell>
-//                       <TableCell><div className="h-4 w-16 bg-zinc-100 rounded animate-pulse" /></TableCell>
-//                       <TableCell><div className="h-8 w-8 bg-zinc-100 rounded animate-pulse ml-auto" /></TableCell>
-//                     </TableRow>
-//                   ))
-//                 ) : myProjectsError ? (
-//                   <TableRow>
-//                     <TableCell colSpan={8} className="h-24 text-center text-red-500">
-//                       Error loading projects. Please try again.
-//                     </TableCell>
-//                   </TableRow>
-//                 ) : paginatedProjects.length === 0 ? (
-//                   <TableRow>
-//                     <TableCell colSpan={8} className="h-24 text-center text-zinc-500">
-//                       No projects found matching your criteria.
-//                     </TableCell>
-//                   </TableRow>
-//                 ) : (
-//                   paginatedProjects.map((p: any) => (
-//                     <TableRow
-//                       key={p.name}
-//                       className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
-//                       onClick={() => {
-//                         const targetPath =
-//                           p.workflow_state === "Approved" || p.workflow_state === "Proposal Approved"
-//                             ? `/project-details-overview/${p.name}`
-//                             : `/project-details/${p.name}`;
-//                         navigate(targetPath);
-//                       }}
-//                     >
-//                       <TableCell className="font-mono text-xs font-medium text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
-//                         {p.project_no || p.name}
-//                       </TableCell>
-//                       <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">
-//                         <div className="line-clamp-2 min-w-[150px] max-w-[300px]" title={p.project_title}>{p.project_title}</div>
-//                       </TableCell>
-//                       <TableCell className="text-zinc-600 dark:text-zinc-400 text-xs whitespace-nowrap">
-//                         {p.funding_agen || "-"}
-//                       </TableCell>
-//                       <TableCell className="text-zinc-500 text-xs whitespace-nowrap">
-//                         {p.creation ? format(new Date(p.creation), "MMM dd, yyyy") : "-"}
-//                       </TableCell>
-//                       <TableCell className="whitespace-nowrap">
-//                         {getStatusBadge(p.workflow_state)}
-//                       </TableCell>
-//                       <TableCell className="text-right whitespace-nowrap">
-//                         {p.workflow_state === "Endorsement Approved" ? (
-//                           <Button
-//                             variant="default"
-//                             size="sm"
-//                             onClick={(e) => {
-//                               e.stopPropagation();
-//                               navigate(`/project-registration?docname=${p.name}&isApprovedEndorsement=true`);
-//                             }}
-//                           >
-//                             Register Project
-//                           </Button>
-//                         ) : (
-//                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-//                             <ChevronRight className="h-4 w-4" />
-//                             <span className="sr-only">View</span>
-//                           </Button>
-//                         )}
-//                       </TableCell>
-//                     </TableRow>
-//                   ))
-//                 )}
-//               </TableBody>
-//             </Table>
-//           </div>
-//         </CardContent>
-//       </Card>
-
-//       {totalPages > 1 && (
-//         <div className="flex items-center justify-between py-4">
-//           <div className="text-sm text-zinc-500">
-//             Page {currentPage} of {totalPages}
-//           </div>
-//           <div className="flex items-center gap-2">
-//             <Button
-//               variant="outline"
-//               size="sm"
-//               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-//               disabled={currentPage === 1}
-//             >
-//               Previous
-//             </Button>
-//             <Button
-//               variant="outline"
-//               size="sm"
-//               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-//               disabled={currentPage === totalPages}
-//             >
-//               Next
-//             </Button>
-//           </div>
-//         </div>
-//       )}
-//     </div>
-//   );
-
-//   return (
-//     <div className="w-full mx-auto space-y-8 animate-in fade-in duration-500">
-//       {/* Page Header */}
-//       <div className="flex flex-col gap-1">
-//         <h1 className="text-3xl font-serif font-medium text-zinc-900 dark:text-zinc-50">Projects</h1>
-//         <p className="text-zinc-500 dark:text-zinc-400">Manage and track all your research projects.</p>
-//       </div>
-
-//       {/* Tabs */}
-//       <div className="flex flex-col space-y-4">
-//         <div className="border-b border-zinc-200 dark:border-zinc-800">
-//           <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-//             {[
-//               { id: "myProjects", label: "My Projects", count: myProjects?.length || 0 }
-//             ].map((tab) => (
-//               <button
-//                 key={tab.id}
-//                 onClick={() => setActiveTab(tab.id)}
-//                 className={cn(
-//                   "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors",
-//                   activeTab === tab.id
-//                     ? "border-zinc-900 text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
-//                     : "border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-200"
-//                 )}
-//               >
-//                 {tab.label}
-//                 {tab.count > 0 && (
-//                   <span className={cn(
-//                     "ml-2 py-0.5 px-2 rounded-full text-xs font-medium",
-//                     activeTab === tab.id
-//                       ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
-//                       : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
-//                   )}>
-//                     {tab.count}
-//                   </span>
-//                 )}
-//               </button>
-//             ))}
-//           </nav>
-//         </div>
-
-//         <div className="pt-2">
-//           {activeTab === "pending" ? renderPendingTasks() : renderProjectsTable()}
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
-
-// export default ProjectsView;
-
-
-
-
 import * as React from "react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -1114,7 +429,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     filters: currentUser
       ? [["pi_webmail", "=", currentUser]]
       : [["name", "=", "NON_EXISTENT_DOC"]],
-	    limit: 1000,
+    limit: 1000,
   });
 
   const {
@@ -1126,7 +441,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     filters: currentUser
       ? [["head_approver", "=", currentUser]]
       : [["name", "=", "NON_EXISTENT_DOC"]],
-	    limit: 1000,
+    limit: 1000,
   });
 
   const {
@@ -1136,7 +451,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   } = useFrappeGetDocList<Project>("Project Registration", {
     fields: ["*"],
     filters: [],
-	    limit: 1000,
+    limit: 1000,
   });
 
   const isHosRnd = fetchedRoles?.includes("Hos, RnD (Head of Section, RnD)");
@@ -1152,7 +467,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     filters: isHosRnd
       ? [["workflow_state", "=", "Pending HoS Approval"]]
       : [["name", "=", "NON_EXISTENT_DOC"]],
-	    limit: 1000,
+    limit: 1000,
   });
 
   const {
@@ -1164,7 +479,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     filters: isDoRnd
       ? [["workflow_state", "=", "Pending Dean Approval"]]
       : [["name", "=", "NON_EXISTENT_DOC"]],
-	    limit: 1000,
+    limit: 1000,
   });
 
   const {
@@ -1176,57 +491,57 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     filters: isRndStaff
       ? [["workflow_state", "=", "Pending Staff Approval"]]
       : [["name", "=", "NON_EXISTENT_DOC"]],
-	    limit: 1000,
+    limit: 1000,
   });
 
-	  const {
-	    data: myOwnedProjects,
-	    isLoading: ownedLoading,
-	    error: ownedError,
-	    mutate: mutateOwned,
+  const {
+    data: myOwnedProjects,
+    isLoading: ownedLoading,
+    error: ownedError,
+    mutate: mutateOwned,
   } = useFrappeGetDocList<Project>("Project Registration", {
     fields: ["*"],
     filters: currentUser
       ? [["owner", "=", currentUser]]
       : [["name", "=", "NON_EXISTENT_DOC"]],
-	    limit: 1000,
-	  });
+    limit: 1000,
+  });
 
-	  const {
-	    data: receivedDelegations,
-	    isLoading: delegatedRecordsLoading,
-	    error: delegatedRecordsError,
-	  } = useFrappeGetDocList<UserDelegation>("User Delegation", {
-	    fields: ["name", "delegator_user", "delegate_user", "delegation_type", "scope_type", "project_names", "enabled"],
-	    filters: currentUser
-	      ? [
-	          ["delegate_user", "=", currentUser],
-	          ["enabled", "=", 1],
-	          ["scope_type", "=", "project"],
-	        ]
-	      : [["name", "=", "NON_EXISTENT_DOC"]],
-	    limit: 1000,
-	  });
+  const {
+    data: receivedDelegations,
+    isLoading: delegatedRecordsLoading,
+    error: delegatedRecordsError,
+  } = useFrappeGetDocList<UserDelegation>("User Delegation", {
+    fields: ["name", "delegator_user", "delegate_user", "delegation_type", "scope_type", "project_names", "enabled"],
+    filters: currentUser
+      ? [
+        ["delegate_user", "=", currentUser],
+        ["enabled", "=", 1],
+        ["scope_type", "=", "project"],
+      ]
+      : [["name", "=", "NON_EXISTENT_DOC"]],
+    limit: 1000,
+  });
 
-	  const delegatedProjectNames = React.useMemo(() => {
-	    const names = new Set<string>();
-	    (receivedDelegations ?? []).forEach((delegation) => {
-	      parseDelegatedProjectNames(delegation.project_names).forEach((name) => names.add(name));
-	    });
-	    return Array.from(names);
-	  }, [receivedDelegations]);
+  const delegatedProjectNames = React.useMemo(() => {
+    const names = new Set<string>();
+    (receivedDelegations ?? []).forEach((delegation) => {
+      parseDelegatedProjectNames(delegation.project_names).forEach((name) => names.add(name));
+    });
+    return Array.from(names);
+  }, [receivedDelegations]);
 
-	  const {
-	    data: delegatedProjects,
-	    isLoading: delegatedProjectsLoading,
-	    error: delegatedProjectsError,
-	  } = useFrappeGetDocList<Project>("Project Registration", {
-	    fields: ["*"],
-	    filters: delegatedProjectNames.length
-	      ? [["name", "in", delegatedProjectNames]]
-	      : [["name", "=", "NON_EXISTENT_DOC"]],
-	    limit: 1000,
-	  });
+  const {
+    data: delegatedProjects,
+    isLoading: delegatedProjectsLoading,
+    error: delegatedProjectsError,
+  } = useFrappeGetDocList<Project>("Project Registration", {
+    fields: ["*"],
+    filters: delegatedProjectNames.length
+      ? [["name", "in", delegatedProjectNames]]
+      : [["name", "=", "NON_EXISTENT_DOC"]],
+    limit: 1000,
+  });
 
   // --- Delete draft state ---
   const [confirmDeleteProject, setConfirmDeleteProject] = React.useState<Project | null>(null);
@@ -1311,18 +626,18 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
         error: adminError,
       };
     }
-	    if (isDoRnd) {
-	      return {
-	        myProjects: doRndApprovalProjects,
-	        isLoading: doRndLoading,
-	        error: doRndError,
-	      };
-	    }
+    if (isDoRnd) {
+      return {
+        myProjects: doRndApprovalProjects,
+        isLoading: doRndLoading,
+        error: doRndError,
+      };
+    }
 
-	    const combined = [
-	      ...(myCreatedProjects ?? []),
-	      ...(myOwnedProjects ?? []),
-	    ];
+    const combined = [
+      ...(myCreatedProjects ?? []),
+      ...(myOwnedProjects ?? []),
+    ];
     const uniqueProjectsMap = new Map<string, Project>();
     combined.forEach((project) => {
       // Allow all project applications to be listed so their progress can be tracked
@@ -1348,12 +663,12 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     myApprovalProjects,
     approvalLoading,
     approvalError,
-	    myOwnedProjects,
-	    ownedLoading,
-	    ownedError,
-	    isHosRnd,
-	    hosAprovalProjects,
-	    hosLoading,
+    myOwnedProjects,
+    ownedLoading,
+    ownedError,
+    isHosRnd,
+    hosAprovalProjects,
+    hosLoading,
     hosError,
     isRndStaff,
     rndstaffAprovalProjects,
@@ -1361,27 +676,27 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     rndstaffError,
   ]);
 
-	  const projectTypeCounts = React.useMemo(() => ({
-	    Research: ((activeTab === "delegated" ? delegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Research').length,
-	    Consultancy: ((activeTab === "delegated" ? delegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Consultancy').length,
-	    Others: ((activeTab === "delegated" ? delegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Others').length,
-	  }), [activeTab, delegatedProjects, myProjects]);
+  const projectTypeCounts = React.useMemo(() => ({
+    Research: ((activeTab === "delegated" ? delegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Research').length,
+    Consultancy: ((activeTab === "delegated" ? delegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Consultancy').length,
+    Others: ((activeTab === "delegated" ? delegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Others').length,
+  }), [activeTab, delegatedProjects, myProjects]);
 
-	  const visibleProjects = activeTab === "delegated" ? delegatedProjects : myProjects;
-	  const visibleProjectsLoading = activeTab === "delegated"
-	    ? delegatedRecordsLoading || delegatedProjectsLoading
-	    : myProjectsLoading;
-	  const visibleProjectsError = activeTab === "delegated"
-	    ? delegatedRecordsError || delegatedProjectsError
-	    : myProjectsError;
+  const visibleProjects = activeTab === "delegated" ? delegatedProjects : myProjects;
+  const visibleProjectsLoading = activeTab === "delegated"
+    ? delegatedRecordsLoading || delegatedProjectsLoading
+    : myProjectsLoading;
+  const visibleProjectsError = activeTab === "delegated"
+    ? delegatedRecordsError || delegatedProjectsError
+    : myProjectsError;
 
-	  const filteredAndSortedProjects = React.useMemo(() => {
-	    if (!visibleProjects) return [];
-	    let filtered = visibleProjects.filter((p) =>
-	      normalizeProjectType((p as any).project_type) === selectedProjectType &&
-	      Object.values(p).some((val) =>
-	        String(val).toLowerCase().includes(searchQuery.toLowerCase()),
-	      ),
+  const filteredAndSortedProjects = React.useMemo(() => {
+    if (!visibleProjects) return [];
+    let filtered = visibleProjects.filter((p) =>
+      normalizeProjectType((p as any).project_type) === selectedProjectType &&
+      Object.values(p).some((val) =>
+        String(val).toLowerCase().includes(searchQuery.toLowerCase()),
+      ),
     );
     filtered.sort((a, b) => {
       const aVal = (a as any)[sortField] ?? "";
@@ -1389,17 +704,17 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
       if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
       return 0;
-	    });
-	    return filtered;
-	  }, [visibleProjects, searchQuery, sortField, sortOrder, selectedProjectType]);
+    });
+    return filtered;
+  }, [visibleProjects, searchQuery, sortField, sortOrder, selectedProjectType]);
 
   const totalPages = Math.ceil(
     filteredAndSortedProjects.length / itemsPerPage,
   );
-	  const paginatedProjects = filteredAndSortedProjects.slice(
-	    (currentPage - 1) * itemsPerPage,
-	    currentPage * itemsPerPage,
-	  );
+  const paginatedProjects = filteredAndSortedProjects.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   const handleSortChange = (
     field:
@@ -1492,7 +807,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       filters: currentUser
         ? [["pi_webmail", "=", currentUser]]
         : [["name", "=", "NON_EXISTENT_DOC"]],
-	      limit: 100,
+      limit: 100,
     });
 
   // --- Fetch all Funding Agencies for name lookup ---
@@ -1715,313 +1030,313 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     );
   };
 
-	  const renderProjectsTable = () => (
-	    <div className="space-y-4 animate-in fade-in duration-500">
-	      <>
-	      {/* Project Type Tabs */}
-	      <div className="flex items-center gap-2 overflow-x-auto">
-        {PROJECT_TYPE_TABS.map((tab) => {
-          const active = selectedProjectType === tab;
-          const tabColors: Record<string, string> = {
-            Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]',
-            Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]',
-            Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]',
-          };
-          const badgeColors: Record<string, string> = {
-            Research: active ? 'bg-[#4A6CF7] text-white' : 'bg-white/80 text-[#4A6CF7] dark:bg-[#18181B]/50',
-            Consultancy: active ? 'bg-[#10B981] text-white' : 'bg-white/80 text-[#059669] dark:bg-[#18181B]/50',
-            Others: active ? 'bg-[#71717A] text-white' : 'bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50',
-          };
-          return (
-            <button
-              key={tab}
-              onClick={() => { setSelectedProjectType(tab); setCurrentPage(1); }}
-              className={cn(
-                "flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3 text-[12px] font-extrabold uppercase tracking-wide transition-all duration-150",
-                tabColors[tab]
-              )}
+  const renderProjectsTable = () => (
+    <div className="space-y-4 animate-in fade-in duration-500">
+      <>
+        {/* Project Type Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto">
+          {PROJECT_TYPE_TABS.map((tab) => {
+            const active = selectedProjectType === tab;
+            const tabColors: Record<string, string> = {
+              Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]',
+              Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]',
+              Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]',
+            };
+            const badgeColors: Record<string, string> = {
+              Research: active ? 'bg-[#4A6CF7] text-white' : 'bg-white/80 text-[#4A6CF7] dark:bg-[#18181B]/50',
+              Consultancy: active ? 'bg-[#10B981] text-white' : 'bg-white/80 text-[#059669] dark:bg-[#18181B]/50',
+              Others: active ? 'bg-[#71717A] text-white' : 'bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50',
+            };
+            return (
+              <button
+                key={tab}
+                onClick={() => { setSelectedProjectType(tab); setCurrentPage(1); }}
+                className={cn(
+                  "flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3 text-[12px] font-extrabold uppercase tracking-wide transition-all duration-150",
+                  tabColors[tab]
+                )}
+              >
+                {tab}
+                <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-bold leading-none", badgeColors[tab])}>
+                  {projectTypeCounts[tab]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 justify-between items-center rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 shadow-sm">
+          <div className="relative w-full sm:w-72">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#71717A]" />
+            <Input
+              placeholder="Search projects by ID, title..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-9 pl-9 bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] text-[13px]"
+            />
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Select
+              value={sortField}
+              onValueChange={(v: any) => handleSortChange(v)}
             >
-              {tab}
-              <span className={cn("px-2 py-0.5 rounded-full text-[11px] font-bold leading-none", badgeColors[tab])}>
-                {projectTypeCounts[tab]}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-3 justify-between items-center rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 shadow-sm">
-        <div className="relative w-full sm:w-72">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#71717A]" />
-          <Input
-            placeholder="Search projects by ID, title..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="h-9 pl-9 bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] text-[13px]"
-          />
+              <SelectTrigger className="h-9 w-[180px] bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] text-[13px]">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="creation">
+                  Creation Date
+                </SelectItem>
+                <SelectItem value="modified">
+                  Modified Date
+                </SelectItem>
+                <SelectItem value="name">Project Number</SelectItem>
+                <SelectItem value="project_title">Title</SelectItem>
+                <SelectItem value="workflow_state">
+                  Status
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() =>
+                setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+              }
+              className="h-9 w-9 bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] shrink-0"
+            >
+              <ChevronsUpDown className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Select
-            value={sortField}
-            onValueChange={(v: any) => handleSortChange(v)}
-          >
-            <SelectTrigger className="h-9 w-[180px] bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] text-[13px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="creation">
-                Creation Date
-              </SelectItem>
-              <SelectItem value="modified">
-                Modified Date
-              </SelectItem>
-              <SelectItem value="name">Project Number</SelectItem>
-              <SelectItem value="project_title">Title</SelectItem>
-              <SelectItem value="workflow_state">
-                Status
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() =>
-              setSortOrder(sortOrder === "asc" ? "desc" : "asc")
-            }
-            className="h-9 w-9 bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] shrink-0"
-          >
-            <ChevronsUpDown className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
 
-      <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto p-3">
-            <Table className="border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
-              <TableHeader className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
-                <TableRow className="border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 hover:bg-transparent">
-                  <TableHead className="w-[80px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
-                    Number
-                  </TableHead>
-                  <TableHead className="min-w-[150px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
-                    Project Title
-                  </TableHead>
-                  <TableHead className="w-[120px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
-                    Funding Agency
-                  </TableHead>
-                  <TableHead className="w-[90px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
-                    Date
-                  </TableHead>
-                  <TableHead className="w-[100px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
-                    Status
-                  </TableHead>
-                  <TableHead className="text-right w-[60px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
-                    Action
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-	                {visibleProjectsLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" />
-                      </TableCell>
-                      <TableCell>
-                        <div className="h-4 w-48 bg-zinc-100 rounded animate-pulse" />
-                      </TableCell>
-                      <TableCell>
-                        <div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" />
-                      </TableCell>
-                      <TableCell>
-                        <div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" />
-                      </TableCell>
-                      <TableCell>
-                        <div className="h-4 w-16 bg-zinc-100 rounded animate-pulse" />
-                      </TableCell>
-                      <TableCell>
-                        <div className="h-8 w-8 bg-zinc-100 rounded animate-pulse ml-auto" />
+        <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto p-3">
+              <Table className="border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg overflow-hidden">
+                <TableHeader className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                  <TableRow className="border-b border-[#C7D2FE] dark:border-[#4A6CF7]/30 hover:bg-transparent">
+                    <TableHead className="w-[80px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                      Number
+                    </TableHead>
+                    <TableHead className="min-w-[150px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                      Project Title
+                    </TableHead>
+                    <TableHead className="w-[120px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                      Funding Agency
+                    </TableHead>
+                    <TableHead className="w-[90px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                      Date
+                    </TableHead>
+                    <TableHead className="w-[100px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">
+                      Status
+                    </TableHead>
+                    <TableHead className="text-right w-[60px] whitespace-nowrap px-4 py-3 h-9 text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">
+                      Action
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibleProjectsLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <div className="h-4 w-20 bg-zinc-100 rounded animate-pulse" />
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 w-48 bg-zinc-100 rounded animate-pulse" />
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" />
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 w-24 bg-zinc-100 rounded animate-pulse" />
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-4 w-16 bg-zinc-100 rounded animate-pulse" />
+                        </TableCell>
+                        <TableCell>
+                          <div className="h-8 w-8 bg-zinc-100 rounded animate-pulse ml-auto" />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : visibleProjectsError ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={8}
+                        className="h-24 text-center text-red-500"
+                      >
+                        Error loading projects. Please try
+                        again.
                       </TableCell>
                     </TableRow>
-                  ))
-	                ) : visibleProjectsError ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="h-24 text-center text-red-500"
-                    >
-                      Error loading projects. Please try
-                      again.
-                    </TableCell>
-                  </TableRow>
-                ) : paginatedProjects.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="h-24 text-center text-zinc-500"
-                    >
-                      No projects found matching your
-                      criteria.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedProjects.map((p: any) => (
-                    <TableRow
-                      key={p.name}
-                      className="cursor-pointer hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-b-0"
-                      onClick={() => {
-                        const targetPath =
-                          p.workflow_state ===
-                            "Approved" ||
+                  ) : paginatedProjects.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={8}
+                        className="h-24 text-center text-zinc-500"
+                      >
+                        No projects found matching your
+                        criteria.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedProjects.map((p: any) => (
+                      <TableRow
+                        key={p.name}
+                        className="cursor-pointer hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 border-b border-[#E4E4E7] dark:border-[#3F3F46] last:border-b-0"
+                        onClick={() => {
+                          const targetPath =
                             p.workflow_state ===
-                            "Proposal Approved"
-                            ? `/project-details-overview/${p.name}`
-                            : `/project-details/${p.name}`;
-                        navigate(targetPath);
-                      }}
-                    >
-                      <TableCell className="px-4 py-3 font-mono text-xs font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
-                        {p.project_no || p.name}
-                      </TableCell>
-                      <TableCell className="px-4 py-3 font-semibold text-[#3F3F46] dark:text-[#E4E4E7] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
-                        <div
-                          className="line-clamp-2 min-w-[150px] max-w-[300px]"
-                          title={p.project_title}
-                        >
-                          {p.project_title}
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-[#52525B] dark:text-[#A1A1AA] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
-                        {fundingAgencyNameMap.get(p.funding_agen) || p.funding_agen || "-"}
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-[#71717A] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
-                        {p.creation
-                          ? format(
-                            new Date(p.creation),
-                            "MMM dd, yyyy",
-                          )
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="px-4 py-3 whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
-                        <div className="flex flex-col gap-0.5">
-                          {getStatusBadge(p.workflow_state)}
-                          {p.workflow_state === "Approved" && (
-                            hasSanction(p) ? (
-                              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                                (Sanction Approved)
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-                                (Pending Sanction)
-                              </span>
+                              "Approved" ||
+                              p.workflow_state ===
+                              "Proposal Approved"
+                              ? `/project-details-overview/${p.name}`
+                              : `/project-details/${p.name}`;
+                          navigate(targetPath);
+                        }}
+                      >
+                        <TableCell className="px-4 py-3 font-mono text-xs font-semibold text-[#3F3F46] dark:text-[#E4E4E7] whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                          {p.project_no || p.name}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 font-semibold text-[#3F3F46] dark:text-[#E4E4E7] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                          <div
+                            className="line-clamp-2 min-w-[150px] max-w-[300px]"
+                            title={p.project_title}
+                          >
+                            {p.project_title}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-[#52525B] dark:text-[#A1A1AA] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                          {fundingAgencyNameMap.get(p.funding_agen) || p.funding_agen || "-"}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-[#71717A] text-xs whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                          {p.creation
+                            ? format(
+                              new Date(p.creation),
+                              "MMM dd, yyyy",
                             )
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
-                          {p.workflow_state === "Draft" &&
-                            p.owner === currentUser && (
+                            : "-"}
+                        </TableCell>
+                        <TableCell className="px-4 py-3 whitespace-nowrap border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                          <div className="flex flex-col gap-0.5">
+                            {getStatusBadge(p.workflow_state)}
+                            {p.workflow_state === "Approved" && (
+                              hasSanction(p) ? (
+                                <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                  (Sanction Approved)
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                                  (Pending Sanction)
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4 py-3 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1">
+                            {p.workflow_state === "Draft" &&
+                              p.owner === currentUser && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setConfirmDeleteProject(p);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">Delete</span>
+                                </Button>
+                              )}
+                            {p.workflow_state === "Endorsement Approved" ? (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 px-2 text-xs"
+                                  disabled={downloadingEndorsementProject === p.name}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownloadEndorsement(p);
+                                  }}
+                                >
+                                  <DownloadIcon className="mr-1 h-3.5 w-3.5" />
+                                  {downloadingEndorsementProject === p.name ? "Downloading..." : "Download"}
+                                </Button>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(
+                                      `/project-registration?docname=${p.name}&isApprovedEndorsement=true`,
+                                    );
+                                  }}
+                                >
+                                  Register Project
+                                </Button>
+                              </>
+                            ) : (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 w-8 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setConfirmDeleteProject(p);
-                                }}
+                                className="h-8 w-8 p-0"
                               >
-                                <Trash2 className="h-4 w-4" />
-                                <span className="sr-only">Delete</span>
+                                <ChevronRight className="h-4 w-4" />
+                                <span className="sr-only">View</span>
                               </Button>
                             )}
-                          {p.workflow_state === "Endorsement Approved" ? (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 px-2 text-xs"
-                                disabled={downloadingEndorsementProject === p.name}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDownloadEndorsement(p);
-                                }}
-                              >
-                                <DownloadIcon className="mr-1 h-3.5 w-3.5" />
-                                {downloadingEndorsementProject === p.name ? "Downloading..." : "Download"}
-                              </Button>
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(
-                                    `/project-registration?docname=${p.name}&isApprovedEndorsement=true`,
-                                  );
-                                }}
-                              >
-                                Register Project
-                              </Button>
-                            </>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                            >
-                              <ChevronRight className="h-4 w-4" />
-                              <span className="sr-only">View</span>
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
 
-	      {totalPages > 1 && (
-	        <div className="flex items-center justify-between py-4">
-          <div className="text-sm text-zinc-500">
-            Page {currentPage} of {totalPages}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between py-4">
+            <div className="text-sm text-zinc-500">
+              Page {currentPage} of {totalPages}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setCurrentPage((p) => Math.max(1, p - 1))
+                }
+                disabled={currentPage === 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setCurrentPage((p) =>
+                    Math.min(totalPages, p + 1),
+                  )
+                }
+                disabled={currentPage === totalPages}
+              >
+                Next
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setCurrentPage((p) => Math.max(1, p - 1))
-              }
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setCurrentPage((p) =>
-                  Math.min(totalPages, p + 1),
-                )
-              }
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-	        </div>
-	      )}
-	      </>
-	    </div>
-	  );
+        )}
+      </>
+    </div>
+  );
 
   return (
     <div className="w-full mx-auto space-y-5 animate-in fade-in duration-500">
@@ -2039,48 +1354,48 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
             Manage and track all your research projects.
           </p>
         </div>
-	      </div>
-	
-	      <div className="flex flex-wrap gap-2 rounded-xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
-	        {[
-	          { id: "myProjects", label: "My Projects", count: myProjects?.length || 0 },
-	          { id: "delegated", label: "Delegated", count: delegatedProjects?.length || 0 },
-	        ].map((tab) => {
-	          const active = activeTab === tab.id;
-	          return (
-	            <button
-	              key={tab.id}
-	              onClick={() => {
-	                setActiveTab(tab.id);
-	                setCurrentPage(1);
-	              }}
-	              className={cn(
-	                "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-[12px] font-extrabold uppercase tracking-wide transition-all",
-	                active
-	                  ? "bg-[#EEF2FF] text-[#1E3A8A] shadow-sm dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]"
-	                  : "text-[#52525B] hover:bg-[#F4F4F5] dark:text-[#A1A1AA] dark:hover:bg-[#3F3F46]",
-	              )}
-	            >
-	              {tab.label}
-	              <span
-	                className={cn(
-	                  "rounded-full px-2 py-0.5 text-[11px] font-bold",
-	                  active
-	                    ? "bg-[#4A6CF7] text-white"
-	                    : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]",
-	                )}
-	              >
-	                {tab.count}
-	              </span>
-	            </button>
-	          );
-	        })}
-	      </div>
+      </div>
 
-	      <div className="border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
-	        {activeTab === "pending"
-	          ? renderPendingTasks()
-	          : renderProjectsTable()}
+      <div className="flex flex-wrap gap-2 rounded-xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+        {[
+          { id: "myProjects", label: "My Projects", count: myProjects?.length || 0 },
+          { id: "delegated", label: "Delegated", count: delegatedProjects?.length || 0 },
+        ].map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setCurrentPage(1);
+              }}
+              className={cn(
+                "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-[12px] font-extrabold uppercase tracking-wide transition-all",
+                active
+                  ? "bg-[#EEF2FF] text-[#1E3A8A] shadow-sm dark:bg-[#4A6CF7]/15 dark:text-[#C7D2FE]"
+                  : "text-[#52525B] hover:bg-[#F4F4F5] dark:text-[#A1A1AA] dark:hover:bg-[#3F3F46]",
+              )}
+            >
+              {tab.label}
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[11px] font-bold",
+                  active
+                    ? "bg-[#4A6CF7] text-white"
+                    : "bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]",
+                )}
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
+        {activeTab === "pending"
+          ? renderPendingTasks()
+          : renderProjectsTable()}
       </div>
 
       {/* Delete confirmation dialog */}

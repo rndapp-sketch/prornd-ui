@@ -112,7 +112,6 @@ const AppointmentOrderPage: React.FC = () => {
     const printRef = useRef<HTMLDivElement>(null);
 
     const scrName = searchParams.get('scr') || '';
-    const candidateId = searchParams.get('candidate_id') || '';
     const applicationId = searchParams.get('application_id') || '';
 
     // Fetched
@@ -121,7 +120,6 @@ const AppointmentOrderPage: React.FC = () => {
     const [projectName, setProjectName] = useState('');
     const [recruitmentType, setRecruitmentType] = useState('');
     const [piName, setPiName] = useState('');
-    const [piDept, setPiDept] = useState('');
     const [candidate, setCandidate] = useState<Candidate | null>(null);
     const [duration, setDuration] = useState(0);
 
@@ -129,8 +127,8 @@ const AppointmentOrderPage: React.FC = () => {
     const [issueNumber, setIssueNumber] = useState('');
     const [address, setAddress] = useState('');
     const [candidateEmail, setCandidateEmail] = useState('');
-    const [joiningText, setJoiningText] = useState('within 15 days of receipt of this letter');
-    const [extraNote, setExtraNote] = useState('');
+    const [piDept, setPiDept] = useState('');
+
     const [scdDocName, setScdDocName] = useState('');
     const [saving, setSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -138,18 +136,20 @@ const AppointmentOrderPage: React.FC = () => {
     const { call: fetchSCRFields } = useFrappePostCall(selectionCommitteeReportAPI.getFields);
     const { call: fetchCandidateByApplication } = useFrappePostCall(selectionCandidateDetailsAPI.getByApplication);
     const { call: updateAppointmentOrderNumber } = useFrappePostCall(selectionCandidateDetailsAPI.updateAppointmentOrderNumber);
-    const { call: fetchFrappeValue } = useFrappePostCall<{ message: Record<string, string> }>('frappe.client.get_value');
+    const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
 
     useEffect(() => {
         if (!scrName && !applicationId) { setLoading(false); return; }
         (async () => {
             setLoading(true);
             try {
+                // Fetch both sources in parallel
                 const [scrRes, scdRes] = await Promise.all([
                     scrName ? fetchSCRFields({ doc_name: scrName }) : Promise.resolve(null),
                     applicationId ? fetchCandidateByApplication({ application_id: applicationId }) : Promise.resolve(null),
                 ]);
 
+                // ── SCR: project/pay data ──
                 const prefill = scrRes?.message?.prefill_data;
                 if (prefill) {
                     setProjectNumber(prefill.project_number || '');
@@ -165,11 +165,10 @@ const AppointmentOrderPage: React.FC = () => {
                         ? prefill.post_details : [];
 
                     const found = candidates.find(c =>
-                        String(c.application_id) === String(applicationId) ||
-                        String(c.candidate_id) === String(candidateId)
+                        String(c.application_id) === String(applicationId)
                     );
                     if (found) {
-                        setCandidate({ ...found, candidate_surname: found.candidate_surname || '' });
+                        setCandidate(found);
                         const post = postDetails.find(
                             p => p.name === found.recruitment_post_id ||
                                 p.upfa_designation?.toLowerCase() === found.applied_post?.toLowerCase()
@@ -188,18 +187,12 @@ const AppointmentOrderPage: React.FC = () => {
                     setPiDept(deptRes?.message?.dept_name || prefill.upfa_department || '');
                 }
 
+                // ── SCD: contact info — name/email/address come from here ──
                 const scdDocs = scdRes?.message?.data;
                 if (Array.isArray(scdDocs) && scdDocs.length > 0) {
                     const scd = scdDocs[0];
                     if (scd.name) setScdDocName(scd.name);
-                    setCandidate(prev => prev ? {
-                        ...prev,
-                        candidate_name: scd.candidate_name || prev.candidate_name,
-                        candidate_surname: scd.candidate_surname || '',
-                        basic_pay: scd.basic_pay || prev.basic_pay,
-                        hra: scd.hra || prev.hra,
-                        applied_post: scd.applied_post || prev.applied_post,
-                    } : prev);
+                    setCandidate(prev => prev ? { ...prev, candidate_name: scd.candidate_name || prev.candidate_name, candidate_surname: scd.candidate_surname || '' } : prev);
                     if (scd.email) setCandidateEmail(scd.email);
                     if (scd.correspondence_address) setAddress(scd.correspondence_address);
                     if (scd.recruitment_type) setRecruitmentType(scd.recruitment_type);
@@ -219,7 +212,7 @@ const AppointmentOrderPage: React.FC = () => {
             }
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [scrName, candidateId, applicationId]);
+    }, [scrName, applicationId]);
 
     const fullName = candidate
         ? [candidate.candidate_name, candidate.candidate_surname].filter(Boolean).join(' ')
@@ -266,13 +259,13 @@ const AppointmentOrderPage: React.FC = () => {
             {/* Toolbar */}
             <div className="ao-toolbar sticky top-0 z-20 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-white/95 dark:bg-[#27272A]/95 shadow-sm backdrop-blur">
                 <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-6 py-3 md:px-8">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3 text-sm font-semibold text-[#71717A] transition-colors hover:border-[#D97757]/40 hover:bg-[#D97757]/10 hover:text-[#D97757]"
-                >
-                    <ArrowLeft size={16} />
-                    Back
-                </button>
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-3 text-sm font-semibold text-[#71717A] transition-colors hover:border-[#D97757]/40 hover:bg-[#D97757]/10 hover:text-[#D97757]"
+                    >
+                        <ArrowLeft size={16} />
+                        Back
+                    </button>
                     <div className="min-w-0 text-center">
                         <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Appointment Order</p>
                         <p className="truncate text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{fullName}</p>
@@ -300,7 +293,7 @@ const AppointmentOrderPage: React.FC = () => {
                             className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] px-4 text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7] shadow-sm transition-colors hover:border-[#D97757]/40 hover:bg-[#D97757]/10 hover:text-[#D97757] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {saving ? <Loader2 size={14} className="animate-spin" /> : null}
-                            {saving ? 'Saving...' : saveStatus === 'success' ? 'Saved' : saveStatus === 'error' ? 'Error' : 'Save Ref'}
+                            {saving ? 'Saving…' : saveStatus === 'success' ? 'Saved ✓' : saveStatus === 'error' ? 'Error ✗' : 'Save Ref'}
                         </button>
                         <button
                             onClick={() => window.print()}
@@ -332,57 +325,46 @@ const AppointmentOrderPage: React.FC = () => {
                     }}
                 >
 
-                    {/* ── HEADER : logo left | contact right ── */}
-                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
+                    {/* ── HEADER : logo + IITG name (left) ── */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <tbody>
                             <tr>
-                                {/* Left */}
-                                <td style={{ width: '64%', verticalAlign: 'top', padding: '6px 10px 10px 0', borderBottom: '2px solid black' }}>
-                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                <td style={{ verticalAlign: 'middle', padding: '4px 10px 4px 0' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
                                         <img
                                             src="http://172.16.131.206:8000/files/IITG_logo.png"
                                             alt="IITG"
                                             style={{ width: '55px', height: 'auto', flexShrink: 0 }}
                                             onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                         />
-                                        <div>
-                                            <strong style={{ display: 'block', fontSize: '12.5px' }}>
+                                        <div style={{ lineHeight: '1.35' }}>
+                                            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
                                                 Research and Development Section
-                                            </strong>
-                                            <strong style={{ display: 'block', fontSize: '11.5px', marginTop: '3px' }}>
-                                                Indian Institute of Technology Guwahati<br />
+                                            </div>
+                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>
+                                                Indian Institute of Technology Guwahati
+                                            </div>
+                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>
                                                 Guwahati–781039, Assam, India
-                                            </strong>
+                                            </div>
                                         </div>
                                     </div>
                                 </td>
-                                {/* Right */}
-                                <td style={{ width: '36%', verticalAlign: 'top', padding: '6px 0 10px 10px', borderLeft: '1px solid #ccc', borderBottom: '2px solid black' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                            </tr>
+                            <tr>
+                                <td style={{ verticalAlign: 'top', padding: '24px 10px 4px 0' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                         <tbody>
                                             <tr>
-                                                <td style={{ fontWeight: 'bold', whiteSpace: 'nowrap', paddingRight: '4px', width: '70px' }}>Phone Nos.</td>
-                                                <td style={{ width: '8px' }}>:</td>
-                                                <td>+91-361-258-2134</td>
-                                            </tr>
-                                            <tr>
-                                                <td></td><td>:</td>
-                                                <td>+91-361-258-2135</td>
-                                            </tr>
-                                            <tr>
-                                                <td style={{ fontWeight: 'bold' }}>Fax</td>
-                                                <td>:</td>
-                                                <td>+91-361-258-2089</td>
-                                            </tr>
-                                            <tr>
-                                                <td style={{ fontWeight: 'bold' }}>Phone</td>
-                                                <td>:</td>
-                                                <td>{deanPhone}</td>
-                                            </tr>
-                                            <tr>
-                                                <td style={{ fontWeight: 'bold' }}>Email</td>
-                                                <td>:</td>
-                                                <td>{deanEmail}</td>
+                                                <td style={{ verticalAlign: 'top' }}>
+                                                    <div style={{ fontWeight: 'bold' }}>{deanName}</div>
+                                                    <div style={{ fontWeight: 'bold' }}>{deanTitle}</div>
+                                                </td>
+                                                <td style={{ verticalAlign: 'top', textAlign: 'right', fontSize: '11.5px' }}>
+                                                    <div>Guwahati-781039</div>
+                                                    <div>Phone : {deanPhone}</div>
+                                                    <div>email: {deanEmail}</div>
+                                                </td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -392,9 +374,9 @@ const AppointmentOrderPage: React.FC = () => {
                     </table>
 
                     {/* ── Ref & Date ── */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '10px' }}>
                         <span>
-                            <strong>Ref:</strong> {projectNumber}/
+                            <strong style={{ color: '#b00' }}>Ref:</strong> {projectNumber}/
                             <input
                                 type="text"
                                 value={issueNumber}
@@ -404,13 +386,13 @@ const AppointmentOrderPage: React.FC = () => {
                                 style={{ width: '100px' }}
                             />
                         </span>
-                        <span><strong>Date:</strong> {today}</span>
+                        <span><strong style={{ color: '#b00' }}>Date:</strong>{today}</span>
                     </div>
 
                     {/* ── To block ── */}
-                    <div style={{ marginTop: '20px' }}>
+                    <div style={{ marginTop: '18px' }}>
                         <div><strong>To,</strong></div>
-                        <div><strong>{fullName}</strong></div>
+                        <div style={{ marginTop: '2px' }}><strong>{fullName}</strong></div>
                         <textarea
                             value={address}
                             onChange={e => setAddress(e.target.value)}
@@ -419,8 +401,8 @@ const AppointmentOrderPage: React.FC = () => {
                             className="ao-input"
                             style={{ marginTop: '4px' }}
                         />
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginTop: '4px' }}>
-                            <span>Email:</span>
+                        <div style={{ marginTop: '6px', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                            <span>(E-mail id:</span>
                             <input
                                 type="text"
                                 value={candidateEmail}
@@ -429,14 +411,15 @@ const AppointmentOrderPage: React.FC = () => {
                                 className="ao-input"
                                 style={{ width: '230px' }}
                             />
+                            <span>)</span>
                         </div>
                     </div>
 
                     {/* ── Subject ── */}
                     <div style={{ marginTop: '20px', lineHeight: '1.6' }}>
-                        <strong>Sub:</strong>{' '}
-                        Temporary {recruitmentType} engagement for the post of{' '}
-                        <strong>{candidate.applied_post}</strong> in the project titled{' '}
+                        <strong>Sub.:</strong>{' '}
+                        <strong>Temporary {recruitmentType}</strong> engagement for the post of{' '}
+                        <strong>{candidate.applied_post}</strong> in the Project entitled{' '}
                         "<strong>{projectName}</strong>" in the Dept. of{' '}
                         <input
                             type="text"
@@ -446,102 +429,146 @@ const AppointmentOrderPage: React.FC = () => {
                             className="ao-input"
                             style={{ width: '180px' }}
                         />{' '}
-                        under Dr. {piName}.
+                        under Dr. <strong>{piName}</strong>.
                     </div>
 
                     {/* ── Salutation ── */}
                     <div style={{ marginTop: '18px' }}>
                         <p style={{ marginBottom: '10px' }}>Dear <strong>{fullName}</strong>,</p>
-                        <p style={{ textAlign: 'justify', lineHeight: '1.6' }}>
-                            With reference to your application and subsequent interview, you are hereby
-                            offered the post of <strong>{candidate.applied_post}</strong> under the
-                            following terms and conditions:
+                        <p style={{ textAlign: 'justify', lineHeight: '1.6', textIndent: '2em' }}>
+                            Inviting reference to your application for the above post of{' '}
+                            <strong>{candidate.applied_post}</strong> and subsequent interview, you are
+                            offered the post of <strong>{candidate.applied_post}</strong> in the said
+                            project under the following terms &amp; conditions:
                         </p>
                     </div>
 
                     {/* ── Terms ── */}
-                    <ol style={{ listStyleType: 'decimal', paddingLeft: '22px', margin: '14px 0', lineHeight: '1.6' }}>
-                        {[
-                            <>
-                                <strong>Post:</strong> The post is purely temporary and contractual for a
-                                period of <strong>{duration} month{duration !== 1 ? 's' : ''}</strong> or
-                                co-terminus with the project, whichever is earlier.
-                            </>,
-                            <>
-                                <strong>Scale of Pay:</strong> Rs.&nbsp;
-                                <strong>{Number(candidate.basic_pay).toLocaleString('en-IN')}</strong>/- per month.
-                            </>,
-                            <>
-                                <strong>Initial Pay Admissible:</strong> Rs.&nbsp;
-                                <strong>{Number(candidate.total_amount).toLocaleString('en-IN')}</strong>/- per month
-                                (inclusive of HRA @ {candidate.hra}).
-                            </>,
-                            <><strong>Medical Facility:</strong> As per institute norms.</>,
-                            <><strong>Leave:</strong> As per applicable rules.</>,
-                            <><strong>Duties:</strong> As assigned by the Principal Investigator / Institute from time to time.</>,
-                            <>
-                                <strong>Agreement:</strong> The appointment is subject to signing of the
-                                agreement form and production of all original documents for verification
-                                at the time of joining.
-                            </>,
-                            <>
-                                <strong>Other Facilities:</strong> As per institute norms. No accommodation
-                                will be provided by the Institute.
-                            </>,
-                        ].map((item, i) => (
-                            <li key={i} style={{ marginBottom: '7px', textAlign: 'justify' }}>{item}</li>
-                        ))}
-                    </ol>
+                    <table style={{ borderCollapse: 'collapse', width: '100%', margin: '14px 0', lineHeight: '1.65' }}>
+                        <tbody>
+                            <tr>
+                                <td style={{ width: '130px', verticalAlign: 'top', paddingBottom: '8px', paddingRight: '4px' }}><strong>1.&nbsp;Post</strong></td>
+                                <td style={{ width: '16px', verticalAlign: 'top', paddingBottom: '8px' }}>:</td>
+                                <td style={{ textAlign: 'justify', verticalAlign: 'top', paddingBottom: '8px' }}>
+                                    The post is purely temporary and contractual subject to / based on
+                                    approval of the concerned funding agency. This engagement is for a
+                                    period of <strong>{duration} months</strong> or co-terminus with the
+                                    project whichever is earlier. It is terminable by giving in writing
+                                    one month's notice on either side.{' '}
+                                    <strong>
+                                        This is a temporary contractual engagement for the already specified
+                                        project only and not for IIT Guwahati.
+                                    </strong>{' '}
+                                    The engagement will stand automatically terminated at the end of the
+                                    specified period unless renewed or will co-terminate with the project
+                                    whichever is earlier.{' '}
+                                    <strong>
+                                        This engagement neither confers any right to you for future
+                                        absorption in the Institute in any capacity nor any forms of
+                                        relaxation / concession to you for applying for any post in the
+                                        Institute in future.
+                                    </strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ width: '130px', verticalAlign: 'top', paddingBottom: '8px', paddingRight: '4px' }}><strong>2.&nbsp;Scale of pay</strong></td>
+                                <td style={{ width: '16px', verticalAlign: 'top', paddingBottom: '8px' }}>:</td>
+                                <td style={{ textAlign: 'justify', verticalAlign: 'top', paddingBottom: '8px' }}>
+                                    <strong>Rs. {Number(candidate.basic_pay).toLocaleString('en-IN')}/- p.m.</strong>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ width: '130px', verticalAlign: 'top', paddingBottom: '8px', paddingRight: '4px' }}><strong>3.&nbsp;Initial pay admissible</strong></td>
+                                <td style={{ width: '16px', verticalAlign: 'top', paddingBottom: '8px' }}>:</td>
+                                <td style={{ textAlign: 'justify', verticalAlign: 'top', paddingBottom: '8px' }}>
+                                    Rs. {Number(candidate.total_amount).toLocaleString('en-IN')}/- per month (inclusive of HRA @ {candidate.hra})
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ width: '130px', verticalAlign: 'top', paddingBottom: '8px', paddingRight: '4px' }}><strong>4.&nbsp;Medical facility</strong></td>
+                                <td style={{ width: '16px', verticalAlign: 'top', paddingBottom: '8px' }}>:</td>
+                                <td style={{ textAlign: 'justify', verticalAlign: 'top', paddingBottom: '8px' }}>As per institute norms.</td>
+                            </tr>
+                            <tr>
+                                <td style={{ width: '130px', verticalAlign: 'top', paddingBottom: '8px', paddingRight: '4px' }}><strong>5.&nbsp;Leave</strong></td>
+                                <td style={{ width: '16px', verticalAlign: 'top', paddingBottom: '8px' }}>:</td>
+                                <td style={{ textAlign: 'justify', verticalAlign: 'top', paddingBottom: '8px' }}>
+                                    Leave admissible — Maximum 8 days Casual Leave and 30 days Earned Leave per
+                                    calendar year, on pro-rata basis. No carry-over of leave to the next
+                                    calendar year will be allowed.
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ width: '130px', verticalAlign: 'top', paddingBottom: '8px', paddingRight: '4px' }}><strong>6.&nbsp;Duties</strong></td>
+                                <td style={{ width: '16px', verticalAlign: 'top', paddingBottom: '8px' }}>:</td>
+                                <td style={{ textAlign: 'justify', verticalAlign: 'top', paddingBottom: '8px' }}>
+                                    As prescribed for the post and as may be assigned by the Project
+                                    Investigator and the authorities of the Institute.
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ width: '130px', verticalAlign: 'top', paddingBottom: '8px', paddingRight: '4px' }}><strong>7.&nbsp;Agreement</strong></td>
+                                <td style={{ width: '16px', verticalAlign: 'top', paddingBottom: '8px' }}>:</td>
+                                <td style={{ textAlign: 'justify', verticalAlign: 'top', paddingBottom: '8px' }}>
+                                    This engagement is valid subject to your signing an agreement prescribed
+                                    by the Institute and production of original documents.
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style={{ width: '130px', verticalAlign: 'top', paddingBottom: '8px', paddingRight: '4px' }}><strong>8.&nbsp;Other facilities</strong></td>
+                                <td style={{ width: '16px', verticalAlign: 'top', paddingBottom: '8px' }}>:</td>
+                                <td style={{ textAlign: 'justify', verticalAlign: 'top', paddingBottom: '8px' }}>
+                                    As per norms laid down for project staff from time to time by the
+                                    Institute. No Institute accommodation will be provided.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
 
                     {/* ── Joining instruction ── */}
-                    <div style={{ marginTop: '8px', lineHeight: '1.6' }}>
-                        <span style={{ textAlign: 'justify' }}>
-                            If the above terms and conditions are acceptable to you, kindly join{' '}
-                            <input
-                                type="text"
-                                value={joiningText}
-                                onChange={e => setJoiningText(e.target.value)}
-                                className="ao-input"
-                                style={{ width: '280px' }}
-                            />.
-                        </span>
-                    </div>
+                    <p style={{ marginTop: '10px', textAlign: 'justify', lineHeight: '1.65', textIndent: '2em' }}>
+                        If the offer is acceptable to you on the terms and conditions stated above, you
+                        should inform us within 10 days from the date of issue of this letter and join
+                        duties within 20 days of the stipulated date. If no response is received from
+                        your end within the specified period, it will be presumed that you are not
+                        interested in this offer and the offer will be withdrawn. You are also requested
+                        to bring the release order from your present employer, if you are employed.
+                        Please also bring your original documents concerning your educational
+                        qualification.
+                    </p>
 
-                    {/* ── Extra note (optional) ── */}
-                    <div style={{ marginTop: '8px' }}>
-                        <textarea
-                            value={extraNote}
-                            onChange={e => setExtraNote(e.target.value)}
-                            placeholder="Additional note (optional)…"
-                            rows={2}
-                            className="ao-input"
-                        />
-                    </div>
+                    {/* ── Contractual note ── */}
+                    <p style={{ marginTop: '8px', textAlign: 'justify', lineHeight: '1.65', textIndent: '2em' }}>
+                        It is to be noted that this contractual offer letter is issued on behalf of the
+                        funding agency by IIT Guwahati. On acceptance of this offer, you will be
+                        employee of the concerned project and not of IIT Guwahati.
+                    </p>
 
                     {/* ── Signatory ── */}
-                    <div style={{ marginTop: '50px' }}>
+                    <div style={{ marginTop: '50px', textAlign: 'right' }}>
                         <p>Yours sincerely,</p>
-                        <div style={{ marginTop: '42px' }}>
-                            <p style={{ fontWeight: 'bold', marginBottom: '4px' }}>{deanName}</p>
-                            <p style={{
-                                fontWeight: 'bold',
-                                borderTop: '1px solid black',
-                                paddingTop: '4px',
-                                display: 'inline-block',
-                                paddingRight: '64px',
-                            }}>
-                                {signatory}
-                            </p>
-                            <p style={{ fontSize: '11px', color: '#555', marginTop: '2px' }}>{deanTitle}, IIT Guwahati</p>
-                        </div>
+                        <p style={{ marginTop: '48px', fontWeight: 'bold' }}>{signatory}</p>
                     </div>
 
                     {/* ── Copy to ── */}
-                    <div style={{ marginTop: '32px', paddingTop: '8px', borderTop: '1px solid #ccc', fontSize: '11px', color: '#444' }}>
-                        <strong style={{ color: '#222' }}>Copy to:</strong>
-                        <div style={{ marginTop: '3px' }}>1. Project File</div>
-                        <div>2. Accounts Section, IIT Guwahati</div>
+                    <div style={{ marginTop: '24px', fontSize: '11px', color: '#222' }}>
+                        <strong>Copy to:</strong>
+                        <p style={{ margin: '3px 0 0 1.5em' }}>
+                            HOD — Dept. of{' '}
+                            <input
+                                type="text"
+                                value={piDept}
+                                onChange={e => setPiDept(e.target.value)}
+                                placeholder="Dept. Name"
+                                className="ao-input"
+                                style={{ width: '160px' }}
+                            />
+                        </p>
+                        <p style={{ margin: '3px 0 0 1.5em' }}>
+                            Dr. {piName}; Principal Investigator; Dept. of {piDept || '___________'}
+                        </p>
                     </div>
+
 
                 </div>
             </div>
