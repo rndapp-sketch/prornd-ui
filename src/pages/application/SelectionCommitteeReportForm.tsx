@@ -101,6 +101,12 @@ const getChairpersonLabel = (
 // The Frappe role name for the DORND user who is allowed to edit chairperson fields
 const DORND_ROLE = "Dean, RnD";
 
+const normalizeRecruitmentType = (value: unknown) =>
+    String(value || "").trim().toLowerCase();
+
+const isContractualRecruitment = (value: unknown) =>
+    normalizeRecruitmentType(value) === "contractual";
+
 // --- FRAAPPE UI WRAPPERS ---
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const FrappeCard = ({ children, className }: any) => (
@@ -1120,6 +1126,8 @@ const SelectionCommitteeReportForm: React.FC = () => {
 
         setIsActionLoading(true);
         try {
+            const isApproveAction = action === "Approve" || action === "Recommend";
+            const isContractual = isContractualRecruitment(formData.recruitment_type);
             let preparedData;
             if (workflowState === "Draft" || action === "Submit") {
                 const candidatesVal = formData.candidates;
@@ -1133,10 +1141,36 @@ const SelectionCommitteeReportForm: React.FC = () => {
                 });
             }
 
+            if (isApproveAction && !isContractual) {
+                const candidatesVal = formData.candidates;
+                const cleanupData = await prepareFormDataForApi({
+                    ...formData,
+                    name: docNameToUse,
+                    send_to_director: 0,
+                    director_signed_pdf: "",
+                    candidates: Array.isArray(candidatesVal)
+                        ? JSON.stringify(candidatesVal)
+                        : (candidatesVal || "[]"),
+                    committee_members: buildCommitteeMembersPayload(formData),
+                });
+                const saveResponse = await saveCall({ data: cleanupData });
+                if (saveResponse?.message?.status !== "success") {
+                    alert(saveResponse?.message?.message || "Failed to update recruitment type before approval.");
+                    return;
+                }
+                setFormData(prev => ({
+                    ...prev,
+                    send_to_director: 0,
+                    director_signed_pdf: "",
+                }));
+            }
+
             const response = await performActionCall({
                 docname: docNameToUse,
                 action: action,
                 updated_data: preparedData,
+                recruitment_type: formData.recruitment_type,
+                require_director_pdf: isContractual ? 1 : 0,
             });
 
             if (
@@ -1971,7 +2005,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                     </div>
                                     <div className="flex gap-3 flex-wrap">
                                         {/* DoRND Send to Director Controls */}
-                                        {isDoRnd && formData.recruitment_type === "Contractual" && workflowState !== "Draft" && workflowState !== "Approved" && workflowState !== "Rejected" && (
+                                        {isDoRnd && isContractualRecruitment(formData.recruitment_type) && workflowState !== "Draft" && workflowState !== "Approved" && workflowState !== "Rejected" && (
                                             <div className="flex items-center gap-2 mr-2 bg-[#F0EDE4] dark:bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
                                                 <Checkbox
                                                     id="send-to-director"
@@ -2001,7 +2035,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                         )}
 
                                         {/* View Director PDF if available */}
-                                        {formData.recruitment_type === "Contractual" && formData.director_signed_pdf && (
+                                        {isContractualRecruitment(formData.recruitment_type) && formData.director_signed_pdf && (
                                             <FrappeButton
                                                 variant="outline"
                                                 onClick={() => window.open(formData.director_signed_pdf, '_blank')}
@@ -2075,7 +2109,7 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                             /* Any Other Workflow Actions */
                                             availableActions.map((action) => {
                                                 const isApproveAction = action === "Approve" || action === "Recommend";
-                                                const isDisabledByPdf = isDoRnd && isApproveAction && formData.recruitment_type === "Contractual" && !formData.director_signed_pdf;
+                                                const isDisabledByPdf = isDoRnd && isApproveAction && isContractualRecruitment(formData.recruitment_type) && !formData.director_signed_pdf;
                                                 return (
                                                 <FrappeButton
                                                     key={action}
