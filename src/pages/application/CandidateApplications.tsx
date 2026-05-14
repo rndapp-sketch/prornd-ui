@@ -1,8 +1,14 @@
+
+
+
+
+// // ======================================================excel download
+
 // import React, { useState, useEffect, useCallback } from "react";
 // import { useSearchParams, useNavigate } from "react-router-dom";
 // import { useFrappePostCall } from "frappe-react-sdk";
 // import { cn } from "@/lib/utils";
-// import { ArrowLeft, Loader2, Users, Eye } from "lucide-react";
+// import { ArrowLeft, Loader2, Users, Eye, Download } from "lucide-react";
 // import { Card, CardContent } from "@/components/ui/card";
 // import { candidateAPI } from "@/services/apiService";
 
@@ -17,6 +23,7 @@
 //     first_name: string;
 //     last_name: string;
 //     email: string;
+//     phone_number?: string;
 // }
 
 // interface ApiResponse {
@@ -96,7 +103,25 @@
 
 //             if (!appsResponse.ok) throw new Error(`HTTP error! status: ${appsResponse.status}`);
 //             const result: ApiResponse = await appsResponse.json();
-//             setApplications(result.data || []);
+//             let applicationsData = result.data || [];
+
+//             // Fetch phone numbers for each candidate from their profile
+//             applicationsData = await Promise.all(
+//                 applicationsData.map(async (app) => {
+//                     try {
+//                         const profileRes = await fetch(candidateAPI.getProfile(app.candidate_id));
+//                         if (profileRes.ok) {
+//                             const profileData = await profileRes.json();
+//                             app.phone_number = profileData?.candidate?.phone_number || "";
+//                         }
+//                     } catch (e) {
+//                         console.warn("Failed to fetch phone number for", app.candidate_id);
+//                     }
+//                     return app;
+//                 })
+//             );
+
+//             setApplications(applicationsData);
 
 //             // Build post cache from the child table rows (row.name === recruitment_post_id)
 //             const postRows: any[] = recRes?.message?.upfa_post_details ?? [];
@@ -129,6 +154,35 @@
 //         return nameA.localeCompare(nameB);
 //     });
 
+//     const handleExportCSV = () => {
+//         if (filteredApplications.length === 0) return;
+
+//         const headers = ["first_name", "last_name", "email", "phone_number", "status", "post Applied"];
+//         const rows = filteredApplications.map((app) => [
+//             app.first_name || "",
+//             app.last_name || "",
+//             app.email || "",
+//             app.phone_number || "",
+//             app.status || "",
+//             postDetailsCache[String(app.recruitment_post_id)] || "",
+//         ]);
+
+//         const csvContent = [
+//             headers.join(","),
+//             ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
+//         ].join("\n");
+
+//         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+//         const url = URL.createObjectURL(blob);
+//         const link = document.createElement("a");
+//         link.setAttribute("href", url);
+//         link.setAttribute("download", `candidate_applications_${refNum}.csv`);
+//         link.style.visibility = "hidden";
+//         document.body.appendChild(link);
+//         link.click();
+//         document.body.removeChild(link);
+//     };
+
 //     const filters = [
 //         { key: "all", label: "All Candidates", icon: "fas fa-list" },
 //         { key: "Shortlisted", label: "Shortlisted", icon: "fas fa-check-circle" },
@@ -140,22 +194,32 @@
 //         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen">
 //             <main className="max-w-8xl mx-auto p-4 md:p-8 w-full overflow-hidden">
 //                 {/* Header */}
-//                 <div className="flex items-center gap-4 mb-8">
-//                     <button
-//                         onClick={() => navigate(-1)}
-//                         className="p-2 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
-//                     >
-//                         <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-//                     </button>
-//                     <div>
-//                         <h1 className="text-2xl font-serif font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
-//                             <Users className="w-6 h-6 text-[#D97757]" />
-//                             Candidate Applications
-//                         </h1>
-//                         <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-//                             Interview ID: {refNum}
-//                         </p>
+//                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+//                     <div className="flex items-center gap-4">
+//                         <button
+//                             onClick={() => navigate(-1)}
+//                             className="p-2 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+//                         >
+//                             <ArrowLeft className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+//                         </button>
+//                         <div>
+//                             <h1 className="text-2xl font-serif font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-3">
+//                                 <Users className="w-6 h-6 text-[#D97757]" />
+//                                 Candidate Applications
+//                             </h1>
+//                             <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+//                                 Interview ID: {refNum}
+//                             </p>
+//                         </div>
 //                     </div>
+//                     <button
+//                         onClick={handleExportCSV}
+//                         disabled={filteredApplications.length === 0}
+//                         className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all shadow-sm active:scale-95"
+//                     >
+//                         <Download className="w-4 h-4" />
+//                         Export to CSV
+//                     </button>
 //                 </div>
 
 //                 {/* Filter Buttons */}
@@ -289,15 +353,13 @@
 
 
 
-
-
-// ======================================================excel download
+// -=-=-================
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Loader2, Users, Eye, Download } from "lucide-react";
+import { ArrowLeft, Loader2, Users, Eye, Download, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { candidateAPI } from "@/services/apiService";
 
@@ -372,6 +434,9 @@ const CandidateApplications: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<string>("all");
+    const [searchTerm, setSearchTerm] = useState<string>("");
+    const [currentPage, setCurrentPage] = useState<number>(1);
+    const itemsPerPage = 10;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { call: fetchFrappeDoc } = useFrappePostCall<{ message: any }>("frappe.client.get");
@@ -432,16 +497,33 @@ const CandidateApplications: React.FC = () => {
         fetchApplications();
     }, [fetchApplications]);
 
+    // Reset to page 1 when filter or search changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filter, searchTerm]);
+
     // Filter + sort by name so same-name candidates appear together
     const filteredApplications = (
         filter === "all"
             ? applications
             : applications.filter((app) => app.status?.toLowerCase() === filter.toLowerCase())
-    ).slice().sort((a, b) => {
-        const nameA = `${a.first_name} ${a.last_name}`.trim().toLowerCase();
-        const nameB = `${b.first_name} ${b.last_name}`.trim().toLowerCase();
+    ).filter((app) => {
+        if (!searchTerm) return true;
+        const searchLower = searchTerm.toLowerCase();
+        const fullName = `${app.first_name || ""} ${app.last_name || ""}`.trim().toLowerCase();
+        const email = (app.email || "").toLowerCase();
+        return fullName.includes(searchLower) || email.includes(searchLower);
+    }).slice().sort((a, b) => {
+        const nameA = `${a.first_name || ""} ${a.last_name || ""}`.trim().toLowerCase();
+        const nameB = `${b.first_name || ""} ${b.last_name || ""}`.trim().toLowerCase();
         return nameA.localeCompare(nameB);
     });
+
+    const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
+    const paginatedApplications = filteredApplications.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
 
     const handleExportCSV = () => {
         if (filteredApplications.length === 0) return;
@@ -511,23 +593,40 @@ const CandidateApplications: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Filter Buttons */}
-                <div className="flex flex-wrap gap-3 mb-6">
-                    {filters.map((f) => (
-                        <button
-                            key={f.key}
-                            onClick={() => setFilter(f.key)}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
-                                "border transition-all duration-150 shadow-sm",
-                                filter === f.key
-                                    ? "bg-[#D97757] text-white border-[#D97757] shadow-md"
-                                    : "bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-[#D97757]/30 hover:text-[#D97757]",
-                            )}
-                        >
-                            {f.label}
-                        </button>
-                    ))}
+                {/* Filters and Search */}
+                <div className="flex flex-col lg:flex-row justify-between gap-4 mb-6">
+                    {/* Filter Buttons */}
+                    <div className="flex flex-wrap gap-3">
+                        {filters.map((f) => (
+                            <button
+                                key={f.key}
+                                onClick={() => setFilter(f.key)}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm",
+                                    "border transition-all duration-150 shadow-sm",
+                                    filter === f.key
+                                        ? "bg-[#D97757] text-white border-[#D97757] shadow-md"
+                                        : "bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-[#D97757]/30 hover:text-[#D97757]",
+                                )}
+                            >
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Search Box */}
+                    <div className="relative w-full lg:w-80">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search className="h-4 w-4 text-zinc-400" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search by name or email..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="block w-full pl-10 pr-3 py-2.5 border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#D97757]/50 focus:border-[#D97757] sm:text-sm transition-all shadow-sm"
+                        />
+                    </div>
                 </div>
 
                 {/* Table */}
@@ -569,13 +668,13 @@ const CandidateApplications: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    {filteredApplications.map((app, index) => (
+                                    {paginatedApplications.map((app, index) => (
                                         <tr
                                             key={app.application_id || index}
                                             className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
                                         >
                                             <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-400">
-                                                {index + 1}
+                                                {(currentPage - 1) * itemsPerPage + index + 1}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-zinc-900 dark:text-zinc-100 font-medium">
                                                 {`${app.first_name || ""} ${app.last_name || ""}`.trim() || "-"}
@@ -616,6 +715,58 @@ const CandidateApplications: React.FC = () => {
                                     ))}
                                 </tbody>
                             </table>
+
+                            {/* Pagination Controls */}
+                            {totalPages > 1 && (
+                                <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-200 dark:border-zinc-800 sm:px-6">
+                                    <div className="flex flex-1 justify-between sm:hidden">
+                                        <button
+                                            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                                            disabled={currentPage === 1}
+                                            className="relative inline-flex items-center rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            Previous
+                                        </button>
+                                        <button
+                                            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                                            disabled={currentPage === totalPages}
+                                            className="relative ml-3 inline-flex items-center rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                    <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                                        <div>
+                                            <p className="text-sm text-zinc-700 dark:text-zinc-300">
+                                                Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredApplications.length)}</span> of <span className="font-medium">{filteredApplications.length}</span> results
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                                                <button
+                                                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                                                    disabled={currentPage === 1}
+                                                    className="relative inline-flex items-center rounded-l-md px-2 py-2 text-zinc-400 dark:text-zinc-500 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                >
+                                                    <span className="sr-only">Previous</span>
+                                                    <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                                                </button>
+                                                <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 focus:outline-offset-0 bg-white dark:bg-zinc-900">
+                                                    Page {currentPage} of {totalPages}
+                                                </span>
+                                                <button
+                                                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                                                    disabled={currentPage === totalPages}
+                                                    className="relative inline-flex items-center rounded-r-md px-2 py-2 text-zinc-400 dark:text-zinc-500 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                >
+                                                    <span className="sr-only">Next</span>
+                                                    <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                                                </button>
+                                            </nav>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="p-12 text-center">
