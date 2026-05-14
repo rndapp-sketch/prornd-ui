@@ -109,6 +109,13 @@ type PostDetail = {
     upfa_duration_months: number;
 };
 
+const capitalizeName = (value: string) =>
+    value
+        .trim()
+        .split(/\s+/)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join(' ');
+
 // ─── Component ────────────────────────────────────────────────────────────────
 const AppointmentOrderPage: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -219,7 +226,7 @@ const AppointmentOrderPage: React.FC = () => {
     }, [scrName, applicationId]);
 
     const fullName = candidate
-        ? [candidate.candidate_name, candidate.candidate_surname].filter(Boolean).join(' ')
+        ? capitalizeName([candidate.candidate_name, candidate.candidate_surname].filter(Boolean).join(' '))
         : '';
     const today = (() => {
         const d = new Date();
@@ -227,12 +234,11 @@ const AppointmentOrderPage: React.FC = () => {
         const mm = String(d.getMonth() + 1).padStart(2, '0');
         return `${dd}-${mm}-${d.getFullYear()}`;
     })();
-    const isAdhoc = recruitmentType?.toLowerCase() === 'adhoc';
-    const signatory = isAdhoc ? 'Associate Dean, R&D' : 'Dean, R&D';
-    const deanName = isAdhoc ? 'Prof. Subhendu S. Bag' : 'Prof. Rohit Sinha';
-    const deanTitle = isAdhoc ? 'Associate Dean' : 'Dean';
-    const deanPhone = isAdhoc ? '+91-361-2582132' : '+91-361-2582082';
-    const deanEmail = isAdhoc ? 'adornd@iitg.ac.in' : 'dornd@iitg.ac.in';
+    const deanName = 'Prof. Rohit Sinha';
+    const deanTitle = 'Dean';
+    const deanPhone = '+91-361-2582082';
+    const deanEmail = 'dornd@iitg.ac.in';
+    const signatory = 'Dean, R&D';
 
     if (loading) {
         return (
@@ -329,49 +335,54 @@ const AppointmentOrderPage: React.FC = () => {
                     }}
                 >
 
-                    {/* ── HEADER : logo + IITG name (left) ── */}
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    {/* ── HEADER : logo left | contact right ── */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
                         <tbody>
                             <tr>
-                                <td style={{ verticalAlign: 'middle', padding: '4px 10px 4px 0' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
+                                <td style={{ width: '64%', verticalAlign: 'top', padding: '6px 10px 10px 0', borderBottom: '2px solid black' }}>
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                                         <img
                                             src="http://172.16.131.206:8000/files/IITG_logo.png"
                                             alt="IITG"
                                             style={{ width: '55px', height: 'auto', flexShrink: 0 }}
                                             onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                                         />
-                                        <div style={{ lineHeight: '1.35' }}>
-                                            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                                        <div>
+                                            <strong style={{ display: 'block', fontSize: '12.5px' }}>
                                                 Research and Development Section
-                                            </div>
-                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>
-                                                Indian Institute of Technology Guwahati
-                                            </div>
-                                            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>
+                                            </strong>
+                                            <strong style={{ display: 'block', fontSize: '11.5px', marginTop: '3px' }}>
+                                                Indian Institute of Technology Guwahati<br />
                                                 Guwahati–781039, Assam, India
-                                            </div>
+                                            </strong>
                                         </div>
                                     </div>
                                 </td>
-                            </tr>
-                            <tr>
-                                <td style={{ verticalAlign: 'top', padding: '24px 10px 4px 0' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <td style={{ width: '36%', verticalAlign: 'top', padding: '6px 0 10px 10px', borderLeft: '1px solid #ccc', borderBottom: '2px solid black' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
                                         <tbody>
                                             <tr>
-                                                <td style={{ verticalAlign: 'top' }}>
-                                                    <div style={{ fontWeight: 'bold' }}>{deanName}</div>
-                                                    <div style={{ fontWeight: 'bold' }}>{deanTitle}</div>
-                                                </td>
-                                                <td style={{ verticalAlign: 'top', textAlign: 'right', fontSize: '11.5px' }}>
-                                                    <div>Guwahati-781039</div>
-                                                    <div>Phone : {deanPhone}</div>
-                                                    <div>email: {deanEmail}</div>
-                                                </td>
+                                                <td>Guwahati-781039</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Phone : {deanPhone}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>email: {deanEmail}</td>
                                             </tr>
                                         </tbody>
                                     </table>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '24px' }}>
+                        <tbody>
+                            <tr>
+                                <td style={{ verticalAlign: 'top' }}>
+                                    <div style={{ fontWeight: 'bold' }}>{deanName}</div>
+                                    <div style={{ fontWeight: 'bold' }}>{deanTitle}</div>
                                 </td>
                             </tr>
                         </tbody>
@@ -573,6 +584,17 @@ const AppointmentOrderPage: React.FC = () => {
                         </p>
                     </div>
 
+                    <div style={{
+                        marginTop: '28px',
+                        borderTop: '1px solid #222',
+                        borderBottom: '1px solid #222',
+                        padding: '5px 0',
+                        textAlign: 'center',
+                        fontSize: '10.5px',
+                        fontWeight: 'bold',
+                    }}>
+                        This is a computer-generated document and does not require signature.
+                    </div>
 
                 </div>
             </div>
