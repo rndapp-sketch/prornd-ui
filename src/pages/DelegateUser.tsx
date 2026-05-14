@@ -76,6 +76,24 @@ const parseJsonStringArray = (raw?: string): string[] => {
 const removeFromJsonArray = (raw: string | undefined, value: string) =>
     JSON.stringify(parseJsonStringArray(raw).filter((item) => item !== value));
 
+const toFrappeDateTime = (value: string) => {
+    if (!value) return "";
+    return value.replace("T", " ").length === 16 ? `${value.replace("T", " ")}:00` : value.replace("T", " ");
+};
+
+const formatDelegationDateTime = (value?: string) => {
+    if (!value) return "";
+    const parsed = new Date(value.replace(" ", "T"));
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+};
+
 const getErrorMessage = (error: any, fallback: string) =>
     error?._server_messages ||
     error?.exception ||
@@ -98,6 +116,8 @@ const DelegateUser: React.FC = () => {
     const [userOptions, setUserOptions] = React.useState<DelegateUserOption[]>([]);
     const [delegateEmail, setDelegateEmail] = React.useState("");
     const [delegationType, setDelegationType] = React.useState<"View Only" | "View and Edit" | "Workflow Action">("View Only");
+    const [validFrom, setValidFrom] = React.useState("");
+    const [validTo, setValidTo] = React.useState("");
     const [projects, setProjects] = React.useState<DelegationProject[]>([]);
     const [selectedProjects, setSelectedProjects] = React.useState<Set<string>>(new Set());
     const [activeDelegations, setActiveDelegations] = React.useState<ActiveDelegation[]>([]);
@@ -262,6 +282,10 @@ const DelegateUser: React.FC = () => {
             setError("Select at least one project to delegate.");
             return;
         }
+        if (validFrom && validTo && new Date(validTo) < new Date(validFrom)) {
+            setError("Valid to must be later than valid from.");
+            return;
+        }
 
         setSaving(true);
         setError(null);
@@ -274,9 +298,13 @@ const DelegateUser: React.FC = () => {
                 scope_type: "project",
                 project_names: JSON.stringify(Array.from(selectedProjects)),
                 applications: JSON.stringify([]),
+                valid_from: toFrappeDateTime(validFrom),
+                valid_to: toFrappeDateTime(validTo),
             });
             setSuccess(`Delegation created for ${delegateEmail}.`);
             setDelegateEmail("");
+            setValidFrom("");
+            setValidTo("");
             setSelectedProjects(new Set());
             await loadPage();
         } catch (e: any) {
@@ -442,6 +470,31 @@ const DelegateUser: React.FC = () => {
                             </select>
                         </div>
                     </div>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#D4D4D8]">
+                                Valid from
+                            </label>
+                            <input
+                                type="datetime-local"
+                                className={cn(inputClasses, "w-full")}
+                                value={validFrom}
+                                onChange={(e) => setValidFrom(e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#D4D4D8]">
+                                Valid to
+                            </label>
+                            <input
+                                type="datetime-local"
+                                className={cn(inputClasses, "w-full")}
+                                value={validTo}
+                                min={validFrom || undefined}
+                                onChange={(e) => setValidTo(e.target.value)}
+                            />
+                        </div>
+                    </div>
 
                     <div className="mt-5 flex flex-col gap-3 border-t border-[#E4E4E7] pt-4 dark:border-[#3F3F46] sm:flex-row sm:items-center sm:justify-between">
                         <div className="relative w-full sm:max-w-sm">
@@ -541,6 +594,11 @@ const DelegateUser: React.FC = () => {
                                                 <div className="mt-2 flex flex-wrap gap-1.5">
                                                     <Badge>{delegation.delegation_type || "View Only"}</Badge>
                                                     <Badge>{projectCount} projects</Badge>
+                                                    {(delegation.valid_from || delegation.valid_to) && (
+                                                        <Badge>
+                                                            {formatDelegationDateTime(delegation.valid_from) || "Now"} to {formatDelegationDateTime(delegation.valid_to) || "No expiry"}
+                                                        </Badge>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -652,7 +710,7 @@ const DelegationDetailsModal = ({
                 {(delegation.valid_from || delegation.valid_to) && (
                     <div className="mx-5 mb-4 flex items-center gap-1.5 rounded-lg bg-[#F4F4F5] px-3 py-2 text-[11px] font-semibold text-[#71717A] dark:bg-[#18181B] dark:text-[#A1A1AA]">
                         <Clock className="h-3.5 w-3.5" />
-                        {delegation.valid_from || "Now"} to {delegation.valid_to || "No expiry"}
+                        {formatDelegationDateTime(delegation.valid_from) || "Now"} to {formatDelegationDateTime(delegation.valid_to) || "No expiry"}
                     </div>
                 )}
 
