@@ -47,6 +47,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { useAppwriteSession } from "@/hooks/useAppwriteSession";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
+import { selectionCommitteeReportAPI } from "@/services/apiService";
 
 // --- LOGIC: Interfaces (Unchanged) ---
 interface SubMenuItem {
@@ -92,6 +93,7 @@ export function AppSidebar() {
 
     const { roles } = useUserRoles(currentUser || null);
     const isHeadApprover = roles?.includes("head_approver_1") ?? false;
+    const canUploadDirectorPdf = roles?.includes("staff, RnD") ?? false;
 
     // Fetch projects assigned to current user as head_approver (same filter as PendingTask.tsx)
     const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
@@ -114,6 +116,14 @@ export function AppSidebar() {
         currentUser ? undefined : null,
     );
 
+    const { data: pendingDirectorPdfData } = useFrappeGetCall<{
+        message: { status: string; data: Array<{ name: string }> };
+    }>(
+        selectionCommitteeReportAPI.getPendingDirectorUploads,
+        {},
+        currentUser && canUploadDirectorPdf ? undefined : null,
+    );
+
     // Appwrite messaging — unread count for the sidebar badge.
     const appwriteSession = useAppwriteSession();
     const { unreadCount } = useUnreadCount(appwriteSession.user?.$id ?? null);
@@ -134,6 +144,8 @@ export function AppSidebar() {
         });
         return count;
     }, [pendingTaskData, isHeadApprover, allowedProjectNames]);
+
+    const pendingDirectorPdfCount = pendingDirectorPdfData?.message?.data?.length ?? 0;
 
     // --- LOGIC: Menu Data (Unchanged) ---
     const isDirector = roles?.includes("Director");
@@ -242,8 +254,7 @@ export function AppSidebar() {
         },
     ].filter((item) => {
         if (item.label === "Upload Director PDF") {
-            const allowedRoles = ["staff, RnD"];
-            return roles && allowedRoles.some((role) => roles.includes(role));
+            return canUploadDirectorPdf;
         }
         if (item.label === "Universal Forms") {
             // Visible only to staff, RnD
@@ -508,6 +519,17 @@ export function AppSidebar() {
                                                         : "bg-[#D97757] text-white",
                                                 )}>
                                                     {unreadCount > 99 ? "99+" : unreadCount}
+                                                </span>
+                                            )}
+
+                                            {item.label === "Upload Director PDF" && pendingDirectorPdfCount > 0 && state === "expanded" && (
+                                                <span className={cn(
+                                                    "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
+                                                    isActive
+                                                        ? "bg-[#4A6CF7] text-white"
+                                                        : "bg-[#D97757] text-white",
+                                                )}>
+                                                    {pendingDirectorPdfCount > 99 ? "99+" : pendingDirectorPdfCount}
                                                 </span>
                                             )}
 
