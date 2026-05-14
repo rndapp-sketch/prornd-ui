@@ -436,6 +436,7 @@ const CandidateApplications: React.FC = () => {
     const [filter, setFilter] = useState<string>("all");
     const [searchTerm, setSearchTerm] = useState<string>("");
     const [currentPage, setCurrentPage] = useState<number>(1);
+    const [isExporting, setIsExporting] = useState<boolean>(false);
     const itemsPerPage = 10;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -457,23 +458,7 @@ const CandidateApplications: React.FC = () => {
 
             if (!appsResponse.ok) throw new Error(`HTTP error! status: ${appsResponse.status}`);
             const result: ApiResponse = await appsResponse.json();
-            let applicationsData = result.data || [];
-
-            // Fetch phone numbers for each candidate from their profile
-            applicationsData = await Promise.all(
-                applicationsData.map(async (app) => {
-                    try {
-                        const profileRes = await fetch(candidateAPI.getProfile(app.candidate_id));
-                        if (profileRes.ok) {
-                            const profileData = await profileRes.json();
-                            app.phone_number = profileData?.candidate?.phone_number || "";
-                        }
-                    } catch (e) {
-                        console.warn("Failed to fetch phone number for", app.candidate_id);
-                    }
-                    return app;
-                })
-            );
+            const applicationsData = result.data || [];
 
             setApplications(applicationsData);
 
@@ -525,33 +510,54 @@ const CandidateApplications: React.FC = () => {
         currentPage * itemsPerPage
     );
 
-    const handleExportCSV = () => {
+    const handleExportCSV = async () => {
         if (filteredApplications.length === 0) return;
 
-        const headers = ["first_name", "last_name", "email", "phone_number", "status", "post Applied"];
-        const rows = filteredApplications.map((app) => [
-            app.first_name || "",
-            app.last_name || "",
-            app.email || "",
-            app.phone_number || "",
-            app.status || "",
-            postDetailsCache[String(app.recruitment_post_id)] || "",
-        ]);
+        setIsExporting(true);
+        try {
+            // Fetch phone numbers for export
+            const applicationsWithPhone = await Promise.all(
+                filteredApplications.map(async (app) => {
+                    try {
+                        const profileRes = await fetch(candidateAPI.getProfile(app.candidate_id));
+                        if (profileRes.ok) {
+                            const profileData = await profileRes.json();
+                            return { ...app, phone_number: profileData?.candidate?.phone_number || "" };
+                        }
+                    } catch (e) {
+                        console.warn("Failed to fetch phone number for", app.candidate_id);
+                    }
+                    return { ...app, phone_number: "" };
+                })
+            );
 
-        const csvContent = [
-            headers.join(","),
-            ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
-        ].join("\n");
+            const headers = ["first_name", "last_name", "email", "phone_number", "status", "post Applied"];
+            const rows = applicationsWithPhone.map((app) => [
+                app.first_name || "",
+                app.last_name || "",
+                app.email || "",
+                app.phone_number || "",
+                app.status || "",
+                postDetailsCache[String(app.recruitment_post_id)] || "",
+            ]);
 
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", `candidate_applications_${refNum}.csv`);
-        link.style.visibility = "hidden";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+            const csvContent = [
+                headers.join(","),
+                ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
+            ].join("\n");
+
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `candidate_applications_${refNum}.csv`);
+            link.style.visibility = "hidden";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     const filters = [
@@ -585,11 +591,11 @@ const CandidateApplications: React.FC = () => {
                     </div>
                     <button
                         onClick={handleExportCSV}
-                        disabled={filteredApplications.length === 0}
+                        disabled={filteredApplications.length === 0 || isExporting}
                         className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all shadow-sm active:scale-95"
                     >
-                        <Download className="w-4 h-4" />
-                        Export to CSV
+                        {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                        {isExporting ? "Exporting..." : "Export to CSV"}
                     </button>
                 </div>
 
