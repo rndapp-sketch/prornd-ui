@@ -70,6 +70,8 @@ interface UserDelegation {
   delegation_type?: string;
   scope_type?: string;
   project_names?: string;
+  valid_from?: string;
+  valid_to?: string;
   enabled?: number;
 }
 
@@ -313,6 +315,21 @@ const parseDelegatedProjectNames = (raw?: string): string[] => {
   return [];
 };
 
+const parseDelegationDateTime = (value?: string) => {
+  if (!value) return null;
+  const parsed = new Date(value.replace(" ", "T"));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const isDelegationWithinDateRange = (delegation: UserDelegation, now = new Date()) => {
+  const validFrom = parseDelegationDateTime(delegation.valid_from);
+  const validTo = parseDelegationDateTime(delegation.valid_to);
+
+  if (validFrom && validFrom > now) return false;
+  if (validTo && validTo < now) return false;
+  return true;
+};
+
 
 interface ProjectsViewProps {
   initialTab?: string;
@@ -512,7 +529,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
     isLoading: delegatedRecordsLoading,
     error: delegatedRecordsError,
   } = useFrappeGetDocList<UserDelegation>("User Delegation", {
-    fields: ["name", "delegator_user", "delegate_user", "delegation_type", "scope_type", "project_names", "enabled"],
+    fields: ["name", "delegator_user", "delegate_user", "delegation_type", "scope_type", "project_names", "valid_from", "valid_to", "enabled"],
     filters: currentUser
       ? [
         ["delegate_user", "=", currentUser],
@@ -525,7 +542,9 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
 
   const delegatedProjectNames = React.useMemo(() => {
     const names = new Set<string>();
+    const now = new Date();
     (receivedDelegations ?? []).forEach((delegation) => {
+      if (!isDelegationWithinDateRange(delegation, now)) return;
       parseDelegatedProjectNames(delegation.project_names).forEach((name) => names.add(name));
     });
     return Array.from(names);

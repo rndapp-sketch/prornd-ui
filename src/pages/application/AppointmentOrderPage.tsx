@@ -24,7 +24,7 @@ const styles = `
 textarea.ao-input { display: block; width: 100%; resize: none; }
 
 @media print {
-    @page { size: A4; margin: 0; }
+    @page { size: A4; margin: 12mm 15mm 14mm; }
 
     * {
         -webkit-print-color-adjust: exact !important;
@@ -79,9 +79,13 @@ textarea.ao-input { display: block; width: 100%; resize: none; }
 
     .ao-document {
         box-shadow: none !important;
-        width: 100% !important;
+        width: auto !important;
+        max-width: none !important;
         min-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
         overflow: visible !important;
+        box-sizing: border-box !important;
     }
 }
 `;
