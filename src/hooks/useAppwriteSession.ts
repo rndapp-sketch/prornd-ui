@@ -18,8 +18,6 @@ interface AppwriteError extends Error {
 }
 
 const sessionPromises = new Map<string, Promise<Models.User<Models.Preferences>>>();
-const RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
-const RATE_LIMIT_KEY_PREFIX = "prornd:appwrite-rate-limit:";
 
 function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
@@ -40,28 +38,9 @@ function isRateLimited(error: unknown): boolean {
     return appwriteError?.code === 429 || /rate limit/i.test(getErrorMessage(error));
 }
 
-function getStoredRateLimitUntil(email: string): number {
-    if (typeof window === "undefined") return 0;
-    return Number(window.localStorage.getItem(`${RATE_LIMIT_KEY_PREFIX}${email}`) || 0);
-}
-
-function rememberRateLimit(email: string): void {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem(
-        `${RATE_LIMIT_KEY_PREFIX}${email}`,
-        String(Date.now() + RATE_LIMIT_COOLDOWN_MS),
-    );
-}
-
-function clearStoredRateLimit(email: string): void {
-    if (typeof window === "undefined") return;
-    window.localStorage.removeItem(`${RATE_LIMIT_KEY_PREFIX}${email}`);
-}
-
-function getRateLimitError(email: string): Error {
-    rememberRateLimit(email);
+function getRateLimitError(): Error {
     return new Error(
-        "Messaging login is temporarily paused because Appwrite rate-limited the last attempt. Please wait a few minutes, then refresh the page.",
+        "Appwrite rejected the messaging login because too many attempts reached the server. Please refresh once after a short wait.",
     );
 }
 
@@ -150,18 +129,6 @@ export function useAppwriteSession(): AppwriteSessionState {
             return;
         }
 
-        const rateLimitUntil = getStoredRateLimitUntil(normalizedEmail);
-        if (rateLimitUntil > Date.now()) {
-            attemptedEmailRef.current = normalizedEmail;
-            const minutes = Math.max(1, Math.ceil((rateLimitUntil - Date.now()) / 60000));
-            setState({
-                status: "error",
-                user: null,
-                error: `Messaging login is paused after an Appwrite rate-limit response. Try again in about ${minutes} minute${minutes === 1 ? "" : "s"}.`,
-            });
-            return;
-        }
-
         connectingRef.current = true;
         attemptedEmailRef.current = normalizedEmail;
         let cancelled = false;
@@ -186,7 +153,7 @@ export function useAppwriteSession(): AppwriteSessionState {
                             console.log("[appwrite] stale session for different user, signing out");
                             await appwriteAccount.deleteSession("current").catch(() => undefined);
                         } catch (e) {
-                            if (isRateLimited(e)) throw getRateLimitError(normalizedEmail);
+                            if (isRateLimited(e)) throw getRateLimitError();
                             console.log("[appwrite] no existing session:", getErrorMessage(e));
                         }
 
@@ -199,7 +166,7 @@ export function useAppwriteSession(): AppwriteSessionState {
                                 appwriteAccount.createEmailPasswordSession(normalizedEmail, password),
                             );
                         } catch (loginError) {
-                            if (isRateLimited(loginError)) throw getRateLimitError(normalizedEmail);
+                            if (isRateLimited(loginError)) throw getRateLimitError();
                             if (!isUnauthorized(loginError)) throw loginError;
                             console.log(
                                 "[appwrite] login failed, will try to create user:",
@@ -214,7 +181,7 @@ export function useAppwriteSession(): AppwriteSessionState {
                                     appwriteAccount.create(userId, normalizedEmail, password, fullName),
                                 );
                             } catch (createError) {
-                                if (isRateLimited(createError)) throw getRateLimitError(normalizedEmail);
+                                if (isRateLimited(createError)) throw getRateLimitError();
                                 if (isConflict(createError)) {
                                     throw new Error(
                                         "Appwrite user already exists, but the dev bridge password does not match. Delete this user in Appwrite Auth or switch to the planned server-side custom-token bridge.",
@@ -235,7 +202,7 @@ export function useAppwriteSession(): AppwriteSessionState {
                                     appwriteAccount.createEmailPasswordSession(normalizedEmail, password),
                                 );
                             } catch (sessionAfterCreateError) {
-                                if (isRateLimited(sessionAfterCreateError)) throw getRateLimitError(normalizedEmail);
+                                if (isRateLimited(sessionAfterCreateError)) throw getRateLimitError();
                                 throw sessionAfterCreateError;
                             }
                         }
@@ -244,7 +211,7 @@ export function useAppwriteSession(): AppwriteSessionState {
                         try {
                             return await withTimeout("account.get", appwriteAccount.get());
                         } catch (confirmError) {
-                            if (isRateLimited(confirmError)) throw getRateLimitError(normalizedEmail);
+                            if (isRateLimited(confirmError)) throw getRateLimitError();
                             throw confirmError;
                         }
                     })();
@@ -253,7 +220,6 @@ export function useAppwriteSession(): AppwriteSessionState {
 
                 const me = await sessionPromise;
                 console.log("[appwrite] session ready", me.$id);
-                clearStoredRateLimit(normalizedEmail);
                 if (!cancelled) setState({ status: "ready", user: me, error: null });
             } catch (err) {
                 sessionPromises.delete(normalizedEmail);

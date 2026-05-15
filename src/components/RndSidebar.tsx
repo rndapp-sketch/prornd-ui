@@ -45,8 +45,6 @@ import { useUserRoles } from "./UserRole";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { useAppwriteSession } from "@/hooks/useAppwriteSession";
-import { useUnreadCount } from "@/hooks/useUnreadCount";
 import { selectionCommitteeReportAPI } from "@/services/apiService";
 
 // --- LOGIC: Interfaces (Unchanged) ---
@@ -123,10 +121,6 @@ export function AppSidebar() {
         {},
         currentUser && canUploadDirectorPdf ? undefined : null,
     );
-
-    // Appwrite messaging — unread count for the sidebar badge.
-    const appwriteSession = useAppwriteSession();
-    const { unreadCount } = useUnreadCount(appwriteSession.user?.$id ?? null);
 
     // Calculate count matching PendingTask.tsx filter logic
     const pendingTaskCount = React.useMemo(() => {
@@ -508,17 +502,6 @@ export function AppSidebar() {
                                                         : "bg-[#D97757] text-white",
                                                 )}>
                                                     {pendingTaskCount > 99 ? "99+" : pendingTaskCount}
-                                                </span>
-                                            )}
-
-                                            {item.label === "Messages" && unreadCount > 0 && state === "expanded" && (
-                                                <span className={cn(
-                                                    "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
-                                                    isActive
-                                                        ? "bg-[#4A6CF7] text-white"
-                                                        : "bg-[#D97757] text-white",
-                                                )}>
-                                                    {unreadCount > 99 ? "99+" : unreadCount}
                                                 </span>
                                             )}
 
