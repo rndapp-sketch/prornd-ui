@@ -503,7 +503,7 @@ function AppContent() {
 function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-      <FrappeProvider socketPort="9001" siteName="prornd.local">
+      <FrappeProvider siteName="prornd.local" enableSocket={false}>
         <AppContent />
       </FrappeProvider>
     </ThemeProvider>
