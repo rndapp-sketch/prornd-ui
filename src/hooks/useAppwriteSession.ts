@@ -103,6 +103,11 @@ export function useAppwriteSession(): AppwriteSessionState {
 
     const connectingRef = useRef(false);
     const attemptedEmailRef = useRef<string | null>(null);
+    const stateRef = useRef(state);
+
+    useEffect(() => {
+        stateRef.current = state;
+    }, [state]);
 
     useEffect(() => {
         if (!appwriteConfig.endpoint || !appwriteConfig.projectId) {
@@ -120,15 +125,18 @@ export function useAppwriteSession(): AppwriteSessionState {
             setState({ status: "idle", user: null, error: null });
             return;
         }
-        if (connectingRef.current) return;
         const normalizedEmail = currentUser.toLowerCase();
-        if (state.status === "ready" && state.user?.email?.toLowerCase() === normalizedEmail) {
-            return;
-        }
-        if (state.status === "error" && attemptedEmailRef.current === normalizedEmail) {
+
+        const currentState = stateRef.current;
+        if (currentState.status === "ready" && currentState.user?.email?.toLowerCase() === normalizedEmail) {
             return;
         }
 
+        if (currentState.status === "error" && attemptedEmailRef.current === normalizedEmail) {
+            return;
+        }
+
+        if (connectingRef.current) return;
         connectingRef.current = true;
         attemptedEmailRef.current = normalizedEmail;
         let cancelled = false;
@@ -227,14 +235,17 @@ export function useAppwriteSession(): AppwriteSessionState {
                 console.error("[appwrite] session error:", err);
                 if (!cancelled) setState({ status: "error", user: null, error: message });
             } finally {
-                connectingRef.current = false;
+                if (!cancelled) {
+                    connectingRef.current = false;
+                }
             }
         })();
 
         return () => {
             cancelled = true;
+            connectingRef.current = false;
         };
-    }, [currentUser, userDoc, state.status, state.user?.email]);
+    }, [currentUser, userDoc]);
 
     return state;
 }

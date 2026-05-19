@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DepartmentName } from "@/components/DepartmentName";
 import { AppSidebar } from "@/components/RndSidebar";
@@ -10,6 +10,8 @@ import {
     type FormField,
     type LinkOption,
 } from "@/components/forms/DynamicFormRenderer";
+import { CommentModal } from "@/components/CommentModal";
+import { ActivityStream, type ActivityStreamHandle } from "@/components/ActivityStream";
 import {
     prepareFormDataForApi,
     projectStaffDetailsAPI,
@@ -20,10 +22,14 @@ import {
 const fallbackFields: FormField[] = [
     { fieldname: "appointment_details_section", label: "Appointment Details", fieldtype: "Section Break" },
     { fieldname: "ps_emp_id", label: "Employee ID", fieldtype: "Data", read_only: 1 },
+    { fieldname: "scr_id", label: "Selection Committee Report", fieldtype: "Data", read_only: 1 },
+    { fieldname: "pi_id", label: "Principal Investigator", fieldtype: "Data", read_only: 1 },
     { fieldname: "ps_aon", label: "Appointment Order No.", fieldtype: "Data" },
     { fieldname: "ps_designation", label: "Designation", fieldtype: "Data", mandatory: 1 },
     { fieldname: "ps_department", label: "Department", fieldtype: "Data" },
     { fieldname: "ps_mro", label: "MRO", fieldtype: "Data" },
+    { fieldname: "ps_joining_date", label: "Joining Date", fieldtype: "Date" },
+    { fieldname: "ps_term_completion_date", label: "Term Completion Date", fieldtype: "Date" },
     { fieldname: "personal_details_section", label: "Personal Details", fieldtype: "Section Break" },
     { fieldname: "ps_first_name", label: "First Name", fieldtype: "Data", mandatory: 1 },
     { fieldname: "ps_middle_name", label: "Middle Name", fieldtype: "Data" },
@@ -32,6 +38,7 @@ const fallbackFields: FormField[] = [
     { fieldname: "ps_fathers_name", label: "Father's Name", fieldtype: "Data" },
     { fieldname: "ps_blood_group", label: "Blood Group", fieldtype: "Select", options: "\nA+\nA-\nB+\nB-\nAB+\nAB-\nO+\nO-" },
     { fieldname: "ps_maritial_status", label: "Marital Status", fieldtype: "Select", options: "\nSingle\nMarried\nDivorced\nWidowed" },
+    { fieldname: "ps_gender", label: "Gender", fieldtype: "Select", options: "\nMale\nFemale" },
     { fieldname: "ps_citizenship", label: "Citizenship", fieldtype: "Data" },
     { fieldname: "contact_details_section", label: "Contact Details", fieldtype: "Section Break" },
     { fieldname: "ps_email_id", label: "Email ID", fieldtype: "Data" },
@@ -63,6 +70,10 @@ const fallbackFields: FormField[] = [
             { fieldname: "pstd_tentative_joining_date", label: "Tentative Joining Date", fieldtype: "Date" },
         ],
     },
+    { fieldname: "upload_section_section", label: "Upload Section", fieldtype: "Section Break" },
+    { fieldname: "ps_photo", label: "Photo", fieldtype: "Attach" },
+    { fieldname: "ps_signature", label: "Signature", fieldtype: "Attach" },
+    { fieldname: "ps_medical_certificate", label: "Medical Certificate", fieldtype: "Attach" },
 ];
 
 const GroupCard = ({
@@ -95,22 +106,9 @@ const normalizeRows = (value: unknown): Record<string, unknown>[] => {
     return [];
 };
 
-type ProjectStaffMessage = {
-    fields?: FormField[];
-    link_options?: Record<string, LinkOption[]>;
-    prefill_data?: Record<string, unknown>;
-    status?: string;
-    docname?: string;
-    message?: string;
-};
-
-type SelectionCandidateDetailsMessage = {
-    data?: Record<string, unknown>[];
-};
-
 const normalizeFields = (fields: FormField[]): FormField[] =>
     fields.map((field) => {
-        if (field.fieldname === "ps_emp_id") return { ...field, read_only: 1 };
+        if (field.fieldname === "ps_emp_id" || field.fieldname === "scr_id" || field.fieldname === "pi_id") return { ...field, read_only: 1 };
         if (field.fieldname === "table_ymed") {
             return {
                 ...field,
@@ -131,21 +129,35 @@ const ProjectStaffJoiningForm: React.FC = () => {
     const scrName = searchParams.get("scr") || "";
     const candidateId = searchParams.get("candidate_id") || "";
     const applicationId = searchParams.get("application_id") || "";
+    const docnameParam = searchParams.get("docname") || searchParams.get("name") || "";
 
     const [fields, setFields] = useState<FormField[]>(fallbackFields);
-    const [formData, setFormData] = useState<Record<string, unknown>>({});
+    const [formData, setFormData] = useState<Record<string, any>>({});
     const [linkOptions, setLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [savedDocName, setSavedDocName] = useState<string | null>(null);
+    const [savedDocName, setSavedDocName] = useState<string | null>(docnameParam || null);
     const [candidateName, setCandidateName] = useState("");
     const [nextEmpId, setNextEmpId] = useState("Auto-generated");
 
-    const { call: fetchFields } = useFrappePostCall<{ message: ProjectStaffMessage }>(projectStaffDetailsAPI.getFields);
-    const { call: fetchSCRFields } = useFrappePostCall<{ message: ProjectStaffMessage }>(selectionCommitteeReportAPI.getFields);
-    const { call: fetchCandidateByApplication } = useFrappePostCall<{ message: SelectionCandidateDetailsMessage }>(selectionCandidateDetailsAPI.getByApplication);
-    const { call: saveData } = useFrappePostCall<{ message: ProjectStaffMessage }>(projectStaffDetailsAPI.save);
+    const { call: fetchFields } = useFrappePostCall<{ message: any }>(projectStaffDetailsAPI.getFields);
+    const { call: fetchSCRFields } = useFrappePostCall<{ message: any }>(selectionCommitteeReportAPI.getFields);
+    const { call: fetchCandidateByApplication } = useFrappePostCall<{ message: any }>(selectionCandidateDetailsAPI.getByApplication);
+    const { call: saveData } = useFrappePostCall<{ message: any }>(projectStaffDetailsAPI.save);
     const { call: fetchNextEmpId } = useFrappePostCall<{ message: string }>(projectStaffDetailsAPI.getNextEmpId);
+    const { call: submitPSD } = useFrappePostCall<{ message: any }>(projectStaffDetailsAPI.submit);
+    const { call: fetchPSDWorkflowActions } = useFrappePostCall<{ message: any }>(projectStaffDetailsAPI.getWorkflowActions);
+    const { call: performPSDAction } = useFrappePostCall<{ message: any }>(projectStaffDetailsAPI.performAction);
+    const { call: addProjectComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
+
+    const [workflowState, setWorkflowState] = useState<string>("");
+    const [workflowActions, setWorkflowActions] = useState<string[]>([]);
+    const [actionLoading, setActionLoading] = useState<string>("");
+    const [commentModalOpen, setCommentModalOpen] = useState(false);
+    const [pendingWorkflowAction, setPendingWorkflowAction] = useState<string>("");
+    const activityStreamRef = React.useRef<ActivityStreamHandle>(null);
+
+    const canSave = !workflowState || workflowState.toLowerCase() === "draft";
 
     useEffect(() => {
         let mounted = true;
@@ -153,7 +165,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
         const load = async () => {
             setLoading(true);
             let nextId = "Auto-generated";
-            let nextData: Record<string, unknown> = {};
+            let nextData: Record<string, any> = {};
 
             try {
                 const empRes = await fetchNextEmpId({});
@@ -183,15 +195,21 @@ const ProjectStaffJoiningForm: React.FC = () => {
                 setFields(fallbackFields);
             }
 
+            // Fetch SCR and SCD in parallel
             const [scrRes, scdRes] = await Promise.all([
                 scrName ? fetchSCRFields({ doc_name: scrName }).catch(() => null) : Promise.resolve(null),
                 applicationId ? fetchCandidateByApplication({ application_id: applicationId }).catch(() => null) : Promise.resolve(null),
             ]);
 
+            // ── SCR: project/pay/designation data ──
             if (scrRes) {
                 try {
                     const prefill = scrRes?.message?.prefill_data;
                     const candidates = normalizeRows(prefill?.candidates);
+
+                    if (prefill?.owner) {
+                        nextData = { ...nextData, pi_id: nextData.pi_id || prefill.owner };
+                    }
                     const candidate = candidates.find((c) => String(c.candidate_id) === String(candidateId));
 
                     if (candidate) {
@@ -218,14 +236,18 @@ const ProjectStaffJoiningForm: React.FC = () => {
                 }
             }
 
+            // ── SCD: contact/personal info overrides SCR ──
             const scdDocs = scdRes?.message?.data;
             if (Array.isArray(scdDocs) && scdDocs.length > 0) {
                 const scd = scdDocs[0];
+
+                // Name: SCD has candidate_name (first) + candidate_surname (last)
                 const scdFirst = scd.candidate_name || "";
                 const scdLast = scd.candidate_surname || "";
                 if (scdFirst || scdLast) {
                     if (mounted) setCandidateName([scdFirst, scdLast].filter(Boolean).join(" "));
                 }
+
                 nextData = {
                     ...nextData,
                     ...(scdFirst && { ps_first_name: scdFirst }),
@@ -252,6 +274,8 @@ const ProjectStaffJoiningForm: React.FC = () => {
                 ps_emp_id: nextData.ps_emp_id || nextId,
                 table_ymed: normalizeRows(nextData.table_ymed),
                 ...nextData,
+                scr_id: nextData.scr_id || scrName || "",
+                pi_id: nextData.pi_id || "",
             };
 
             if (mounted) {
@@ -267,7 +291,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [scrName, candidateId, applicationId, savedDocName]);
 
-    const handleFieldChange = useCallback((fieldname: string, value: unknown) => {
+    const handleFieldChange = useCallback((fieldname: string, value: any) => {
         setFormData((prev) => ({ ...prev, [fieldname]: value }));
     }, []);
 
@@ -275,7 +299,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
         setFormData((prev) => ({ ...prev, [fieldname]: file }));
     }, []);
 
-    const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: unknown) => {
+    const handleTableRowChange = useCallback((tableName: string, rowIndex: number, fieldname: string, value: any) => {
         setFormData((prev) => {
             const rows = Array.isArray(prev[tableName]) ? [...prev[tableName]] : [];
             rows[rowIndex] = { ...(rows[rowIndex] || {}), [fieldname]: value };
@@ -287,7 +311,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
         handleTableRowChange(tableName, rowIndex, fieldname, file);
     }, [handleTableRowChange]);
 
-    const handleAddTableRow = useCallback((tableName: string, newRow: Record<string, unknown>) => {
+    const handleAddTableRow = useCallback((tableName: string, newRow: Record<string, any>) => {
         setFormData((prev) => ({
             ...prev,
             [tableName]: [...(Array.isArray(prev[tableName]) ? prev[tableName] : []), newRow],
@@ -312,6 +336,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
         onDeleteTableRow: handleDeleteTableRow,
         hideSectionHeaders: true,
         hideTableLabels: false,
+        readOnly: !canSave,
     }), [
         formData,
         linkOptions,
@@ -321,12 +346,91 @@ const ProjectStaffJoiningForm: React.FC = () => {
         handleTableFileChange,
         handleAddTableRow,
         handleDeleteTableRow,
+        canSave,
     ]);
 
     const section = useCallback((names: string[]) =>
         fields.filter((field) => names.includes(field.fieldname)),
         [fields],
     );
+
+    const loadWorkflowActions = useCallback(async (docname: string) => {
+        try {
+            const res = await fetchPSDWorkflowActions({ docname });
+            const msg = res?.message || {};
+            if (msg.status === "success") {
+                setWorkflowState(msg.workflow_state || "");
+                setWorkflowActions(Array.isArray(msg.actions) ? msg.actions : []);
+            } else {
+                setWorkflowState("");
+                setWorkflowActions([]);
+            }
+        } catch (e) {
+            console.error("Failed to fetch workflow actions:", e);
+            setWorkflowActions([]);
+        }
+    }, [fetchPSDWorkflowActions]);
+
+    const handleWorkflowAction = (action: string) => {
+        if (!savedDocName) {
+            alert("Please save the form before performing this action.");
+            return;
+        }
+        setPendingWorkflowAction(action);
+        setCommentModalOpen(true);
+    };
+
+    const handleConfirmWorkflowAction = async (comment: string) => {
+        setCommentModalOpen(false);
+        const action = pendingWorkflowAction;
+        if (!action || !savedDocName) return;
+
+        setActionLoading(action);
+        try {
+            const trimmedComment = comment.trim();
+            const res = action === "Submit"
+                ? await submitPSD({ docname: savedDocName, comment: trimmedComment || undefined })
+                : await performPSDAction({ docname: savedDocName, action, comment: trimmedComment || undefined });
+            const msg = res?.message;
+            if (msg?.status === "error") {
+                alert(msg?.message || `Failed to perform action: ${action}`);
+            } else {
+                // Persist the actor's note as a real comment so it shows in the Activity Log.
+                if (trimmedComment) {
+                    try {
+                        await addProjectComment({
+                            doctype: "Project Staff Details",
+                            docname: savedDocName,
+                            content: trimmedComment,
+                        });
+                    } catch (commentErr) {
+                        console.error("Failed to add workflow comment:", commentErr);
+                    }
+                }
+                alert(`${action} successful.`);
+                await loadWorkflowActions(savedDocName);
+                activityStreamRef.current?.refetch();
+            }
+        } catch (e: any) {
+            console.error(`${action} error:`, e);
+            alert(e?.message || `An error occurred while performing ${action}.`);
+        } finally {
+            setActionLoading("");
+            setPendingWorkflowAction("");
+        }
+    };
+
+    const actionButtonStyle = (action: string): string => {
+        const a = action.toLowerCase();
+        if (a === "submit") return "bg-emerald-600 text-white hover:bg-emerald-700";
+        if (a === "forward" || a === "approve" || a === "recommend") return "bg-blue-600 text-white hover:bg-blue-700";
+        if (a === "reject" || a === "return") return "bg-red-600 text-white hover:bg-red-700";
+        return "bg-[#D97757] text-white hover:bg-[#c5684a]";
+    };
+
+    useEffect(() => {
+        if (savedDocName) loadWorkflowActions(savedDocName);
+    }, [savedDocName, loadWorkflowActions]);
 
     const handleSave = async () => {
         if (!formData.ps_first_name || !formData.ps_last_name) {
@@ -350,9 +454,9 @@ const ProjectStaffJoiningForm: React.FC = () => {
             } else {
                 alert(res?.message?.message || "Failed to save.");
             }
-        } catch (e: unknown) {
+        } catch (e: any) {
             console.error("Project Staff Joining save error:", e);
-            alert(e instanceof Error ? e.message : "An error occurred while saving.");
+            alert(e?.message || "An error occurred while saving.");
         } finally {
             setSaving(false);
         }
@@ -406,25 +510,25 @@ const ProjectStaffJoiningForm: React.FC = () => {
                                     Saved: {savedDocName}
                                 </span>
                             )}
-                            <button
-                                onClick={handleSave}
-                                disabled={saving}
-                                className={cn(
-                                    "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-bold shadow-sm transition-colors",
-                                    saving
-                                        ? "bg-zinc-300 text-zinc-500 cursor-not-allowed"
-                                        : "bg-[#D97757] text-white hover:bg-[#c5684a]",
-                                )}
-                            >
-                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                {saving ? "Saving..." : "Save"}
-                            </button>
+                            {canSave && (
+                                <button
+                                    onClick={handleSave}
+                                    disabled={saving}
+                                    className={cn(
+                                        "flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-bold shadow-sm transition-colors",
+                                        saving
+                                            ? "bg-zinc-300 text-zinc-500 cursor-not-allowed"
+                                            : "bg-[#D97757] text-white hover:bg-[#c5684a]",
+                                    )}
+                                >
+                                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                    {saving ? "Saving..." : "Save"}
+                                </button>
+                            )}
                         </div>
                     </div>
-                    <div className="grid gap-3 border-t border-[#E4E4E7] bg-[#FAFAF9]/70 px-5 py-4 text-sm dark:border-[#3F3F46] dark:bg-[#18181B]/40 sm:grid-cols-2 lg:grid-cols-5">
+                    <div className="grid gap-3 border-t border-[#E4E4E7] bg-[#FAFAF9]/70 px-5 py-4 text-sm dark:border-[#3F3F46] dark:bg-[#18181B]/40 sm:grid-cols-2 lg:grid-cols-3">
                         {[
-                            ["SCR", scrName || "-"],
-                            ["Application ID", applicationId || "-"],
                             ["Employee ID", formData.ps_emp_id || nextEmpId],
                             ["Designation", formData.ps_designation || "-"],
                         ].map(([label, value]) => (
@@ -442,82 +546,139 @@ const ProjectStaffJoiningForm: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="space-y-5">
-                    <GroupCard label="Appointment Details">
-                        <DynamicFormRenderer
-                            fields={section(["appointment_details_section", "ps_emp_id", "ps_aon", "ps_designation", "ps_department", "ps_mro"])}
-                            {...commonRendererProps}
-                        />
-                    </GroupCard>
+                <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+                    <div className="space-y-5">
+                        <GroupCard label="Appointment Details">
+                            <DynamicFormRenderer
+                                fields={section(["appointment_details_section", "ps_emp_id", "scr_id", "pi_id", "ps_aon", "ps_designation", "ps_department", "ps_mro", "ps_joining_date", "ps_term_completion_date"])}
+                                {...commonRendererProps}
+                            />
+                        </GroupCard>
 
-                    <GroupCard label="Personal Details">
-                        <DynamicFormRenderer
-                            fields={section([
-                                "personal_details_section",
-                                "ps_first_name",
-                                "ps_middle_name",
-                                "ps_last_name",
-                                "ps_date_of_birth",
-                                "ps_fathers_name",
-                                "ps_blood_group",
-                                "ps_maritial_status",
-                                "ps_citizenship",
-                            ])}
-                            {...commonRendererProps}
-                        />
-                    </GroupCard>
+                        <GroupCard label="Personal Details">
+                            <DynamicFormRenderer
+                                fields={section([
+                                    "personal_details_section",
+                                    "ps_first_name",
+                                    "ps_middle_name",
+                                    "ps_last_name",
+                                    "ps_date_of_birth",
+                                    "ps_fathers_name",
+                                    "ps_blood_group",
+                                    "ps_maritial_status",
+                                    "ps_gender",
+                                    "ps_citizenship",
+                                ])}
+                                {...commonRendererProps}
+                            />
+                        </GroupCard>
 
-                    <GroupCard label="Contact Details">
-                        <DynamicFormRenderer
-                            fields={section([
-                                "contact_details_section",
-                                "ps_email_id",
-                                "ps_phone_number",
-                                "ps_present_address",
-                                "ps_permanent_address",
-                            ])}
-                            {...commonRendererProps}
-                        />
-                    </GroupCard>
+                        <GroupCard label="Contact Details">
+                            <DynamicFormRenderer
+                                fields={section([
+                                    "contact_details_section",
+                                    "ps_email_id",
+                                    "ps_phone_number",
+                                    "ps_present_address",
+                                    "ps_permanent_address",
+                                ])}
+                                {...commonRendererProps}
+                            />
+                        </GroupCard>
 
-                    <GroupCard label="Identity Documents">
-                        <DynamicFormRenderer
-                            fields={section(["identity_documents_section", "ps_pan", "ps_aadhar_number"])}
-                            {...commonRendererProps}
-                        />
-                    </GroupCard>
+                        <GroupCard label="Identity Documents">
+                            <DynamicFormRenderer
+                                fields={section(["identity_documents_section", "ps_pan", "ps_aadhar_number"])}
+                                {...commonRendererProps}
+                            />
+                        </GroupCard>
 
-                    <GroupCard label="Salary & Tenure Details">
-                        <DynamicFormRenderer
-                            fields={section([
-                                "salary_details_section",
-                                "ps_basic_salary",
-                                "ps_hra",
-                                "ps_ma",
-                                "ps_hostel",
-                                "table_ymed",
-                            ])}
-                            {...commonRendererProps}
-                        />
-                    </GroupCard>
+                        <GroupCard label="Salary & Tenure Details">
+                            <DynamicFormRenderer
+                                fields={section([
+                                    "salary_details_section",
+                                    "ps_basic_salary",
+                                    "ps_hra",
+                                    "ps_ma",
+                                    "ps_hostel",
+                                    "table_ymed",
+                                ])}
+                                {...commonRendererProps}
+                            />
+                        </GroupCard>
 
-                    <div className="flex justify-end pb-4">
-                        <button
-                            onClick={handleSave}
-                            disabled={saving}
-                            className={cn(
-                                "flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold shadow-sm transition-colors",
-                                saving
-                                    ? "bg-zinc-300 text-zinc-500 cursor-not-allowed"
-                                    : "bg-[#D97757] text-white hover:bg-[#c5684a]",
+                        <GroupCard label="Uploads">
+                            <DynamicFormRenderer
+                                fields={section([
+                                    "upload_section_section",
+                                    "ps_photo",
+                                    "ps_signature",
+                                    "ps_medical_certificate",
+                                ])}
+                                {...commonRendererProps}
+                            />
+                        </GroupCard>
+
+                        <div className="flex justify-end gap-3 pb-4">
+                            {canSave && (
+                                <button
+                                    onClick={handleSave}
+                                    disabled={saving}
+                                    className={cn(
+                                        "flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold shadow-sm transition-colors",
+                                        saving
+                                            ? "bg-zinc-300 text-zinc-500 cursor-not-allowed"
+                                            : "bg-[#D97757] text-white hover:bg-[#c5684a]",
+                                    )}
+                                >
+                                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                    {saving ? "Saving..." : "Save"}
+                                </button>
                             )}
-                        >
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                            {saving ? "Saving..." : "Save"}
-                        </button>
+                            {workflowActions.map((action) => {
+                                const busy = actionLoading === action;
+                                const anyBusy = !!actionLoading;
+                                return (
+                                    <button
+                                        key={action}
+                                        onClick={() => handleWorkflowAction(action)}
+                                        disabled={anyBusy || !savedDocName}
+                                        title={workflowState ? `Current state: ${workflowState}` : undefined}
+                                        className={cn(
+                                            "flex items-center gap-2 rounded-lg px-6 py-2.5 text-sm font-bold shadow-sm transition-colors",
+                                            anyBusy || !savedDocName
+                                                ? "bg-zinc-300 text-zinc-500 cursor-not-allowed"
+                                                : actionButtonStyle(action),
+                                        )}
+                                    >
+                                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                        {busy ? `${action}ing...` : action}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
+
+                    {savedDocName && (
+                        <div className="lg:sticky lg:top-6">
+                            <ActivityStream
+                                ref={activityStreamRef}
+                                doctype="Project Staff Details"
+                                docname={savedDocName}
+                                commentsOnly
+                            />
+                        </div>
+                    )}
                 </div>
             </main>
+
+            <CommentModal
+                isOpen={commentModalOpen}
+                onClose={() => { setCommentModalOpen(false); setPendingWorkflowAction(""); }}
+                onSubmit={handleConfirmWorkflowAction}
+                action={pendingWorkflowAction}
+                isLoading={!!actionLoading}
+            />
         </div>
     );
 };

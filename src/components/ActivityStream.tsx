@@ -14,6 +14,8 @@ export interface ActivityItem {
 export interface ActivityStreamProps {
     doctype: string;
     docname: string;
+    /** When true, only user-typed comments are shown (no workflow/attachment/system entries). */
+    commentsOnly?: boolean;
 }
 
 export interface ActivityStreamHandle {
@@ -21,13 +23,16 @@ export interface ActivityStreamHandle {
 }
 
 export const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
-    ({ doctype, docname }, ref) => {
+    ({ doctype, docname, commentsOnly = false }, ref) => {
         const [newComment, setNewComment] = useState("");
         const [isSubmitting, setIsSubmitting] = useState(false);
         const { data: activityData, mutate: refetchActivity } = useFrappeGetCall<{ message: ActivityItem[] }>(
             "rndopsapp.rndopsapp.api.get_project_activity",
             { doctype, docname }
         );
+        const visibleActivity = commentsOnly
+            ? (activityData?.message ?? []).filter((item) => item.comment_type === "Comment")
+            : (activityData?.message ?? []);
         const { call: addComment } = useFrappePostCall("rndopsapp.rndopsapp.api.add_project_comment");
 
         useImperativeHandle(ref, () => ({ refetch() { refetchActivity(); } }));
@@ -65,9 +70,9 @@ export const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamPro
                         </div>
                         <h2 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Activity Log</h2>
                     </div>
-                    {!!activityData?.message?.length && (
+                    {!!visibleActivity.length && (
                         <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                            {activityData.message.length}
+                            {visibleActivity.length}
                         </span>
                     )}
                 </div>
@@ -98,7 +103,7 @@ export const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamPro
                     </div>
 
                     <div className="space-y-3">
-                        {activityData?.message?.map((item, index) => (
+                        {visibleActivity.map((item, index) => (
                             <div
                                 key={`${item.creation}-${index}`}
                                 className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"

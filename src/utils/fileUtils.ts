@@ -38,7 +38,12 @@ export function getFileUrl(path: string | null | undefined): string {
         return `${MINIO_BASE}${path}`;
     }
 
-    // Standard Frappe file path starting with "/" — avoid double slash
+    // Standard Frappe file paths are already complete — serve as-is
+    if (path.startsWith("/files/") || path.startsWith("/private/files/")) {
+        return path;
+    }
+
+    // Other path starting with "/" — avoid double slash
     if (path.startsWith("/")) {
         return `/files${path}`;
     }
