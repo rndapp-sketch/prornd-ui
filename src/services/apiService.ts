@@ -132,6 +132,7 @@ export const selectionCandidateDetailsAPI = {
     getByInterview: `${API_BASE}.selection_candidate_details.selection_candidate_details.get_selection_candidate_details_by_interview`,
     getByApplication: `${API_BASE}.selection_candidate_details.selection_candidate_details.get_selection_candidate_details_by_application`,
     updateAppointmentOrderNumber: `${API_BASE}.selection_candidate_details.selection_candidate_details.update_appointment_order_number`,
+    updateMedicalReportNumber: `${API_BASE}.selection_candidate_details.selection_candidate_details.update_medical_report_number`,
 };
 
 // Project Staff Details (Joining) API endpoints
@@ -141,6 +142,9 @@ export const projectStaffDetailsAPI = {
     getList: `${API_BASE}.project_staff_details.project_staff_details.get_project_staff_details_list`,
     delete: `${API_BASE}.project_staff_details.project_staff_details.delete_project_staff_details`,
     getNextEmpId: `${API_BASE}.project_staff_details.project_staff_details.get_next_emp_id`,
+    submit: `${API_BASE}.project_staff_details.project_staff_details.submit_project_staff_details`,
+    getWorkflowActions: `${API_BASE}.project_staff_details.project_staff_details.get_project_staff_details_workflow_actions`,
+    performAction: `${API_BASE}.project_staff_details.project_staff_details.perform_project_staff_details_action`,
 };
 
 // Indent Cum Sanction Sheet API endpoints

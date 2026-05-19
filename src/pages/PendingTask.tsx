@@ -651,6 +651,8 @@ const PendingTask: React.FC = () => {
                                                                 navigate(`/travel/${task.id}`);
                                                             } else if (task.doctype === "Selection Committee Report") {
                                                                 navigate(`/selection-committee-report/${task.id}`);
+                                                            } else if (task.doctype === "Project Staff Details") {
+                                                                navigate(`/project-staff-joining?docname=${encodeURIComponent(task.id)}`);
                                                             } else {
                                                                 navigate(`/pending-tasks/${task.doctype}/${task.id}`);
                                                             }
@@ -796,7 +798,14 @@ const PendingTask: React.FC = () => {
                                             onClick={() => navigate(`/appointment-order?scr=${orderModal.scrName}&candidate_id=${candidate.candidate_id}&application_id=${candidate.application_id}`)}
                                             className="px-3 py-1.5 text-xs h-8 shadow-sm"
                                         >
-                                            View
+                                            App Order
+                                        </FrappeButton>
+                                        <FrappeButton
+                                            variant="primary"
+                                            onClick={() => navigate(`/medical-report?scr=${orderModal.scrName}&candidate_id=${candidate.candidate_id}&application_id=${candidate.application_id}`)}
+                                            className="px-3 py-1.5 text-xs h-8 shadow-sm"
+                                        >
+                                            Med Report
                                         </FrappeButton>
                                         <FrappeButton
                                             variant="action"
@@ -860,7 +869,11 @@ const PendingTask: React.FC = () => {
                         <button
                             onClick={() => {
                                 setSelectedTask(null);
-                                navigate(`/pending-tasks/${encodeURIComponent(selectedTask.doctype)}/${selectedTask.docname}`);
+                                if (selectedTask.doctype === "Project Staff Details") {
+                                    navigate(`/project-staff-joining?docname=${encodeURIComponent(selectedTask.docname)}`);
+                                } else {
+                                    navigate(`/pending-tasks/${encodeURIComponent(selectedTask.doctype)}/${selectedTask.docname}`);
+                                }
                             }}
                             className="w-full py-2.5 px-4 bg-[#D97757] text-white text-sm font-bold rounded-lg hover:bg-[#c66a4e] transition-colors"
                         >

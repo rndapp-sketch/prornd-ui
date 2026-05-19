@@ -79,6 +79,7 @@ import UniversalRegistrationForm from './pages/application/UniversalRegistration
 import UniversalUserForm from './pages/application/UniversalUserForm.tsx';
 import SelectionCommitteeReportForm from './pages/application/SelectionCommitteeReportForm.tsx';
 import AppointmentOrderPage from './pages/application/AppointmentOrderPage.tsx';
+import MedicalReportPage from './pages/application/MedicalReportPage.tsx';
 import ProjectStaffJoiningForm from './pages/application/ProjectStaffJoiningForm.tsx';
 import DepartmentProjects from './pages/DepartmentProjects.tsx';
 import AdminLogin from './pages/AdminLogin.tsx';
@@ -658,9 +659,17 @@ const router = createBrowserRouter(
                     )
                 },
                 {
-                    path: "project-staff-joining",
+                    path: "medical-report",
                     element: (
                         <AuthRouteWrapper allowedRole="staff, RnD">
+                            <MedicalReportPage />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "project-staff-joining",
+                    element: (
+                        <AuthRouteWrapper allowedRole={["staff, RnD", "Hos, RnD (Head of Section, RnD)", "Dean, RnD", "Ado_RnD", "Director"]}>
                             <ProjectStaffJoiningForm />
                         </AuthRouteWrapper>
                     )

@@ -561,6 +561,10 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       : [["name", "=", "NON_EXISTENT_DOC"]],
     limit: 1000,
   });
+  const visibleDelegatedProjects = React.useMemo(
+    () => (delegatedProjectNames.length ? (delegatedProjects ?? []) : []),
+    [delegatedProjectNames.length, delegatedProjects],
+  );
 
   // --- Delete draft state ---
   const [confirmDeleteProject, setConfirmDeleteProject] = React.useState<Project | null>(null);
@@ -696,14 +700,14 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   ]);
 
   const projectTypeCounts = React.useMemo(() => ({
-    Research: ((activeTab === "delegated" ? delegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Research').length,
-    Consultancy: ((activeTab === "delegated" ? delegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Consultancy').length,
-    Others: ((activeTab === "delegated" ? delegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Others').length,
-  }), [activeTab, delegatedProjects, myProjects]);
+    Research: ((activeTab === "delegated" ? visibleDelegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Research').length,
+    Consultancy: ((activeTab === "delegated" ? visibleDelegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Consultancy').length,
+    Others: ((activeTab === "delegated" ? visibleDelegatedProjects : myProjects) ?? []).filter(p => normalizeProjectType((p as any).project_type) === 'Others').length,
+  }), [activeTab, visibleDelegatedProjects, myProjects]);
 
-  const visibleProjects = activeTab === "delegated" ? delegatedProjects : myProjects;
+  const visibleProjects = activeTab === "delegated" ? visibleDelegatedProjects : myProjects;
   const visibleProjectsLoading = activeTab === "delegated"
-    ? delegatedRecordsLoading || delegatedProjectsLoading
+    ? delegatedRecordsLoading || (delegatedProjectNames.length > 0 && delegatedProjectsLoading)
     : myProjectsLoading;
   const visibleProjectsError = activeTab === "delegated"
     ? delegatedRecordsError || delegatedProjectsError
@@ -1378,7 +1382,7 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
       <div className="flex flex-wrap gap-2 rounded-xl border border-[#E4E4E7] bg-white p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
         {[
           { id: "myProjects", label: "My Projects", count: myProjects?.length || 0 },
-          { id: "delegated", label: "Delegated", count: delegatedProjects?.length || 0 },
+          { id: "delegated", label: "Delegated", count: visibleDelegatedProjects.length },
         ].map((tab) => {
           const active = activeTab === tab.id;
           return (
