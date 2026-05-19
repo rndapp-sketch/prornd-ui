@@ -236,6 +236,9 @@ const AddFundSanction: React.FC = () => {
     const [activeYearCount, setActiveYearCount] = useState<number>(
         (location.state as any)?.activeYearCount ?? 2
     );
+    const [savedDocName, setSavedDocName] = useState<string>(
+        (location.state as any)?.sanctionName || (location.state as any)?.docname || ''
+    );
     const [savedAsDraft, setSavedAsDraft] = useState(false);
 
     const budgetGrandTotal = useMemo(() => {
@@ -252,6 +255,17 @@ const AddFundSanction: React.FC = () => {
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_fund_sanction_form_data');
     const { call: submitForm } = useFrappePostCall('rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.save_fund_sanction_data');
     const { call: fetchBudgetHeads, result: budgetHeadsResult } = useFrappePostCall('rndopsapp.rndopsapp.doctype.budget_head.budget_head.get_budget_head');
+
+    const getSavedDocNameFromResponse = (response: any, fallback = ''): string => {
+        if (typeof response?.message === 'string') return response.message;
+        return response?.message?.docname ||
+            response?.message?.name ||
+            response?.message?.data?.docname ||
+            response?.message?.data?.name ||
+            response?.docname ||
+            response?.name ||
+            fallback;
+    };
 
     // Fetch the Project Registration doc directly — this is the authoritative source of proposed_budget_breakup
     const { data: projectDoc } = useFrappeGetDoc(
@@ -322,6 +336,11 @@ const AddFundSanction: React.FC = () => {
 
             // Auto-select project and build display label
             const initialData = { ...(prefill_data || {}) };
+            const existingDocName = initialData.name || initialData.docname || '';
+            if (existingDocName) {
+                setSavedDocName(existingDocName);
+                setSavedAsDraft(true);
+            }
             if (projectName) {
                 initialData.project_proposal = projectName;
                 initialData.refnum_prj_num = projectName;
@@ -428,8 +447,14 @@ const AddFundSanction: React.FC = () => {
         reader.onerror = error => reject(error);
     });
 
-    const preparePayload = async (): Promise<FormData> => {
+    const preparePayload = async (docNameOverride = savedDocName): Promise<FormData> => {
         const dataToSubmit: FormData = { ...formData };
+        const effectiveDocName = docNameOverride || dataToSubmit.name || dataToSubmit.docname || '';
+
+        if (effectiveDocName) {
+            dataToSubmit.name = effectiveDocName;
+            dataToSubmit.docname = effectiveDocName;
+        }
 
         if (dataToSubmit.sanction_related_files?.length) {
             const newFiles: any[] = [];
@@ -466,7 +491,12 @@ const AddFundSanction: React.FC = () => {
         setIsSubmitting(true);
         try {
             const payload = await preparePayload();
-            await submitForm({ ...payload, save_mode: 'draft' });
+            const response = await submitForm({ ...payload, save_mode: 'draft' });
+            const docName = getSavedDocNameFromResponse(response, savedDocName || payload.name || payload.docname || '');
+            if (docName) {
+                setSavedDocName(docName);
+                setFormData(prev => ({ ...prev, name: docName, docname: docName }));
+            }
             setSavedAsDraft(true);
             alert("Fund Sanction saved as draft!");
         } catch (err: any) {
@@ -481,8 +511,13 @@ const AddFundSanction: React.FC = () => {
         if (isBudgetMismatch || !savedAsDraft) return;
         setIsSubmitting(true);
         try {
-            const payload = await preparePayload();
-            await submitForm({ ...payload, save_mode: 'submit' });
+            const payload = await preparePayload(savedDocName);
+            const response = await submitForm({ ...payload, save_mode: 'submit' });
+            const docName = getSavedDocNameFromResponse(response, savedDocName || payload.name || payload.docname || '');
+            if (docName) {
+                setSavedDocName(docName);
+                setFormData(prev => ({ ...prev, name: docName, docname: docName }));
+            }
             alert("Fund Sanction submitted successfully!");
             navigate(-1);
         } catch (err: any) {
