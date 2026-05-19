@@ -12,9 +12,8 @@ export const DepartmentName = ({ name }: DepartmentNameProps) => {
             filters: name,
             fieldname: "dept_name",
         },
-        undefined,
+        name ? undefined : null,
         {
-            enabled: !!name,
             revalidateOnFocus: false
         }
     );
@@ -24,3 +23,4 @@ export const DepartmentName = ({ name }: DepartmentNameProps) => {
 
     return <span>{data?.message?.dept_name || name}</span>;
 };
+
