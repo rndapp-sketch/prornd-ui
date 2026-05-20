@@ -22,10 +22,7 @@ import {
     ListTodo,
     CreditCard,
     BarChart3,
-    MessageSquare,
     MessageCircle,
-    X,
-    Paperclip,
     Users as UsersIcon,
     UserCheck,
 } from "lucide-react";
@@ -42,9 +39,6 @@ import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { useSWRConfig } from "swr";
 import { useUserRoles } from "./UserRole";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
 import { selectionCommitteeReportAPI } from "@/services/apiService";
 
 // --- LOGIC: Interfaces (Unchanged) ---
@@ -72,13 +66,6 @@ export function AppSidebar() {
     const [openSubMenus, setOpenSubMenus] = useState<string[]>([]);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const { mutate } = useSWRConfig();
-    const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
-    const [feedbackMessage, setFeedbackMessage] = useState("");
-    const [feedbackUrgent, setFeedbackUrgent] = useState(false);
-    const [feedbackFiles, setFeedbackFiles] = useState<File[]>([]);
-    const [isSendingFeedback, setIsSendingFeedback] = useState(false);
-    const [feedbackStatus, setFeedbackStatus] = useState<"idle" | "success" | "error">("idle");
-    const feedbackFileInputRef = React.useRef<HTMLInputElement>(null);
 
     const { data: userDoc, isLoading: isLoadingUserDoc } = useFrappeGetDoc(
         "User",
@@ -227,11 +214,6 @@ export function AppSidebar() {
             path: "/director-pdf-upload",
         },
         {
-            label: "Messages",
-            icon: MessageCircle,
-            path: "/messages",
-        },
-        {
             label: "Project Staff",
             icon: UsersIcon,
             action: () => {
@@ -335,43 +317,6 @@ export function AppSidebar() {
         } catch (error) {
             console.error("Logout failed:", error);
             setIsLoggingOut(false);
-        }
-    };
-
-    const handleSendFeedback = async () => {
-        if (!feedbackMessage.trim()) return;
-        setIsSendingFeedback(true);
-        setFeedbackStatus("idle");
-        try {
-            const form = new FormData();
-            form.append("message", feedbackMessage.trim());
-            form.append("urgent", feedbackUrgent ? "1" : "0");
-            form.append("channel_id", "jnkacpywbjnh9frhg1bb8gs85y");
-            form.append("feedback", "1");
-            form.append("current_user_email", currentUser || "");
-            feedbackFiles.forEach((file) => form.append("files", file, file.name));
-
-            const res = await fetch(
-                "/api/method/rndopsapp.rndopsapp.api.publish_to_mattermost",
-                {
-                    method: "POST",
-                    headers: { "X-Frappe-CSRF-Token": "fetch" },
-                    body: form,
-                },
-            );
-            if (!res.ok) throw new Error("Failed");
-            setFeedbackStatus("success");
-            setFeedbackMessage("");
-            setFeedbackUrgent(false);
-            setFeedbackFiles([]);
-            setTimeout(() => {
-                setIsFeedbackOpen(false);
-                setFeedbackStatus("idle");
-            }, 1500);
-        } catch {
-            setFeedbackStatus("error");
-        } finally {
-            setIsSendingFeedback(false);
         }
     };
 
@@ -562,14 +507,15 @@ export function AppSidebar() {
                     <div className="px-2 py-2 space-y-0.5">
                         <SidebarMenuItem>
                             <SidebarMenuButton
-                                onClick={() => setIsFeedbackOpen(true)}
+                                onClick={() => navigate("/messages")}
                                 className={cn(
                                     "w-full h-8 rounded-lg text-[12px] font-medium transition-all duration-150 text-[#3F3F46] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] hover:text-[#18181B] dark:hover:text-[#E4E4E7]",
+                                    isActivePath("/messages") && "bg-[#EEF2FF] text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD] font-semibold",
                                     state === "expanded" ? "px-2.5 justify-start gap-2.5" : "px-0 justify-center",
                                 )}
                                 tooltip="Help & Support"
                             >
-                                <MessageSquare
+                                <MessageCircle
                                     className={cn(state === "expanded" ? "w-[15px] h-[15px]" : "w-5 h-5", "flex-shrink-0 text-[#71717A]")}
                                     strokeWidth={1.75}
                                 />
@@ -627,99 +573,6 @@ export function AppSidebar() {
                     </div>
                 </SidebarFooter>
             </Sidebar>
-
-            {/* Help & Support Modal */}
-            {isFeedbackOpen && (
-                <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
-                    <div className="w-full max-w-md overflow-hidden rounded-2xl border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] bg-white dark:bg-[#27272A] shadow-2xl">
-                        <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-transparent" />
-                        <div className="px-6 py-4 border-b border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-between">
-                            <h2 className="text-[14px] font-extrabold text-[#18181B] dark:text-[#E4E4E7] flex items-center gap-2.5">
-                                <span className="w-7 h-7 rounded-lg bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 flex items-center justify-center flex-shrink-0">
-                                    <MessageSquare className="w-3.5 h-3.5 text-[#4A6CF7] dark:text-[#93C5FD]" />
-                                </span>
-                                Help & Support
-                            </h2>
-                            <button
-                                onClick={() => { setIsFeedbackOpen(false); setFeedbackMessage(""); setFeedbackUrgent(false); setFeedbackFiles([]); setFeedbackStatus("idle"); }}
-                                className="p-1.5 rounded-lg hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] text-[#71717A] transition-colors"
-                            >
-                                <X className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        <div className="p-6 space-y-4">
-                            <Textarea
-                                placeholder="Write your message or feedback..."
-                                value={feedbackMessage}
-                                onChange={(e) => setFeedbackMessage(e.target.value)}
-                                rows={4}
-                                className="resize-none text-[13px] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] focus:border-[#4A6CF7] rounded-xl"
-                            />
-
-                            <div>
-                                <input ref={feedbackFileInputRef} type="file" multiple className="hidden"
-                                    onChange={(e) => { const picked = Array.from(e.target.files || []); setFeedbackFiles((prev) => [...prev, ...picked]); e.target.value = ""; }}
-                                />
-                                <button type="button" onClick={() => feedbackFileInputRef.current?.click()}
-                                    className="flex items-center gap-1.5 text-[11px] font-semibold text-[#4A6CF7] dark:text-[#93C5FD] hover:text-[#3558E8] transition-colors">
-                                    <Paperclip className="w-3.5 h-3.5" />
-                                    Attach files
-                                </button>
-                                {feedbackFiles.length > 0 && (
-                                    <ul className="mt-2 space-y-1">
-                                        {feedbackFiles.map((f, i) => (
-                                            <li key={i} className="flex items-center justify-between text-[11px] bg-[#F4F4F5] dark:bg-[#3F3F46] rounded-lg px-2.5 py-1.5 border border-[#E4E4E7] dark:border-[#52525B]">
-                                                <span className="truncate text-[#3F3F46] dark:text-[#D4D4D8] max-w-[80%] font-medium">{f.name}</span>
-                                                <button type="button" onClick={() => setFeedbackFiles((prev) => prev.filter((_, idx) => idx !== i))} className="ml-2 text-[#A1A1AA] hover:text-red-500 transition-colors">
-                                                    <X className="w-3 h-3" />
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-
-                            <div className="flex items-start gap-2.5">
-                                <Checkbox id="urgent" checked={feedbackUrgent} onCheckedChange={(v) => setFeedbackUrgent(!!v)} className="mt-0.5 border-[#D4D4D8]" />
-                                <div>
-                                    <label htmlFor="urgent" className="text-[12px] font-semibold text-[#3F3F46] dark:text-[#D4D4D8] cursor-pointer select-none">
-                                        Mark as urgent
-                                    </label>
-                                    <p className="text-[11px] text-[#A1A1AA] mt-0.5">Requires immediate attention.</p>
-                                </div>
-                            </div>
-
-                            {feedbackStatus === "success" && (
-                                <p className="text-[11px] text-emerald-600 font-semibold bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 rounded-lg px-3 py-2">
-                                    Feedback sent successfully!
-                                </p>
-                            )}
-                            {feedbackStatus === "error" && (
-                                <p className="text-[11px] text-red-600 font-semibold bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 rounded-lg px-3 py-2">
-                                    Failed to send. Please try again.
-                                </p>
-                            )}
-                        </div>
-
-                        <div className="px-6 py-4 border-t border-[#E4E4E7] dark:border-[#3F3F46] flex justify-end gap-2">
-                            <Button variant="outline" size="sm"
-                                onClick={() => { setIsFeedbackOpen(false); setFeedbackMessage(""); setFeedbackUrgent(false); setFeedbackFiles([]); setFeedbackStatus("idle"); }}
-                                className="border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] text-[#3F3F46] dark:text-[#D4D4D8] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] rounded-lg text-[11px] font-semibold"
-                            >
-                                Cancel
-                            </Button>
-                            <Button size="sm"
-                                disabled={!feedbackMessage.trim() || isSendingFeedback}
-                                onClick={handleSendFeedback}
-                                className="bg-[#4A6CF7] hover:bg-[#3558E8] text-white rounded-lg text-[11px] font-semibold shadow-sm disabled:opacity-50"
-                            >
-                                {isSendingFeedback ? "Sending…" : "Send"}
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </>
     );
 }
