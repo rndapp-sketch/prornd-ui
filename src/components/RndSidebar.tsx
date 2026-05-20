@@ -40,6 +40,8 @@ import { GlobalLoader } from "@/components/ui/global-loader";
 import { useSWRConfig } from "swr";
 import { useUserRoles } from "./UserRole";
 import { selectionCommitteeReportAPI } from "@/services/apiService";
+import { useAppwriteSession } from "@/hooks/useAppwriteSession";
+import { useUnreadCount } from "@/hooks/useUnreadCount";
 
 // --- LOGIC: Interfaces (Unchanged) ---
 interface SubMenuItem {
@@ -66,6 +68,8 @@ export function AppSidebar() {
     const [openSubMenus, setOpenSubMenus] = useState<string[]>([]);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const { mutate } = useSWRConfig();
+    const appwriteSession = useAppwriteSession();
+    const { unreadCount } = useUnreadCount(appwriteSession.user?.$id ?? null);
 
     const { data: userDoc, isLoading: isLoadingUserDoc } = useFrappeGetDoc(
         "User",
@@ -509,17 +513,30 @@ export function AppSidebar() {
                             <SidebarMenuButton
                                 onClick={() => navigate("/messages")}
                                 className={cn(
-                                    "w-full h-8 rounded-lg text-[12px] font-medium transition-all duration-150 text-[#3F3F46] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] hover:text-[#18181B] dark:hover:text-[#E4E4E7]",
+                                    "relative w-full h-8 rounded-lg text-[12px] font-medium transition-all duration-150 text-[#3F3F46] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] hover:text-[#18181B] dark:hover:text-[#E4E4E7]",
                                     isActivePath("/messages") && "bg-[#EEF2FF] text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD] font-semibold",
                                     state === "expanded" ? "px-2.5 justify-start gap-2.5" : "px-0 justify-center",
                                 )}
-                                tooltip="Help & Support"
+                                tooltip="Message"
                             >
                                 <MessageCircle
                                     className={cn(state === "expanded" ? "w-[15px] h-[15px]" : "w-5 h-5", "flex-shrink-0 text-[#71717A]")}
                                     strokeWidth={1.75}
                                 />
-                                {state === "expanded" && <span>Help & Support</span>}
+                                {state === "expanded" && <span>Message</span>}
+                                {unreadCount > 0 && state === "expanded" && (
+                                    <span className={cn(
+                                        "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
+                                        isActivePath("/messages")
+                                            ? "bg-[#4A6CF7] text-white"
+                                            : "bg-[#D97757] text-white",
+                                    )}>
+                                        {unreadCount > 99 ? "99+" : unreadCount}
+                                    </span>
+                                )}
+                                {unreadCount > 0 && state !== "expanded" && (
+                                    <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-[#D97757]" />
+                                )}
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>

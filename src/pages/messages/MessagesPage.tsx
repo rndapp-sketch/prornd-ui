@@ -149,6 +149,7 @@ export default function MessagesPage() {
             ? Notification.permission
             : "denied",
     );
+    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const seenMessageIdsRef = useRef<Set<string>>(new Set());
     const unreadTotalRef = useRef<number | null>(null);
     const lastPingAtRef = useRef(0);
@@ -171,11 +172,25 @@ export default function MessagesPage() {
     );
 
     const pingOnce = useCallback(() => {
+        if (!notificationsEnabled) return;
         const now = Date.now();
         if (now - lastPingAtRef.current < 1200) return;
         lastPingAtRef.current = now;
         playNotificationPing();
-    }, []);
+    }, [notificationsEnabled]);
+
+    const handleNotifyToggle = useCallback(async () => {
+        if (!notificationsEnabled) {
+            if (notificationPermission !== "granted") {
+                const permission = await Notification.requestPermission();
+                setNotificationPermission(permission);
+                if (permission !== "granted") return;
+            }
+            setNotificationsEnabled(true);
+            return;
+        }
+        setNotificationsEnabled(false);
+    }, [notificationPermission, notificationsEnabled]);
 
     const selectConversation = useCallback((id: string) => {
         const next = new URLSearchParams(searchParams);
@@ -259,12 +274,6 @@ export default function MessagesPage() {
         [activeConversation, myEmail, myUserId, refreshConvos],
     );
 
-    const requestNotificationPermission = async () => {
-        if (!("Notification" in window)) return;
-        const permission = await Notification.requestPermission();
-        setNotificationPermission(permission);
-    };
-
     const openAdminConversation = useCallback(async () => {
         if (!myUserId || !myEmail || isOpeningAdminChat) return;
         if (normalizeEmail(myEmail) === normalizeEmail(PRORND_ADMIN_CONTACT.email)) return;
@@ -322,12 +331,14 @@ export default function MessagesPage() {
                 .reverse()
                 .find((message) => message.sender_id !== myUserId);
             pingOnce();
-            showBrowserNotification(
-                latestIncoming?.sender_email ?? "New message",
-                latestIncoming?.body || "Sent an attachment",
-            );
+            if (notificationsEnabled) {
+                showBrowserNotification(
+                    latestIncoming?.sender_email ?? "New message",
+                    latestIncoming?.body || "Sent an attachment",
+                );
+            }
         }
-    }, [messages, myUserId, pingOnce]);
+    }, [messages, myUserId, notificationsEnabled, pingOnce]);
 
     useEffect(() => {
         const unreadTotal = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
@@ -337,10 +348,12 @@ export default function MessagesPage() {
         }
         if (unreadTotal > unreadTotalRef.current) {
             pingOnce();
-            showBrowserNotification("New ProRnD message", `${unreadTotal} unread message${unreadTotal === 1 ? "" : "s"}`);
+            if (notificationsEnabled) {
+                showBrowserNotification("New ProRnD message", `${unreadTotal} unread message${unreadTotal === 1 ? "" : "s"}`);
+            }
         }
         unreadTotalRef.current = unreadTotal;
-    }, [unreadCounts, pingOnce]);
+    }, [notificationsEnabled, unreadCounts, pingOnce]);
 
     /* ───── Session lifecycle states ───── */
 
@@ -426,21 +439,20 @@ export default function MessagesPage() {
                         </div>
                         <button
                             type="button"
-                            onClick={requestNotificationPermission}
-                            disabled={notificationPermission === "granted"}
-                            className="rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] px-3 py-2 text-left transition-colors hover:border-[#4A6CF7]/40 hover:bg-[#EEF2FF] disabled:cursor-default disabled:hover:border-[#E4E4E7] disabled:hover:bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B]"
-                            title="Enable browser notifications"
+                            onClick={handleNotifyToggle}
+                            className="rounded-xl border border-[#E4E4E7] bg-[#FAFAF9] px-3 py-2 text-left transition-colors hover:border-[#4A6CF7]/40 hover:bg-[#EEF2FF] dark:border-[#3F3F46] dark:bg-[#18181B]"
+                            title="Toggle message notifications"
                         >
                             <div className="text-[10px] font-bold uppercase tracking-widest text-[#A1A1AA]">
                                 Notify
                             </div>
                             <div className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-extrabold text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">
-                                {notificationPermission === "granted" ? (
+                                {notificationsEnabled && notificationPermission === "granted" ? (
                                     <BellRing className="h-3 w-3" />
                                 ) : (
                                     <Bell className="h-3 w-3" />
                                 )}
-                                {notificationPermission === "granted" ? "On" : "Enable"}
+                                {notificationsEnabled && notificationPermission === "granted" ? "On" : "Off"}
                             </div>
                         </button>
                     </div>
@@ -494,7 +506,7 @@ export default function MessagesPage() {
                                     />
                                     {activeTypingNames.length > 0
                                         ? `${activeTypingNames.join(", ")} typing...`
-                                        : isOnline ? "Online" : "Offline"}
+                                        : isOnline ? "Connected" : "Offline"}
                                 </div>
                             </div>
                             <button
