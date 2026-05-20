@@ -1264,7 +1264,7 @@ export function HeadOverview() {
                                     )}
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <div className="relative">
+                                    <div className="relative hidden">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#71717A] dark:text-[#A1A1AA]" size={16} />
                                         <input
                                             type="text"

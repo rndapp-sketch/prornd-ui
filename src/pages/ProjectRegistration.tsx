@@ -80,6 +80,27 @@ const inputClasses =
     "w-full h-10 px-3 bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-[0.4375rem] font-medium text-[13px] text-[#18181B] dark:text-[#E4E4E7] placeholder:text-[#A1A1AA] focus:outline-none focus:border-[#4A6CF7] focus:ring-[3px] focus:ring-[#4A6CF7]/12 disabled:opacity-60 disabled:bg-[#F4F4F5] dark:disabled:bg-[#27272A]/50 disabled:cursor-not-allowed read-only:bg-[#F4F4F5] dark:read-only:bg-[#27272A]/60 read-only:text-[#52525B] dark:read-only:text-[#A1A1AA] transition-colors duration-150";
 const checkboxClasses =
     "size-5 shrink-0 appearance-none bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded checked:bg-[#4A6CF7] checked:border-[#4A6CF7] checked:bg-[url('data:image/svg+xml,%3csvg%20viewBox%3d%270%200%2016%2016%27%20fill%3d%27white%27%20xmlns%3d%27http%3a//www.w3.org/2000/svg%27%3e%3cpath%20d%3d%27M12.207%204.793a1%201%200%20010%201.414l-5%205a1%201%200%2001-1.414%200l-2-2a1%201%200%20011.414-1.414L6.5%209.086l4.293-4.293a1%201%200%20011.414%200z%27/%3e%3c/svg%3e')] bg-center bg-no-repeat cursor-pointer transition-colors";
+const ALLOWED_DOCUMENT_EXTENSIONS = [".pdf", ".doc", ".docx"];
+const ALLOWED_DOCUMENT_ACCEPT = ".pdf,.doc,.docx";
+const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
+
+const validateDocumentFile = (file: File): string | null => {
+    const lowerName = file.name.toLowerCase();
+    const isAllowedType = ALLOWED_DOCUMENT_EXTENSIONS.some((ext) =>
+        lowerName.endsWith(ext),
+    );
+
+    if (!isAllowedType) {
+        return "Only PDF, DOC, or DOCX files are supported.";
+    }
+
+    if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
+        return "Each file should be 10MB or smaller.";
+    }
+
+    return null;
+};
+
 const FrappeCard = ({
     children,
     className,
@@ -302,6 +323,7 @@ const MemoizedFormField = memo(
                         <input
                             type="file"
                             {...commonProps}
+                            accept={ALLOWED_DOCUMENT_ACCEPT}
                             className={`${inputClasses} py-0.5 px-2 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 dark:file:bg-zinc-800 file:text-zinc-700 dark:file:text-zinc-300 hover:file:bg-zinc-200 dark:hover:file:bg-zinc-700`}
                             onChange={(e) =>
                                 onFileChange(
@@ -426,6 +448,7 @@ const MemoizedGenericTable = memo(
                                             )}
                                             <input
                                                 type="file"
+                                                accept={ALLOWED_DOCUMENT_ACCEPT}
                                                 className={`${inputClasses} !h-8 !py-1.5 text-xs !border-zinc-200`}
                                                 onChange={(e) =>
                                                     onFileChange(
@@ -1205,6 +1228,13 @@ const ProjectRegistration: React.FC = () => {
     // --- STABILIZED EVENT HANDLERS & RENDER FUNCTIONS ---
     const handleFileChange = useCallback(
         (fieldname: string, file: File | null) => {
+            if (file) {
+                const validationError = validateDocumentFile(file);
+                if (validationError) {
+                    alert(validationError);
+                    return;
+                }
+            }
             setFormData((prev) => ({ ...prev, [fieldname]: file }));
         },
         [],
@@ -1875,6 +1905,13 @@ const ProjectRegistration: React.FC = () => {
             fieldname: string,
             file: File | null,
         ) => {
+            if (file) {
+                const validationError = validateDocumentFile(file);
+                if (validationError) {
+                    alert(validationError);
+                    return;
+                }
+            }
             setFormData((prev) => {
                 const t = [...(prev[tableName] || [])];
                 t[rowIndex] = { ...t[rowIndex], [fieldname]: file };
@@ -3478,6 +3515,9 @@ Until then, the project is not yet eligible for submission.`);
                                                 <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
                                                     Upload Supporting Docs ( Project Proposal / Invitation Letter)
                                                 </h3>
+                                                <p className="text-xs text-[#71717A] dark:text-[#A1A1AA] leading-relaxed">
+                                                    Add relevant supporting documents such as project proposal or invitation letter. Only PDF, DOC, or DOCX files are allowed, and each file must be 10MB or smaller.
+                                                </p>
                                                 <MemoizedGenericTable
                                                     tableName="upload_supporting_docs"
                                                     columns={[

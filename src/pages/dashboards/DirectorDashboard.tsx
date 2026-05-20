@@ -2445,7 +2445,7 @@ export function DirectorDashboard() {
                             <h2 className="text-[16px] font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7]">
                                 Department Allocations
                             </h2>
-                            <div className="relative">
+                            <div className="relative hidden">
                                 <Search
                                     className="absolute left-3 top-1/2 -translate-y-1/2 text-[#71717A] dark:text-[#A1A1AA]"
                                     size={16}
@@ -2578,7 +2578,7 @@ export function DirectorDashboard() {
                                     )}
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <div className="relative">
+                                    <div className="relative hidden">
                                         <Search
                                             className="absolute left-3 top-1/2 -translate-y-1/2 text-[#71717A] dark:text-[#A1A1AA]"
                                             size={16}

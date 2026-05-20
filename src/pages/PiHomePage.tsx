@@ -1103,7 +1103,7 @@ export function PiHomePage() {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
                   <button
                     onClick={openPalette}
-                    className="relative flex items-center gap-2.5 w-full sm:w-[320px] px-3.5 py-2.5 text-[13px] text-[#71717A] dark:text-[#A1A1AA] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl shadow-sm hover:border-[#2563EB]/40 transition-all"
+                    className="relative hidden items-center gap-2.5 w-full sm:w-[320px] px-3.5 py-2.5 text-[13px] text-[#71717A] dark:text-[#A1A1AA] bg-[#FAFAF9] dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl shadow-sm hover:border-[#2563EB]/40 transition-all"
                   >
                     <SearchIcon className="size-4 text-[#A1A1AA]" />
                     <span className="pr-8">Search projects...</span>
