@@ -2364,7 +2364,13 @@ const ProjectRegistration: React.FC = () => {
             const { doc_data, files } = await prepareDataWithFiles();
             await submitForm({ docname, doc: doc_data, files });
         } catch (err) {
-            alert("File processing error.");
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : "File processing error.";
+            alert(errorMessage);
             setIsSubmitting(false);
         }
     };
@@ -2489,7 +2495,13 @@ const ProjectRegistration: React.FC = () => {
             );
         } catch (err) {
             console.error("Save draft error:", err);
-            alert("File processing error.");
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : "File processing error.";
+            alert(errorMessage);
             setIsSavingDraft(false);
         }
     };
@@ -2507,7 +2519,13 @@ const ProjectRegistration: React.FC = () => {
             const { doc_data, files } = await prepareDataWithFiles();
             await submitForm({ doc: doc_data, files });
         } catch (err) {
-            alert("File processing error.");
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : typeof err === "string"
+                      ? err
+                      : "File processing error.";
+            alert(errorMessage);
             setIsSubmitting(false);
         }
     };
