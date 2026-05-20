@@ -57,6 +57,44 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
 // Helper to round to 2 decimal places
 const roundTo2 = (num: number): number => Math.floor(num * 100) / 100;
 
+const normalizeRateContractLinkOptions = (options: any[] = []): LinkOption[] =>
+    options
+        .map((option) => {
+            if (typeof option === 'string') {
+                return { value: option, label: option };
+            }
+
+            const value = option?.value ?? option?.name ?? '';
+            const label = option?.label ?? option?.title ?? value;
+
+            if (!value) return null;
+
+            return {
+                value: String(value),
+                label: String(label || value),
+            };
+        })
+        .filter(Boolean) as LinkOption[];
+
+const mergeRateContractLinkOptions = (...optionLists: Array<any[] | undefined>) => {
+    const optionMap = new Map<string, LinkOption>();
+
+    optionLists.forEach((optionList) => {
+        normalizeRateContractLinkOptions(optionList || []).forEach((option) => {
+            const existing = optionMap.get(option.value);
+            optionMap.set(option.value, {
+                value: option.value,
+                label:
+                    option.label && option.label !== option.value
+                        ? option.label
+                        : existing?.label || option.label || option.value,
+            });
+        });
+    });
+
+    return Array.from(optionMap.values());
+};
+
 // --- MAIN COMPONENT ---
 const RateContractForm: React.FC = () => {
     const navigate = useNavigate();
@@ -76,6 +114,7 @@ const RateContractForm: React.FC = () => {
     const { call: saveForm, error: saveError } = useFrappePostCall(rateContractAPI.save);
     const { call: submitForm, error: submitError } = useFrappePostCall(rateContractAPI.submit);
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
+    const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
 
     // Cascading dropdown API hooks
     const { call: fetchPrincipalSuppliersByItemType } = useFrappePostCall<{ message: LinkOption[] }>(rateContractAPI.getPrincipalSuppliersByItemType);
@@ -154,6 +193,141 @@ const RateContractForm: React.FC = () => {
 
         loadFormAndDocument();
     }, [formDataResult, formDataError, editDocName, fetchExistingDoc, projectName, dataLoaded]);
+
+    useEffect(() => {
+        const hydrateP3SupplierDisplayOptions = async () => {
+            if (!dataLoaded) return;
+
+            const selectedFormType = String(formData.select_form_type || '');
+            const isP3Form =
+                !selectedFormType ||
+                selectedFormType.toLowerCase().includes('p3');
+
+            if (!isP3Form) return;
+
+            const itemType = formData.item_type;
+            const principalSupplier = formData.principal_supplier;
+            const localSupplier = formData.local_supplier;
+
+            if (!itemType && !principalSupplier && !localSupplier) return;
+
+            try {
+                let principalOptions: LinkOption[] = [];
+                let localOptions: LinkOption[] = [];
+                let pinnedPrincipalOption: LinkOption | null = null;
+                let pinnedLocalOption: LinkOption | null = null;
+                const hydratedValues: Record<string, any> = {};
+
+                if (itemType) {
+                    const principalRes = await fetchPrincipalSuppliersByItemType({
+                        item_type: itemType,
+                    });
+                    principalOptions = normalizeRateContractLinkOptions(
+                        principalRes?.message || [],
+                    );
+                }
+
+                if (principalSupplier) {
+                    const [principalDocRes, localRes] = await Promise.all([
+                        fetchFrappeValue({
+                            doctype: 'Principal Supplier',
+                            filters: { name: principalSupplier },
+                            fieldname: [
+                                'principal_supplier_name',
+                                'addres',
+                                'agreement_no',
+                            ],
+                        }),
+                        fetchLocalSuppliersByPrincipal({
+                            principal_supplier: principalSupplier,
+                        }),
+                    ]);
+
+                    const principalDoc = principalDocRes?.message || {};
+                    pinnedPrincipalOption = {
+                        value: String(principalSupplier),
+                        label:
+                            principalDoc.principal_supplier_name ||
+                            String(principalSupplier),
+                    };
+                    hydratedValues.principal_address =
+                        formData.principal_address || principalDoc.addres || '';
+                    hydratedValues.agreement_no =
+                        formData.agreement_no || principalDoc.agreement_no || '';
+                    localOptions = normalizeRateContractLinkOptions(
+                        localRes?.message || [],
+                    );
+                }
+
+                if (localSupplier) {
+                    const localDocRes = await fetchFrappeValue({
+                        doctype: 'Local Supplier Detail',
+                        filters: { name: localSupplier },
+                        fieldname: ['local_supplier_name', 'address', 'email'],
+                    });
+                    const localDoc = localDocRes?.message || {};
+                    pinnedLocalOption = {
+                        value: String(localSupplier),
+                        label: localDoc.local_supplier_name || String(localSupplier),
+                    };
+                    hydratedValues.local_address =
+                        formData.local_address || localDoc.address || '';
+                    hydratedValues.local_email =
+                        formData.local_email || localDoc.email || '';
+                }
+
+                setLinkOptions((prev) => ({
+                    ...prev,
+                    principal_supplier: mergeRateContractLinkOptions(
+                        prev.principal_supplier,
+                        principalOptions,
+                        pinnedPrincipalOption ? [pinnedPrincipalOption] : [],
+                    ),
+                    local_supplier: mergeRateContractLinkOptions(
+                        prev.local_supplier,
+                        localOptions,
+                        pinnedLocalOption ? [pinnedLocalOption] : [],
+                    ),
+                }));
+
+                if (Object.values(hydratedValues).some(Boolean)) {
+                    setFormData((prev) => {
+                        const missingValues = Object.fromEntries(
+                            Object.entries(hydratedValues).filter(
+                                ([key, value]) => !prev[key] && value,
+                            ),
+                        );
+
+                        if (Object.keys(missingValues).length === 0) {
+                            return prev;
+                        }
+
+                        return {
+                            ...prev,
+                            ...missingValues,
+                        };
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to hydrate Rate Contract P3 supplier labels:', error);
+            }
+        };
+
+        hydrateP3SupplierDisplayOptions();
+    }, [
+        dataLoaded,
+        fetchFrappeValue,
+        fetchLocalSuppliersByPrincipal,
+        fetchPrincipalSuppliersByItemType,
+        formData.agreement_no,
+        formData.item_type,
+        formData.local_address,
+        formData.local_email,
+        formData.local_supplier,
+        formData.principal_address,
+        formData.principal_supplier,
+        formData.select_form_type,
+    ]);
 
     // --- EVENT HANDLERS ---
     const handleChange = useCallback((fieldname: string, value: any) => {

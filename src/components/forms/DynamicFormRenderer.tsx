@@ -82,6 +82,12 @@ export interface DynamicFormRendererProps {
 const inputClasses =
   "flex h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-[#27272A] px-3 py-2 text-sm ring-offset-white dark:ring-offset-zinc-950 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800 focus-visible:border-zinc-400 dark:focus-visible:border-zinc-500 disabled:cursor-not-allowed disabled:bg-zinc-50 dark:disabled:bg-zinc-800/50 disabled:text-zinc-900 dark:disabled:text-zinc-100 transition-all duration-200";
 
+const FULL_WIDTH_DYNAMIC_FIELD_NAMES = new Set([
+  "certify_authorized_firm",
+  "certify_current_prices",
+  "certify_delivery_time",
+]);
+
 // --- MEMOIZED FORM FIELD COMPONENT ---
 const MemoizedFormField = memo(
   ({
@@ -863,8 +869,33 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
     const fieldMsg = fieldMessages?.[field.fieldname];
 
+    if (field.fieldtype === "HTML") {
+      return (
+        <div key={field.fieldname} className="col-span-full">
+          <MemoizedFormField
+            field={field}
+            value={formData[field.fieldname]}
+            options={
+              linkOptions[field.options as string] || linkOptions[field.fieldname]
+            }
+            isMandatory={isMandatory}
+            isReadOnly={fieldIsReadOnly}
+            onChange={onChange}
+            onFileChange={onFileChange}
+            onFieldChangeWithSideEffects={onFieldChangeWithSideEffects}
+            isAutocomplete={autocompleteFields?.includes(field.fieldname)}
+          />
+        </div>
+      );
+    }
+
     return (
-      <div key={field.fieldname}>
+      <div
+        key={field.fieldname}
+        className={cn(
+          FULL_WIDTH_DYNAMIC_FIELD_NAMES.has(field.fieldname) && "col-span-full",
+        )}
+      >
         <MemoizedFormField
           field={field}
           value={formData[field.fieldname]}

@@ -553,6 +553,7 @@ const DOCTYPE_OPTIONS = [
     "Temporary Advance",
     "Deposit Slip",
     "Recruitment Adhoc Contractual",
+    "Indent Cum Sanction Sheet",
 ];
 
 const TaskRegistry: React.FC = () => {
@@ -595,6 +596,97 @@ const TaskRegistry: React.FC = () => {
         limit: 500,
         orderBy: { field: "modified", order: "desc" },
     });
+
+    const { data: icssRegistryData } = useFrappeGetDocList<{
+        name: string;
+        icss_indent_type?: string;
+        workflow_state?: string;
+        creation: string;
+        modified: string;
+        owner: string;
+        icss_applicant_name?: string;
+    }>("Indent Cum Sanction Sheet", {
+        filters: [["workflow_state", "in", ["PO Generated", "Approved"]]],
+        fields: [
+            "name",
+            "icss_indent_type",
+            "workflow_state",
+            "creation",
+            "modified",
+            "owner",
+            "icss_applicant_name",
+        ],
+        limit: 500,
+        orderBy: { field: "modified", order: "desc" },
+    });
+
+    const [signedIcssRegistryTasks, setSignedIcssRegistryTasks] = useState<FlattenedTask[]>([]);
+
+    useEffect(() => {
+        if (!icssRegistryData?.length) {
+            setSignedIcssRegistryTasks([]);
+            return;
+        }
+
+        let cancelled = false;
+
+        const fetchSignedIcssRegistryTasks = async () => {
+            const tasks = await Promise.all(
+                icssRegistryData.map(async (record) => {
+                    try {
+                        const filters = encodeURIComponent(
+                            JSON.stringify([
+                                ["attached_to_doctype", "=", "Indent Cum Sanction Sheet"],
+                                ["attached_to_name", "=", record.name],
+                            ]),
+                        );
+                        const fields = encodeURIComponent(
+                            JSON.stringify(["file_name", "file_url"]),
+                        );
+                        const response = await fetch(
+                            `/api/resource/File?filters=${filters}&fields=${fields}&limit_page_length=10`,
+                            {
+                                method: "GET",
+                                headers: { Accept: "application/json" },
+                                credentials: "include",
+                            },
+                        );
+                        if (!response.ok) return null;
+
+                        const json = await response.json();
+                        const files = Array.isArray(json?.data) ? json.data : [];
+                        const hasSignedPo = files.some((file: any) => file.file_url);
+
+                        if (!hasSignedPo) return null;
+
+                        return {
+                            id: record.name,
+                            title: record.icss_indent_type || "Indent Cum Sanction Sheet",
+                            status: "PO Delivered",
+                            creation: record.creation,
+                            modified: record.modified,
+                            owner: record.icss_applicant_name || record.owner,
+                            doctype: "Indent Cum Sanction Sheet",
+                        };
+                    } catch {
+                        return null;
+                    }
+                }),
+            );
+
+            if (!cancelled) {
+                setSignedIcssRegistryTasks(
+                    tasks.filter(Boolean) as FlattenedTask[],
+                );
+            }
+        };
+
+        fetchSignedIcssRegistryTasks();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [icssRegistryData]);
 
     // import { debounce } from 'lodash'; // Removed unused import
 
@@ -641,8 +733,14 @@ const TaskRegistry: React.FC = () => {
             });
         }
 
+        signedIcssRegistryTasks.forEach((task) => {
+            if (!existingIds.has(task.id)) {
+                tasks.push(task);
+            }
+        });
+
         return tasks;
-    }, [data, recData]);
+    }, [data, recData, signedIcssRegistryTasks]);
 
     // Client-side filtering
     const filteredTasks = React.useMemo(() => {
@@ -688,7 +786,7 @@ const TaskRegistry: React.FC = () => {
         let style = "bg-blue-100 text-blue-800 border-blue-300";
         if (["pending", "under review", "approval pending"].some(t => s?.includes(t))) {
             style = "bg-amber-100 text-amber-800 border-amber-300";
-        } else if (s?.includes("approved")) {
+        } else if (s?.includes("approved") || s?.includes("delivered")) {
             style = "bg-emerald-100 text-emerald-800 border-emerald-300";
         } else if (s?.includes("draft")) {
             style = "bg-slate-100 text-slate-800 border-slate-300";
@@ -842,6 +940,8 @@ const TaskRegistry: React.FC = () => {
                                                     navigate(`/disbursal-of-consultancy/${task.id}`);
                                                 } else if (task.doctype === "Travel") {
                                                     navigate(`/travel/${task.id}`);
+                                                } else if (task.doctype === "Indent Cum Sanction Sheet") {
+                                                    navigate(`/indent-cum-sanction-sheet/${task.id}`);
                                                 } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
                                                     navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
                                                 } else {
@@ -886,6 +986,8 @@ const TaskRegistry: React.FC = () => {
                                                             navigate(`/disbursal-of-consultancy/${task.id}`);
                                                         } else if (task.doctype === "Travel") {
                                                             navigate(`/travel/${task.id}`);
+                                                        } else if (task.doctype === "Indent Cum Sanction Sheet") {
+                                                            navigate(`/indent-cum-sanction-sheet/${task.id}`);
                                                         } else if (task.doctype === "Project Registration" && task.status?.toLowerCase().includes("approved")) {
                                                             navigate(`/project-details-overview/${task.id}`, { state: { fromTaskRegistry: true } });
                                                         } else {

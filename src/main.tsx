@@ -78,6 +78,7 @@ import IndentGeneralFormDetails from './pages/application/IndentGeneralFormDetai
 import UniversalRegistrationForm from './pages/application/UniversalRegistrationForm.tsx';
 import UniversalUserForm from './pages/application/UniversalUserForm.tsx';
 import SelectionCommitteeReportForm from './pages/application/SelectionCommitteeReportForm.tsx';
+import DirectorPdfUpload from './pages/application/DirectorPdfUpload.tsx';
 import DepartmentProjects from './pages/DepartmentProjects.tsx';
 import AdminLogin from './pages/AdminLogin.tsx';
 import NIQForm from './pages/application/NIQForm.tsx';
@@ -394,6 +395,14 @@ const router = createBrowserRouter(
                             'staff, RnD'
                         ]}>
                             <PendingTaskDetails />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "director-pdf-upload",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <DirectorPdfUpload />
                         </AuthRouteWrapper>
                     ),
                 },

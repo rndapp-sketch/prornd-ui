@@ -774,6 +774,7 @@ interface QuickActionsProps {
     projectNo?: string;
     projectTitle?: string;
     onNavigate: (path: string) => void;
+    embedded?: boolean;
 }
 
 const QuickActions = ({
@@ -781,11 +782,12 @@ const QuickActions = ({
     projectNo,
     projectTitle,
     onNavigate,
+    embedded = false,
 }: QuickActionsProps) => {
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const defaultSubtab = searchParams.get("subtab") || "Reimbursement";
-    const defaultApp = searchParams.get("app");
+    const defaultSubtab = embedded ? "Reimbursement" : searchParams.get("subtab") || "Reimbursement";
+    const defaultApp = embedded ? null : searchParams.get("app");
 
     const [activeTab, setActiveTab] = useState(defaultSubtab);
     const [selectedApplication, setSelectedApplication] = useState<
@@ -1053,7 +1055,7 @@ const QuickActions = ({
                 "Direct Purchase",
                 "Indent General Form",
                 // "Generate NIQ",
-                // "Indent cum Sanction",
+                "Indent cum Sanction",
                 // "Rate Contract",
             ],
         },
@@ -1608,7 +1610,7 @@ const QuickActions = ({
             } else if (selectedApplication === "Indent cum Sanction") {
                 try {
                     const timestamp = Date.now();
-                    const apiUrl = `/api/resource/Indent%20Cum%20Sanction%20Sheet?fields=["name","creation","workflow_state","owner","project_code","icss_indent_type","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const apiUrl = `/api/resource/Indent%20Cum%20Sanction%20Sheet?fields=["name","creation","modified","workflow_state","owner","project_ref","project_no","icss_indent_type","icss_applicant_webmail_id","icss_applicant_name","send_to_director","director_signed_pdf","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
                     const fetchResponse = await fetch(apiUrl, {
                         method: "GET",
                         headers: { Accept: "application/json" },
@@ -1620,13 +1622,24 @@ const QuickActions = ({
                         );
                     const result = await fetchResponse.json();
                     const allItems = result?.data || [];
+                    const projectKeys = [projectNo, projectName]
+                        .filter(Boolean)
+                        .map((value) => String(value).toLowerCase());
 
-                    data = allItems
+                    const icssItems = allItems
                         .filter((item: any) => {
-                            const matchesProject =
-                                item.project_code === projectName ||
-                                item.project_code === projectNo;
-                            return matchesProject;
+                            const itemProjectNo = String(
+                                item.project_no || "",
+                            ).toLowerCase();
+                            const itemProjectRef = String(
+                                item.project_ref || "",
+                            ).toLowerCase();
+
+                            return projectKeys.some(
+                                (projectKey) =>
+                                    itemProjectNo === projectKey ||
+                                    itemProjectRef === projectKey,
+                            );
                         })
                         .map((item: any) => ({
                             ...item,
@@ -1635,10 +1648,85 @@ const QuickActions = ({
                                 (item.docstatus === 1
                                     ? "Submitted"
                                     : item.docstatus === 2
-                                      ? "Cancelled"
-                                      : "Draft"),
-                            applicant_webmail: item.owner,
+                                  ? "Cancelled"
+                                  : "Draft"),
+                            applicant_webmail:
+                                item.icss_applicant_name ||
+                                item.icss_applicant_webmail_id ||
+                                item.owner,
+                            display_workflow_state:
+                                item.workflow_state === "Pending Dean Approval" &&
+                                Number(item.send_to_director || 0)
+                                    ? "Pending Director Approval"
+                                    : item.workflow_state ||
+                                      (item.docstatus === 1
+                                          ? "Submitted"
+                                          : item.docstatus === 2
+                                            ? "Cancelled"
+                                            : "Draft"),
                         }));
+                    data = await Promise.all(
+                        icssItems.map(async (item: any) => {
+                            if (
+                                !["PO Generated", "Approved"].includes(
+                                    item.workflow_state || "",
+                                )
+                            ) {
+                                return item;
+                            }
+
+                            try {
+                                const fileFilters = encodeURIComponent(
+                                    JSON.stringify([
+                                        ["attached_to_doctype", "=", "Indent Cum Sanction Sheet"],
+                                        ["attached_to_name", "=", item.name],
+                                    ]),
+                                );
+                                const fileFields = encodeURIComponent(
+                                    JSON.stringify(["file_name", "file_url", "creation"]),
+                                );
+                                const fileResponse = await fetch(
+                                    `/api/resource/File?filters=${fileFilters}&fields=${fileFields}&order_by=creation%20desc&limit_page_length=10`,
+                                    {
+                                        method: "GET",
+                                        headers: { Accept: "application/json" },
+                                        credentials: "include",
+                                    },
+                                );
+
+                                if (!fileResponse.ok) return item;
+
+                                const fileJson = await fileResponse.json();
+                                const files = Array.isArray(fileJson?.data)
+                                    ? fileJson.data
+                                    : [];
+                                const signedPoFile =
+                                    files.find((file: any) =>
+                                        String(file.file_name || "")
+                                            .toLowerCase()
+                                            .includes("signed"),
+                                    ) || files[0];
+
+                                return {
+                                    ...item,
+                                    signed_po_file_url: signedPoFile?.file_url || "",
+                                    workflow_state: signedPoFile?.file_url
+                                        ? "PO Delivered"
+                                        : item.workflow_state,
+                                    display_workflow_state: signedPoFile?.file_url
+                                        ? "PO Delivered"
+                                        : item.display_workflow_state,
+                                    actual_workflow_state: item.workflow_state,
+                                };
+                            } catch (fileError) {
+                                console.error(
+                                    "ICSS signed PO attachment fetch error:",
+                                    fileError,
+                                );
+                                return item;
+                            }
+                        }),
+                    );
                 } catch (fetchError) {
                     console.error(
                         "Indent cum Sanction fetch error:",
@@ -1732,21 +1820,21 @@ const QuickActions = ({
         if (group && group.items.length === 1) {
             // Auto-select the only item in this tab
             setSelectedApplication(group.items[0]);
-            newParams.set("app", group.items[0]);
+            if (!embedded) newParams.set("app", group.items[0]);
         } else {
             // Reset selection for multi-item tabs
             setSelectedApplication(null);
-            newParams.delete("app");
+            if (!embedded) newParams.delete("app");
             setApplicationData([]);
         }
-        setSearchParams(newParams);
+        if (!embedded) setSearchParams(newParams);
     };
 
     const handleApplicationClick = (item: string) => {
         setSelectedApplication(item);
         const newParams = new URLSearchParams(searchParams);
         newParams.set("app", item);
-        setSearchParams(newParams);
+        if (!embedded) setSearchParams(newParams);
     };
 
     const handleBack = () => {
@@ -1759,7 +1847,7 @@ const QuickActions = ({
         setApplicationData([]);
         const newParams = new URLSearchParams(searchParams);
         newParams.delete("app");
-        setSearchParams(newParams);
+        if (!embedded) setSearchParams(newParams);
     };
 
     const handleApplyNew = () => {
@@ -1970,35 +2058,50 @@ const QuickActions = ({
                                             </td>
                                             <td className="px-4 py-3">
                                                 <div className="flex flex-col gap-1">
+                                                    {(() => {
+                                                        const displayStatus =
+                                                            item.signed_po_file_url &&
+                                                            selectedApplication ===
+                                                                "Indent cum Sanction"
+                                                                ? "PO Delivered"
+                                                                : item.display_workflow_state ||
+                                                                  item.workflow_state;
+                                                        return (
                                                     <span
                                                         className={cn(
                                                             "inline-flex px-2 py-1 text-xs font-medium rounded-full",
-                                                            item.workflow_state ===
+                                                            displayStatus ===
                                                                 "Approved" &&
                                                                 "bg-green-100 text-green-700",
-                                                            item.workflow_state ===
+                                                            displayStatus ===
+                                                                "PO Delivered" &&
+                                                                "bg-green-100 text-green-700",
+                                                            displayStatus ===
                                                                 "Pending" &&
                                                                 "bg-yellow-100 text-yellow-700",
-                                                            item.workflow_state ===
+                                                            displayStatus ===
                                                                 "Rejected" &&
                                                                 "bg-red-100 text-red-700",
-                                                            item.workflow_state ===
+                                                            displayStatus ===
                                                                 "Draft" &&
                                                                 "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
                                                             ![
                                                                 "Approved",
+                                                                "PO Delivered",
                                                                 "Pending",
                                                                 "Rejected",
                                                                 "Draft",
                                                             ].includes(
-                                                                item.workflow_state,
+                                                                displayStatus,
                                                             ) &&
                                                                 "bg-blue-100 text-blue-700",
                                                         )}
                                                     >
-                                                        {item.workflow_state ||
+                                                        {displayStatus ||
                                                             "Draft"}
                                                     </span>
+                                                        );
+                                                    })()}
                                                     {/* Show linked TA/DA Settlement status for Travel Apply rows */}
                                                     {selectedApplication ===
                                                         "Travel" &&
@@ -2121,6 +2224,11 @@ const QuickActions = ({
                                                                         `/indent-general-form-details/${item.name}`,
                                                                     );
                                                                     break;
+                                                                case "Indent cum Sanction":
+                                                                    onNavigate(
+                                                                        `/indent-cum-sanction-sheet/${item.name}`,
+                                                                    );
+                                                                    break;
                                                                 default:
                                                                     // Check item.type for Travel consolidated view
                                                                     if (
@@ -2156,6 +2264,25 @@ const QuickActions = ({
                                                     >
                                                         View
                                                     </button>
+                                                    {selectedApplication ===
+                                                        "Indent cum Sanction" &&
+                                                        item.signed_po_file_url && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    window.open(
+                                                                        getFileUrl(
+                                                                            item.signed_po_file_url,
+                                                                        ),
+                                                                        "_blank",
+                                                                        "noopener,noreferrer",
+                                                                    );
+                                                                }}
+                                                                className="inline-flex items-center rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/35 whitespace-nowrap"
+                                                            >
+                                                                View Signed PO
+                                                            </button>
+                                                        )}
                                                     {/* NIQ Form — Indent General Form, Approved, Limited Tender, below ₹50 lakh */}
                                                     {selectedApplication ===
                                                         "Indent General Form" &&
@@ -3487,11 +3614,12 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     const [searchParams, setSearchParams] = useSearchParams();
 
     useEffect(() => {
+        if (embedded) return;
         const tabParam = searchParams.get("tab");
         if (tabParam) {
             setActiveTab(tabParam);
         }
-    }, [searchParams]);
+    }, [embedded, searchParams]);
 
     const handleAddFunds = () =>
         navigate(
@@ -3752,7 +3880,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         key={tab.id}
                                         onClick={() => {
                                             setActiveTab(tab.id);
-                                            setSearchParams({ tab: tab.id });
+                                            if (!embedded) {
+                                                setSearchParams({ tab: tab.id });
+                                            }
                                         }}
                                         aria-selected={activeTab === tab.id}
                                         className={cn(
@@ -6278,6 +6408,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                     projectNo={data?.project_no}
                                     projectTitle={data?.title}
                                     onNavigate={navigate}
+                                    embedded={embedded}
                                 />
                             )}
 

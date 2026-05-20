@@ -22,10 +22,10 @@ export const rateContractAPI = {
 };
 
 export const annualMaintenanceContractAPI = {
-    getFields: `${API_BASE}.annual_maintenance_contract.annual_maintenance_contract.get_annual_maintenance_contract_fields`,
-    save: `${API_BASE}.annual_maintenance_contract.annual_maintenance_contract.save_annual_maintenance_contract_data`,
-    getWorkflowActions: `${API_BASE}.annual_maintenance_contract.annual_maintenance_contract.get_annual_maintenance_contract_workflow_actions`,
-    performAction: `${API_BASE}.annual_maintenance_contract.annual_maintenance_contract.perform_annual_maintenance_contract_action`,
+    getFields: `${API_BASE}.amc.amc.get_amc_fields`,
+    save: `${API_BASE}.amc.amc.save_amc_data`,
+    getWorkflowActions: `${API_BASE}.amc.amc.get_amc_workflow_actions`,
+    performAction: `${API_BASE}.amc.amc.perform_amc_action`,
 };
 
 // Travel API endpoints
@@ -128,11 +128,18 @@ export const selectionCommitteeReportAPI = {
 export const icssAPI = {
     getIndentTypes: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_indent_types`,
     getFields: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_fields`,
+    getChildFields: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_child_fields`,
     save: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.save_icss_data`,
+    saveComposite: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.save_icss_composite_data`,
+    savePOData: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.save_icss_po_data`,
+    saveICSSPOData: `${API_BASE}.icss_po.icss_po.save_icss_po_data`,
     getWorkflowActions: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_workflow_actions`,
     performAction: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.perform_icss_action`,
     submit: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.submit_icss`,
     getUserDetails: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_user_details_icss`,
+    updateSendToDirector: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.update_send_to_director_icss`,
+    attachDirectorPdf: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.attach_director_pdf_icss`,
+    getPendingDirectorUploads: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_pending_director_uploads_icss`,
 };
 
 export const proprietaryPurchaseAPI = {

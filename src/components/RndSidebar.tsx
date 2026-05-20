@@ -198,6 +198,11 @@ export function AppSidebar() {
             path: "/task-registry",
         },
         {
+            label: "Upload Director PDF",
+            icon: FileText,
+            path: "/director-pdf-upload",
+        },
+        {
             label: "Payments",
             icon: CreditCard,
             path: "/payments",
@@ -251,6 +256,10 @@ export function AppSidebar() {
 
                 "head_approver_1",
             ];
+            return roles && allowedRoles.some((role) => roles.includes(role));
+        }
+        if (item.label === "Upload Director PDF") {
+            const allowedRoles = ["staff, RnD", "System Manager"];
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
         if (item.label === "Payments") {

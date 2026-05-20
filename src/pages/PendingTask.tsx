@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useFrappeGetCall, useFrappeAuth, useFrappeGetDocList } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useUserRoles } from '../components/UserRole';
+import { icssAPI } from '@/services/apiService';
 import {
     resolveProjectCategory,
     DOCTYPE_PR_LINKS,
@@ -21,6 +22,7 @@ interface PendingTaskRecord {
     name: string;
     title: string;
     status: string;
+    workflow_state?: string;
     creation: string;
     modified: string;
     owner: string;
@@ -37,12 +39,16 @@ interface PendingTaskRecord {
     project_no?: string;
     project_code?: string;
     project_id?: string;
+    director_signed_pdf?: string;
     travel_project_title?: string;
     travel_project_number?: string;
     igf_project_title?: string;
     igf_project_code?: string;
     upfa_project_code?: string;
     prj_num?: string;
+    icss_indent_type?: string;
+    icss_applicant_name?: string;
+    icss_applicant_webmail_id?: string;
 }
 
 interface PendingTaskResult {
@@ -119,6 +125,19 @@ const PendingTask: React.FC = () => {
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
     const isHeadApprover = roles?.includes("head_approver_1") ?? false;
+    const isRnDStaff = React.useMemo(
+        () =>
+            roles?.some((role) =>
+                [
+                    "RnD Staff",
+                    "R&D Staff",
+                    "Research and Development Staff",
+                    "staff, RnD",
+                    "System Manager",
+                ].includes(role),
+            ) ?? false,
+        [roles],
+    );
 
     const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
         filters: [["head_approver", "=", currentUser ?? ""]],
@@ -157,11 +176,51 @@ const PendingTask: React.FC = () => {
         { page_name: "pending-task" }
     );
 
-    const allTasks: FlattenedTask[] = React.useMemo(() => {
-        if (!data?.message?.results) return [];
+    // Supplemental fetch: ICSS is not always returned by module_registry yet.
+    // Keep R&D staff visibility working while backend registry parity catches up.
+    const { data: icssPendingData } = useFrappeGetDocList<PendingTaskRecord>(
+        "Indent Cum Sanction Sheet",
+        {
+            filters: [["workflow_state", "=", "Pending Staff Approval"]],
+            fields: [
+                "name",
+                "creation",
+                "modified",
+                "owner",
+                "workflow_state",
+                "project_ref",
+                "project_no",
+                "icss_indent_type",
+                "icss_applicant_name",
+                "icss_applicant_webmail_id",
+            ],
+            limit: 500,
+            orderBy: { field: "modified", order: "desc" },
+        },
+        isRnDStaff ? undefined : null,
+    );
 
+    const { data: icssDirectorUploadData } = useFrappeGetCall<{
+        message?: { data?: PendingTaskRecord[] } | PendingTaskRecord[];
+        data?: PendingTaskRecord[];
+    }>(
+        icssAPI.getPendingDirectorUploads,
+        {},
+        isRnDStaff ? undefined : null,
+    );
+
+    const icssDirectorUploadRecords = React.useMemo(() => {
+        const message = icssDirectorUploadData?.message;
+        if (Array.isArray(message)) return message;
+        if (Array.isArray(message?.data)) return message.data;
+        if (Array.isArray(icssDirectorUploadData?.data)) return icssDirectorUploadData.data;
+        return [];
+    }, [icssDirectorUploadData]);
+
+    const allTasks: FlattenedTask[] = React.useMemo(() => {
         const tasks: FlattenedTask[] = [];
-        data.message.results.forEach((group) => {
+        const existingTaskKeys = new Set<string>();
+        (data?.message?.results || []).forEach((group) => {
             if (group.mod_vis || group.doctype === "Advance Settlement") {
                 group.records.forEach((record) => {
                     if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
@@ -173,6 +232,7 @@ const PendingTask: React.FC = () => {
                     ) {
                         return;
                     }
+                    existingTaskKeys.add(`${group.doctype}:${record.name}`);
                     tasks.push({
                         id: record.name,
                         title: record.title,
@@ -193,8 +253,137 @@ const PendingTask: React.FC = () => {
                 });
             }
         });
+
+        (icssPendingData || []).forEach((record) => {
+            const key = `Indent Cum Sanction Sheet:${record.name}`;
+            if (existingTaskKeys.has(key)) return;
+
+            tasks.push({
+                id: record.name,
+                title: record.icss_indent_type || "Indent Cum Sanction Sheet",
+                "Project Number": record.project_no || record.project_ref || record.name,
+                status: record.status || record.workflow_state || "Pending Staff Approval",
+                priority: "Medium",
+                creation: record.creation,
+                modified: record.modified,
+                owner:
+                    record.icss_applicant_name ||
+                    record.icss_applicant_webmail_id ||
+                    record.owner,
+                doctype: "Indent Cum Sanction Sheet",
+                project_type: resolveProjectCategory(
+                    record as unknown as Record<string, unknown>,
+                    "Indent Cum Sanction Sheet",
+                    prNameToType,
+                    prNoToType,
+                ),
+            });
+        });
+
+        icssDirectorUploadRecords.forEach((record) => {
+            const key = `Indent Cum Sanction Sheet:${record.name}`;
+            if (existingTaskKeys.has(key)) return;
+
+            tasks.push({
+                id: record.name,
+                title: record.icss_indent_type || "Director Signed PDF Upload",
+                "Project Number": record.project_no || record.project_ref || record.name,
+                status: record.director_signed_pdf
+                    ? "Director PDF Uploaded"
+                    : "Pending Director PDF Upload",
+                priority: "Medium",
+                creation: record.creation,
+                modified: record.modified,
+                owner:
+                    record.icss_applicant_name ||
+                    record.icss_applicant_webmail_id ||
+                    record.owner,
+                doctype: "Indent Cum Sanction Sheet",
+                project_type: resolveProjectCategory(
+                    record as unknown as Record<string, unknown>,
+                    "Indent Cum Sanction Sheet",
+                    prNameToType,
+                    prNoToType,
+                ),
+            });
+        });
+
         return tasks;
-    }, [data, isHeadApprover, allowedProjectNames, prNameToType, prNoToType]);
+    }, [
+        data,
+        icssDirectorUploadRecords,
+        icssPendingData,
+        isHeadApprover,
+        allowedProjectNames,
+        prNameToType,
+        prNoToType,
+    ]);
+
+    const [signedCompletedIcssIds, setSignedCompletedIcssIds] = React.useState<Set<string>>(new Set());
+
+    React.useEffect(() => {
+        const candidateIds = allTasks
+            .filter(
+                (task) =>
+                    task.doctype === "Indent Cum Sanction Sheet" &&
+                    ["PO Generated", "Approved"].includes(task.status || ""),
+            )
+            .map((task) => task.id);
+
+        if (!candidateIds.length) {
+            setSignedCompletedIcssIds(new Set());
+            return;
+        }
+
+        let cancelled = false;
+
+        const fetchSignedPoFlags = async () => {
+            const completedIds = new Set<string>();
+
+            await Promise.all(
+                candidateIds.map(async (docname) => {
+                    try {
+                        const filters = encodeURIComponent(
+                            JSON.stringify([
+                                ["attached_to_doctype", "=", "Indent Cum Sanction Sheet"],
+                                ["attached_to_name", "=", docname],
+                            ]),
+                        );
+                        const fields = encodeURIComponent(
+                            JSON.stringify(["file_name", "file_url"]),
+                        );
+                        const response = await fetch(
+                            `/api/resource/File?filters=${filters}&fields=${fields}&limit_page_length=10`,
+                            {
+                                method: "GET",
+                                headers: { Accept: "application/json" },
+                                credentials: "include",
+                            },
+                        );
+                        if (!response.ok) return;
+
+                        const json = await response.json();
+                        const files = Array.isArray(json?.data) ? json.data : [];
+                        const hasSignedPo = files.some((file: any) => file.file_url);
+
+                        if (hasSignedPo) completedIds.add(docname);
+                    } catch {
+                        // Keep the task visible if attachment lookup fails.
+                    }
+                }),
+            );
+
+            if (!cancelled) {
+                setSignedCompletedIcssIds(completedIds);
+            }
+        };
+
+        fetchSignedPoFlags();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [allTasks]);
 
     // Phase-2: secondary fetch to resolve project_type from each doctype's actual link fields.
     // The pending-task API only returns basic fields (name, title, status…), so link fields
@@ -256,11 +445,19 @@ const PendingTask: React.FC = () => {
 
     // Merge phase-1 results with phase-2 resolved types
     const resolvedTasks = React.useMemo(() =>
-        allTasks.map(task => {
-            const resolved = resolvedProjectTypes.get(task.id);
-            return resolved ? { ...task, project_type: resolved } : task;
-        }),
-        [allTasks, resolvedProjectTypes]);
+        allTasks
+            .filter(
+                (task) =>
+                    !(
+                        task.doctype === "Indent Cum Sanction Sheet" &&
+                        signedCompletedIcssIds.has(task.id)
+                    ),
+            )
+            .map(task => {
+                const resolved = resolvedProjectTypes.get(task.id);
+                return resolved ? { ...task, project_type: resolved } : task;
+            }),
+        [allTasks, resolvedProjectTypes, signedCompletedIcssIds]);
 
     const tabCounts = React.useMemo(() => ({
         Research: resolvedTasks.filter(t => t.project_type === 'Research').length,
@@ -580,6 +777,13 @@ const PendingTask: React.FC = () => {
                                                             navigate(`/pending-tasks/${encodeURIComponent(task.doctype)}/${task.id}`);
                                                         } else if (task.doctype === "Direct Purchase") {
                                                             navigate(`/direct-purchase/${task.id}`);
+                                                        } else if (
+                                                            task.doctype === "Indent Cum Sanction Sheet" &&
+                                                            task.status === "Pending Director PDF Upload"
+                                                        ) {
+                                                            navigate(`/director-pdf-upload?docname=${task.id}`);
+                                                        } else if (task.doctype === "Indent Cum Sanction Sheet") {
+                                                            navigate(`/indent-cum-sanction-sheet/${task.id}`);
                                                         } else if (task.doctype === "Disbursal of Consultancy") {
                                                             navigate(`/disbursal-of-consultancy/${task.id}`);
                                                         } else if (task.doctype === "Travel") {

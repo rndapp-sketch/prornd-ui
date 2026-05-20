@@ -6,14 +6,14 @@
  * Responsibilities
  * ─────────────────
  * 1. On mount, calls the Kafka Commit Staging REST API to check whether
- *    a record already exists for this application (reference_name = docName).
+ *    a record already exists for this application
+ *    (reference_name = stagingReferenceName || docName).
  * 2. If a staging record exists  →  transforms into a read-only
  *    "Committed Data Display" card (shows non-empty payload fields,
  *    maps status PUBLISHED → "Committed"). Submit is completely blocked.
  * 3. If no staging record exists →  renders the commit form (budget head
  *    dropdown, amount input, optional particulars/comment textarea).
- *    On submit, calls rndopsapp.rndopsapp.commitPayment.submit_commit_data
- *    and passes commitParticular as a parameter.
+ *    On submit, calls rndopsapp.rndopsapp.commitPayment.submit_commit_data.
  *
  * Supported prop patterns
  * ───────────────────────
@@ -21,11 +21,13 @@
  * • With staged-commit        : + onCommitSuccess callback → parent sets local stagedCommit state
  * • With parent app refDetails: + parentAppId  (fetches TID from ledger before submitting)
  * • With bill-amount pre-fill : + billAmount
+ * • With budget-head prefill  : + defaultBudgetHead
+ * • With custom staging ref   : + stagingReferenceName + frapAppId
  * • Gating action buttons     : + onStagingStatusChange(isCommitted) → parent disables Forward
  *                                 button when isCommitted is false (for Staff RnD role)
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useFrappePostCall } from "frappe-react-sdk";
 import { CheckCircle2, AlertCircle, Loader2, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -47,10 +49,36 @@ export interface CommitPaymentProps {
     actualBalance?: number;
     /** Optional: bill amount to pre-fill the commit amount field */
     billAmount?: number;
+    /** Optional: budget head to auto-select when it exists in budgetHeads */
+    defaultBudgetHead?: string;
     /** Optional: bmr value */
     bmr?: string;
     /** Optional: parent application ID whose committed TID is fetched as refDetails (e.g. Travel → TA DA Settlement) */
     parentAppId?: string;
+    /** Optional: custom reference_name/name for Kafka Commit Staging checks and submit payload */
+    stagingReferenceName?: string;
+    /** Optional: application id to keep in the payload when stagingReferenceName is different */
+    frapAppId?: string;
+    /** Optional: use this refDetails directly instead of looking it up from parentAppId */
+    forcedRefDetails?: string;
+    /** Optional: include bill_amount equal to the entered commitment amount */
+    includeBillAmount?: boolean;
+    /** Optional: module id to send in the commit payload */
+    moduleId?: number;
+    /** Optional: only consider these Kafka staging statuses when checking existing staging */
+    stagingStatuses?: string[];
+    /** Optional: only consider staging records whose payload has these non-empty keys */
+    requiredPayloadKeys?: string[];
+    /** Optional: custom card title */
+    title?: string;
+    /** Optional: helper copy under the title */
+    description?: string;
+    /** Optional: custom submit button label */
+    submitLabel?: string;
+    /** Optional: disable the form externally while still showing it */
+    disabled?: boolean;
+    /** Optional: reason shown when disabled externally */
+    disabledReason?: string;
     /** Optional: called after a successful commit so the parent can update its local state */
     onCommitSuccess?: (head: string, amount: number) => void;
     /**
@@ -65,15 +93,16 @@ export interface CommitPaymentProps {
 
 // Fields from Kafka Commit Staging payload that we display.
 // Order matters — displayed in this order.
-const PAYLOAD_DISPLAY_FIELDS: { key: string; label: string }[] = [
+const PAYLOAD_DISPLAY_FIELDS: { key: string; label: string; aliases?: string[] }[] = [
     { key: "commit_amount", label: "Commit Amount" },
     { key: "budget_head", label: "Budget Head" },
     { key: "project_name", label: "Project Name" },
     { key: "bmr", label: "BMR" },
     { key: "bill_amount", label: "Bill Amount" },
-    { key: "frap_app_id", label: "FRAP App ID" },
-    { key: "ref_details", label: "Ref Details" },
-    { key: "commit_particular", label: "Particulars" },
+    { key: "moduleId", label: "Module ID", aliases: ["module_id"] },
+    { key: "frap_app_id", label: "FRAP App ID", aliases: ["frapAppId"] },
+    { key: "ref_details", label: "Ref Details", aliases: ["refDetails"] },
+    { key: "commit_particular", label: "Particulars", aliases: ["commitParticular"] },
 ];
 
 // ---------------------------------------------------------------------------
@@ -83,6 +112,62 @@ function isValuePresent(v: any): boolean {
     if (v === null || v === undefined) return false;
     if (typeof v === "string" && v.trim() === "") return false;
     return true;
+}
+
+function resolveBudgetHeadOption(
+    budgetHeads: string[],
+    preferredHead?: string,
+): string {
+    const trimmedPreferred = preferredHead?.trim();
+    if (!trimmedPreferred) return "";
+
+    return (
+        budgetHeads.find((head) => head === trimmedPreferred) ||
+        budgetHeads.find(
+            (head) =>
+                head.trim().toLowerCase() === trimmedPreferred.toLowerCase(),
+        ) ||
+        ""
+    );
+}
+
+function extractCommitErrorMessage(error: any, fallback: string) {
+    const candidates = [
+        error?._server_messages,
+        error?.response?._server_messages,
+        error?.response?.data?._server_messages,
+        error?.exception,
+        error?.response?.exception,
+        error?.response?.data?.exception,
+        error?.message,
+    ];
+
+    for (const candidate of candidates) {
+        if (!candidate) continue;
+        if (typeof candidate !== "string") return fallback;
+
+        try {
+            const parsed = JSON.parse(candidate);
+            const parsedMessages = Array.isArray(parsed) ? parsed : [parsed];
+            const firstMessage = parsedMessages
+                .map((item) => {
+                    if (typeof item === "string") {
+                        try {
+                            return JSON.parse(item)?.message || item;
+                        } catch {
+                            return item;
+                        }
+                    }
+                    return item?.message;
+                })
+                .find(Boolean);
+            if (firstMessage) return firstMessage;
+        } catch {
+            return candidate;
+        }
+    }
+
+    return fallback;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,8 +217,10 @@ const CommittedDataCard: React.FC<CommittedDataCardProps> = ({ stagingRecord }) 
 
             {/* Non-empty payload fields */}
             <div className="space-y-2 text-sm">
-                {PAYLOAD_DISPLAY_FIELDS.map(({ key, label }) => {
-                    const val = payloadObj[key];
+                {PAYLOAD_DISPLAY_FIELDS.map(({ key, label, aliases = [] }) => {
+                    const val = [key, ...aliases]
+                        .map((fieldname) => payloadObj[fieldname])
+                        .find(isValuePresent);
                     if (!isValuePresent(val)) return null;
                     return (
                         <div key={key} className="flex justify-between items-center gap-2 py-1.5 border-b border-zinc-100 dark:border-zinc-800 last:border-0">
@@ -175,8 +262,21 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     budgetHeads = [],
     actualBalance = 0,
     billAmount,
+    defaultBudgetHead,
     bmr = "",
     parentAppId,
+    stagingReferenceName,
+    frapAppId,
+    forcedRefDetails,
+    includeBillAmount = false,
+    moduleId,
+    stagingStatuses,
+    requiredPayloadKeys,
+    title = "Make a Commitment",
+    description,
+    submitLabel = "Submit Commitment",
+    disabled = false,
+    disabledReason,
     onCommitSuccess,
     onStagingStatusChange,
     className,
@@ -186,24 +286,49 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     const [stagingRecord, setStagingRecord] = useState<Record<string, any> | null>(null);
 
     // ── Form state ───────────────────────────────────────────────────────────
-    const [commitHead, setCommitHead] = useState(budgetHeads[0] ?? "");
+    const preferredCommitHead = resolveBudgetHeadOption(
+        budgetHeads,
+        defaultBudgetHead,
+    );
+    const [commitHead, setCommitHead] = useState(
+        preferredCommitHead || budgetHeads[0] || "",
+    );
     const [commitAmount, setCommitAmount] = useState(billAmount != null ? String(billAmount) : "");
     const [commitParticular, setCommitParticular] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState<{ amount: number; head: string } | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const lastAppliedDefaultHeadRef = useRef("");
+    const onStagingStatusChangeRef = useRef(onStagingStatusChange);
+    const commitReferenceName = stagingReferenceName || docName;
+    const payloadFrapAppId = frapAppId || docName;
+    const stagingStatusesKey = stagingStatuses?.join("|") || "";
+    const requiredPayloadKeysKey = requiredPayloadKeys?.join("|") || "";
 
     // ── Frappe API hook ──────────────────────────────────────────────────────
     const { call: callCommit } = useFrappePostCall(
         "rndopsapp.rndopsapp.commitPayment.submit_commit_data"
     );
 
+    useEffect(() => {
+        onStagingStatusChangeRef.current = onStagingStatusChange;
+    }, [onStagingStatusChange]);
+
     // ── Default head when budgetHeads arrive asynchronously ─────────────────
     useEffect(() => {
+        if (
+            preferredCommitHead &&
+            lastAppliedDefaultHeadRef.current !== preferredCommitHead
+        ) {
+            setCommitHead(preferredCommitHead);
+            lastAppliedDefaultHeadRef.current = preferredCommitHead;
+            return;
+        }
+
         if (budgetHeads.length > 0 && !commitHead) {
             setCommitHead(budgetHeads[0]);
         }
-    }, [budgetHeads]);
+    }, [budgetHeads, commitHead, preferredCommitHead]);
 
     // ── Pre-fill amount from billAmount prop ─────────────────────────────────
     useEffect(() => {
@@ -214,35 +339,66 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
 
     // ── Kafka Commit Staging check (REST API, no SDK) ────────────────────────
     const checkStagingRecord = useCallback(async () => {
-        if (!docName) return;
+        if (!commitReferenceName) return;
         setStagingStatus("loading");
         try {
+            const statusFilters = stagingStatusesKey
+                ? stagingStatusesKey.split("|").filter(Boolean)
+                : [];
+            const payloadKeys = requiredPayloadKeysKey
+                ? requiredPayloadKeysKey.split("|").filter(Boolean)
+                : [];
             const encodedFilter = encodeURIComponent(
-                JSON.stringify([["reference_name", "=", docName]])
+                JSON.stringify([
+                    ["reference_name", "=", commitReferenceName],
+                    ...(statusFilters.length
+                        ? [["status", "in", statusFilters]]
+                        : []),
+                ])
             );
             const url = `/api/v2/document/Kafka Commit Staging?filters=${encodedFilter}&fields=["*"]`;
             const res = await fetch(url, { credentials: "include" });
             if (!res.ok) {
                 setStagingStatus("error");
                 // On API error we don't block — leave gate decision to parent
-                onStagingStatusChange?.(false);
+                onStagingStatusChangeRef.current?.(false);
                 return;
             }
             const json = await res.json();
             const records: any[] = json?.data ?? [];
-            if (records.length > 0) {
-                setStagingRecord(records[0]);
+            const matchingRecords = payloadKeys.length
+                ? records.filter((record) => {
+                    try {
+                        const rawPayload = record.payload ?? record.commit_payload ?? "{}";
+                        const payload = typeof rawPayload === "string"
+                            ? JSON.parse(rawPayload)
+                            : rawPayload;
+                        return payloadKeys.every((key) =>
+                            isValuePresent(payload?.[key]),
+                        );
+                    } catch {
+                        return false;
+                    }
+                })
+                : records;
+
+            if (matchingRecords.length > 0) {
+                setStagingRecord(matchingRecords[0]);
                 setStagingStatus("found");
-                onStagingStatusChange?.(true);
+                onStagingStatusChangeRef.current?.(true);
             } else {
                 setStagingStatus("not-found");
-                onStagingStatusChange?.(false);
+                onStagingStatusChangeRef.current?.(false);
             }
         } catch {
             setStagingStatus("error");
-            onStagingStatusChange?.(false);
+            onStagingStatusChangeRef.current?.(false);
         }
-    }, [docName, onStagingStatusChange]);
+    }, [
+        commitReferenceName,
+        requiredPayloadKeysKey,
+        stagingStatusesKey,
+    ]);
 
     useEffect(() => {
         checkStagingRecord();
@@ -260,17 +416,21 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
             setSubmitError("Please enter a valid positive amount.");
             return;
         }
-        if (!docName || !projectName) {
+        if (!commitReferenceName || !payloadFrapAppId || !projectName) {
             setSubmitError("Missing document or project information.");
+            return;
+        }
+        if (disabled) {
+            setSubmitError(disabledReason || "Commitment cannot be submitted yet.");
             return;
         }
 
         setIsSubmitting(true);
         try {
-            let refDetails: string | undefined;
+            let refDetails: string | undefined = forcedRefDetails?.trim() || undefined;
 
             // If a parent app is linked, fetch its committed TID from the ledger
-            if (parentAppId) {
+            if (!refDetails && parentAppId) {
                 try {
                     const ledgerUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectName)}&accountHeadId=${encodeURIComponent(commitHead)}`;
                     const ledgerRes = await fetch(ledgerUrl);
@@ -296,17 +456,61 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                 }
             }
 
-            await callCommit({
+            const normalizedCommitParticular = commitParticular.trim();
+            const commitPayload = {
                 doctype,
-                frapAppId: docName,
-                name: docName,
+                frapAppId: payloadFrapAppId,
+                name: commitReferenceName,
                 project_name: projectName,
                 commit_amount: amount,
                 budget_head: commitHead,
                 bmr: bmr || "",
+                ...(includeBillAmount ? { bill_amount: amount } : {}),
+                ...(moduleId !== undefined ? { moduleId } : {}),
                 ...(refDetails ? { refDetails } : {}),
-                commitParticular: commitParticular.trim() || undefined,
-            });
+                // Backend submit_commit_data stores this as payload.commit_particular.
+                // Keep the key present so the staged payload always reflects the user's input.
+                commitParticular: normalizedCommitParticular,
+            };
+
+            let commitResponse;
+            try {
+                commitResponse = await callCommit(commitPayload);
+            } catch (error: any) {
+                const message = extractCommitErrorMessage(
+                    error,
+                    "Commitment failed. Please try again.",
+                );
+                if (
+                    moduleId !== undefined &&
+                    /unexpected keyword argument ['"]moduleId['"]|moduleId/i.test(message)
+                ) {
+                    const retryPayload = { ...commitPayload };
+                    delete (retryPayload as any).moduleId;
+                    commitResponse = await callCommit(retryPayload);
+                } else {
+                    throw new Error(message);
+                }
+            }
+
+            if (commitResponse?.message?.status === "error") {
+                const message = commitResponse.message.message || "Commitment failed. Please try again.";
+                if (
+                    moduleId !== undefined &&
+                    /unexpected keyword argument ['"]moduleId['"]|moduleId/i.test(message)
+                ) {
+                    const retryPayload = { ...commitPayload };
+                    delete (retryPayload as any).moduleId;
+                    commitResponse = await callCommit(retryPayload);
+                    if (commitResponse?.message?.status === "error") {
+                        throw new Error(
+                            commitResponse.message.message || "Commitment failed. Please try again.",
+                        );
+                    }
+                } else {
+                    throw new Error(message);
+                }
+            }
 
             setSubmitSuccess({ amount, head: commitHead });
             onCommitSuccess?.(commitHead, amount);
@@ -319,6 +523,14 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleCommitAmountChange = (value: string) => {
+        const cleaned = value
+            .replace(/,/g, "")
+            .replace(/[^\d.]/g, "")
+            .replace(/(\..*)\./g, "$1");
+        setCommitAmount(cleaned);
     };
 
     // ── Render: Loading ──────────────────────────────────────────────────────
@@ -366,15 +578,26 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
             <div className="flex items-center gap-2 mb-4">
                 <CreditCard className="w-4 h-4 text-[#D97757]" />
                 <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Make a Commitment
+                    {title}
                 </h3>
             </div>
+            {description && (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 leading-relaxed">
+                    {description}
+                </p>
+            )}
 
             {/* Staging-check error (non-fatal) */}
             {stagingStatus === "error" && (
                 <div className="mb-3 flex items-center gap-2 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-700 dark:text-amber-300">
                     <AlertCircle className="w-4 h-4 flex-shrink-0" />
                     Could not verify staging status. You may proceed, but duplicate submissions are possible.
+                </div>
+            )}
+            {disabled && disabledReason && (
+                <div className="mb-3 flex items-start gap-2 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-700 dark:text-amber-300">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    {disabledReason}
                 </div>
             )}
 
@@ -387,6 +610,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                     <select
                         value={commitHead}
                         onChange={(e) => setCommitHead(e.target.value)}
+                        disabled={disabled}
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                     >
                         {budgetHeads.length > 0 ? (
@@ -413,12 +637,13 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                         Amount (₹)
                     </label>
                     <input
-                        type="number"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
                         value={commitAmount}
-                        onChange={(e) => setCommitAmount(e.target.value)}
+                        onChange={(e) => handleCommitAmountChange(e.target.value)}
+                        disabled={disabled}
                         onKeyDown={(e) => {
-                            if (["e", "E", "+", "-"].includes(e.key) || /[a-zA-Z]/.test(e.key)) {
+                            if (["e", "E", "+", "-"].includes(e.key)) {
                                 e.preventDefault();
                             }
                         }}
@@ -436,6 +661,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                         rows={2}
                         value={commitParticular}
                         onChange={(e) => setCommitParticular(e.target.value)}
+                        disabled={disabled}
                         placeholder="Optional note about this commitment…"
                         className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-none"
                     />
@@ -452,7 +678,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                 {/* Submit Button */}
                 <button
                     onClick={handleCommit}
-                    disabled={isSubmitting || !commitHead || !commitAmount}
+                    disabled={disabled || isSubmitting || !commitHead || !commitAmount}
                     className="w-full flex items-center justify-center gap-2 bg-[#D97757] hover:bg-[#c66a4e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isSubmitting ? (
@@ -461,7 +687,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                             Committing…
                         </>
                     ) : (
-                        "Submit Commitment"
+                        submitLabel
                     )}
                 </button>
             </div>
