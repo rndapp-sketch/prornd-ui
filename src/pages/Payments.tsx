@@ -135,7 +135,10 @@ const Payments: React.FC = () => {
     // Fetch Budget Heads for mapping
     const fetchBudgetHeads = useCallback(async () => {
         try {
-            const response = await fetch('/api/v2/document/Budget Head?fields=["budget_head","id"]&order_by=id asc');
+            const response = await fetch('/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc', {
+                credentials: "include",
+                headers: { Accept: "application/json" },
+            });
             const data = await response.json();
             if (data?.data) {
                 const map: Record<string, string> = {};
