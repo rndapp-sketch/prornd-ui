@@ -518,11 +518,12 @@ const IndentGeneralForm: React.FC = () => {
                     val &&
                     typeof val === "object" &&
                     !Array.isArray(val) &&
-                    typeof val.file_name === "string" &&
-                    typeof val.file_data === "string"
+                    typeof (val as any).file_name === "string" &&
+                    typeof (val as any).file_data === "string"
                 ) {
-                    console.log(`[SAVE #${saveId}] Extracted file from field "${key}":`, { file_name: val.file_name, file_data_length: val.file_data.length, file_data_prefix: val.file_data.slice(0, 50) });
-                    filesArray.push(val);
+                    const fileVal = val as { file_name: string; file_data: string };
+                    console.log(`[SAVE #${saveId}] Extracted file from field "${key}":`, { file_name: fileVal.file_name, file_data_length: fileVal.file_data.length, file_data_prefix: fileVal.file_data.slice(0, 50) });
+                    filesArray.push(fileVal);
                     delete cleanData[key];
                 }
             }
