@@ -55,7 +55,8 @@ export const useProjectBudget = (projectCode: string) => {
       try {
         // 1. Fetch Budget Heads
         const headRes = await fetch(
-          '/api/v2/document/Budget Head?fields=["budget_head","id"]&order_by=id asc',
+          '/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc',
+          { credentials: "include", headers: { Accept: "application/json" } },
         );
         const headData = await headRes.json();
         const availableHeads = headData?.data || [];
@@ -72,7 +73,7 @@ export const useProjectBudget = (projectCode: string) => {
           const apiUrl = `/ledger-api/commit-payment-transactions?projectNumber=${encodeURIComponent(projectCode)}&accountHeadId=${head.id}`;
           console.log(`[useProjectBudget] Fetching: ${apiUrl}`);
 
-          return fetch(apiUrl)
+          return fetch(apiUrl, { credentials: "include" })
             .then((res) => res.json())
             .then((data) => {
               console.log(
