@@ -3,11 +3,13 @@
     <head>
         <meta charset="UTF-8" />
         <title>Purchase Order</title>
-
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
         <style>
+            :root {
+                --po-document-font:
+                    "Times New Roman", Times, "Noto Serif Devanagari", "Mangal",
+                    serif;
+            }
+
             * {
                 box-sizing: border-box;
                 -webkit-print-color-adjust: exact;
@@ -17,8 +19,9 @@
             body {
                 margin: 0;
                 padding: 0;
-                font-family: "Libre Baskerville", "Times New Roman", Times, serif;
+                font-family: var(--po-document-font);
                 background: #e0e0e0;
+                color: #111827;
             }
 
             .page {
@@ -28,6 +31,7 @@
                 background: #fff;
                 position: relative;
                 box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+                font-family: var(--po-document-font);
             }
 
             .content {
@@ -52,42 +56,80 @@
 
             .header-row {
                 display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 12px;
+                margin-bottom: 8px;
+                padding: 10px 12px;
+                border: 1px solid #cfd6df;
+                border-radius: 6px;
+                background: #fff;
+            }
+
+            .header-brand {
+                display: flex;
                 align-items: center;
-                justify-content: center;
-                gap: 15px;
-                margin-bottom: 5px;
+                gap: 10px;
+                flex: 1;
+                min-width: 0;
             }
 
             .logo-container img {
-                height: 65px;
+                height: 64px;
                 width: auto;
             }
 
             .header-text {
-                text-align: center;
+                text-align: left;
+                min-width: 0;
             }
 
             .header {
-                font-size: 22px;
+                font-size: 18px;
                 font-weight: bold;
-                text-transform: uppercase;
+                margin-bottom: 2px;
+                white-space: nowrap;
+            }
+
+            .header-hindi {
+                font-size: 18px;
+                font-weight: bold;
+                line-height: 1.25;
                 margin-bottom: 2px;
             }
 
             .institution-address {
-                font-size: 13px;
-                margin-bottom: 2px;
+                font-size: 11.5px;
+                line-height: 1.45;
+                color: #333;
+            }
+
+            .letterhead-contact-card {
+                flex: 0 0 205px;
+                min-width: 205px;
+                max-width: 205px;
+                padding-left: 10px;
+                border-left: 2px solid #d7dce2;
+                text-align: left;
+                font-size: 10.5px;
+                line-height: 1.45;
+                color: #333;
+            }
+
+            .letterhead-contact-card strong {
+                color: #111;
             }
 
             .sub-header {
-                font-size: 18px;
+                font-size: 16px;
                 font-weight: bold;
             }
 
-            .sub-header-note {
+            .po-indent-note {
+                text-align: center;
                 font-size: 12px;
                 font-style: italic;
-                margin-top: 2px;
+                margin: -8px 0 12px 0;
             }
 
             .top-info {
@@ -110,7 +152,7 @@
                 text-align: center;
                 font-weight: bold;
                 text-decoration: underline;
-                margin: 10px 0 14px 0;
+                margin: 10px 0 12px 0;
                 font-size: 18px;
             }
 
@@ -299,40 +341,49 @@
             <div class="content">
                 <!-- HEADER -->
                 <div class="header-row">
-                    <div class="logo-container">
-                        <img
-                            src="http://172.16.117.39:8000/files/IITG_logo.png"
-                            alt="IITG Logo"
-                            onerror="this.style.display = 'none'"
-                        />
+                    <div class="header-brand">
+                        <div class="logo-container">
+                            <img
+                                src="http://172.16.117.39:8000/files/IITG_logo.png"
+                                alt="IITG Logo"
+                                onerror="this.style.display = 'none'"
+                            />
+                        </div>
+                        <div class="header-text">
+                            <div class="header">
+                                Indian Institute of Technology Guwahati
+                            </div>
+                            <div class="header-hindi">
+                                भारतीय प्रौद्योगिकी संस्थान गुवाहाटी
+                            </div>
+                            <div class="sub-header">
+                                Research &amp; Development Section
+                            </div>
+                        </div>
                     </div>
-                    <div class="header-text">
-                        <div class="header">
-                            Indian Institute of Technology Guwahati
-                        </div>
+                    <div class="letterhead-contact-card">
                         <div class="institution-address">
-                            Guwahati-781039, Assam, India
+                            Guwahati-781039, India
                         </div>
-                        <div class="sub-header">
-                            Research &amp; Development Section
-                        </div>
-                        <div class="sub-header-note">
-                            Direct Procurement (No repeat order will be
-                            entertained against this P.O.)
-                        </div>
+                        <div><strong>Phone :</strong> +91-361-2583080</div>
+                        <div>+91-361-2582134</div>
+                        <div><strong>Email :</strong> rndadmin@iitg.ac.in</div>
+                        <div>{{LETTERHEAD_USER_EMAIL}}</div>
                     </div>
                 </div>
 
                 <!-- TITLE -->
                 <div class="title">PURCHASE ORDER</div>
+                <div class="po-indent-note">
+                    {{PO_HEADER_NOTE}} (No repeat order will be entertained
+                    against this P.O.)
+                </div>
 
                 <!-- TOP INFO: TO / PO No / Date / GSTIN -->
                 <div class="top-info">
                     <div class="left">
                         <strong>TO:</strong><br />
-                        {{VENDOR_ADDRESS}}
-                        <br /><br />
-                        <strong>P.O. No:</strong> {{PO_NUMBER}}
+                        {{VENDOR_ADDRESS}} {{PO_NUMBER_LINE}}
                     </div>
                     <div class="right">
                         <strong>Date:</strong> {{PO_DATE}}<br />
@@ -341,50 +392,16 @@
                 </div>
 
                 <!-- REFERENCE LINE -->
+                {{AMC_JOB_ORDER_LINE}}
                 <div class="ref-line">
-                    <strong>Ref:</strong> Your Quotation No:
-                    {{QUOTATION_NO}}
+                    <strong>Ref:</strong> Your Quotation No: {{QUOTATION_NO}}
                 </div>
+                {{AMC_SUBJECT_LINE}}
 
                 <!-- INTRO PARAGRAPH -->
-                <div class="intro-paragraph">
-                    With reference to the above, please arrange to supply
-                    the following:
-                </div>
+                <div class="intro-paragraph">{{INTRO_PARAGRAPH}}</div>
 
-                <!-- ITEM TABLE -->
-                <table class="item-table">
-                    <colgroup>
-                        <col style="width: 5%" />
-                        <col style="width: 14%" />
-                        <col style="width: 9%" />
-                        <col style="width: 9%" />
-                        <col style="width: 18%" />
-                        <col style="width: 6%" />
-                        <col style="width: 10%" />
-                        <col style="width: 9%" />
-                        <col style="width: 8%" />
-                        <col style="width: 12%" />
-                    </colgroup>
-                    <thead>
-                        <tr>
-                            <th>Sl No</th>
-                            <th>Item Name</th>
-                            <th>Make</th>
-                            <th>Model</th>
-                            <th>Description</th>
-                            <th>Qty</th>
-                            <th>Unit Rate</th>
-                            <th>Discount</th>
-                            <th>GST</th>
-                            <th>Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {{ITEM_ROWS}}
-                        {{SUMMARY_ROWS}}
-                    </tbody>
-                </table>
+                {{ITEM_TABLE_BLOCK}} {{AMC_PO_TABLE}}
 
                 <!-- AMOUNT IN WORDS -->
                 <div class="amount-words">
@@ -394,20 +411,20 @@
                 <!-- BUDGET HEAD INFO -->
                 <div class="budget-info">
                     <strong>Account Head:</strong> {{ACCOUNT_HEAD}}<br />
-                    <strong>Project No:</strong> {{PROJECT_NO}}<br />
-                    <strong>File No:</strong> {{FILE_NUMBER}}
+                    <strong>Project No:</strong> {{PROJECT_NO}}
                 </div>
 
                 <!-- TERMS & CONDITIONS -->
                 <div class="section-title">Terms &amp; Conditions</div>
-                <div class="terms-content">
-                    {{TERMS_AND_CONDITIONS}}
-                </div>
+                <div class="terms-content">{{TERMS_AND_CONDITIONS}}</div>
 
                 <!-- SIGNATURE SECTION -->
                 <div class="signature-section">
                     <div class="sig-block left-align">
-                        <strong>Checked By:</strong> ___________
+                        <strong>Checked By:</strong><br />
+                        {{CHECKED_BY_NAME}}<br />
+                        <strong>Designation:</strong>
+                        {{CHECKED_BY_DESIGNATION}}
                     </div>
                     <div class="sig-block right-align">
                         _______________________<br /><br />

@@ -2122,6 +2122,12 @@ const ProjectRegistration: React.FC = () => {
                     isMandatory = true;
                 }
             }
+            if (
+                field.fieldname === "consultancy_category" &&
+                formData.project_type === "Consultancy"
+            ) {
+                isMandatory = true;
+            }
 
             let readOnlyEval = field.read_only_depends_on_eval;
             if (!readOnlyEval && field.read_only_depends_on) {
@@ -2259,6 +2265,14 @@ const ProjectRegistration: React.FC = () => {
             const isEmpty =
                 value === null || value === undefined || value === "";
             if (isEmpty) errors.push(field.label || field.fieldname);
+        }
+
+        if (
+            formData.project_type === "Consultancy" &&
+            (!formData.consultancy_category ||
+                String(formData.consultancy_category).trim() === "")
+        ) {
+            errors.push("Consultancy Category");
         }
 
         // --- Consultancy Category D: CF gross must be <= 30% of project cost excl. GST ---

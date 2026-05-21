@@ -72,15 +72,42 @@ function AppContent() {
   const [isNavigating, setIsNavigating] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  const forceServerLogout = async () => {
+    const csrfToken = (window as any).csrf_token || "";
+    const requests: Array<{ method: "POST" | "GET"; url: string }> = [
+      { method: "POST", url: "/api/method/logout" },
+      { method: "GET", url: "/api/method/logout" },
+    ];
+    for (const req of requests) {
+      try {
+        await fetch(req.url, {
+          method: req.method,
+          credentials: "include",
+          headers:
+            req.method === "POST"
+              ? {
+                  "Content-Type": "application/json",
+                  ...(csrfToken ? { "X-Frappe-CSRF-Token": csrfToken } : {}),
+                }
+              : undefined,
+        });
+      } catch {
+        // best-effort fallback path
+      }
+    }
+  };
+
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
       await logout();
-      await mutate(() => true, undefined, { revalidate: false });
-      navigate("/login");
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error("Primary logout failed, attempting fallback logout:", error);
+      await forceServerLogout();
     } finally {
+      await mutate(() => true, undefined, { revalidate: false });
+      navigate("/login", { replace: true });
+      window.location.href = "/login";
       setIsLoggingOut(false);
     }
   };

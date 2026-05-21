@@ -1328,6 +1328,9 @@ const PendingTaskDetails: React.FC = () => {
         if (doctype === "Indent General Form" && name) {
             navigate(`/indent-general-form-details/${name}`, { replace: true });
         }
+        if (doctype === "Indent Cum Sanction Sheet" && name) {
+            navigate(`/indent-cum-sanction-sheet/${name}`, { replace: true });
+        }
         if (doctype === "Selection Committee Report" && name) {
             navigate(`/selection-committee-report/${name}`, { replace: true });
         }
