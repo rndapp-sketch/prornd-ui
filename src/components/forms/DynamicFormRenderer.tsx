@@ -147,6 +147,9 @@ const FieldLabel = ({
 const FULL_WIDTH_FIELDNAMES = new Set([
   "travel_declaration_text",
   "travel_declaration_accepted",
+  "certify_authorized_firm",
+  "certify_current_prices",
+  "certify_delivery_time",
 ]);
 
 const shouldRenderFullWidth = (field: FormField) =>

@@ -311,15 +311,39 @@ export function AppSidebar() {
         setIsLoggingOut(true);
         try {
             await logout();
+        } catch (error) {
+            console.error("Primary logout failed, attempting fallback logout:", error);
+            const csrfToken = (window as any).csrf_token || "";
+            const requests: Array<{ method: "POST" | "GET"; url: string }> = [
+                { method: "POST", url: "/api/method/logout" },
+                { method: "GET", url: "/api/method/logout" },
+            ];
+            for (const req of requests) {
+                try {
+                    await fetch(req.url, {
+                        method: req.method,
+                        credentials: "include",
+                        headers:
+                            req.method === "POST"
+                                ? {
+                                    "Content-Type": "application/json",
+                                    ...(csrfToken ? { "X-Frappe-CSRF-Token": csrfToken } : {}),
+                                }
+                                : undefined,
+                    });
+                } catch {
+                    // best-effort fallback path
+                }
+            }
+        } finally {
             // Clear all SWR cache
             await mutate(
                 () => true, // Match all keys
                 undefined, // No data to update
                 { revalidate: false }, // Do not revalidate
             );
-            navigate("/login");
-        } catch (error) {
-            console.error("Logout failed:", error);
+            navigate("/login", { replace: true });
+            window.location.href = "/login";
             setIsLoggingOut(false);
         }
     };

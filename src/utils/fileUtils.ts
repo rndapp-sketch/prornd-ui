@@ -18,6 +18,7 @@ const MINIO_BASE = "http://172.16.135.118:9000/prod-rnd-files";
 const MINIO_PATH_PREFIXES = [
     "/Project_Registration/",
     "/indent_general_form/",
+    "/indent_cum_sanction_sheet/",
 ];
 
 export function getFileUrl(path: string | null | undefined): string {
