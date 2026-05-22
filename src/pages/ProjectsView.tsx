@@ -38,6 +38,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useUserRoles } from "../components/UserRole";
 import { format } from "date-fns";
+import { ProjectLifecycleGuide } from "@/components/project/ProjectLifecycleGuide";
 
 // --- LOGIC: Interfaces & Data ---
 interface Task {
@@ -1056,6 +1057,43 @@ export function ProjectsView({ initialTab }: ProjectsViewProps) {
   const renderProjectsTable = () => (
     <div className="space-y-4 animate-in fade-in duration-500">
       <>
+        {(() => {
+          const lifecycleProject =
+            filteredAndSortedProjects.find((p: any) => p.workflow_state === "Endorsement Approved") ||
+            filteredAndSortedProjects.find((p: any) => p.workflow_state === "Approved" && !hasSanction(p)) ||
+            filteredAndSortedProjects.find((p: any) => p.workflow_state === "Approved" && hasSanction(p)) ||
+            filteredAndSortedProjects[0];
+
+          if (!lifecycleProject) return null;
+
+          const sanctioned = hasSanction(lifecycleProject);
+
+          return (
+            <ProjectLifecycleGuide
+              compact
+              workflowState={lifecycleProject.workflow_state}
+              projectType={lifecycleProject.project_type}
+              isApprovedEndorsement={lifecycleProject.workflow_state === "Endorsement Approved"}
+              hasSanction={sanctioned}
+              onRegisterClick={
+                lifecycleProject.workflow_state === "Endorsement Approved"
+                  ? () => navigate(`/project-registration?docname=${lifecycleProject.name}&isApprovedEndorsement=true`)
+                  : undefined
+              }
+              onAddSanctionClick={
+                lifecycleProject.workflow_state === "Approved" && !sanctioned
+                  ? () => navigate(`/project-details-overview/${lifecycleProject.name}/add-fund-sanction`)
+                  : undefined
+              }
+              onAddFundReceivedClick={
+                lifecycleProject.workflow_state === "Approved" && sanctioned
+                  ? () => navigate(`/add-fund-received/${lifecycleProject.name}/?project_no=${encodeURIComponent(lifecycleProject.project_no || "")}`)
+                  : undefined
+              }
+            />
+          );
+        })()}
+
         {/* Project Type Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto">
           {PROJECT_TYPE_TABS.map((tab) => {

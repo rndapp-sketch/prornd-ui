@@ -1839,6 +1839,8 @@ interface DirectPurchaseData {
     modified: string;
     workflow_state: string;
     project_name?: string;
+    project_no?: string;
+    project?: string;
     applicant_name?: string;
     applicant_department?: string;
     applicant_designation?: string;
@@ -3105,11 +3107,16 @@ const DirectPurchaseDetails: React.FC = () => {
     const [resolvedProjectNo, setResolvedProjectNo] = useState<string>("");
     const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
     const { call: fetchDocument } = useFrappePostCall<{ message: any }>('frappe.client.get');
+    const directPurchaseProject =
+        data?.project_name || data?.project_no || data?.project || "";
 
     // --- RESOLVE ACTUAL PROJECT NUMBER ---
     useEffect(() => {
-        const linkedName = data?.project_name;
-        if (!linkedName) return;
+        const linkedName = directPurchaseProject;
+        if (!linkedName) {
+            setResolvedProjectNo("");
+            return;
+        }
         fetchDocument({ doctype: "Project Registration", name: linkedName })
             .then((res) => {
                 const projectDoc = res?.message;
@@ -3122,7 +3129,7 @@ const DirectPurchaseDetails: React.FC = () => {
             .catch(() => {
                 setResolvedProjectNo(linkedName);
             });
-    }, [data?.project_name]);
+    }, [directPurchaseProject, fetchDocument]);
 
     const [commitHead, setCommitHead] = useState("");
     const [paymentAmount, setPaymentAmount] = useState("");
@@ -3131,7 +3138,7 @@ const DirectPurchaseDetails: React.FC = () => {
         "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
     );
 
-    const projectTitle = resolvedProjectNo || data?.project_name || "";
+    const projectTitle = resolvedProjectNo || directPurchaseProject;
     const {
         budgetData,
         heads: budgetHeadsFromLedger,
@@ -3813,7 +3820,7 @@ const DirectPurchaseDetails: React.FC = () => {
                                 <CommitPayment
                                     doctype="Direct Purchase"
                                     docName={id || ""}
-                                    projectName={resolvedProjectNo || data.project_name || ""}
+                                    projectName={projectTitle}
                                     budgetHeads={budgetHeads}
                                     actualBalance={actualBalance}
                                     onCommitSuccess={() => loadData()}
