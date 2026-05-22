@@ -430,7 +430,7 @@ const IndentGeneralForm: React.FC = () => {
                             });
                         }
                     })
-                    .catch(() => {/* ignore */});
+                    .catch(() => {/* ignore */ });
                 return;
             }
 
@@ -566,7 +566,7 @@ const IndentGeneralForm: React.FC = () => {
             isSavingRef.current = false;
             setIsSaving(false);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData, editDocName, savedDocName, saveForm, fetchWorkflowActions, navigate]);
 
     const handlePerformAction = async (action: string) => {
@@ -705,18 +705,18 @@ const IndentGeneralForm: React.FC = () => {
                             !f.hidden &&
                             isFieldVisible(f, formData),
                     ) && (
-                        <GroupCard label="Details of Vendors">
-                            <DynamicFormRenderer
-                                fields={effectiveFields.filter((f) =>
-                                    [
-                                        "igf_details_of_vendors",
-                                        "igf_vendors",
-                                    ].includes(f.fieldname),
-                                )}
-                                {...commonRendererProps}
-                            />
-                        </GroupCard>
-                    )}
+                            <GroupCard label="Details of Vendors">
+                                <DynamicFormRenderer
+                                    fields={effectiveFields.filter((f) =>
+                                        [
+                                            "igf_details_of_vendors",
+                                            "igf_vendors",
+                                        ].includes(f.fieldname),
+                                    )}
+                                    {...commonRendererProps}
+                                />
+                            </GroupCard>
+                        )}
 
                     {/* Purchase Committee */}
                     <GroupCard label="Purchase Committee (Minimum 3 Members)">
@@ -766,24 +766,24 @@ const IndentGeneralForm: React.FC = () => {
 
                     {/* Declaration */}
                     <div id="igf-declaration-section">
-                    <GroupCard label="Declaration">
-                        <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-                            <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-                                For non-sanctioned items, the PI will be responsible for any financial obligations that may arise.
-                                All prices / amounts mentioned in the form are in Indian Rupee (INR).
-                            </p>
-                        </div>
-                        <DynamicFormRenderer
-                            fields={effectiveFields.filter((f) =>
-                                [
-                                    "igf_declaration_section",
-                                    "igf_declaration_text",
-                                    "igf_decl_inr_confirmation",
-                                ].includes(f.fieldname),
-                            )}
-                            {...commonRendererProps}
-                        />
-                    </GroupCard>
+                        <GroupCard label="Declaration">
+                            <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                                    For non-sanctioned items, the PI will be responsible for any financial obligations that may arise.
+                                    All prices / amounts mentioned in the form are in Indian Rupee (INR).
+                                </p>
+                            </div>
+                            <DynamicFormRenderer
+                                fields={effectiveFields.filter((f) =>
+                                    [
+                                        "igf_declaration_section",
+                                        "igf_declaration_text",
+                                        "igf_decl_inr_confirmation",
+                                    ].includes(f.fieldname),
+                                )}
+                                {...commonRendererProps}
+                            />
+                        </GroupCard>
                     </div>
 
                 </div>
