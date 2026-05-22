@@ -18,13 +18,19 @@ import {
 } from "frappe-react-sdk";
 import { cn } from "@/lib/utils";
 import {
+    ArrowLeft,
+    ArrowRight,
+    CheckCircle2,
     FileText,
     Users,
     IndianRupee,
     Shield,
     FileBadge,
+    Landmark,
+    Loader2,
     X,
     Pencil,
+    ReceiptIndianRupee,
 } from "lucide-react";
 import {
     EndorsementCertificate,
@@ -966,6 +972,11 @@ const ProjectRegistration: React.FC = () => {
         const params = new URLSearchParams(location.search);
         return params.get("docname");
     });
+    const [entryStep, setEntryStep] = useState<"instructions" | "form">(() =>
+        pathDocname || new URLSearchParams(location.search).get("docname")
+            ? "form"
+            : "instructions",
+    );
 
     // If landed on bare /project-registration, redirect to /project-registration/new/<tempId>
     useEffect(() => {
@@ -2878,8 +2889,7 @@ const ProjectRegistration: React.FC = () => {
         if (saveEndorsementResult) {
             alert(`Endorsement Submitted!
 
-After the Dean approves this endorsement, the project can be registered as a full project.
-Until then, the project is not yet eligible for submission.`);
+Endorsement is optional. You may continue completing Project Registration while the endorsement is under review.`);
             navigate("/projects-view");
         }
         if (saveEndorsementError) {
@@ -2888,6 +2898,283 @@ Until then, the project is not yet eligible for submission.`);
     }, [saveEndorsementResult, saveEndorsementError]);
 
     // --- RENDER LOGIC ---
+    if (entryStep === "instructions") {
+        const pipelineSteps = [
+            {
+                title: "Optional Endorsement",
+                Icon: FileBadge,
+                body: "Generate this certificate only when the project or office process needs endorsement. It is not compulsory for every registration.",
+            },
+            {
+                title: "Project Registration",
+                Icon: FileText,
+                body: "Fill project details, PI/Co-PI details, budget, clearance, and available sanction/fund information.",
+            },
+            {
+                title: "Submit for Approval",
+                Icon: CheckCircle2,
+                body: "Use Save As Draft while incomplete. Use Submit when the form is ready for workflow approval.",
+            },
+            {
+                title: "Approval Workflow",
+                Icon: Users,
+                body: "The registration moves through the configured project workflow such as Staff, HoS, Dean, or other approvers.",
+            },
+            {
+                title: "Fund Sanction",
+                Icon: Landmark,
+                body: "After Project Registration is approved, add sanction letter number, date, sanctioned amount, budget breakup, and files.",
+            },
+            {
+                title: "Fund Received",
+                Icon: ReceiptIndianRupee,
+                body: "After sanction, record the received amount or installment against the project and sanction reference.",
+            },
+        ];
+
+        return (
+            <div className="flex-1 w-full bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen text-[#3F3F46] dark:text-[#E4E4E7]">
+                <div className="max-w-[1240px] px-6 md:px-8 py-8 md:py-10 mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
+                    <div className="flex items-start gap-4 mb-8 mt-4">
+                        <button
+                            type="button"
+                            onClick={() => navigate(-1)}
+                            className="mt-0.5 p-1.5 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 transition-all flex-shrink-0"
+                        >
+                            <ArrowLeft className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
+                        </button>
+                        <div>
+                            <h1 className="text-[22px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight mb-1">
+                                Project Registration
+                            </h1>
+                            <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA] font-medium">
+                                Register a project and understand what happens after approval.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-[#27272A] border-[1.5px] border-[#D4D4D8] dark:border-[#52525B] rounded-2xl shadow-sm overflow-hidden">
+                        <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                        <div className="section-header-lg">
+                            <div className="section-header-lg-accent" />
+                            <div className="section-header-lg-icon">
+                                <FileText className="h-4 w-4" />
+                            </div>
+                            <div>
+                                <div className="section-header-lg-title">Project Registration Instructions</div>
+                                <div className="section-header-lg-subtitle">Read this once before starting the form</div>
+                            </div>
+                        </div>
+
+                        <div className="px-8 py-7 space-y-8">
+                            <section>
+                                <h2 className="text-[14px] font-extrabold text-[#27272A] dark:text-[#E4E4E7] mb-4">
+                                    What this form is used for
+                                </h2>
+                                <ol className="space-y-4">
+                                    <li className="flex gap-4">
+                                        <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/20 text-[#4A6CF7] dark:text-[#818CF8] font-extrabold text-[12px] mt-0.5 border border-[#C7D2FE] dark:border-[#4A6CF7]/30">1</span>
+                                        <div className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                                            <strong className="text-[#27272A] dark:text-[#E4E4E7] block mb-1 font-bold">Choose project details carefully</strong>
+                                            Select project type <strong className="text-[#4A6CF7]">(Research, Consultancy, or Others)</strong>, title, department or centre, funding agency, duration, and upload the project proposal or invitation documents.
+                                        </div>
+                                    </li>
+                                    <li className="flex gap-4">
+                                        <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/20 text-[#4A6CF7] dark:text-[#818CF8] font-extrabold text-[12px] mt-0.5 border border-[#C7D2FE] dark:border-[#4A6CF7]/30">2</span>
+                                        <div className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                                            <strong className="text-[#27272A] dark:text-[#E4E4E7] block mb-1 font-bold">Confirm investigators and collaborators</strong>
+                                            PI details are filled from webmail where available. Add Additional PI or Co-PI only when applicable. External users may need stakeholder registration first.
+                                        </div>
+                                    </li>
+                                    <li className="flex gap-4">
+                                        <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/20 text-[#4A6CF7] dark:text-[#818CF8] font-extrabold text-[12px] mt-0.5 border border-[#C7D2FE] dark:border-[#4A6CF7]/30">3</span>
+                                        <div className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                                            <strong className="text-[#27272A] dark:text-[#E4E4E7] block mb-1 font-bold">Enter budget and clearance information</strong>
+                                            Add the proposed budget breakup, equipment or manpower details if needed, and committee clearance/declaration information where applicable.
+                                        </div>
+                                    </li>
+                                    <li className="flex gap-4">
+                                        <span className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#EEF2FF] dark:bg-[#4A6CF7]/20 text-[#4A6CF7] dark:text-[#818CF8] font-extrabold text-[12px] mt-0.5 border border-[#C7D2FE] dark:border-[#4A6CF7]/30">4</span>
+                                        <div className="text-[13px] text-[#52525B] dark:text-[#A1A1AA] leading-relaxed">
+                                            <strong className="text-[#27272A] dark:text-[#E4E4E7] block mb-1 font-bold">Save or submit</strong>
+                                            Use <strong className="text-[#4A6CF7]">Save As Draft</strong> when details are incomplete. Use <strong className="text-[#4A6CF7]">Submit</strong> when the form is ready for approval.
+                                        </div>
+                                    </li>
+                                </ol>
+                            </section>
+
+                            <section className="rounded-2xl border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B]/60 p-5">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#EEF2FF] text-[#4A6CF7] dark:bg-[#4A6CF7]/20 dark:text-[#A5B4FC]">
+                                        <CheckCircle2 className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-[14px] font-extrabold text-[#27272A] dark:text-[#E4E4E7]">
+                                            Project Registration Pipeline
+                                        </h2>
+                                        <p className="text-[11px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                            This is the full path from optional endorsement to fund received.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="mb-5 overflow-x-auto rounded-xl border border-[#E4E4E7] bg-white p-4 dark:border-[#3F3F46] dark:bg-[#27272A]">
+                                    <div className="flex min-w-[820px] items-start">
+                                        {pipelineSteps.map((stepItem, index) => (
+                                            <React.Fragment key={`pipeline-visual-${stepItem.title}`}>
+                                                <div className="flex w-[120px] shrink-0 flex-col items-center text-center">
+                                                    <div className="relative flex h-11 w-11 items-center justify-center rounded-full bg-[#4A6CF7] text-white shadow-sm ring-4 ring-[#EEF2FF] dark:ring-[#4A6CF7]/20">
+                                                        <stepItem.Icon className="h-4 w-4" />
+                                                        <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-extrabold text-[#4A6CF7] ring-1 ring-[#C7D2FE] dark:bg-[#18181B] dark:ring-[#4A6CF7]/40">
+                                                            {index + 1}
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="mt-2 text-[11px] font-extrabold leading-tight text-[#27272A] dark:text-[#E4E4E7]">
+                                                        {stepItem.title}
+                                                    </h3>
+                                                </div>
+                                                {index < pipelineSteps.length - 1 && (
+                                                    <div className="flex h-11 min-w-[38px] flex-1 items-center px-1">
+                                                        <div className="h-1 w-full rounded-full bg-[#C7D2FE] dark:bg-[#4A6CF7]/35" />
+                                                        <ArrowRight className="-ml-1 h-4 w-4 shrink-0 text-[#4A6CF7] dark:text-[#A5B4FC]" />
+                                                    </div>
+                                                )}
+                                            </React.Fragment>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {pipelineSteps.map((stepItem, index) => (
+                                        <div
+                                            key={stepItem.title}
+                                            className="rounded-xl border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-4"
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#EEF2FF] text-[#4A6CF7] text-[11px] font-extrabold dark:bg-[#4A6CF7]/15 dark:text-[#A5B4FC]">
+                                                    {index + 1}
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <stepItem.Icon className="h-3.5 w-3.5 text-[#4A6CF7] dark:text-[#A5B4FC]" />
+                                                        <h3 className="text-[12px] font-extrabold text-[#27272A] dark:text-[#E4E4E7]">
+                                                            {stepItem.title}
+                                                        </h3>
+                                                    </div>
+                                                    <p className="text-[11px] leading-relaxed font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                                        {stepItem.body}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800/60 dark:bg-amber-950/20">
+                                <div className="flex items-start gap-3 mb-4">
+                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:ring-amber-800/60">
+                                        <FileBadge className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-[14px] font-extrabold text-amber-950 dark:text-amber-100">
+                                            Endorsement Guide
+                                        </h2>
+                                        <p className="text-[12px] font-medium leading-relaxed text-amber-900 dark:text-amber-200">
+                                            Endorsement is available here, but it is not compulsory for every project. Use it when the project needs an endorsement certificate before or along with registration.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mb-4 overflow-x-auto rounded-xl border border-amber-200 bg-white p-4 dark:border-amber-800/60 dark:bg-[#27272A]">
+                                    <div className="flex min-w-[700px] items-start">
+                                        {[
+                                            { title: "Fill basic project data", Icon: FileText },
+                                            { title: "Generate endorsement", Icon: FileBadge },
+                                            { title: "Submit to Dean", Icon: Users },
+                                            { title: "Dean approves", Icon: CheckCircle2 },
+                                            { title: "Download certificate", Icon: FileText },
+                                            { title: "Register project", Icon: ArrowRight },
+                                        ].map((stepItem, index, list) => (
+                                            <React.Fragment key={stepItem.title}>
+                                                <div className="flex w-[110px] shrink-0 flex-col items-center text-center">
+                                                    <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-amber-500 text-white shadow-sm ring-4 ring-amber-100 dark:ring-amber-900/30">
+                                                        <stepItem.Icon className="h-4 w-4" />
+                                                        <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-extrabold text-amber-700 ring-1 ring-amber-200 dark:bg-[#18181B] dark:text-amber-300 dark:ring-amber-800/60">
+                                                            {index + 1}
+                                                        </span>
+                                                    </div>
+                                                    <h3 className="mt-2 text-[10px] font-extrabold leading-tight text-amber-950 dark:text-amber-100">
+                                                        {stepItem.title}
+                                                    </h3>
+                                                </div>
+                                                {index < list.length - 1 && (
+                                                    <div className="flex h-10 min-w-[34px] flex-1 items-center px-1">
+                                                        <div className="h-1 w-full rounded-full bg-amber-200 dark:bg-amber-800/60" />
+                                                        <ArrowRight className="-ml-1 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />
+                                                    </div>
+                                                )}
+                                            </React.Fragment>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                                    <div className="rounded-xl border border-amber-200 bg-white p-4 dark:border-amber-800/60 dark:bg-[#27272A]">
+                                        <h3 className="mb-2 text-[12px] font-extrabold text-amber-950 dark:text-amber-100">
+                                            Data required for endorsement
+                                        </h3>
+                                        <ul className="space-y-1.5 text-[11px] font-medium leading-relaxed text-amber-900 dark:text-amber-200">
+                                            <li>Project Title, Project Type, Department/Centre</li>
+                                            <li>Project Duration and Funding Agency</li>
+                                            <li>PI Webmail, PI Name, Designation, Employee ID, and Department</li>
+                                            <li>Co-PI details, if applicable</li>
+                                        </ul>
+                                    </div>
+                                    <div className="rounded-xl border border-amber-200 bg-white p-4 dark:border-amber-800/60 dark:bg-[#27272A]">
+                                        <h3 className="mb-2 text-[12px] font-extrabold text-amber-950 dark:text-amber-100">
+                                            Workflow
+                                        </h3>
+                                        <p className="text-[11px] font-medium leading-relaxed text-amber-900 dark:text-amber-200">
+                                            After the endorsement certificate is submitted, it goes directly to the Dean approval workflow. Until approval, it remains an endorsement request.
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl border border-amber-200 bg-white p-4 dark:border-amber-800/60 dark:bg-[#27272A]">
+                                        <h3 className="mb-2 text-[12px] font-extrabold text-amber-950 dark:text-amber-100">
+                                            After Dean approval
+                                        </h3>
+                                        <p className="text-[11px] font-medium leading-relaxed text-amber-900 dark:text-amber-200">
+                                            The approved endorsement can be downloaded from Project View. From that approved endorsement project, use the Register Project action to continue full project registration for the same project.
+                                        </p>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <div className="pt-6 border-t border-[#E4E4E7] dark:border-[#3F3F46] flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setEntryStep("form")}
+                                    disabled={loading}
+                                    className="btn-primary-accent disabled:opacity-50"
+                                >
+                                    {loading ? (
+                                        <>
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            Loading Form...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Next: Start Project Registration
+                                            <ArrowRight className="h-3.5 w-3.5" />
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (loading)
         return (
             <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] p-4 sm:p-6">
@@ -3035,15 +3322,15 @@ Until then, the project is not yet eligible for submission.`);
                             {isSavingDraft ? "SAVING..." : "Save As Draft"}
                         </FrappeButton>
                     )}
-                    {isEditMode && isApprovedEndorsement && (
+                    {isEditMode && (
                         <FrappeButton
                             variant="primary"
                             onClick={handleSubmit}
                             disabled={isSubmitting || isSavingDraft}
                         >
                             {isSubmitting
-                                ? "REGISTERING..."
-                                : "Register Project"}
+                                ? "SUBMITTING..."
+                                : "Submit"}
                         </FrappeButton>
                     )}
                 </div>
@@ -3207,8 +3494,8 @@ Until then, the project is not yet eligible for submission.`);
                                         )}
                                         title={
                                             isEndorsementEnabled
-                                                ? "Generate Endorsement Certificate"
-                                                : "Fill all required Project Details and PI Details to enable"
+                                                ? "Generate optional endorsement certificate"
+                                                : "Fill Project Details and PI Details to enable optional endorsement"
                                         }
                                     >
                                         <FileBadge className="h-4 w-4" />
@@ -3216,7 +3503,7 @@ Until then, the project is not yet eligible for submission.`);
                                     </button>
                                     {!isEndorsementEnabled && missingEndorsementFields.length > 0 && (
                                         <span className="text-[10px] text-red-500 dark:text-red-400 max-w-[220px] text-right leading-tight">
-                                            Required: {missingEndorsementFields.join(", ")}
+                                            For endorsement: {missingEndorsementFields.join(", ")}
                                         </span>
                                     )}
                                 </div>
@@ -4312,19 +4599,18 @@ Until then, the project is not yet eligible for submission.`);
                     </div>
                 </div>
 
-                {/* Endorsement Required Modal */}
+                {/* Endorsement Guidance Modal */}
                 {showSubmitInsteadModal && (
                     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
                         <div className="bg-white dark:bg-zinc-900 rounded-lg shadow-2xl max-w-md w-full mx-4 border border-zinc-300 dark:border-zinc-700">
                             <div className="px-6 py-5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-3">
-                                <span className="text-red-500 text-xl">⚠️</span>
                                 <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                                    Endorsement Certificate Required
+                                    Endorsement Certificate
                                 </h2>
                             </div>
                             <div className="px-6 py-5">
                                 <p className="text-sm text-zinc-700 dark:text-zinc-300">
-                                    The endorsement certificate <strong>must</strong> be filled in before you can submit the project. Please complete the endorsement certificate and try again.
+                                    Endorsement is optional. Generate it only if this project needs an endorsement certificate; otherwise continue with Project Registration.
                                 </p>
                             </div>
                             <div className="px-6 py-4 border-t border-[#E4E4E7] dark:border-[#3F3F46] flex items-center justify-end gap-3">
@@ -4343,7 +4629,7 @@ Until then, the project is not yet eligible for submission.`);
                                     }}
                                     className="btn-primary-accent"
                                 >
-                                    Go to Endorsement
+                                    Open Endorsement
                                 </button>
                             </div>
                         </div>
@@ -4372,10 +4658,9 @@ Until then, the project is not yet eligible for submission.`);
                             </div>
                             {/* Guidance message */}
                             <div className="flex gap-3 px-6 py-3 bg-amber-50 border-b border-amber-200 text-amber-800 text-xs leading-relaxed">
-                                <span className="text-base leading-none mt-0.5">💡</span>
                                 <div className="space-y-1">
-                                    <p><span className="font-semibold">Submitting endorsement only?</span> Fill the endorsement and click the <span className="font-semibold">Submit</span> button below.</p>
-                                    <p><span className="font-semibold">Registering a full project?</span> Fill the endorsement here, then <span className="font-semibold">close this panel</span> and use the main <span className="font-semibold">Submit Project</span> button — do not submit from here.</p>
+                                    <p><span className="font-semibold">Endorsement is optional.</span> Use this certificate only when the project requires it.</p>
+                                    <p><span className="font-semibold">For project registration:</span> close this panel and use the main <span className="font-semibold">Submit</span> button on the final step.</p>
                                 </div>
                             </div>
                             {/* Modal Body */}
