@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { format, isToday, isYesterday } from "date-fns";
-import { ChevronDown, Download, FileText, Forward, ImageIcon, Trash2 } from "lucide-react";
+import { ChevronDown, Download, FileText, Forward, ImageIcon, Reply, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
     formatMessageUserDetail,
@@ -25,6 +25,7 @@ interface MessageThreadProps {
     typingEmails?: string[];
     userProfiles?: Record<string, MessageUserProfile>;
     onForward?: (message: Message) => void;
+    onReply?: (message: Message) => void;
     onDeleted?: (messageId: string) => void;
     onUpdated?: (message: Message) => void;
 }
@@ -97,6 +98,7 @@ export function MessageThread({
     typingEmails = [],
     userProfiles = {},
     onForward,
+    onReply,
     onDeleted,
     onUpdated,
 }: MessageThreadProps) {
@@ -231,6 +233,9 @@ export function MessageThread({
                     const senderProfile = userProfiles[m.sender_email?.toLowerCase()];
                     const senderName = senderProfile?.fullName || m.sender_email;
                     const senderDetail = formatMessageUserDetail(senderProfile);
+                    const replySenderName =
+                        userProfiles[m.reply_to_sender_email?.toLowerCase() ?? ""]?.fullName ||
+                        m.reply_to_sender_email;
 
                     return (
                         <div
@@ -266,6 +271,35 @@ export function MessageThread({
                                             : "rounded-bl-md border border-[#E4E4E7] bg-white text-[#3F3F46] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#E4E4E7]",
                                     )}
                                 >
+                                    {m.reply_to_message_id && (
+                                        <div
+                                            className={cn(
+                                                "mb-2 rounded-lg border-l-2 px-2.5 py-1.5",
+                                                isMine
+                                                    ? "border-white/70 bg-white/10"
+                                                    : "border-[#4A6CF7] bg-[#EEF2FF] dark:bg-[#18181B]",
+                                            )}
+                                        >
+                                            <p
+                                                className={cn(
+                                                    "truncate text-[10px] font-extrabold uppercase tracking-wide",
+                                                    isMine ? "text-white/85" : "text-[#4A6CF7]",
+                                                )}
+                                            >
+                                                {replySenderName || "Replied message"}
+                                            </p>
+                                            <p
+                                                className={cn(
+                                                    "mt-0.5 line-clamp-2 whitespace-pre-wrap text-[11px] font-semibold leading-snug",
+                                                    isMine
+                                                        ? "text-white/80"
+                                                        : "text-[#52525B] dark:text-[#D4D4D8]",
+                                                )}
+                                            >
+                                                {m.reply_to_body || "Message"}
+                                            </p>
+                                        </div>
+                                    )}
                                     {isDeletedForEveryone ? (
                                         <p className="text-[12px] italic leading-relaxed opacity-75">
                                             This message was deleted
@@ -347,6 +381,16 @@ export function MessageThread({
                                             >
                                                 <Forward className="h-3.5 w-3.5" />
                                                 Forward
+                                            </button>
+                                        )}
+                                        {!isDeletedForEveryone && (
+                                            <button
+                                                type="button"
+                                                onClick={() => onReply?.(m)}
+                                                className="mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] font-bold text-[#3F3F46] transition-colors hover:bg-[#F4F4F5] dark:text-[#E4E4E7] dark:hover:bg-[#18181B]"
+                                            >
+                                                <Reply className="h-3.5 w-3.5" />
+                                                Reply
                                             </button>
                                         )}
                                         <button

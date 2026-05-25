@@ -29,6 +29,9 @@ export interface Message extends Models.Document {
     body: string;
     attachment_file_ids: string[];
     read_by: string[];               // Appwrite userIds who've read it
+    reply_to_message_id?: string | null;
+    reply_to_sender_email?: string | null;
+    reply_to_body?: string | null;
     reactions?: string[];            // Stored as "emoji:userId"
     deleted_for_user_ids?: string[];
     deleted_for_everyone?: boolean;
@@ -73,6 +76,29 @@ export async function leaveConversation(
             (email) => email.toLowerCase() !== me.email.toLowerCase(),
         ),
     });
+}
+
+export async function updateConversationMembers(
+    conversation: Conversation,
+    members: { userId: string; email: string }[],
+): Promise<Conversation> {
+    const seen = new Set<string>();
+    const uniqueMembers = members.filter((member) => {
+        const key = member.email.trim().toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+
+    return appwriteDatabases.updateDocument<Conversation>(
+        databaseId,
+        conversationsCollectionId,
+        conversation.$id,
+        {
+            members: uniqueMembers.map((member) => member.userId),
+            member_emails: uniqueMembers.map((member) => member.email),
+        },
+    );
 }
 
 export async function updateTypingStatus(
@@ -162,6 +188,7 @@ interface SendMessageInput {
     sender: { userId: string; email: string };
     body: string;
     attachmentFileIds?: string[];
+    replyTo?: Pick<Message, "$id" | "sender_email" | "body" | "attachment_file_ids"> | null;
 }
 
 export async function sendMessage({
@@ -169,6 +196,7 @@ export async function sendMessage({
     sender,
     body,
     attachmentFileIds = [],
+    replyTo,
 }: SendMessageInput): Promise<Message> {
     const messagePermissions = [
         ...authenticatedUserPermissions,
@@ -186,6 +214,12 @@ export async function sendMessage({
             body,
             attachment_file_ids: attachmentFileIds,
             read_by: [sender.userId],
+            reply_to_message_id: replyTo?.$id ?? null,
+            reply_to_sender_email: replyTo?.sender_email ?? null,
+            reply_to_body:
+                replyTo
+                    ? (replyTo.body || ((replyTo.attachment_file_ids ?? []).length > 0 ? "Attachment" : "")).slice(0, 180)
+                    : null,
         },
         messagePermissions,
     );

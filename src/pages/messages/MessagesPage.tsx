@@ -22,6 +22,7 @@ import { ConversationList } from "./components/ConversationList";
 import { MessageThread } from "./components/MessageThread";
 import { MessageComposer } from "./components/MessageComposer";
 import { ForwardMessageDialog } from "./components/ForwardMessageDialog";
+import { GroupMembersDialog } from "./components/GroupMembersDialog";
 import { NewConversationDialog } from "./components/NewConversationDialog";
 import {
     createConversation,
@@ -136,7 +137,9 @@ export default function MessagesPage() {
     const userProfiles = useMessageUserProfiles(profileEmails);
 
     const [showNew, setShowNew] = useState(false);
+    const [showGroupMembers, setShowGroupMembers] = useState(false);
     const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
+    const [replyMessage, setReplyMessage] = useState<Message | null>(null);
     const [isOpeningAdminChat, setIsOpeningAdminChat] = useState(false);
     const [search, setSearch] = useState("");
     const [isConversationListCollapsed, setIsConversationListCollapsed] = useState(false);
@@ -195,6 +198,8 @@ export default function MessagesPage() {
     const selectConversation = useCallback((id: string) => {
         const next = new URLSearchParams(searchParams);
         next.set("c", id);
+        setShowGroupMembers(false);
+        setReplyMessage(null);
         setSearchParams(next, { replace: true });
     }, [searchParams, setSearchParams]);
 
@@ -488,9 +493,20 @@ export default function MessagesPage() {
                     {activeConversation && (
                         <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-white px-4 py-3 dark:border-[#3F3F46] dark:bg-[#27272A]">
                             <div className="min-w-0">
-                                <div className="truncate text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
-                                    {activeTitle}
-                                </div>
+                                {activeConversation.type === "group" ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowGroupMembers(true)}
+                                        className="block max-w-full truncate text-left text-[13px] font-bold text-[#3F3F46] transition-colors hover:text-[#4A6CF7] dark:text-[#E4E4E7] dark:hover:text-[#93C5FD]"
+                                        title="View group members"
+                                    >
+                                        {activeTitle}
+                                    </button>
+                                ) : (
+                                    <div className="truncate text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                        {activeTitle}
+                                    </div>
+                                )}
                                 {activeUserDetail && (
                                     <div className="mt-0.5 truncate text-[10px] font-semibold text-[#A16207] dark:text-[#FDBA74]">
                                         {activeUserDetail}
@@ -528,8 +544,10 @@ export default function MessagesPage() {
                         typingEmails={activeTypingEmails}
                         userProfiles={userProfiles}
                         onForward={setForwardMessage}
+                        onReply={setReplyMessage}
                         onDeleted={(messageId) => {
                             removeMessage(messageId);
+                            if (replyMessage?.$id === messageId) setReplyMessage(null);
                             refreshConvos();
                             refreshUnreadCounts();
                         }}
@@ -542,9 +560,12 @@ export default function MessagesPage() {
                         <MessageComposer
                             conversation={activeConversation}
                             sender={{ userId: myUserId, email: myEmail }}
+                            replyTo={replyMessage}
+                            onCancelReply={() => setReplyMessage(null)}
                             onTypingChange={handleTypingChange}
                             onSent={(message) => {
                                 appendMessage(message);
+                                setReplyMessage(null);
                                 refreshConvos();
                                 refreshUnreadCounts();
                             }}
@@ -562,6 +583,21 @@ export default function MessagesPage() {
                         setShowNew(false);
                         refreshConvos();
                         selectConversation(c.$id);
+                    }}
+                />
+            )}
+
+            {showGroupMembers && activeConversation?.type === "group" && (
+                <GroupMembersDialog
+                    conversation={activeConversation}
+                    myUserId={myUserId}
+                    myEmail={myEmail}
+                    adminEmail={PRORND_ADMIN_CONTACT.email}
+                    userProfiles={userProfiles}
+                    onClose={() => setShowGroupMembers(false)}
+                    onUpdated={() => {
+                        refreshConvos();
+                        refreshUnreadCounts();
                     }}
                 />
             )}

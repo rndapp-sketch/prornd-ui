@@ -2,7 +2,7 @@
 
 ## Overview
 
-The messaging module adds an Appwrite-backed chat experience inside the ProRnD UI at `/messages`. It supports direct conversations, message sending, attachments, reactions, read status, delete actions, forwarding, unread counts, notification sounds, typing status, a collapsible conversation sidebar, and a pinned ProRND Admin support chat.
+The messaging module adds an Appwrite-backed chat experience inside the ProRnD UI at `/messages`. It supports direct conversations, named group conversations, group member management, message sending, attachments, reactions, read status, delete actions, forwarding, message replies, unread counts, notification sounds, typing status, a collapsible conversation sidebar, and a pinned ProRND Admin support chat.
 
 The implementation bridges the existing Frappe-authenticated user session into Appwrite by deriving a stable Appwrite user ID from the logged-in user's email. Frappe remains the source for user search and profile display, while Appwrite stores conversations, messages, and attachments.
 
@@ -11,8 +11,10 @@ The implementation bridges the existing Frappe-authenticated user session into A
 - `src/pages/messages/MessagesPage.tsx`
   - Main messaging screen.
   - Owns active conversation state from the `?c=` URL parameter.
-  - Wires conversation list, thread, composer, new conversation dialog, and forward dialog.
+  - Wires conversation list, thread, composer, new conversation dialog, group members dialog, and forward dialog.
   - Handles notification permission, ping sound, online/offline display, chat deletion, admin chat opening, and typing updates.
+  - Opens the group members modal when a group title is clicked.
+  - Owns the selected reply target and passes it to the composer.
 
 - `src/pages/messages/components/ConversationList.tsx`
   - Sidebar conversation list.
@@ -24,19 +26,31 @@ The implementation bridges the existing Frappe-authenticated user session into A
 
 - `src/pages/messages/components/MessageThread.tsx`
   - Renders the active message timeline.
-  - Supports attachment previews, reactions, delete for me, delete for everyone, forwarding, seen/sent status, and typing indicators.
+  - Supports attachment previews, reactions, delete for me, delete for everyone, forwarding, replying, seen/sent status, and typing indicators.
+  - Displays a compact quoted preview above messages that reply to another message.
   - Marks unread incoming messages as read when the thread is open.
 
 - `src/pages/messages/components/MessageComposer.tsx`
   - Sends text and attachment messages.
   - Uploads files to Appwrite Storage before sending.
+  - Shows the active reply target with a cancel action before sending.
   - Emits typing state while the user is composing.
 
 - `src/pages/messages/components/NewConversationDialog.tsx`
   - Searches Frappe users only after at least 2 characters are typed.
   - Excludes self, `Administrator`, and `Guest`.
   - Reuses an older existing direct chat when starting a conversation with the same user.
+  - Shows a required group name field only when more than one user is selected.
+  - Passes the group name as the Appwrite conversation `title`.
   - Prevents creating self-chat.
+
+- `src/pages/messages/components/GroupMembersDialog.tsx`
+  - Opens from the active group title in the chat header.
+  - Shows all current group members with profile names when available.
+  - Treats the first stored member as the group creator.
+  - Allows the creator or ProRND admin to add/remove members.
+  - Prevents removing the creator and prevents reducing a group below 2 members.
+  - Searches Frappe users only after at least 2 characters are typed.
 
 - `src/pages/messages/components/ForwardMessageDialog.tsx`
   - Forwards a message to existing conversations or searched users.
@@ -46,7 +60,7 @@ The implementation bridges the existing Frappe-authenticated user session into A
 
 - `src/services/messagingService.ts`
   - Appwrite database/storage service layer.
-  - Provides conversation listing/creation, message listing/sending, read status updates, reactions, delete operations, typing updates, attachment upload, and preview/view URLs.
+  - Provides conversation listing/creation, group member updates, message listing/sending, read status updates, reactions, delete operations, typing updates, attachment upload, and preview/view URLs.
 
 - `src/hooks/useAppwriteSession.ts`
   - Connects the current browser session to Appwrite Account.
@@ -110,6 +124,9 @@ sender_email              String(320)
 body                      String(10000), optional
 attachment_file_ids[]     String(36), optional
 read_by[]                 String(36), optional
+reply_to_message_id       String(36), optional
+reply_to_sender_email     String(320), optional
+reply_to_body             String(500), optional
 reactions[]               String(100), optional
 deleted_for_user_ids[]    String(36), optional
 deleted_for_everyone      Boolean, optional
@@ -148,6 +165,37 @@ Self-chats are blocked:
 - Self user is not shown in user search.
 - Self-chat creation is rejected.
 - Existing self-chat conversations are hidden in the sidebar.
+
+## Group Conversation Behavior
+
+Groups are created when more than one other user is selected in the new conversation dialog.
+
+Group creation requires:
+
+```text
+Group name
+At least 2 selected users including the creator
+```
+
+The group name is stored in the conversation `title` field.
+
+Clicking the group title in the active chat header opens the group members modal. All members can view the list. Only managers can edit members.
+
+Current manager rule:
+
+```text
+The first stored member is treated as the group creator.
+The configured ProRND admin email is also treated as an admin.
+```
+
+Manager actions:
+
+- Add users from Frappe search.
+- Remove users from the group.
+- Cannot remove the creator.
+- Cannot reduce the group below 2 members.
+
+This uses the existing `members[]` and `member_emails[]` conversation fields. No separate creator/admin Appwrite columns are currently required.
 
 ## Pinned Admin Chat
 
@@ -201,11 +249,26 @@ Messages support:
 - Delete for me using `deleted_for_user_ids[]`
 - Delete for everyone using `deleted_for_everyone`, `deleted_by`, and `deleted_at`
 - Forwarding to users or conversations
+- Replying to a specific message using `reply_to_message_id`, `reply_to_sender_email`, and `reply_to_body`
 - Typing indicators using conversation typing fields
 - New-message ping sound and browser notifications
+
+## Reply Behavior
+
+Each message action menu includes `Reply`.
+
+When the user clicks `Reply`:
+
+1. `MessagesPage` stores the selected reply target.
+2. `MessageComposer` shows a quoted preview above the input.
+3. Sending the message stores reply metadata on the new message.
+4. `MessageThread` renders the quoted preview above the replied message.
+
+Reply metadata is intentionally denormalized into the message document so the quoted preview still renders even if the original message is later deleted or not loaded in the current message page.
 
 ## Notes
 
 - Appwrite permissions are currently broad authenticated-user permissions for the browser bridge. A production hardening pass should move conversation/message creation to a server-side trusted function so exact member permissions can be assigned.
 - Frappe remains the source for user identity/profile search.
 - Appwrite stores chat state and attachments.
+- The current group creator/admin logic is inferred in the client. A production version should add explicit `created_by`, `admin_user_ids[]`, or `admin_emails[]` fields and enforce membership changes server-side.

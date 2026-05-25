@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Paperclip, SendHorizontal, X } from "lucide-react";
+import { Paperclip, Reply, SendHorizontal, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
     sendMessage,
@@ -11,14 +11,18 @@ import {
 interface MessageComposerProps {
     conversation: Conversation;
     sender: { userId: string; email: string };
+    replyTo?: Message | null;
     onSent?: (message: Message) => void;
+    onCancelReply?: () => void;
     onTypingChange?: (isTyping: boolean) => void;
 }
 
 export function MessageComposer({
     conversation,
     sender,
+    replyTo,
     onSent,
+    onCancelReply,
     onTypingChange,
 }: MessageComposerProps) {
     const [body, setBody] = useState("");
@@ -26,6 +30,7 @@ export function MessageComposer({
     const [isSending, setIsSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isTypingRef = useRef(false);
     const lastTypingSentAtRef = useRef(0);
@@ -47,9 +52,11 @@ export function MessageComposer({
                 sender,
                 body: body.trim(),
                 attachmentFileIds,
+                replyTo,
             });
             setBody("");
             setFiles([]);
+            onCancelReply?.();
             if (isTypingRef.current) {
                 isTypingRef.current = false;
                 lastTypingSentAtRef.current = 0;
@@ -57,7 +64,14 @@ export function MessageComposer({
             }
             onSent?.(message);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to send");
+            const message = err instanceof Error ? err.message : "";
+            if (/unknown attribute:\s*"reply_to_/i.test(message)) {
+                setError(
+                    "Replies need Appwrite message columns: reply_to_message_id, reply_to_sender_email, reply_to_body.",
+                );
+            } else {
+                setError(err instanceof Error ? err.message : "Failed to send");
+            }
         } finally {
             setIsSending(false);
         }
@@ -94,6 +108,10 @@ export function MessageComposer({
             if (isTypingRef.current) onTypingChange?.(false);
         };
     }, [onTypingChange]);
+
+    useEffect(() => {
+        if (replyTo) textareaRef.current?.focus();
+    }, [replyTo]);
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -133,6 +151,28 @@ export function MessageComposer({
                 </ul>
             )}
 
+            {replyTo && (
+                <div className="mb-2 flex items-start gap-2 rounded-xl border border-[#C7D2FE] bg-[#EEF2FF] px-3 py-2 text-[#1E3A8A] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD]">
+                    <Reply className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-extrabold uppercase tracking-wide">
+                            Replying to {replyTo.sender_email}
+                        </p>
+                        <p className="mt-0.5 truncate text-[12px] font-semibold">
+                            {replyTo.body || ((replyTo.attachment_file_ids ?? []).length > 0 ? "Attachment" : "Message")}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onCancelReply}
+                        className="rounded-md p-1 transition-colors hover:bg-white/60 dark:hover:bg-[#18181B]/60"
+                        title="Cancel reply"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                </div>
+            )}
+
             <div className="flex items-end gap-2 rounded-2xl border border-[#E4E4E7] bg-[#FAFAF9] p-2 shadow-sm dark:border-[#3F3F46] dark:bg-[#18181B]">
                 <button
                     type="button"
@@ -155,6 +195,7 @@ export function MessageComposer({
                 />
 
                 <textarea
+                    ref={textareaRef}
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     onKeyDown={handleKeyDown}
