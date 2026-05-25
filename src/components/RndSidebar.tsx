@@ -25,6 +25,7 @@ import {
     MessageCircle,
     Users as UsersIcon,
     UserCheck,
+    IndianRupee,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -231,6 +232,11 @@ export function AppSidebar() {
                 );
                 window.open(`http://172.16.135.27:7079/sso?token=${encodedJson}`, "_blank");
             },
+        },
+        {
+            label: "Salary Module",
+            icon: IndianRupee,
+            path: "/salary-module",
         },
     ].filter((item) => {
         if (item.label === "Upload Director PDF") {
