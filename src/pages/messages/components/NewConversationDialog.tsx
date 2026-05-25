@@ -71,10 +71,13 @@ export function NewConversationDialog({
     const [search, setSearch] = useState("");
     const [debounced] = useDebounce(search, 250);
     const [selected, setSelected] = useState<SelectedUser[]>([]);
+    const [groupTitle, setGroupTitle] = useState("");
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const searchQuery = debounced.trim();
     const shouldSearchUsers = searchQuery.length >= 2;
+    const isGroupConversation = selected.length > 1;
+    const trimmedGroupTitle = groupTitle.trim();
 
     const filters = useMemo<FrappeUserFilter[]>(() => [
         ["enabled", "=", "1"],
@@ -162,6 +165,10 @@ export function NewConversationDialog({
             setError("You cannot start a chat with yourself.");
             return;
         }
+        if (isGroupConversation && !trimmedGroupTitle) {
+            setError("Enter a group name.");
+            return;
+        }
         setIsCreating(true);
         setError(null);
         try {
@@ -183,6 +190,7 @@ export function NewConversationDialog({
                     userId: s.appwriteUserId,
                     email: s.email,
                 })),
+                title: isGroupConversation ? trimmedGroupTitle : undefined,
             });
             onCreated(conv);
         } catch (err) {
@@ -239,6 +247,24 @@ export function NewConversationDialog({
                                     </button>
                                 </span>
                             ))}
+                        </div>
+                    )}
+
+                    {isGroupConversation && (
+                        <div className="space-y-1.5">
+                            <label
+                                htmlFor="new-conversation-group-title"
+                                className="block text-[11px] font-bold uppercase tracking-[0.08em] text-[#52525B] dark:text-[#A1A1AA]"
+                            >
+                                Group name
+                            </label>
+                            <input
+                                id="new-conversation-group-title"
+                                value={groupTitle}
+                                onChange={(e) => setGroupTitle(e.target.value)}
+                                placeholder="Enter group name"
+                                className="frappe-input h-10 w-full text-[13px]"
+                            />
                         </div>
                     )}
 
@@ -322,10 +348,16 @@ export function NewConversationDialog({
                     </button>
                     <button
                         onClick={handleCreate}
-                        disabled={selected.length === 0 || isCreating}
+                        disabled={
+                            selected.length === 0 ||
+                            isCreating ||
+                            (isGroupConversation && !trimmedGroupTitle)
+                        }
                         className={cn(
                             "btn-primary-accent",
-                            (selected.length === 0 || isCreating) &&
+                            (selected.length === 0 ||
+                                isCreating ||
+                                (isGroupConversation && !trimmedGroupTitle)) &&
                                 "opacity-50 cursor-not-allowed",
                         )}
                     >
