@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
-import { ArrowLeft, Loader2, Save, Send } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, Save, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DepartmentName } from "@/components/DepartmentName";
 import { AppSidebar } from "@/components/RndSidebar";
@@ -24,6 +24,7 @@ const fallbackFields: FormField[] = [
     { fieldname: "ps_emp_id", label: "Employee ID", fieldtype: "Data", read_only: 1 },
     { fieldname: "scr_id", label: "Selection Committee Report", fieldtype: "Data", read_only: 1 },
     { fieldname: "pi_id", label: "Principal Investigator", fieldtype: "Data", read_only: 1 },
+    { fieldname: "project_no", label: "Project Number", fieldtype: "Data", read_only: 1 },
     { fieldname: "ps_aon", label: "Appointment Order No.", fieldtype: "Data" },
     { fieldname: "ps_designation", label: "Designation", fieldtype: "Data", mandatory: 1 },
     { fieldname: "ps_department", label: "Department", fieldtype: "Data" },
@@ -48,10 +49,13 @@ const fallbackFields: FormField[] = [
     { fieldname: "identity_documents_section", label: "Identity Documents", fieldtype: "Section Break" },
     { fieldname: "ps_pan", label: "PAN", fieldtype: "Data" },
     { fieldname: "ps_aadhar_number", label: "Aadhar Number", fieldtype: "Data" },
+    { fieldname: "bank_account_number", label: "Bank Account Number", fieldtype: "Data" },
     { fieldname: "salary_details_section", label: "Salary Details", fieldtype: "Section Break" },
     { fieldname: "ps_basic_salary", label: "Basic Salary", fieldtype: "Currency" },
     { fieldname: "ps_hra", label: "HRA", fieldtype: "Data" },
     { fieldname: "ps_ma", label: "MA", fieldtype: "Data" },
+    { fieldname: "ps_ta", label: "If Travel Allowance Needed", fieldtype: "Select", options: "\nYes\nNo" },
+    { fieldname: "ps_ta_amount", label: "Travel Allowance Amount", fieldtype: "Data" },
     { fieldname: "ps_hostel", label: "Hostel", fieldtype: "Data" },
     {
         fieldname: "table_ymed",
@@ -108,7 +112,7 @@ const normalizeRows = (value: unknown): Record<string, unknown>[] => {
 
 const normalizeFields = (fields: FormField[]): FormField[] =>
     fields.map((field) => {
-        if (field.fieldname === "ps_emp_id" || field.fieldname === "scr_id" || field.fieldname === "pi_id") return { ...field, read_only: 1 };
+        if (field.fieldname === "ps_emp_id" || field.fieldname === "scr_id" || field.fieldname === "pi_id" || field.fieldname === "project_no") return { ...field, read_only: 1 };
         if (field.fieldname === "table_ymed") {
             return {
                 ...field,
@@ -139,10 +143,13 @@ const ProjectStaffJoiningForm: React.FC = () => {
     const [savedDocName, setSavedDocName] = useState<string | null>(docnameParam || null);
     const [candidateName, setCandidateName] = useState("");
     const [nextEmpId, setNextEmpId] = useState("Auto-generated");
+    const [recruitmentPostId, setRecruitmentPostId] = useState("");
+    const [viewOnlyNotice, setViewOnlyNotice] = useState(false);
 
     const { call: fetchFields } = useFrappePostCall<{ message: any }>(projectStaffDetailsAPI.getFields);
     const { call: fetchSCRFields } = useFrappePostCall<{ message: any }>(selectionCommitteeReportAPI.getFields);
     const { call: fetchCandidateByApplication } = useFrappePostCall<{ message: any }>(selectionCandidateDetailsAPI.getByApplication);
+    const { call: fetchExistingJoining } = useFrappePostCall<{ message: any }>(projectStaffDetailsAPI.getByApplication);
     const { call: saveData } = useFrappePostCall<{ message: any }>(projectStaffDetailsAPI.save);
     const { call: fetchNextEmpId } = useFrappePostCall<{ message: string }>(projectStaffDetailsAPI.getNextEmpId);
     const { call: submitPSD } = useFrappePostCall<{ message: any }>(projectStaffDetailsAPI.submit);
@@ -157,7 +164,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
     const [pendingWorkflowAction, setPendingWorkflowAction] = useState<string>("");
     const activityStreamRef = React.useRef<ActivityStreamHandle>(null);
 
-    const canSave = !workflowState || workflowState.toLowerCase() === "draft";
+    const canSave = (!workflowState || workflowState.toLowerCase() === "draft") && !viewOnlyNotice;
 
     useEffect(() => {
         let mounted = true;
@@ -175,8 +182,28 @@ const ProjectStaffJoiningForm: React.FC = () => {
                 if (mounted) setNextEmpId(nextId);
             }
 
+            // Single-submission guard: if this candidate already has a Joining Form,
+            // load that record instead of starting a new one. A submitted record is
+            // shown view-only.
+            let effectiveDocName = savedDocName;
+            if (!effectiveDocName && applicationId) {
+                try {
+                    const exRes = await fetchExistingJoining({ application_id: applicationId });
+                    const ex = exRes?.message?.data;
+                    if (ex?.docname) {
+                        effectiveDocName = ex.docname;
+                        if (mounted) {
+                            setSavedDocName(ex.docname);
+                            setViewOnlyNotice(!!ex.is_submitted);
+                        }
+                    }
+                } catch {
+                    /* proceed as a new form if the lookup fails */
+                }
+            }
+
             try {
-                const res = await fetchFields({ doc_name: savedDocName });
+                const res = await fetchFields({ doc_name: effectiveDocName });
                 const msg = res?.message || {};
                 if (Array.isArray(msg.fields) && msg.fields.length) {
                     setFields(normalizeFields(msg.fields));
@@ -210,9 +237,15 @@ const ProjectStaffJoiningForm: React.FC = () => {
                     if (prefill?.owner) {
                         nextData = { ...nextData, pi_id: nextData.pi_id || prefill.owner };
                     }
+                    if (prefill?.project_number) {
+                        nextData = { ...nextData, project_no: nextData.project_no || prefill.project_number };
+                    }
                     const candidate = candidates.find((c) => String(c.candidate_id) === String(candidateId));
 
                     if (candidate) {
+                        if (mounted && candidate.recruitment_post_id) {
+                            setRecruitmentPostId(String(candidate.recruitment_post_id));
+                        }
                         const fullName = String(candidate.candidate_name || "");
                         const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
                         const firstName = nameParts[0] || "";
@@ -263,6 +296,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
                     ...(scd.citizenship && { ps_citizenship: scd.citizenship }),
                     ...(scd.pan && { ps_pan: scd.pan }),
                     ...(scd.aadhar_number && { ps_aadhar_number: scd.aadhar_number }),
+                    ...(scd.bank_account_number && { bank_account_number: scd.bank_account_number }),
                     ...(scd.appointment_order_number && { ps_aon: scd.appointment_order_number }),
                     ...(scd.basic_pay && { ps_basic_salary: scd.basic_pay }),
                     ...(scd.hra && { ps_hra: scd.hra }),
@@ -276,6 +310,8 @@ const ProjectStaffJoiningForm: React.FC = () => {
                 ...nextData,
                 scr_id: nextData.scr_id || scrName || "",
                 pi_id: nextData.pi_id || "",
+                project_no: nextData.project_no || "",
+                application_id: nextData.application_id || applicationId || "",
             };
 
             if (mounted) {
@@ -502,6 +538,11 @@ const ProjectStaffJoiningForm: React.FC = () => {
                                         {candidateName}
                                     </p>
                                 )}
+                                {viewOnlyNotice && (
+                                    <span className="mt-1 inline-block rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+                                        Already submitted - view only
+                                    </span>
+                                )}
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -509,6 +550,21 @@ const ProjectStaffJoiningForm: React.FC = () => {
                                 <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400">
                                     Saved: {savedDocName}
                                 </span>
+                            )}
+                            {candidateId && (
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        navigate(
+                                            `/candidate-details/${candidateId}?refNum=${encodeURIComponent(recruitmentPostId)}&applicationId=${encodeURIComponent(applicationId)}`,
+                                        )
+                                    }
+                                    className="flex items-center gap-2 rounded-lg border border-[#E4E4E7] bg-white px-4 py-2 text-sm font-bold text-[#3F3F46] shadow-sm transition-colors hover:border-[#D97757]/40 hover:bg-[#D97757]/10 hover:text-[#D97757] dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-[#E4E4E7]"
+                                    title="View full candidate profile"
+                                >
+                                    <Eye className="h-4 w-4" />
+                                    Candidate Details
+                                </button>
                             )}
                             {canSave && (
                                 <button
@@ -550,7 +606,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
                     <div className="space-y-5">
                         <GroupCard label="Appointment Details">
                             <DynamicFormRenderer
-                                fields={section(["appointment_details_section", "ps_emp_id", "scr_id", "pi_id", "ps_aon", "ps_designation", "ps_department", "ps_mro", "ps_joining_date", "ps_term_completion_date"])}
+                                fields={section(["appointment_details_section", "ps_emp_id", "scr_id", "pi_id", "project_no", "ps_designation", "ps_department", "ps_joining_date", "ps_term_completion_date"])}
                                 {...commonRendererProps}
                             />
                         </GroupCard>
@@ -588,7 +644,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
 
                         <GroupCard label="Identity Documents">
                             <DynamicFormRenderer
-                                fields={section(["identity_documents_section", "ps_pan", "ps_aadhar_number"])}
+                                fields={section(["identity_documents_section", "ps_pan", "ps_aadhar_number", "bank_account_number"])}
                                 {...commonRendererProps}
                             />
                         </GroupCard>
@@ -600,6 +656,8 @@ const ProjectStaffJoiningForm: React.FC = () => {
                                     "ps_basic_salary",
                                     "ps_hra",
                                     "ps_ma",
+                                    "ps_ta",
+                                    "ps_ta_amount",
                                     "ps_hostel",
                                     "table_ymed",
                                 ])}

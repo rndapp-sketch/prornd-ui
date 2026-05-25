@@ -80,6 +80,7 @@ import UniversalUserForm from './pages/application/UniversalUserForm.tsx';
 import SelectionCommitteeReportForm from './pages/application/SelectionCommitteeReportForm.tsx';
 import AppointmentOrderPage from './pages/application/AppointmentOrderPage.tsx';
 import MedicalReportPage from './pages/application/MedicalReportPage.tsx';
+import JoiningReportPage from './pages/application/JoiningReportPage.tsx';
 import ProjectStaffJoiningForm from './pages/application/ProjectStaffJoiningForm.tsx';
 import DepartmentProjects from './pages/DepartmentProjects.tsx';
 import AdminLogin from './pages/AdminLogin.tsx';
@@ -663,6 +664,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="staff, RnD">
                             <MedicalReportPage />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "joining-report",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <JoiningReportPage />
                         </AuthRouteWrapper>
                     )
                 },

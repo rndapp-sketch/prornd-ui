@@ -332,7 +332,7 @@ const MedicalReportPage: React.FC = () => {
                                 <td style={{ verticalAlign: 'top', textAlign: 'right', fontSize: '11.5px' }}>
                                     <div>Guwahati-781039</div>
                                     <div>Phone : +91-361-2583089</div>
-                                    <div>email: rndadmin@iitg.ac.in</div>
+                                    <div>Email Id: rndadmin@iitg.ac.in</div>
                                 </td>
                             </tr>
                         </tbody>
@@ -358,7 +358,7 @@ const MedicalReportPage: React.FC = () => {
                     <div style={{ marginTop: '18px' }}>
                         <div><strong>To,</strong></div>
                         <div style={{ marginTop: '12px' }}>The Chief Medical Officer (NFSG) &amp;</div>
-                        <div>HOS, Medical section</div>
+                        <div>HoS, Medical section</div>
                         <div>IIT Guwahati</div>
                     </div>
 
@@ -388,7 +388,10 @@ const MedicalReportPage: React.FC = () => {
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '40px' }}>
-                        <span><strong style={{ color: '#b00' }}>Ref:</strong> {projectNumber}</span>
+                        <span>
+                            <strong style={{ color: '#b00' }}>Ref:</strong> {projectNumber}
+                            {issueNumber ? `/${issueNumber}` : ''}
+                        </span>
                         <span><strong style={{ color: '#b00' }}>Date:</strong> {today}</span>
                     </div>
 
@@ -423,8 +426,8 @@ const MedicalReportPage: React.FC = () => {
                                 <td style={{ verticalAlign: 'top', textAlign: 'right' }}>Signature of the</td>
                             </tr>
                             <tr>
-                                <td style={{ verticalAlign: 'top', paddingTop: '40px' }}>selected for employment</td>
-                                <td style={{ verticalAlign: 'top', textAlign: 'right', paddingTop: '40px' }}>HOS,Medical section</td>
+                                <td style={{ verticalAlign: 'top', paddingTop: '40px' }}>Selected for employment</td>
+                                <td style={{ verticalAlign: 'top', textAlign: 'right', paddingTop: '40px' }}>HoS,Medical section</td>
                             </tr>
                         </tbody>
                     </table>
