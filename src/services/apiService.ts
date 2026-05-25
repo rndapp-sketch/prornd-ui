@@ -133,6 +133,7 @@ export const selectionCandidateDetailsAPI = {
     getByApplication: `${API_BASE}.selection_candidate_details.selection_candidate_details.get_selection_candidate_details_by_application`,
     updateAppointmentOrderNumber: `${API_BASE}.selection_candidate_details.selection_candidate_details.update_appointment_order_number`,
     updateMedicalReportNumber: `${API_BASE}.selection_candidate_details.selection_candidate_details.update_medical_report_number`,
+    updateJoiningReportNumber: `${API_BASE}.selection_candidate_details.selection_candidate_details.update_joining_report_number`,
 };
 
 // Project Staff Details (Joining) API endpoints
@@ -140,6 +141,7 @@ export const projectStaffDetailsAPI = {
     getFields: `${API_BASE}.project_staff_details.project_staff_details.get_project_staff_details_fields`,
     save: `${API_BASE}.project_staff_details.project_staff_details.save_project_staff_details_data`,
     getList: `${API_BASE}.project_staff_details.project_staff_details.get_project_staff_details_list`,
+    getByApplication: `${API_BASE}.project_staff_details.project_staff_details.get_joining_by_application`,
     delete: `${API_BASE}.project_staff_details.project_staff_details.delete_project_staff_details`,
     getNextEmpId: `${API_BASE}.project_staff_details.project_staff_details.get_next_emp_id`,
     submit: `${API_BASE}.project_staff_details.project_staff_details.submit_project_staff_details`,

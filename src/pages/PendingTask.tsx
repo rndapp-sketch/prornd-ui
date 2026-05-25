@@ -86,7 +86,68 @@ type SCRCandidate = {
     selection_status: string;
     appointment_order_number: string;
     medical_report_number: string;
+    joining_report_number: string;
     wl_number: string;
+    /** True if a Project Staff Details (joining) doc for this candidate has docstatus >= 1. */
+    joining_submitted?: boolean;
+};
+
+// ─── Hierarchical workflow button ────────────────────────────────────────────
+// Three canonical states drive the entire row: prior step incomplete -> disabled,
+// step ready but not yet done -> available, step already done -> completed.
+type WorkflowButtonState = 'disabled' | 'available' | 'completed';
+
+const WORKFLOW_BUTTON_CLASSES: Record<WorkflowButtonState, string> = {
+    disabled: 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed shadow-none',
+    available: 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md',
+    completed: 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm',
+};
+
+const WorkflowButton: React.FC<{
+    state: WorkflowButtonState;
+    label: string;
+    onClick?: () => void;
+    title?: string;
+}> = ({ state, label, onClick, title }) => (
+    <button
+        type="button"
+        onClick={state === 'disabled' ? undefined : onClick}
+        disabled={state === 'disabled'}
+        title={
+            title ??
+            (state === 'disabled'
+                ? 'Complete the previous step first'
+                : state === 'completed'
+                    ? 'Already completed'
+                    : undefined)
+        }
+        className={cn(
+            'inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs h-8 rounded-lg font-semibold transition-all duration-200',
+            'focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500',
+            WORKFLOW_BUTTON_CLASSES[state],
+        )}
+    >
+        {state === 'completed' && <span aria-hidden>✓</span>}
+        {label}
+    </button>
+);
+
+// Derive button states for one candidate. Add new steps here as the workflow grows.
+const getCandidateWorkflow = (
+    c: SCRCandidate,
+): Record<'appOrder' | 'medReport' | 'join' | 'joiningReport', WorkflowButtonState> => {
+    const appOrderDone = !!c.appointment_order_number;
+    const medReportDone = !!c.medical_report_number;
+    const joiningDone = !!c.joining_submitted;
+    const joiningReportDone = !!c.joining_report_number;
+    return {
+        appOrder: appOrderDone ? 'completed' : 'available',
+        medReport: !appOrderDone ? 'disabled' : medReportDone ? 'completed' : 'available',
+        join: !appOrderDone ? 'disabled' : joiningDone ? 'completed' : 'available',
+        // Joining Report is a printable office-order, enabled once the candidate
+        // has joined. Marked completed once its reference number is saved on SCD.
+        joiningReport: !joiningDone ? 'disabled' : joiningReportDone ? 'completed' : 'available',
+    };
 };
 
 const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'];
@@ -147,6 +208,17 @@ const PendingTask: React.FC = () => {
     }>({ open: false, loading: false, error: null, scrName: '', candidates: [] });
 
     const { call: fetchCandidatesByInterview } = useFrappePostCall(selectionCandidateDetailsAPI.getByInterview);
+    const { call: fetchPSDList } = useFrappePostCall<{ message: Array<{
+        ps_first_name?: string;
+        ps_middle_name?: string;
+        ps_last_name?: string;
+        docstatus?: number;
+        workflow_state?: string;
+    }> }>('frappe.client.get_list');
+
+    // Best-effort match: normalize spaces & case so "Anil  Kumar" === "anil kumar".
+    const normalizeName = (...parts: Array<string | undefined>) =>
+        parts.filter(Boolean).join(' ').toLowerCase().replace(/\s+/g, ' ').trim();
 
     const handleOrderClick = async (taskId: string) => {
         setOrderModal({ open: true, loading: true, error: null, scrName: taskId, candidates: [] });
@@ -157,7 +229,43 @@ const PendingTask: React.FC = () => {
                 return;
             }
             const candidates: SCRCandidate[] = Array.isArray(res?.message?.data) ? res.message.data : [];
-            setOrderModal(prev => ({ ...prev, loading: false, candidates }));
+
+            // Enrich with joining-submitted status by name-matching Project Staff Details
+            // rows that share this SCR. Falls back silently if the lookup fails.
+            let enriched = candidates;
+            try {
+                const psdRes = await fetchPSDList({
+                    doctype: 'Project Staff Details',
+                    filters: JSON.stringify([['scr_id', '=', taskId]]),
+                    fields: JSON.stringify(['ps_first_name', 'ps_middle_name', 'ps_last_name', 'docstatus', 'workflow_state']),
+                    limit_page_length: 0,
+                });
+                // Joining started is enough to unlock the Joining Report. Frappe
+                // workflows commonly keep docstatus=0 until final approval.
+                const isJoiningSubmitted = (p: { docstatus?: number; workflow_state?: string }) =>
+                    Number(p.docstatus) >= 1 ||
+                    (!!p.workflow_state && p.workflow_state.toLowerCase() !== 'draft');
+                const submitted = new Set<string>();
+                for (const p of (psdRes?.message ?? [])) {
+                    if (!isJoiningSubmitted(p)) continue;
+                    const variants = [
+                        normalizeName(p.ps_first_name, p.ps_middle_name, p.ps_last_name),
+                        normalizeName(p.ps_first_name, p.ps_last_name),
+                        normalizeName(p.ps_first_name),
+                    ].filter(Boolean);
+                    for (const v of variants) submitted.add(v);
+                }
+                if (submitted.size > 0) {
+                    enriched = candidates.map(c => ({
+                        ...c,
+                        joining_submitted: submitted.has(normalizeName(c.candidate_name)),
+                    }));
+                }
+            } catch {
+                /* leave joining_submitted undefined */
+            }
+
+            setOrderModal(prev => ({ ...prev, loading: false, candidates: enriched }));
         } catch {
             setOrderModal(prev => ({ ...prev, loading: false, error: 'Failed to fetch candidates. Please try again.' }));
         }
@@ -735,7 +843,7 @@ const PendingTask: React.FC = () => {
         {/* Order Modal — Candidates from Approved SCR */}
         {orderModal.open && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-lg mx-4">
+                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-4xl mx-4">
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
                         <div>
@@ -788,33 +896,44 @@ const PendingTask: React.FC = () => {
                                         {candidate.medical_report_number && (
                                             <p className="text-xs text-zinc-500 dark:text-zinc-400">Medical Report: {candidate.medical_report_number}</p>
                                         )}
+                                        {candidate.joining_report_number && (
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">Joining Report: {candidate.joining_report_number}</p>
+                                        )}
                                         <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-200">
                                             {candidate.selection_status}
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-2 flex-shrink-0">
-                                        <FrappeButton
-                                            variant="primary"
-                                            onClick={() => navigate(`/appointment-order?scr=${orderModal.scrName}&candidate_id=${candidate.candidate_id}&application_id=${candidate.application_id}`)}
-                                            className="px-3 py-1.5 text-xs h-8 shadow-sm"
-                                        >
-                                            App Order
-                                        </FrappeButton>
-                                        <FrappeButton
-                                            variant="primary"
-                                            onClick={() => navigate(`/medical-report?scr=${orderModal.scrName}&candidate_id=${candidate.candidate_id}&application_id=${candidate.application_id}`)}
-                                            className="px-3 py-1.5 text-xs h-8 shadow-sm"
-                                        >
-                                            Med Report
-                                        </FrappeButton>
-                                        <FrappeButton
-                                            variant="action"
-                                            onClick={() => navigate(`/project-staff-joining?scr=${orderModal.scrName}&candidate_id=${candidate.candidate_id}&application_id=${candidate.application_id}`)}
-                                            className="px-3 py-1.5 text-xs h-8 shadow-sm"
-                                        >
-                                            Join
-                                        </FrappeButton>
-                                    </div>
+                                    {(() => {
+                                        const wf = getCandidateWorkflow(candidate);
+                                        const qs = `scr=${orderModal.scrName}&candidate_id=${candidate.candidate_id}&application_id=${candidate.application_id}`;
+                                        return (
+                                            <div className="flex items-center gap-2 flex-shrink-0">
+                                                <WorkflowButton
+                                                    state={wf.appOrder}
+                                                    label="App Order"
+                                                    onClick={() => navigate(`/appointment-order?${qs}`)}
+                                                />
+                                                <WorkflowButton
+                                                    state={wf.medReport}
+                                                    label="Med Report"
+                                                    onClick={() => navigate(`/medical-report?${qs}`)}
+                                                    title={wf.medReport === 'disabled' ? 'Save the Appointment Order number first' : undefined}
+                                                />
+                                                <WorkflowButton
+                                                    state={wf.join}
+                                                    label="Join"
+                                                    onClick={() => navigate(`/project-staff-joining?${qs}`)}
+                                                    title={wf.join === 'disabled' ? 'Save the Appointment Order number first' : undefined}
+                                                />
+                                                <WorkflowButton
+                                                    state={wf.joiningReport}
+                                                    label="Joining Report"
+                                                    onClick={() => navigate(`/joining-report?${qs}`)}
+                                                    title={wf.joiningReport === 'disabled' ? 'Save & submit the Joining form first' : undefined}
+                                                />
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             ))
                         )}
