@@ -85,6 +85,7 @@ import Profile from './pages/Profile.tsx';
 import { HeadOverview } from './pages/dashboards/HeadOverview.tsx';
 // import Messages from './pages/Messages.tsx';
 import DirectorPdfUpload from './pages/application/DirectorPdfUpload.tsx';
+import SalaryModule from './pages/application/SalaryModule.tsx';
 
 const router = createBrowserRouter(
     [
@@ -723,6 +724,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="staff, RnD">
                             <DirectorPdfUpload />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "salary-module",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <SalaryModule />
                         </AuthRouteWrapper>
                     ),
                 },
