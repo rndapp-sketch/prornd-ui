@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useLayoutEffect, useState } from "react"
 
 type Theme = "dark" | "light" | "system"
 
@@ -20,31 +20,46 @@ const initialState: ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
+const applyThemeClass = (theme: Theme) => {
+    const root = window.document.documentElement
+    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light"
+    const activeTheme = theme === "system" ? systemTheme : theme
+
+    root.classList.remove("light", "dark")
+    root.classList.add(activeTheme)
+    root.style.colorScheme = activeTheme
+}
+
 export function ThemeProvider({
     children,
     defaultTheme = "system",
     storageKey = "vite-ui-theme",
 }: ThemeProviderProps) {
     const [theme, setTheme] = useState<Theme>(
-        () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
+        () => {
+            const storedTheme = localStorage.getItem(storageKey) as Theme | null
+            return storedTheme === "dark" || storedTheme === "light" || storedTheme === "system"
+                ? storedTheme
+                : defaultTheme
+        }
     )
 
-    useEffect(() => {
-        const root = window.document.documentElement
+    useLayoutEffect(() => {
+        applyThemeClass(theme)
 
-        root.classList.remove("light", "dark")
-
-        if (theme === "system") {
-            const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-                .matches
-                ? "dark"
-                : "light"
-
-            root.classList.add(systemTheme)
+        if (theme !== "system") {
             return
         }
 
-        root.classList.add(theme)
+        const media = window.matchMedia("(prefers-color-scheme: dark)")
+        const handleSystemThemeChange = () => applyThemeClass("system")
+        media.addEventListener("change", handleSystemThemeChange)
+
+        return () => {
+            media.removeEventListener("change", handleSystemThemeChange)
+        }
     }, [theme])
 
     const value = {
