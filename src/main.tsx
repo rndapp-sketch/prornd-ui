@@ -89,7 +89,7 @@ import Profile from './pages/Profile.tsx';
 import { HeadOverview } from './pages/dashboards/HeadOverview.tsx';
 import MessagesPage from './pages/messages/MessagesPage.tsx';
 import DirectorPdfUpload from './pages/application/DirectorPdfUpload.tsx';
-import SalaryModule from './pages/application/SalaryModule.tsx';
+import SalaryModule from './pages/application/SalaryModule';
 import DelegateUser from './pages/DelegateUser.tsx';
 import CoProjectView from './pages/CoProjectView.tsx';
 
@@ -784,7 +784,7 @@ const router = createBrowserRouter(
                 {
                     path: "salary-module",
                     element: (
-                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                        <AuthRouteWrapper allowedRole="staff, RnD">
                             <SalaryModule />
                         </AuthRouteWrapper>
                     ),
