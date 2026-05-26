@@ -3,6 +3,7 @@ import { useFrappeGetCall } from "frappe-react-sdk";
 import { FileTextIcon, UploadIcon, EyeIcon, RefreshCwIcon } from "lucide-react";
 import { FrappeButton } from "@/components/ui/neo-brutalism";
 import { selectionCommitteeReportAPI } from "@/services/apiService";
+import { DepartmentName } from "@/components/DepartmentName";
 
 type ScrDoc = {
     name: string;
@@ -166,7 +167,7 @@ const UploadCard = ({ doc, onDone }: { doc: ScrDoc; onDone: () => void }) => {
                 {doc.upfa_department && (
                     <div>
                         <span className="text-zinc-400">Department: </span>
-                        {doc.upfa_department}
+                        <DepartmentName name={doc.upfa_department} />
                     </div>
                 )}
                 {doc.principal_investigator && (
