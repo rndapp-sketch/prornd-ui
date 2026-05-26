@@ -649,22 +649,6 @@ const ProjectStaffJoiningForm: React.FC = () => {
                             />
                         </GroupCard>
 
-                        <GroupCard label="Salary & Tenure Details">
-                            <DynamicFormRenderer
-                                fields={section([
-                                    "salary_details_section",
-                                    "ps_basic_salary",
-                                    "ps_hra",
-                                    "ps_ma",
-                                    "ps_ta",
-                                    "ps_ta_amount",
-                                    "ps_hostel",
-                                    "table_ymed",
-                                ])}
-                                {...commonRendererProps}
-                            />
-                        </GroupCard>
-
                         <GroupCard label="Uploads">
                             <DynamicFormRenderer
                                 fields={section([
