@@ -1321,16 +1321,16 @@ const SalaryModule: React.FC = () => {
 
             {/* Salary Slip Modal Component */}
             {selectedSlipRecord && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
-                    <div className="relative my-8 w-full max-w-4xl overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200 dark:border-[#3F3F46] dark:bg-[#27272A]">
+                <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm">
+                    <div className="relative my-4 flex max-h-[calc(100vh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200 dark:border-[#3F3F46] dark:bg-[#27272A]">
                         <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757] print:hidden" />
                         {/* Control header bar - hidden during print */}
-                        <div className="flex items-center justify-between border-b border-[#E4E4E7] bg-[#FAFAF9] px-6 py-4 print:hidden dark:border-[#3F3F46] dark:bg-[#27272A]">
-                            <div className="flex items-center gap-2">
+                        <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-[#E4E4E7] bg-[#FAFAF9] px-6 py-4 print:hidden dark:border-[#3F3F46] dark:bg-[#27272A]">
+                            <div className="flex min-w-0 items-center gap-2">
                                 <IndianRupee className="h-5 w-5 text-[#D97757]" />
-                                <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Salary Slip Statement</h3>
+                                <h3 className="truncate font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Salary Slip Statement</h3>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex shrink-0 items-center gap-2">
                                 <button
                                     onClick={() => window.print()}
                                     className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#D97757] px-3 text-xs font-bold text-white shadow-sm transition-all hover:opacity-90"
@@ -1338,16 +1338,19 @@ const SalaryModule: React.FC = () => {
                                     <Printer className="w-3.5 h-3.5" /> Print / Save PDF
                                 </button>
                                 <button
+                                    type="button"
+                                    aria-label="Close salary slip"
                                     onClick={() => setSelectedSlipRecord(null)}
-                                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E4E4E7] bg-white text-[#71717A] transition-all hover:bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-[#A1A1AA] dark:hover:bg-[#3F3F46]"
+                                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#E4E4E7] bg-white px-3 text-xs font-bold text-[#3F3F46] transition-all hover:bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#18181B] dark:text-[#E4E4E7] dark:hover:bg-[#3F3F46]"
                                 >
-                                    <X className="w-4 h-4" />
+                                    <X className="h-3.5 w-3.5" />
+                                    Close
                                 </button>
                             </div>
                         </div>
 
                         {/* Printable Area */}
-                        <div id="print-payslip-area" className="p-8 md:p-12 bg-white text-zinc-900 font-sans print:p-0 print:m-0">
+                        <div id="print-payslip-area" className="overflow-y-auto bg-white p-8 font-sans text-zinc-900 md:p-12 print:m-0 print:overflow-visible print:p-0">
                             {/* CSS Rules inside the printable element to enforce styles */}
                             <style>{`
                                 @media print {
