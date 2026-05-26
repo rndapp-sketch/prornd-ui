@@ -1,4 +1,4 @@
-import { ArrowLeft, FileText, Building2 } from "lucide-react";
+import { ArrowLeft, FileText, Building2, Printer } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -77,6 +77,10 @@ interface HoSApprovalViewProps {
 
 export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
     const navigate = useNavigate();
+
+    const handlePrintDepositSlip = () => {
+        window.print();
+    };
 
     // State for resolved budget head names
     const [resolvedHeadNames, setResolvedHeadNames] = useState<
@@ -339,8 +343,82 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
 
     return (
         <div className="space-y-6">
+            <style>{`
+                @media print {
+                    @page { size: A4; margin: 12mm; }
+
+                    html,
+                    body,
+                    #root {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        width: 100% !important;
+                        min-height: 0 !important;
+                        height: auto !important;
+                        overflow: visible !important;
+                        background: white !important;
+                    }
+
+                    body * {
+                        background: transparent !important;
+                        box-shadow: none !important;
+                    }
+
+                    .enterprise-navbar,
+                    .enterprise-navbar *,
+                    button,
+                    [role="button"],
+                    input,
+                    select,
+                    textarea,
+                    aside,
+                    nav,
+                    [data-sidebar],
+                    [data-sidebar="sidebar"],
+                    [data-sidebar="trigger"],
+                    [data-sidebar="rail"],
+                    [data-sidebar="wrapper"],
+                    .deposit-slip-print-hidden,
+                    .deposit-slip-print-hidden *,
+                    .deposit-slip-non-print,
+                    .deposit-slip-non-print * {
+                        display: none !important;
+                    }
+
+                    [data-sidebar-inset],
+                    [data-sidebar="inset"],
+                    main {
+                        display: block !important;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: white !important;
+                    }
+
+                    .deposit-slip-print-area {
+                        display: block !important;
+                        position: static !important;
+                        width: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: white !important;
+                        color: black !important;
+                        box-shadow: none !important;
+                        border: 0 !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+
+                    .deposit-slip-print-area > div {
+                        padding: 0 !important;
+                        background: white !important;
+                    }
+                }
+            `}</style>
+
             {/* Header / Title Area */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="deposit-slip-print-hidden flex items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => navigate(-1)}
@@ -359,11 +437,11 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:block">
                 {/* Formal Deposit Slip Document */}
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm overflow-hidden">
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-xl shadow-sm overflow-hidden print:border-0 print:shadow-none print:rounded-none">
                     {/* Status Badge */}
-                    <div className="px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-between">
+                    <div className="deposit-slip-print-hidden px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-between gap-3">
                         <span
                             className={cn(
                                 "px-2 py-1 rounded text-xs font-bold border",
@@ -377,35 +455,45 @@ export const HoSApprovalView = ({ fundReceivedName }: HoSApprovalViewProps) => {
                         <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
                             {depositSlip.name}
                         </span>
+                        <button
+                            type="button"
+                            onClick={handlePrintDepositSlip}
+                            className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#D97757] px-3 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm transition-all hover:opacity-90"
+                        >
+                            <Printer className="h-3.5 w-3.5" />
+                            Print
+                        </button>
                     </div>
 
                     {/* Deposit Slip Document */}
-                    <DepositSlipDocument
-                        depositSlip={depositSlip}
-                        type={(() => {
-                            // Detect deposit type from the actual doctype that was found
-                            switch (depositSlipDoctype) {
-                                case "D Consultancy Deposit Slip":
-                                    return "consultancy_d";
-                                case "E Non Routine Deposit Slip":
-                                    return "consultancy_e";
-                                case "T Testing Deposit Slip":
-                                    return "consultancy_t";
-                                case "Other Event Deposit Slip":
-                                    return "other_event";
-                                case "Research Consultancy Deposit Slip":
-                                    return "consultancy_research";
-                                case "Research Deposit Slip":
-                                    return "research_rnd";
-                                default:
-                                    return "research_rnd";
-                            }
-                        })()}
-                    />
+                    <div className="deposit-slip-print-area">
+                        <DepositSlipDocument
+                            depositSlip={depositSlip}
+                            type={(() => {
+                                // Detect deposit type from the actual doctype that was found
+                                switch (depositSlipDoctype) {
+                                    case "D Consultancy Deposit Slip":
+                                        return "consultancy_d";
+                                    case "E Non Routine Deposit Slip":
+                                        return "consultancy_e";
+                                    case "T Testing Deposit Slip":
+                                        return "consultancy_t";
+                                    case "Other Event Deposit Slip":
+                                        return "other_event";
+                                    case "Research Consultancy Deposit Slip":
+                                        return "consultancy_research";
+                                    case "Research Deposit Slip":
+                                        return "research_rnd";
+                                    default:
+                                        return "research_rnd";
+                                }
+                            })()}
+                        />
+                    </div>
                 </div>
 
                 {/* RIGHT: Fund Received Details */}
-                <div className="space-y-6">
+                <div className="deposit-slip-non-print space-y-6">
                     <FrappeCard
                         title={`Fund Received - ${fundReceivedName}`}
                         icon={<Building2 className="h-4 w-4 text-[#D97757]" />}
