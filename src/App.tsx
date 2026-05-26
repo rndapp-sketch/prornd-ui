@@ -60,7 +60,9 @@ function AppContent() {
   const location = useLocation();
   const navigate = useNavigate();
   const isPublicPage =
-    location.pathname === "/" || location.pathname === "/login";
+    location.pathname === "/" ||
+    location.pathname === "/login" ||
+    location.pathname.startsWith("/salary-module/register");
   const {
     isOpen: isCommandPaletteOpen,
     openPalette,
