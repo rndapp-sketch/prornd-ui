@@ -382,8 +382,8 @@ const MedicalReportPage: React.FC = () => {
 
                     <div style={{ marginTop: '36px', textAlign: 'right' }}>Yours sincerely,</div>
 
-                    {/* ══ LETTER 2 : Medical Certificate ══ */}
-                    <div style={{ marginTop: '60px' }}>
+                    {/* ══ LETTER 2 : Medical Certificate (starts on a new page when printing) ══ */}
+                    <div style={{ paddingTop: '12mm', breakBefore: 'page', pageBreakBefore: 'always' }}>
                         <Letterhead />
                     </div>
 
