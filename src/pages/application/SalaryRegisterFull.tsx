@@ -641,17 +641,17 @@ const SalaryRegisterFull: React.FC = () => {
                                 const netPay = grossPay - totalDed;
 
                                 return (
-                                    <tr key={r.docName || i} className="hover:bg-zinc-50 dark:hover:bg-zinc-850/50 transition-colors group">
+                                    <tr key={r.docName || i} className="hover:bg-zinc-50 dark:hover:bg-[#27272A] transition-colors group">
                                         {/* # */}
-                                        <td className="px-3 py-2.5 text-xs text-zinc-400 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-850 border-r border-zinc-200 dark:border-zinc-800">{i + 1}</td>
+                                        <td className="px-3 py-2.5 text-xs text-zinc-400 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A] border-r border-zinc-200 dark:border-zinc-800">{i + 1}</td>
 
                                         {/* Emp ID */}
-                                        <td className="px-3 py-2.5 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-850 border-r border-zinc-200 dark:border-zinc-800">
+                                        <td className="px-3 py-2.5 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A] border-r border-zinc-200 dark:border-zinc-800">
                                             <span className="text-xs font-mono font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-700/50">{r.employee_id}</span>
                                         </td>
 
                                         {/* Full Name */}
-                                        <td className="px-3 py-2.5 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-850 border-r border-zinc-200 dark:border-zinc-800">
+                                        <td className="px-3 py-2.5 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A] border-r border-zinc-200 dark:border-zinc-800">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#D97757]/20 to-orange-200/50 dark:from-[#D97757]/30 dark:to-orange-950/30 flex items-center justify-center shrink-0 border border-orange-500/10">
                                                     <span className="text-[9px] font-bold text-[#D97757]">{r.first_name.charAt(0).toUpperCase()}</span>
@@ -686,7 +686,7 @@ const SalaryRegisterFull: React.FC = () => {
                                         <td className="px-3 py-2.5 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(proRataMedical)}</td>
 
                                         {/* Arrear — editable */}
-                                        <td className="px-2 py-1.5 bg-emerald-50/10 dark:bg-emerald-950/10 border-l border-zinc-100 dark:border-zinc-850">
+                                        <td className="px-2 py-1.5 bg-emerald-50/10 dark:bg-emerald-950/10 border-l border-zinc-100 dark:border-zinc-800">
                                             <input type="number" value={inputs.arrear || ""} min="0" placeholder="0"
                                                 onChange={e => handleInputChange(r.docName, "arrear", parseFloat(e.target.value) || 0)}
                                                 className={cn(editInputCls(isEdited.arrear), "w-20")} />
@@ -759,7 +759,7 @@ const SalaryRegisterFull: React.FC = () => {
                                         </td>
 
                                         {/* Payslip View Button */}
-                                        <td className="px-3 py-2.5 text-center bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-850 border-r border-zinc-200 dark:border-zinc-800">
+                                        <td className="px-3 py-2.5 text-center bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A] border-r border-zinc-200 dark:border-zinc-800">
                                             <button
                                                 onClick={() => setSelectedSlipRecord(r)}
                                                 title="View Pay Slip"

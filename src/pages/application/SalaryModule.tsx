@@ -1034,19 +1034,19 @@ const SalaryModule: React.FC = () => {
                                                     const netPay = grossPay - totalDed;
 
                                                     return (
-                                                        <tr key={r.docName || i} className="hover:bg-zinc-50 dark:hover:bg-zinc-850/50 transition-colors group">
+                                                        <tr key={r.docName || i} className="hover:bg-zinc-50 dark:hover:bg-[#27272A] transition-colors group">
                                                             {/* # */}
-                                                            <td className="px-3 py-3 text-xs text-zinc-400 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-850 border-r border-zinc-200 dark:border-zinc-800">{i + 1}</td>
+                                                            <td className="px-3 py-3 text-xs text-zinc-400 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A] border-r border-zinc-200 dark:border-zinc-800">{i + 1}</td>
 
                                                             {/* Emp ID */}
-                                                            <td className="px-3 py-3 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-850 border-r border-zinc-200 dark:border-zinc-800">
+                                                            <td className="px-3 py-3 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A] border-r border-zinc-200 dark:border-zinc-800">
                                                                 <span className="text-xs font-mono font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-0.5 rounded border border-zinc-200/50 dark:border-zinc-700/50">
                                                                     {r.employee_id}
                                                                 </span>
                                                             </td>
 
                                                             {/* Full Name */}
-                                                            <td className="px-3 py-3 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-850 border-r border-zinc-200 dark:border-zinc-800">
+                                                            <td className="px-3 py-3 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A] border-r border-zinc-200 dark:border-zinc-800">
                                                                 <div className="flex items-center gap-2">
                                                                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#D97757]/20 to-orange-200/50 dark:from-[#D97757]/30 dark:to-orange-950/30 flex items-center justify-center shrink-0 border border-orange-500/10">
                                                                         <span className="text-[10px] font-bold text-[#D97757]">
@@ -1071,7 +1071,7 @@ const SalaryModule: React.FC = () => {
                                                                 </span>
                                                             </td>
                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap">{fmtDate(r.joining_date)}</td>
-                                                            <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-550 whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
+                                                            <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-500 whitespace-nowrap font-mono">{r.term_completion_date ? fmtDate(r.term_completion_date) : "—"}</td>
 
                                                             {/* Earnings values */}
                                                             <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5 border-l border-zinc-100 dark:border-zinc-800">{fmt(r.basic_salary)}</td>
@@ -1095,7 +1095,7 @@ const SalaryModule: React.FC = () => {
                                                             <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap bg-emerald-50/5 dark:bg-emerald-950/5">{fmt(proRataMedical)}</td>
 
                                                             {/* Arrear Input */}
-                                                            <td className="px-2 py-1.5 bg-emerald-50/10 dark:bg-emerald-950/10 border-l border-zinc-100 dark:border-zinc-850">
+                                                            <td className="px-2 py-1.5 bg-emerald-50/10 dark:bg-emerald-950/10 border-l border-zinc-100 dark:border-zinc-800">
                                                                 <div className="relative flex items-center">
                                                                     <input
                                                                         type="number"
@@ -1244,7 +1244,7 @@ const SalaryModule: React.FC = () => {
                                                             </td>
 
                                                             {/* Payslip Action Button */}
-                                                            <td className="px-3 py-3 text-center bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-850">
+                                                            <td className="px-3 py-3 text-center bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A]">
                                                                 <button
                                                                     onClick={() => setSelectedSlipRecord(r)}
                                                                     title="Generate Pay Slip"
