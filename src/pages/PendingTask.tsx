@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { useFrappeGetCall, useFrappeAuth, useFrappeGetDocList, useFrappePostCall } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useUserRoles } from '../components/UserRole';
-import { selectionCandidateDetailsAPI } from '@/services/apiService';
+import { selectionCandidateDetailsAPI, selectionCommitteeReportAPI } from '@/services/apiService';
 import {
     resolveProjectCategory,
     DOCTYPE_PR_LINKS,
@@ -90,6 +90,35 @@ type SCRCandidate = {
     wl_number: string;
     /** True if a Project Staff Details (joining) doc for this candidate has docstatus >= 1. */
     joining_submitted?: boolean;
+};
+
+const parseCandidateRows = (value: unknown): any[] => {
+    if (Array.isArray(value)) return value;
+    if (typeof value === "string" && value.trim()) {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+};
+
+const normalizeSCRCandidate = (row: any): SCRCandidate => {
+    const selectionStatus = row.selection_status || row.recommendation || "";
+    return {
+        name: row.name || row.id || "",
+        candidate_name: row.candidate_name || row.display_name || "",
+        application_id: String(row.application_id || ""),
+        candidate_id: String(row.candidate_id || ""),
+        category: row.category || "",
+        selection_status: selectionStatus,
+        appointment_order_number: row.appointment_order_number || "",
+        medical_report_number: row.medical_report_number || "",
+        joining_report_number: row.joining_report_number || "",
+        wl_number: row.wl_number || row.waitlist_no || "",
+    };
 };
 
 // ─── Hierarchical workflow button ────────────────────────────────────────────
@@ -208,6 +237,7 @@ const PendingTask: React.FC = () => {
     }>({ open: false, loading: false, error: null, scrName: '', candidates: [] });
 
     const { call: fetchCandidatesByInterview } = useFrappePostCall(selectionCandidateDetailsAPI.getByInterview);
+    const { call: fetchSCRFields } = useFrappePostCall<{ message: any }>(selectionCommitteeReportAPI.getFields);
     const { call: fetchPSDList } = useFrappePostCall<{ message: Array<{
         ps_first_name?: string;
         ps_middle_name?: string;
@@ -228,7 +258,23 @@ const PendingTask: React.FC = () => {
                 setOrderModal(prev => ({ ...prev, loading: false, error: res.message.message || 'Failed to fetch candidates.' }));
                 return;
             }
-            const candidates: SCRCandidate[] = Array.isArray(res?.message?.data) ? res.message.data : [];
+            let candidates: SCRCandidate[] = Array.isArray(res?.message?.data) ? res.message.data : [];
+
+            if (candidates.length === 0) {
+                try {
+                    const scrRes = await fetchSCRFields({ doc_name: taskId });
+                    const prefill = scrRes?.message?.prefill_data || {};
+                    const savedRows = parseCandidateRows(prefill.candidates);
+                    candidates = savedRows
+                        .filter((row) => {
+                            const status = String(row.recommendation || row.selection_status || "").trim().toLowerCase();
+                            return status === "recommended";
+                        })
+                        .map(normalizeSCRCandidate);
+                } catch (scrErr) {
+                    console.error("Failed to fetch SCR candidate rows:", scrErr);
+                }
+            }
 
             // Enrich with joining-submitted status by name-matching Project Staff Details
             // rows that share this SCR. Falls back silently if the lookup fails.
