@@ -6,8 +6,8 @@ import {
     ArrowLeft, Loader2, Search, Download, RefreshCw,
     User, IndianRupee, AlertCircle, ChevronUp, ChevronDown,
     Printer, Eye, Calendar, Building2, UserCheck, X,
-    ChevronRight, Briefcase, DollarSign, Edit3, RotateCcw,
-    TrendingDown, CalendarClock, Lock, Unlock
+    ChevronRight, Briefcase, Edit3, RotateCcw,
+    TrendingDown, CalendarClock, Lock, Unlock, ExternalLink
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { DepartmentName } from "@/components/DepartmentName";
@@ -56,7 +56,12 @@ const MONTHS = [
     { label: "December", value: 11 },
 ];
 
-const YEARS = [2024, 2025, 2026, 2027, 2028];
+const getYearOptions = () => {
+    const currentYear = new Date().getFullYear();
+    return Array.from({ length: 5 }, (_, index) => currentYear - 2 + index);
+};
+
+const YEARS = getYearOptions();
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -252,7 +257,7 @@ const SalaryModule: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState("");
-    const [sortKey, setSortKey] = useState<SortKey>("first_name");
+    const [sortKey, setSortKey] = useState<SortKey>("department");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
     // Dynamic Period State
@@ -402,7 +407,7 @@ const SalaryModule: React.FC = () => {
                             doctype: "Project Staff Details",
                             filters: [[f, "=", currentUser], ["workflow_state", "=", "Approved"]],
                             fields: ["*"],
-                            limit_page_length: 500,
+                            limit_page_length: 1000000,
                         });
                         rows = res?.message ?? [];
                         if (rows.length > 0) break;
@@ -539,10 +544,19 @@ const SalaryModule: React.FC = () => {
 
         // Apply Sorting
         return [...list].sort((a, b) => {
-            const av = a[sortKey], bv = b[sortKey];
+            const getDepartmentName = (record: StaffRecord) =>
+                departmentLabels[record.department] || record.department;
+            const av = sortKey === "department" ? getDepartmentName(a) : a[sortKey];
+            const bv = sortKey === "department" ? getDepartmentName(b) : b[sortKey];
             let cmp = 0;
             if (typeof av === "number" && typeof bv === "number") cmp = av - bv;
             else cmp = String(av).localeCompare(String(bv));
+            if (cmp === 0 && sortKey === "department") {
+                cmp = a.first_name.localeCompare(b.first_name);
+            }
+            if (cmp === 0) {
+                cmp = a.employee_id.localeCompare(b.employee_id);
+            }
             return sortDir === "asc" ? cmp : -cmp;
         });
     }, [records, search, deptFilter, desigFilter, sortKey, sortDir, selectedMonth, selectedYear, departmentLabels]);
@@ -720,68 +734,68 @@ const SalaryModule: React.FC = () => {
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
-                        {/* Payout Cycle Selectors */}
-                        <div className="flex h-10 items-center gap-2 rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] px-2 dark:border-[#3F3F46] dark:bg-[#18181B]">
-                            <Calendar className="ml-1 h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
-                            <select
-                                value={selectedMonth}
-                                onChange={e => setSelectedMonth(parseInt(e.target.value))}
-                                className="h-8 bg-transparent pr-7 text-[12px] font-bold text-[#3F3F46] outline-none dark:text-[#E4E4E7]"
-                            >
-                                {MONTHS.map(m => <option key={m.value} value={m.value} className="dark:bg-[#27272A]">{m.label}</option>)}
-                            </select>
-                            <select
-                                value={selectedYear}
-                                onChange={e => setSelectedYear(parseInt(e.target.value))}
-                                className="h-8 border-l border-[#E4E4E7] bg-transparent pl-2 pr-7 text-[12px] font-bold text-[#3F3F46] outline-none dark:border-[#3F3F46] dark:text-[#E4E4E7]"
-                            >
-                                {YEARS.map(y => <option key={y} value={y} className="dark:bg-[#27272A]">{y}</option>)}
-                            </select>
-                        </div>
+                            {/* Payout Cycle Selectors */}
+                            <div className="flex h-10 items-center gap-2 rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] px-2 dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                <Calendar className="ml-1 h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
+                                <select
+                                    value={selectedMonth}
+                                    onChange={e => setSelectedMonth(parseInt(e.target.value))}
+                                    className="h-8 bg-transparent pr-7 text-[12px] font-bold text-[#3F3F46] outline-none dark:text-[#E4E4E7]"
+                                >
+                                    {MONTHS.map(m => <option key={m.value} value={m.value} className="dark:bg-[#27272A]">{m.label}</option>)}
+                                </select>
+                                <select
+                                    value={selectedYear}
+                                    onChange={e => setSelectedYear(parseInt(e.target.value))}
+                                    className="h-8 border-l border-[#E4E4E7] bg-transparent pl-2 pr-7 text-[12px] font-bold text-[#3F3F46] outline-none dark:border-[#3F3F46] dark:text-[#E4E4E7]"
+                                >
+                                    {YEARS.map(y => <option key={y} value={y} className="dark:bg-[#27272A]">{y}</option>)}
+                                </select>
+                            </div>
 
-                        {/* Unlock Payout Cycle Button */}
-                        {isPrepared && (
-                            <button
-                                onClick={() => {
-                                    const confirm = window.confirm(`Are you sure you want to unlock the salary cycle for ${MONTHS[selectedMonth].label} ${selectedYear}? This will revert it to draft mode.`);
-                                    if (!confirm) return;
-                                    setPreparedCycles(prev => {
-                                        const next = { ...prev };
-                                        delete next[cycleKey];
-                                        localStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
-                                        return next;
-                                    });
-                                }}
-                                className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-[#E4E4E7] bg-white px-3 text-[12px] font-bold text-[#3F3F46] transition-all hover:bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8] dark:hover:bg-[#3F3F46]"
-                            >
-                                <Unlock className="h-3.5 w-3.5" /> Unlock
+                            {/* Unlock Payout Cycle Button */}
+                            {isPrepared && (
+                                <button
+                                    onClick={() => {
+                                        const confirm = window.confirm(`Are you sure you want to unlock the salary cycle for ${MONTHS[selectedMonth].label} ${selectedYear}? This will revert it to draft mode.`);
+                                        if (!confirm) return;
+                                        setPreparedCycles(prev => {
+                                            const next = { ...prev };
+                                            delete next[cycleKey];
+                                            localStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
+                                            return next;
+                                        });
+                                    }}
+                                    className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-[#E4E4E7] bg-white px-3 text-[12px] font-bold text-[#3F3F46] transition-all hover:bg-[#FAFAF9] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8] dark:hover:bg-[#3F3F46]"
+                                >
+                                    <Unlock className="h-3.5 w-3.5" /> Unlock
+                                </button>
+                            )}
+
+                            {/* Reset edits button */}
+                            {Object.keys(overrides).length > 0 && (
+                                <button onClick={resetOverrides}
+                                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 text-[12px] font-bold text-red-700 transition-all hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400">
+                                    <RotateCcw className="h-3.5 w-3.5" /> Reset
+                                </button>
+                            )}
+
+                            <button onClick={fetchData} disabled={isLoading}
+                                className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E4E4E7] bg-white px-3 text-[12px] font-bold text-[#3F3F46] transition-all hover:bg-[#FAFAF9] disabled:opacity-50 dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8] dark:hover:bg-[#3F3F46]">
+                                <RefreshCw className={cn("h-3.5 w-3.5 text-[#71717A]", isLoading && "animate-spin")} /> Refresh
                             </button>
-                        )}
 
-                        {/* Reset edits button */}
-                        {Object.keys(overrides).length > 0 && (
-                            <button onClick={resetOverrides}
-                                className="inline-flex h-10 items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 text-[12px] font-bold text-red-700 transition-all hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400">
-                                <RotateCcw className="h-3.5 w-3.5" /> Reset
+                            <button onClick={exportCSV} disabled={filtered.length === 0 || isLoading || !isPrepared}
+                                className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#D97757] px-3 text-[12px] font-bold text-white shadow-sm transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[#F4F4F5] disabled:text-[#A1A1AA] dark:disabled:bg-[#3F3F46] dark:disabled:text-[#71717A]">
+                                <Download className="h-3.5 w-3.5" /> Export CSV
                             </button>
-                        )}
-
-                        <button onClick={fetchData} disabled={isLoading}
-                            className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E4E4E7] bg-white px-3 text-[12px] font-bold text-[#3F3F46] transition-all hover:bg-[#FAFAF9] disabled:opacity-50 dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8] dark:hover:bg-[#3F3F46]">
-                            <RefreshCw className={cn("h-3.5 w-3.5 text-[#71717A]", isLoading && "animate-spin")} /> Refresh
-                        </button>
-
-                        <button onClick={exportCSV} disabled={filtered.length === 0 || isLoading || !isPrepared}
-                            className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#D97757] px-3 text-[12px] font-bold text-white shadow-sm transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[#F4F4F5] disabled:text-[#A1A1AA] dark:disabled:bg-[#3F3F46] dark:disabled:text-[#71717A]">
-                            <Download className="h-3.5 w-3.5" /> Export CSV
-                        </button>
                         </div>
                     </div>
                 </header>
 
                 {/* KPI Cards */}
                 {!isLoading && !error && filtered.length > 0 && isPrepared && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
                         {[
                             {
                                 label: "Staff Count",
@@ -789,7 +803,7 @@ const SalaryModule: React.FC = () => {
                                 isCurrency: false,
                                 desc: "Approved project employees",
                                 accent: "#2563EB",
-                                icon: <UserCheck className="h-[18px] w-[18px]" />
+                                icon: <UserCheck className="h-3.5 w-3.5" />
                             },
                             {
                                 label: "Gross Salary Payout",
@@ -797,7 +811,7 @@ const SalaryModule: React.FC = () => {
                                 isCurrency: true,
                                 desc: "Basic + allowance + arrears",
                                 accent: "#059669",
-                                icon: <DollarSign className="h-[18px] w-[18px]" />
+                                icon: <IndianRupee className="h-3.5 w-3.5" />
                             },
                             {
                                 label: "Total Deductions",
@@ -805,7 +819,7 @@ const SalaryModule: React.FC = () => {
                                 isCurrency: true,
                                 desc: "HRA, medical, taxes & other charges",
                                 accent: "#DC2626",
-                                icon: <TrendingDown className="h-[18px] w-[18px]" />
+                                icon: <TrendingDown className="h-3.5 w-3.5" />
                             },
                             {
                                 label: "Net Payout",
@@ -813,18 +827,18 @@ const SalaryModule: React.FC = () => {
                                 isCurrency: true,
                                 desc: "Final credit statement",
                                 accent: "#D97757",
-                                icon: <IndianRupee className="h-[18px] w-[18px]" />
+                                icon: <IndianRupee className="h-3.5 w-3.5" />
                             },
                         ].map((card) => (
                             <div
                                 key={card.label}
-                                className="relative flex min-h-[150px] flex-col overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-[#3F3F46] dark:bg-[#27272A]"
+                                className="relative flex min-h-[88px] flex-col overflow-hidden rounded-lg border border-[#E4E4E7] bg-white px-3 py-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-[#3F3F46] dark:bg-[#27272A]"
                             >
                                 <div
-                                    className="pointer-events-none absolute bottom-0 right-0 h-[90px] w-[90px] translate-x-5 translate-y-5 rounded-full opacity-[0.07]"
+                                    className="pointer-events-none absolute bottom-0 right-0 h-12 w-12 translate-x-3 translate-y-3 rounded-full opacity-[0.07]"
                                     style={{ backgroundColor: card.accent }}
                                 />
-                                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl"
+                                <div className="mb-1.5 flex h-6 w-6 items-center justify-center rounded-md"
                                     style={{
                                         color: card.accent,
                                         backgroundColor: `color-mix(in srgb, ${card.accent} 10%, transparent)`,
@@ -832,17 +846,17 @@ const SalaryModule: React.FC = () => {
                                 >
                                     {card.icon}
                                 </div>
-                                <div className="text-[12px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">
+                                <div className="text-[9px] font-extrabold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA]">
                                     {card.label}
                                 </div>
                                 <div
-                                    className="mt-1 text-[28px] font-extrabold leading-none tracking-tight tabular-nums"
+                                    className="mt-0.5 text-[18px] font-extrabold leading-none tracking-tight tabular-nums"
                                     style={{ color: card.accent }}
                                 >
                                     {card.isCurrency ? fmt(card.value as number) : card.value}
                                 </div>
-                                <div className="mt-auto pt-3">
-                                    <p className="text-[12px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
+                                <div className="mt-auto pt-1.5">
+                                    <p className="text-[10px] font-semibold leading-tight text-[#71717A] dark:text-[#A1A1AA]">
                                         {card.desc}
                                     </p>
                                 </div>
@@ -922,9 +936,20 @@ const SalaryModule: React.FC = () => {
                                     </div>
                                     Salary Register
                                 </div>
-                                <span className="text-[11px] font-bold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">
-                                    {MONTHS[selectedMonth].label} {selectedYear}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[11px] font-bold uppercase tracking-wide text-[#71717A] dark:text-[#A1A1AA]">
+                                        {MONTHS[selectedMonth].label} {selectedYear}
+                                    </span>
+                                    {/* Open full-page in new tab */}
+                                    <button
+                                        onClick={() => window.open("/salary-module/register", "_blank", "noopener,noreferrer")}
+                                        title="Open Salary Register in full page (new tab)"
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-[#E4E4E7] bg-white px-2.5 py-1.5 text-[11px] font-bold text-[#3F3F46] transition-all hover:border-[#4A6CF7]/40 hover:bg-[#EEF2FF] hover:text-[#2563EB] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8] dark:hover:border-[#4A6CF7]/40 dark:hover:bg-[#4A6CF7]/10 dark:hover:text-[#A5B4FC] shadow-sm"
+                                    >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                        Full Page
+                                    </button>
+                                </div>
                             </div>
                             <CardContent className="p-0">
                                 {isLoading ? (
@@ -1280,40 +1305,40 @@ const SalaryModule: React.FC = () => {
                     <div className="mx-auto my-10 max-w-2xl overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white text-center shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
                         <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
                         <div className="flex flex-col items-center px-8 py-10">
-                        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-800/60 dark:bg-amber-950/20 dark:text-amber-400">
-                            <CalendarClock className="h-7 w-7" />
-                        </div>
-                        <h2 className="text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7]">Salary Cycle Not Prepared</h2>
-                        <p className="mt-3 max-w-md text-sm font-medium leading-relaxed text-[#71717A] dark:text-[#A1A1AA]">
-                            The payroll register and pro-rata salary ledger for <strong className="text-[#3F3F46] dark:text-[#E4E4E7]">{MONTHS[selectedMonth].label} {selectedYear}</strong> have not been prepared or frozen yet.
-                        </p>
-                        <p className="mt-1.5 max-w-md text-xs font-medium text-[#71717A] dark:text-[#A1A1AA]">
-                            Initialize and prepare payroll entries to view computed amounts and generate slips.
-                        </p>
-                        <button
-                            onClick={async (e) => {
-                                const confirm = window.confirm(`Are you sure you want to initialize and prepare the salary sheet for ${MONTHS[selectedMonth].label} ${selectedYear}?`);
-                                if (!confirm) return;
+                            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-xl border border-amber-200 bg-amber-50 text-amber-600 dark:border-amber-800/60 dark:bg-amber-950/20 dark:text-amber-400">
+                                <CalendarClock className="h-7 w-7" />
+                            </div>
+                            <h2 className="text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7]">Salary Cycle Not Prepared</h2>
+                            <p className="mt-3 max-w-md text-sm font-medium leading-relaxed text-[#71717A] dark:text-[#A1A1AA]">
+                                The payroll register and pro-rata salary ledger for <strong className="text-[#3F3F46] dark:text-[#E4E4E7]">{MONTHS[selectedMonth].label} {selectedYear}</strong> have not been prepared or frozen yet.
+                            </p>
+                            <p className="mt-1.5 max-w-md text-xs font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                Initialize and prepare payroll entries to view computed amounts and generate slips.
+                            </p>
+                            <button
+                                onClick={async (e) => {
+                                    const confirm = window.confirm(`Are you sure you want to initialize and prepare the salary sheet for ${MONTHS[selectedMonth].label} ${selectedYear}?`);
+                                    if (!confirm) return;
 
-                                const btn = e.currentTarget as HTMLButtonElement;
-                                if (btn) {
-                                    btn.disabled = true;
-                                    btn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Initializing Payroll...`;
-                                }
+                                    const btn = e.currentTarget as HTMLButtonElement;
+                                    if (btn) {
+                                        btn.disabled = true;
+                                        btn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Initializing Payroll...`;
+                                    }
 
-                                await new Promise(resolve => setTimeout(resolve, 1200));
+                                    await new Promise(resolve => setTimeout(resolve, 1200));
 
-                                setPreparedCycles(prev => {
-                                    const next = { ...prev, [cycleKey]: true };
-                                    localStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
-                                    return next;
-                                });
-                            }}
-                            className="mt-7 inline-flex h-10 items-center gap-2 rounded-lg bg-[#4A6CF7] px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#3558E8] hover:shadow-md hover:shadow-[#4A6CF7]/25"
-                        >
-                            <Lock className="h-3.5 w-3.5" />
-                            Prepare {MONTHS[selectedMonth].label} {selectedYear} Salary
-                        </button>
+                                    setPreparedCycles(prev => {
+                                        const next = { ...prev, [cycleKey]: true };
+                                        localStorage.setItem("rnd_prepared_salary_cycles", JSON.stringify(next));
+                                        return next;
+                                    });
+                                }}
+                                className="mt-7 inline-flex h-10 items-center gap-2 rounded-lg bg-[#4A6CF7] px-4 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#3558E8] hover:shadow-md hover:shadow-[#4A6CF7]/25"
+                            >
+                                <Lock className="h-3.5 w-3.5" />
+                                Prepare {MONTHS[selectedMonth].label} {selectedYear} Salary
+                            </button>
                         </div>
                     </div>
                 )}
