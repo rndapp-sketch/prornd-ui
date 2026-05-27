@@ -43,6 +43,7 @@ const fallbackFields: FormField[] = [
     { fieldname: "ps_citizenship", label: "Citizenship", fieldtype: "Data" },
     { fieldname: "contact_details_section", label: "Contact Details", fieldtype: "Section Break" },
     { fieldname: "ps_email_id", label: "Email ID", fieldtype: "Data" },
+    { fieldname: "erp_mail", label: "ERP Mail", fieldtype: "Data" },
     { fieldname: "ps_phone_number", label: "Phone Number", fieldtype: "Data" },
     { fieldname: "ps_present_address", label: "Present Address", fieldtype: "Small Text" },
     { fieldname: "ps_permanent_address", label: "Permanent Address", fieldtype: "Small Text" },
@@ -658,6 +659,7 @@ const ProjectStaffJoiningForm: React.FC = () => {
                                 fields={section([
                                     "contact_details_section",
                                     "ps_email_id",
+                                    "erp_mail",
                                     "ps_phone_number",
                                     "ps_present_address",
                                     "ps_permanent_address",
