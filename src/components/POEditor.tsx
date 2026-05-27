@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+    useState,
+    useEffect,
+    useRef,
+    useCallback,
+    useMemo,
+} from "react";
 import { createPortal } from "react-dom";
 import {
     Printer,
@@ -17,18 +23,138 @@ import { generatePOHtml, DEFAULT_TERMS } from "@/utils/poPrint";
 
 // ── Terms Editor Modal ──────────────────────────────────────────────────────
 const icons = {
-    bold: <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>,
-    italic: <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>,
-    underline: <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg>,
-    orderedList: <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>,
-    unorderedList: <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg>,
-    undo: <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M21 9v6h-6"/><path d="M3 10a9 9 0 0 1 9-4.56V4l-4 4 4 4v-1.44A7 7 0 0 0 7.03 15"/></svg>,
-    redo: <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9v6h6"/><path d="M21 10a9 9 0 0 0-9-4.56V4l4 4-4 4v-1.44A7 7 0 0 1 16.97 15"/></svg>,
+    bold: (
+        <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            stroke="currentColor"
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" />
+            <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" />
+        </svg>
+    ),
+    italic: (
+        <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            stroke="currentColor"
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <line x1="19" y1="4" x2="10" y2="4" />
+            <line x1="14" y1="20" x2="5" y2="20" />
+            <line x1="15" y1="4" x2="9" y2="20" />
+        </svg>
+    ),
+    underline: (
+        <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            stroke="currentColor"
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3" />
+            <line x1="4" y1="21" x2="20" y2="21" />
+        </svg>
+    ),
+    orderedList: (
+        <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            stroke="currentColor"
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <line x1="10" y1="6" x2="21" y2="6" />
+            <line x1="10" y1="12" x2="21" y2="12" />
+            <line x1="10" y1="18" x2="21" y2="18" />
+            <path d="M4 6h1v4" />
+            <path d="M4 10h2" />
+            <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1" />
+        </svg>
+    ),
+    unorderedList: (
+        <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            stroke="currentColor"
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <circle cx="3" cy="6" r="1" fill="currentColor" />
+            <circle cx="3" cy="12" r="1" fill="currentColor" />
+            <circle cx="3" cy="18" r="1" fill="currentColor" />
+        </svg>
+    ),
+    undo: (
+        <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            stroke="currentColor"
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M21 9v6h-6" />
+            <path d="M3 10a9 9 0 0 1 9-4.56V4l-4 4 4 4v-1.44A7 7 0 0 0 7.03 15" />
+        </svg>
+    ),
+    redo: (
+        <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            stroke="currentColor"
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M3 9v6h6" />
+            <path d="M21 10a9 9 0 0 0-9-4.56V4l4 4-4 4v-1.44A7 7 0 0 1 16.97 15" />
+        </svg>
+    ),
 };
 
-const TBtn = ({ cmd, title, children, active }: { cmd: string; title: string; children: React.ReactNode; active?: boolean }) => (
+const TBtn = ({
+    cmd,
+    title,
+    children,
+    active,
+}: {
+    cmd: string;
+    title: string;
+    children: React.ReactNode;
+    active?: boolean;
+}) => (
     <button
-        onMouseDown={(e) => { e.preventDefault(); document.execCommand(cmd, false, undefined); }}
+        onMouseDown={(e) => {
+            e.preventDefault();
+            document.execCommand(cmd, false, undefined);
+        }}
         title={title}
         className={`p-1.5 rounded transition-colors ${active ? "bg-[#D97757]/20 text-[#D97757]" : "hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400"}`}
     >
@@ -64,8 +190,11 @@ const TermsEditorModal = ({
                 bold: document.queryCommandState("bold"),
                 italic: document.queryCommandState("italic"),
                 underline: document.queryCommandState("underline"),
-                insertOrderedList: document.queryCommandState("insertOrderedList"),
-                insertUnorderedList: document.queryCommandState("insertUnorderedList"),
+                insertOrderedList:
+                    document.queryCommandState("insertOrderedList"),
+                insertUnorderedList: document.queryCommandState(
+                    "insertUnorderedList",
+                ),
             });
         };
         document.addEventListener("selectionchange", update);
@@ -103,15 +232,41 @@ const TermsEditorModal = ({
 
                 {/* Toolbar */}
                 <div className="flex flex-wrap items-center gap-1 px-4 py-2 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 shrink-0">
-                    <TBtn cmd="undo" title="Undo">{icons.undo}</TBtn>
-                    <TBtn cmd="redo" title="Redo">{icons.redo}</TBtn>
+                    <TBtn cmd="undo" title="Undo">
+                        {icons.undo}
+                    </TBtn>
+                    <TBtn cmd="redo" title="Redo">
+                        {icons.redo}
+                    </TBtn>
                     <span className="w-px h-5 bg-zinc-300 dark:bg-zinc-600 mx-1" />
-                    <TBtn cmd="bold" title="Bold" active={active.bold}>{icons.bold}</TBtn>
-                    <TBtn cmd="italic" title="Italic" active={active.italic}>{icons.italic}</TBtn>
-                    <TBtn cmd="underline" title="Underline" active={active.underline}>{icons.underline}</TBtn>
+                    <TBtn cmd="bold" title="Bold" active={active.bold}>
+                        {icons.bold}
+                    </TBtn>
+                    <TBtn cmd="italic" title="Italic" active={active.italic}>
+                        {icons.italic}
+                    </TBtn>
+                    <TBtn
+                        cmd="underline"
+                        title="Underline"
+                        active={active.underline}
+                    >
+                        {icons.underline}
+                    </TBtn>
                     <span className="w-px h-5 bg-zinc-300 dark:bg-zinc-600 mx-1" />
-                    <TBtn cmd="insertOrderedList" title="Ordered List" active={active.insertOrderedList}>{icons.orderedList}</TBtn>
-                    <TBtn cmd="insertUnorderedList" title="Unordered List" active={active.insertUnorderedList}>{icons.unorderedList}</TBtn>
+                    <TBtn
+                        cmd="insertOrderedList"
+                        title="Ordered List"
+                        active={active.insertOrderedList}
+                    >
+                        {icons.orderedList}
+                    </TBtn>
+                    <TBtn
+                        cmd="insertUnorderedList"
+                        title="Unordered List"
+                        active={active.insertUnorderedList}
+                    >
+                        {icons.unorderedList}
+                    </TBtn>
                 </div>
 
                 {/* Editable content */}
@@ -150,6 +305,7 @@ interface POEditorProps {
     ssData: Record<string, any>;
     dpId: string;
     isStaffRnD?: boolean;
+    isPIReadOnly?: boolean;
     onSave?: (poData: Record<string, any>) => Promise<void>;
     onUploadSignedPO?: (file: File) => Promise<void>;
 }
@@ -191,7 +347,8 @@ const PreviewModal = ({
         try {
             // Render into an iframe so <style> and fonts are properly applied
             const iframe = document.createElement("iframe");
-            iframe.style.cssText = "position:fixed;left:-99999px;top:0;width:794px;height:1123px;border:0;visibility:hidden;";
+            iframe.style.cssText =
+                "position:fixed;left:-99999px;top:0;width:794px;height:1123px;border:0;visibility:hidden;";
             document.body.appendChild(iframe);
             const iDoc = iframe.contentDocument!;
             iDoc.open();
@@ -199,9 +356,12 @@ const PreviewModal = ({
             iDoc.close();
             // Wait for fonts and images to load
             await new Promise((r) => setTimeout(r, 1200));
-            try { await (iDoc as any).fonts?.ready; } catch {}
+            try {
+                await (iDoc as any).fonts?.ready;
+            } catch { }
 
-            const page = iDoc.querySelector(".page") as HTMLElement || iDoc.body;
+            const page =
+                (iDoc.querySelector(".page") as HTMLElement) || iDoc.body;
             const canvas = await html2canvas(page, {
                 scale: 2,
                 useCORS: true,
@@ -224,15 +384,35 @@ const PreviewModal = ({
 
             for (let i = 0; i < totalPages; i++) {
                 if (i > 0) pdf.addPage();
-                const sliceH = Math.min(contentHpx, canvas.height - i * contentHpx);
+                const sliceH = Math.min(
+                    contentHpx,
+                    canvas.height - i * contentHpx,
+                );
                 const sliceCanvas = document.createElement("canvas");
                 sliceCanvas.width = canvas.width;
                 sliceCanvas.height = sliceH;
                 const ctx = sliceCanvas.getContext("2d")!;
-                ctx.drawImage(canvas, 0, i * contentHpx, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+                ctx.drawImage(
+                    canvas,
+                    0,
+                    i * contentHpx,
+                    canvas.width,
+                    sliceH,
+                    0,
+                    0,
+                    canvas.width,
+                    sliceH,
+                );
                 const sliceImg = sliceCanvas.toDataURL("image/png");
-                const sliceHmm = (sliceH / pxPerMm);
-                pdf.addImage(sliceImg, "PNG", margin, margin, contentW, sliceHmm);
+                const sliceHmm = sliceH / pxPerMm;
+                pdf.addImage(
+                    sliceImg,
+                    "PNG",
+                    margin,
+                    margin,
+                    contentW,
+                    sliceHmm,
+                );
             }
             pdf.save(`PO-${docName || "form"}.pdf`);
         } catch (err) {
@@ -291,6 +471,7 @@ export const POEditor: React.FC<POEditorProps> = ({
     ssData,
     dpId,
     isStaffRnD = false,
+    isPIReadOnly = false,
     onSave,
     onUploadSignedPO,
 }) => {
@@ -303,6 +484,13 @@ export const POEditor: React.FC<POEditorProps> = ({
     const [isUploading, setIsUploading] = useState(false);
     const [uploadedFile, setUploadedFile] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Sync uploadedFile from ssData.file_path
+    useEffect(() => {
+        if (ssData?.file_path) {
+            setUploadedFile(ssData.file_path);
+        }
+    }, [ssData?.file_path]);
 
     // Initialize PO data from sanction sheet
     useEffect(() => {
@@ -320,17 +508,15 @@ export const POEditor: React.FC<POEditorProps> = ({
                 signee_name: "",
                 signee_designation: "",
                 amount_in_words: "",
-                terms_and_conditions: ssData.terms_and_conditions || DEFAULT_TERMS,
+                terms_and_conditions:
+                    ssData.terms_and_conditions || DEFAULT_TERMS,
             });
         }
     }, [ssData]);
 
-    const handleFieldChange = useCallback(
-        (field: string, value: string) => {
-            setPoData((prev) => ({ ...prev, [field]: value }));
-        },
-        [],
-    );
+    const handleFieldChange = useCallback((field: string, value: string) => {
+        setPoData((prev) => ({ ...prev, [field]: value }));
+    }, []);
 
     const handleSave = async () => {
         if (!onSave) return;
@@ -408,19 +594,26 @@ export const POEditor: React.FC<POEditorProps> = ({
     ];
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5 min-w-0 overflow-x-hidden">
             {/* Action bar */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-                    Purchase Order Editor
-                </h3>
+            <div className="flex items-center justify-between flex-wrap gap-3 min-w-0">
+                <div className="flex items-center gap-2">
+                    <h3 className="text-[15px] font-extrabold text-zinc-900 dark:text-zinc-100">
+                        Purchase Order
+                    </h3>
+                    {isPIReadOnly && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
+                            Read-only
+                        </span>
+                    )}
+                </div>
                 {isStaffRnD && (
-                    <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
                         {onSave && (
                             <button
                                 onClick={handleSave}
                                 disabled={isSaving}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-60"
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-60"
                             >
                                 {isSaving ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -432,17 +625,17 @@ export const POEditor: React.FC<POEditorProps> = ({
                                 {isSaving
                                     ? "Saving…"
                                     : saveSuccess
-                                      ? "Saved"
-                                      : "Save"}
+                                        ? "Saved"
+                                        : "Save"}
                             </button>
                         )}
                         <button
                             onClick={() => setIsPreviewOpen(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-zinc-100"
                         >
                             <FileText className="w-4 h-4" /> Preview & Print
                         </button>
-                        <button
+                        {/*<button
                             onClick={async () => {
                                 const html = generatePOHtml(poData);
                                 const iframe = document.createElement("iframe");
@@ -479,7 +672,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-[#D97757] hover:bg-[#c66a4e] text-white"
                         >
                             <Download className="w-4 h-4" /> Download PDF
-                        </button>
+                        </button>*/}
                         <div>
                             <input
                                 ref={fileInputRef}
@@ -491,7 +684,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                             <button
                                 onClick={handleUploadClick}
                                 disabled={isUploading}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60"
+                                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-60"
                             >
                                 {isUploading ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -508,9 +701,45 @@ export const POEditor: React.FC<POEditorProps> = ({
             </div>
 
             {uploadedFile && (
-                <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-4 py-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    Uploaded: {uploadedFile}
+                <div className="flex items-center justify-between flex-wrap gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg px-4 py-3">
+                    <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        <span className="font-medium">
+                            Signed PO document uploaded
+                        </span>
+                    </div>
+                    <a
+                        href={
+                            uploadedFile.startsWith("/")
+                                ? uploadedFile
+                                : `/${uploadedFile}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                        <Download className="w-3.5 h-3.5" />
+                        Download Signed PO
+                    </a>
+                </div>
+            )}
+            {uploadedFile && isStaffRnD && (
+                <div className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-3">
+                    <svg
+                        className="w-4 h-4 mt-0.5 shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                    >
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>
+                        The signed PO has been uploaded. Please click the <strong>Generate PO</strong> to notify the PI to proceed.
+                    </span>
                 </div>
             )}
 
@@ -521,28 +750,38 @@ export const POEditor: React.FC<POEditorProps> = ({
                         PO Details
                     </h4>
                 </div>
-                <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                     {editableFields.map(({ key, label, type }) => (
                         <div
                             key={key}
-                            className={type === "textarea" ? "md:col-span-2" : ""}
+                            className={
+                                type === "textarea" ? "md:col-span-2" : ""
+                            }
                         >
-                            <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+                            <label className="block text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
                                 {label}
                             </label>
                             {type === "textarea" ? (
                                 <textarea
                                     value={poData[key] || ""}
-                                    onChange={(e) => handleFieldChange(key, e.target.value)}
-                                    rows={key === "terms_and_conditions" ? 6 : 3}
-                                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-y"
+                                    onChange={(e) =>
+                                        handleFieldChange(key, e.target.value)
+                                    }
+                                    rows={
+                                        key === "terms_and_conditions" ? 6 : 3
+                                    }
+                                    disabled={isPIReadOnly}
+                                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[12px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] resize-y disabled:bg-zinc-50 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-500"
                                 />
                             ) : (
                                 <input
                                     type="text"
                                     value={poData[key] || ""}
-                                    onChange={(e) => handleFieldChange(key, e.target.value)}
-                                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                    onChange={(e) =>
+                                        handleFieldChange(key, e.target.value)
+                                    }
+                                    disabled={isPIReadOnly}
+                                    className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[12px] text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] disabled:bg-zinc-50 dark:disabled:bg-zinc-900 disabled:cursor-not-allowed disabled:text-zinc-500"
                                 />
                             )}
                         </div>
@@ -557,7 +796,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                         Prefilled from Sanction Sheet
                     </h4>
                 </div>
-                <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-3">
                     {[
                         ["Applicant", poData.ss_applicant_name],
                         ["Department", poData.ss_department_for_purchase],
@@ -569,10 +808,10 @@ export const POEditor: React.FC<POEditorProps> = ({
                         ["Grand Total", poData.ss_grand_total],
                     ].map(([label, value]) => (
                         <div key={label as string}>
-                            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-0.5">
+                            <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-0.5">
                                 {label}
                             </p>
-                            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                            <p className="text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 break-words">
                                 {value || "—"}
                             </p>
                         </div>
@@ -582,12 +821,12 @@ export const POEditor: React.FC<POEditorProps> = ({
                 {/* Items table */}
                 {Array.isArray(poData.table_bttk) &&
                     poData.table_bttk.length > 0 && (
-                        <div className="px-5 pb-5">
-                            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
+                        <div className="px-4 pb-4">
+                            <p className="text-[10px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
                                 Items
                             </p>
-                            <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
-                                <table className="min-w-full text-sm">
+                            <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+                                <table className="w-full table-fixed text-[11px]">
                                     <thead className="bg-zinc-50 dark:bg-zinc-800">
                                         <tr>
                                             {[
@@ -603,7 +842,7 @@ export const POEditor: React.FC<POEditorProps> = ({
                                             ].map((h) => (
                                                 <th
                                                     key={h}
-                                                    className="px-3 py-2 text-left text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400"
+                                                    className="px-2 py-2 text-left text-[10px] font-extrabold uppercase text-zinc-500 dark:text-zinc-400 break-words"
                                                 >
                                                     {h}
                                                 </th>
@@ -617,31 +856,31 @@ export const POEditor: React.FC<POEditorProps> = ({
                                                     key={i}
                                                     className="border-t border-zinc-100 dark:border-zinc-800"
                                                 >
-                                                    <td className="px-3 py-2 text-zinc-500">
+                                                    <td className="px-2 py-2 align-top text-zinc-500">
                                                         {i + 1}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_name}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_make}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_model}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_quantity}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_unit_price}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_discount}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2 align-top break-words">
                                                         {row.item_gst}
                                                     </td>
-                                                    <td className="px-3 py-2 font-medium">
+                                                    <td className="px-2 py-2 align-top font-medium break-words">
                                                         {row.dp_total_price}
                                                     </td>
                                                 </tr>
@@ -660,16 +899,20 @@ export const POEditor: React.FC<POEditorProps> = ({
                     <h4 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
                         Terms &amp; Conditions
                     </h4>
-                    <button
-                        onClick={() => setIsTermsEditorOpen(true)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
-                    >
-                        <Pencil className="w-3.5 h-3.5" /> Edit
-                    </button>
+                    {!isPIReadOnly && (
+                        <button
+                            onClick={() => setIsTermsEditorOpen(true)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                        >
+                            <Pencil className="w-3.5 h-3.5" /> Edit
+                        </button>
+                    )}
                 </div>
                 <div
                     className="p-5 text-sm text-zinc-900 dark:text-zinc-100 prose dark:prose-invert max-w-none [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5"
-                    dangerouslySetInnerHTML={{ __html: poData.terms_and_conditions || DEFAULT_TERMS }}
+                    dangerouslySetInnerHTML={{
+                        __html: poData.terms_and_conditions || DEFAULT_TERMS,
+                    }}
                 />
             </div>
 
@@ -678,7 +921,9 @@ export const POEditor: React.FC<POEditorProps> = ({
                 isOpen={isTermsEditorOpen}
                 initialHtml={poData.terms_and_conditions || DEFAULT_TERMS}
                 onClose={() => setIsTermsEditorOpen(false)}
-                onSave={(html) => handleFieldChange("terms_and_conditions", html)}
+                onSave={(html) =>
+                    handleFieldChange("terms_and_conditions", html)
+                }
             />
 
             {/* Preview Modal */}

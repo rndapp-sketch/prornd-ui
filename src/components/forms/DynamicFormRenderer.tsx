@@ -8,7 +8,10 @@ import {
 } from "@/utils/evalExpression";
 import { ChildTableComponent, type ChildField } from "./ChildTableComponent";
 import { DepartmentName } from "@/components/DepartmentName";
+import { BudgetHeadName } from "@/components/BudgetHeadName";
+import { AutocompleteEmail } from "@/components/AutocompleteEmail";
 import { getFileUrl } from "@/utils/fileUtils";
+import { CountrySelect } from "@/components/CountrySelect";
 
 // --- TYPE DEFINITIONS ---
 export interface FormField {
@@ -41,6 +44,11 @@ export interface FormSection {
   hidden?: boolean | number | string;
 }
 
+export interface FieldMessage {
+  type: "error" | "success" | "warning" | "info" | "loading";
+  message: string;
+}
+
 export interface DynamicFormRendererProps {
   fields: FormField[];
   formData: Record<string, any>;
@@ -64,11 +72,90 @@ export interface DynamicFormRendererProps {
   onFieldChangeWithSideEffects?: (fieldname: string, value: any) => void;
   onTableLinkChange?: (tableName: string, rowIndex: number, fieldname: string, value: string) => void;
   readOnly?: boolean;
+  /** Fieldnames that should render as searchable autocomplete instead of a plain select dropdown */
+  autocompleteFields?: string[];
+  /** Field-level validation messages to display below specific fields */
+  fieldMessages?: Record<string, FieldMessage>;
+  /** Hide section-break headers when this renderer is embedded inside an already titled card */
+  hideSectionHeaders?: boolean;
+  /** Hide child table field labels when the surrounding card already provides the title */
+  hideTableLabels?: boolean;
 }
 
 // --- STYLES ---
 const inputClasses =
-  "flex h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-[#27272A] px-3 py-2 text-sm ring-offset-white dark:ring-offset-zinc-950 file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800 focus-visible:border-zinc-400 dark:focus-visible:border-zinc-500 disabled:cursor-not-allowed disabled:bg-zinc-50 dark:disabled:bg-zinc-800/50 disabled:text-zinc-900 dark:disabled:text-zinc-100 transition-all duration-200";
+  "flex h-10 w-full rounded-[0.4375rem] border-[1.5px] border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] ring-offset-white dark:ring-offset-zinc-950 file:border-0 file:bg-transparent file:text-xs file:font-semibold placeholder:text-[#A1A1AA] dark:placeholder:text-[#71717A] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#4A6CF7]/12 focus-visible:border-[#4A6CF7] disabled:cursor-not-allowed disabled:opacity-100 disabled:bg-[#FAFAF9] dark:disabled:bg-[#27272A]/50 disabled:text-[#27272A] dark:disabled:text-[#F4F4F5] transition-colors duration-150";
+
+const FIELD_LABEL_OVERRIDES: Record<string, string> = {
+  app_id: "Application ID",
+  p11_no: "P-11 Number",
+  project_no: "Project Number",
+  ss_file_number: "File Number",
+  ss_applicant_name: "Applicant Name",
+  ss_year_period_of_sanction: "Year / Period Of Sanction",
+  ss_department_for_purchase: "Department For Purchase",
+  ss_account_head: "Account Head",
+  ss_funding_agency: "Funding Agency",
+  ss_funds_allocated: "Funds Allocated",
+  ss_balance_available: "Balance Available",
+  ss_actual_expenditure: "Actual Expenditure",
+  ss_name_of_firms: "Name Of Firms",
+  ss_pack_forward: "Packing And Forwarding",
+  ss_freight: "Freight",
+  ss_other_charges: "Other Charges",
+  ss_warranty: "Warranty",
+  ss_delivery: "Delivery",
+  ss_payment: "Payment",
+  file_path: "File Path",
+  check_the_below_declaration: "Declaration",
+  the_purchase_committe_recommends_purchase_of_the_items_from_ms:
+    "Purchase Committee Recommendation",
+  quotation_recieved_for_purchase_of_the_items_from_ms:
+    "Quotation Received From",
+  packing_and_forwarding: "Packing And Forwarding",
+};
+
+const formatFieldLabel = (field: Pick<FormField, "fieldname" | "label">) => {
+  const raw = FIELD_LABEL_OVERRIDES[field.fieldname] || field.label || field.fieldname;
+  if (FIELD_LABEL_OVERRIDES[field.fieldname]) return raw;
+
+  return raw
+    .replace(/^ss_/i, "")
+    .replace(/^p11_/i, "P-11 ")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
+const FieldLabel = ({
+  field,
+  isMandatory,
+}: {
+  field: Pick<FormField, "fieldname" | "label">;
+  isMandatory?: boolean;
+}) => (
+  <label
+    htmlFor={field.fieldname}
+    className="inline-flex w-fit max-w-full items-start rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]"
+  >
+    <span className="whitespace-normal break-words leading-snug">{formatFieldLabel(field)}</span>
+    {isMandatory && (
+      <span className="ml-1 font-bold normal-case text-red-500">*</span>
+    )}
+  </label>
+);
+
+const FULL_WIDTH_FIELDNAMES = new Set([
+  "travel_declaration_text",
+  "travel_declaration_accepted",
+  "certify_authorized_firm",
+  "certify_current_prices",
+  "certify_delivery_time",
+]);
+
+const shouldRenderFullWidth = (field: FormField) =>
+  FULL_WIDTH_FIELDNAMES.has(field.fieldname) ||
+  (field.fieldtype === "HTML" &&
+    /declaration/i.test(`${field.fieldname} ${field.label || ""}`));
 
 // --- MEMOIZED FORM FIELD COMPONENT ---
 const MemoizedFormField = memo(
@@ -81,6 +168,7 @@ const MemoizedFormField = memo(
     onChange,
     onFileChange,
     onFieldChangeWithSideEffects,
+    isAutocomplete,
   }: {
     field: FormField;
     value: any;
@@ -90,6 +178,7 @@ const MemoizedFormField = memo(
     onChange: (fieldname: string, value: any) => void;
     onFileChange: (fieldname: string, file: File | null) => void;
     onFieldChangeWithSideEffects?: (fieldname: string, value: any) => void;
+    isAutocomplete?: boolean;
   }) => {
     if (
       !field.label &&
@@ -106,6 +195,8 @@ const MemoizedFormField = memo(
       }
     };
 
+    const displayLabel = formatFieldLabel(field);
+
     const commonProps = {
       id: field.fieldname,
       name: field.fieldname,
@@ -113,7 +204,8 @@ const MemoizedFormField = memo(
       readOnly: isReadOnly,
       required: isMandatory,
       disabled: isReadOnly,
-      value: value || "",
+      // Use ?? so numeric 0 is preserved (0 || "" would wrongly render as empty)
+      value: value ?? "",
       onChange: (
         e: React.ChangeEvent<
           HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
@@ -124,6 +216,45 @@ const MemoizedFormField = memo(
     const renderInput = () => {
       switch (field.fieldtype) {
         case "Link":
+          // If the field is read-only, render it as plain text finding the label from options
+          if (isReadOnly) {
+            const readOnlyLabel = options?.find((opt) => opt.value === value)?.label || value;
+            return (
+              <div className="flex h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5]">
+                {(field.fieldname === "department" ||
+                  field.fieldname === "department_for" ||
+                  field.fieldname === "upfa_department" ||
+                  field.fieldname === "ps_department" ||
+                  field.fieldname === "implementation_department" ||
+                  field.fieldname === "applicant_department" ||
+                  field.fieldname === "igf_department_centre_section") &&
+                value ? (
+                  <DepartmentName name={value} />
+                ) : (field.fieldname === "account_head" || field.fieldname === "igf_account_head") && value ? (
+                  <BudgetHeadName id={value} />
+                ) : (
+                  readOnlyLabel || "-"
+                )}
+              </div>
+            );
+          }
+
+          // Render searchable autocomplete for fields marked via autocompleteFields prop
+          if (isAutocomplete && options && options.length > 0) {
+            return (
+              <div className="relative flex flex-col pt-1">
+                <AutocompleteEmail
+                  className={inputClasses}
+                  value={value ?? ""}
+                  onChange={(val) => handleChange(field.fieldname, val)}
+                  options={options}
+                  searchByLabel
+                  placeholder={`Enter ${displayLabel}...`}
+                  disabled={isReadOnly}
+                />
+              </div>
+            );
+          }
           // specific check: if options exist, render select. Else render text input (fallback for large link fields like User)
           if (options && options.length > 0) {
             return (
@@ -133,12 +264,14 @@ const MemoizedFormField = memo(
                     {...commonProps}
                     className={cn(
                       commonProps.className || "",
-                      (field.fieldname === "department" ||
+                      ((field.fieldname === "department" ||
                         field.fieldname === "department_for" ||
                         field.fieldname === "upfa_department" ||
+                        field.fieldname === "ps_department" ||
                         field.fieldname === "implementation_department" ||
-                        field.fieldname === "applicant_department") &&
-                        value
+                        field.fieldname === "applicant_department" ||
+                        field.fieldname === "account_head") &&
+                        value)
                         ? "text-transparent focus:text-zinc-900 dark:focus:text-zinc-100 disabled:text-transparent dark:disabled:text-transparent bg-transparent relative z-10"
                         : "",
                     )}
@@ -153,6 +286,7 @@ const MemoizedFormField = memo(
                   {(field.fieldname === "department" ||
                     field.fieldname === "department_for" ||
                     field.fieldname === "upfa_department" ||
+                    field.fieldname === "ps_department" ||
                     field.fieldname === "implementation_department" ||
                     field.fieldname === "applicant_department") &&
                     value && (
@@ -160,6 +294,11 @@ const MemoizedFormField = memo(
                         <DepartmentName name={value} />
                       </div>
                     )}
+                  {field.fieldname === "account_head" && value && (
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-sm text-zinc-900 dark:text-zinc-100 truncate max-w-[calc(100%-2.5rem)] pointer-events-none z-20">
+                      <BudgetHeadName id={value} />
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -174,24 +313,31 @@ const MemoizedFormField = memo(
                   {...commonProps}
                   className={cn(
                     inputClasses,
-                    (field.fieldname === "department" ||
+                    ((field.fieldname === "department" ||
                       field.fieldname === "department_for" ||
                       field.fieldname === "upfa_department" ||
+                      field.fieldname === "ps_department" ||
                       field.fieldname === "implementation_department" ||
-                      field.fieldname === "applicant_department") &&
-                      value
+                      field.fieldname === "applicant_department" ||
+                      field.fieldname === "account_head") &&
+                      value)
                       ? "text-transparent focus:text-zinc-900 dark:focus:text-zinc-100 placeholder:text-transparent focus:placeholder:text-zinc-400 disabled:text-transparent dark:disabled:text-transparent relative z-10"
                       : "",
                     "pr-10",
                   )}
                   placeholder={
-                    field.fieldtype === "Link" ? `Enter ${field.label}...` : ""
+                    field.fieldtype === "Link" ? `Enter ${displayLabel}...` : ""
                   }
                 />
 
-                {(field.fieldname === "department" ||
+                {field.fieldname === "account_head" && value ? (
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-sm text-zinc-900 dark:text-zinc-100 truncate max-w-[calc(100%-2.5rem)] pointer-events-none z-20">
+                    <BudgetHeadName id={value} />
+                  </div>
+                ) : (field.fieldname === "department" ||
                   field.fieldname === "department_for" ||
                   field.fieldname === "upfa_department" ||
+                  field.fieldname === "ps_department" ||
                   field.fieldname === "implementation_department" ||
                   field.fieldname === "applicant_department") &&
                 value ? (
@@ -262,54 +408,66 @@ const MemoizedFormField = memo(
         case "Int":
           return (
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
+              title="Enter a positive whole number"
               {...commonProps}
+              value={String(value ?? "")}
               onChange={(e) => {
                 const val = e.target.value;
-                handleChange(
-                  field.fieldname,
-                  val === "" ? "" : parseInt(val, 10) || 0,
-                );
+                if (val === "" || /^\d*$/.test(val)) {
+                  handleChange(field.fieldname, val);
+                }
               }}
-              onWheel={(e) => (e.target as HTMLInputElement).blur()}
+              onBlur={(e) => {
+                const val = e.target.value;
+                if (val !== "") handleChange(field.fieldname, parseInt(val, 10) || 0);
+              }}
             />
           );
 
         case "Float":
           return (
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
+              title="Enter a positive number"
               {...commonProps}
+              value={String(value ?? "")}
               onChange={(e) => {
                 const val = e.target.value;
-                handleChange(
-                  field.fieldname,
-                  val === "" ? "" : parseFloat(val) || 0,
-                );
+                if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                  handleChange(field.fieldname, val);
+                }
               }}
-              onWheel={(e) => (e.target as HTMLInputElement).blur()}
+              onBlur={(e) => {
+                const val = e.target.value;
+                if (val !== "") handleChange(field.fieldname, parseFloat(val) || 0);
+              }}
             />
           );
 
         case "Currency":
           return (
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
+              title="Enter a positive amount in ₹"
               {...commonProps}
+              value={String(value ?? "")}
               onChange={(e) => {
                 const val = e.target.value;
-                // Round to 2 decimal places for currency
-                const numVal = parseFloat(val);
-                handleChange(
-                  field.fieldname,
-                  val === ""
-                    ? ""
-                    : isNaN(numVal)
-                      ? 0
-                      : Math.round(numVal * 100) / 100,
-                );
+                if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                  handleChange(field.fieldname, val);
+                }
               }}
-              onWheel={(e) => (e.target as HTMLInputElement).blur()}
+              onBlur={(e) => {
+                const val = e.target.value;
+                if (val !== "") {
+                  const numVal = parseFloat(val);
+                  handleChange(field.fieldname, isNaN(numVal) ? 0 : Math.round(numVal * 100) / 100);
+                }
+              }}
             />
           );
 
@@ -319,41 +477,38 @@ const MemoizedFormField = memo(
           return (
             <label
               className={cn(
-                "flex items-start gap-2 p-3 rounded-md border transition-all duration-200 cursor-pointer",
+                "flex items-center gap-3 px-3 py-2.5 rounded-md border cursor-pointer transition-colors duration-150",
                 isChecked
-                  ? "bg-zinc-50 border-zinc-200 dark:bg-zinc-800/50 dark:border-zinc-700"
-                  : "bg-white border-zinc-200 dark:bg-[#27272A] dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50",
+                  ? "bg-[#4A6CF7]/5 border-[#4A6CF7]/40 dark:bg-[#4A6CF7]/10 dark:border-[#4A6CF7]/40"
+                  : "bg-white border-[#E5E7EB] dark:bg-zinc-900 dark:border-[#374151] hover:border-[#4A6CF7]/30 dark:hover:border-[#4A6CF7]/30",
+                isReadOnly && "cursor-not-allowed opacity-60",
               )}
             >
-              <div className="relative flex items-center mt-0.5">
+              <div className="relative flex items-center shrink-0">
                 <input
                   type="checkbox"
-                  className="peer sr-only"
+                  className="sr-only peer"
                   checked={isChecked}
                   onChange={(e) =>
                     handleChange(field.fieldname, e.target.checked ? 1 : 0)
                   }
                   disabled={isReadOnly}
                 />
-                <div className="w-4 h-4 border border-zinc-400 dark:border-zinc-500 rounded-sm peer-checked:bg-zinc-900 dark:peer-checked:bg-zinc-100 peer-checked:border-zinc-900 dark:peer-checked:border-zinc-100 transition-all focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800 focus-visible:ring-offset-2 ring-offset-white dark:ring-offset-zinc-950"></div>
-                <svg
-                  className="absolute inset-0 w-4 h-4 text-white dark:text-zinc-900 opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
+                <div className={cn(
+                  "w-4 h-4 rounded-[3px] border-2 flex items-center justify-center transition-all duration-150",
+                  isChecked
+                    ? "bg-[#4A6CF7] border-[#4A6CF7]"
+                    : "border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900",
+                )}>
+                  {isChecked && (
+                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 10" fill="none">
+                      <path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
               </div>
-              <span
-                className={cn(
-                  "text-sm font-medium leading-none text-zinc-700 dark:text-zinc-300 peer-disabled:cursor-not-allowed peer-disabled:opacity-70 select-none pt-0.5",
-                )}
-              >
-                {field.label}
+              <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 select-none">
+                {displayLabel}
               </span>
             </label>
           );
@@ -388,7 +543,7 @@ const MemoizedFormField = memo(
                   href={getFileUrl(value)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-md text-sm font-medium transition-colors h-10 ring-offset-white dark:ring-offset-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800"
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-md text-[12px] font-semibold uppercase tracking-wide transition-colors h-10"
                 >
                   <svg
                     className="w-4 h-4"
@@ -428,7 +583,7 @@ const MemoizedFormField = memo(
           // No existing file, show file input (hidden in read-only mode)
           if (isReadOnly) {
             return (
-              <div className="text-zinc-400 dark:text-zinc-500 italic">
+              <div className="text-[12px] text-[#A1A1AA] dark:text-[#71717A] italic tracking-wide">
                 No file uploaded
               </div>
             );
@@ -451,23 +606,27 @@ const MemoizedFormField = memo(
         case "HTML":
           return (
             <div
-              className="prose prose-sm max-w-none text-zinc-900 dark:text-zinc-100 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl dark:prose-invert"
+              className="prose prose-sm max-w-none text-zinc-800 dark:text-zinc-200 p-4 bg-amber-50/60 dark:bg-amber-900/10 border border-amber-200/70 dark:border-amber-800/50 rounded-lg text-[13px] dark:prose-invert"
               dangerouslySetInnerHTML={{ __html: field.options || "" }}
             />
           );
 
         case "Read Only":
+          const readOnlyLabel = options?.find(opt => opt.value === value)?.label || value;
           return (
-            <div className="flex h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100">
+            <div className="flex h-10 w-full rounded-md border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5]">
               {(field.fieldname === "department" ||
                 field.fieldname === "department_for" ||
                 field.fieldname === "upfa_department" ||
+                field.fieldname === "ps_department" ||
                 field.fieldname === "implementation_department" ||
                 field.fieldname === "applicant_department") &&
               value ? (
                 <DepartmentName name={value} />
+              ) : field.fieldname === "account_head" && value ? (
+                <BudgetHeadName id={value} />
               ) : (
-                value || "-"
+                readOnlyLabel || "-"
               )}
             </div>
           );
@@ -477,38 +636,69 @@ const MemoizedFormField = memo(
         case "Radio":
           const radioOpts = field.options?.split("\n").filter(Boolean) || [];
           return (
-            <div className="flex flex-col gap-3 mt-2">
-              {radioOpts.map((opt) => (
-                <label
-                  key={opt}
-                  className="flex items-center gap-3 cursor-pointer group"
-                >
-                  <div className="relative flex items-center">
+            <div className="flex flex-col gap-2 mt-1">
+              {radioOpts.map((opt) => {
+                const isSelected = value === opt;
+                return (
+                  <label
+                    key={opt}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-md border cursor-pointer transition-colors duration-150",
+                      isSelected
+                        ? "border-[#4A6CF7]/50 bg-[#4A6CF7]/5 dark:border-[#4A6CF7]/40 dark:bg-[#4A6CF7]/10"
+                        : "border-[#E5E7EB] bg-white dark:border-[#374151] dark:bg-zinc-900 hover:border-[#4A6CF7]/30 dark:hover:border-[#4A6CF7]/30",
+                      isReadOnly && "cursor-not-allowed opacity-60",
+                    )}
+                  >
                     <input
                       type="radio"
                       name={field.fieldname}
                       value={opt}
-                      checked={value === opt}
+                      checked={isSelected}
                       onChange={(e) =>
                         handleChange(field.fieldname, e.target.value)
                       }
                       disabled={isReadOnly}
-                      className="peer sr-only"
+                      className="sr-only"
                     />
-                    <div className="w-4 h-4 border border-zinc-400 dark:border-zinc-500 rounded-full peer-checked:border-zinc-900 dark:peer-checked:border-zinc-100 peer-checked:bg-white dark:peer-checked:bg-[#27272A] transition-all duration-200 focus-visible:ring-2 focus-visible:ring-zinc-100 dark:focus-visible:ring-zinc-800 ring-offset-white dark:ring-offset-zinc-950 flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-zinc-900 dark:bg-zinc-100 opacity-0 peer-checked:opacity-100 transition-opacity duration-200"></div>
+                    <div
+                      className={cn(
+                        "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-150 shrink-0",
+                        isSelected
+                          ? "border-[#4A6CF7]"
+                          : "border-zinc-300 dark:border-zinc-600",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "w-2 h-2 rounded-full transition-all duration-150",
+                          isSelected
+                            ? "bg-[#4A6CF7] scale-100"
+                            : "bg-transparent scale-0",
+                        )}
+                      />
                     </div>
-                  </div>
-                  <span className="text-sm font-medium leading-none text-zinc-700 dark:text-zinc-300 peer-disabled:cursor-not-allowed peer-disabled:opacity-70 transition-colors">
-                    {opt}
-                  </span>
-                </label>
-              ))}
-            </div>
-          );
+                    <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">
+                      {opt}
+                    </span>
+                  </label>
+                );
+              })}
+          </div>
+        );
 
         case "Data":
         default:
+          // Special handling for nationality field — render country dropdown
+          if (field.fieldname === "nationality_u_r") {
+            return (
+              <CountrySelect
+                value={value ?? ""}
+                onChange={(val) => handleChange(field.fieldname, val)}
+                disabled={isReadOnly}
+              />
+            );
+          }
           return (
             <div className="relative flex flex-col pt-1">
               <div className="relative">
@@ -520,6 +710,7 @@ const MemoizedFormField = memo(
                     (field.fieldname === "department" ||
                       field.fieldname === "department_for" ||
                       field.fieldname === "upfa_department" ||
+                      field.fieldname === "ps_department" ||
                       field.fieldname === "implementation_department" ||
                       field.fieldname === "applicant_department") &&
                       value
@@ -530,6 +721,7 @@ const MemoizedFormField = memo(
                 {(field.fieldname === "department" ||
                   field.fieldname === "department_for" ||
                   field.fieldname === "upfa_department" ||
+                  field.fieldname === "ps_department" ||
                   field.fieldname === "implementation_department" ||
                   field.fieldname === "applicant_department") &&
                   value && (
@@ -546,10 +738,10 @@ const MemoizedFormField = memo(
     // Checkbox has its own label rendering but still needs description
     if (field.fieldtype === "Check") {
       return (
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           {renderInput()}
           {field.description && (
-            <p className="text-[0.8rem] text-zinc-500 dark:text-zinc-400 ml-6">
+            <p className="text-[11px] text-[#A1A1AA] dark:text-[#71717A] ml-7 leading-relaxed">
               {field.description}
             </p>
           )}
@@ -563,19 +755,11 @@ const MemoizedFormField = memo(
     }
 
     return (
-      <div className="space-y-2">
-        <label
-          htmlFor={field.fieldname}
-          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-zinc-700 dark:text-zinc-300 block mb-2"
-        >
-          {field.label}
-          {isMandatory && (
-            <span className="text-red-500 dark:text-red-900 ml-1">*</span>
-          )}
-        </label>
+      <div className="min-w-0 space-y-2">
+        <FieldLabel field={field} isMandatory={isMandatory} />
         {renderInput()}
         {field.description && (
-          <p className="text-[0.8rem] text-zinc-500 dark:text-zinc-400 mt-1">
+          <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-1 leading-relaxed">
             {field.description}
           </p>
         )}
@@ -596,23 +780,28 @@ const FormSection = ({
   description?: string | null;
   children: React.ReactNode;
 }) => (
-  <div className="space-y-4 pt-4 first:pt-0">
-    {(title || description) && (
-      <div className="border-b border-zinc-200 dark:border-zinc-800 pb-3 mb-4">
-        {title && (
-          <h2 className="text-lg font-serif font-medium text-zinc-900 dark:text-zinc-100">
-            {title}
-          </h2>
-        )}
-        {description && (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">
-            {description}
-          </p>
-        )}
+  !title && !description ? (
+    <>{children}</>
+  ) : (
+    <div className="form-section-card">
+      <div className="form-section-header">
+        <div className="form-section-header-accent" />
+        <div>
+          {title && (
+            <h2 className="form-section-title">{title}</h2>
+          )}
+          {description && (
+            <p className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] mt-0.5 leading-relaxed">
+              {description}
+            </p>
+          )}
+        </div>
       </div>
-    )}
-    {children}
-  </div>
+      <div className="form-section-body">
+        {children}
+      </div>
+    </div>
+  )
 );
 
 // --- MAIN DYNAMIC FORM RENDERER ---
@@ -629,6 +818,10 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   onFieldChangeWithSideEffects,
   onTableLinkChange,
   readOnly = false,
+  autocompleteFields,
+  fieldMessages,
+  hideSectionHeaders = false,
+  hideTableLabels = false,
 }) => {
   // Group fields by sections
   const groupFieldsBySection = useCallback((): FormSection[] => {
@@ -691,13 +884,59 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const isMandatory = isFieldMandatory(field, formData);
     const fieldIsReadOnly = readOnly || checkFieldReadOnly(field, formData);
 
+    // Handle JSON fields — render as a read-only display table
+    if (field.fieldtype === "JSON") {
+      let rows: Record<string, any>[] = [];
+      try {
+        const val = formData[field.fieldname];
+        if (val) rows = Array.isArray(val) ? val : JSON.parse(val);
+      } catch { /* invalid JSON — render nothing */ }
+
+      if (!rows.length) return null;
+
+      const hiddenKeys = new Set(["id", "application_id", "recruitment_post_id"]);
+      const columns = Object.keys(rows[0]).filter(k => !hiddenKeys.has(k));
+
+      return (
+        <div key={field.fieldname} className="col-span-full space-y-3">
+          {field.label && (
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-[#3F3F46] dark:text-[#E4E4E7]">{field.label}</h3>
+          )}
+          <div className="overflow-x-auto border border-[#E2E8F0] dark:border-[#2D3748] rounded-lg shadow-sm">
+            <table className="frappe-table w-full text-[12px]">
+              <thead>
+                <tr>
+                  {columns.map(col => (
+                    <th key={col} className="px-4 py-2.5 text-left">
+                      {col.replace(/_/g, " ")}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, idx) => (
+                  <tr key={idx}>
+                    {columns.map(col => (
+                      <td key={col} className="px-4 py-2.5 text-[13px] text-zinc-700 dark:text-zinc-300">
+                        {String(row[col] ?? "—")}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
     // Handle Table fields
     if (field.fieldtype === "Table" && field.child_fields) {
       return (
         <div key={field.fieldname} className="col-span-full">
           <ChildTableComponent
             tableName={field.fieldname}
-            label={field.label || undefined}
+            label={hideTableLabels ? undefined : field.label || undefined}
             columns={field.child_fields}
             tableData={formData[field.fieldname] || []}
             onRowChange={onTableRowChange}
@@ -712,20 +951,56 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       );
     }
 
+    const fieldMsg = fieldMessages?.[field.fieldname];
+
     return (
-      <MemoizedFormField
+      <div
         key={field.fieldname}
-        field={field}
-        value={formData[field.fieldname]}
-        options={
-          linkOptions[field.options as string] || linkOptions[field.fieldname]
-        }
-        isMandatory={isMandatory}
-        isReadOnly={fieldIsReadOnly}
-        onChange={onChange}
-        onFileChange={onFileChange}
-        onFieldChangeWithSideEffects={onFieldChangeWithSideEffects}
-      />
+        className={cn(shouldRenderFullWidth(field) && "col-span-full")}
+      >
+        <MemoizedFormField
+          field={field}
+          value={formData[field.fieldname]}
+          options={
+            linkOptions[field.options as string] || linkOptions[field.fieldname]
+          }
+          isMandatory={isMandatory}
+          isReadOnly={fieldIsReadOnly}
+          onChange={onChange}
+          onFileChange={onFileChange}
+          onFieldChangeWithSideEffects={onFieldChangeWithSideEffects}
+          isAutocomplete={autocompleteFields?.includes(field.fieldname)}
+        />
+        {fieldMsg && (
+          <div
+            className={cn(
+              "flex items-center gap-1.5 mt-1.5 text-xs font-medium transition-all duration-300",
+              fieldMsg.type === "error" && "text-red-600 dark:text-red-400",
+              fieldMsg.type === "success" && "text-emerald-600 dark:text-emerald-400",
+              fieldMsg.type === "warning" && "text-amber-600 dark:text-amber-400",
+              (fieldMsg.type === "info" || fieldMsg.type === "loading") && "text-blue-500 dark:text-blue-400",
+            )}
+          >
+            {fieldMsg.type === "loading" && (
+              <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            )}
+            {fieldMsg.type === "success" && (
+              <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            )}
+            {(fieldMsg.type === "error" || fieldMsg.type === "warning") && (
+              <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            )}
+            <span>{fieldMsg.message}</span>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -746,7 +1021,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   };
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-6">
       {sections.map((section, idx) => {
         // Check if section should be visible
         if (!isSectionVisible(section)) {
@@ -764,10 +1039,10 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         return (
           <FormSection
             key={idx}
-            title={section.title}
-            description={section.description}
+            title={hideSectionHeaders ? "" : section.title}
+            description={hideSectionHeaders ? null : section.description}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-5">
               {section.fields.map((field) => renderField(field))}
             </div>
           </FormSection>

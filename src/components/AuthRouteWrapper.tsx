@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFrappeAuth } from 'frappe-react-sdk';
 import { useUserRoles } from './UserRole';
+import { GlobalLoader } from '@/components/ui/global-loader';
 
 // Type definition remains the same
 type AllowedRole =
@@ -86,8 +87,8 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
       return;
     }
 
-    // If roles is null/undefined after loading completes, that's an issue
-    if (!roles) {
+    // If roles is null/undefined/empty after loading completes, wait — don't redirect yet
+    if (!roles || roles.length === 0) {
       console.warn("AuthRouteWrapper: No roles data available after loading.");
       return;
     }
@@ -114,12 +115,7 @@ const AuthRouteWrapper: React.FC<AuthRouteWrapperProps> = ({ allowedRole, childr
   // Show loading while authentication is being verified
   // If we have a last known user, assume we're still logged in during initial load
   if (isAuthLoading || (isRolesLoading && !hasInitialized.current)) {
-    // Show a minimal loading state instead of null
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-      </div>
-    );
+    return <GlobalLoader isLoading delay={0} />;
   }
 
   // Don't render until we have confirmed auth

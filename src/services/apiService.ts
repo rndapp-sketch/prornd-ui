@@ -10,6 +10,8 @@ export const rateContractAPI = {
     getFields: `${API_BASE}.rate_contract.rate_contract.get_rate_contract_fields`,
     save: `${API_BASE}.rate_contract.rate_contract.save_rate_contract`,
     submit: `${API_BASE}.rate_contract.rate_contract.submit_rate_contract`,
+    getWorkflowActions: `${API_BASE}.rate_contract.rate_contract.get_rate_contract_workflow_actions`,
+    performAction: `${API_BASE}.rate_contract.rate_contract.perform_rate_contract_action`,
     getPrincipalSuppliersByItemType: `${API_BASE}.rate_contract.rate_contract.get_principal_suppliers_by_item_type`,
     getLocalSuppliersByPrincipal: `${API_BASE}.rate_contract.rate_contract.get_local_suppliers_by_principal`,
     getPrincipalSupplierDetails: `${API_BASE}.rate_contract.rate_contract.get_principal_supplier_details`,
@@ -19,6 +21,13 @@ export const rateContractAPI = {
     getVendorsByP4ItemType: `${API_BASE}.rate_contract.rate_contract.get_vendors_by_p4_item_type`,
 };
 
+export const annualMaintenanceContractAPI = {
+    getFields: `${API_BASE}.amc.amc.get_amc_fields`,
+    save: `${API_BASE}.amc.amc.save_amc_data`,
+    getWorkflowActions: `${API_BASE}.amc.amc.get_amc_workflow_actions`,
+    performAction: `${API_BASE}.amc.amc.perform_amc_action`,
+};
+
 // Travel API endpoints
 export const travelAPI = {
     getFields: `${API_BASE}.travel.travel.get_travel_fields`,
@@ -26,6 +35,7 @@ export const travelAPI = {
     submit: `${API_BASE}.travel.travel.submit_travel`,
     getWorkflowActions: `${API_BASE}.travel.travel.get_travel_workflow_actions`,
     performAction: `${API_BASE}.travel.travel.perform_travel_action`,
+    getSclBalance: `${API_BASE}.travel.travel.get_special_leave_balance_for_travel`,
 };
 
 // TA DA Settlement API endpoints
@@ -35,6 +45,7 @@ export const tadaAPI = {
     submit: `${API_BASE}.ta_da_settlement.ta_da_settlement.submit_ta_da_settlement`,
     getWorkflowActions: `${API_BASE}.ta_da_settlement.ta_da_settlement.get_ta_da_settlement_workflow_actions`,
     performAction: `${API_BASE}.ta_da_settlement.ta_da_settlement.perform_ta_da_settlement_action`,
+    getCommitDetails: `${API_BASE}.ta_da_settlement.ta_da_settlement.get_ta_da_settlement_commit_details`,
 };
 
 // Project Staff Resignation API endpoints
@@ -103,15 +114,57 @@ export const recruitmentAdhocContractualAPI = {
     submit: `${API_BASE}.recruitment_adhoc_contractual.recruitment_adhoc_contractual.submit_recruitment_adhoc_contractual`,
 };
 
+// Selection Committee Report API endpoints
+export const selectionCommitteeReportAPI = {
+    getFields: `${API_BASE}.selection_committee_report.selection_committee_report.get_selection_committee_report_fields`,
+    save: `${API_BASE}.selection_committee_report.selection_committee_report.save_selection_committee_report_data`,
+    submit: `${API_BASE}.selection_committee_report.selection_committee_report.submit_selection_committee_report`,
+    getWorkflowActions: `${API_BASE}.selection_committee_report.selection_committee_report.get_selection_committee_report_workflow_actions`,
+    performAction: `${API_BASE}.selection_committee_report.selection_committee_report.perform_selection_committee_report_action`,
+    getByWebmail: `${API_BASE}.selection_committee_report.selection_committee_report.get_selection_committee_report_by_webmail`,
+    updateSendToDirector: `${API_BASE}.selection_committee_report.selection_committee_report.update_send_to_director_scr`,
+    getPendingDirectorUploads: `${API_BASE}.selection_committee_report.selection_committee_report.get_pending_director_uploads_scr`,
+    attachDirectorPdf: `${API_BASE}.selection_committee_report.selection_committee_report.attach_director_pdf_scr`,
+};
+
+// Selection Candidate Details API endpoints
+export const selectionCandidateDetailsAPI = {
+    getByInterview: `${API_BASE}.selection_candidate_details.selection_candidate_details.get_selection_candidate_details_by_interview`,
+    getByApplication: `${API_BASE}.selection_candidate_details.selection_candidate_details.get_selection_candidate_details_by_application`,
+    updateAppointmentOrderNumber: `${API_BASE}.selection_candidate_details.selection_candidate_details.update_appointment_order_number`,
+    updateMedicalReportNumber: `${API_BASE}.selection_candidate_details.selection_candidate_details.update_medical_report_number`,
+    updateJoiningReportNumber: `${API_BASE}.selection_candidate_details.selection_candidate_details.update_joining_report_number`,
+};
+
+// Project Staff Details (Joining) API endpoints
+export const projectStaffDetailsAPI = {
+    getFields: `${API_BASE}.project_staff_details.project_staff_details.get_project_staff_details_fields`,
+    save: `${API_BASE}.project_staff_details.project_staff_details.save_project_staff_details_data`,
+    getList: `${API_BASE}.project_staff_details.project_staff_details.get_project_staff_details_list`,
+    getByApplication: `${API_BASE}.project_staff_details.project_staff_details.get_joining_by_application`,
+    delete: `${API_BASE}.project_staff_details.project_staff_details.delete_project_staff_details`,
+    getNextEmpId: `${API_BASE}.project_staff_details.project_staff_details.get_next_emp_id`,
+    submit: `${API_BASE}.project_staff_details.project_staff_details.submit_project_staff_details`,
+    getWorkflowActions: `${API_BASE}.project_staff_details.project_staff_details.get_project_staff_details_workflow_actions`,
+    performAction: `${API_BASE}.project_staff_details.project_staff_details.perform_project_staff_details_action`,
+};
+
 // Indent Cum Sanction Sheet API endpoints
 export const icssAPI = {
     getIndentTypes: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_indent_types`,
     getFields: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_fields`,
+    getChildFields: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_child_fields`,
     save: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.save_icss_data`,
+    saveComposite: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.save_icss_composite_data`,
+    savePOData: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.save_icss_po_data`,
+    saveICSSPOData: `${API_BASE}.icss_po.icss_po.save_icss_po_data`,
     getWorkflowActions: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_icss_workflow_actions`,
     performAction: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.perform_icss_action`,
     submit: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.submit_icss`,
     getUserDetails: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_user_details_icss`,
+    updateSendToDirector: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.update_send_to_director_icss`,
+    attachDirectorPdf: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.attach_director_pdf_icss`,
+    getPendingDirectorUploads: `${API_BASE}.indent_cum_sanction_sheet.indent_cum_sanction_sheet.get_pending_director_uploads_icss`,
 };
 
 export const proprietaryPurchaseAPI = {
@@ -139,11 +192,30 @@ export const repairReplacementAPI = {
 export const universalRegistrationAPI = {
     getFields: `${API_BASE}.universal_registration__.universal_registration__.get_universal_registration___fields`,
     save: `${API_BASE}.universal_registration__.universal_registration__.save_universal_registration___data`,
+    checkDuplicates: `${API_BASE}.universal_registration__.universal_registration__.check_duplicate_registration`,
+    checkEmailAvailability: `${API_BASE}.universal_registration__.universal_registration__.check_email_availability`,
+};
+
+// Disbursal of Consultancy API endpoints
+export const disbursalOfConsultancyAPI = {
+    getFields: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.get_disbursal_of_consultancy_fields`,
+    save: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.save_disbursal_of_consultancy_data`,
+    submit: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.submit_disbursal_of_consultancy`,
+    getWorkflowActions: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.get_disbursal_of_consultancy_workflow_actions`,
+    performAction: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.perform_disbursal_of_consultancy_action`,
+    getByProject: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.get_disbursal_of_consultancy_by_project`,
+    getByWebmail: `${API_BASE}.disbursal_of_consultancy.disbursal_of_consultancy.get_disbursal_of_consultancy_by_webmail`,
 };
 
 // Disbursal of Honorarium API endpoints
 export const disbursalOfHonorariumAPI = {
+    getFields: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_fields`,
+    save: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.save_disbursal_of_honorarium_data`,
+    submit: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.submit_disbursal_of_honorarium`,
+    getWorkflowActions: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_workflow_actions`,
+    performAction: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.perform_disbursal_of_honorarium_action`,
     getByProject: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_by_project`,
+    getByWebmail: `${API_BASE}.disbursal_of_honorarium.disbursal_of_honorarium.get_disbursal_of_honorarium_by_webmail`,
 };
 
 // Universal User API endpoints
@@ -152,10 +224,37 @@ export const universalUserAPI = {
     save: `${API_BASE}.universal_user__.universal_user__.save_universal_user___data`,
 };
 
+// Indent General Form API endpoints
+export const indentGeneralFormAPI = {
+    getFields: `${API_BASE}.indent_general_form.indent_general_form.get_indent_general_form_fields`,
+    save: `${API_BASE}.indent_general_form.indent_general_form.save_indent_general_form_data`,
+    getWorkflowActions: `${API_BASE}.indent_general_form.indent_general_form.get_indent_general_form_workflow_actions`,
+    performAction: `${API_BASE}.indent_general_form.indent_general_form.perform_indent_general_form_action`,
+};
+
+// Loan Request API endpoints
+export const loanRequestAPI = {
+    getFields: `${API_BASE}.loan_request.loan_request.get_loan_request_fields`,
+    save: `${API_BASE}.loan_request.loan_request.save_loan_request`,
+    submit: `${API_BASE}.loan_request.loan_request.submit_loan_request`,
+    getWorkflowActions: `${API_BASE}.loan_request.loan_request.get_loan_request_workflow_actions`,
+    performAction: `${API_BASE}.loan_request.loan_request.perform_loan_request_action`,
+};
+
 // Common utility to get user details
 export const commonAPI = {
     getUserDetails: `${API_BASE}.project_registration.project_registration.get_user_details_for_pi`,
     getUserDetailsByEmail: `rndopsapp.rndopsapp.api.get_user_details`,
+};
+
+// Delegate User API endpoints
+export const delegateUserAPI = {
+    searchUsers: `rndopsapp.rndopsapp.api.search_delegate_users`,
+    getScope: `rndopsapp.rndopsapp.api.get_delegate_scope`,
+    getActiveDelegations: `rndopsapp.rndopsapp.api.get_active_delegations`,
+    delegate: `rndopsapp.rndopsapp.api.delegate_user`,
+    undelegate: `rndopsapp.rndopsapp.api.undelegate_user`,
+    removeItem: `rndopsapp.rndopsapp.api.remove_delegated_item`,
 };
 
 // Helper to convert file to base64
@@ -168,9 +267,21 @@ export const fileToBase64 = (file: File): Promise<{ file_name: string; file_data
     });
 };
 
+// Candidate APIs (External Node Server)
+export const CANDIDATE_API_BASE_URL = import.meta.env.VITE_CANDIDATE_API_URL || "https://iitg.ac.in/rndproj/recruitment";
+
+export const candidateAPI = {
+    getApplications: (refNum: string) => `${CANDIDATE_API_BASE_URL}/api/applications?refNumParent=${encodeURIComponent(refNum)}`,
+    reviewApplication: (applicationId: number | string) => `${CANDIDATE_API_BASE_URL}/api/applications/${applicationId}/review`,
+    getProfile: (candidateId: number | string) => `${CANDIDATE_API_BASE_URL}/api/candidates/${candidateId}/profile`,
+    getDocument: (docId: number | string) => `${CANDIDATE_API_BASE_URL}/api/documents/${docId}`,
+    viewDocument: (docId: number | string) => `${CANDIDATE_API_BASE_URL}/api/documents/${docId}/view`,
+    getPost: (postId: number | string) => `${CANDIDATE_API_BASE_URL}/api/recruitment-posts/${postId}`,
+};
+
 // Helper to prepare form data with file conversions for API submission
-export const prepareFormDataForApi = async (formData: Record<string, any>): Promise<Record<string, any>> => {
-    const data = JSON.parse(JSON.stringify(formData));
+export const prepareFormDataForApi = async (formData: Record<string, unknown>): Promise<Record<string, unknown>> => {
+    const data = JSON.parse(JSON.stringify(formData)) as Record<string, unknown>;
 
     for (const key in formData) {
         const value = formData[key];
@@ -179,9 +290,13 @@ export const prepareFormDataForApi = async (formData: Record<string, any>): Prom
             data[key] = await fileToBase64(value);
         } else if (Array.isArray(value)) {
             for (let i = 0; i < value.length; i++) {
-                for (const rowKey in value[i]) {
-                    if (value[i][rowKey] instanceof File) {
-                        data[key][i][rowKey] = await fileToBase64(value[i][rowKey]);
+                const row = value[i];
+                const dataRows = data[key];
+                if (!row || typeof row !== 'object' || !Array.isArray(dataRows)) continue;
+                for (const rowKey in row) {
+                    const rowValue = (row as Record<string, unknown>)[rowKey];
+                    if (rowValue instanceof File) {
+                        (dataRows[i] as Record<string, unknown>)[rowKey] = await fileToBase64(rowValue);
                     }
                 }
             }

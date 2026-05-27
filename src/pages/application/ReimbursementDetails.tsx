@@ -21,6 +21,9 @@ import { useUserRoles } from "../../components/UserRole";
 import { ProjectLedgerModal } from "../../components/ProjectLedgerModal";
 import { Textarea } from "@/components/ui/textarea"; // Assuming this exists, if not use standard textarea
 import { DeclarationFields } from "@/components/DeclarationFields";
+import { CommitPayment } from "@/components/CommitPayment";
+import { ActivityLog } from "@/components/ActivityLog";
+import ViewProjectButton from "@/components/ViewProjectButton";
 
 // --- TYPE DEFINITIONS ---
 interface ReimbursementData {
@@ -170,9 +173,11 @@ const CommentModal = ({
 const ReimbursementWorkflowActions = ({
   docname,
   onActionComplete,
+  commitRequired = false,
 }: {
   docname: string;
   onActionComplete: () => void;
+  commitRequired?: boolean;
 }) => {
   const { data, isLoading: actionsLoading } = useFrappeGetCall<{
     message: string[];
@@ -213,13 +218,19 @@ const ReimbursementWorkflowActions = ({
 
   return (
     <>
-      <div className="flex gap-2">
+      {commitRequired && (
+        <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium mb-4">
+          A commitment must be submitted before forwarding this application.
+        </div>
+      )}
+      <div className="flex gap-2 mb-4">
         {filteredActions.map((action) => (
           <FrappeButton
             key={action}
             onClick={() => handleActionClick(action)}
-            disabled={actionLoading}
-            variant="action"
+            disabled={actionLoading || commitRequired}
+            variant={commitRequired ? "outline" : "action"}
+            className={commitRequired ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0" : ""}
           >
             {action}
           </FrappeButton>
@@ -350,14 +361,12 @@ const ReimbursementDetails: React.FC = () => {
 
   // Commitment Widget State
   const [commitHead, setCommitHead] = useState("");
-  const [commitAmount, setCommitAmount] = useState("");
   const [paymentAmount, setPaymentAmount] = useState(""); // Payment State
   const [isLedgerOpen, setIsLedgerOpen] = useState(false);
+  const [isCommittedForGate, setIsCommittedForGate] = useState<boolean | null>(null);
 
   // API Hooks for Commit/Payment
-  const { call: submitCommit, loading: isCommitting } = useFrappePostCall(
-    "rndopsapp.rndopsapp.commitPayment.submit_commit_data",
-  );
+  // submitCommit moved to CommitPayment component
   const { call: submitPayment, loading: isPaying } = useFrappePostCall(
     "rndopsapp.rndopsapp.commitPayment.submit_payment_data",
   );
@@ -485,43 +494,7 @@ const ReimbursementDetails: React.FC = () => {
     }
   };
 
-  const handleCommit = async () => {
-    if (!commitAmount || !commitHead || !id || !data) {
-      alert("Please select a budget head and enter an amount.");
-      return;
-    }
-
-    try {
-      await submitCommit({
-        doctype: "Reimbursement",
-        frapAppId: id,
-        name: id,
-        project_name: data.project_name,
-        commit_amount: parseFloat(commitAmount),
-        budget_head: commitHead,
-        bmr: "", // Optional BMR
-        refDetails: id,
-      });
-
-      // Add activity comment for the commitment
-      try {
-        await addComment({
-          doctype: "Reimbursement",
-          docname: id,
-          content: `Commitment of ₹ ${parseFloat(commitAmount).toLocaleString("en-IN")} under "${commitHead}" has been sent to the Account Side.`,
-        });
-      } catch (commentErr) {
-        console.error("Failed to add commitment comment:", commentErr);
-      }
-
-      alert("Commitment submitted successfully!");
-      setCommitAmount("");
-      window.location.reload();
-    } catch (error: any) {
-      console.error("Commit failed:", error);
-      alert(`Commitment failed: ${error.message || "Unknown error"}`);
-    }
-  };
+  // handleCommit moved to CommitPayment component
 
   const handlePayment = async () => {
     if (!paymentAmount || !commitHead || !id || !data) {
@@ -627,6 +600,26 @@ const ReimbursementDetails: React.FC = () => {
               docData.account_head,
               "budget_head",
             );
+          }
+
+          // Resolve project name (Project Registration doctype with project_title field)
+          if (docData.project_name) {
+            nameMap.project_name = await resolveLinkName(
+              "Project Registration",
+              docData.project_name,
+              "project_title",
+            );
+            // Fallback to title if project_title is empty
+            if (nameMap.project_name === docData.project_name) {
+              const altTitle = await resolveLinkName(
+                "Project Registration",
+                docData.project_name,
+                "title",
+              );
+              if (altTitle !== docData.project_name) {
+                nameMap.project_name = altTitle;
+              }
+            }
           }
 
           setResolvedNames(nameMap);
@@ -858,7 +851,7 @@ const ReimbursementDetails: React.FC = () => {
             <div class="section-header">Form Details</div>
             <div class="info-row"><div class="info-label">Own/ Other Project:</div><div class="info-value">${data.self_other || "Own"}</div></div>
             <div class="info-row"><div class="info-label">Project Number:</div><div class="info-value">${data.project_number || "-"}</div></div>
-            <div class="info-row"><div class="info-label">Project Name:</div><div class="info-value">${data.project_name || "-"}</div></div>
+            <div class="info-row"><div class="info-label">Project Name:</div><div class="info-value">${resolvedNames.project_name || data.project_name || "-"}</div></div>
             <div class="info-row"><div class="info-label">Account Head:</div><div class="info-value">${resolvedNames.account_head || data.account_head || "-"}</div></div>
             <div class="info-row"><div class="info-label">Total Amount (₹):</div><div class="info-value">${totalAmount.toLocaleString("en-IN")}</div></div>
             <div class="info-row"><div class="info-label">Date and Time:</div><div class="info-value">${applicationDate}</div></div>
@@ -973,6 +966,7 @@ const ReimbursementDetails: React.FC = () => {
           projectNumber={projectNo || data.project_number}
         >
           <div className="flex items-center gap-4">
+            <ViewProjectButton doctype="Reimbursement" data={data} />
             <div className="text-right text-sm text-zinc-900 dark:text-zinc-100 hidden md:block">
               <div className="flex items-center gap-1 font-medium justify-end">
                 <CalendarIcon className="w-4 h-4" />
@@ -1006,14 +1000,14 @@ const ReimbursementDetails: React.FC = () => {
               <DownloadIcon className="w-4 h-4" />
             </FrappeButton>
           </div>
+          {data.workflow_state && (
+            <ReimbursementWorkflowActions
+              docname={data.name}
+              onActionComplete={() => window.location.reload()}
+              commitRequired={isRnDStaff && isCommittedForGate === false && data.workflow_state === "Pending Staff Approval"}
+            />
+          )}
         </PageHeader>
-        {/* Workflow Actions */}
-        {id && (
-          <ReimbursementWorkflowActions
-            docname={id}
-            onActionComplete={() => window.location.reload()}
-          />
-        )}
         {/* Content Grid with Sidebar */}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           {/* Main Content (3 cols) */}
@@ -1099,7 +1093,7 @@ const ReimbursementDetails: React.FC = () => {
                     label="Project Number"
                     value={data.project_number}
                   />
-                  <DetailRow label="Project Name" value={data.project_name} />
+                  <DetailRow label="Project Name" value={resolvedNames.project_name || data.project_name} />
                   <DetailRow
                     label="Account Head"
                     value={resolvedNames.account_head || data.account_head}
@@ -1272,6 +1266,11 @@ const ReimbursementDetails: React.FC = () => {
               {id && <ActivityStream doctype="Reimbursement" docname={id} />}
             </div>
 
+            {/* Section 1b: Document Activity Log (new endpoint) */}
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+              {id && <ActivityLog doctype="Reimbursement" docname={id} />}
+            </div>
+
             {/* Section 2: Add Comment */}
             <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
               <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-3">
@@ -1297,61 +1296,16 @@ const ReimbursementDetails: React.FC = () => {
             {/* Section 3: Make a Commitment (Conditional) */}
             {(data.workflow_state === "Approved" ||
               data.workflow_state === "Pending Staff Approval") &&
-              isRnDStaff &&
-              !isCommitted && (
-                <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">
-                    Make a Commitment
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                        Budget Head
-                      </label>
-                      <select
-                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                        value={commitHead}
-                        onChange={(e) => setCommitHead(e.target.value)}
-                      >
-                        {budgetHeads.length > 0 ? (
-                          budgetHeads.map((head) => (
-                            <option key={head} value={head}>
-                              {head}
-                            </option>
-                          ))
-                        ) : (
-                          <option value="">No Budget Heads</option>
-                        )}
-                      </select>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                        Available:{" "}
-                        <span className="font-medium text-[#D97757]">
-                          ₹ {actualBalance.toLocaleString("en-IN")}
-                        </span>
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
-                        Amount (₹)
-                      </label>
-                      <input
-                        type="number"
-                        className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                        placeholder="e.g., 5000"
-                        value={commitAmount}
-                        onChange={(e) => setCommitAmount(e.target.value)}
-                      />
-                    </div>
-                    <FrappeButton
-                      className="w-full"
-                      variant="primary"
-                      onClick={handleCommit}
-                      disabled={isCommitting}
-                    >
-                      {isCommitting ? "Submitting..." : "Submit Commitment"}
-                    </FrappeButton>
-                  </div>
-                </div>
+              isRnDStaff && (
+                <CommitPayment
+                    doctype="Reimbursement"
+                    docName={id || ""}
+                    projectName={data.project_name}
+                    budgetHeads={budgetHeads}
+                    actualBalance={actualBalance}
+                    onCommitSuccess={() => window.location.reload()}
+                    onStagingStatusChange={(status) => setIsCommittedForGate(status)}
+                />
               )}
 
             {/* Section 4: Record Payment (Conditional) */}

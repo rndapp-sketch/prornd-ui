@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useFrappeGetCall } from "frappe-react-sdk";
 import {
@@ -11,14 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import {
     Select,
     SelectContent,
     SelectItem,
@@ -26,7 +18,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 // Interface for Ledger Transaction
 interface LedgerTransaction {
@@ -46,6 +38,8 @@ interface LedgerTransaction {
     bankTransactionNumber: string | null;
     bankTransactionDate: string | null;
     recordTime?: string;
+    moduleCode?: string;
+    frapAppId?: string;
 }
 
 const ProjectLedgerFull = () => {
@@ -60,6 +54,8 @@ const ProjectLedgerFull = () => {
     const [itemsPerPage, setItemsPerPage] = useState(20);
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
     const [selectedYear, setSelectedYear] = useState<string>("all");
+    const [ledgerView, setLedgerView] = useState<'transactions' | 'yearly'>('transactions');
+    const [expandedYear, setExpandedYear] = useState<string | null>(null);
 
     // Fetch Project Details for context (Title, etc.)
     const { data: projectData } = useFrappeGetCall<{ message: any[] }>(
@@ -224,6 +220,30 @@ const ProjectLedgerFull = () => {
         return Array.from(years).sort().reverse();
     }, [ledgerTransactions]);
 
+    const yearlyLedgerData = useMemo(() => {
+        if (ledgerTransactions.length === 0) return [];
+        const fyMap = new Map<string, { totalReceived: number; totalCommitted: number; totalPaid: number; count: number; txns: LedgerTransaction[] }>();
+        ledgerTransactions.forEach((txn) => {
+            const fy = txn.transactionDate ? getFinancialYear(txn.transactionDate) : "Unknown";
+            if (!fyMap.has(fy)) fyMap.set(fy, { totalReceived: 0, totalCommitted: 0, totalPaid: 0, count: 0, txns: [] });
+            const entry = fyMap.get(fy)!;
+            entry.totalReceived += txn.fundReceivedAmount || 0;
+            entry.totalCommitted += txn.commitAmount || 0;
+            entry.totalPaid += txn.paymentAmount || 0;
+            entry.count += 1;
+            entry.txns.push(txn);
+        });
+        const rows: { fy: string; openingBalance: number; totalReceived: number; totalCommitted: number; totalPaid: number; closingBalance: number; count: number; txns: LedgerTransaction[] }[] = [];
+        let runningBalance = 0;
+        Array.from(fyMap.entries()).sort(([a], [b]) => a.localeCompare(b)).forEach(([fy, data]) => {
+            const opening = runningBalance;
+            const closing = opening + data.totalReceived - data.totalPaid;
+            runningBalance = closing;
+            rows.push({ fy, openingBalance: opening, ...data, closingBalance: closing });
+        });
+        return rows;
+    }, [ledgerTransactions]);
+
     // Filter and Pagination Logic
     const filteredTransactions = useMemo(() => {
         const filtered = ledgerTransactions.filter((txn) => {
@@ -269,41 +289,47 @@ const ProjectLedgerFull = () => {
     };
 
     return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900 p-4 lg:p-8">
-            <div className="mx-auto w-full space-y-6">
+        <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans px-6 md:px-8 pt-7 pb-10 overflow-x-hidden">
+            <div className="mx-auto w-full max-w-[1600px] space-y-6 min-w-0">
                 {/* Header */}
-                <div className="flex items-center gap-4">
+                <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm">
+                    <div className="h-1.5 bg-[linear-gradient(to_right,#4A6CF7,#2563EB,#D97757)]" />
+                    <div className="px-5 md:px-6 py-5 flex items-start gap-4">
                     <Button
                         variant="outline"
                         size="icon"
                         onClick={() => navigate(-1)}
-                        className="h-10 w-10 rounded-full border-zinc-200 dark:border-zinc-800"
+                        className="h-10 w-10 rounded-xl border-[#E4E4E7] dark:border-[#3F3F46] shrink-0"
                     >
                         <ArrowLeftIcon className="h-4 w-4" />
                     </Button>
-                    <div>
-                        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                    <div className="min-w-0">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                            Project Account
+                        </div>
+                        <h1 className="text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
                             Project Ledger
                         </h1>
-                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                        <p className="text-[13px] text-[#71717A] dark:text-[#A1A1AA] font-medium mt-1 break-words">
                             {projectName} • {projectTitle}
                         </p>
                     </div>
+                    </div>
                 </div>
 
-                <Card className="border-zinc-200 dark:border-zinc-800 shadow-sm">
-                    <CardHeader className="border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 pb-4">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <Card className="border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-[#27272A] min-w-0">
+                    <CardHeader className="border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-[18px]">
+                        <div className="flex flex-col gap-4 min-w-0">
                             {/* Budget Head Selector */}
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-zinc-500 whitespace-nowrap">
+                            <div className="flex flex-col gap-2 min-w-0">
+                                <span className="text-[11px] font-bold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">
                                     {isHeadsLoading || isCheckingHeads ? "Loading Heads..." : "Budget Head:"}
                                 </span>
-                                <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
+                                <div className="flex flex-wrap gap-2 min-w-0">
                                     {isHeadsLoading || isCheckingHeads ? (
                                         <div className="flex items-center gap-2">
-                                            <div className="h-8 w-24 bg-zinc-100 animate-pulse rounded-full"></div>
-                                            <div className="h-8 w-24 bg-zinc-100 animate-pulse rounded-full"></div>
+                                            <div className="h-9 w-24 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded-xl"></div>
+                                            <div className="h-9 w-24 bg-zinc-100 dark:bg-zinc-800 animate-pulse rounded-xl"></div>
                                         </div>
                                     ) : headsError ? (
                                         <div className="text-red-500 text-sm">Error loading heads</div>
@@ -312,13 +338,12 @@ const ProjectLedgerFull = () => {
                                             <button
                                                 key={head.id}
                                                 onClick={() => setActiveLedgerHeadId(head.id)}
-                                                className={`
-                        px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap
-                        ${activeLedgerHeadId === head.id
-                                                        ? "bg-[#E0F7F6] text-[#0EA5A4] ring-1 ring-[#0EA5A4] shadow-sm dark:bg-[#0EA5A4]/20"
-                                                        : "bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800 dark:hover:bg-zinc-800"
-                                                    }
-                      `}
+                                                className={cn(
+                                                    "px-3 py-2 rounded-xl text-[12px] font-bold transition-all",
+                                                    activeLedgerHeadId === head.id
+                                                        ? "bg-blue-50 dark:bg-blue-950/20 text-[#2563EB] dark:text-blue-400"
+                                                        : "bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] dark:text-[#A1A1AA] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7]",
+                                                )}
                                             >
                                                 {head.name}
                                             </button>
@@ -330,178 +355,247 @@ const ProjectLedgerFull = () => {
                             </div>
 
                             {/* Actions */}
-                            <div className="flex items-center gap-2 w-full md:w-auto">
-                                <div className="relative flex-1 md:w-64">
-                                    <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
-                                    <Input
-                                        placeholder="Search transactions..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="pl-9 bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
-                                    />
+                            <div className="flex items-center gap-2 w-full flex-wrap min-w-0">
+                                {/* View Toggle */}
+                                <div className="flex items-center gap-1 rounded-xl bg-[#FAFAF9] dark:bg-[#18181B] p-1">
+                                    <button
+                                        onClick={() => setLedgerView('transactions')}
+                                        className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-colors",
+                                            ledgerView === 'transactions' ? "bg-[#D97757] text-white" : "text-[#71717A] dark:text-[#A1A1AA] hover:bg-white dark:hover:bg-[#27272A]"
+                                        )}
+                                    >Transactions</button>
+                                    <button
+                                        onClick={() => setLedgerView('yearly')}
+                                        className={cn("px-3 py-1.5 rounded-lg text-xs font-bold transition-colors",
+                                            ledgerView === 'yearly' ? "bg-[#D97757] text-white" : "text-[#71717A] dark:text-[#A1A1AA] hover:bg-white dark:hover:bg-[#27272A]"
+                                        )}
+                                    >Yearly Summary</button>
                                 </div>
-                                <Select
-                                    value={selectedYear}
-                                    onValueChange={(val) => { setSelectedYear(val); setCurrentPage(1); }}
-                                >
-                                    <SelectTrigger className="w-[130px]">
-                                        <SelectValue placeholder="Year" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Years</SelectItem>
-                                        {availableYears.map((yr) => (
-                                            <SelectItem key={yr} value={yr}>FY {yr}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <Select
-                                    value={itemsPerPage.toString()}
-                                    onValueChange={(val) => setItemsPerPage(Number(val))}
-                                >
-                                    <SelectTrigger className="w-[100px]">
-                                        <SelectValue placeholder="Rows" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="10">10 rows</SelectItem>
-                                        <SelectItem value="20">20 rows</SelectItem>
-                                        <SelectItem value="50">50 rows</SelectItem>
-                                        <SelectItem value="100">100 rows</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
-                                    className="flex items-center gap-1.5 whitespace-nowrap"
-                                >
-                                    <ArrowUpDown className="h-3.5 w-3.5" />
-                                    {sortOrder === 'newest' ? 'Newest First' : 'Oldest First'}
-                                </Button>
+                                {ledgerView === 'transactions' && (
+                                    <>
+                                        <div className="relative flex-1 min-w-[220px]">
+                                            <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-zinc-400" />
+                                            <Input
+                                                placeholder="Search transactions..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="pl-9 h-10 bg-[#FAFAF9] dark:bg-[#18181B] border-[#E4E4E7] dark:border-[#3F3F46] rounded-xl"
+                                            />
+                                        </div>
+                                        <Select
+                                            value={selectedYear}
+                                            onValueChange={(val) => { setSelectedYear(val); setCurrentPage(1); }}
+                                        >
+                                            <SelectTrigger className="w-[130px] h-10 rounded-xl border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                <SelectValue placeholder="Year" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Years</SelectItem>
+                                                {availableYears.map((yr) => (
+                                                    <SelectItem key={yr} value={yr}>FY {yr}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Select
+                                            value={itemsPerPage.toString()}
+                                            onValueChange={(val) => setItemsPerPage(Number(val))}
+                                        >
+                                            <SelectTrigger className="w-[110px] h-10 rounded-xl border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                <SelectValue placeholder="Rows" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="10">10 rows</SelectItem>
+                                                <SelectItem value="20">20 rows</SelectItem>
+                                                <SelectItem value="50">50 rows</SelectItem>
+                                                <SelectItem value="100">100 rows</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
+                                            className="h-10 rounded-xl flex items-center gap-1.5 whitespace-nowrap border-[#E4E4E7] dark:border-[#3F3F46] text-[12px] font-bold"
+                                        >
+                                            <ArrowUpDown className="h-3.5 w-3.5" />
+                                            {sortOrder === 'newest' ? 'Newest First' : 'Oldest First'}
+                                        </Button>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </CardHeader>
 
-                    <CardContent className="p-0">
-                        <Table>
-                            <TableHeader className="bg-zinc-50/50 dark:bg-zinc-900/50">
-                                <TableRow>
-                                    <TableHead className="w-[100px]">Data</TableHead>
-                                    <TableHead>Particulars</TableHead>
-                                    <TableHead>BMR / Ref</TableHead>
-                                    <TableHead className="text-right text-emerald-600 font-medium">
-                                        Received
-                                    </TableHead>
-                                    <TableHead className="text-right text-orange-600 font-medium">
-                                        Committed
-                                    </TableHead>
-                                    <TableHead className="text-right text-zinc-600 font-medium">
-                                        Commit Bal
-                                    </TableHead>
-                                    <TableHead className="text-right text-red-600 font-medium">
-                                        Paid
-                                    </TableHead>
-                                    <TableHead className="text-right text-blue-600 font-medium">
-                                        Actual Bal
-                                    </TableHead>
-                                    <TableHead className="w-[100px] text-center">Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
+                    {ledgerView === 'transactions' && (
+                        <>
+                            <CardContent className="p-1 min-w-0">
                                 {isLoading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={9} className="h-32 text-center">
-                                            <div className="flex items-center justify-center text-zinc-500">
-                                                Loading ledger data...
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
+                                    <div className="h-40 flex items-center justify-center text-[#71717A] dark:text-[#A1A1AA] font-medium">
+                                        Loading ledger data...
+                                    </div>
                                 ) : paginatedTransactions.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={9} className="h-32 text-center text-zinc-500">
-                                            No transactions found.
-                                        </TableCell>
-                                    </TableRow>
+                                    <div className="h-40 flex items-center justify-center text-[#71717A] dark:text-[#A1A1AA] font-medium">
+                                        No transactions found.
+                                    </div>
                                 ) : (
-                                    paginatedTransactions.map((txn, index) => (
-                                        <TableRow key={index} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                                            <TableCell className="font-medium text-zinc-900 dark:text-zinc-100">
-                                                {formatDate(txn.transactionDate)}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                                                        {txn.particulars}
-                                                    </span>
-                                                    {txn.refDetails && (
-                                                        <span className="text-xs text-zinc-500">
-                                                            Ref: {txn.refDetails}
-                                                        </span>
-                                                    )}
+                                    <div className="min-w-0">
+                                        <div className="hidden xl:grid grid-cols-[repeat(11,minmax(0,1fr))] rounded-t-lg bg-[#EEF2FF] dark:bg-blue-950/20 border border-[#C7D2FE] dark:border-blue-900/40 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200 overflow-hidden">
+                                            <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">Date / TID</div>
+                                            <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">Particulars</div>
+                                            <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">Module</div>
+                                            <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">App ID</div>
+                                            <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40">BMR</div>
+                                            <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Received</div>
+                                            <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Committed</div>
+                                            <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Commit Bal</div>
+                                            <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Paid</div>
+                                            <div className="px-1.5 py-1.5 border-r border-[#C7D2FE] dark:border-blue-900/40 text-right">Actual Bal</div>
+                                            <div className="px-1.5 py-1.5 text-center">Status</div>
+                                        </div>
+                                        {paginatedTransactions.map((txn, index) => (
+                                            <div
+                                                key={`${txn.transactionId}-${index}`}
+                                                className="grid grid-cols-2 xl:grid-cols-[repeat(11,minmax(0,1fr))] items-center border-x border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] min-w-0"
+                                            >
+                                                <div className="min-w-0 px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                    <div className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{formatDate(txn.transactionDate)}</div>
+                                                    <div className="text-[10px] font-semibold text-[#A1A1AA] break-words leading-tight">TID {txn.transactionId || "-"}</div>
                                                 </div>
-                                            </TableCell>
-                                            <TableCell className="text-zinc-500 text-xs font-mono">
-                                                {txn.bmr || "-"}
-                                            </TableCell>
-                                            <TableCell className="text-right font-medium text-emerald-600">
-                                                {txn.fundReceivedAmount ? formatCurrency(txn.fundReceivedAmount) : "-"}
-                                            </TableCell>
-                                            <TableCell className="text-right font-medium text-orange-600">
-                                                {txn.commitAmount ? formatCurrency(txn.commitAmount) : "-"}
-                                            </TableCell>
-                                            <TableCell className="text-right text-zinc-600">
-                                                {formatCurrency(txn.commitableBalance)}
-                                            </TableCell>
-                                            <TableCell className="text-right font-medium text-red-600">
-                                                {txn.paymentAmount ? formatCurrency(txn.paymentAmount) : "-"}
-                                            </TableCell>
-                                            <TableCell className="text-right font-medium text-blue-600">
-                                                {formatCurrency(txn.paymentBalance)}
-                                            </TableCell>
-                                            <TableCell className="text-center">
-                                                <Badge
-                                                    variant="outline"
-                                                    className={`
-                            capitalize
-                            ${txn.status === "Settled" ? "bg-green-50 text-green-700 border-green-200" : ""}
-                            ${txn.status === "Pending" ? "bg-yellow-50 text-yellow-700 border-yellow-200" : ""}
-                          `}
-                                                >
-                                                    {txn.status || "Completed"}
-                                                </Badge>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
+                                                <div className="col-span-2 xl:col-span-1 min-w-0 px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                                                    <div className="text-[11px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-tight">{txn.particulars || "-"}</div>
+                                                    {txn.refDetails && <div className="text-[10px] font-medium text-[#71717A] dark:text-[#A1A1AA] break-words leading-tight">Ref: {txn.refDetails}</div>}
+                                                </div>
+                                                <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] break-words">{txn.moduleCode || txn.transactionType || "-"}</div>
+                                                <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] break-words">{txn.frapAppId || "-"}</div>
+                                                <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA] break-words">{txn.bmr || "-"}</div>
+                                                <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] xl:text-right font-extrabold text-emerald-700 break-words">{txn.fundReceivedAmount ? formatCurrency(txn.fundReceivedAmount) : "-"}</div>
+                                                <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] xl:text-right font-extrabold text-orange-700 break-words">{txn.commitAmount ? formatCurrency(txn.commitAmount) : "-"}</div>
+                                                <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] xl:text-right font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] break-words">{formatCurrency(txn.commitableBalance)}</div>
+                                                <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] xl:text-right font-extrabold text-red-700 break-words">{txn.paymentAmount ? formatCurrency(txn.paymentAmount) : "-"}</div>
+                                                <div className="px-1.5 py-1.5 xl:border-r border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] xl:text-right font-extrabold text-[#2563EB] dark:text-blue-400 break-words">{formatCurrency(txn.paymentBalance)}</div>
+                                                <div className="px-1.5 py-1.5 xl:text-center">
+                                                    <span className={cn(
+                                                        "inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold",
+                                                        txn.status === "Settled" || txn.status === "PAID"
+                                                            ? "bg-emerald-50 text-emerald-700"
+                                                            : txn.status === "Pending" || txn.status === "PENDING"
+                                                              ? "bg-amber-50 text-amber-700"
+                                                              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
+                                                    )}>
+                                                        {txn.status || "Completed"}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
+                            </CardContent>
 
-                    {/* Pagination Footer */}
-                    <div className="border-t border-zinc-200 dark:border-zinc-800 p-4 flex items-center justify-between">
-                        <div className="text-sm text-zinc-500">
-                            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, sortedTransactions.length)} of {sortedTransactions.length} entries
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                            >
-                                <ChevronLeftIcon className="h-4 w-4" />
-                                Previous
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                            >
-                                Next
-                                <ChevronRightIcon className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
+                            {/* Pagination Footer */}
+                            <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div className="text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, sortedTransactions.length)} of {sortedTransactions.length} entries
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                        className="rounded-xl"
+                                    >
+                                        <ChevronLeftIcon className="h-4 w-4" />
+                                        Previous
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="rounded-xl"
+                                    >
+                                        Next
+                                        <ChevronRightIcon className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {ledgerView === 'yearly' && (
+                        <CardContent className="p-[18px] space-y-3 min-w-0">
+                            {yearlyLedgerData.map((row) => {
+                                const isExp = expandedYear === row.fy;
+                                return (
+                                    <div key={row.fy} className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] overflow-hidden">
+                                        <button
+                                            className="w-full p-4 text-left"
+                                            onClick={() => setExpandedYear(isExp ? null : row.fy)}
+                                        >
+                                            <div className="flex items-center justify-between gap-3 mb-3">
+                                                <div className="flex items-center gap-2 text-[15px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
+                                                    <span className={`text-xs transition-transform duration-200 ${isExp ? "rotate-90" : ""}`}>▶</span>
+                                                    FY {row.fy}
+                                                </div>
+                                                <span className="px-2 py-1 rounded-full bg-white dark:bg-[#27272A] text-[11px] font-bold text-[#71717A] dark:text-[#A1A1AA]">
+                                                    {row.count} txns
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+                                                {[
+                                                    ["Opening", row.openingBalance ? `₹${row.openingBalance.toLocaleString("en-IN")}` : "₹0", "text-[#71717A]"],
+                                                    ["Received", row.totalReceived > 0 ? `₹${row.totalReceived.toLocaleString("en-IN")}` : "-", "text-emerald-700"],
+                                                    ["Committed", row.totalCommitted > 0 ? `₹${row.totalCommitted.toLocaleString("en-IN")}` : "-", "text-orange-700"],
+                                                    ["Paid", row.totalPaid > 0 ? `₹${row.totalPaid.toLocaleString("en-IN")}` : "-", "text-red-700"],
+                                                    ["Closing", `₹${row.closingBalance.toLocaleString("en-IN")}`, "text-[#2563EB] dark:text-blue-400"],
+                                                ].map(([label, value, color]) => (
+                                                    <div key={label} className="min-w-0">
+                                                        <div className="text-[10px] font-bold uppercase tracking-widest text-[#A1A1AA] mb-1">{label}</div>
+                                                        <div className={cn("text-[13px] font-extrabold break-words", color)}>{value}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </button>
+
+                                        {isExp && (
+                                            <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] p-4 space-y-2">
+                                                {row.txns.map((txn, i) => (
+                                                    <div key={i} className="rounded-xl bg-white dark:bg-[#27272A] p-3">
+                                                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+                                                            <div className="min-w-0">
+                                                                <div className="text-[11px] font-bold text-[#A1A1AA] mb-1">
+                                                                    {txn.transactionDate ? new Date(txn.transactionDate).toLocaleDateString("en-GB") : "-"} · BMR {txn.bmr || "-"}
+                                                                </div>
+                                                                <div className="text-[13px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] break-words">{txn.particulars}</div>
+                                                                {txn.refDetails && <div className="text-[11px] text-[#71717A] dark:text-[#A1A1AA] break-words">{txn.refDetails}</div>}
+                                                            </div>
+                                                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-right min-w-0">
+                                                                <span className="text-[11px] font-bold text-emerald-700">{txn.fundReceivedAmount ? `₹${txn.fundReceivedAmount.toLocaleString("en-IN")}` : "-"}</span>
+                                                                <span className="text-[11px] font-bold text-orange-700">{txn.commitAmount ? `₹${txn.commitAmount.toLocaleString("en-IN")}` : "-"}</span>
+                                                                <span className="text-[11px] font-bold text-red-700">{txn.paymentAmount ? `₹${txn.paymentAmount.toLocaleString("en-IN")}` : "-"}</span>
+                                                                <span className="text-[11px] font-bold text-[#2563EB]">{`₹${txn.paymentBalance.toLocaleString("en-IN")}`}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                            {yearlyLedgerData.length > 0 && (
+                                <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-4">
+                                    <div className="text-[12px] font-bold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-3">Total</div>
+                                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                                        <div className="text-[13px] font-extrabold text-emerald-700">{`₹${yearlyLedgerData.reduce((s, r) => s + r.totalReceived, 0).toLocaleString("en-IN")}`}</div>
+                                        <div className="text-[13px] font-extrabold text-orange-700">{`₹${yearlyLedgerData.reduce((s, r) => s + r.totalCommitted, 0).toLocaleString("en-IN")}`}</div>
+                                        <div className="text-[13px] font-extrabold text-red-700">{`₹${yearlyLedgerData.reduce((s, r) => s + r.totalPaid, 0).toLocaleString("en-IN")}`}</div>
+                                        <div className="text-[13px] font-extrabold text-[#2563EB]">{`₹${(yearlyLedgerData[yearlyLedgerData.length - 1]?.closingBalance || 0).toLocaleString("en-IN")}`}</div>
+                                        <div className="text-[13px] font-extrabold text-[#71717A]">{yearlyLedgerData.reduce((s, r) => s + r.count, 0)} transactions</div>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    )}
                 </Card>
             </div>
         </div>

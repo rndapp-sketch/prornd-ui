@@ -37,12 +37,12 @@ interface TaskRegistryResponse {
 const getStatusStyle = (status: string) => {
   const s = status?.toLowerCase() || "";
   if (["pending", "under review", "approval pending"].some(t => s.includes(t)))
-    return "bg-amber-50 text-amber-700 border-amber-200";
-  if (s.includes("approved")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (s.includes("draft")) return "bg-zinc-100 text-zinc-600 border-zinc-200";
-  if (s.includes("rejected")) return "bg-red-50 text-red-700 border-red-200";
-  if (s.includes("forwarded") || s.includes("processed")) return "bg-purple-50 text-purple-700 border-purple-200";
-  return "bg-blue-50 text-blue-700 border-blue-200";
+    return "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400";
+  if (s.includes("approved")) return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400";
+  if (s.includes("draft")) return "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400";
+  if (s.includes("rejected")) return "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400";
+  if (s.includes("forwarded") || s.includes("processed")) return "bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400";
+  return "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400";
 };
 
 const getTaskRoute = (doctype: string, id: string) => {
@@ -50,6 +50,7 @@ const getTaskRoute = (doctype: string, id: string) => {
   if (doctype === "Reimbursement") return `/reimbursement/${id}`;
   if (doctype === "Advance Settlement") return `/advance-settlement/${id}`;
   if (doctype === "Temporary Advance") return `/pending-tasks/${encodeURIComponent(doctype)}/${id}`;
+  if (doctype === "Project Staff Details") return `/project-staff-joining?docname=${encodeURIComponent(id)}`;
   return `/pending-tasks/${doctype}/${id}`;
 };
 
@@ -133,7 +134,7 @@ export function HosRndDashboard() {
   const maxModuleCount = Math.max(...moduleBreakdown.map(m => m.count), 1);
 
   return (
-    <div className="min-h-screen bg-[#F8F6F3] dark:bg-zinc-900 font-sans">
+    <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans">
       {/* <AppSidebar /> */}
       <div className="flex-1 p-4 md:p-8">
         <div className="w-full max-w-7xl mx-auto">
@@ -142,9 +143,9 @@ export function HosRndDashboard() {
           <header className="mb-8">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">HoS R&D Dashboard</h1>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                  Welcome back, <span className="font-semibold text-zinc-800 dark:text-zinc-200">{fullName}</span>
+                <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">HoS R&D Dashboard</h1>
+                <p className="text-sm text-zinc-600 dark:text-[#A1A1AA] mt-1">
+                  Welcome back, <span className="font-semibold text-[#27272A] dark:text-[#E4E4E7]">{fullName}</span>
                 </p>
               </div>
               <CurrentTime />
@@ -153,33 +154,33 @@ export function HosRndDashboard() {
 
           {/* Quick Action Cards */}
           <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <button onClick={() => navigate("/pending-task")} className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#D97757]/40 transition-all text-left">
+            <button onClick={() => navigate("/pending-task")} className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#4A6CF7]/30 transition-all text-left">
               <div className="flex items-center justify-between mb-3">
-                <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg group-hover:bg-[#D97757]/10 transition-colors"><ClipboardCheck className="h-5 w-5 text-amber-600 group-hover:text-[#D97757]" /></div>
+                <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg group-hover:bg-[#4A6CF7]/10 transition-colors"><ClipboardCheck className="h-5 w-5 text-amber-600 group-hover:text-[#4A6CF7]" /></div>
                 {totalPending > 0 && <span className="px-2.5 py-1 bg-[#D97757] text-white text-xs font-bold rounded-full shadow-sm animate-pulse">{totalPending}</span>}
               </div>
-              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Section Approvals</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">{totalPending > 0 ? `${totalPending} forms awaiting approval` : "No pending approvals"}</p>
-              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-zinc-300 group-hover:text-[#D97757] group-hover:translate-x-1 transition-all" />
+              <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1">Section Approvals</h3>
+              <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">{totalPending > 0 ? `${totalPending} forms awaiting approval` : "No pending approvals"}</p>
+              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] group-hover:translate-x-1 transition-all" />
             </button>
 
-            <button onClick={() => navigate("/task-registry")} className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#D97757]/40 transition-all text-left">
+            <button onClick={() => navigate("/task-registry")} className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#4A6CF7]/30 transition-all text-left">
               <div className="flex items-center justify-between mb-3">
-                <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg group-hover:bg-[#D97757]/10 transition-colors"><Users className="h-5 w-5 text-purple-600 group-hover:text-[#D97757]" /></div>
+                <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg group-hover:bg-[#4A6CF7]/10 transition-colors"><Users className="h-5 w-5 text-purple-600 group-hover:text-[#4A6CF7]" /></div>
                 {totalProcessed > 0 && <span className="px-2.5 py-1 bg-zinc-700 text-white text-xs font-bold rounded-full">{totalProcessed}</span>}
               </div>
-              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Team's Queue</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">{totalProcessed > 0 ? `${totalProcessed} documents processed` : "View team's processed documents"}</p>
-              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-zinc-300 group-hover:text-[#D97757] group-hover:translate-x-1 transition-all" />
+              <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1">Team's Queue</h3>
+              <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">{totalProcessed > 0 ? `${totalProcessed} documents processed` : "View team's processed documents"}</p>
+              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] group-hover:translate-x-1 transition-all" />
             </button>
 
-            <button onClick={() => navigate("/projects")} className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#D97757]/40 transition-all text-left">
+            <button onClick={() => navigate("/projects")} className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#4A6CF7]/30 transition-all text-left">
               <div className="flex items-center justify-between mb-3">
-                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg group-hover:bg-[#D97757]/10 transition-colors"><Layers className="h-5 w-5 text-emerald-600 group-hover:text-[#D97757]" /></div>
+                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg group-hover:bg-[#4A6CF7]/10 transition-colors"><Layers className="h-5 w-5 text-emerald-600 group-hover:text-[#4A6CF7]" /></div>
               </div>
-              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Projects</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">View and manage all projects</p>
-              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-zinc-300 group-hover:text-[#D97757] group-hover:translate-x-1 transition-all" />
+              <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1">Projects</h3>
+              <p className="text-sm text-[#71717A] dark:text-[#A1A1AA]">View and manage all projects</p>
+              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] group-hover:translate-x-1 transition-all" />
             </button>
           </section>
 
@@ -202,28 +203,28 @@ export function HosRndDashboard() {
           {/* Two-Column: Pending + Processed */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Pending */}
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-                <div className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-[#D97757]" /><h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm uppercase tracking-wide">Recent Approvals Needed</h3></div>
-                <button onClick={() => navigate("/pending-task")} className="text-xs text-[#D97757] hover:text-[#c5684a] font-semibold flex items-center gap-1 transition-colors">View All <ChevronRight className="h-3 w-3" /></button>
+                <div className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-[#D97757]" /><h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">Recent Approvals Needed</h3></div>
+                <button onClick={() => navigate("/pending-task")} className="text-xs text-[#4A6CF7] hover:text-[#3b5cf6] font-semibold flex items-center gap-1 transition-colors">View All <ChevronRight className="h-3 w-3" /></button>
               </div>
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-700/50">
+              <div className="divide-y divide-[#F4F4F5] dark:divide-[#27272A]">
                 {isLoading ? (
-                  <div className="p-8 text-center text-zinc-400"><div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin mx-auto mb-2" /><p className="text-sm">Loading…</p></div>
+                  <div className="p-8 text-center text-[#A1A1AA]"><div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin mx-auto mb-2" /><p className="text-sm">Loading…</p></div>
                 ) : pendingTasks.length === 0 ? (
-                  <div className="p-8 text-center text-zinc-400"><ClipboardCheck className="h-8 w-8 mx-auto mb-2 text-zinc-300" /><p className="text-sm font-medium">No pending approvals</p></div>
+                  <div className="p-8 text-center text-[#A1A1AA]"><ClipboardCheck className="h-8 w-8 mx-auto mb-2 text-[#D4D4D8]" /><p className="text-sm font-medium">No pending approvals</p></div>
                 ) : (
                   pendingTasks.slice(0, 5).map((task) => (
-                    <button key={task.name} onClick={() => navigate(getTaskRoute(task.doctype, task.name))} className="w-full px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors flex items-center gap-3 text-left group">
+                    <button key={task.name} onClick={() => navigate(getTaskRoute(task.doctype, task.name))} className="w-full px-5 py-3 hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors flex items-center gap-3 text-left group">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", getStatusStyle(task.status))}>{task.status}</span>
-                          <span className="text-[10px] text-zinc-400 font-medium">{task.doctype}</span>
+                          <span className="text-[10px] text-[#A1A1AA] font-medium">{task.doctype}</span>
                         </div>
-                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">{task.title}</p>
-                        <p className="text-[11px] text-zinc-400 mt-0.5">{task.owner} · {formatRelativeTime(task.modified)}</p>
+                        <p className="text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] truncate">{task.title}</p>
+                        <p className="text-[11px] text-[#A1A1AA] mt-0.5">{task.owner} · {formatRelativeTime(task.modified)}</p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-zinc-300 group-hover:text-[#D97757] flex-shrink-0 transition-colors" />
+                      <ChevronRight className="h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] flex-shrink-0 transition-colors" />
                     </button>
                   ))
                 )}
@@ -231,28 +232,28 @@ export function HosRndDashboard() {
             </div>
 
             {/* Processed */}
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
-                <div className="flex items-center gap-2"><Users className="h-4 w-4 text-[#D97757]" /><h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm uppercase tracking-wide">Recently Processed</h3></div>
-                <button onClick={() => navigate("/task-registry")} className="text-xs text-[#D97757] hover:text-[#c5684a] font-semibold flex items-center gap-1 transition-colors">View All <ChevronRight className="h-3 w-3" /></button>
+                <div className="flex items-center gap-2"><Users className="h-4 w-4 text-[#D97757]" /><h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">Recently Processed</h3></div>
+                <button onClick={() => navigate("/task-registry")} className="text-xs text-[#4A6CF7] hover:text-[#3b5cf6] font-semibold flex items-center gap-1 transition-colors">View All <ChevronRight className="h-3 w-3" /></button>
               </div>
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-700/50">
+              <div className="divide-y divide-[#F4F4F5] dark:divide-[#27272A]">
                 {isLoading ? (
-                  <div className="p-8 text-center text-zinc-400"><div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin mx-auto mb-2" /><p className="text-sm">Loading…</p></div>
+                  <div className="p-8 text-center text-[#A1A1AA]"><div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin mx-auto mb-2" /><p className="text-sm">Loading…</p></div>
                 ) : registryTasks.length === 0 ? (
-                  <div className="p-8 text-center text-zinc-400"><Users className="h-8 w-8 mx-auto mb-2 text-zinc-300" /><p className="text-sm font-medium">No processed documents yet</p></div>
+                  <div className="p-8 text-center text-[#A1A1AA]"><Users className="h-8 w-8 mx-auto mb-2 text-[#D4D4D8]" /><p className="text-sm font-medium">No processed documents yet</p></div>
                 ) : (
                   registryTasks.slice(0, 5).map((task) => (
-                    <button key={task.name} onClick={() => { if (task.doctype === "Fund Received") navigate(`/fund-received/${task.name}`); else if (task.doctype === "Reimbursement") navigate(`/reimbursement/${task.name}`); else navigate(`/task-registry/${task.doctype}/${task.name}`); }} className="w-full px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors flex items-center gap-3 text-left group">
+                    <button key={task.name} onClick={() => { if (task.doctype === "Fund Received") navigate(`/fund-received/${task.name}`); else if (task.doctype === "Reimbursement") navigate(`/reimbursement/${task.name}`); else navigate(`/task-registry/${task.doctype}/${task.name}`); }} className="w-full px-5 py-3 hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors flex items-center gap-3 text-left group">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", getStatusStyle(task.status))}>{task.status}</span>
-                          <span className="text-[10px] text-zinc-400 font-medium">{task.doctype}</span>
+                          <span className="text-[10px] text-[#A1A1AA] font-medium">{task.doctype}</span>
                         </div>
-                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">{task.title}</p>
-                        <p className="text-[11px] text-zinc-400 mt-0.5">{task.owner} · {formatRelativeTime(task.modified)}</p>
+                        <p className="text-sm font-medium text-[#3F3F46] dark:text-[#E4E4E7] truncate">{task.title}</p>
+                        <p className="text-[11px] text-[#A1A1AA] mt-0.5">{task.owner} · {formatRelativeTime(task.modified)}</p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-zinc-300 group-hover:text-[#D97757] flex-shrink-0 transition-colors" />
+                      <ChevronRight className="h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] flex-shrink-0 transition-colors" />
                     </button>
                   ))
                 )}
@@ -263,22 +264,22 @@ export function HosRndDashboard() {
           {/* Module Breakdown */}
           {moduleBreakdown.length > 0 && (
             <section className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5 mb-6">
-              <div className="flex items-center gap-2 mb-4"><Clock className="h-4 w-4 text-[#D97757]" /><h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm uppercase tracking-wide">Pending by Module</h3></div>
+              <div className="flex items-center gap-2 mb-4"><Clock className="h-4 w-4 text-[#D97757]" /><h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-sm uppercase tracking-wide">Pending by Module</h3></div>
               <div className="space-y-3">
                 {moduleBreakdown.map(({ doctype, count }) => (
                   <div key={doctype} className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 w-40 truncate flex-shrink-0">{doctype}</span>
+                    <span className="text-sm font-medium text-zinc-700 dark:text-[#D4D4D8] w-40 truncate flex-shrink-0">{doctype}</span>
                     <div className="flex-1 bg-zinc-100 dark:bg-zinc-700 rounded-full h-2.5 overflow-hidden">
-                      <div className="bg-[#D97757] h-full rounded-full transition-all duration-700" style={{ width: `${(count / maxModuleCount) * 100}%` }} />
+                      <div className="bg-[#4A6CF7] h-full rounded-full transition-all duration-700" style={{ width: `${(count / maxModuleCount) * 100}%` }} />
                     </div>
-                    <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 w-8 text-right flex-shrink-0">{count}</span>
+                    <span className="text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7] w-8 text-right flex-shrink-0">{count}</span>
                   </div>
                 ))}
               </div>
             </section>
           )}
 
-          <footer className="text-center text-zinc-500 dark:text-zinc-400 mt-6 pb-4">
+          <footer className="text-center text-[#71717A] dark:text-[#A1A1AA] mt-6 pb-4">
             <div className="flex items-center justify-center space-x-2 text-xs">
               <Mail className="size-3.5" />
               <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#D97757] hover:underline font-semibold">ernd@iitg.ac.in</a></p>

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useFrappeGetDoc, useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, FileTextIcon } from "lucide-react";
 import { AppSidebar } from '@/components/RndSidebar';
-import { ActivityStream } from '@/components/ActivityStream';
+import { FloatingActivityLogButton } from '@/components/FloatingActivityLogButton';
 import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
-import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, tadaAPI, recruitmentAdhocContractualAPI } from '@/services/apiService';
+import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, tadaAPI, recruitmentAdhocContractualAPI, selectionCommitteeReportAPI } from '@/services/apiService';
 import { useUserRoles } from '@/components/UserRole';
 import { POEditor } from '@/components/POEditor';
 import { DeclarationFields } from '@/components/DeclarationFields';
@@ -109,8 +109,8 @@ const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<strin
                         <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-3 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">{dpFmt(key)}</h4>
                         <div className="overflow-x-auto rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
                             <table className="min-w-full text-sm">
-                                <thead className="bg-[#FAFAF9] dark:bg-zinc-800/50">
-                                    <tr>{cols.map(c => <th key={c} className="px-4 py-2.5 text-left text-xs font-semibold text-[#71717A] dark:text-[#A1A1AA] whitespace-nowrap">{dpFmt(c)}</th>)}</tr>
+                                <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                    <tr>{cols.map(c => <th key={c} className="px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE] whitespace-nowrap">{dpFmt(c)}</th>)}</tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]">
                                     {rows.map((row, i) => (
@@ -155,6 +155,27 @@ const DP_TABS = [
     { id: 'po'       as DPTabId, label: 'Purchase Order', icon: '🛒' },
 ];
 
+const statusBadgeClass = (state?: string) => {
+    const s = state?.toLowerCase() || '';
+    if (s.includes('approved')) return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400';
+    if (s.includes('rejected') || s.includes('cancelled')) return 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400';
+    if (s.includes('draft')) return 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400';
+    if (s.includes('pending') || s.includes('review')) return 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400';
+    return 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400';
+};
+
+const RegistryPanel = ({ title, children }: { title: string; children: React.ReactNode }) => (
+    <div className="overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+        <div className="flex items-center gap-2 border-b border-[#E4E4E7] bg-[#FAFAF9] px-[22px] py-[14px] dark:border-[#3F3F46] dark:bg-[#27272A]">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-50 text-[#2563EB] dark:bg-blue-950/20">
+                <FileTextIcon className="h-3.5 w-3.5" />
+            </div>
+            <h2 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{title}</h2>
+        </div>
+        <div className="p-5 md:p-6">{children}</div>
+    </div>
+);
+
 const DPLinkedDocTab = ({ doctype, filterField, filterValue, emptyTitle, emptyDescription }: {
     doctype: string; filterField: string; filterValue: string;
     emptyTitle: string; emptyDescription: string;
@@ -189,6 +210,7 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
     const isStaffRnD = roles.some(r => ["staff, RnD", "Staff RnD", "RnD Staff", "System Manager"].includes(r));
+    const isPermanentEmployee = roles.some(r => r === "Permanent Employee");
 
     React.useEffect(() => {
         if (activeTab !== 'po' || !docName || poSanctionData) return;
@@ -244,8 +266,13 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
                             <div className="flex items-center justify-center py-16">
                                 <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#D97757] border-t-transparent" />
                             </div>
+                        ) : poSanctionData && (isStaffRnD || data?.workflow_state === "POGenerated") ? (
+                            <POEditor ssData={poSanctionData} dpId={docName} isStaffRnD={isStaffRnD} isPIReadOnly={isPermanentEmployee && !isStaffRnD} />
                         ) : poSanctionData ? (
-                            <POEditor ssData={poSanctionData} dpId={docName} isStaffRnD={isStaffRnD} />
+                            <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+                                <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">Purchase Order Not Yet Generated</p>
+                                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] max-w-xs">The Purchase Order has not been generated by staff yet. Please check back later.</p>
+                            </div>
                         ) : (
                             <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
                                 <p className="font-serif text-base font-medium text-[#3F3F46] dark:text-[#E4E4E7]">No Sanction Sheet Available</p>
@@ -302,10 +329,10 @@ const GenericDocViewer = ({ data }: { data: Record<string, any> }) => {
                         <h4 className="text-xs font-semibold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA] mb-3 pb-2 border-b border-[#E4E4E7] dark:border-[#3F3F46]">{fmt(key)}</h4>
                         <div className="overflow-x-auto rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46]">
                             <table className="min-w-full text-sm">
-                                <thead className="bg-[#FAFAF9] dark:bg-zinc-800/50">
+                                <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                     <tr>
-                                        {headers.map(h => <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-[#71717A] dark:text-[#A1A1AA] whitespace-nowrap">{fmt(h)}</th>)}
-                                        {isBudget && <th className="px-4 py-2.5 text-xs font-semibold text-[#D97757] whitespace-nowrap">Row Total</th>}
+                                        {headers.map(h => <th key={h} className="px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A8A] dark:text-[#C7D2FE] whitespace-nowrap">{fmt(h)}</th>)}
+                                        {isBudget && <th className="px-4 py-2.5 text-left text-[10px] font-extrabold uppercase tracking-wider text-[#D97757] whitespace-nowrap">Row Total</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#F4F4F5] dark:divide-[#3F3F46]">
@@ -373,11 +400,26 @@ const TaskRegistryDetails: React.FC = () => {
     const [recLinkOptions, setRecLinkOptions] = useState<Record<string, LinkOption[]>>({});
     const [isRecLoading, setIsRecLoading] = useState(false);
 
+    const [scrFields, setScrFields] = useState<FormField[]>([]);
+    const [scrLinkOptions, setScrLinkOptions] = useState<Record<string, LinkOption[]>>({});
+    const [isScrLoading, setIsScrLoading] = useState(false);
+
     const { call: fetchTravelFields }  = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(travelAPI.getFields);
     const { call: fetchAdvFields }     = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(advanceSettlementAPI.getFields);
     const { call: fetchTaFields }      = useFrappePostCall<{ message: { fields: FormField[]; link_options: any } }>(temporaryAdvanceAPI.getFields);
     const { call: fetchTadaFields }    = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(tadaAPI.getFields);
     const { call: fetchRecFields }     = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(recruitmentAdhocContractualAPI.getFields);
+    const { call: fetchScrFields }     = useFrappePostCall<{ message: { fields: FormField[]; link_options: any; child_table_meta?: any } }>(selectionCommitteeReportAPI.getFields);
+
+    // Redirect dedicated detail pages
+    useEffect(() => {
+        if (doctype === 'Disbursal of Consultancy' && name) {
+            navigate(`/disbursal-of-consultancy/${name}`, { replace: true });
+        }
+        if (doctype === 'Travel' && name) {
+            navigate(`/travel/${name}`, { replace: true });
+        }
+    }, [doctype, name]);
 
     useEffect(() => {
         if (doctype === 'Travel' && name) {
@@ -424,10 +466,22 @@ const TaskRegistryDetails: React.FC = () => {
         }
     }, [doctype, name]);
 
+    useEffect(() => {
+        if (doctype === 'Selection Committee Report' && name) {
+            setIsScrLoading(true);
+            fetchScrFields({ doc_name: name }).then(res => {
+                if (res?.message) { setScrFields(res.message.fields || []); setScrLinkOptions(res.message.link_options || {}); }
+            }).finally(() => setIsScrLoading(false));
+        }
+    }, [doctype, name]);
+
     // Loading state
     if (isLoading) return (
-        <div className="flex items-center justify-center min-h-screen bg-[#F9F7F2] dark:bg-[#18181B]">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent" />
+        <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
+            <div className="flex items-center gap-3 rounded-2xl border border-[#E4E4E7] bg-white px-5 py-4 shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-[#D97757] border-t-transparent" />
+                <span className="text-sm font-semibold text-[#71717A] dark:text-[#A1A1AA]">Loading task details</span>
+            </div>
         </div>
     );
 
@@ -438,7 +492,7 @@ const TaskRegistryDetails: React.FC = () => {
 
     // Error state
     if (error || !data) return (
-        <div className="flex flex-col h-screen items-center justify-center bg-[#F9F7F2] dark:bg-[#18181B] p-4">
+        <div className="flex flex-col h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B] p-4">
             <div className="bg-white dark:bg-zinc-900 p-8 rounded-xl shadow-md max-w-lg w-full text-center">
                 <div className="text-red-500 font-bold text-xl mb-2">Not Found</div>
                 <p className="text-zinc-500 dark:text-zinc-400 text-sm mb-4">{doctype} · {name}</p>
@@ -447,17 +501,42 @@ const TaskRegistryDetails: React.FC = () => {
         </div>
     );
 
+    const readOnlyRendererProps = {
+        onChange: () => {},
+        onFileChange: () => {},
+        onTableRowChange: () => {},
+        onTableFileChange: () => {},
+        onAddTableRow: () => {},
+        onDeleteTableRow: () => {},
+        readOnly: true,
+    };
+
     const renderContent = () => {
         // Direct Purchase — full tabbed view
         if (doctype === 'Direct Purchase') return <DirectPurchaseTabView data={data} docName={name!} />;
+
+        // Selection Committee Report
+        if (doctype === 'Selection Committee Report') {
+            if (isScrLoading) return <div className="flex justify-center py-16"><div className="animate-spin h-8 w-8 rounded-full border-2 border-[#D97757] border-t-transparent" /></div>;
+            if (scrFields.length > 0) return (
+                <RegistryPanel title="Selection Committee Report">
+                    <DynamicFormRenderer
+                        fields={scrFields}
+                        formData={data}
+                        linkOptions={scrLinkOptions}
+                        {...readOnlyRendererProps}
+                    />
+                </RegistryPanel>
+            );
+        }
 
         // Travel
         if (doctype === 'Travel') {
             if (isTravelLoading) return <div className="flex justify-center py-16"><div className="animate-spin h-8 w-8 rounded-full border-2 border-[#D97757] border-t-transparent" /></div>;
             if (travelFields.length > 0) return (
-                <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm p-6">
-                    <DynamicFormRenderer fields={travelFields} formData={data} setFormData={() => {}} linkOptions={travelLinkOptions} viewOnly />
-                </div>
+                <RegistryPanel title="Travel">
+                    <DynamicFormRenderer fields={travelFields} formData={data} linkOptions={travelLinkOptions} {...readOnlyRendererProps} />
+                </RegistryPanel>
             );
         }
 
@@ -465,9 +544,9 @@ const TaskRegistryDetails: React.FC = () => {
         if (doctype === 'Advance Settlement') {
             if (isAdvLoading) return <div className="flex justify-center py-16"><div className="animate-spin h-8 w-8 rounded-full border-2 border-[#D97757] border-t-transparent" /></div>;
             if (advFields.length > 0) return (
-                <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm p-6">
-                    <DynamicFormRenderer fields={advFields} formData={data} setFormData={() => {}} linkOptions={advLinkOptions} viewOnly />
-                </div>
+                <RegistryPanel title="Advance Settlement">
+                    <DynamicFormRenderer fields={advFields} formData={data} linkOptions={advLinkOptions} {...readOnlyRendererProps} />
+                </RegistryPanel>
             );
         }
 
@@ -475,9 +554,9 @@ const TaskRegistryDetails: React.FC = () => {
         if (doctype === 'Temporary Advance') {
             if (isTaLoading) return <div className="flex justify-center py-16"><div className="animate-spin h-8 w-8 rounded-full border-2 border-[#D97757] border-t-transparent" /></div>;
             if (taFields.length > 0) return (
-                <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm p-6">
-                    <DynamicFormRenderer fields={taFields} formData={data} setFormData={() => {}} linkOptions={taLinkOptions} viewOnly />
-                </div>
+                <RegistryPanel title="Temporary Advance">
+                    <DynamicFormRenderer fields={taFields} formData={data} linkOptions={taLinkOptions} {...readOnlyRendererProps} />
+                </RegistryPanel>
             );
         }
 
@@ -485,9 +564,9 @@ const TaskRegistryDetails: React.FC = () => {
         if (doctype === 'TA DA Settlement') {
             if (isTadaLoading) return <div className="flex justify-center py-16"><div className="animate-spin h-8 w-8 rounded-full border-2 border-[#D97757] border-t-transparent" /></div>;
             if (tadaFields.length > 0) return (
-                <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm p-6">
-                    <DynamicFormRenderer fields={tadaFields} formData={data} setFormData={() => {}} linkOptions={tadaLinkOptions} viewOnly />
-                </div>
+                <RegistryPanel title="TA DA Settlement">
+                    <DynamicFormRenderer fields={tadaFields} formData={data} linkOptions={tadaLinkOptions} {...readOnlyRendererProps} />
+                </RegistryPanel>
             );
         }
 
@@ -495,58 +574,67 @@ const TaskRegistryDetails: React.FC = () => {
         if (doctype === 'Recruitment Adhoc Contractual') {
             if (isRecLoading) return <div className="flex justify-center py-16"><div className="animate-spin h-8 w-8 rounded-full border-2 border-[#D97757] border-t-transparent" /></div>;
             if (recFields.length > 0) return (
-                <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm p-6">
-                    <DynamicFormRenderer fields={recFields} formData={data} setFormData={() => {}} linkOptions={recLinkOptions} viewOnly />
-                </div>
+                <RegistryPanel title="Recruitment Adhoc Contractual">
+                    <DynamicFormRenderer fields={recFields} formData={data} linkOptions={recLinkOptions} {...readOnlyRendererProps} />
+                </RegistryPanel>
             );
         }
 
         // Default — generic viewer
         return (
-            <div className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm p-6">
+            <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm p-6">
                 <GenericDocViewer data={data} />
             </div>
         );
     };
 
     return (
-        <div className="bg-[#F9F7F2] dark:bg-[#18181B] min-h-screen">
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
             <AppSidebar />
-            <main className="flex-1 p-4 md:p-8 w-full overflow-hidden">
+            <main className="mx-auto max-w-[1600px] flex-1 p-6 md:p-8 w-full overflow-hidden">
                 {/* Header */}
-                <header className="mb-6 p-5 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <button onClick={() => navigate(-1)} className="p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
-                                <ArrowLeftIcon className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
+                <header className="mb-6 overflow-hidden rounded-2xl border border-[#E4E4E7] bg-white shadow-sm dark:border-[#3F3F46] dark:bg-[#27272A]">
+                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                    <div className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <button onClick={() => navigate(-1)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] bg-[#FAFAF9] text-[#71717A] transition-colors hover:border-[#D97757]/30 hover:bg-[#D97757]/10 hover:text-[#D97757] dark:border-[#3F3F46] dark:bg-[#18181B]">
+                                <ArrowLeftIcon className="h-4 w-4" />
                             </button>
-                            <div>
-                                <h1 className="text-2xl md:text-3xl font-serif text-zinc-900 dark:text-zinc-50 tracking-tight">Task Details</h1>
-                                <p className="text-sm md:text-base text-zinc-500 dark:text-zinc-400 mt-1">
-                                    {doctype} · <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 dark:bg-zinc-800 text-[#D97757] dark:text-[#E28362] ml-1">{name}</span>
-                                </p>
+                            <div className="min-w-0">
+                                <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Task Registry</span>
+                                <h1 className="mt-1 truncate text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7]">{doctype}</h1>
+                                <p className="mt-0.5 truncate text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">{name}</p>
                             </div>
                         </div>
                         {data?.workflow_state && (
-                            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                            <span className={`w-fit rounded-full px-3 py-1.5 text-xs font-bold ${statusBadgeClass(data.workflow_state)}`}>
                                 {data.workflow_state}
                             </span>
                         )}
                     </div>
+                    <div className="grid gap-3 border-t border-[#E4E4E7] bg-[#FAFAF9]/70 px-5 py-4 text-sm dark:border-[#3F3F46] dark:bg-[#18181B]/40 sm:grid-cols-2 lg:grid-cols-4">
+                        {[
+                            ['Document Type', doctype || '-'],
+                            ['Document ID', name || '-'],
+                            ['Owner', data?.owner || '-'],
+                            ['Modified', data?.modified ? new Date(data.modified).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-'],
+                        ].map(([label, value]) => (
+                            <div key={label} className="min-w-0">
+                                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#71717A] dark:text-[#A1A1AA]">{label}</p>
+                                <p className="mt-1 truncate font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{value}</p>
+                            </div>
+                        ))}
+                    </div>
                 </header>
 
-                {/* Content grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    <div className="lg:col-span-3 space-y-6">
-                        {renderContent()}
-                    </div>
-                    <div className="lg:col-span-1 space-y-6">
-                        {name && doctype && (
-                            <ActivityStream doctype={doctype} docname={name} />
-                        )}
-                    </div>
+                {/* Content */}
+                <div className="space-y-6">
+                    {renderContent()}
                 </div>
             </main>
+            {name && doctype && (
+                <FloatingActivityLogButton doctype={doctype} docname={name} />
+            )}
         </div>
     );
 };

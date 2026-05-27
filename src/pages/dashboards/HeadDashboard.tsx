@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall } from "frappe-react-sdk";
+import { useFrappeAuth, useFrappeGetDoc, useFrappeGetCall, useFrappeGetDocList } from "frappe-react-sdk";
+import { useUserRoles } from "../../components/UserRole";
 // import { AppSidebar } from "../../components/RndSidebar";
 import { AnalyticsCard, CurrentTime } from "../../components/DashboardCards";
 import { cn } from "@/lib/utils";
@@ -46,16 +47,16 @@ interface TaskRegistryResponse {
 const getStatusStyle = (status: string) => {
   const s = status?.toLowerCase() || "";
   if (["pending", "under review", "approval pending"].some(t => s.includes(t)))
-    return "bg-amber-50 text-amber-700 border-amber-200";
+    return "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400";
   if (s.includes("approved"))
-    return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400";
   if (s.includes("draft"))
-    return "bg-zinc-100 text-zinc-600 border-zinc-200";
+    return "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400";
   if (s.includes("rejected"))
-    return "bg-red-50 text-red-700 border-red-200";
+    return "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400";
   if (s.includes("forwarded") || s.includes("processed"))
-    return "bg-purple-50 text-purple-700 border-purple-200";
-  return "bg-blue-50 text-blue-700 border-blue-200";
+    return "bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400";
+  return "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400";
 };
 
 const getTaskRoute = (doctype: string, id: string) => {
@@ -63,6 +64,7 @@ const getTaskRoute = (doctype: string, id: string) => {
   if (doctype === "Reimbursement") return `/reimbursement/${id}`;
   if (doctype === "Advance Settlement") return `/advance-settlement/${id}`;
   if (doctype === "Temporary Advance") return `/pending-tasks/${encodeURIComponent(doctype)}/${id}`;
+  if (doctype === "Project Staff Details") return `/project-staff-joining?docname=${encodeURIComponent(id)}`;
   return `/pending-tasks/${doctype}/${id}`;
 };
 
@@ -102,6 +104,21 @@ export function HeadDashboard() {
     { page_name: "task-registry" }
   );
 
+  const { roles } = useUserRoles(currentUser ?? null);
+  const isHeadApprover = roles?.includes("head_approver_1") ?? false;
+
+  // Fetch projects where current user is the head_approver (same filter as PendingTask.tsx)
+  const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
+    filters: [["head_approver", "=", currentUser ?? ""]],
+    fields: ["name"],
+    limit: 500,
+  }, isHeadApprover && !!currentUser ? undefined : null);
+
+  const allowedProjectNames = React.useMemo(() => {
+    if (!isHeadApprover || !headApproverProjects) return null;
+    return new Set(headApproverProjects.map((p: { name: string }) => p.name));
+  }, [isHeadApprover, headApproverProjects]);
+
   const fullName = userData?.full_name || currentUser || "Guest";
   const isLoading = pendingLoading || registryLoading;
 
@@ -112,12 +129,15 @@ export function HeadDashboard() {
     pendingData.message.results.forEach((group) => {
       if (group.mod_vis || group.doctype === "Advance Settlement") {
         group.records.forEach((record) => {
+          if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
+            return;
+          }
           tasks.push({ ...record, doctype: group.doctype });
         });
       }
     });
     return tasks.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
-  }, [pendingData]);
+  }, [pendingData, isHeadApprover, allowedProjectNames]);
 
   const registryTasks = React.useMemo(() => {
     if (!registryData?.message?.results) return [];
@@ -125,12 +145,15 @@ export function HeadDashboard() {
     registryData.message.results.forEach((group) => {
       if (group.records && Array.isArray(group.records)) {
         group.records.forEach((record) => {
+          if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
+            return;
+          }
           tasks.push({ ...record, doctype: group.doctype });
         });
       }
     });
     return tasks.sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
-  }, [registryData]);
+  }, [registryData, isHeadApprover, allowedProjectNames]);
 
   // Stats
   const totalPending = pendingTasks.length;
@@ -164,8 +187,7 @@ export function HeadDashboard() {
   const maxModuleCount = Math.max(...moduleBreakdown.map(m => m.count), 1);
 
   return (
-    <div className="min-h-screen bg-[#F8F6F3] dark:bg-zinc-900 font-sans">
-      {/* <AppSidebar /> */}
+    <div className="min-h-screen bg-[#FAFAF9] dark:bg-[#18181B] font-sans">
       <div className="flex-1 p-4 md:p-8">
         <div className="w-full max-w-7xl mx-auto">
 
@@ -173,11 +195,14 @@ export function HeadDashboard() {
           <header className="mb-8">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
-                  Head's Dashboard
-                </h1>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                  Welcome back, <span className="font-semibold text-zinc-800 dark:text-zinc-200">{fullName}</span>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-1 h-6 rounded-full bg-[#4A6CF7]" />
+                  <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
+                    Head's Dashboard
+                  </h1>
+                </div>
+                <p className="text-sm text-[#71717A] dark:text-[#A1A1AA] ml-3">
+                  Welcome back, <span className="font-bold text-[#27272A] dark:text-[#E4E4E7]">{fullName}</span>
                 </p>
               </div>
               <CurrentTime />
@@ -189,95 +214,102 @@ export function HeadDashboard() {
             {/* Pending Approvals */}
             <button
               onClick={() => navigate("/pending-task")}
-              className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#D97757]/40 transition-all text-left"
+              className="group relative bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm hover:shadow-md hover:border-[#4A6CF7]/40 transition-all text-left overflow-hidden"
             >
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="flex items-center justify-between mb-3">
-                <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg group-hover:bg-[#D97757]/10 transition-colors">
-                  <ClipboardCheck className="h-5 w-5 text-amber-600 dark:text-amber-400 group-hover:text-[#D97757]" />
+                <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg group-hover:bg-[#4A6CF7]/8 transition-colors">
+                  <ClipboardCheck className="h-5 w-5 text-amber-600 dark:text-amber-400 group-hover:text-[#4A6CF7] transition-colors" />
                 </div>
                 {totalPending > 0 && (
-                  <span className="px-2.5 py-1 bg-[#D97757] text-white text-xs font-bold rounded-full shadow-sm animate-pulse">
+                  <span className="px-2.5 py-0.5 bg-[#D97757] text-white text-[10px] font-bold rounded-full shadow-sm">
                     {totalPending}
                   </span>
                 )}
               </div>
-              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Pending Approvals</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1 text-sm tracking-tight">Pending Approvals</h3>
+              <p className="text-xs text-[#71717A] dark:text-[#A1A1AA]">
                 {totalPending > 0 ? `${totalPending} requests awaiting your action` : "No pending approvals"}
               </p>
-              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-zinc-300 group-hover:text-[#D97757] group-hover:translate-x-1 transition-all" />
+              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] group-hover:translate-x-1 transition-all" />
             </button>
 
             {/* Department Projects */}
             <button
               onClick={() => navigate("/department-projects")}
-              className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#D97757]/40 transition-all text-left"
+              className="group relative bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm hover:shadow-md hover:border-[#4A6CF7]/40 transition-all text-left overflow-hidden"
             >
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="flex items-center justify-between mb-3">
-                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg group-hover:bg-[#D97757]/10 transition-colors">
-                  <Briefcase className="h-5 w-5 text-emerald-600 dark:text-emerald-400 group-hover:text-[#D97757]" />
+                <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg group-hover:bg-[#4A6CF7]/8 transition-colors">
+                  <Briefcase className="h-5 w-5 text-emerald-600 dark:text-emerald-400 group-hover:text-[#4A6CF7] transition-colors" />
                 </div>
               </div>
-              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Department Projects</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Monitor ongoing and completed projects</p>
-              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-zinc-300 group-hover:text-[#D97757] group-hover:translate-x-1 transition-all" />
+              <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1 text-sm tracking-tight">Department Projects</h3>
+              <p className="text-xs text-[#71717A] dark:text-[#A1A1AA]">Monitor ongoing and completed projects</p>
+              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] group-hover:translate-x-1 transition-all" />
             </button>
 
             {/* Task Registry */}
             <button
               onClick={() => navigate("/task-registry")}
-              className="group relative bg-white dark:bg-zinc-800 p-5 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm hover:shadow-md hover:border-[#D97757]/40 transition-all text-left"
+              className="group relative bg-white dark:bg-[#27272A] p-5 rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm hover:shadow-md hover:border-[#4A6CF7]/40 transition-all text-left overflow-hidden"
             >
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="flex items-center justify-between mb-3">
-                <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg group-hover:bg-[#D97757]/10 transition-colors">
-                  <BarChart className="h-5 w-5 text-purple-600 dark:text-purple-400 group-hover:text-[#D97757]" />
+                <div className="p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg group-hover:bg-[#4A6CF7]/8 transition-colors">
+                  <BarChart className="h-5 w-5 text-purple-600 dark:text-purple-400 group-hover:text-[#4A6CF7] transition-colors" />
                 </div>
                 {totalProcessed > 0 && (
-                  <span className="px-2.5 py-1 bg-zinc-700 text-white text-xs font-bold rounded-full">
+                  <span className="px-2.5 py-0.5 bg-zinc-700 dark:bg-zinc-600 text-white text-[10px] font-bold rounded-full">
                     {totalProcessed}
                   </span>
                 )}
               </div>
-              <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">Task Registry</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-1 text-sm tracking-tight">Task Registry</h3>
+              <p className="text-xs text-[#71717A] dark:text-[#A1A1AA]">
                 {totalProcessed > 0 ? `${totalProcessed} documents processed` : "View all processed documents"}
               </p>
-              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-zinc-300 group-hover:text-[#D97757] group-hover:translate-x-1 transition-all" />
+              <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[#D4D4D8] group-hover:text-[#4A6CF7] group-hover:translate-x-1 transition-all" />
             </button>
           </section>
 
           {/* Stats Row */}
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm stat-card stat-card-amber">
               <AnalyticsCard
                 title="Pending"
                 value={isLoading ? "—" : String(totalPending)}
                 subtitle="Awaiting your approval"
-                icon={<AlertCircle className="h-5 w-5" />}
+                icon={<AlertCircle className="h-4 w-4" />}
+                accentColor="#D97706"
               />
             </div>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm stat-card stat-card-green">
               <AnalyticsCard
                 title="Processed"
                 value={isLoading ? "—" : String(totalProcessed)}
                 subtitle="Approved / Forwarded"
-                icon={<Zap className="h-5 w-5" />}
+                icon={<Zap className="h-4 w-4" />}
+                accentColor="#059669"
               />
             </div>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm stat-card stat-card-blue">
               <AnalyticsCard
                 title="Active Modules"
                 value={isLoading ? "—" : String(activeModules)}
                 subtitle="Document types in use"
-                icon={<Layers className="h-5 w-5" />}
+                icon={<Layers className="h-4 w-4" />}
+                accentColor="#4A6CF7"
               />
             </div>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm">
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm stat-card stat-card-purple">
               <AnalyticsCard
                 title="Today's Activity"
                 value={isLoading ? "—" : String(recentActivityCount)}
                 subtitle="Modified today"
-                icon={<Activity className="h-5 w-5" />}
+                icon={<Activity className="h-4 w-4" />}
+                accentColor="#7C3AED"
               />
             </div>
           </section>
@@ -285,55 +317,55 @@ export function HeadDashboard() {
           {/* Two-Column: Recent Pending + Recently Processed */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Recent Pending Approvals */}
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ClipboardCheck className="h-4 w-4 text-[#D97757]" />
-                  <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm uppercase tracking-wide">
+                  <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-[11px] uppercase tracking-widest">
                     Recent Approvals Needed
                   </h3>
                 </div>
                 <button
                   onClick={() => navigate("/pending-task")}
-                  className="text-xs text-[#D97757] hover:text-[#c5684a] font-semibold flex items-center gap-1 transition-colors"
+                  className="text-[11px] text-[#4A6CF7] hover:text-[#3b5cf6] font-bold flex items-center gap-0.5 transition-colors uppercase tracking-wide"
                 >
                   View All <ChevronRight className="h-3 w-3" />
                 </button>
               </div>
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-700/50">
+              <div className="divide-y divide-[#F4F4F5] dark:divide-[#27272A]">
                 {isLoading ? (
-                  <div className="p-8 text-center text-zinc-400">
-                    <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin mx-auto mb-2" />
-                    <p className="text-sm">Loading…</p>
+                  <div className="p-8 text-center text-[#A1A1AA]">
+                    <div className="w-5 h-5 border-2 border-zinc-300 border-t-[#4A6CF7] rounded-full animate-spin mx-auto mb-2" />
+                    <p className="text-xs font-medium">Loading…</p>
                   </div>
                 ) : pendingTasks.length === 0 ? (
-                  <div className="p-8 text-center text-zinc-400">
-                    <ClipboardCheck className="h-8 w-8 mx-auto mb-2 text-zinc-300" />
-                    <p className="text-sm font-medium">No pending approvals</p>
-                    <p className="text-xs mt-1">You're all caught up!</p>
+                  <div className="p-8 text-center text-[#A1A1AA]">
+                    <ClipboardCheck className="h-7 w-7 mx-auto mb-2 text-[#D4D4D8]" />
+                    <p className="text-xs font-bold uppercase tracking-wide">No pending approvals</p>
+                    <p className="text-xs mt-0.5 text-[#D4D4D8]">You're all caught up!</p>
                   </div>
                 ) : (
                   pendingTasks.slice(0, 5).map((task) => (
                     <button
                       key={task.name}
                       onClick={() => navigate(getTaskRoute(task.doctype, task.name))}
-                      className="w-full px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors flex items-center gap-3 text-left group"
+                      className="w-full px-5 py-3 hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors flex items-center gap-3 text-left group"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", getStatusStyle(task.status))}>
+                          <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide", getStatusStyle(task.status))}>
                             {task.status}
                           </span>
-                          <span className="text-[10px] text-zinc-400 font-medium">{task.doctype}</span>
+                          <span className="text-[10px] text-[#A1A1AA] font-bold uppercase tracking-wide">{task.doctype}</span>
                         </div>
-                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                        <p className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
                           {task.title}
                         </p>
-                        <p className="text-[11px] text-zinc-400 mt-0.5">
+                        <p className="text-[10px] text-[#A1A1AA] mt-0.5">
                           {task.owner} · {formatRelativeTime(task.modified)}
                         </p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-zinc-300 group-hover:text-[#D97757] flex-shrink-0 transition-colors" />
+                      <ChevronRight className="h-3.5 w-3.5 text-[#D4D4D8] group-hover:text-[#4A6CF7] flex-shrink-0 transition-colors" />
                     </button>
                   ))
                 )}
@@ -341,31 +373,31 @@ export function HeadDashboard() {
             </div>
 
             {/* Recently Processed */}
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
+            <div className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <BarChart className="h-4 w-4 text-[#D97757]" />
-                  <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm uppercase tracking-wide">
+                  <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-[11px] uppercase tracking-widest">
                     Recently Processed
                   </h3>
                 </div>
                 <button
                   onClick={() => navigate("/task-registry")}
-                  className="text-xs text-[#D97757] hover:text-[#c5684a] font-semibold flex items-center gap-1 transition-colors"
+                  className="text-[11px] text-[#4A6CF7] hover:text-[#3b5cf6] font-bold flex items-center gap-0.5 transition-colors uppercase tracking-wide"
                 >
                   View All <ChevronRight className="h-3 w-3" />
                 </button>
               </div>
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-700/50">
+              <div className="divide-y divide-[#F4F4F5] dark:divide-[#27272A]">
                 {isLoading ? (
-                  <div className="p-8 text-center text-zinc-400">
-                    <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin mx-auto mb-2" />
-                    <p className="text-sm">Loading…</p>
+                  <div className="p-8 text-center text-[#A1A1AA]">
+                    <div className="w-5 h-5 border-2 border-zinc-300 border-t-[#4A6CF7] rounded-full animate-spin mx-auto mb-2" />
+                    <p className="text-xs font-medium">Loading…</p>
                   </div>
                 ) : registryTasks.length === 0 ? (
-                  <div className="p-8 text-center text-zinc-400">
-                    <BarChart className="h-8 w-8 mx-auto mb-2 text-zinc-300" />
-                    <p className="text-sm font-medium">No processed documents yet</p>
+                  <div className="p-8 text-center text-[#A1A1AA]">
+                    <BarChart className="h-7 w-7 mx-auto mb-2 text-[#D4D4D8]" />
+                    <p className="text-xs font-bold uppercase tracking-wide">No processed documents yet</p>
                   </div>
                 ) : (
                   registryTasks.slice(0, 5).map((task) => (
@@ -376,23 +408,23 @@ export function HeadDashboard() {
                         else if (task.doctype === "Reimbursement") navigate(`/reimbursement/${task.name}`);
                         else navigate(`/task-registry/${task.doctype}/${task.name}`);
                       }}
-                      className="w-full px-5 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-700/30 transition-colors flex items-center gap-3 text-left group"
+                      className="w-full px-5 py-3 hover:bg-[#FAFAF9] dark:hover:bg-[#27272A]/50 transition-colors flex items-center gap-3 text-left group"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", getStatusStyle(task.status))}>
+                          <span className={cn("px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide", getStatusStyle(task.status))}>
                             {task.status}
                           </span>
-                          <span className="text-[10px] text-zinc-400 font-medium">{task.doctype}</span>
+                          <span className="text-[10px] text-[#A1A1AA] font-bold uppercase tracking-wide">{task.doctype}</span>
                         </div>
-                        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
+                        <p className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] truncate">
                           {task.title}
                         </p>
-                        <p className="text-[11px] text-zinc-400 mt-0.5">
+                        <p className="text-[10px] text-[#A1A1AA] mt-0.5">
                           {task.owner} · {formatRelativeTime(task.modified)}
                         </p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-zinc-300 group-hover:text-[#D97757] flex-shrink-0 transition-colors" />
+                      <ChevronRight className="h-3.5 w-3.5 text-[#D4D4D8] group-hover:text-[#4A6CF7] flex-shrink-0 transition-colors" />
                     </button>
                   ))
                 )}
@@ -402,26 +434,26 @@ export function HeadDashboard() {
 
           {/* Module Breakdown */}
           {moduleBreakdown.length > 0 && (
-            <section className="bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm p-5 mb-6">
-              <div className="flex items-center gap-2 mb-4">
+            <section className="bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm overflow-hidden mb-6">
+              <div className="px-5 py-3.5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] flex items-center gap-2">
                 <Clock className="h-4 w-4 text-[#D97757]" />
-                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 text-sm uppercase tracking-wide">
+                <h3 className="font-bold text-[#3F3F46] dark:text-[#E4E4E7] text-[11px] uppercase tracking-widest">
                   Pending by Module
                 </h3>
               </div>
-              <div className="space-y-3">
+              <div className="p-5 space-y-3">
                 {moduleBreakdown.map(({ doctype, count }) => (
                   <div key={doctype} className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 w-40 truncate flex-shrink-0">
+                    <span className="text-[12px] font-semibold text-zinc-700 dark:text-[#D4D4D8] w-44 truncate flex-shrink-0">
                       {doctype}
                     </span>
-                    <div className="flex-1 bg-zinc-100 dark:bg-zinc-700 rounded-full h-2.5 overflow-hidden">
+                    <div className="flex-1 bg-[#F4F4F5] dark:bg-[#3F3F46] rounded-full h-2 overflow-hidden">
                       <div
-                        className="bg-[#D97757] h-full rounded-full transition-all duration-700"
+                        className="bg-[#4A6CF7] h-full rounded-full transition-all duration-700"
                         style={{ width: `${(count / maxModuleCount) * 100}%` }}
                       />
                     </div>
-                    <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 w-8 text-right flex-shrink-0">
+                    <span className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] w-6 text-right flex-shrink-0">
                       {count}
                     </span>
                   </div>
@@ -431,10 +463,10 @@ export function HeadDashboard() {
           )}
 
           {/* Footer */}
-          <footer className="text-center text-zinc-500 dark:text-zinc-400 mt-6 pb-4">
-            <div className="flex items-center justify-center space-x-2 text-xs">
-              <Mail className="size-3.5" />
-              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#D97757] hover:underline font-semibold">ernd@iitg.ac.in</a></p>
+          <footer className="text-center text-[#A1A1AA] dark:text-zinc-500 mt-6 pb-4">
+            <div className="flex items-center justify-center gap-1.5 text-[11px]">
+              <Mail className="size-3" />
+              <p>For any query, e-mail to <a href="mailto:ernd@iitg.ac.in" className="text-[#D97757] hover:underline font-bold">ernd@iitg.ac.in</a></p>
             </div>
           </footer>
         </div>

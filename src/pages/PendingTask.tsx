@@ -5,12 +5,21 @@
 import React, { useState, useRef } from 'react';
 import { FaExclamationCircle, FaArrowLeft } from 'react-icons/fa';
 import { cn } from '@/lib/utils';
-import { AppSidebar } from '@/components/RndSidebar';
-import { useNavigate } from 'react-router-dom';
-import { useFrappeGetCall } from 'frappe-react-sdk';
-import { GlobalLoader } from '@/components/ui/global-loader';
+import { ActivityLog } from '@/components/ActivityLog';
+import { XIcon, ActivityIcon } from 'lucide-react';
 
-// Define interfaces for the API response
+import { useNavigate } from 'react-router-dom';
+import { useFrappeGetCall, useFrappeAuth, useFrappeGetDocList, useFrappePostCall } from 'frappe-react-sdk';
+import { GlobalLoader } from '@/components/ui/global-loader';
+import { useUserRoles } from '../components/UserRole';
+import { selectionCandidateDetailsAPI } from '@/services/apiService';
+import {
+    resolveProjectCategory,
+    DOCTYPE_PR_LINKS,
+    type PRLinkStrategy,
+    type ProjectCategory,
+} from '@/utils/projectTypeMapping';
+
 interface PendingTaskRecord {
     name: string;
     title: string;
@@ -18,14 +27,32 @@ interface PendingTaskRecord {
     creation: string;
     modified: string;
     owner: string;
+    head_approver?: string;
+    // PR link fields — which ones are populated depends on the DocType
+    prjreg_title?: string;
+    project_name?: string;
+    project_proposal?: string;
+    project_type_linked?: string;
+    project_ref_number?: string;
+    project_number?: string;
+    project_title?: string;
+    project_ref?: string;
+    project_no?: string;
+    project_code?: string;
+    project_id?: string;
+    travel_project_title?: string;
+    travel_project_number?: string;
+    igf_project_title?: string;
+    igf_project_code?: string;
+    upfa_project_code?: string;
+    prj_num?: string;
 }
 
 interface PendingTaskResult {
     doctype: string;
     records: PendingTaskRecord[];
-    mod_vis?: number; // Added to fix 'any' type error
+    mod_vis?: number;
 }
-
 
 interface PendingTaskResponse {
     message: {
@@ -35,7 +62,6 @@ interface PendingTaskResponse {
     };
 }
 
-// Interface for the flattened task structure used in the table
 interface FlattenedTask {
     id: string;
     title: string;
@@ -46,11 +72,89 @@ interface FlattenedTask {
     modified: string;
     owner: string;
     doctype: string;
+    project_type: ProjectCategory;
 }
 
-// Frappe-styled components matching Claude UI
+type ProjectTypeTab = ProjectCategory;
+
+type SCRCandidate = {
+    name: string;
+    candidate_name: string;
+    application_id: string;
+    candidate_id: string;
+    category: string;
+    selection_status: string;
+    appointment_order_number: string;
+    medical_report_number: string;
+    joining_report_number: string;
+    wl_number: string;
+    /** True if a Project Staff Details (joining) doc for this candidate has docstatus >= 1. */
+    joining_submitted?: boolean;
+};
+
+// ─── Hierarchical workflow button ────────────────────────────────────────────
+// Three canonical states drive the entire row: prior step incomplete -> disabled,
+// step ready but not yet done -> available, step already done -> completed.
+type WorkflowButtonState = 'disabled' | 'available' | 'completed';
+
+const WORKFLOW_BUTTON_CLASSES: Record<WorkflowButtonState, string> = {
+    disabled: 'bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed shadow-none',
+    available: 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md',
+    completed: 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm',
+};
+
+const WorkflowButton: React.FC<{
+    state: WorkflowButtonState;
+    label: string;
+    onClick?: () => void;
+    title?: string;
+}> = ({ state, label, onClick, title }) => (
+    <button
+        type="button"
+        onClick={state === 'disabled' ? undefined : onClick}
+        disabled={state === 'disabled'}
+        title={
+            title ??
+            (state === 'disabled'
+                ? 'Complete the previous step first'
+                : state === 'completed'
+                    ? 'Already completed'
+                    : undefined)
+        }
+        className={cn(
+            'inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs h-8 rounded-lg font-semibold transition-all duration-200',
+            'focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500',
+            WORKFLOW_BUTTON_CLASSES[state],
+        )}
+    >
+        {state === 'completed' && <span aria-hidden>✓</span>}
+        {label}
+    </button>
+);
+
+// Derive button states for one candidate. Add new steps here as the workflow grows.
+const getCandidateWorkflow = (
+    c: SCRCandidate,
+): Record<'appOrder' | 'medReport' | 'join' | 'joiningReport', WorkflowButtonState> => {
+    const appOrderDone = !!c.appointment_order_number;
+    const medReportDone = !!c.medical_report_number;
+    const joiningDone = !!c.joining_submitted;
+    const joiningReportDone = !!c.joining_report_number;
+    return {
+        appOrder: appOrderDone ? 'completed' : 'available',
+        medReport: !appOrderDone ? 'disabled' : medReportDone ? 'completed' : 'available',
+        join: !appOrderDone ? 'disabled' : joiningDone ? 'completed' : 'available',
+        // Joining Report is a printable office-order, enabled once the candidate
+        // has joined. Marked completed once its reference number is saved on SCD.
+        joiningReport: !joiningDone ? 'disabled' : joiningReportDone ? 'completed' : 'available',
+    };
+};
+
+const PROJECT_TYPE_TABS: ProjectTypeTab[] = ['Research', 'Consultancy', 'Others'];
+const HIDDEN_OTHERS_DOCTYPES = new Set(['Kafka Commit Staging', 'Project Number Generation']);
+
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div className={cn("bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm", className)}>
+    <div className={cn("bg-white dark:bg-[#27272A] rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] shadow-sm", className)}>
         {children}
     </div>
 );
@@ -68,13 +172,9 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
         className={cn(
             "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200",
             "focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-500",
-            // Primary: Terracotta or Zinc-900
             variant === 'primary' && "bg-[#D97757] text-white hover:bg-[#c66a4e] shadow-sm hover:shadow-md",
-            // Ghost: Subtle hover
             variant === 'ghost' && "bg-transparent text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100",
-            // Outline: Standard Claude secondary
             variant === 'outline' && "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
-            // Action: Zinc-900 for strong actions
             variant === 'action' && "bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm hover:shadow-md",
             "disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none",
             className
@@ -89,31 +189,141 @@ const PendingTask: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedModule, setSelectedModule] = useState<string>('all');
     const [searchQuery, setSearchQuery] = useState<string>('');
+    const [selectedProjectType, setSelectedProjectType] = useState<ProjectTypeTab>('Research');
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+    // Activity peek panel state
+    const [selectedTask, setSelectedTask] = useState<{ doctype: string; docname: string; title: string } | null>(null);
 
-    // Fetch data from the API
+    const { currentUser } = useFrappeAuth();
+    const { roles } = useUserRoles(currentUser ?? null);
+    const isHeadApprover = roles?.includes("head_approver_1") ?? false;
+    const isStaffRnD = roles?.includes("staff, RnD") ?? false;
+    const [orderModal, setOrderModal] = useState<{
+        open: boolean;
+        loading: boolean;
+        error: string | null;
+        scrName: string;
+        candidates: SCRCandidate[];
+    }>({ open: false, loading: false, error: null, scrName: '', candidates: [] });
+
+    const { call: fetchCandidatesByInterview } = useFrappePostCall(selectionCandidateDetailsAPI.getByInterview);
+    const { call: fetchPSDList } = useFrappePostCall<{ message: Array<{
+        ps_first_name?: string;
+        ps_middle_name?: string;
+        ps_last_name?: string;
+        docstatus?: number;
+        workflow_state?: string;
+    }> }>('frappe.client.get_list');
+
+    // Best-effort match: normalize spaces & case so "Anil  Kumar" === "anil kumar".
+    const normalizeName = (...parts: Array<string | undefined>) =>
+        parts.filter(Boolean).join(' ').toLowerCase().replace(/\s+/g, ' ').trim();
+
+    const handleOrderClick = async (taskId: string) => {
+        setOrderModal({ open: true, loading: true, error: null, scrName: taskId, candidates: [] });
+        try {
+            const res = await fetchCandidatesByInterview({ interview_id: taskId, selection_status: 'Recommended' });
+            if (res?.message?.status === 'error') {
+                setOrderModal(prev => ({ ...prev, loading: false, error: res.message.message || 'Failed to fetch candidates.' }));
+                return;
+            }
+            const candidates: SCRCandidate[] = Array.isArray(res?.message?.data) ? res.message.data : [];
+
+            // Enrich with joining-submitted status by name-matching Project Staff Details
+            // rows that share this SCR. Falls back silently if the lookup fails.
+            let enriched = candidates;
+            try {
+                const psdRes = await fetchPSDList({
+                    doctype: 'Project Staff Details',
+                    filters: JSON.stringify([['scr_id', '=', taskId]]),
+                    fields: JSON.stringify(['ps_first_name', 'ps_middle_name', 'ps_last_name', 'docstatus', 'workflow_state']),
+                    limit_page_length: 0,
+                });
+                // Joining started is enough to unlock the Joining Report. Frappe
+                // workflows commonly keep docstatus=0 until final approval.
+                const isJoiningSubmitted = (p: { docstatus?: number; workflow_state?: string }) =>
+                    Number(p.docstatus) >= 1 ||
+                    (!!p.workflow_state && p.workflow_state.toLowerCase() !== 'draft');
+                const submitted = new Set<string>();
+                for (const p of (psdRes?.message ?? [])) {
+                    if (!isJoiningSubmitted(p)) continue;
+                    const variants = [
+                        normalizeName(p.ps_first_name, p.ps_middle_name, p.ps_last_name),
+                        normalizeName(p.ps_first_name, p.ps_last_name),
+                        normalizeName(p.ps_first_name),
+                    ].filter(Boolean);
+                    for (const v of variants) submitted.add(v);
+                }
+                if (submitted.size > 0) {
+                    enriched = candidates.map(c => ({
+                        ...c,
+                        joining_submitted: submitted.has(normalizeName(c.candidate_name)),
+                    }));
+                }
+            } catch {
+                /* leave joining_submitted undefined */
+            }
+
+            setOrderModal(prev => ({ ...prev, loading: false, candidates: enriched }));
+        } catch {
+            setOrderModal(prev => ({ ...prev, loading: false, error: 'Failed to fetch candidates. Please try again.' }));
+        }
+    };
+
+    const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
+        filters: [["head_approver", "=", currentUser ?? ""]],
+        fields: ["name"],
+        limit: 500,
+    }, isHeadApprover && !!currentUser ? undefined : null);
+
+    // Fetch all projects for project_type lookup (single source of truth)
+    const { data: allProjectRegistrations } = useFrappeGetDocList("Project Registration", {
+        fields: ["name", "project_no", "project_type"],
+        limit: 1000,
+    });
+
+    const allowedProjectNames = React.useMemo(() => {
+        if (!isHeadApprover || !headApproverProjects) return null;
+        return new Set(headApproverProjects.map((p: { name: string }) => p.name));
+    }, [isHeadApprover, headApproverProjects]);
+
+    // prNameToType: PR document name (auto-id) → raw project_type
+    // prNoToType:   PR project_no (human-readable) → raw project_type
+    const { prNameToType, prNoToType } = React.useMemo(() => {
+        const prNameToType = new Map<string, string>();
+        const prNoToType = new Map<string, string>();
+        if (allProjectRegistrations) {
+            allProjectRegistrations.forEach((p: { name: string; project_no?: string; project_type?: string }) => {
+                const raw = p.project_type || '';
+                if (p.name) prNameToType.set(p.name, raw);
+                if (p.project_no) prNoToType.set(p.project_no, raw);
+            });
+        }
+        return { prNameToType, prNoToType };
+    }, [allProjectRegistrations]);
+
     const { data, isLoading, error } = useFrappeGetCall<PendingTaskResponse>(
         "rndopsapp.rndopsapp.doctype.module_registry.module_registry.get_pending_task",
-        {
-            page_name: "pending-task"
-        }
+        { page_name: "pending-task" }
     );
 
-    // Transform API data into flattened tasks
     const allTasks: FlattenedTask[] = React.useMemo(() => {
         if (!data?.message?.results) return [];
 
-        console.log("Pending Task Data:", data.message.results);
-
         const tasks: FlattenedTask[] = [];
         data.message.results.forEach((group) => {
-            // Debug log for each group
-            console.log(`Processing group: ${group.doctype}, mod_vis: ${group.mod_vis}`);
-
-            // Only process this group if mod_vis is 1 (or truthy) - OR if it's Advance Settlement (force show)
             if (group.mod_vis || group.doctype === "Advance Settlement") {
                 group.records.forEach((record) => {
+                    if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
+                        return;
+                    }
+                    if (
+                        record.status === "Endorsement Approved" ||
+                        record.status === "Sanction Approved"
+                    ) {
+                        return;
+                    }
                     tasks.push({
                         id: record.name,
                         title: record.title,
@@ -123,23 +333,109 @@ const PendingTask: React.FC = () => {
                         creation: record.creation,
                         modified: record.modified,
                         owner: record.owner,
-                        doctype: group.doctype
+                        doctype: group.doctype,
+                        project_type: resolveProjectCategory(
+                            record as unknown as Record<string, unknown>,
+                            group.doctype,
+                            prNameToType,
+                            prNoToType,
+                        ),
                     });
                 });
             }
         });
         return tasks;
-    }, [data]);
+    }, [data, isHeadApprover, allowedProjectNames, prNameToType, prNoToType]);
 
-    // Get unique module names for filter dropdown
+    // Phase-2: secondary fetch to resolve project_type from each doctype's actual link fields.
+    // The pending-task API only returns basic fields (name, title, status…), so link fields
+    // like prjreg_title / project_name are absent. We batch-fetch per doctype to fill the gap.
+    const [resolvedProjectTypes, setResolvedProjectTypes] = React.useState<Map<string, ProjectCategory>>(new Map());
+
+    React.useEffect(() => {
+        if (!allTasks.length) return;
+
+        const byDoctype = new Map<string, string[]>();
+        allTasks.forEach(task => {
+            const mapping = DOCTYPE_PR_LINKS[task.doctype];
+            if (!mapping || mapping.primary.type === 'self') return;
+            if (!byDoctype.has(task.doctype)) byDoctype.set(task.doctype, []);
+            byDoctype.get(task.doctype)!.push(task.id);
+        });
+
+        if (!byDoctype.size) return;
+
+        const newMap = new Map<string, ProjectCategory>();
+        const promises: Promise<void>[] = [];
+
+        byDoctype.forEach((ids, doctype) => {
+            const mapping = DOCTYPE_PR_LINKS[doctype]!;
+            const fields = new Set<string>(['name']);
+            const addField = (s: PRLinkStrategy) => { if (s.type !== 'self') fields.add(s.field); };
+            addField(mapping.primary);
+            if (mapping.fallback) addField(mapping.fallback);
+
+            // Frappe v1 list API:
+            //   filters  → JSON array of [field, op, value] triples
+            //   fields   → JSON array of field names
+            //   in-filter value must be a comma-separated string, NOT a nested array
+            const filterValue = ids.join(',');
+            const params = new URLSearchParams({
+                filters: JSON.stringify([['name', 'in', filterValue]]),
+                fields: JSON.stringify([...fields]),
+                limit: String(ids.length),
+            });
+
+            const p = fetch(`/api/resource/${encodeURIComponent(doctype)}?${params}`)
+                .then(r => r.json())
+                .then(result => {
+                    // Frappe v1 returns { data: [...] }
+                    (result?.data ?? result?.message ?? []).forEach((rec: Record<string, unknown>) => {
+                        const cat = resolveProjectCategory(rec, doctype, prNameToType, prNoToType);
+                        newMap.set(rec['name'] as string, cat);
+                    });
+                })
+                .catch(() => { /* silently skip on auth/network errors */ });
+
+            promises.push(p);
+        });
+
+        Promise.all(promises).then(() => {
+            if (newMap.size > 0) setResolvedProjectTypes(new Map(newMap));
+        });
+    }, [allTasks, prNameToType, prNoToType]);
+
+    // Merge phase-1 results with phase-2 resolved types
+    const resolvedTasks = React.useMemo(() =>
+        allTasks.map(task => {
+            const resolved = resolvedProjectTypes.get(task.id);
+            return resolved ? { ...task, project_type: resolved } : task;
+        }),
+        [allTasks, resolvedProjectTypes]);
+
+    const visibleTasks = React.useMemo(() =>
+        resolvedTasks.filter(task => !(task.project_type === 'Others' && HIDDEN_OTHERS_DOCTYPES.has(task.doctype))),
+        [resolvedTasks]);
+
+    const tabCounts = React.useMemo(() => ({
+        Research: visibleTasks.filter(t => t.project_type === 'Research').length,
+        Consultancy: visibleTasks.filter(t => t.project_type === 'Consultancy').length,
+        Others: visibleTasks.filter(t => t.project_type === 'Others').length,
+    }), [visibleTasks]);
+
+    // Module names scoped to current project type tab
     const moduleNames = React.useMemo(() => {
-        const uniqueModules = new Set(allTasks.map(task => task.doctype));
+        const baseTasks = visibleTasks.filter(t => t.project_type === selectedProjectType);
+        const uniqueModules = new Set(baseTasks.map(task => task.doctype));
         return Array.from(uniqueModules).sort();
-    }, [allTasks]);
+    }, [visibleTasks, selectedProjectType]);
 
-    // Filter tasks based on selected module and search query
     const filteredTasks = React.useMemo(() => {
-        let tasks = selectedModule === 'all' ? allTasks : allTasks.filter(task => task.doctype === selectedModule);
+        let tasks = visibleTasks.filter(t => t.project_type === selectedProjectType);
+
+        if (selectedModule !== 'all') {
+            tasks = tasks.filter(task => task.doctype === selectedModule);
+        }
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase().trim();
             tasks = tasks.filter(task =>
@@ -150,15 +446,19 @@ const PendingTask: React.FC = () => {
             );
         }
         return tasks;
-    }, [allTasks, selectedModule, searchQuery]);
+    }, [visibleTasks, selectedProjectType, selectedModule, searchQuery]);
 
     const totalPages = Math.ceil(filteredTasks.length / itemsPerPage);
     const indexOfLastTask = currentPage * itemsPerPage;
     const indexOfFirstTask = indexOfLastTask - itemsPerPage;
     const currentTasks = filteredTasks.slice(indexOfFirstTask, indexOfLastTask);
 
-    const handlePageChange = (pageNumber: number) => {
-        setCurrentPage(pageNumber);
+    const handlePageChange = (pageNumber: number) => setCurrentPage(pageNumber);
+
+    const handleProjectTypeChange = (tab: ProjectTypeTab) => {
+        setSelectedProjectType(tab);
+        setSelectedModule('all');
+        setCurrentPage(1);
     };
 
     const handleModuleChange = (module: string) => {
@@ -177,18 +477,16 @@ const PendingTask: React.FC = () => {
     };
 
     const getPriorityBadge = (priority: string) => {
-        // Muted, organic colors for priorities
         const styles: Record<string, string> = {
             High: 'bg-red-50 text-red-700 border-red-200',
             Medium: 'bg-amber-50 text-amber-700 border-amber-200',
             Low: 'bg-emerald-50 text-emerald-700 border-emerald-200',
         };
-        return cn("px-2.5 py-0.5 rounded-full text-xs font-medium border", styles[priority] || 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700');
+        return cn("px-2 py-0.5 rounded-full text-[10px] font-medium border", styles[priority] || 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700');
     };
 
     const getStatusBadge = (status: string) => {
         const s = status?.toLowerCase();
-        // Cleaner, softer badge styles
         let style = "bg-orange-50 text-orange-700 border-orange-200";
         if (["pending", "under review", "approval pending"].some(t => s?.includes(t))) {
             style = "bg-amber-50 text-amber-700 border-amber-200";
@@ -199,13 +497,12 @@ const PendingTask: React.FC = () => {
         } else if (s?.includes("rejected")) {
             style = "bg-red-50 text-red-700 border-red-200";
         }
-        return cn("px-2.5 py-0.5 rounded-full text-xs font-medium border", style);
+        return cn("px-2 py-0.5 rounded-full text-[10px] font-medium border", style);
     };
 
     const getPageNumbers = () => {
         const pages: (number | string)[] = [];
         const maxButtons = 3;
-
         if (totalPages <= maxButtons) {
             for (let i = 1; i <= totalPages; i++) pages.push(i);
         } else {
@@ -222,12 +519,12 @@ const PendingTask: React.FC = () => {
 
     if (error) {
         return (
-            <div className="flex h-screen items-center justify-center bg-claude-bg dark:bg-zinc-900">
+            <div className="flex h-screen items-center justify-center bg-[#FAFAF9] dark:bg-[#18181B]">
                 <FrappeCard className="p-12 text-center max-w-md w-full">
                     <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
                         <FaExclamationCircle className="h-6 w-6 text-red-600" />
                     </div>
-                    <h2 className="text-xl font-serif font-medium text-zinc-900 dark:text-zinc-100 mb-2">Unable to Load Tasks</h2>
+                    <h2 className="text-[18px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] mb-2">Unable to Load Tasks</h2>
                     <p className="text-zinc-500 dark:text-zinc-400">{error.message}</p>
                     <FrappeButton onClick={() => window.location.reload()} variant="outline" className="mt-6">
                         Retry
@@ -238,29 +535,69 @@ const PendingTask: React.FC = () => {
     }
 
     return (
-        <div className="bg-claude-bg dark:bg-zinc-900 min-h-screen font-sans text-zinc-900 dark:text-zinc-100">
+        <>
+        <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[#3F3F46] dark:text-[#E4E4E7]">
             <GlobalLoader isLoading={isLoading} />
-            <AppSidebar />
 
-            <main className="flex-1 p-6 md:p-12 w-full overflow-hidden">
+            <main className="flex-1 px-6 md:px-8 pt-7 pb-10 w-full overflow-hidden">
                 {/* Header */}
-                <div className="mb-8">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="mb-6 flex items-center gap-2 text-zinc-500 hover:text-zinc-800 transition-colors text-sm font-medium"
-                    >
-                        <FaArrowLeft className="h-4 w-4" />
-                        Back to Dashboard
-                    </button>
-                    <div className="flex flex-col gap-2">
-                        <h1 className="text-3xl md:text-4xl font-serif text-zinc-900 dark:text-zinc-50 tracking-tight">Pending Tasks</h1>
-                        <p className="text-zinc-500 dark:text-zinc-400 text-lg">Manage and track your pending tasks and approvals.</p>
+                <div className="mb-5 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
+                    <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
+                    <div className="flex items-start gap-3 px-5 py-4">
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
+                            aria-label="Back to dashboard"
+                        >
+                            <FaArrowLeft className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="min-w-0">
+                            <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">Workflow Inbox</span>
+                            <h1 className="mt-1 font-sans text-[22px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">Pending Tasks</h1>
+                            <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">Manage and track pending approvals.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Project Type Filter */}
+                <div className="mb-4 border-t-2 border-[#4A6CF7]/35 pt-4 dark:border-[#818CF8]/35">
+                    <div className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#71717A] dark:text-[#A1A1AA]">
+                        Project Type
+                    </div>
+                    <div className="flex items-center gap-2 overflow-x-auto">
+                        {PROJECT_TYPE_TABS.map((tab) => {
+                            const active = selectedProjectType === tab;
+                            const tabColors: Record<string, string> = {
+                                Research: active ? 'bg-[#EEF2FF] border-[#4A6CF7] text-[#1E3A8A] shadow-sm shadow-[#4A6CF7]/10 dark:bg-[#4A6CF7]/18 dark:border-[#818CF8] dark:text-[#C7D2FE]' : 'border-[#C7D2FE] bg-[#EEF2FF]/55 text-[#1E3A8A] hover:bg-[#EEF2FF] dark:border-[#4A6CF7]/30 dark:bg-[#4A6CF7]/10 dark:text-[#C7D2FE]',
+                                Consultancy: active ? 'bg-[#ECFDF5] border-[#10B981] text-[#065F46] shadow-sm shadow-[#10B981]/10 dark:bg-[#10B981]/15 dark:border-[#34D399] dark:text-[#A7F3D0]' : 'border-[#A7F3D0] bg-[#ECFDF5]/60 text-[#047857] hover:bg-[#ECFDF5] dark:border-[#10B981]/30 dark:bg-[#10B981]/10 dark:text-[#A7F3D0]',
+                                Others: active ? 'bg-[#F4F4F5] border-[#71717A] text-[#3F3F46] shadow-sm dark:bg-[#3F3F46] dark:border-[#A1A1AA] dark:text-[#E4E4E7]' : 'border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]',
+                            };
+                            const badgeColors: Record<string, string> = {
+                                Research: active ? 'bg-[#4A6CF7] text-white' : 'bg-white/80 text-[#4A6CF7] dark:bg-[#18181B]/50',
+                                Consultancy: active ? 'bg-[#10B981] text-white' : 'bg-white/80 text-[#059669] dark:bg-[#18181B]/50',
+                                Others: active ? 'bg-[#71717A] text-white' : 'bg-[#F4F4F5] text-[#71717A] dark:bg-[#18181B]/50',
+                            };
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => handleProjectTypeChange(tab)}
+                                    className={cn(
+                                        "flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3 text-[11px] font-extrabold uppercase tracking-wide transition-all duration-150",
+                                        tabColors[tab]
+                                    )}
+                                >
+                                    {tab}
+                                    <span className={cn("px-2 py-0.5 rounded-full text-xs font-semibold", badgeColors[tab])}>
+                                        {tabCounts[tab]}
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
                 {/* Filter Section */}
-                <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    {/* Left: Dropdown + Module Header */}
+                <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] p-3 shadow-sm">
                     <div className="flex items-center gap-3">
                         <div className="relative">
                             <select
@@ -281,12 +618,11 @@ const PendingTask: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Selected module header pill */}
                         {selectedModule !== 'all' && (
                             <>
                                 <div className="h-6 w-px bg-zinc-300 dark:bg-zinc-700" />
                                 <div className="flex items-center gap-1.5">
-                                    <span className="text-xl font-medium text-zinc-700 dark:text-zinc-300 font-serif">{selectedModule}</span>
+                                    <span className="text-sm font-bold text-[#3F3F46] dark:text-[#E4E4E7]">{selectedModule}</span>
                                     <button
                                         onClick={() => handleModuleChange('all')}
                                         className="ml-1 text-zinc-400 hover:text-red-500 transition-colors rounded-full hover:bg-red-50 p-0.5"
@@ -299,9 +635,7 @@ const PendingTask: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Right: Search + task count */}
                     <div className="flex items-center gap-3">
-                        {/* Search input */}
                         <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
@@ -331,7 +665,7 @@ const PendingTask: React.FC = () => {
                                 value={itemsPerPage}
                                 onChange={(e) => {
                                     setItemsPerPage(Number(e.target.value));
-                                    setCurrentPage(1); // Reset to first page when changing row limit
+                                    setCurrentPage(1);
                                 }}
                                 className="h-8 pl-2 pr-8 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-xs text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-400 cursor-pointer"
                             >
@@ -348,43 +682,50 @@ const PendingTask: React.FC = () => {
                 </div>
 
                 {/* Table */}
-                <FrappeCard className="overflow-hidden">
-                    <div className="overflow-x-auto">
+                <FrappeCard className="overflow-hidden p-3">
+                    <div className="overflow-x-auto rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46]">
                         <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Status</th>
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Module</th>
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Title</th>
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Project No.</th>
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Date</th>
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Owner</th>
-                                    <th className="p-4 text-left font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Priority</th>
-                                    <th className="p-4 text-end font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Action</th>
+                            <thead className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Status</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Module</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Title</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Project No.</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Owner</th>
+                                    <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Priority</th>
+                                    <th className="px-4 py-3 text-end text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800 bg-white dark:bg-zinc-800 text-xs">
                                 {currentTasks.length > 0 ? (
                                     currentTasks.map((task) => (
                                         <tr key={task.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors group">
-                                            <td className="p-4 align-middle">
+                                            <td className="p-3 align-middle">
                                                 <span className={getStatusBadge(task.status)}>
                                                     {task.status}
                                                 </span>
                                             </td>
-                                            <td className="p-4 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
+                                            <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400 font-medium">
                                                 {task.doctype}
                                             </td>
-                                            <td className="p-4 align-middle font-medium text-zinc-900 dark:text-zinc-200">
-                                                {task.title.length > 40 ? `${task.title.substring(0, 40)}...` : task.title}
+                                            <td className="p-3 align-middle font-medium text-zinc-900 dark:text-zinc-200">
+                                                <button
+                                                    className="text-left hover:text-[#D97757] transition-colors flex items-center gap-1.5 group/title"
+                                                    onClick={() => setSelectedTask({ doctype: task.doctype, docname: task.id, title: task.title })}
+                                                    title="Click to preview activity log"
+                                                >
+                                                    {task.title.length > 40 ? `${task.title.substring(0, 40)}...` : task.title}
+                                                    <ActivityIcon className="w-3.5 h-3.5 opacity-0 group-hover/title:opacity-100 text-[#D97757] flex-shrink-0 transition-opacity" />
+                                                </button>
                                             </td>
-                                            <td className="p-4 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
+                                            <td className="p-3 align-middle font-mono text-zinc-500 dark:text-zinc-400 text-xs">
                                                 {task["Project Number"]}
                                             </td>
-                                            <td className="p-4 align-middle text-zinc-500 dark:text-zinc-400">
+                                            <td className="p-3 align-middle text-zinc-500 dark:text-zinc-400">
                                                 {task.creation ? new Date(task.creation).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"}
                                             </td>
-                                            <td className="p-4 align-middle text-zinc-600 dark:text-zinc-400">
+                                            <td className="p-3 align-middle text-zinc-600 dark:text-zinc-400">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-6 h-6 rounded-full bg-zinc-100 flex items-center justify-center text-xs font-bold text-zinc-500">
                                                         {task.owner.charAt(0).toUpperCase()}
@@ -392,45 +733,61 @@ const PendingTask: React.FC = () => {
                                                     <span className="truncate max-w-[100px]">{task.owner}</span>
                                                 </div>
                                             </td>
-                                            <td className="p-4 align-middle">
+                                            <td className="p-3 align-middle">
                                                 <span className={getPriorityBadge(task.priority)}>
                                                     {task.priority}
                                                 </span>
                                             </td>
-                                            <td className="p-4 align-middle text-right">
-                                                <FrappeButton
-                                                    variant="primary"
-                                                    onClick={() => {
-                                                        if (task.doctype === "Fund Received") {
-                                                            navigate(`/fund-received/${task.id}`);
-                                                        } else if (task.doctype === "Reimbursement") {
-                                                            navigate(`/reimbursement/${task.id}`);
-                                                        } else if (task.doctype === "Advance Settlement") {
-                                                            navigate(`/advance-settlement/${task.id}`);
-                                                        } else if (task.doctype === "Temporary Advance") {
-                                                            navigate(`/pending-tasks/${encodeURIComponent(task.doctype)}/${task.id}`);
-                                                        } else {
-                                                            navigate(`/pending-tasks/${task.doctype}/${task.id}`);
-                                                        }
-                                                    }}
-                                                    className="px-3 py-1.5 text-xs h-8 shadow-sm"
-                                                >
-                                                    View
-                                                </FrappeButton>
+                                            <td className="p-3 align-middle text-right">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <FrappeButton
+                                                        variant="primary"
+                                                        onClick={() => {
+                                                            if (task.doctype === "Fund Received") {
+                                                                navigate(`/fund-received/${task.id}`);
+                                                            } else if (task.doctype === "Reimbursement") {
+                                                                navigate(`/reimbursement/${task.id}`);
+                                                            } else if (task.doctype === "Advance Settlement") {
+                                                                navigate(`/advance-settlement/${task.id}`);
+                                                            } else if (task.doctype === "Temporary Advance") {
+                                                                navigate(`/pending-tasks/${encodeURIComponent(task.doctype)}/${task.id}`);
+                                                            } else if (task.doctype === "Direct Purchase") {
+                                                                navigate(`/direct-purchase/${task.id}`);
+                                                            } else if (task.doctype === "Disbursal of Consultancy") {
+                                                                navigate(`/disbursal-of-consultancy/${task.id}`);
+                                                            } else if (task.doctype === "Travel") {
+                                                                navigate(`/travel/${task.id}`);
+                                                            } else if (task.doctype === "Selection Committee Report") {
+                                                                navigate(`/selection-committee-report/${task.id}`);
+                                                            } else if (task.doctype === "Project Staff Details") {
+                                                                navigate(`/project-staff-joining?docname=${encodeURIComponent(task.id)}`);
+                                                            } else {
+                                                                navigate(`/pending-tasks/${task.doctype}/${task.id}`);
+                                                            }
+                                                        }}
+                                                        className="px-3 py-1.5 text-xs h-8 shadow-sm"
+                                                    >
+                                                        View
+                                                    </FrappeButton>
+                                                    {isStaffRnD &&
+                                                        task.doctype === "Selection Committee Report" &&
+                                                        task.status === "Approved" && (
+                                                        <FrappeButton
+                                                            variant="action"
+                                                            onClick={() => handleOrderClick(task.id)}
+                                                            className="px-3 py-1.5 text-xs h-8 shadow-sm"
+                                                        >
+                                                            More
+                                                        </FrappeButton>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
                                         <td colSpan={8} className="p-12 text-center text-zinc-500 dark:text-zinc-400">
-                                            {isLoading ? (
-                                                <div className="flex flex-col items-center gap-2">
-                                                    <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin"></div>
-                                                    <p>Loading tasks...</p>
-                                                </div>
-                                            ) : (
-                                                "No pending tasks found matching your criteria."
-                                            )}
+                                            No pending tasks found matching your criteria.
                                         </td>
                                     </tr>
                                 )}
@@ -438,7 +795,6 @@ const PendingTask: React.FC = () => {
                         </table>
                     </div>
 
-                    {/* Pagination Controls */}
                     {filteredTasks.length > 0 && (
                         <div className="p-4 border-t border-zinc-200 dark:border-zinc-700 flex justify-between items-center bg-white dark:bg-zinc-800">
                             <div className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -483,6 +839,170 @@ const PendingTask: React.FC = () => {
                 </FrappeCard>
             </main>
         </div>
+
+        {/* Order Modal — Candidates from Approved SCR */}
+        {orderModal.open && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-700 w-full max-w-4xl mx-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-700">
+                        <div>
+                            <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Candidates</h2>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                {orderModal.scrName}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setOrderModal(prev => ({ ...prev, open: false }))}
+                            className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        </button>
+                    </div>
+
+                    {/* Body */}
+                    <div className="px-6 py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+                        {orderModal.loading ? (
+                            <div className="flex flex-col items-center gap-2 py-8 text-zinc-400">
+                                <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-600 rounded-full animate-spin" />
+                                <p className="text-sm">Loading candidates...</p>
+                            </div>
+                        ) : orderModal.error ? (
+                            <p className="text-sm text-red-500 text-center py-8">{orderModal.error}</p>
+                        ) : orderModal.candidates.length === 0 ? (
+                            <p className="text-sm text-zinc-500 text-center py-8">No recommended candidates found.</p>
+                        ) : (
+                            orderModal.candidates.map((candidate, idx) => (
+                                <div
+                                    key={candidate.name || idx}
+                                    className="flex items-center justify-between gap-4 p-4 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
+                                >
+                                    <div className="min-w-0 flex-1 space-y-0.5">
+                                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                                            {candidate.candidate_name}
+                                        </p>
+                                        {candidate.application_id && (
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">App ID: {candidate.application_id}</p>
+                                        )}
+                                        {candidate.category && (
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">Category: {candidate.category}</p>
+                                        )}
+                                        {candidate.wl_number && (
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">WL No: {candidate.wl_number}</p>
+                                        )}
+                                        {candidate.appointment_order_number && (
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">Order No: {candidate.appointment_order_number}</p>
+                                        )}
+                                        {candidate.medical_report_number && (
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">Medical Report: {candidate.medical_report_number}</p>
+                                        )}
+                                        {candidate.joining_report_number && (
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">Joining Report: {candidate.joining_report_number}</p>
+                                        )}
+                                        <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold border bg-emerald-50 text-emerald-700 border-emerald-200">
+                                            {candidate.selection_status}
+                                        </span>
+                                    </div>
+                                    {(() => {
+                                        const wf = getCandidateWorkflow(candidate);
+                                        const qs = `scr=${orderModal.scrName}&candidate_id=${candidate.candidate_id}&application_id=${candidate.application_id}`;
+                                        return (
+                                            <div className="flex items-center gap-2 flex-shrink-0">
+                                                <WorkflowButton
+                                                    state={wf.appOrder}
+                                                    label="App Order"
+                                                    onClick={() => navigate(`/appointment-order?${qs}`)}
+                                                />
+                                                <WorkflowButton
+                                                    state={wf.medReport}
+                                                    label="Med Report"
+                                                    onClick={() => navigate(`/medical-report?${qs}`)}
+                                                    title={wf.medReport === 'disabled' ? 'Save the Appointment Order number first' : undefined}
+                                                />
+                                                <WorkflowButton
+                                                    state={wf.join}
+                                                    label="Join"
+                                                    onClick={() => navigate(`/project-staff-joining?${qs}`)}
+                                                    title={wf.join === 'disabled' ? 'Save the Appointment Order number first' : undefined}
+                                                />
+                                                <WorkflowButton
+                                                    state={wf.joiningReport}
+                                                    label="Joining Report"
+                                                    onClick={() => navigate(`/joining-report?${qs}`)}
+                                                    title={wf.joiningReport === 'disabled' ? 'Save & submit the Joining form first' : undefined}
+                                                />
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Activity Log Peek Panel */}
+        {selectedTask && (
+            <div
+                className="fixed inset-0 z-40"
+                onClick={() => setSelectedTask(null)}
+            >
+                <div
+                    className="absolute right-0 top-0 h-full w-full max-w-sm bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl flex flex-col"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Panel header */}
+                    <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+                        <div className="min-w-0">
+                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-0.5">
+                                {selectedTask.doctype}
+                            </p>
+                            <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                                {selectedTask.title}
+                            </p>
+                            <p className="text-xs font-mono text-zinc-400 dark:text-zinc-500 truncate">
+                                {selectedTask.docname}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setSelectedTask(null)}
+                            className="ml-3 p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors flex-shrink-0"
+                            aria-label="Close panel"
+                        >
+                            <XIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    {/* Activity log */}
+                    <div className="flex-1 overflow-y-auto p-5">
+                        <ActivityLog
+                            doctype={selectedTask.doctype}
+                            docname={selectedTask.docname}
+                            maxHeight="100%"
+                        />
+                    </div>
+
+                    {/* Footer: View Full Details */}
+                    <div className="px-5 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+                        <button
+                            onClick={() => {
+                                setSelectedTask(null);
+                                if (selectedTask.doctype === "Project Staff Details") {
+                                    navigate(`/project-staff-joining?docname=${encodeURIComponent(selectedTask.docname)}`);
+                                } else {
+                                    navigate(`/pending-tasks/${encodeURIComponent(selectedTask.doctype)}/${selectedTask.docname}`);
+                                }
+                            }}
+                            className="w-full py-2.5 px-4 bg-[#D97757] text-white text-sm font-bold rounded-lg hover:bg-[#c66a4e] transition-colors"
+                        >
+                            View Full Details →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 };
 

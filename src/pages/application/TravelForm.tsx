@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppSidebar } from '@/components/RndSidebar';
-import { useFrappePostCall, useFrappeGetCall } from 'frappe-react-sdk';
-import { Wallet, AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { useFrappePostCall } from 'frappe-react-sdk';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
-import { DynamicFormRenderer, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
+import { DynamicFormRenderer, type FieldMessage, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI, prepareFormDataForApi, commonAPI } from '@/services/apiService';
 
 // --- TYPE DEFINITIONS ---
@@ -43,115 +43,6 @@ const FrappeButton = ({ children, onClick, disabled, className, type = "button" 
         {children}
     </button>
 );
-
-// --- FUND DETAILS SIDEBAR COMPONENT ---
-const FundDetailsSidebar = ({ projectCode }: { projectCode: string }) => {
-    // Use the correct API that ProjectDetailsOverview uses
-    // IMPORTANT: API expects 'project_number' not 'project_id'
-    const { data: projectAmounts, isLoading } = useFrappeGetCall<{
-        message: {
-            status: string;
-            data: {
-                projectNumber: string;
-                totalFundReceived: number;
-                totalCommitted: number;
-                totalPaid: number;
-                availableCommitAmount: number;
-                availablePaymentAmount: number;
-            }
-        }
-    }>(
-        'rndopsapp.rndopsapp.commitPayment.get_project_available_amounts',
-        { project_number: projectCode },
-        {
-            revalidateOnFocus: false,
-            isPaused: () => !projectCode
-        }
-    );
-
-    // Debug: Log API response
-    console.log('[FundDetailsSidebar] projectCode:', projectCode, 'API response:', projectAmounts);
-
-    // Extract fund data from API response
-    const projectData = (projectAmounts as any)?.message?.data ?? (projectAmounts as any)?.data ?? {};
-
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            maximumFractionDigits: 0
-        }).format(amount || 0);
-    };
-
-    if (!projectCode) {
-        return (
-            <div className="bg-[#FFFFFF] dark:bg-[#27272A] p-4 lg:p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow">
-                <div className="flex items-center gap-2 mb-3">
-                    <div className="p-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-                        <Info className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-                    </div>
-                    <h3 className="font-serif font-medium text-lg text-zinc-800 dark:text-zinc-100">Fund Details</h3>
-                </div>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">Select a project to view fund details</p>
-            </div>
-        );
-    }
-
-    if (isLoading) {
-        return (
-            <div className="bg-[#FFFFFF] p-4 lg:p-6 dark:bg-[#27272A] border border-zinc-200 dark:border-zinc-800 rounded-xl shadow">
-                <div className="h-5 bg-zinc-100 dark:bg-zinc-800 rounded w-24 mb-3 animate-pulse"></div>
-                <div className="space-y-2">
-                    <div className="h-12 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse"></div>
-                    <div className="h-12 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse"></div>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="bg-[#FFFFFF] dark:bg-[#27272A] p-4 lg:p-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow sticky top-4">
-            <div className="flex items-center gap-2 mb-4">
-                <div className="p-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-                    <Wallet className="h-4 w-4 text-zinc-700 dark:text-zinc-300" />
-                </div>
-                <h3 className="font-serif text-lg font-medium tracking-tight text-zinc-800 dark:text-zinc-100">Project Fund Details</h3>
-            </div>
-
-            <div className="space-y-6">
-                <div>
-                    <p className="text-sm font-medium leading-none text-zinc-700 dark:text-zinc-300 mb-2">Total Fund Received</p>
-                    <p className="text-xl font-serif text-zinc-800 dark:text-zinc-100">{formatCurrency(projectData.totalFundReceived)}</p>
-                </div>
-
-                <div className="border-t border-zinc-100 dark:border-zinc-800 pt-4">
-                    <div className="flex items-center gap-1.5 mb-2">
-                        <p className="text-sm font-medium leading-none text-zinc-700 dark:text-zinc-300">Available Balance</p>
-                    </div>
-                    <p className="text-2xl font-serif text-[#9A7D5A] dark:text-[#D4D4D8]">{formatCurrency(projectData.availableCommitAmount)}</p>
-                </div>
-
-                <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                    <p className="text-sm font-medium leading-none text-zinc-700 dark:text-zinc-300 mb-3">Fund Breakdown</p>
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-zinc-500 dark:text-zinc-400">Total Committed</span>
-                            <span className="font-medium text-zinc-700 dark:text-zinc-300">{formatCurrency(projectData.totalCommitted)}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-zinc-500 dark:text-zinc-400">Total Paid</span>
-                            <span className="font-medium text-zinc-700 dark:text-zinc-300">{formatCurrency(projectData.totalPaid)}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-zinc-500 dark:text-zinc-400">Payable Balance</span>
-                            <span className="font-medium text-zinc-700 dark:text-zinc-300">{formatCurrency(projectData.availablePaymentAmount)}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 // --- ESTIMATE VALIDATION COMPONENT ---
 const EstimateValidation = ({ formData }: { formData: Record<string, any> }) => {
@@ -212,12 +103,22 @@ const TravelForm: React.FC = () => {
     const [dataLoaded, setDataLoaded] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string[]>([]);
     const [savedDocName, setSavedDocName] = useState<string | null>(editDocName || null); // Track if draft is saved
+    const [sclBalance, setSclBalance] = useState<{
+        eligible?: boolean;
+        available?: number | null;
+        credited?: number | null;
+        utilized?: number | null;
+        message?: string;
+    } | null>(null);
+    const [isSclLoading, setIsSclLoading] = useState(false);
 
     // --- API HOOKS ---
     const { call: fetchFormData, result: formDataResult, error: formDataError } = useFrappePostCall<FormDataResponse>(travelAPI.getFields);
     const { call: saveForm, error: saveError } = useFrappePostCall(travelAPI.save);
     const { call: submitForm, error: submitError } = useFrappePostCall(travelAPI.submit);
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
+    const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
+    const { call: fetchSclBalance } = useFrappePostCall<{ message: any }>(travelAPI.getSclBalance);
 
     const { call: fetchUserDetailsByEmail } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
 
@@ -244,6 +145,82 @@ const TravelForm: React.FC = () => {
         }
     }, [totalEstimate, formData.total_estimate]);
 
+    const requestedSclDays = useMemo(() => {
+        if (
+            formData.travel_special_casual_leave !== "Required" ||
+            !formData.travel_leave_from_date ||
+            !formData.travel_leave_to_date
+        ) {
+            return 0;
+        }
+
+        const from = new Date(formData.travel_leave_from_date);
+        const to = new Date(formData.travel_leave_to_date);
+        if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) {
+            return 0;
+        }
+
+        return Math.floor((to.getTime() - from.getTime()) / 86400000) + 1;
+    }, [
+        formData.travel_special_casual_leave,
+        formData.travel_leave_from_date,
+        formData.travel_leave_to_date,
+    ]);
+
+    const sclFieldMessages = useMemo<Record<string, FieldMessage>>(() => {
+        if (formData.travel_special_casual_leave !== "Required") return {};
+        if (isSclLoading) {
+            return {
+                travel_special_casual_leave: {
+                    type: "loading",
+                    message: "Checking Special Casual Leave balance...",
+                },
+            };
+        }
+        if (!formData.webmail_id_travel) {
+            return {
+                webmail_id_travel: {
+                    type: "info",
+                    message: "Select the applicant webmail ID to check Special Casual Leave balance.",
+                },
+            };
+        }
+        if (!sclBalance) return {};
+        if (sclBalance.eligible === false) {
+            return {
+                travel_special_casual_leave: {
+                    type: "warning",
+                    message: sclBalance.message || "This applicant is not eligible for Special Casual Leave.",
+                },
+            };
+        }
+
+        const available = sclBalance.available;
+        const balanceText =
+            available == null
+                ? sclBalance.message || "Special Casual Leave balance could not be verified."
+                : `Available SCL balance: ${available} day${available === 1 ? "" : "s"}.`;
+        const overLimit =
+            available != null && requestedSclDays > 0 && requestedSclDays > available;
+
+        return {
+            travel_special_casual_leave: {
+                type: overLimit ? "warning" : "success",
+                message: overLimit
+                    ? `Requested ${requestedSclDays} day${requestedSclDays === 1 ? "" : "s"}, but only ${available} day${available === 1 ? "" : "s"} are available.`
+                    : requestedSclDays > 0
+                      ? `${balanceText} Requested period uses ${requestedSclDays} day${requestedSclDays === 1 ? "" : "s"}.`
+                      : balanceText,
+            },
+        };
+    }, [
+        formData.travel_special_casual_leave,
+        formData.webmail_id_travel,
+        isSclLoading,
+        requestedSclDays,
+        sclBalance,
+    ]);
+
     // --- DATA FETCHING ---
     useEffect(() => {
         if (!dataLoaded) {
@@ -257,7 +234,25 @@ const TravelForm: React.FC = () => {
             if (formDataResult?.message && !dataLoaded) {
                 const { fields: apiFields, prefill_data, link_options } = formDataResult.message;
                 setFields(apiFields || []);
-                setLinkOptions(link_options || {});
+
+                // Fetch Budget Heads and inject into linkOptions for account_head
+                let baseLinkOptions = { ...(link_options || {}) };
+                try {
+                    const headsRes = await fetchAccountHeads({
+                        doctype: 'Budget Head',
+                        fields: ['name', 'budget_head'],
+                        limit_page_length: 0,
+                    });
+                    if (headsRes?.message) {
+                        baseLinkOptions['account_head'] = headsRes.message.map((h: any) => ({
+                            value: h.name,
+                            label: h.budget_head || h.name,
+                        }));
+                    }
+                } catch (err) {
+                    console.error('Error fetching account heads:', err);
+                }
+                setLinkOptions(baseLinkOptions);
 
                 let initialData = { ...prefill_data };
 
@@ -310,6 +305,50 @@ const TravelForm: React.FC = () => {
 
         loadFormAndDocument();
     }, [formDataResult, formDataError, editDocName, fetchExistingDoc, projectName, dataLoaded]);
+
+    useEffect(() => {
+        const applicant = formData.webmail_id_travel;
+        if (!applicant || formData.travel_special_casual_leave !== "Required") {
+            setSclBalance(null);
+            return;
+        }
+
+        let cancelled = false;
+        const loadSclBalance = async () => {
+            setIsSclLoading(true);
+            try {
+                const result = await fetchSclBalance({ employee: applicant });
+                const payload = result?.message || {};
+                if (cancelled) return;
+                setSclBalance({
+                    eligible: payload.eligible ?? payload.is_eligible,
+                    available:
+                        payload.available_balance ??
+                        payload.available ??
+                        payload.balance ??
+                        null,
+                    credited: payload.total_credited ?? null,
+                    utilized: payload.utilized_balance ?? null,
+                    message: payload.message,
+                });
+            } catch (err) {
+                console.error("Failed to fetch SCL balance:", err);
+                if (!cancelled) {
+                    setSclBalance({
+                        available: null,
+                        message: "Special Casual Leave balance could not be verified right now.",
+                    });
+                }
+            } finally {
+                if (!cancelled) setIsSclLoading(false);
+            }
+        };
+
+        loadSclBalance();
+        return () => {
+            cancelled = true;
+        };
+    }, [fetchSclBalance, formData.travel_special_casual_leave, formData.webmail_id_travel]);
 
     // --- CLIENT SCRIPT VALIDATION (from provided Frappe script) ---
     const validateForm = useCallback((): boolean => {
@@ -397,7 +436,8 @@ const TravelForm: React.FC = () => {
                         [fieldname]: value,
                         applicant_name_travel: user.full_name || '',
                         designation_travel: user.designation_name || user.designation || '',
-                        department_travel: user.department_name || user.department || ''
+                        department_travel: user.department_name || user.department || '',
+                        employee_id: user.employee_id || prev.employee_id || ''
                     }));
                 }
             } catch (err) {
@@ -492,15 +532,17 @@ const TravelForm: React.FC = () => {
 
         setIsSubmitting(true);
         try {
-            // 1. Save first
+            // 1. Save first — reuse draft docname to avoid creating a duplicate
+            const effectiveName = savedDocName || editDocName;
             const data = await prepareFormDataForApi(formData);
+            if (effectiveName) data.name = effectiveName;
             const saveRes = await saveForm({ doc_data: JSON.stringify(data) });
 
             if (saveRes?.message?.status !== 'success') {
                 throw new Error(saveRes?.message?.message || "Save failed during submission");
             }
 
-            const docname = saveRes.message.docname;
+            const docname = saveRes.message.docname || effectiveName;
 
             // 2. Submit
             const submitRes = await submitForm({ docname });
@@ -544,6 +586,16 @@ const TravelForm: React.FC = () => {
                 f.fieldtype = 'Radio';
             }
 
+            // Hide old checkbox-based account head fields — replaced by account_head dropdown
+            if (['travel_head', 'contingency_head', 'other_acc_head', 'specify_other_acc_head'].includes(f.fieldname)) {
+                f.hidden = 1;
+            }
+
+            // Override account_head to Link so DynamicFormRenderer renders it as a dropdown
+            if (f.fieldname === 'account_head') {
+                f.fieldtype = 'Link';
+            }
+
             return f;
         });
     }, [fields, formData]);
@@ -551,7 +603,7 @@ const TravelForm: React.FC = () => {
     // --- RENDER LOGIC ---
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-claude-bg dark:bg-zinc-900">
+            <div className="flex items-center justify-center min-h-screen bg-[#FAFAF9] dark:bg-[#18181B]">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#D97757] border-t-transparent mx-auto"></div>
                     <p className="mt-4 text-lg font-medium text-zinc-700 dark:text-zinc-300">Loading form...</p>
@@ -585,9 +637,8 @@ const TravelForm: React.FC = () => {
                 )}
 
                 <form onSubmit={handleSubmit}>
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
-                        {/* Main Form - 3 columns */}
-                        <div className="lg:col-span-3">
+                    <div className="w-full">
+                        <div className="w-full">
                             <FrappeCard className="space-y-6">
                                 <DynamicFormRenderer
                                     fields={visibleFields}
@@ -601,6 +652,7 @@ const TravelForm: React.FC = () => {
                                     onDeleteTableRow={deleteTableRow}
                                     onFieldChangeWithSideEffects={handleFieldChangeWithSideEffects}
                                     readOnly={formData.docstatus === 1}
+                                    fieldMessages={sclFieldMessages}
                                 />
 
                                 {/* Estimate Validation Display */}
@@ -618,18 +670,13 @@ const TravelForm: React.FC = () => {
                                     </FrappeButton>
                                     <FrappeButton
                                         type="submit"
-                                        disabled={isSubmitting || !savedDocName}
+                                        disabled={isSubmitting}
                                         className="bg-[#D97757] text-white hover:opacity-90 shadow-sm"
                                     >
                                         {isSubmitting ? 'Submitting...' : 'Submit Application'}
                                     </FrappeButton>
                                 </div>
                             )}
-                        </div>
-
-                        {/* Fund Details Sidebar - 1 column */}
-                        <div className="lg:col-span-1">
-                            <FundDetailsSidebar projectCode={formData.travel_project_title || projectName} />
                         </div>
                     </div>
                 </form>
