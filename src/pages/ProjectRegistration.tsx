@@ -3310,7 +3310,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                 Previous
             </FrappeButton>
 
-            {/* If Last Tab → Show Only "Save as Draft" */}
+            {/* If Last Tab → save draft first; the existing preview modal handles final submit. */}
             {isLast ? (
                 <div className="flex flex-col sm:flex-row gap-4">
                     {isEditMode && (
@@ -3320,17 +3320,6 @@ Endorsement is optional. You may continue completing Project Registration while 
                             disabled={isSubmitting || isSavingDraft}
                         >
                             {isSavingDraft ? "SAVING..." : "Save As Draft"}
-                        </FrappeButton>
-                    )}
-                    {isEditMode && (
-                        <FrappeButton
-                            variant="primary"
-                            onClick={handleSubmit}
-                            disabled={isSubmitting || isSavingDraft}
-                        >
-                            {isSubmitting
-                                ? "SUBMITTING..."
-                                : "Submit"}
                         </FrappeButton>
                     )}
                 </div>
