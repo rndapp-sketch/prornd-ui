@@ -175,7 +175,7 @@ export function ProjectStaffDashboard() {
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
               <div>
                 <h1 className="text-2xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] tracking-tight">
-                  Staff Dashboard
+                  Project Staff Dashboard
                 </h1>
                 <p className="text-sm text-zinc-600 dark:text-[#A1A1AA] mt-1">
                   Welcome back, <span className="font-semibold text-[#27272A] dark:text-[#E4E4E7]">{fullName}</span>

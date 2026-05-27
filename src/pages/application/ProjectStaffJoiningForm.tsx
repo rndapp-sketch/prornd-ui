@@ -443,7 +443,31 @@ const ProjectStaffJoiningForm: React.FC = () => {
                         console.error("Failed to add workflow comment:", commentErr);
                     }
                 }
-                alert(`${action} successful.`);
+                if (action === "Submit") {
+                    // The backend allocates the real Employee ID at Submit time via
+                    // generate_emp_id() and writes it to ps_emp_id. Prefer the value
+                    // returned in the submit response; if absent, refetch the doc.
+                    let allottedEmpId: string =
+                        msg?.ps_emp_id || msg?.doc?.ps_emp_id || msg?.data?.ps_emp_id || "";
+                    if (!allottedEmpId) {
+                        try {
+                            const docRes = await fetchFields({ doc_name: savedDocName });
+                            allottedEmpId = docRes?.message?.prefill_data?.ps_emp_id || "";
+                        } catch (refetchErr) {
+                            console.error("Failed to refetch ps_emp_id after submit:", refetchErr);
+                        }
+                    }
+                    if (allottedEmpId) {
+                        setFormData((prev) => ({ ...prev, ps_emp_id: allottedEmpId }));
+                        alert(
+                            `Project Staff Joining Form has been submitted for this staff.\nAllotted Employee ID: ${allottedEmpId}`,
+                        );
+                    } else {
+                        alert("Project Staff Joining Form submitted successfully.");
+                    }
+                } else {
+                    alert(`${action} successful.`);
+                }
                 await loadWorkflowActions(savedDocName);
                 activityStreamRef.current?.refetch();
             }
@@ -645,6 +669,21 @@ const ProjectStaffJoiningForm: React.FC = () => {
                         <GroupCard label="Identity Documents">
                             <DynamicFormRenderer
                                 fields={section(["identity_documents_section", "ps_pan", "ps_aadhar_number", "bank_account_number"])}
+                                {...commonRendererProps}
+                            />
+                        </GroupCard>
+
+                        <GroupCard label="Salary Details">
+                            <DynamicFormRenderer
+                                fields={section([
+                                    "salary_details_section",
+                                    "ps_basic_salary",
+                                    "ps_hra",
+                                    "ps_ma",
+                                    "ps_ta",
+                                    "ps_ta_amount",
+                                    "ps_hostel",
+                                ])}
                                 {...commonRendererProps}
                             />
                         </GroupCard>
