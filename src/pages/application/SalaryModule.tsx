@@ -28,6 +28,8 @@ interface StaffRecord {
     medical_allowance: number;
     hostel: number;
     workflow_state: string;
+    project_no?: string;
+    bank_account_number?: string;
 }
 
 interface EditableInputs {
@@ -237,6 +239,8 @@ const mapRow = (row: any): StaffRecord => {
         medical_allowance: maAmount,
         hostel: hostelAmount,
         workflow_state: row.workflow_state || "Approved",
+        project_no: row.project_no || "",
+        bank_account_number: row.bank_account_number || "",
     };
 };
 
@@ -267,6 +271,25 @@ const SalaryModule: React.FC = () => {
 
     // Pay slip modal state
     const [selectedSlipRecord, setSelectedSlipRecord] = useState<StaffRecord | null>(null);
+
+    // Pay action states
+    const [paymentTarget, setPaymentTarget] = useState<StaffRecord | null>(null);
+    const [isPaying, setIsPaying] = useState(false);
+    const [paymentSuccess, setPaymentSuccess] = useState(false);
+
+    const handlePayClick = (record: StaffRecord) => {
+        setPaymentTarget(record);
+        setIsPaying(false);
+        setPaymentSuccess(false);
+    };
+
+    const executePayment = () => {
+        setIsPaying(true);
+        setTimeout(() => {
+            setIsPaying(false);
+            setPaymentSuccess(true);
+        }, 1500);
+    };
 
     // Editable Inputs state mapped by record's docName (storing only overrides!)
     const [overrides, setOverrides] = useState<Record<string, Partial<EditableInputs>>>({});
@@ -525,7 +548,9 @@ const SalaryModule: React.FC = () => {
                 r.email_id.toLowerCase().includes(q) ||
                 r.department.toLowerCase().includes(q) ||
                 (departmentLabels[r.department] || "").toLowerCase().includes(q) ||
-                r.designation.toLowerCase().includes(q)
+                r.designation.toLowerCase().includes(q) ||
+                (r.project_no || "").toLowerCase().includes(q) ||
+                (r.bank_account_number || "").toLowerCase().includes(q)
             );
         }
 
@@ -618,7 +643,7 @@ const SalaryModule: React.FC = () => {
     const exportCSV = () => {
         const monthLabel = MONTHS.find(m => m.value === selectedMonth)?.label || "Month";
         const headers = [
-            "Sl.No", "Employee Id", "First Name", "Email Id", "Department",
+            "Sl.No", "Employee Id", "First Name", "Project Number", "Bank Account Number", "Email Id", "Department",
             "Designation", "Joining Date", "Term Completion Date",
             "Basic Salary", "HRA", "Total Working Days", "Amount (Working Days)",
             "HRA amt (W.Days)", "Medical amt (W.Days)", "Arrear", "Gross Pay",
@@ -636,7 +661,7 @@ const SalaryModule: React.FC = () => {
             const deductions = proRataHRA + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
             const netPay = grossPay - deductions;
             return [
-                i + 1, r.employee_id, r.first_name, r.email_id, r.department,
+                i + 1, r.employee_id, r.first_name, r.project_no || "—", r.bank_account_number || "—", r.email_id, r.department,
                 r.designation, r.joining_date, r.term_completion_date,
                 r.basic_salary, r.hra, workingDays, proRataBasic.toFixed(2),
                 proRataHRA.toFixed(2), proRataMedical.toFixed(2), inputs.arrear, grossPay.toFixed(2),
@@ -957,6 +982,8 @@ const SalaryModule: React.FC = () => {
                                                     <th rowSpan={2} className="w-10 border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25">#</th>
                                                     <th rowSpan={2} className="border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25">Emp ID</th>
                                                     <th rowSpan={2} className="border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25">Full Name</th>
+                                                    <th rowSpan={2} className="border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25">Project No</th>
+                                                    <th rowSpan={2} className="border-r border-[#C7D2FE]/70 px-3 py-4 text-left dark:border-[#4A6CF7]/25">Bank Account Number</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Email ID</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Department</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Role</th>
@@ -1029,10 +1056,32 @@ const SalaryModule: React.FC = () => {
                                                                         </span>
                                                                     </div>
                                                                     <span className="text-sm font-semibold text-zinc-950 dark:text-zinc-100 whitespace-nowrap">{r.first_name}</span>
-                                                                </div>
-                                                            </td>
+                                                                 </div>
+                                                             </td>
 
-                                                            <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{r.email_id}</td>
+                                                             {/* Project No */}
+                                                             <td className="px-3 py-3 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-850 border-r border-zinc-200 dark:border-zinc-800">
+                                                                 {r.project_no ? (
+                                                                     <span className="text-xs font-mono font-bold bg-[#D97757]/10 text-[#D97757] px-2 py-0.5 rounded border border-[#D97757]/20 whitespace-nowrap">
+                                                                         {r.project_no}
+                                                                     </span>
+                                                                 ) : (
+                                                                     <span className="text-xs font-semibold text-zinc-400 dark:text-zinc-650">—</span>
+                                                                 )}
+                                                             </td>
+
+                                                             {/* Bank Account Number */}
+                                                             <td className="px-3 py-3 bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-850 border-r border-zinc-200 dark:border-zinc-800">
+                                                                 {r.bank_account_number ? (
+                                                                     <span className="text-xs font-mono font-bold bg-[#D97757]/10 text-[#D97757] px-2 py-0.5 rounded border border-[#D97757]/20 whitespace-nowrap">
+                                                                         {r.bank_account_number}
+                                                                     </span>
+                                                                 ) : (
+                                                                     <span className="text-xs font-semibold text-zinc-400 dark:text-zinc-650">—</span>
+                                                                 )}
+                                                             </td>
+
+                                                             <td className="px-3 py-3 text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{r.email_id}</td>
                                                             <td className="px-3 py-3 text-xs font-medium text-zinc-600 dark:text-zinc-300 whitespace-nowrap">
                                                                 {r.department && r.department !== "—" ? (
                                                                     <DepartmentName name={r.department} />
@@ -1219,15 +1268,24 @@ const SalaryModule: React.FC = () => {
                                                             </td>
 
                                                             {/* Payslip Action Button */}
-                                                            <td className="px-3 py-3 text-center bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-850">
-                                                                <button
-                                                                    onClick={() => setSelectedSlipRecord(r)}
-                                                                    title="Generate Pay Slip"
-                                                                    className="p-1.5 rounded-lg border border-orange-200 dark:border-orange-900/50 bg-orange-50/40 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757] dark:hover:text-white transition-all shadow-sm active:scale-90"
-                                                                >
-                                                                    <Eye className="w-3.5 h-3.5" />
-                                                                </button>
-                                                            </td>
+                                                                                                                         {/* Payslip & Pay Actions */}
+                                                             <td className="px-3 py-3 text-center bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-zinc-850">
+                                                                 <div className="flex items-center justify-center gap-2">
+                                                                     <button
+                                                                         onClick={() => setSelectedSlipRecord(r)}
+                                                                         title="Generate Pay Slip"
+                                                                         className="p-1.5 rounded-lg border border-orange-200 dark:border-orange-900/50 bg-orange-50/40 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757] dark:hover:text-white transition-all shadow-sm active:scale-90"
+                                                                     >
+                                                                         <Eye className="w-3.5 h-3.5" />
+                                                                     </button>
+                                                                     <button
+                                                                         onClick={() => handlePayClick(r)}
+                                                                         className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white dark:bg-emerald-950/20 dark:text-emerald-400 dark:hover:bg-emerald-600 dark:hover:text-white transition-all shadow-sm active:scale-90 shrink-0 font-sans"
+                                                                     >
+                                                                         PAY
+                                                                     </button>
+                                                                 </div>
+                                                             </td>
                                                         </tr>
                                                     );
                                                 })}
@@ -1236,7 +1294,7 @@ const SalaryModule: React.FC = () => {
                                             {/* FOOTER */}
                                             <tfoot className="bg-zinc-50 dark:bg-zinc-955 sticky bottom-0 z-20 border-t-2 border-zinc-200 dark:border-zinc-700 font-bold text-xs uppercase tracking-wide">
                                                 <tr className="bg-zinc-50 dark:bg-zinc-950">
-                                                    <td colSpan={8} className="px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                                    <td colSpan={10} className="px-3 py-4 text-sm font-serif font-bold text-zinc-900 dark:text-white bg-zinc-50 dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 shadow-sm">
                                                         Total ({filtered.length} Staff Profiled)
                                                     </td>
 
@@ -1318,6 +1376,107 @@ const SalaryModule: React.FC = () => {
                     </div>
                 )}
             </main>
+
+            {/* Confirm Payment Modal Component */}
+            {paymentTarget && (() => {
+                const { inputs } = getRowInputs(paymentTarget.docName);
+                const workingDays = calcWorkingDaysForPeriod(paymentTarget.joining_date, paymentTarget.term_completion_date, selectedYear, selectedMonth);
+                const proRataBasic = calcProRataBasic(paymentTarget.basic_salary, workingDays, daysInMonth);
+                const proRataHRA = (paymentTarget.hra / daysInMonth) * workingDays;
+                const proRataMedical = (paymentTarget.medical_allowance / daysInMonth) * workingDays;
+                const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
+                const pTax = calcPTax(paymentTarget.basic_salary);
+                const totalDed = proRataHRA + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+                const netPay = grossPay - totalDed;
+
+                return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm print:hidden">
+                        <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#1C1C1E] p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                            <div className="absolute top-0 left-0 w-full h-[4px] bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" />
+                            
+                            {!isPaying && !paymentSuccess && (
+                                <>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/50">
+                                            <IndianRupee className="w-5 h-5" />
+                                        </div>
+                                        <div className="text-left">
+                                            <h3 className="font-extrabold text-lg text-zinc-900 dark:text-zinc-50">Initiate Payout</h3>
+                                            <p className="text-xs text-zinc-400 font-medium">Verify account and transaction details</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3.5 bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800/80 rounded-xl p-4 mb-6">
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span className="text-zinc-400 font-medium">Staff Member</span>
+                                            <span className="font-bold text-zinc-900 dark:text-zinc-100">{paymentTarget.first_name}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span className="text-zinc-400 font-medium">Employee ID</span>
+                                            <span className="font-mono font-bold text-zinc-900 dark:text-zinc-100 bg-zinc-200/50 dark:bg-zinc-800/50 px-1.5 py-0.5 rounded">{paymentTarget.employee_id}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-xs">
+                                            <span className="text-zinc-400 font-medium">Bank A/C No</span>
+                                            <span className="font-mono font-extrabold text-zinc-900 dark:text-zinc-100">
+                                                {paymentTarget.bank_account_number ? paymentTarget.bank_account_number : "—"}
+                                            </span>
+                                        </div>
+                                        <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-1" />
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs text-zinc-400 font-semibold uppercase tracking-wider">Net Amount</span>
+                                            <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 tabular-nums">{fmt(netPay)}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => setPaymentTarget(null)}
+                                            className="flex-1 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-bold text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-all active:scale-95"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={executePayment}
+                                            disabled={!paymentTarget.bank_account_number}
+                                            className="flex-1 py-2.5 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-emerald-500/10 transition-all active:scale-95"
+                                        >
+                                            {!paymentTarget.bank_account_number ? "A/C Missing" : "Confirm & Pay"}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+
+                            {isPaying && (
+                                <div className="flex flex-col items-center justify-center py-10">
+                                    <div className="w-12 h-12 rounded-full border-4 border-emerald-500/30 border-t-emerald-600 animate-spin mb-4" />
+                                    <h4 className="font-bold text-zinc-800 dark:text-zinc-200 text-sm">Processing Payment</h4>
+                                    <p className="text-xs text-zinc-400 font-medium mt-1">Simulating IITG NetBanking API gateway...</p>
+                                </div>
+                            )}
+
+                            {paymentSuccess && (
+                                <div className="flex flex-col items-center justify-center py-6 text-center animate-in fade-in zoom-in-95 duration-300">
+                                    <div className="w-14 h-14 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200/50 dark:border-emerald-900/30 mb-4 animate-bounce">
+                                        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                    <h4 className="font-black text-emerald-600 dark:text-emerald-400 text-base">Payment Transmitted!</h4>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium max-w-xs leading-relaxed mt-2">
+                                        Transaction reference completed. <strong>{fmt(netPay)}</strong> has been queued for transfer to <strong>{paymentTarget.first_name}</strong> at A/C: <span className="font-mono font-bold">{paymentTarget.bank_account_number}</span>.
+                                    </p>
+                                    <button
+                                        onClick={() => setPaymentTarget(null)}
+                                        className="mt-6 px-6 py-2 rounded-xl bg-zinc-900 dark:bg-zinc-800 text-xs font-bold text-white hover:bg-zinc-800 dark:hover:bg-zinc-700 transition-all active:scale-95 shadow-sm"
+                                    >
+                                        Close Window
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Salary Slip Modal Component */}
             {selectedSlipRecord && (
@@ -1433,6 +1592,12 @@ const SalaryModule: React.FC = () => {
                                     <span className="text-zinc-500 font-medium">Employee ID:</span>
                                     <span className="font-mono font-bold text-zinc-950">{selectedSlipRecord.employee_id}</span>
                                 </div>
+                                {selectedSlipRecord.project_no && (
+                                    <div className="flex justify-between border-b border-zinc-100 py-1">
+                                        <span className="text-zinc-500 font-medium">Project Number:</span>
+                                        <span className="font-mono font-bold text-zinc-950">{selectedSlipRecord.project_no}</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between border-b border-zinc-100 py-1">
                                     <span className="text-zinc-500 font-medium">Department:</span>
                                     <span className="font-semibold text-zinc-900">
