@@ -257,12 +257,22 @@ export const delegateUserAPI = {
     removeItem: `rndopsapp.rndopsapp.api.remove_delegated_item`,
 };
 
-// Helper to convert file to base64
+// Helper to convert file to base64.
+// IMPORTANT: returns pure base64 (no `data:<mime>;base64,` prefix). Frappe's
+// `save_file(decode=True)` does base64.b64decode() which silently skips
+// non-alphabet characters in the prefix; leaving the prefix on shifts byte
+// alignment of the real payload and corrupts the decoded file, which then
+// surfaces server-side as "FileNotFoundError: ... /private/files/...".
 export const fileToBase64 = (file: File): Promise<{ file_name: string; file_data: string }> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
-        reader.onload = () => resolve({ file_name: file.name, file_data: reader.result as string });
+        reader.onload = () => {
+            const result = reader.result as string;
+            const commaIdx = result.indexOf(",");
+            const pureBase64 = commaIdx >= 0 ? result.slice(commaIdx + 1) : result;
+            resolve({ file_name: file.name, file_data: pureBase64 });
+        };
         reader.onerror = (error) => reject(error);
     });
 };

@@ -967,7 +967,7 @@ const PendingTask: React.FC = () => {
                                                 />
                                                 <WorkflowButton
                                                     state={wf.join}
-                                                    label="Join"
+                                                    label={wf.join === 'completed' ? 'Joined' : 'Join'}
                                                     onClick={() => navigate(`/project-staff-joining?${qs}`)}
                                                     title={wf.join === 'disabled' ? 'Save the Appointment Order number first' : undefined}
                                                 />
