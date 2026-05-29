@@ -89,6 +89,31 @@ To prevent floating-point decimals from being submitted (e.g., `16501.6735483870
 const netPay = parseFloat(rawNetPay.toFixed(2));
 ```
 
+### D. Conditional HRA Deduction (Hostel Accommodation Check)
+If the project staff stays in campus/hostel accommodation (`ps_hostel` is active), their House Rent Allowance is deducted from their payout. If they do not stay in campus/hostel accommodation (i.e. `ps_hostel` is `0`, `"No"`, or `"NO"`), they get to keep their HRA, which means their **HRA Deduction is 0**.
+*   **Helper Method**:
+    ```typescript
+    const getHRADeduction = (r: StaffRecord, proRataHRA: number): number => {
+        if (!r.ps_hostel) return 0;
+        const raw = String(r.ps_hostel).trim().toLowerCase();
+        if (raw === "0" || raw === "no" || raw === "false" || raw === "") return 0;
+        return proRataHRA;
+    };
+    ```
+*   **Impact**:
+    - Decreases the `totalDeductions` sum and increases the `netPay` if `ps_hostel` is `"No"`, `"NO"`, or `"0"`.
+    - Displays `0` under the "HRA Ded" column in the table, the CSV export, and the printable slip.
+
+### E. New Database Columns in Payroll Register
+To improve traceability, two additional project staff database fields are mapped and rendered as columns:
+1.  **Project Number (`project_no`)**: Displays the linked research project ref code next to the staff profile.
+2.  **Bank Account Number (`bank_account_number`)**: Displays the staff's credit bank account.
+
+These new fields are displayed in:
+*   The interactive Salary Register table columns (between "Exit Date" and "Earnings Details").
+*   The downloadable **Staff Salary Statement CSV** exports.
+*   The printable double-column **Salary Slip Statement** modal cards.
+
 ---
 
 ## 3. Payload Structures in JSON
@@ -118,15 +143,15 @@ A JSON dictionary enclosing all staff calculations presented in the Salary Regis
   "pro_rata_medical": 564.52,
   "arrear": 0.00,
   "gross_pay": 20616.13,
-  "hra_deduction": 3341.94,
+  "hra_deduction": 0.00,
   "medical_deduction": 564.52,
   "p_tax": 208.00,
   "ta": 0.00,
   "id_card_charge": 0.00,
   "electricity_bill": 0.00,
   "other_deduction": 0.00,
-  "total_deduction": 4114.46,
-  "net_pay": 16501.67,
+  "total_deduction": 772.52,
+  "net_pay": 19843.61,
   "comment": "Note...",
   "remarks": "Remarks..."
 }
@@ -146,5 +171,5 @@ A JSON dictionary enclosing key system variables resolved from the backend API c
 }
 ```
 *   `scr_id` and `interview_id` are dynamically resolved from `commitFromApi.frapAppId` (which contains the recruitment contract ID).
-*   `project_no` is dynamically resolved from `commitFromApi.projectNumber`.
+*   `project_no` is dynamically resolved from `r.project_no` or fallback `commitFromApi.projectNumber`.
 *   `ps_emp_id`, `current_basic_salary` and `active_basic_salary` are derived from the active row's `StaffRecord`.
