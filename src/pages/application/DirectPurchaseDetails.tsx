@@ -1964,16 +1964,19 @@ const ClaudeButton = ({
     disabled,
     className,
     variant = "outline",
+    title,
 }: {
     children: React.ReactNode;
     onClick?: () => void;
     disabled?: boolean;
     className?: string;
     variant?: "primary" | "outline" | "ghost" | "action";
+    title?: string;
 }) => (
     <button
         onClick={onClick}
         disabled={disabled}
+        title={title}
         className={cn(
             "inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[12px] font-bold transition-all duration-150",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200 dark:focus-visible:ring-zinc-700",

@@ -225,13 +225,36 @@ const Payments: React.FC = () => {
         }
     }, []);
 
+    // Filter out commits that have module ID '11' or resolved/raw module name 'Recruitment Adhoc Contractual'
+    const filteredPendingCommits = React.useMemo(() => {
+        return pendingCommits.filter(commit => {
+            const rawMod = String(commit.moduleId || '');
+            if (rawMod === '11' || rawMod === 'Recruitment Adhoc Contractual') {
+                return false;
+            }
+            const resolvedName = moduleNameMap[rawMod];
+            if (resolvedName === 'Recruitment Adhoc Contractual' || resolvedName === '11') {
+                return false;
+            }
+            return true;
+        });
+    }, [pendingCommits, moduleNameMap]);
+
     // Resolve module names on payments using the moduleNameMap (runs reactively when either changes)
+    // Filter out module name or id 11 or "Recruitment Adhoc Contractual"
     const resolvedPayments = React.useMemo(() => {
-        if (Object.keys(moduleNameMap).length === 0) return payments;
-        return payments.map(p => ({
+        const filtered = payments.filter(p => {
+            const rawMod = String(p.doctype || '');
+            if (rawMod === '11' || rawMod === 'Recruitment Adhoc Contractual') {
+                return false;
+            }
+            return true;
+        });
+        if (Object.keys(moduleNameMap).length === 0) return filtered;
+        return filtered.map(p => ({
             ...p,
             doctype: p.doctype && moduleNameMap[p.doctype] ? moduleNameMap[p.doctype] : (p.doctype || 'AccountHeadPayment'),
-        }));
+        })).filter(p => p.doctype !== 'Recruitment Adhoc Contractual' && p.doctype !== '11');
     }, [payments, moduleNameMap]);
 
     useEffect(() => {
@@ -438,8 +461,8 @@ const Payments: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    {pendingCommits.length > 0 ? (
-                                        pendingCommits
+                                    {filteredPendingCommits.length > 0 ? (
+                                        filteredPendingCommits
                                             .slice((commitPage - 1) * commitsPerPage, commitPage * commitsPerPage)
                                             .map((commit, idx) => (
                                                 <tr key={idx} className="hover:bg-zinc-50 dark:bg-zinc-800/50">
@@ -514,10 +537,10 @@ const Payments: React.FC = () => {
                         </div>
 
                         {/* Commits Pagination */}
-                        {pendingCommits.length > commitsPerPage && (
+                        {filteredPendingCommits.length > commitsPerPage && (
                             <div className="p-4 border-t border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex justify-between items-center">
                                 <div className="text-sm text-zinc-900 dark:text-zinc-100 font-medium">
-                                    Showing {(commitPage - 1) * commitsPerPage + 1} to {Math.min(commitPage * commitsPerPage, pendingCommits.length)} of {pendingCommits.length} commits
+                                    Showing {(commitPage - 1) * commitsPerPage + 1} to {Math.min(commitPage * commitsPerPage, filteredPendingCommits.length)} of {filteredPendingCommits.length} commits
                                 </div>
                                 <div className="flex gap-1">
                                     <FrappeButton
@@ -529,7 +552,7 @@ const Payments: React.FC = () => {
                                     </FrappeButton>
                                     <FrappeButton
                                         onClick={() => setCommitPage(p => p + 1)}
-                                        disabled={commitPage * commitsPerPage >= pendingCommits.length}
+                                        disabled={commitPage * commitsPerPage >= filteredPendingCommits.length}
                                         variant="outline"
                                     >
                                         Next

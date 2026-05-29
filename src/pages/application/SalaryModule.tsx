@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { DepartmentName } from "@/components/DepartmentName";
+import { PaymentForm } from "@/components/PaymentForm";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -273,6 +274,13 @@ const SalaryModule: React.FC = () => {
     // Pay slip modal state
     const [selectedSlipRecord, setSelectedSlipRecord] = useState<StaffRecord | null>(null);
 
+    // Payment Modal State
+    const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+    const [selectedPaymentName, setSelectedPaymentName] = useState<string | null>(null);
+    const [selectedCommit, setSelectedCommit] = useState<any>(null);
+    const [budgetHeadMap, setBudgetHeadMap] = useState<Record<string, string>>({});
+    const [loadingEmpId, setLoadingEmpId] = useState<string | null>(null);
+
     // Editable Inputs state mapped by record's docName (storing only overrides!)
     const [overrides, setOverrides] = useState<Record<string, Partial<EditableInputs>>>({});
 
@@ -447,6 +455,199 @@ const SalaryModule: React.FC = () => {
     }, [getList, currentUser]);
 
     useEffect(() => { if (currentUser) fetchData(); }, [fetchData, currentUser]);
+
+    // Fetch Budget Heads for mapping
+    const fetchBudgetHeads = useCallback(async () => {
+        try {
+            const response = await fetch('/api/v2/document/Budget%20Head?fields=["budget_head","id"]&order_by=id%20asc', {
+                credentials: "include",
+                headers: { Accept: "application/json" },
+            });
+            const data = await response.json();
+            if (data?.data) {
+                const map: Record<string, string> = {};
+                data.data.forEach((h: any) => {
+                    map[String(h.id)] = h.budget_head;
+                });
+                setBudgetHeadMap(map);
+            }
+        } catch (err) {
+            console.error('Failed to fetch budget heads:', err);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchBudgetHeads();
+    }, [fetchBudgetHeads]);
+
+    const handlePayClick = async (r: StaffRecord, rawNetPay: number) => {
+        const netPay = parseFloat(rawNetPay.toFixed(2));
+        setLoadingEmpId(r.employee_id);
+        try {
+            // 1. Fetch salary payment data (this returns a list containing the matched commit directly!)
+            let commitFromApi: any = null;
+            try {
+                const response = await fetch(`/api/method/rndopsapp.rndopsapp.commitPayment.salary_payment_data?ps_emp_id=${r.employee_id}`, { credentials: 'include' });
+                if (response.ok) {
+                    const json = await response.json();
+                    if (json?.message) {
+                        if (!Array.isArray(json.message)) {
+                            // Check if salary payment has already been initiated
+                            if (json.message.message === "Salary already initiated" || json.message.status) {
+                                alert(`${json.message.message || "Salary already initiated"}\n\nStatus: ${json.message.status || "Pending Approval"}`);
+                                return; // abort modal presentation!
+                            }
+                        } else if (json.message.length > 0) {
+                            commitFromApi = json.message[0];
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch salary payment data:", err);
+            }
+
+            // Construct salary year month parameter (e.g. 2026_june) and detailed user & backend data
+            const daysInMonthVal = getDaysInMonth(selectedYear, selectedMonth);
+            const { inputs } = getRowInputs(r.docName);
+            const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
+            const proRataBasic = calcProRataBasic(r.basic_salary, workingDays, daysInMonthVal);
+            const proRataHRA = (r.hra / daysInMonthVal) * workingDays;
+            const proRataMedical = (r.medical_allowance / daysInMonthVal) * workingDays;
+            const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
+            const pTax = calcPTax(r.basic_salary);
+            const totalDed = proRataHRA + inputs.medicalDeduction + pTax + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
+
+            const monthLabel = MONTHS[selectedMonth].label.toLowerCase();
+            const salary_year_month = `${selectedYear}_${monthLabel}`;
+
+            const salary_user_details = {
+                employee_id: r.employee_id,
+                first_name: r.first_name,
+                email_id: r.email_id,
+                department: r.department,
+                designation: r.designation,
+                joining_date: r.joining_date,
+                term_completion_date: r.term_completion_date,
+                basic_salary: r.basic_salary,
+                hra: r.hra,
+                working_days: workingDays,
+                pro_rata_basic: proRataBasic,
+                pro_rata_hra: proRataHRA,
+                pro_rata_medical: proRataMedical,
+                arrear: inputs.arrear,
+                gross_pay: grossPay,
+                hra_deduction: proRataHRA,
+                medical_deduction: inputs.medicalDeduction,
+                p_tax: pTax,
+                ta: inputs.ta,
+                id_card_charge: inputs.idCardCharge,
+                electricity_bill: inputs.electricityBill,
+                other_deduction: inputs.otherDeduction,
+                total_deduction: totalDed,
+                net_pay: netPay,
+                comment: inputs.comment,
+                remarks: inputs.remarks
+            };
+
+            const salary_backend_details = {
+                ps_emp_id: r.employee_id,
+                scr_id: commitFromApi?.frapAppId || "",
+                project_no: commitFromApi?.projectNumber || "",
+                interview_id: commitFromApi?.frapAppId || "",
+                tenure_details: "",
+                current_basic_salary: r.basic_salary,
+                active_basic_salary: r.basic_salary
+            };
+
+            let selectedCommitData: any = null;
+
+            if (commitFromApi) {
+                // Prefill using the directly matched commit returned by the salary_payment_data API
+                selectedCommitData = {
+                    projectNumber: commitFromApi.projectNumber || "",
+                    accountHeadId: commitFromApi.accountHeadId || 1,
+                    moduleId: commitFromApi.moduleId || 11,
+                    frapAppId: commitFromApi.frapAppId || r.employee_id,
+                    commitDate: commitFromApi.commitDate || new Date().toISOString().split('T')[0],
+                    commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
+                    refDetails: commitFromApi.refDetails || `Employee ID: ${r.employee_id}, Commit No: ${commitFromApi.transactionCommitNumber}`,
+                    commitAmount: netPay, // Override amount with Net Pay
+                    transactionCommitNumber: commitFromApi.transactionCommitNumber || 0,
+                    salary_year_month,
+                    salary_user_details,
+                    salary_backend_details,
+                };
+            } else {
+                // Fallback: Fetch pending commits from Ledger to query manually
+                try {
+                    const ledgerRes = await fetch(`/ledger-api/account-head-commit/by-status/COMMITTED`);
+                    if (ledgerRes.ok) {
+                        const commits = await ledgerRes.json();
+                        // Try matching by project_no AND interview_id AND moduleId === 11 (Recruitment Adhoc Contractual)
+                        let match = commits.find((c: any) => 
+                            String(c.projectNumber).toLowerCase() === String(r.department || '').toLowerCase() &&
+                            String(c.moduleId) === '11' &&
+                            String(c.frapAppId).toLowerCase() === String(r.employee_id).toLowerCase()
+                        );
+                        
+                        // Fallback 1: match by moduleId === 11
+                        if (!match) {
+                            match = commits.find((c: any) => 
+                                String(c.moduleId) === '11'
+                            );
+                        }
+
+                        // Fallback 2: match by project number
+                        if (!match) {
+                            match = commits.find((c: any) => 
+                                String(c.projectNumber).toLowerCase() === String(r.department || '').toLowerCase()
+                            );
+                        }
+                        
+                        if (match) {
+                            selectedCommitData = {
+                                ...match,
+                                commitAmount: netPay, // Override amount with Net Pay
+                                commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
+                                salary_year_month,
+                                salary_user_details,
+                                salary_backend_details,
+                            };
+                        }
+                    }
+                } catch (ledgerErr) {
+                    console.error("Ledger fallback fetch failed:", ledgerErr);
+                }
+            }
+
+            if (!selectedCommitData) {
+                // Fallback 3: Create a virtual commit to prefill the modal
+                selectedCommitData = {
+                    projectNumber: r.department || "",
+                    accountHeadId: 1, // default budget head
+                    moduleId: 11, // Recruitment Adhoc Contractual module id
+                    frapAppId: r.employee_id,
+                    commitDate: new Date().toISOString().split('T')[0],
+                    commitParticular: `Salary payment for ${r.first_name} (${r.employee_id}) - ${MONTHS[selectedMonth].label} ${selectedYear}`,
+                    refDetails: `Employee ID: ${r.employee_id}`,
+                    commitAmount: netPay,
+                    transactionCommitNumber: 0,
+                    salary_year_month,
+                    salary_user_details,
+                    salary_backend_details,
+                };
+            }
+
+            setSelectedPaymentName(null);
+            setSelectedCommit(selectedCommitData);
+            setPaymentModalOpen(true);
+        } catch (err) {
+            console.error("Failed to process payment data:", err);
+            alert("Error preparing payment data. Please try again.");
+        } finally {
+            setLoadingEmpId(null);
+        }
+    };
 
     // Unique Departments & Designations for dropdown filters
     const departmentsList = useMemo(() => {
@@ -997,7 +1198,7 @@ const SalaryModule: React.FC = () => {
                                                     <th rowSpan={2} className="px-4 py-4 text-right font-bold text-amber-800 dark:text-amber-400 bg-amber-50/20 dark:bg-amber-950/10 border-l border-r border-zinc-200 dark:border-zinc-800">Net Pay (₹)</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left">Comment</th>
                                                     <th rowSpan={2} className="px-3 py-4 text-left border-r border-zinc-200 dark:border-zinc-800">Remarks</th>
-                                                    <th rowSpan={2} className="px-3 py-4 text-center bg-zinc-50 dark:bg-zinc-950 shadow-sm">Slip</th>
+                                                    <th rowSpan={2} className="px-3 py-4 text-center bg-zinc-50 dark:bg-zinc-950 shadow-sm">Slip / Pay</th>
                                                 </tr>
                                                 <tr className="bg-[#EEF2FF] dark:bg-[#1E3A8A]/18">
                                                     {/* Earnings sub-headers */}
@@ -1245,13 +1446,27 @@ const SalaryModule: React.FC = () => {
 
                                                             {/* Payslip Action Button */}
                                                             <td className="px-3 py-3 text-center bg-white group-hover:bg-zinc-50 dark:bg-zinc-900 dark:group-hover:bg-[#27272A]">
-                                                                <button
-                                                                    onClick={() => setSelectedSlipRecord(r)}
-                                                                    title="Generate Pay Slip"
-                                                                    className="p-1.5 rounded-lg border border-orange-200 dark:border-orange-900/50 bg-orange-50/40 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757] dark:hover:text-white transition-all shadow-sm active:scale-90"
-                                                                >
-                                                                    <Eye className="w-3.5 h-3.5" />
-                                                                </button>
+                                                                <div className="flex items-center justify-center gap-1.5">
+                                                                    <button
+                                                                        onClick={() => setSelectedSlipRecord(r)}
+                                                                        title="Generate Pay Slip"
+                                                                        className="p-1.5 rounded-lg border border-orange-200 dark:border-orange-900/50 bg-orange-50/40 dark:bg-orange-950/20 text-orange-600 dark:text-orange-400 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757] dark:hover:text-white transition-all shadow-sm active:scale-90"
+                                                                    >
+                                                                        <Eye className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handlePayClick(r, netPay)}
+                                                                        disabled={loadingEmpId !== null}
+                                                                        title="Process Payment"
+                                                                        className="p-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white dark:hover:bg-emerald-600 dark:hover:text-white transition-all shadow-sm active:scale-90 disabled:opacity-50"
+                                                                    >
+                                                                        {loadingEmpId === r.employee_id ? (
+                                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                                        ) : (
+                                                                            <IndianRupee className="w-3.5 h-3.5" />
+                                                                        )}
+                                                                    </button>
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     );
@@ -1620,6 +1835,33 @@ const SalaryModule: React.FC = () => {
                                     </div>
                                 );
                             })()}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {paymentModalOpen && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPaymentModalOpen(false)}>
+                    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="flex bg-zinc-50 dark:bg-zinc-800/50 px-6 py-4 border-b items-center justify-between">
+                            <h2 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+                                {selectedPaymentName ? "Edit Payment" : "Process Payment"}
+                            </h2>
+                            <button onClick={() => setPaymentModalOpen(false)} className="p-2 hover:bg-zinc-200 dark:bg-zinc-700 rounded-full transition-colors">
+                                <X className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-auto p-0">
+                            <PaymentForm
+                                docName={selectedPaymentName || undefined}
+                                commitData={selectedCommit || undefined}
+                                resolvedBudgetHead={selectedCommit ? budgetHeadMap[String(selectedCommit.accountHeadId)] : undefined}
+                                onSuccess={() => {
+                                    setPaymentModalOpen(false);
+                                    fetchData();
+                                }}
+                                onCancel={() => setPaymentModalOpen(false)}
+                            />
                         </div>
                     </div>
                 </div>
