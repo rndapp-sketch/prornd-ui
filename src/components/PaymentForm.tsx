@@ -158,6 +158,9 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ docName, commitData, r
                     bmr: data.payment_bmr || data.bmr || undefined,
                     frapAppId: commitData?.frapAppId || undefined,
                     moduleName: commitData?.moduleId || undefined,
+                    salary_year_month: (commitData as any)?.salary_year_month || undefined,
+                    salary_user_details: (commitData as any)?.salary_user_details || undefined,
+                    salary_backend_details: (commitData as any)?.salary_backend_details || undefined,
                 };
 
             console.log(`Submitting Payment (${isAdvanceSettlement ? 'Advance Settlement' : 'Generic'}):`, body);
