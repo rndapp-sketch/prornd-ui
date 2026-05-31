@@ -8,8 +8,6 @@ import React, {
     forwardRef,
     useRef,
 } from "react";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     useFrappeGetDoc,
@@ -119,158 +117,17 @@ const printEndorsementDocument = async (document: Document) => {
     document.defaultView?.print();
 };
 
-const findWhitespaceCut = (
-    canvas: HTMLCanvasElement,
-    startY: number,
-    targetY: number,
-    maxY: number,
-) => {
-    if (maxY >= canvas.height) return canvas.height;
-
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return Math.min(targetY, maxY);
-
-    const searchStart = Math.max(startY + 180, targetY - 180);
-    const searchEnd = Math.min(maxY - 40, targetY + 180);
-    if (searchEnd <= searchStart) return Math.min(targetY, maxY);
-
-    const width = canvas.width;
-    const height = searchEnd - searchStart;
-    const data = ctx.getImageData(0, searchStart, width, height).data;
-    let bestY = targetY;
-    let bestScore = Number.POSITIVE_INFINITY;
-
-    for (let localY = 0; localY < height; localY += 4) {
-        let inkScore = 0;
-        for (let x = 0; x < width; x += 12) {
-            const index = (localY * width + x) * 4;
-            const r = data[index];
-            const g = data[index + 1];
-            const b = data[index + 2];
-            const a = data[index + 3];
-            if (a > 12 && (r < 245 || g < 245 || b < 245)) {
-                inkScore += 1;
-            }
-        }
-
-        const absoluteY = searchStart + localY;
-        const distancePenalty = Math.abs(absoluteY - targetY) / 60;
-        const score = inkScore + distancePenalty;
-        if (score < bestScore) {
-            bestScore = score;
-            bestY = absoluteY;
-        }
-    }
-
-    return Math.max(startY + 120, Math.min(bestY, maxY));
-};
-
+// Vector-PDF generation via the browser's native print engine.
+// Produces selectable text, perfect fonts, and reliable underlines (no html2canvas raster).
+// The browser's print dialog opens with the destination preset to "Save as PDF" when supported;
+// the document's <title> becomes the default filename in the save dialog.
 const downloadEndorsementDocumentPdf = async (document: Document, fileName: string) => {
     await waitForDocumentAssets(document);
-    const target = document.querySelector(".print-container") as HTMLElement | null;
-    if (!target) throw new Error("Printable endorsement container not found.");
-
-    const style = document.createElement("style");
-    style.setAttribute("data-download-print-emulation", "true");
-    style.textContent = `
-        body {
-            background: #ffffff !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            display: block !important;
-        }
-        .print-container {
-            box-shadow: none !important;
-            width: 210mm !important;
-            min-height: 297mm !important;
-            margin: 0 auto !important;
-        }
-    `;
-    document.head.appendChild(style);
-
-    try {
-        const canvas = await html2canvas(target, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#ffffff",
-            windowWidth: target.scrollWidth,
-            windowHeight: target.scrollHeight,
-            scrollX: 0,
-            scrollY: 0,
-        });
-
-        const pdf = new jsPDF("p", "mm", "a4");
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const marginX = 15;
-        const marginY = 18;
-        const imgWidth = pageWidth - marginX * 2;
-        const pageContentHeight = pageHeight - marginY * 2;
-        const pixelsPerMm = canvas.width / imgWidth;
-        const targetSliceHeight = Math.floor(pageContentHeight * pixelsPerMm);
-
-        let sourceY = 0;
-        let pageIndex = 0;
-
-        while (sourceY < canvas.height) {
-            const remaining = canvas.height - sourceY;
-            const idealCut = sourceY + Math.min(targetSliceHeight, remaining);
-            const cutY =
-                remaining <= targetSliceHeight
-                    ? canvas.height
-                    : findWhitespaceCut(
-                        canvas,
-                        sourceY,
-                        idealCut,
-                        Math.min(canvas.height, sourceY + Math.floor(targetSliceHeight * 1.12)),
-                    );
-            const sliceHeight = Math.max(1, cutY - sourceY);
-
-            const pageCanvas = document.createElement("canvas");
-            pageCanvas.width = canvas.width;
-            pageCanvas.height = sliceHeight;
-            const pageCtx = pageCanvas.getContext("2d");
-            if (!pageCtx) throw new Error("Could not prepare PDF page.");
-            pageCtx.fillStyle = "#ffffff";
-            pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-            pageCtx.drawImage(
-                canvas,
-                0,
-                sourceY,
-                canvas.width,
-                sliceHeight,
-                0,
-                0,
-                canvas.width,
-                sliceHeight,
-            );
-
-            if (pageIndex > 0) {
-                pdf.addPage();
-            }
-
-            const sliceHeightMm = sliceHeight / pixelsPerMm;
-            pdf.addImage(
-                pageCanvas.toDataURL("image/png"),
-                "PNG",
-                marginX,
-                marginY,
-                imgWidth,
-                Math.min(sliceHeightMm, pageContentHeight),
-            );
-
-            sourceY = cutY;
-            pageIndex += 1;
-        }
-
-        if (pageIndex === 0) {
-            pdf.addPage();
-        }
-
-        pdf.save(fileName);
-    } finally {
-        style.remove();
-    }
+    // Strip ".pdf" — the browser appends the correct extension based on destination.
+    const titleBase = fileName.replace(/\.pdf$/i, "");
+    document.title = titleBase;
+    document.defaultView?.focus();
+    document.defaultView?.print();
 };
 
 const getIframeSrcDoc = (html: string) =>
@@ -324,7 +181,8 @@ const downloadEndorsementPdfFromHtml = async (html: string, fileName: string) =>
         if (!iframeDocument) throw new Error("Unable to prepare endorsement PDF.");
         await downloadEndorsementDocumentPdf(iframeDocument, fileName);
     } finally {
-        iframe.remove();
+        // Defer iframe teardown so the browser's print dialog has time to render.
+        setTimeout(() => iframe.remove(), 1000);
     }
 };
 
@@ -471,13 +329,63 @@ const toSameOriginFileUrl = (src: string) => {
     return src;
 };
 
-const normalizeEndorsementHtmlForProject = (html: string, projectName?: string, workflowState?: string) => {
+const normalizeEndorsementHtmlForProject = (
+    html: string,
+    projectName?: string,
+    workflowState?: string,
+    options?: { omitSignatureImage?: boolean },
+) => {
     if (!projectName) return html;
     const refNo = `IITG-${projectName}`;
-    const shouldShowSignatureSeal = workflowState === "Endorsement Approved";
+    const omitSignatureImage = options?.omitSignatureImage === true;
+    // Show the signature block when approved OR when the caller explicitly wants the label
+    // rendered without an image (e.g., the "Download without signature" flow).
+    const shouldRenderSignatureBlock =
+        workflowState === "Endorsement Approved" || omitSignatureImage;
     const isFullDocument = /<html[\s>]/i.test(html);
     const parser = new DOMParser();
     const document = parser.parseFromString(html, "text/html");
+
+    // Inject CSS safety net for Word-pasted content.
+    const patchStyle = document.createElement("style");
+    patchStyle.setAttribute("data-endorse-patch", "1");
+    patchStyle.textContent = `
+        u { text-decoration: underline; }
+        .cert-body u, .cert-body span { text-indent: 0 !important; }
+    `;
+    document.head.appendChild(patchStyle);
+
+    // Word-pasted HTML stamps `text-indent:-36pt` onto every inline <u>/<span> inside list
+    // paragraphs. Some print engines mis-apply this to inline elements, clipping the text after
+    // the first character. Strip it from the inline `style` attribute directly.
+    const stripTextIndentInline = (el: Element) => {
+        const style = el.getAttribute("style") || "";
+        if (!/text-indent/i.test(style)) return;
+        const cleaned = style.replace(/text-indent\s*:[^;]*;?\s*/gi, "").trim();
+        if (cleaned) {
+            el.setAttribute("style", cleaned);
+        } else {
+            el.removeAttribute("style");
+        }
+    };
+
+    document.querySelectorAll(".cert-body *").forEach((el) => {
+        const tag = el.tagName.toLowerCase();
+        // Keep text-indent on block-level paragraph elements (they create the hanging indent).
+        if (tag === "p" || tag === "div" || tag === "li") return;
+        stripTextIndentInline(el);
+    });
+
+    // Ensure every <u> carries text-decoration:underline inline — survives print engines that
+    // strip UA stylesheet defaults for the <u> tag when rasterizing or generating PDFs.
+    document.querySelectorAll("u").forEach((u) => {
+        const existing = u.getAttribute("style") || "";
+        if (!/text-decoration\s*:/i.test(existing)) {
+            const trimmed = existing.trim();
+            const needsSemi = trimmed && !trimmed.endsWith(";");
+            u.setAttribute("style", `${existing}${needsSemi ? ";" : ""}text-decoration:underline;`);
+        }
+    });
 
     const refValue = document.querySelector(".ref-no .value");
     if (refValue) {
@@ -499,45 +407,48 @@ const normalizeEndorsementHtmlForProject = (html: string, projectName?: string, 
     });
 
     document.querySelectorAll(".signature").forEach((signature) => {
-        if (!shouldShowSignatureSeal) {
+        if (!shouldRenderSignatureBlock) {
             signature.remove();
             return;
         }
 
         signature.innerHTML = "";
-        const image = document.createElement("img");
-        image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
-        image.alt = "Signature with seal";
-        image.style.height = "112px";
-        image.style.width = "auto";
-        image.style.objectFit = "contain";
-        image.style.marginBottom = "8px";
+        if (!omitSignatureImage) {
+            const image = document.createElement("img");
+            image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
+            image.alt = "Signature with seal";
+            image.style.height = "112px";
+            image.style.width = "auto";
+            image.style.objectFit = "contain";
+            image.style.marginBottom = "8px";
+            signature.appendChild(image);
+        }
 
         const label = document.createElement("div");
         label.textContent = "Signature of the Dean (R&D)";
         label.style.fontWeight = "bold";
-
-        signature.appendChild(image);
         signature.appendChild(label);
     });
 
-    if (shouldShowSignatureSeal && !document.querySelector(".signature")) {
+    if (shouldRenderSignatureBlock && !document.querySelector(".signature")) {
         const container = document.querySelector(".print-container") || document.body;
         const signature = document.createElement("div");
         signature.className = "signature";
         signature.setAttribute("style", "margin-top:72px;display:flex;flex-direction:column;align-items:flex-end;");
 
-        const image = document.createElement("img");
-        image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
-        image.alt = "Signature with seal";
-        image.setAttribute("style", "height:112px;width:auto;object-fit:contain;margin-bottom:8px;");
+        if (!omitSignatureImage) {
+            const image = document.createElement("img");
+            image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
+            image.alt = "Signature with seal";
+            image.setAttribute("style", "height:112px;width:auto;object-fit:contain;margin-bottom:8px;");
+            signature.appendChild(image);
+        }
 
         const label = document.createElement("div");
         label.textContent = "Signature of the Dean (R&D)";
         label.setAttribute("style", "font-weight:bold;");
-
-        signature.appendChild(image);
         signature.appendChild(label);
+
         container.appendChild(signature);
     }
 
@@ -1597,27 +1508,32 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const [endorsementModalOpen, setEndorsementModalOpen] = useState(false);
     const [endorsementHtml, setEndorsementHtml] = useState<string | null>(null);
     const [isDownloadingEndorsementCertificate, setIsDownloadingEndorsementCertificate] = useState(false);
+    const [isDownloadingEndorsementUnsigned, setIsDownloadingEndorsementUnsigned] = useState(false);
 
-    const fetchNormalizedEndorsementHtml = useCallback(async () => {
-        if (!projectName) return null;
-        const res = await fetchEndorsementData({
-            doctype: "Endorsement Data",
-            filters: JSON.stringify([
-                ["project_ref_num", "=", projectName],
-            ]),
-            fields: JSON.stringify(["endorsement_html"]),
-            limit_page_length: 1,
-        });
-        const records = res?.message;
-        if (records?.length > 0 && records[0].endorsement_html) {
-            return normalizeEndorsementHtmlForProject(
-                records[0].endorsement_html,
-                projectName,
-                data?.workflow_state,
-            );
-        }
-        return null;
-    }, [data?.workflow_state, fetchEndorsementData, projectName]);
+    const fetchNormalizedEndorsementHtml = useCallback(
+        async (options?: { omitSignatureImage?: boolean }) => {
+            if (!projectName) return null;
+            const res = await fetchEndorsementData({
+                doctype: "Endorsement Data",
+                filters: JSON.stringify([
+                    ["project_ref_num", "=", projectName],
+                ]),
+                fields: JSON.stringify(["endorsement_html"]),
+                limit_page_length: 1,
+            });
+            const records = res?.message;
+            if (records?.length > 0 && records[0].endorsement_html) {
+                return normalizeEndorsementHtmlForProject(
+                    records[0].endorsement_html,
+                    projectName,
+                    data?.workflow_state,
+                    options,
+                );
+            }
+            return null;
+        },
+        [data?.workflow_state, fetchEndorsementData, projectName],
+    );
 
     const handleWorkflowAction = useCallback((action: string) => {
         setSelectedAction(action);
@@ -2810,12 +2726,43 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                                         }}
                                                         disabled={
                                                             isFetchingEndorsementHtml ||
-                                                            isDownloadingEndorsementCertificate
+                                                            isDownloadingEndorsementCertificate ||
+                                                            isDownloadingEndorsementUnsigned
                                                         }
                                                         className="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 dark:bg-[#D97757]/20 hover:bg-[#B2EBF2] text-[#D97757] rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                     >
                                                         <DownloadIcon className="h-4 w-4" />
                                                         {isDownloadingEndorsementCertificate ? "Downloading..." : "Download Certificate"}
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            setIsDownloadingEndorsementUnsigned(true);
+                                                            try {
+                                                                const html = await fetchNormalizedEndorsementHtml({ omitSignatureImage: true });
+                                                                if (!html) {
+                                                                    alert("No endorsement certificate found for this project.");
+                                                                    return;
+                                                                }
+                                                                await downloadEndorsementPdfFromHtml(
+                                                                    html,
+                                                                    `Endorsement_${projectName || "Certificate"}_Unsigned.pdf`,
+                                                                );
+                                                            } catch (error) {
+                                                                console.error("Download unsigned endorsement certificate error:", error);
+                                                                alert("Could not download endorsement certificate. Please open the preview and use Print.");
+                                                            } finally {
+                                                                setIsDownloadingEndorsementUnsigned(false);
+                                                            }
+                                                        }}
+                                                        disabled={
+                                                            isFetchingEndorsementHtml ||
+                                                            isDownloadingEndorsementCertificate ||
+                                                            isDownloadingEndorsementUnsigned
+                                                        }
+                                                        className="flex items-center gap-2 px-4 py-2.5 bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        <DownloadIcon className="h-4 w-4" />
+                                                        {isDownloadingEndorsementUnsigned ? "Downloading..." : "Download without Signature"}
                                                     </button>
                                                 </div>
                                             </div>

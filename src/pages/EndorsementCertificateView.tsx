@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams } from 'react-router-dom';
 import { useFrappeGetDoc } from 'frappe-react-sdk';
 import { EndorsementCertificate } from '../components/EndorsementCertificate';
-import { AppSidebar } from '@/components/RndSidebar';
+
 
 const EndorsementCertificateView: React.FC = () => {
     const { name } = useParams<{ name: string }>();
