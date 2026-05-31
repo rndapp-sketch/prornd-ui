@@ -266,9 +266,17 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
             margin-bottom: 24px;
             text-transform: uppercase;
         }
+        u { text-decoration: underline; }
+        /* Word-pasted HTML sets text-indent:-36pt on inline <u>/<span> elements;
+           Chrome PDF renderer misapplies it as a block indent, clipping the text. */
+        .cert-body u,
+        .cert-body span {
+            text-indent: 0 !important;
+        }
         .cert-body { padding: 8px; }
         .cert-body p { margin-bottom: 16px; }
-        .cert-body ol { padding-left: 32px; margin: 0; }
+        .cert-body ul { padding-left: 32px; margin: 0; list-style-type: disc; }
+        .cert-body ol { padding-left: 32px; margin: 0; list-style-type: decimal; }
         .cert-body li { margin-bottom: 16px; text-align: justify; }
         .signature { margin-top: 72px; display: flex; flex-direction: column; align-items: flex-end; }
         .signature .label { font-weight: bold; }
@@ -327,7 +335,6 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
 
 export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (props) => {
     const bodyRef = useRef<HTMLDivElement>(null);
-    const documentRef = useRef<HTMLDivElement>(null);
     const hasInitialized = useRef(false);
     const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     // Always-current mirror of the editor HTML — safe to read during unmount cleanup
@@ -380,52 +387,9 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
         }, 500);
     };
 
-    const getFullHtml = () => {
-        if (!documentRef.current) return '';
-        let content = documentRef.current.innerHTML;
-        content = content.replace(/contenteditable="true"/gi, '');
-        content = content.replace(/outline-none focus:bg-zinc-50 dark:bg-zinc-800\/50/gi, '');
-
-        // Just build the wrapper around the actual content
-        return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Endorsement Certificate - ${props.proposalId || 'IITG'}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Embed print styles */
-        ${printStyles}
-
-        body {
-            font-family: 'Times New Roman', serif;
-            background-color: #f3f4f6;
-            padding: 40px;
-            display: flex;
-            justify-content: center;
-        }
-        .print-container {
-            background-color: white;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-    </style>
-</head>
-<body>
-    <div class="print-container w-[210mm] min-h-[297mm] bg-white dark:bg-zinc-900 p-[20mm] text-zinc-900 dark:text-zinc-100 font-serif text-sm leading-relaxed relative">
-        ${content}
-    </div>
-    <script>
-        // Auto-print on open (optional)
-        // window.onload = function() { window.print(); }
-    </script>
-</body>
-</html>`;
-    };
-
     const handleDownloadHtml = () => {
-        const fullHtml = getFullHtml();
+        const bodyHtml = bodyRef.current?.innerHTML || '';
+        const fullHtml = getEndorsementHtml({ ...props, bodyHtml });
         if (!fullHtml) return;
 
         const blob = new Blob([fullHtml], { type: 'text/html' });
@@ -455,7 +419,6 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
 
                     {/* Certificate Container */}
                     <div
-                        ref={documentRef}
                         className="print-container w-[210mm] min-h-[297mm] bg-white dark:bg-zinc-900 p-[20mm] shadow-lg text-zinc-900 dark:text-zinc-100 font-serif text-sm leading-relaxed relative"
                     >
 
