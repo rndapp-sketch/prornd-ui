@@ -106,6 +106,9 @@ export const DOCTYPE_PR_LINKS: Record<string, DoctypePRLink> = {
     'T Testing Deposit Slip': {
         primary: { type: 'pr_name', field: 'project_title' },
     },
+    'Top Up Fellowship': {
+        primary: { type: 'pr_name', field: 'project_code' },
+    },
     'Travel': {
         primary:  { type: 'pr_name',       field: 'travel_project_title' },
         fallback: { type: 'pr_project_no', field: 'travel_project_number' },
