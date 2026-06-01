@@ -770,7 +770,7 @@ const FundReceivedDetails = () => {
                                     <PencilLine className="h-3 w-3" /> Edit
                                 </button>
                             )}
-                            {isRndStaff && !showDepositSlip && (
+                            {isRndStaff && !showDepositSlip && workflow_state === "Pending Misc. Staff Approval" && (
                                 isEditMode ? (
                                     <>
                                         <button onClick={cancelEdits} disabled={isSaving}
