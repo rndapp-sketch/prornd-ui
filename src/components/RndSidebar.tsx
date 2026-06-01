@@ -26,6 +26,7 @@ import {
     Users as UsersIcon,
     UserCheck,
     IndianRupee,
+    HelpCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -43,6 +44,7 @@ import { useUserRoles } from "./UserRole";
 import { selectionCommitteeReportAPI } from "@/services/apiService";
 import { useAppwriteSession } from "@/hooks/useAppwriteSession";
 import { useUnreadCount } from "@/hooks/useUnreadCount";
+import { HelpModule } from "./HelpModule";
 
 // --- LOGIC: Interfaces (Unchanged) ---
 interface SubMenuItem {
@@ -68,6 +70,7 @@ export function AppSidebar() {
     const location = useLocation();
     const [openSubMenus, setOpenSubMenus] = useState<string[]>([]);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [isHelpOpen, setIsHelpOpen] = useState(false);
     const { mutate } = useSWRConfig();
     const appwriteSession = useAppwriteSession();
     const { unreadCount } = useUnreadCount(appwriteSession.user?.$id ?? null);
@@ -217,6 +220,11 @@ export function AppSidebar() {
             label: "Upload Director PDF",
             icon: FileText,
             path: "/director-pdf-upload",
+        },
+        {
+            label: "Faculty Admission PDF Upload",
+            icon: FileText,
+            path: "/top-up-fellowship-faculty-admission",
         },
         {
             label: "Project Staff",
@@ -544,6 +552,23 @@ export function AppSidebar() {
                     <div className="px-2 py-2 space-y-0.5">
                         <SidebarMenuItem>
                             <SidebarMenuButton
+                                onClick={() => setIsHelpOpen(true)}
+                                className={cn(
+                                    "relative w-full h-8 rounded-lg text-[12px] font-medium transition-all duration-150 text-[#3F3F46] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] hover:text-[#18181B] dark:hover:text-[#E4E4E7]",
+                                    isHelpOpen && "bg-[#EEF2FF] text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD] font-semibold",
+                                    state === "expanded" ? "px-2.5 justify-start gap-2.5" : "px-0 justify-center",
+                                )}
+                                tooltip="User Manual"
+                            >
+                                <HelpCircle
+                                    className={cn(state === "expanded" ? "w-[15px] h-[15px]" : "w-5 h-5", "flex-shrink-0 text-[#71717A]")}
+                                    strokeWidth={1.75}
+                                />
+                                {state === "expanded" && <span>User Manual</span>}
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton
                                 onClick={() => navigate("/messages")}
                                 className={cn(
                                     "relative w-full h-8 rounded-lg text-[12px] font-medium transition-all duration-150 text-[#3F3F46] dark:text-[#A1A1AA] hover:bg-[#F4F4F5] dark:hover:bg-[#27272A] hover:text-[#18181B] dark:hover:text-[#E4E4E7]",
@@ -623,6 +648,7 @@ export function AppSidebar() {
                     </div>
                 </SidebarFooter>
             </Sidebar>
+            <HelpModule isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
         </>
     );
 }
