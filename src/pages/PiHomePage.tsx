@@ -420,6 +420,8 @@ import {
   CheckCircle2,
   Search,
   Printer,
+  PlayCircle,
+  MonitorPlay,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -616,435 +618,228 @@ const AnalyticsCard: React.FC<{
 /**
  * --- Help Module Component ---
  */
-// const MANUAL_STEPS = [
-//   {
-//     id: 0,
-//     title: "Endorsement",
-//     icon: <Award className="size-4" />,
-//     content: (
-//       <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-//         <div className="flex items-center gap-3 mb-6">
-//           <div className="p-2.5 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-xl">
-//             <Award className="size-5" />
-//           </div>
-//           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Endorsement Procedure</h2>
-//         </div>
+const MANUAL_STEPS = [
+  {
+    id: 0,
+    title: "Endorsement",
+    icon: <Award className="size-4" />,
+    content: (
+      <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2.5 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-xl">
+            <Award className="size-5" />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Endorsement Procedure</h2>
+        </div>
 
-//         <div className="bg-blue-50 dark:bg-blue-950/20 border-l-4 border-blue-500 p-4 mb-6 rounded-r-xl">
-//           <p className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
-//             <strong>Pre-check:</strong> If the Endorsement is already approved, proceed to Project Registration steps. Email the Dean with the approved copy attached for faster processing.
-//           </p>
-//         </div>
+        <div className="bg-blue-50 dark:bg-blue-950/20 border-l-4 border-blue-500 p-4 mb-6 rounded-r-xl">
+          <p className="text-sm text-blue-800 dark:text-blue-300 leading-relaxed">
+            <strong>Pre-check:</strong> If the Endorsement is already approved, proceed to Project Registration steps. Email the Dean with the approved copy attached for faster processing.
+          </p>
+        </div>
 
-//         <div className="grid grid-cols-1 gap-4 text-slate-600 dark:text-slate-300 text-sm">
-//           <div className="p-4 border border-slate-100 dark:border-zinc-800 rounded-xl flex gap-4 bg-white dark:bg-zinc-900/30">
-//             <div className="text-blue-500 shrink-0 mt-0.5"><Search className="size-4" /></div>
-//             <p><strong className="text-slate-800 dark:text-slate-200">Validation:</strong> Check the top right for a red warning message. All required fields (Title, Type, etc.) must be filled before the "Endorsement" button works.</p>
-//           </div>
-//           <div className="p-4 border border-slate-100 dark:border-zinc-800 rounded-xl flex gap-4 bg-white dark:bg-zinc-900/30">
-//             <div className="text-blue-500 shrink-0 mt-0.5"><Printer className="size-4" /></div>
-//             <p><strong className="text-slate-800 dark:text-slate-200">Generate & Preview:</strong> Click "Endorsement" (top right). A pop-up window displays the certificate. You can type additional details directly into the body if required.</p>
-//           </div>
-//         </div>
+        <div className="grid grid-cols-1 gap-4 text-slate-600 dark:text-slate-300 text-sm">
+          <div className="p-4 border border-slate-100 dark:border-zinc-800 rounded-xl flex gap-4 bg-white dark:bg-zinc-900/30">
+            <div className="text-blue-500 shrink-0 mt-0.5"><Search className="size-4" /></div>
+            <p><strong className="text-slate-800 dark:text-slate-200">Validation:</strong> Check the top right for a red warning message. All required fields (Title, Type, etc.) must be filled before the "Endorsement" button works.</p>
+          </div>
+          <div className="p-4 border border-slate-100 dark:border-zinc-800 rounded-xl flex gap-4 bg-white dark:bg-zinc-900/30">
+            <div className="text-blue-500 shrink-0 mt-0.5"><Printer className="size-4" /></div>
+            <p><strong className="text-slate-800 dark:text-slate-200">Generate & Preview:</strong> Click "Endorsement" (top right). A pop-up window displays the certificate. You can type additional details directly into the body if required.</p>
+          </div>
+        </div>
 
-//         <div className="mt-8 bg-amber-50 dark:bg-amber-950/20 p-5 rounded-xl border border-amber-200 dark:border-amber-800/40">
-//           <h4 className="text-amber-800 dark:text-amber-300 font-bold text-xs uppercase tracking-wider mb-3">Submission Protocol</h4>
-//           <ul className="list-disc ml-5 space-y-2 text-sm text-slate-700 dark:text-slate-300">
-//             <li><strong>Endorsement Only:</strong> Click "Submit" within the certificate pop-up.</li>
-//             <li><strong>Full Registration:</strong> Close the pop-up panel and use the "Submit Project" button on the main dashboard.</li>
-//             <li>All applications initially save as <strong>"Draft"</strong>.</li>
-//           </ul>
-//         </div>
-//       </div>
-//     ),
-//   },
-//   {
-//     id: 1,
-//     title: "Project Details",
-//     icon: <Info className="size-4" />,
-//     content: (
-//       <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-//         <div className="flex items-center gap-3 mb-6">
-//           <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
-//             <Info className="size-5" />
-//           </div>
-//           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Section 1: Project Details</h2>
-//         </div>
+        <div className="mt-8 bg-amber-50 dark:bg-amber-950/20 p-5 rounded-xl border border-amber-200 dark:border-amber-800/40">
+          <h4 className="text-amber-800 dark:text-amber-300 font-bold text-xs uppercase tracking-wider mb-3">Submission Protocol</h4>
+          <ul className="list-disc ml-5 space-y-2 text-sm text-slate-700 dark:text-slate-300">
+            <li><strong>Endorsement Only:</strong> Click "Submit" within the certificate pop-up.</li>
+            <li><strong>Full Registration:</strong> Close the pop-up panel and use the "Submit Project" button on the main dashboard.</li>
+            <li>All applications initially save as <strong>"Draft"</strong>.</li>
+          </ul>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 1,
+    title: "Project Details",
+    icon: <Info className="size-4" />,
+    content: (
+      <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
+            <Info className="size-5" />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Section 1: Project Details</h2>
+        </div>
 
-//         <div className="space-y-6">
-//           <div className="bg-slate-50 dark:bg-zinc-900/30 p-4 rounded-xl border border-slate-200 dark:border-zinc-800">
-//             <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-3">Basic Information</h4>
-//             <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-2.5">
-//               <li>• <strong className="text-slate-700 dark:text-slate-300">Project Title:</strong> Enter the full proposed title.</li>
-//               <li>• <strong className="text-slate-700 dark:text-slate-300">Project Type:</strong> Select Research, Consultancy, or Other. (If "Other," specify in the text box provided).</li>
-//               <li>• <strong className="text-slate-700 dark:text-slate-300">Department/Centre:</strong> Select implementation unit from the searchable list.</li>
-//             </ul>
-//           </div>
+        <div className="space-y-6">
+          <div className="bg-slate-50 dark:bg-zinc-900/30 p-4 rounded-xl border border-slate-200 dark:border-zinc-800">
+            <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-3">Basic Information</h4>
+            <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-2.5">
+              <li>• <strong className="text-slate-700 dark:text-slate-300">Project Title:</strong> Enter the full proposed title.</li>
+              <li>• <strong className="text-slate-700 dark:text-slate-300">Project Type:</strong> Select Research, Consultancy, or Other. (If "Other," specify in the text box provided).</li>
+              <li>• <strong className="text-slate-700 dark:text-slate-300">Department/Centre:</strong> Select implementation unit from the searchable list.</li>
+            </ul>
+          </div>
 
-//           <div className="border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden">
-//             <div className="bg-indigo-600 px-4 py-2.5 font-bold text-xs text-white uppercase tracking-wider">Type-Specific Logic</div>
+          <div className="border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden">
+            <div className="bg-indigo-600 px-4 py-2.5 font-bold text-xs text-white uppercase tracking-wider">Type-Specific Logic</div>
 
-//             <div className="p-4 border-b border-slate-100 dark:border-zinc-800">
-//               <h5 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2">Research Projects</h5>
-//               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-slate-600 dark:text-slate-400">
-//                 <div className="p-2.5 bg-slate-50 dark:bg-zinc-900/30 rounded-lg"><strong className="text-slate-700 dark:text-slate-300">Funding Agency:</strong> Search/Select (e.g., Halcyon). Type/Address will auto-populate and lock.</div>
-//                 <div className="p-2.5 bg-slate-50 dark:bg-zinc-900/30 rounded-lg"><strong className="text-slate-700 dark:text-slate-300">Scheme/Origin:</strong> Enter the Name of Research Scheme and Origin of Funding.</div>
-//               </div>
-//             </div>
+            <div className="p-4 border-b border-slate-100 dark:border-zinc-800">
+              <h5 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2">Research Projects</h5>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-slate-600 dark:text-slate-400">
+                <div className="p-2.5 bg-slate-50 dark:bg-zinc-900/30 rounded-lg"><strong className="text-slate-700 dark:text-slate-300">Funding Agency:</strong> Search/Select (e.g., Halcyon). Type/Address will auto-populate and lock.</div>
+                <div className="p-2.5 bg-slate-50 dark:bg-zinc-900/30 rounded-lg"><strong className="text-slate-700 dark:text-slate-300">Scheme/Origin:</strong> Enter the Name of Research Scheme and Origin of Funding.</div>
+              </div>
+            </div>
 
-//             <div className="p-4 bg-slate-50/50 dark:bg-zinc-900/20">
-//               <h5 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2">Consultancy Projects</h5>
-//               <div className="mb-4">
-//                 <span className="bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded text-[10px] font-bold">CATEGORY D: Technology Transfer / Research Based</span>
-//                 <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-2">Enter <strong>GSTIN</strong> and verify <strong>GST %</strong>. Enter the <strong>Grand Total</strong> (Incl. GST). The system auto-calculates Net Honorarium, Institute Share, and 10% Overhead from inputs.</p>
-//               </div>
-//               <div>
-//                 <span className="bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded text-[10px] font-bold">CATEGORY T & E: Routine / Testing / Non-Routine</span>
-//                 <ul className="text-[11px] text-slate-600 dark:text-slate-400 mt-2 space-y-1">
-//                   <li>• <strong>Total Amount (Excl. GST):</strong> The primary financial input.</li>
-//                   <li>• <strong>Calculations:</strong> Honorarium/Expenses (30%) and Institute Share (70%) are auto-filled.</li>
-//                   <li>• <strong>Grand Total:</strong> Sum of Total Amount + GST calculated automatically.</li>
-//                 </ul>
-//               </div>
-//             </div>
-//           </div>
+            <div className="p-4 bg-slate-50/50 dark:bg-zinc-900/20">
+              <h5 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2">Consultancy Projects</h5>
+              <div className="mb-4">
+                <span className="bg-purple-100 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded text-[10px] font-bold">CATEGORY D: Technology Transfer / Research Based</span>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-2">Enter <strong>GSTIN</strong> and verify <strong>GST %</strong>. Enter the <strong>Grand Total</strong> (Incl. GST). The system auto-calculates Net Honorarium, Institute Share, and 10% Overhead from inputs.</p>
+              </div>
+              <div>
+                <span className="bg-blue-100 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded text-[10px] font-bold">CATEGORY T & E: Routine / Testing / Non-Routine</span>
+                <ul className="text-[11px] text-slate-600 dark:text-slate-400 mt-2 space-y-1">
+                  <li>• <strong>Total Amount (Excl. GST):</strong> The primary financial input.</li>
+                  <li>• <strong>Calculations:</strong> Honorarium/Expenses (30%) and Institute Share (70%) are auto-filled.</li>
+                  <li>• <strong>Grand Total:</strong> Sum of Total Amount + GST calculated automatically.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
 
-//           <div className="bg-slate-50 dark:bg-zinc-900/30 p-4 rounded-xl border border-slate-200 dark:border-zinc-800">
-//             <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2">Timeline & Attachments</h4>
-//             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-600 dark:text-slate-400">
-//               <p><strong className="text-slate-700 dark:text-slate-300">Proposal:</strong> Upload document via "Choose File".</p>
-//               <p><strong className="text-slate-700 dark:text-slate-300">Duration:</strong> Enter total months. Start/End dates auto-calculate.</p>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     ),
-//   },
-//   {
-//     id: 2,
-//     title: "Investigators",
-//     icon: <Users className="size-4" />,
-//     content: (
-//       <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-//         <div className="flex items-center gap-3 mb-6">
-//           <div className="p-2.5 bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 rounded-xl">
-//             <Users className="size-5" />
-//           </div>
-//           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Section 2: Investigators & Collaborators</h2>
-//         </div>
+          <div className="bg-slate-50 dark:bg-zinc-900/30 p-4 rounded-xl border border-slate-200 dark:border-zinc-800">
+            <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2">Timeline & Attachments</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-600 dark:text-slate-400">
+              <p><strong className="text-slate-700 dark:text-slate-300">Proposal:</strong> Upload document via "Choose File".</p>
+              <p><strong className="text-slate-700 dark:text-slate-300">Duration:</strong> Enter total months. Start/End dates auto-calculate.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 2,
+    title: "Investigators",
+    icon: <Users className="size-4" />,
+    content: (
+      <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2.5 bg-purple-50 dark:bg-purple-950/30 text-purple-600 dark:text-purple-400 rounded-xl">
+            <Users className="size-5" />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Section 2: Investigators & Collaborators</h2>
+        </div>
 
-//         <div className="space-y-6">
-//           <div className="bg-white dark:bg-zinc-900/30 border border-slate-200 dark:border-zinc-800 p-5 rounded-xl">
-//             <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2">Principal Investigator (PI)</h4>
-//             <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Enter the PI's Email ID. If registering for someone else, select their official email. ID, Designation, and Dept will auto-populate.</p>
-//             <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 p-3 text-[11px] text-rose-700 dark:text-rose-400 rounded-lg flex items-center gap-2">
-//               <Info className="size-3.5 shrink-0" /> User missing? Contact Tech Team 3090.
-//             </div>
-//           </div>
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-zinc-900/30 border border-slate-200 dark:border-zinc-800 p-5 rounded-xl">
+            <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2">Principal Investigator (PI)</h4>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Enter the PI's Email ID. If registering for someone else, select their official email. ID, Designation, and Dept will auto-populate.</p>
+            <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 p-3 text-[11px] text-rose-700 dark:text-rose-400 rounded-lg flex items-center gap-2">
+              <Info className="size-3.5 shrink-0" /> User missing? Contact Tech Team 3090.
+            </div>
+          </div>
 
-//           <div className="bg-white dark:bg-zinc-900/30 border border-slate-200 dark:border-zinc-800 p-5 rounded-xl">
-//             <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2">Additional PI / Co-PI</h4>
-//             <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Toggle "Yes" to add more members. Click "Add Row" and select their name from the dropdown. All profile details lock once selected.</p>
-//           </div>
-//         </div>
-//       </div>
-//     ),
-//   },
-//   {
-//     id: 3,
-//     title: "Proposed Budget",
-//     icon: <Calculator className="size-4" />,
-//     content: (
-//       <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-//         <div className="flex items-center gap-3 mb-6">
-//           <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
-//             <Calculator className="size-5" />
-//           </div>
-//           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Section 3: Proposed Budget</h2>
-//         </div>
+          <div className="bg-white dark:bg-zinc-900/30 border border-slate-200 dark:border-zinc-800 p-5 rounded-xl">
+            <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2">Additional PI / Co-PI</h4>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Toggle "Yes" to add more members. Click "Add Row" and select their name from the dropdown. All profile details lock once selected.</p>
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 3,
+    title: "Proposed Budget",
+    icon: <Calculator className="size-4" />,
+    content: (
+      <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
+            <Calculator className="size-5" />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Section 3: Proposed Budget</h2>
+        </div>
 
-//         <div className="space-y-4">
-//           <div className="bg-slate-50 dark:bg-zinc-900/30 p-4 rounded-xl border border-slate-200 dark:border-zinc-800">
-//             <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2">Yearly Breakdown</h4>
-//             <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Use <strong>"+ Add Row"</strong> for budget heads (Overhead, Manpower, Travel, etc.) and <strong>"+ Add Year"</strong> for subsequent years.</p>
-//           </div>
+        <div className="space-y-4">
+          <div className="bg-slate-50 dark:bg-zinc-900/30 p-4 rounded-xl border border-slate-200 dark:border-zinc-800">
+            <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-2">Yearly Breakdown</h4>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">Use <strong>"+ Add Row"</strong> for budget heads (Overhead, Manpower, Travel, etc.) and <strong>"+ Add Year"</strong> for subsequent years.</p>
+          </div>
 
-//           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//             <div className="p-4 border border-slate-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900/30">
-//               <h5 className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase mb-2">Equipment (Optional)</h5>
-//               <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Check the box to enable. Enter Item Name, Description, Quantity, and Unit Cost.</p>
-//             </div>
-//             <div className="p-4 border border-slate-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900/30">
-//               <h5 className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase mb-2">Manpower (Optional)</h5>
-//               <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Check the box to enable. Select Position from dropdown. Provide Posts and Salary.</p>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     ),
-//   },
-//   {
-//     id: 4,
-//     title: "Clearance & Declaration",
-//     icon: <Shield className="size-4" />,
-//     content: (
-//       <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-//         <div className="flex items-center gap-3 mb-6">
-//           <div className="p-2.5 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 rounded-xl">
-//             <Shield className="size-5" />
-//           </div>
-//           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Section 4: Clearance & Declaration</h2>
-//         </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 border border-slate-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900/30">
+              <h5 className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase mb-2">Equipment (Optional)</h5>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Check the box to enable. Enter Item Name, Description, Quantity, and Unit Cost.</p>
+            </div>
+            <div className="p-4 border border-slate-200 dark:border-zinc-800 rounded-xl bg-white dark:bg-zinc-900/30">
+              <h5 className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase mb-2">Manpower (Optional)</h5>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Check the box to enable. Select Position from dropdown. Provide Posts and Salary.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 4,
+    title: "Clearance & Declaration",
+    icon: <Shield className="size-4" />,
+    content: (
+      <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2.5 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 rounded-xl">
+            <Shield className="size-5" />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100">Section 4: Clearance & Declaration</h2>
+        </div>
 
-//         <div className="space-y-6">
-//           <div className="bg-slate-50 dark:bg-zinc-900/30 p-4 rounded-xl border border-slate-200 dark:border-zinc-800">
-//             <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-4">Committee Clearances</h4>
-//             <div className="grid grid-cols-1 gap-4 text-xs">
-//               <div className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900/40 rounded-lg border border-slate-100 dark:border-zinc-800">
-//                 <div className="w-2 h-2 rounded-full bg-rose-400 mt-1.5 shrink-0" />
-//                 <div>
-//                   <span className="font-bold text-slate-800 dark:text-slate-200 block">Ethics Committee</span>
-//                   <span className="text-slate-600 dark:text-slate-400">Select Type: rDNA, GMO, Transgenic Plants, or Other.</span>
-//                 </div>
-//               </div>
-//               <div className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900/40 rounded-lg border border-slate-100 dark:border-zinc-800">
-//                 <div className="w-2 h-2 rounded-full bg-rose-400 mt-1.5 shrink-0" />
-//                 <div>
-//                   <span className="font-bold text-slate-800 dark:text-slate-200 block">Bio-safety Committee</span>
-//                   <span className="text-slate-600 dark:text-slate-400">Select Category: I, II, or III.</span>
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
+        <div className="space-y-6">
+          <div className="bg-slate-50 dark:bg-zinc-900/30 p-4 rounded-xl border border-slate-200 dark:border-zinc-800">
+            <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm mb-4">Committee Clearances</h4>
+            <div className="grid grid-cols-1 gap-4 text-xs">
+              <div className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900/40 rounded-lg border border-slate-100 dark:border-zinc-800">
+                <div className="w-2 h-2 rounded-full bg-rose-400 mt-1.5 shrink-0" />
+                <div>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 block">Ethics Committee</span>
+                  <span className="text-slate-600 dark:text-slate-400">Select Type: rDNA, GMO, Transgenic Plants, or Other.</span>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 bg-white dark:bg-zinc-900/40 rounded-lg border border-slate-100 dark:border-zinc-800">
+                <div className="w-2 h-2 rounded-full bg-rose-400 mt-1.5 shrink-0" />
+                <div>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 block">Bio-safety Committee</span>
+                  <span className="text-slate-600 dark:text-slate-400">Select Category: I, II, or III.</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-//           <div className="bg-slate-900 dark:bg-zinc-950 text-white p-6 rounded-2xl border border-slate-800 dark:border-zinc-800">
-//             <h4 className="text-lg font-bold mb-3">Final Step</h4>
-//             <p className="text-slate-400 text-sm mb-4">Saving only creates a "Project Draft". To finalize registration:</p>
-//             <div className="flex items-center gap-4 bg-slate-800 dark:bg-zinc-900 p-4 rounded-xl text-sm">
-//               <div className="flex flex-col items-center">
-//                 <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-[10px] font-bold">1</div>
-//                 <div className="h-4 w-px bg-slate-700" />
-//                 <div className="w-6 h-6 bg-slate-700 rounded-full flex items-center justify-center text-[10px] font-bold">2</div>
-//               </div>
-//               <div className="space-y-3">
-//                 <p>Go to the <strong>Project View</strong> page.</p>
-//                 <p>Open your specific project and click <strong>Submit</strong>.</p>
-//               </div>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//     ),
-//   },
-// ];
+          <div className="bg-slate-900 dark:bg-zinc-950 text-white p-6 rounded-2xl border border-slate-800 dark:border-zinc-800">
+            <h4 className="text-lg font-bold mb-3">Final Step</h4>
+            <p className="text-slate-400 text-sm mb-4">Saving only creates a "Project Draft". To finalize registration:</p>
+            <div className="flex items-center gap-4 bg-slate-800 dark:bg-zinc-900 p-4 rounded-xl text-sm">
+              <div className="flex flex-col items-center">
+                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-[10px] font-bold">1</div>
+                <div className="h-4 w-px bg-slate-700" />
+                <div className="w-6 h-6 bg-slate-700 rounded-full flex items-center justify-center text-[10px] font-bold">2</div>
+              </div>
+              <div className="space-y-3">
+                <p>Go to the <strong>Project View</strong> page.</p>
+                <p>Open your specific project and click <strong>Submit</strong>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    ),
+  },
+];
 
-// const HelpModule = () => {
-//   const [isOpen, setIsOpen] = React.useState(false);
-//   const [currentStep, setCurrentStep] = React.useState(0);
-//   const [isCompleted, setIsCompleted] = React.useState(false);
-
-//   React.useEffect(() => {
-//     if (isOpen) {
-//       document.body.style.overflow = 'hidden';
-//     } else {
-//       document.body.style.overflow = 'unset';
-//     }
-//     return () => { document.body.style.overflow = 'unset'; };
-//   }, [isOpen]);
-
-//   const goToStep = (idx: number) => {
-//     setCurrentStep(idx);
-//     setIsCompleted(false);
-//   };
-
-//   const nextStep = () => {
-//     if (currentStep < MANUAL_STEPS.length - 1) {
-//       setCurrentStep(currentStep + 1);
-//     } else {
-//       setIsCompleted(true);
-//     }
-//   };
-
-//   const prevStep = () => {
-//     if (currentStep > 0) setCurrentStep(currentStep - 1);
-//   };
-
-//   const closeManual = () => {
-//     setIsOpen(false);
-//     setCurrentStep(0);
-//     setIsCompleted(false);
-//   };
-
-//   if (!isOpen) {
-//     return (
-//       <button
-//         onClick={() => setIsOpen(true)}
-//         className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-50 flex items-center gap-2 sm:gap-3 px-5 py-3 sm:px-8 sm:py-5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-full shadow-2xl shadow-indigo-500/40 hover:from-indigo-500 hover:to-violet-500 hover:scale-105 hover:shadow-indigo-500/60 transition-all duration-300 active:scale-95 ring-2 ring-white/20"
-//       >
-//         <HelpCircle className="size-5 sm:size-7" />
-//         <span className="font-sans text-sm sm:text-lg font-bold tracking-tight">User Guide</span>
-//       </button>
-//     );
-//   }
-
-//   return (
-//     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
-//       {/* Backdrop */}
-//       <div className="fixed inset-0 bg-zinc-950/50 dark:bg-black/70 backdrop-blur-sm" onClick={closeManual} />
-
-//       {/* Single Card Container */}
-//       <div className="relative w-full max-w-5xl max-h-[90vh] bg-white dark:bg-zinc-950 rounded-2xl shadow-[0_32px_64px_-12px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col border border-slate-200 dark:border-zinc-800 animate-in zoom-in-95 duration-200">
-
-//         {/* Card Header - Title + Close */}
-//         <div className="px-6 sm:px-8 py-5 border-b border-slate-200 dark:border-zinc-800 bg-gradient-to-r from-slate-800 to-slate-900 dark:from-zinc-900 dark:to-zinc-950 flex items-center justify-between shrink-0">
-//           <div className="flex items-center gap-4">
-//             <div className="size-10 bg-white/10 rounded-xl flex items-center justify-center ring-1 ring-white/20">
-//               <HelpCircle className="size-5 text-white" />
-//             </div>
-//             <div>
-//               <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-none">
-//                 New Project Registration Manual
-//               </h1>
-//               <p className="text-[11px] text-slate-300 dark:text-slate-400 mt-1 font-medium">
-//                 Step-by-step guide for Endorsement & Project Registration
-//               </p>
-//             </div>
-//           </div>
-//           <button
-//             onClick={closeManual}
-//             className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-//           >
-//             <X className="size-5" />
-//           </button>
-//         </div>
-
-//         {/* Body: Sidebar + Content */}
-//         <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
-//           {/* Sidebar Navigation */}
-//           <aside className="w-full md:w-64 lg:w-72 bg-slate-50 dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800 p-4 sm:p-5 overflow-y-auto shrink-0">
-//             <nav className="space-y-1.5">
-//               {MANUAL_STEPS.map((step) => {
-//                 const isActive = currentStep === step.id && !isCompleted;
-//                 const isDone = currentStep > step.id || isCompleted;
-//                 return (
-//                   <button
-//                     key={step.id}
-//                     onClick={() => goToStep(step.id)}
-//                     className={cn(
-//                       "w-full flex items-center gap-3 p-2.5 rounded-xl transition-all text-left",
-//                       isActive && "bg-white dark:bg-zinc-800 shadow-sm",
-//                       !isActive && "hover:bg-white/60 dark:hover:bg-zinc-800/50"
-//                     )}
-//                   >
-//                     <div className={cn(
-//                       "w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all shrink-0",
-//                       isDone && "bg-emerald-500 text-white",
-//                       isActive && "bg-blue-600 text-white shadow-[0_0_0_3px_rgba(37,99,235,0.2)]",
-//                       !isDone && !isActive && "bg-slate-200 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400"
-//                     )}>
-//                       {isDone ? <Check className="size-3" /> : step.id}
-//                     </div>
-//                     <span className={cn(
-//                       "text-[13px] font-semibold transition-colors",
-//                       isDone && "text-emerald-600 dark:text-emerald-400",
-//                       isActive && "text-blue-600 dark:text-blue-400",
-//                       !isDone && !isActive && "text-slate-500 dark:text-slate-400"
-//                     )}>
-//                       {step.title}
-//                     </span>
-//                   </button>
-//                 );
-//               })}
-//             </nav>
-
-//             <div className="mt-6 pt-4 border-t border-slate-200 dark:border-zinc-800">
-//               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mb-2">System Support</p>
-//               <div className="bg-white dark:bg-zinc-800 p-2.5 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm">
-//                 <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 mb-0.5">
-//                   <Phone className="size-3 text-blue-500" />
-//                   <span className="text-[11px] font-bold">Tech Team: 03613090</span>
-//                 </div>
-//                 <p className="text-[9px] text-slate-500 dark:text-slate-400">Contact for missing agencies, designations, or users.</p>
-//               </div>
-//             </div>
-//           </aside>
-
-//           {/* Content Area */}
-//           <section className="flex-1 p-6 sm:p-8 md:p-10 bg-white dark:bg-zinc-950 overflow-y-auto">
-//             {isCompleted ? (
-//               /* Completion Screen */
-//               <div className="flex flex-col items-center justify-center py-16 px-8 text-center animate-in fade-in slide-in-from-bottom-2 duration-300">
-//                 <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mb-6">
-//                   <Check className="size-8" />
-//                 </div>
-//                 <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">Guide Finished</h2>
-//                 <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-sm text-sm">
-//                   All steps for New Project Registration have been covered. Remember to finalize your submission on the Project View page.
-//                 </p>
-//                 <div className="flex gap-4">
-//                   <button
-//                     onClick={closeManual}
-//                     className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-8 py-3 rounded-xl font-bold hover:bg-slate-800 dark:hover:bg-slate-200 transition-all active:scale-95"
-//                   >
-//                     Done
-//                   </button>
-//                   <button
-//                     onClick={() => { setCurrentStep(0); setIsCompleted(false); }}
-//                     className="bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-300 px-8 py-3 rounded-xl font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all active:scale-95"
-//                   >
-//                     Restart
-//                   </button>
-//                 </div>
-//               </div>
-//             ) : (
-//               /* Step Content */
-//               <>
-//                 {MANUAL_STEPS[currentStep]?.content}
-
-//                 {/* Navigation Controls */}
-//                 <div className="mt-8 sm:mt-10 pt-6 border-t border-slate-100 dark:border-zinc-800 flex justify-between items-center">
-//                   <button
-//                     onClick={prevStep}
-//                     disabled={currentStep === 0}
-//                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-all disabled:opacity-0 disabled:pointer-events-none"
-//                   >
-//                     <ArrowLeft className="size-3.5" /> Back
-//                   </button>
-//                   <button
-//                     onClick={nextStep}
-//                     className={cn(
-//                       "flex items-center gap-2 px-6 py-2.5 rounded-xl text-white font-bold shadow-lg transition-all active:scale-95",
-//                       currentStep === MANUAL_STEPS.length - 1
-//                         ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100 dark:shadow-emerald-900/20"
-//                         : "bg-blue-600 hover:bg-blue-700 shadow-blue-100 dark:shadow-blue-900/20"
-//                     )}
-//                   >
-//                     {currentStep === MANUAL_STEPS.length - 1 ? (
-//                       <>Complete Guide <CheckCircle2 className="size-3.5 ml-1" /></>
-//                     ) : (
-//                       <>Next Step <ArrowRight className="size-3.5 ml-1" /></>
-//                     )}
-//                   </button>
-//                 </div>
-//               </>
-//             )}
-//           </section>
-//         </div>
-
-//         {/* Card Footer */}
-//         <div className="px-6 sm:px-8 py-3 border-t border-slate-100 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-900/50 flex items-center justify-center shrink-0">
-//           <div className="inline-flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-//             <Mail className="size-3" />
-//             <span>For assistance, reach out to</span>
-//             <a href="mailto:proman@iitg.ac.in" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 font-semibold transition-colors">
-//               proman@iitg.ac.in
-//             </a>
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
 
 /**
  * --- Main PI Home Page Component ---
@@ -1279,7 +1074,10 @@ export function PiHomePage() {
                   recentUpdates.map((update, i) => (
                     <div
                       key={i}
-                      className="flex items-start gap-4 group border-b border-[#F4F4F5] dark:border-zinc-800 last:border-0 pb-3 last:pb-0"
+                      className={cn(
+                        "flex items-start gap-4 group border-b border-[#F4F4F5] dark:border-zinc-800 last:border-0 pb-3 last:pb-0",
+                        update.title?.toLowerCase().includes("logged out") && "hidden"
+                      )}
                     >
                       <div
                         className={cn(
@@ -1347,13 +1145,6 @@ export function PiHomePage() {
           </footer>
         </div>
       </main>
-      <button
-        onClick={() => window.open("/User_manual/User_manual.pdf", "_blank")}
-        className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-50 flex items-center gap-2 px-4 py-3 bg-[#3F3F46] dark:bg-[#E4E4E7] text-white dark:text-[#18181B] rounded-full shadow-lg hover:bg-[#D97757] dark:hover:bg-[#D97757] dark:hover:text-white transition-all duration-200 active:scale-95"
-      >
-        <HelpCircle className="size-5" />
-        <span className="text-sm font-bold tracking-tight">User Guide</span>
-      </button>
     </div>
   );
 }

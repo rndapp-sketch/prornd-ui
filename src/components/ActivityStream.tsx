@@ -106,7 +106,7 @@ export const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamPro
                         {visibleActivity.map((item, index) => (
                             <div
                                 key={`${item.creation}-${index}`}
-                                className="flex items-start gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900"
+                                className={`flex items-start gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 ${item.content?.toLowerCase().includes("logged out") ? "hidden" : ""}`}
                             >
                                 <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#D97757]/10 text-base font-bold text-[#D97757]">
                                     {item.owner?.charAt(0).toUpperCase() || "U"}

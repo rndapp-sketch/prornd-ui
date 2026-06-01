@@ -5,6 +5,7 @@ import {
     useFrappeGetDoc,
     useFrappeGetCall,
     useFrappeGetDocList,
+    useFrappePostCall,
 } from "frappe-react-sdk";
 import { useUserRoles } from "../../components/UserRole";
 import {
@@ -63,6 +64,42 @@ function SectionDivider({ title }: { title: string }) {
     );
 }
 
+function FundingAgencyNameDisplay({
+    agencyId,
+    fallbackText,
+    fundingAgencyMap,
+}: {
+    agencyId: string;
+    fallbackText: string;
+    fundingAgencyMap: Record<string, string>;
+}) {
+    const { call, result } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_funding_agency_details"
+    );
+
+    React.useEffect(() => {
+        const isMappedToSelf = fundingAgencyMap[agencyId] === agencyId;
+        // If it's not in the map, or if the map just returned the raw ID (which happens with search_link)
+        if (agencyId && (!fundingAgencyMap[agencyId] || isMappedToSelf) && agencyId !== fallbackText) {
+            call({ agency_name: agencyId });
+        }
+    }, [agencyId, fundingAgencyMap, fallbackText, call]);
+
+    const mappedName = fundingAgencyMap[agencyId];
+    const fetchedName = result?.message?.all?.funding_agency_name;
+
+    const display = fetchedName || mappedName || fallbackText || "—";
+    
+    return (
+        <div
+            className="text-[11px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight line-clamp-2"
+            title={display}
+        >
+            {display}
+        </div>
+    );
+}
+
 function KpiCard({
     label,
     value,
@@ -75,6 +112,8 @@ function KpiCard({
     description,
     badges,
     onBadgeClick,
+    valueAdornment,
+    customBottom,
 }: {
     label: string;
     value: string;
@@ -95,6 +134,8 @@ function KpiCard({
         originalState?: string;
     }>;
     onBadgeClick?: (badgeLabel: string) => void;
+    valueAdornment?: React.ReactNode;
+    customBottom?: React.ReactNode;
 }) {
     return (
         <div
@@ -119,14 +160,19 @@ function KpiCard({
                     {description}
                 </div>
             )}
-            <div
-                className={`text-[32px] font-extrabold tracking-tight leading-none mb-2 drop-shadow-sm ${valueColor}`}
-            >
-                {value}
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
+                <div
+                    className={`text-[32px] font-extrabold tracking-tight leading-none drop-shadow-sm ${valueColor}`}
+                >
+                    {value}
+                </div>
+                {valueAdornment}
             </div>
 
             <div className="mt-auto pt-4 w-full">
-                {badges && badges.length > 0 ? (
+                {customBottom ? (
+                    customBottom
+                ) : badges && badges.length > 0 ? (
                     <div className="flex items-center gap-2 flex-wrap">
                         {badges.map((b) => (
                             <span
@@ -295,6 +341,179 @@ const BarTooltip = ({ active, payload }: any) => {
     );
 };
 
+// ── Hook: fetch approved Fund Received total for all of a PI's projects ──────
+function usePIFundReceivedTotal(projects: any[]) {
+    const [total, setTotal] = React.useState<number | null>(null);
+    const [loading, setLoading] = React.useState(false);
+    // Use proj.name (docname) as prjreg_title — same as FundDetails component
+    const projectNamesKey = projects.map((p: any) => p.name).filter(Boolean).join(",");
+
+    React.useEffect(() => {
+        const projectNames = projects.filter((p: any) => p.name).map((p: any) => p.name);
+        if (projectNames.length === 0) { setTotal(null); return; }
+        let cancelled = false;
+        setLoading(true);
+        Promise.all(
+            projectNames.map((docname: string) =>
+                fetch(
+                    `/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg?prjreg_title=${encodeURIComponent(docname)}&limit=200&start=0`,
+                    { headers: { "X-Frappe-CSRF-Token": (window as any).csrf_token || "" } }
+                )
+                .then(r => r.json())
+                .then(json => normalizeFundResp(json))
+                .then(records => records
+                    .filter((r: any) => {
+                        const s = (r.workflow_state || r.status || "").toLowerCase();
+                        return s === "approved" || s.includes("fund received");
+                    })
+                    .reduce((s: number, r: any) => s + (Number(r.fund_received_amt) || Number(r.amount_received) || Number(r.amount) || 0), 0)
+                )
+                .catch(() => 0)
+            )
+        ).then(amounts => {
+            if (!cancelled) {
+                setTotal(amounts.reduce((a, b) => a + b, 0));
+                setLoading(false);
+            }
+        });
+        return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [projectNamesKey]);
+
+    return { total, loading };
+}
+
+// ── Project Fund Status Badge ──────────────────────────────────────────────
+function getProjectTimelineStatusBadge(latestStatus: string | undefined | null) {
+    const s = (latestStatus || "").toLowerCase();
+    if (s.includes("fund received")) {
+        return {
+            label: "Fund Received",
+            className: "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400",
+        };
+    }
+    if (s.includes("sanction approved")) {
+        return {
+            label: "● Active",
+            className: "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400",
+        };
+    }
+    return {
+        label: "Pending Sanction",
+        className: "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400",
+    };
+}
+
+// Same normalization as FundDetails.tsx — handles all response shapes
+function normalizeFundResp(raw: any): any[] {
+    if (!raw) return [];
+    if (raw.message && raw.message.message && Array.isArray(raw.message.message)) return raw.message.message;
+    if (raw.message && Array.isArray(raw.message)) return raw.message;
+    if (Array.isArray(raw)) return raw;
+    if (raw.data && Array.isArray(raw.data)) return raw.data;
+    if (raw.results && Array.isArray(raw.results)) return raw.results;
+    if (raw.message && raw.message.data && Array.isArray(raw.message.data)) return raw.message.data;
+    return [];
+}
+
+const ProjectFundStatusBadge: React.FC<{ projectName: string | undefined }> = ({ projectName }) => {
+    // Fetch sanction data — sanction_workflow_status "Sanction Approved" means project is active
+    const { data: sanctionResp, isLoading: sanctionLoading } = useFrappeGetCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.get_sanctions_for_project",
+        { project_name: projectName || "" },
+        projectName ? undefined : null,
+        { revalidateOnFocus: false },
+    );
+
+    // Fetch fund received data — use proj.name (docname) as prjreg_title, same as FundDetails.tsx
+    const { data: fundResp, isLoading: fundLoading } = useFrappeGetCall<{ message: any }>(
+        "rndopsapp.rndopsapp.doctype.fund_received.fund_received.get_fund_received_by_prjreg",
+        { prjreg_title: projectName || "", limit: 200, start: 0 },
+        projectName ? undefined : null,
+        { revalidateOnFocus: false },
+    );
+
+    const isLoading = sanctionLoading || fundLoading;
+
+    // Normalize sanction records
+    const sanctionRecords: any[] = Array.isArray(sanctionResp?.message)
+        ? sanctionResp.message
+        : sanctionResp?.message?.data ?? [];
+
+    // Normalize fund received records — handles all API response shapes
+    const fundRecords: any[] = normalizeFundResp(fundResp);
+
+    // Determine badge — requires BOTH sanction approved + fund received/approved for Active
+    const hasSanctionApproved = sanctionRecords.some(r => (r.sanction_workflow_status || r.workflow_state || "").toLowerCase().includes("sanction approved"));
+    // Fund records are approved when workflow_state is "Approved" or contains "fund received"
+    const isFundApproved = (r: any) => {
+        const s = (r.workflow_state || r.status || "").toLowerCase();
+        return s === "approved" || s.includes("fund received");
+    };
+    const hasFundReceived = fundRecords.some(isFundApproved);
+
+    let label: string;
+    let className: string;
+    if (hasSanctionApproved && hasFundReceived) {
+        // Both approved — project is truly active
+        label = "● Active";
+        className = "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400";
+    } else if (hasSanctionApproved) {
+        // Sanction approved but fund receipt still pending
+        label = "Pending Fund Received";
+        className = "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400";
+    } else {
+        // No sanction yet
+        label = "Pending Sanction";
+        className = "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400";
+    }
+
+    if (isLoading) {
+        return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-400 animate-pulse">Loading…</span>;
+    }
+
+    return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${className}`}>{label}</span>;
+};
+
+// ── PI Stat Cards (extracted to satisfy Rules of Hooks) ──────────────────────
+const PIStatCards: React.FC<{ piDetails: any; projects: any[] }> = ({ piDetails, projects }) => {
+    const totalSanctioned = projects.reduce((sum: number, proj: any) =>
+        sum + (proj.total_budget_amount || proj.grand_total_proposal || 0), 0);
+
+    const { total: liveFundTotal, loading: fundTotalLoading } = usePIFundReceivedTotal(projects);
+
+    const fmt = (v: number) => v >= 10000000
+        ? `₹${(v / 10000000).toFixed(2)} Cr`
+        : v >= 100000
+            ? `₹${(v / 100000).toFixed(2)} L`
+            : `₹${v.toLocaleString("en-IN")}`;
+
+    const formattedLiveFund = liveFundTotal && liveFundTotal > 0 ? fmt(liveFundTotal) : null;
+
+    return (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
+                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#2563eb] leading-tight">{piDetails.project_count}</div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Projects</div>
+            </div>
+            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
+                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#7c3aed] leading-tight">{piDetails.departments?.length || 0}</div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Implementing Departments</div>
+            </div>
+            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
+                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#059669] leading-tight">{totalSanctioned > 0 ? fmt(totalSanctioned) : "—"}</div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Sanctioned</div>
+            </div>
+            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
+                <div className="text-[18px] sm:text-[20px] font-extrabold text-[#d97706] leading-tight">
+                    {fundTotalLoading ? <span className="text-[14px] text-[#A1A1AA] animate-pulse">…</span> : formattedLiveFund ?? "—"}
+                </div>
+                <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">Fund Rcvd</div>
+            </div>
+        </div>
+    );
+};
+
 export function DirectorDashboard() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -304,11 +523,15 @@ export function DirectorDashboard() {
     const [kpiModal, setKpiModal] = React.useState<{
         type: string;
         title: string;
+        year?: string;
+        fundingAgency?: string;
+        excludedFundingAgencies?: string[];
+        allowedDepts?: string[];
+        projectType?: string;
     } | null>(null);
     const [kpiPage, setKpiPage] = React.useState(1);
-    const [kpiTab, setKpiTab] = React.useState<"ongoing" | "submitted">(
-        "ongoing"
-    );
+    const [kpiTab, setKpiTab] = React.useState<string>("all");
+    const [kpiStatusFilter, setKpiStatusFilter] = React.useState<string>("all");
     const [kpiAllocTab, setKpiAllocTab] = React.useState<string>("ongoing");
     const [piModalPage, setPiModalPage] = React.useState<number>(location.state?.piModalPage || 1);
     const [deptModalPage, setDeptModalPage] = React.useState(1);
@@ -398,10 +621,54 @@ export function DirectorDashboard() {
                 "grand_total_proposal",
                 "prj_start_date",
                 "prj_end_date",
+                "funding_agen",
+                "funding_agen.funding_agency_name",
             ],
             limit: 2000,
         }
     );
+
+    // Fetch the master list of funding agencies using the project proposal fields API.
+    // This API returns `link_options` which maps the IDs to human-readable labels and typically bypasses strict doc-level read restrictions.
+    const { data: proposalFieldsData } = useFrappeGetCall<{ message: { link_options?: Record<string, { value: string, label: string }[]> } }>(
+        "rndopsapp.rndopsapp.doctype.project_proposal.project_proposal.get_project_proposal_fields"
+    );
+
+    // Also fetch using search_link since the proposal fields API might only return the first 50 results.
+    // This allows us to fetch up to 5000 agencies bypassing standard list restrictions if the user has search permission.
+    const { data: searchLinkData } = useFrappeGetCall<{ message: { value: string, description: string, label?: string }[] }>(
+        "frappe.desk.search.search_link",
+        {
+            txt: "",
+            doctype: "fundingagency_",
+            ignore_user_permissions: 1,
+            reference_doctype: "Project Registration",
+            page_length: 5000
+        },
+        "funding-agencies-search-link"
+    );
+
+    const fundingAgencyMap = React.useMemo(() => {
+        const map: Record<string, string> = {};
+        
+        // Merge from search_link API
+        if (searchLinkData?.message && Array.isArray(searchLinkData.message)) {
+            searchLinkData.message.forEach(opt => {
+                if (opt.value) {
+                    // search_link usually puts the title in description or label
+                    map[opt.value] = opt.description || opt.label || opt.value;
+                }
+            });
+        }
+
+        // Merge from proposal fields API (takes precedence if available as it often has exactly formatted labels)
+        const fundingOptions = proposalFieldsData?.message?.link_options?.["funding_agen"] || [];
+        fundingOptions.forEach(opt => {
+            if (opt.value) map[opt.value] = opt.label;
+        });
+
+        return map;
+    }, [proposalFieldsData, searchLinkData]);
 
     // ── Overview / finance values ─────────────────────────────────────────────
     const overview = data.project_overview || {};
@@ -442,7 +709,11 @@ export function DirectorDashboard() {
             }
         });
 
-        return Object.values(yearMap).sort((a, b) => a.year.localeCompare(b.year));
+        return Object.values(yearMap).map(d => ({
+            year: d.year,
+            ongoing: d.ongoing === 0 ? null : d.ongoing,
+            submitted: d.submitted === 0 ? null : d.submitted
+        })).sort((a, b) => a.year.localeCompare(b.year));
     }, [allProjectsList, overview]);
 
     const fundingTypeData = data.funding_sources || [];
@@ -463,28 +734,7 @@ export function DirectorDashboard() {
         submitted: overview.submitted_projects || 0,
     };
 
-    const totalProjectBadges = React.useMemo(
-        () => [
-            {
-                label: "Ongoing",
-                originalState: "ongoing",
-                count: projectStatusCounts.ongoing,
-                dotColor: "bg-emerald-500",
-                bgClass: "bg-emerald-50 dark:bg-emerald-950/30",
-                textClass: "text-emerald-700 dark:text-emerald-400",
-            },
-            {
-                label: "Submitted",
-                originalState: "submitted",
-                count: projectStatusCounts.submitted,
-                title: "Registration but pending sanction",
-                dotColor: "bg-amber-400",
-                bgClass: "bg-amber-50 dark:bg-amber-950/30",
-                textClass: "text-amber-700 dark:text-amber-400",
-            },
-        ],
-        [projectStatusCounts]
-    );
+
 
     const allocBadges = React.useMemo(
         () => [
@@ -511,36 +761,89 @@ export function DirectorDashboard() {
 
 
 
-
     // ── KPI modal rows — use backend-provided ID sets ────────────────────────
     const kpiModalRows = React.useMemo(() => {
         const projects: any[] = allProjectsList ?? [];
         if (!kpiModal) return [];
 
-        // Ongoing  = in ongoingIds  (has submitted Fund Sanction)
-        // Submitted = in submittedIds (no Fund Sanction yet)
-        if (kpiModal.type === "total") {
-            if (kpiTab === "submitted") return projects.filter((p) => submittedIds.has(p.name));
-            return projects.filter((p) => ongoingIds.has(p.name));
+        if (kpiModal.type === "total" || kpiModal.type === "ongoing" || kpiModal.type === "allocation") {
+            let filtered = projects;
+
+            // Apply year filter if present (checks prj_start_date year)
+            if (kpiModal.year) {
+                filtered = filtered.filter(p => {
+                    const y = p.prj_start_date ? String(new Date(p.prj_start_date).getFullYear()) : "2024";
+                    return y === kpiModal.year;
+                });
+            }
+
+            // Apply strict projectType filter if present
+            if (kpiModal.projectType) {
+                if (kpiModal.projectType === "research") {
+                    filtered = filtered.filter(p => p.project_type?.toLowerCase() === "research" || p.project_type?.toLowerCase() === "r&d project");
+                } else if (kpiModal.projectType === "consultancy") {
+                    filtered = filtered.filter(p => p.project_type?.toLowerCase() === "consultancy" || p.project_type?.toLowerCase() === "testing");
+                } else if (kpiModal.projectType === "others") {
+                    filtered = filtered.filter(p => {
+                        const pt = p.project_type?.toLowerCase() || "";
+                        return pt !== "research" && pt !== "r&d project" && pt !== "consultancy" && pt !== "testing";
+                    });
+                }
+            }
+
+            // Apply funding filter if present
+            if (kpiModal.fundingAgency) {
+                if (kpiModal.fundingAgency === "Unknown") {
+                    filtered = filtered.filter(p => !p.funding_agency && !p.funding_agency_name);
+                } else if (kpiModal.fundingAgency === "Others" && kpiModal.excludedFundingAgencies) {
+                    filtered = filtered.filter(p => {
+                        const agency = p.funding_agency || p.funding_agency_name;
+                        return agency && !kpiModal.excludedFundingAgencies!.includes(agency);
+                    });
+                } else {
+                    filtered = filtered.filter(p => p.funding_agency === kpiModal.fundingAgency || p.funding_agency_name === kpiModal.fundingAgency);
+                }
+            }
+
+            // Apply department filter if present
+            if (kpiModal.allowedDepts) {
+                filtered = filtered.filter(p => {
+                    const d = p.implementation_department || p.user_department || p.dept_name;
+                    return d && kpiModal.allowedDepts!.includes(d);
+                });
+            }
+            
+            // Restrict base query to only valid statuses for these KPI cards
+            if (kpiModal.type === "ongoing" || kpiStatusFilter === "ongoing") {
+                filtered = filtered.filter((p) => ongoingIds.has(p.name));
+            } else if (kpiStatusFilter === "submitted") {
+                filtered = filtered.filter((p) => submittedIds.has(p.name));
+            } else {
+                // "All Status" selected - still restrict to ongoing + submitted
+                filtered = filtered.filter((p) => ongoingIds.has(p.name) || submittedIds.has(p.name));
+            }
+
+            if (kpiTab === "research") filtered = filtered.filter((p) => (p.project_type || "").toLowerCase().includes("research"));
+            else if (kpiTab === "consultancy") filtered = filtered.filter((p) => (p.project_type || "").toLowerCase().includes("consult"));
+            else if (kpiTab === "others") filtered = filtered.filter((p) => { const t = (p.project_type || "").toLowerCase(); return !t.includes("research") && !t.includes("consult"); });
+            
+            if (kpiModal.type === "allocation") {
+                filtered = [...filtered].sort(
+                    (a, b) =>
+                        (b.total_budget_amount || b.grand_total_proposal || 0) -
+                        (a.total_budget_amount || a.grand_total_proposal || 0)
+                );
+            }
+
+            return filtered;
         }
-        if (kpiModal.type === "allocation") {
-            const base = kpiAllocTab === "submitted"
-                ? projects.filter((p) => submittedIds.has(p.name))
-                : projects.filter((p) => ongoingIds.has(p.name));
-            return [...base].sort(
-                (a, b) =>
-                    (b.total_budget_amount || b.grand_total_proposal || 0) -
-                    (a.total_budget_amount || a.grand_total_proposal || 0)
-            );
-        }
-        if (kpiModal.type === "ongoing") return projects.filter((p) => ongoingIds.has(p.name));
         if (kpiModal.type === "intl") {
             return projects.filter(
                 (p) => (p.origin_of_funding_agency || "").toLowerCase() === "international"
             );
         }
         return projects;
-    }, [allProjectsList, ongoingIds, submittedIds, kpiModal, kpiTab, kpiAllocTab]);
+    }, [allProjectsList, ongoingIds, submittedIds, kpiModal, kpiTab, kpiAllocTab, kpiStatusFilter]);
 
     const kpiTotalPages = Math.max(
         1,
@@ -555,20 +858,36 @@ export function DirectorDashboard() {
     const openKpiModal = (type: string, title: string) => {
         setKpiModal({ type, title });
         setKpiPage(1);
-        setKpiTab("ongoing");
+        setKpiTab("all");
+        if (type === "ongoing") setKpiStatusFilter("ongoing");
+        else setKpiStatusFilter("all");
         setKpiAllocTab("ongoing");
     };
 
-    // ── FIX: openKpiModalWithTab normalises raw state labels to tab keys ──
     const openKpiModalWithTab = (type: string, title: string, tab: string) => {
         setKpiModal({ type, title });
         setKpiPage(1);
         const t = tab.toLowerCase();
-        if (type === "total") {
-            setKpiTab(t.includes("submit") || t.includes("pending") ? "submitted" : "ongoing");
-        } else if (type === "allocation") {
-            setKpiAllocTab(t.includes("submit") || t.includes("pending") ? "submitted" : "ongoing");
-        }
+        
+        let normalizedTab = "all";
+        let statusFilter = "all";
+
+        if (t.includes("submit") || t.includes("pending")) statusFilter = "submitted";
+        else if (t.includes("ongoing")) statusFilter = "ongoing";
+        else if (t.includes("research")) normalizedTab = "research";
+        else if (t.includes("consult")) normalizedTab = "consultancy";
+        else if (t.includes("other")) normalizedTab = "others";
+
+        setKpiTab(normalizedTab);
+        setKpiStatusFilter(type === "ongoing" ? "ongoing" : statusFilter);
+    };
+
+    const openKpiModalWithYear = (year: string, status: string) => {
+        setKpiModal({ type: "total", title: `Projects in ${year}`, year });
+        setKpiPage(1);
+        setKpiTab("all");
+        setKpiStatusFilter(status);
+        setKpiAllocTab("ongoing");
     };
 
     const closeKpiModal = () => setKpiModal(null);
@@ -606,9 +925,11 @@ export function DirectorDashboard() {
             }
         });
 
-        return Object.values(yearMap).sort((a, b) =>
-            a.year.localeCompare(b.year)
-        );
+        return Object.values(yearMap).map(d => ({
+            year: d.year,
+            startAmount: d.startAmount === 0 ? null : d.startAmount,
+            endAmount: d.endAmount === 0 ? null : d.endAmount
+        })).sort((a, b) => a.year.localeCompare(b.year));
     }, [allProjectsList]);
 
     // ── Derived display values ────────────────────────────────────────────────
@@ -633,14 +954,17 @@ export function DirectorDashboard() {
     const {
         researchProjects,
         consultancyProjects,
+        othersProjects,
         researchOngoing,
         researchSubmitted,
         consultancyOngoing,
-        consultancySubmitted
+        consultancySubmitted,
+        othersOngoing,
+        othersSubmitted
     } = React.useMemo(() => {
         const submittedIds = new Set<string>(overview.submitted_project_nos || []);
         const ongoingIds = new Set<string>(overview.ongoing_project_nos || []);
-        let ro = 0, rs = 0, co = 0, cs = 0;
+        let ro = 0, rs = 0, co = 0, cs = 0, oo = 0, os = 0;
         (allProjectsList ?? []).forEach((p: any) => {
             const isOngoing = ongoingIds.has(p.name);
             const isSubmitted = submittedIds.has(p.name);
@@ -650,10 +974,12 @@ export function DirectorDashboard() {
             if (type.includes("research")) {
                 if (isOngoing) ro++;
                 if (isSubmitted) rs++;
-            }
-            else if (type.includes("consult")) {
+            } else if (type.includes("consult")) {
                 if (isOngoing) co++;
                 if (isSubmitted) cs++;
+            } else {
+                if (isOngoing) oo++;
+                if (isSubmitted) os++;
             }
         });
         return {
@@ -661,19 +987,55 @@ export function DirectorDashboard() {
             researchSubmitted: rs,
             consultancyOngoing: co,
             consultancySubmitted: cs,
+            othersOngoing: oo,
+            othersSubmitted: os,
             researchProjects: ro + rs,
-            consultancyProjects: co + cs
+            consultancyProjects: co + cs,
+            othersProjects: oo + os
         };
     }, [allProjectsList, overview]);
+
+    const totalProjectBadges = React.useMemo(() => {
+        const badges = [
+            {
+                label: "Research",
+                count: researchProjects,
+                dotColor: "bg-blue-500",
+                bgClass: "bg-blue-50 dark:bg-blue-950/30",
+                textClass: "text-blue-700 dark:text-blue-400",
+            },
+            {
+                label: "Consultancy",
+                count: consultancyProjects,
+                dotColor: "bg-purple-500",
+                bgClass: "bg-purple-50 dark:bg-purple-950/30",
+                textClass: "text-purple-700 dark:text-purple-400",
+            },
+        ];
+        if (othersProjects > 0) {
+            badges.push({
+                label: "Others",
+                count: othersProjects,
+                dotColor: "bg-emerald-500",
+                bgClass: "bg-emerald-50 dark:bg-emerald-950/30",
+                textClass: "text-emerald-700 dark:text-emerald-400",
+            });
+        }
+        return badges;
+    }, [researchProjects, consultancyProjects, othersProjects]);
 
 
     // Process Research vs Consultancy data
     const projectTypeData = React.useMemo(() => {
-        return [
+        const data = [
             { name: "Research", value: researchProjects, color: "#2563eb" },
             { name: "Consultancy", value: consultancyProjects, color: "#7c3aed" },
         ];
-    }, [researchProjects, consultancyProjects]);
+        if (othersProjects > 0) {
+            data.push({ name: "Others", value: othersProjects, color: "#059669" });
+        }
+        return data;
+    }, [researchProjects, consultancyProjects, othersProjects]);
 
     // Process strict department-wise data for Pie Chart (only unique approved/submitted projects)
     const pieChartDeptData = React.useMemo(() => {
@@ -698,44 +1060,33 @@ export function DirectorDashboard() {
         return Object.values(deptMap).sort((a, b) => b.project_count - a.project_count);
     }, [allProjectsList, overview]);
 
-    // Process strict funding data for Pie Chart (incorporating data.funding_sources and padding the difference)
+    // Process strict funding data for Pie Chart from allProjectsList to guarantee modal sync
     const pieChartFundingData = React.useMemo(() => {
-        const backendFundingData = data?.funding_sources || [];
+        if (!allProjectsList || !overview) return [];
 
-        // We want the total to exactly match our unique active pipeline counts.
-        const submittedIds = new Set<string>(overview?.submitted_project_nos || []);
-        const ongoingIds = new Set<string>(overview?.ongoing_project_nos || []);
+        const submittedIds = new Set<string>(overview.submitted_project_nos || []);
+        const ongoingIds = new Set<string>(overview.ongoing_project_nos || []);
 
-        // Let's count how many unique valid projects exist
-        let exactProjectCount = 0;
-        (allProjectsList || []).forEach((proj: any) => {
+        const agencyCounts: Record<string, number> = {};
+
+        (allProjectsList as any[]).forEach((proj) => {
             if (ongoingIds.has(proj.name) || submittedIds.has(proj.name)) {
-                exactProjectCount++;
+                // Same logic as kpiModalRows to ensure 1:1 match
+                const agency = proj.funding_agency || proj.funding_agency_name;
+                const key = agency ? agency.trim() : "Unknown";
+                agencyCounts[key] = (agencyCounts[key] || 0) + 1;
             }
         });
 
-        // Calculate how many projects are already in backendFundingData
-        let currentTotal = backendFundingData.reduce((sum: number, item: any) => sum + item.value, 0);
-
-        let chartData = backendFundingData.map((d: any) => ({ funding_agency: d.name, value: d.value }));
-
-        // If there's a difference, pad "Unknown"
-        if (exactProjectCount > currentTotal) {
-            const difference = exactProjectCount - currentTotal;
-            const unknownIndex = chartData.findIndex((d: any) => d.funding_agency === "Unknown" || d.funding_agency === "Others");
-            if (unknownIndex >= 0) {
-                chartData[unknownIndex].value += difference;
-            } else {
-                chartData.push({ funding_agency: "Unknown", value: difference });
-            }
-        }
-
-        const sortedData = chartData.sort((a: any, b: any) => b.value - a.value);
+        let chartData = Object.entries(agencyCounts).map(([agency, count]) => ({
+            funding_agency: agency,
+            value: count
+        })).sort((a, b) => b.value - a.value);
 
         // Group any excess beyond top 5 into "Others" to prevent UI overflow while maintaining exact totals
-        if (sortedData.length > 6) {
-            const top5 = sortedData.slice(0, 5);
-            const others = sortedData.slice(5);
+        if (chartData.length > 6) {
+            const top5 = chartData.slice(0, 5);
+            const others = chartData.slice(5);
             const othersCount = others.reduce((sum: number, d: any) => sum + d.value, 0);
 
             const existingOtherIndex = top5.findIndex((d: any) => d.funding_agency === "Others" || d.funding_agency === "Other Agencies");
@@ -748,8 +1099,8 @@ export function DirectorDashboard() {
             }
         }
 
-        return sortedData;
-    }, [data?.funding_sources, allProjectsList, overview]);
+        return chartData;
+    }, [allProjectsList, overview]);
 
     // Process department-wise data
     const departmentData = React.useMemo(() => {
@@ -1065,6 +1416,186 @@ export function DirectorDashboard() {
             });
     }, [expandedPI, allProjectsList]);
 
+    const projectBreakdownGrid = React.useMemo(() => (
+        <div className={`grid ${othersProjects > 0 ? "grid-cols-3" : "grid-cols-2"} gap-2 pt-2 border-t border-[#E4E4E7] dark:border-[#3F3F46]`}>
+            <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
+                <div className="text-[14px] font-extrabold text-[#2563eb] leading-tight">
+                    {researchProjects}
+                </div>
+                <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
+                    Research
+                </div>
+                <div className="flex flex-col gap-1 w-full px-1">
+                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+                        <div className="flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
+                            Ongoing
+                        </div>
+                        <span>{researchOngoing}</span>
+                    </span>
+                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+                        <div className="flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-amber-400"></span>
+                            Submitted
+                        </div>
+                        <span>{researchSubmitted}</span>
+                    </span>
+                </div>
+            </div>
+            <div className={`flex flex-col items-center justify-start ${othersProjects > 0 ? "border-r border-[#E4E4E7] dark:border-[#3F3F46]" : ""}`}>
+                <div className="text-[14px] font-extrabold text-[#7c3aed] leading-tight">
+                    {consultancyProjects}
+                </div>
+                <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
+                    Consultancy
+                </div>
+                <div className="flex flex-col gap-1 w-full px-1">
+                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+                        <div className="flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
+                            Ongoing
+                        </div>
+                        <span>{consultancyOngoing}</span>
+                    </span>
+                    <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+                        <div className="flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-amber-400"></span>
+                            Submitted
+                        </div>
+                        <span>{consultancySubmitted}</span>
+                    </span>
+                </div>
+            </div>
+            {othersProjects > 0 && (
+                <div className="flex flex-col items-center justify-start">
+                    <div className="text-[14px] font-extrabold text-[#059669] leading-tight">
+                        {othersProjects}
+                    </div>
+                    <div className="text-[9px] font-bold text-[#71717A] uppercase tracking-widest mb-1.5">
+                        Others
+                    </div>
+                    <div className="flex flex-col gap-1 w-full px-1">
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+                            <div className="flex items-center gap-1">
+                                <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
+                                Ongoing
+                            </div>
+                            <span>{othersOngoing}</span>
+                        </span>
+                        <span className="inline-flex items-center justify-between w-full text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400">
+                            <div className="flex items-center gap-1">
+                                <span className="w-1 h-1 rounded-full bg-amber-400"></span>
+                                Submitted
+                            </div>
+                            <span>{othersSubmitted}</span>
+                        </span>
+                    </div>
+                </div>
+            )}
+        </div>
+    ), [
+        researchProjects, researchOngoing, researchSubmitted,
+        consultancyProjects, consultancyOngoing, consultancySubmitted,
+        othersProjects, othersOngoing, othersSubmitted
+    ]);
+
+    const ongoingBreakdownBadges = React.useMemo(() => {
+        const badges = [
+            {
+                label: "Research",
+                count: researchOngoing,
+                dotColor: "bg-blue-500",
+                bgClass: "bg-blue-50 dark:bg-blue-950/30",
+                textClass: "text-blue-700 dark:text-blue-400",
+            },
+            {
+                label: "Consultancy",
+                count: consultancyOngoing,
+                dotColor: "bg-purple-500",
+                bgClass: "bg-purple-50 dark:bg-purple-950/30",
+                textClass: "text-purple-700 dark:text-purple-400",
+            },
+        ];
+        if (othersOngoing > 0) {
+            badges.push({
+                label: "Others",
+                count: othersOngoing,
+                dotColor: "bg-emerald-500",
+                bgClass: "bg-emerald-50 dark:bg-emerald-950/30",
+                textClass: "text-emerald-700 dark:text-emerald-400",
+            });
+        }
+        return badges;
+    }, [researchOngoing, consultancyOngoing, othersOngoing]);
+
+    // ── Dynamic Tab Counts for Modal ─────────────────────────────────────────
+    const getDynamicTabCount = React.useCallback((tabKey: string) => {
+        if (!kpiModal?.year && !kpiModal?.fundingAgency && !kpiModal?.allowedDepts) {
+            if (tabKey === "all") return kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing" ? ongoingProjects : kpiStatusFilter === "submitted" ? (overview.submitted_projects || 0) : totalProjects;
+            if (tabKey === "research") return kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing" ? researchOngoing : kpiStatusFilter === "submitted" ? researchSubmitted : researchProjects;
+            if (tabKey === "consultancy") return kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing" ? consultancyOngoing : kpiStatusFilter === "submitted" ? consultancySubmitted : consultancyProjects;
+            if (tabKey === "others") return kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing" ? othersOngoing : kpiStatusFilter === "submitted" ? othersSubmitted : othersProjects;
+            return 0;
+        }
+
+        const projectsList = allProjectsList ?? [];
+        let base = projectsList;
+        
+        if (kpiModal.year) {
+            base = base.filter(p => {
+                const y = p.prj_start_date ? String(new Date(p.prj_start_date).getFullYear()) : "2024";
+                return y === kpiModal.year;
+            });
+        }
+        if (kpiModal.projectType) {
+            if (kpiModal.projectType === "research") {
+                base = base.filter(p => p.project_type?.toLowerCase() === "research" || p.project_type?.toLowerCase() === "r&d project");
+            } else if (kpiModal.projectType === "consultancy") {
+                base = base.filter(p => p.project_type?.toLowerCase() === "consultancy" || p.project_type?.toLowerCase() === "testing");
+            } else if (kpiModal.projectType === "others") {
+                base = base.filter(p => {
+                    const pt = p.project_type?.toLowerCase() || "";
+                    return pt !== "research" && pt !== "r&d project" && pt !== "consultancy" && pt !== "testing";
+                });
+            }
+        }
+        if (kpiModal.fundingAgency) {
+            if (kpiModal.fundingAgency === "Unknown") {
+                base = base.filter(p => !p.funding_agency && !p.funding_agency_name);
+            } else if (kpiModal.fundingAgency === "Others" && kpiModal.excludedFundingAgencies) {
+                base = base.filter(p => {
+                    const agency = p.funding_agency || p.funding_agency_name;
+                    return agency && !kpiModal.excludedFundingAgencies!.includes(agency);
+                });
+            } else {
+                base = base.filter(p => p.funding_agency === kpiModal.fundingAgency || p.funding_agency_name === kpiModal.fundingAgency);
+            }
+        }
+        if (kpiModal.allowedDepts) {
+            base = base.filter(p => {
+                const d = p.implementation_department || p.user_department || p.dept_name;
+                return d && kpiModal.allowedDepts!.includes(d);
+            });
+        }
+
+        if (kpiModal?.type === "ongoing" || kpiStatusFilter === "ongoing") {
+            base = base.filter(p => ongoingIds.has(p.name));
+        } else if (kpiStatusFilter === "submitted") {
+            base = base.filter(p => submittedIds.has(p.name));
+        } else {
+            base = base.filter(p => ongoingIds.has(p.name) || submittedIds.has(p.name));
+        }
+
+        if (tabKey === "all") return base.length;
+        return base.filter(p => {
+            const t = (p.project_type || "").toLowerCase();
+            if (tabKey === "research") return t.includes("research");
+            if (tabKey === "consultancy") return t.includes("consult");
+            if (tabKey === "others") return !t.includes("research") && !t.includes("consult");
+            return false;
+        }).length;
+    }, [kpiModal, kpiStatusFilter, allProjectsList, ongoingIds, submittedIds, overview, totalProjects, ongoingProjects, researchOngoing, researchSubmitted, researchProjects, consultancyOngoing, consultancySubmitted, consultancyProjects, othersOngoing, othersSubmitted, othersProjects]);
+
     return (
         <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans text-[14px] leading-relaxed text-[#3F3F46] dark:text-[#E4E4E7]">
             <div className="px-6 md:px-8 pt-7 pb-10 max-w-[1600px] mx-auto">
@@ -1143,9 +1674,27 @@ export function DirectorDashboard() {
                                 iconBg="#eff6ff"
                                 circleColor="#2563eb"
                                 onClick={() => openKpiModal("total", "All Projects")}
-                                badges={isLoading ? undefined : totalProjectBadges}
-                                onBadgeClick={(badgeLabel) =>
-                                    openKpiModalWithTab("total", "All Projects", badgeLabel)
+                                customBottom={!isLoading && projectBreakdownGrid}
+                                valueAdornment={
+                                    !isLoading && (
+                                        <div className="flex items-center gap-2">
+                                            <span 
+                                                className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-pointer hover:brightness-95 transition-all"
+                                                onClick={(e) => { e.stopPropagation(); openKpiModalWithTab("total", "All Projects", "Ongoing"); }}
+                                            >
+                                                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                {projectStatusCounts.ongoing} Ongoing
+                                            </span>
+                                            <span 
+                                                className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-pointer hover:brightness-95 transition-all" 
+                                                title="Registration but pending sanction"
+                                                onClick={(e) => { e.stopPropagation(); openKpiModalWithTab("total", "All Projects", "Submitted"); }}
+                                            >
+                                                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                                                {projectStatusCounts.submitted} Submitted
+                                            </span>
+                                        </div>
+                                    )
                                 }
                             />
                             <KpiCard
@@ -1175,14 +1724,7 @@ export function DirectorDashboard() {
                                 onClick={() =>
                                     openKpiModal("allocation", "Projects by Allocation")
                                 }
-                                badges={isLoading ? undefined : allocBadges}
-                                onBadgeClick={(badgeLabel) =>
-                                    openKpiModalWithTab(
-                                        "allocation",
-                                        "Projects by Allocation",
-                                        badgeLabel
-                                    )
-                                }
+                                customBottom={!isLoading && projectBreakdownGrid}
                             />
                             <KpiCard
                                 label="Ongoing Projects"
@@ -1210,6 +1752,7 @@ export function DirectorDashboard() {
                                 iconBg="#f5f3ff"
                                 circleColor="#7c3aed"
                                 onClick={() => openKpiModal("ongoing", "Ongoing Projects")}
+                                badges={isLoading ? undefined : ongoingBreakdownBadges}
                             />
                             <KpiCard
                                 label="Intl. Collaborators"
@@ -1271,9 +1814,21 @@ export function DirectorDashboard() {
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <BarChart
                                                     data={projectStatusByYearData}
-                                                    margin={{ top: 4, right: 4, left: -24, bottom: 0 }}
+                                                    margin={{ top: 20, right: 4, left: -24, bottom: 0 }}
                                                     barCategoryGap="25%"
                                                     barGap={2}
+                                                    onClick={(state: any, e: any) => {
+                                                        if (state && state.activeLabel) {
+                                                            let status = "all";
+                                                            if (e && e.target && typeof e.target.getAttribute === "function") {
+                                                                const name = e.target.getAttribute("name");
+                                                                if (name === "Submitted") status = "submitted";
+                                                                else if (name === "Ongoing") status = "ongoing";
+                                                            }
+                                                            openKpiModalWithYear(state.activeLabel, status);
+                                                        }
+                                                    }}
+                                                    style={{ cursor: "pointer" }}
                                                 >
                                                     <CartesianGrid
                                                         strokeDasharray="3 3"
@@ -1313,34 +1868,36 @@ export function DirectorDashboard() {
                                                     <Bar
                                                         dataKey="submitted"
                                                         name="Submitted"
-                                                        stackId="a"
                                                         fill="#2563eb"
-                                                        maxBarSize={34}
+                                                        maxBarSize={24}
+                                                        radius={[4, 4, 0, 0]}
                                                         isAnimationActive={false}
+                                                        cursor="pointer"
                                                     >
                                                         <LabelList
                                                             dataKey="submitted"
-                                                            position="center"
-                                                            fill="#ffffff"
+                                                            position="top"
+                                                            fill="#71717A"
                                                             fontSize={11}
-                                                            fontWeight={700}
+                                                            fontWeight={600}
                                                             formatter={(val: any) => (val > 0 ? val : "")}
                                                         />
                                                     </Bar>
                                                     <Bar
                                                         dataKey="ongoing"
                                                         name="Ongoing"
-                                                        stackId="a"
                                                         fill="#7c3aed"
-                                                        maxBarSize={34}
+                                                        maxBarSize={24}
+                                                        radius={[4, 4, 0, 0]}
                                                         isAnimationActive={false}
+                                                        cursor="pointer"
                                                     >
                                                         <LabelList
                                                             dataKey="ongoing"
-                                                            position="center"
-                                                            fill="#ffffff"
+                                                            position="top"
+                                                            fill="#71717A"
                                                             fontSize={11}
-                                                            fontWeight={700}
+                                                            fontWeight={600}
                                                             formatter={(val: any) => (val > 0 ? val : "")}
                                                         />
                                                     </Bar>
@@ -1425,6 +1982,28 @@ export function DirectorDashboard() {
                                                             nameKey="funding_agency"
                                                             paddingAngle={3}
                                                             isAnimationActive={false}
+                                                            onClick={(data: any) => {
+                                                                if (data && data.payload && data.payload.funding_agency) {
+                                                                    const clickedAgency = data.payload.funding_agency;
+                                                                    
+                                                                    if (clickedAgency === "Others") {
+                                                                        const excludedAgencies = pieChartFundingData.slice(0, 5).map((d: any) => d.funding_agency);
+                                                                        setKpiModal({ 
+                                                                            type: "total", 
+                                                                            title: `Funding: Others`, 
+                                                                            fundingAgency: "Others",
+                                                                            excludedFundingAgencies: excludedAgencies 
+                                                                        });
+                                                                    } else {
+                                                                        setKpiModal({ type: "total", title: `Funding: ${clickedAgency}`, fundingAgency: clickedAgency });
+                                                                    }
+                                                                    
+                                                                    setKpiPage(1);
+                                                                    setKpiTab("all");
+                                                                    setKpiStatusFilter("all");
+                                                                }
+                                                            }}
+                                                            style={{ cursor: "pointer" }}
                                                         >
                                                             {pieChartFundingData.map((_: any, i: number) => (
                                                                 <Cell
@@ -1449,7 +2028,15 @@ export function DirectorDashboard() {
                                                         />
                                                     </PieChart>
                                                 </ResponsiveContainer>
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                                <div 
+                                                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform z-10 w-24 h-24 rounded-full"
+                                                    onClick={() => {
+                                                        setKpiModal({ type: "total", title: `Funding: All Sources` });
+                                                        setKpiPage(1);
+                                                        setKpiTab("all");
+                                                        setKpiStatusFilter("all");
+                                                    }}
+                                                >
                                                     <span className="text-[24px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
                                                         {pieChartFundingData.reduce((sum: number, d: any) => sum + d.value, 0)}
                                                     </span>
@@ -1497,7 +2084,7 @@ export function DirectorDashboard() {
 
                         {/* ── Project Analytics & Distribution ── */}
                         <SectionDivider title="Project Analytics & Distribution" />
-                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-[14px] mb-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[14px] mb-6">
                             {/* Research vs Consultancy Pie Chart */}
                             <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
                                 <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
@@ -1531,9 +2118,17 @@ export function DirectorDashboard() {
                                             </div>
                                         ) : (
                                             <>
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+                                                <div 
+                                                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform z-10 w-28 h-28 rounded-full"
+                                                    onClick={() => {
+                                                        setKpiModal({ type: "total", title: `Projects: All Types` });
+                                                        setKpiPage(1);
+                                                        setKpiTab("all");
+                                                        setKpiStatusFilter("all");
+                                                    }}
+                                                >
                                                     <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
-                                                        {researchProjects + consultancyProjects}
+                                                        {researchProjects + consultancyProjects + othersProjects}
                                                     </span>
                                                     <span className="text-[10px] font-bold text-[#71717A] uppercase tracking-widest mt-1">
                                                         Total
@@ -1551,6 +2146,20 @@ export function DirectorDashboard() {
                                                             nameKey="name"
                                                             paddingAngle={5}
                                                             isAnimationActive={false}
+                                                            onClick={(data: any) => {
+                                                                if (data && data.payload && data.payload.name) {
+                                                                    const pType = data.payload.name.toLowerCase() === "others" ? "others" : data.payload.name.toLowerCase();
+                                                                    setKpiModal({ 
+                                                                        type: "total", 
+                                                                        title: `Projects: ${data.payload.name}`,
+                                                                        projectType: pType
+                                                                    });
+                                                                    setKpiPage(1);
+                                                                    setKpiTab(pType);
+                                                                    setKpiStatusFilter("all");
+                                                                }
+                                                            }}
+                                                            style={{ cursor: "pointer" }}
                                                         >
                                                             {projectTypeData.map((entry: any, index: number) => (
                                                                 <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
@@ -1579,9 +2188,17 @@ export function DirectorDashboard() {
                                         )}
                                     </div>
                                     <div className="border-t border-[#E4E4E7] dark:border-[#3F3F46] pt-3 mt-3">
-                                        <div className="grid grid-cols-2 gap-3 pt-1">
-                                            <div className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46]">
-                                                <div className="text-[22px] font-extrabold text-[#2563eb] leading-tight">
+                                        <div className={`grid ${othersProjects > 0 ? "grid-cols-3" : "grid-cols-2"} gap-3 pt-1`}>
+                                            <div 
+                                                className="flex flex-col items-center justify-start border-r border-[#E4E4E7] dark:border-[#3F3F46] cursor-pointer group"
+                                                onClick={() => {
+                                                    setKpiModal({ type: "total", title: `Projects: Research`, projectType: "research" });
+                                                    setKpiPage(1);
+                                                    setKpiTab("research");
+                                                    setKpiStatusFilter("all");
+                                                }}
+                                            >
+                                                <div className="text-[22px] font-extrabold text-[#2563eb] leading-tight group-hover:scale-110 transition-transform">
                                                     {researchProjects}
                                                 </div>
                                                 <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">
@@ -1604,8 +2221,16 @@ export function DirectorDashboard() {
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col items-center justify-start">
-                                                <div className="text-[22px] font-extrabold text-[#7c3aed] leading-tight">
+                                            <div 
+                                                className="flex flex-col items-center justify-start cursor-pointer group"
+                                                onClick={() => {
+                                                    setKpiModal({ type: "total", title: `Projects: Consultancy`, projectType: "consultancy" });
+                                                    setKpiPage(1);
+                                                    setKpiTab("consultancy");
+                                                    setKpiStatusFilter("all");
+                                                }}
+                                            >
+                                                <div className="text-[22px] font-extrabold text-[#7c3aed] leading-tight group-hover:scale-110 transition-transform">
                                                     {consultancyProjects}
                                                 </div>
                                                 <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">
@@ -1628,6 +2253,43 @@ export function DirectorDashboard() {
                                                     </span>
                                                 </div>
                                             </div>
+                                            {othersProjects > 0 && (
+                                                <div 
+                                                    className="flex flex-col items-center justify-start border-l border-[#E4E4E7] dark:border-[#3F3F46] pl-2 lg:pl-3 cursor-pointer group"
+                                                    onClick={() => {
+                                                        setKpiModal({ type: "total", title: `Projects: Others`, projectType: "others" });
+                                                        setKpiPage(1);
+                                                        setKpiTab("others");
+                                                        setKpiStatusFilter("all");
+                                                    }}
+                                                >
+                                                    <div className="text-[22px] font-extrabold text-[#059669] leading-tight group-hover:scale-110 transition-transform">
+                                                        {othersProjects}
+                                                    </div>
+                                                    <div className="text-[11px] font-bold text-[#71717A] uppercase tracking-widest mb-2">
+                                                        Others
+                                                    </div>
+                                                    <div className="flex flex-col gap-1.5 w-full px-2 lg:px-4">
+                                                        <span className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 cursor-default">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                                Ongoing
+                                                            </div>
+                                                            <span>{othersOngoing}</span>
+                                                        </span>
+                                                        <span
+                                                            className="inline-flex items-center justify-between w-full text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-md shadow-sm border border-black/5 dark:border-white/5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 cursor-default"
+                                                            title="Registration but pending sanction"
+                                                        >
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                                                                Submitted
+                                                            </div>
+                                                            <span>{othersSubmitted}</span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -1676,12 +2338,26 @@ export function DirectorDashboard() {
                                                     }
                                                 }
 
+                                                // Inject formatted names for tooltip & modal rendering
+                                                pieData = pieData.map(d => ({
+                                                    ...d,
+                                                    formatted_name: d.dept_name === "Other Departments" ? "Other Departments" : getDeptName(d.dept_name)
+                                                }));
+
                                                 const totalDeptCount = pieChartDeptData.reduce((sum, d) => sum + d.project_count, 0);
 
                                                 return (
                                                     <div className="flex flex-col w-full h-full">
                                                         <div className="relative w-full shrink-0" style={{ height: "240px" }}>
-                                                            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none z-10 w-full">
+                                                            <div 
+                                                                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center cursor-pointer hover:scale-105 transition-transform z-10 w-28 h-28 rounded-full"
+                                                                onClick={() => {
+                                                                    setKpiModal({ type: "total", title: `Departments: All` });
+                                                                    setKpiPage(1);
+                                                                    setKpiTab("all");
+                                                                    setKpiStatusFilter("all");
+                                                                }}
+                                                            >
                                                                 <span className="text-3xl font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-none">
                                                                     {totalDeptCount}
                                                                 </span>
@@ -1698,9 +2374,20 @@ export function DirectorDashboard() {
                                                                         innerRadius="60%"
                                                                         outerRadius="80%"
                                                                         dataKey="project_count"
-                                                                        nameKey="dept_name"
+                                                                        nameKey="formatted_name"
                                                                         paddingAngle={3}
                                                                         isAnimationActive={false}
+                                                                        onClick={(data: any) => {
+                                                                            if (data && data.payload && data.payload.dept_name) {
+                                                                                const isOther = data.payload.dept_name === "Other Departments";
+                                                                                const allowedDepts = isOther ? pieChartDeptData.slice(10).map((d: any) => d.dept_name) : [data.payload.dept_name];
+                                                                                setKpiModal({ type: "total", title: `Department: ${data.payload.formatted_name}`, allowedDepts });
+                                                                                setKpiPage(1);
+                                                                                setKpiTab("all");
+                                                                                setKpiStatusFilter("all");
+                                                                            }
+                                                                        }}
+                                                                        style={{ cursor: "pointer" }}
                                                                     >
                                                                         {pieData.map((_: any, i: number) => (
                                                                             <Cell
@@ -1744,9 +2431,9 @@ export function DirectorDashboard() {
                                                                         />
                                                                         <span
                                                                             className="text-[#64748B] dark:text-[#A1A1AA] font-semibold truncate flex-1 group-hover:text-[#3F3F46] dark:group-hover:text-[#E4E4E7] transition-colors"
-                                                                            title={entry.dept_name}
+                                                                            title={entry.formatted_name}
                                                                         >
-                                                                            {getDeptName(entry.dept_name)}
+                                                                            {entry.formatted_name}
                                                                         </span>
                                                                         <span className="font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] shrink-0">
                                                                             {entry.project_count}
@@ -1763,8 +2450,10 @@ export function DirectorDashboard() {
                                 </div>
                             </div>
 
-                            {/* Sanction Amount — Start vs End Year */}
-                            <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
+                            {false && (
+                                <>
+                                {/* Sanction Amount — Start vs End Year */}
+                                <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-2xl overflow-hidden">
                                 <div className="p-[18px] px-[22px] pb-[14px] border-b border-[#E4E4E7] dark:border-[#3F3F46]">
                                     <div className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] flex items-center gap-2">
                                         <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 bg-emerald-50 dark:bg-emerald-950/20 text-[#059669]">
@@ -1818,9 +2507,15 @@ export function DirectorDashboard() {
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <BarChart
                                                     data={startEndSanctionData}
-                                                    margin={{ top: 4, right: 4, left: -10, bottom: 0 }}
+                                                    margin={{ top: 20, right: 4, left: -10, bottom: 0 }}
                                                     barCategoryGap="30%"
                                                     barGap={3}
+                                                    onClick={(state: any) => {
+                                                        if (state && state.activeLabel) {
+                                                            openKpiModalWithYear(state.activeLabel, "all");
+                                                        }
+                                                    }}
+                                                    style={{ cursor: "pointer" }}
                                                 >
                                                     <CartesianGrid
                                                         strokeDasharray="3 3"
@@ -1856,6 +2551,8 @@ export function DirectorDashboard() {
                                                         fill="#2563eb"
                                                         radius={[6, 6, 0, 0]}
                                                         maxBarSize={36}
+                                                        cursor="pointer"
+                                                        onClick={(data: any) => openKpiModalWithYear(data.year, "all")}
                                                     />
                                                     <Bar
                                                         dataKey="endAmount"
@@ -1863,6 +2560,8 @@ export function DirectorDashboard() {
                                                         fill="#d97706"
                                                         radius={[6, 6, 0, 0]}
                                                         maxBarSize={36}
+                                                        cursor="pointer"
+                                                        onClick={(data: any) => openKpiModalWithYear(data.year, "all")}
                                                     />
                                                 </BarChart>
                                             </ResponsiveContainer>
@@ -1900,6 +2599,8 @@ export function DirectorDashboard() {
                                     </div>
                                 </div>
                             </div>
+                            </>
+                            )}
                         </div>
 
                         {/* ── Financial Intelligence ── */}
@@ -2445,7 +3146,7 @@ export function DirectorDashboard() {
                             <h2 className="text-[16px] font-extrabold tracking-tight text-[#3F3F46] dark:text-[#E4E4E7]">
                                 Department Allocations
                             </h2>
-                            <div className="relative hidden">
+                            <div className="relative">
                                 <Search
                                     className="absolute left-3 top-1/2 -translate-y-1/2 text-[#71717A] dark:text-[#A1A1AA]"
                                     size={16}
@@ -2578,7 +3279,7 @@ export function DirectorDashboard() {
                                     )}
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <div className="relative hidden">
+                                    <div className="relative">
                                         <Search
                                             className="absolute left-3 top-1/2 -translate-y-1/2 text-[#71717A] dark:text-[#A1A1AA]"
                                             size={16}
@@ -2715,7 +3416,7 @@ export function DirectorDashboard() {
                                                 <tr
                                                     key={pi.user_email || index}
                                                     className="hover:bg-[#FAFAF9] dark:hover:bg-[#18181B] transition-colors group cursor-pointer"
-                                                    onClick={() => setExpandedPI(pi.user_email)}
+                                                    onClick={() => { setExpandedPI(pi.user_email); setPiModalPage(1); }}
                                                 >
                                                     <td className="px-6 py-4">
                                                         <div className="flex items-center gap-3.5">
@@ -2747,6 +3448,7 @@ export function DirectorDashboard() {
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 setExpandedPI(pi.user_email);
+                                                                setPiModalPage(1);
                                                             }}
                                                             className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-[#A1A1AA] hover:text-[#4f46e5] hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all border border-transparent shadow-sm"
                                                         >
@@ -3044,65 +3746,7 @@ export function DirectorDashboard() {
                         </div>
 
                         <div className="p-5 bg-slate-50/50 dark:bg-slate-900/20 overflow-y-auto flex-1 min-h-0">
-                            {(() => {
-                                const totalSanctioned = selectedPIProjects.reduce((sum: number, proj: any) => {
-                                    return sum + (proj.total_budget_amount || proj.grand_total_proposal || 0);
-                                }, 0);
-
-                                const totalFundReceived = selectedPIProjects.reduce((sum: number, proj: any) => {
-                                    // Handle whatever field the backend happens to have
-                                    return sum + (Number(proj.total_fund_received) || Number(proj.fund_received) || Number(proj.project_fund_received) || Number(proj.amount_received) || 0);
-                                }, 0);
-
-                                const formattedTotalSanctioned = totalSanctioned >= 10000000
-                                    ? `₹${(totalSanctioned / 10000000).toFixed(2)} Cr`
-                                    : totalSanctioned >= 100000
-                                        ? `₹${(totalSanctioned / 100000).toFixed(2)} L`
-                                        : `₹${totalSanctioned.toLocaleString("en-IN")}`;
-
-                                const formattedTotalFundReceived = totalFundReceived >= 10000000
-                                    ? `₹${(totalFundReceived / 10000000).toFixed(2)} Cr`
-                                    : totalFundReceived >= 100000
-                                        ? `₹${(totalFundReceived / 100000).toFixed(2)} L`
-                                        : `₹${totalFundReceived.toLocaleString("en-IN")}`;
-
-                                return (
-                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-                                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
-                                            <div className="text-[18px] sm:text-[20px] font-extrabold text-[#2563eb] leading-tight">
-                                                {selectedPIDetails.project_count}
-                                            </div>
-                                            <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-                                                Projects
-                                            </div>
-                                        </div>
-                                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
-                                            <div className="text-[18px] sm:text-[20px] font-extrabold text-[#7c3aed] leading-tight">
-                                                {selectedPIDetails.departments?.length || 0}
-                                            </div>
-                                            <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-                                                Depts
-                                            </div>
-                                        </div>
-                                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
-                                            <div className="text-[18px] sm:text-[20px] font-extrabold text-[#059669] leading-tight">
-                                                {totalSanctioned > 0 ? formattedTotalSanctioned : "—"}
-                                            </div>
-                                            <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-                                                Sanctioned
-                                            </div>
-                                        </div>
-                                        <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-3 rounded-xl shadow-sm text-center flex flex-col justify-center">
-                                            <div className="text-[18px] sm:text-[20px] font-extrabold text-[#d97706] leading-tight">
-                                                {totalFundReceived > 0 ? formattedTotalFundReceived : "—"}
-                                            </div>
-                                            <div className="text-[9px] sm:text-[10px] font-bold text-[#71717A] dark:text-[#A1A1AA] uppercase tracking-widest mt-1">
-                                                Fund Rcvd
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })()}
+                            <PIStatCards piDetails={selectedPIDetails} projects={selectedPIProjects} />
 
                             <div>
                                 <h3 className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] mb-3 uppercase tracking-widest flex items-center gap-2">
@@ -3231,7 +3875,7 @@ export function DirectorDashboard() {
                                                                         {proj.project_title || proj.name}
                                                                     </div>
                                                                     {proj.project_no && (
-                                                                        <div className="text-[10px] font-mono text-[#A1A1AA] mt-0.5">
+                                                                        <div className="text-[10px] font-mono font-semibold text-[#71717A] dark:text-[#A1A1AA] mt-0.5">
                                                                             {proj.project_no}
                                                                         </div>
                                                                     )}
@@ -3251,22 +3895,9 @@ export function DirectorDashboard() {
                                                                     })()}
                                                                 </div>
                                                                 <div className="flex flex-col items-end gap-2 shrink-0">
-                                                                    <span
-                                                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isCompleted
-                                                                            ? "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
-                                                                            : isActive
-                                                                                ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
-                                                                                : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400"
-                                                                            }`}
-                                                                    >
-                                                                        {isCompleted
-                                                                            ? "Completed"
-                                                                            : isActive
-                                                                                ? "● Active"
-                                                                                : "Upcoming"}
-                                                                    </span>
+                                                                    <ProjectFundStatusBadge projectName={proj.name} />
                                                                     <button
-                                                                        onClick={() => navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, expandedPI, piModalPage } })}
+                                                                        onClick={() => navigate(`/project-details-overview/${proj.name}`, { state: { returnTo: location.pathname + location.search, expandedPI, piModalPage, hideOtherTabs: true } })}
                                                                         className="text-[10px] font-semibold text-[#D97757] hover:text-[#c26245] flex items-center gap-1 group transition-colors"
                                                                     >
                                                                         View Project
@@ -3274,35 +3905,41 @@ export function DirectorDashboard() {
                                                                     </button>
                                                                 </div>
                                                             </div>
-                                                            <div className="grid grid-cols-3 gap-2 mb-3">
-                                                                <div className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2.5 text-center">
+                                                            <div className="grid grid-cols-2 gap-2 mb-3">
+                                                                <div className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2.5 text-center flex flex-col justify-center">
                                                                     <div className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest mb-1">
-                                                                        Start
+                                                                        Sanction Amount
                                                                     </div>
-                                                                    <div className="text-[11px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
-                                                                        {formatDate(startDate)}
+                                                                    <div className="text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+                                                                        {(() => {
+                                                                            const fund = proj.total_budget_amount || proj.grand_total_proposal || 0;
+                                                                            if (!fund) return "—";
+                                                                            return fund >= 10000000
+                                                                                ? `₹${(fund / 10000000).toFixed(2)} Cr`
+                                                                                : fund >= 100000
+                                                                                    ? `₹${(fund / 100000).toFixed(2)} L`
+                                                                                    : `₹${fund.toLocaleString("en-IN")}`;
+                                                                        })()}
                                                                     </div>
                                                                 </div>
-                                                                <div className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2.5 text-center">
+                                                                <div className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2.5 text-center flex flex-col justify-center">
                                                                     <div className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest mb-1">
-                                                                        End
+                                                                        Funding Agency
                                                                     </div>
-                                                                    <div className="text-[11px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
-                                                                        {formatDate(endDate)}
-                                                                    </div>
-                                                                </div>
-                                                                <div className="bg-slate-50 dark:bg-slate-900/30 rounded-lg p-2.5 text-center">
-                                                                    <div className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-widest mb-1">
-                                                                        Duration
-                                                                    </div>
-                                                                    <div className="text-[13px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
-                                                                        {totalMonths !== null
-                                                                            ? `${totalMonths}mo`
-                                                                            : "—"}
-                                                                    </div>
-                                                                    <div className="text-[9px] font-semibold text-[#A1A1AA] mt-0.5">
-                                                                        {yearRange}
-                                                                    </div>
+                                                                    {proj.select_funding_agency === "Other" ? (
+                                                                        <div
+                                                                            className="text-[11px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] leading-tight line-clamp-2"
+                                                                            title={proj.funding_agency_other}
+                                                                        >
+                                                                            {proj.funding_agency_other}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <FundingAgencyNameDisplay
+                                                                            agencyId={proj.funding_agen}
+                                                                            fallbackText={proj.select_funding_agency || proj["funding_agen.funding_agency_name"]}
+                                                                            fundingAgencyMap={fundingAgencyMap}
+                                                                        />
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                             {startDate &&
@@ -3445,11 +4082,40 @@ export function DirectorDashboard() {
                                     {kpiModal.title}
                                 </h2>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <span className="text-[11px] font-semibold text-[#71717A] bg-[#F4F4F5] dark:bg-[#3F3F46] px-2.5 py-1 rounded-full">
-                                    {kpiModalRows.length} record
-                                    {kpiModalRows.length !== 1 ? "s" : ""}
-                                </span>
+                            <div className="flex items-center gap-2 sm:gap-3">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (!kpiModalRows || kpiModalRows.length === 0) return;
+                                        const csvContent = [
+                                            ["ID", "Project Title", "PI Name", "Department", "Project Type", "Status", "Funding Agency", "Total Budget"],
+                                            ...kpiModalRows.map(p => [
+                                                p.name || "",
+                                                `"${(p.project_title || "").replace(/"/g, '""')}"`,
+                                                `"${(p.pi_name || "").replace(/"/g, '""')}"`,
+                                                `"${(p.dept_name || p.implementation_department || p.user_department || "").replace(/"/g, '""')}"`,
+                                                p.project_type || "",
+                                                p.workflow_state || "",
+                                                `"${(p.funding_agency_name || p.funding_agency || "").replace(/"/g, '""')}"`,
+                                                p.total_budget_amount || p.grand_total_proposal || "0"
+                                            ])
+                                        ].map(e => e.join(",")).join("\n");
+
+                                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                                        const url = URL.createObjectURL(blob);
+                                        const link = document.createElement("a");
+                                        link.setAttribute("href", url);
+                                        link.setAttribute("download", `${kpiModal?.title ? kpiModal.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'projects'}.csv`);
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 rounded-lg text-[11px] font-bold transition-colors"
+                                    title="Export to Excel / CSV"
+                                >
+                                    <FileDown size={14} />
+                                    <span className="hidden sm:inline">Export</span>
+                                </button>
                                 <button
                                     onClick={closeKpiModal}
                                     className="w-8 h-8 rounded-lg flex items-center justify-center text-[#71717A] hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46] transition-colors"
@@ -3459,74 +4125,63 @@ export function DirectorDashboard() {
                             </div>
                         </div>
 
-                        {kpiModal.type === "total" && (
-                            <div className="flex items-center gap-1 px-6 pt-3 pb-0 shrink-0 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
-                                {(
-                                    [
-                                        {
-                                            key: "ongoing",
-                                            label: "Ongoing",
-                                            count: projectStatusCounts.ongoing,
-                                            activeClass:
-                                                "border-emerald-500 text-emerald-700 dark:text-emerald-400",
-                                        },
-                                        {
-                                            key: "submitted",
-                                            label: "Submitted",
-                                            count: projectStatusCounts.submitted,
-                                            activeClass:
-                                                "border-amber-500 text-amber-700 dark:text-amber-400",
-                                        },
-                                    ] as const
-                                ).map((tab) => (
-                                    <button
-                                        key={tab.key}
-                                        onClick={() => {
-                                            setKpiTab(tab.key);
-                                            setKpiPage(1);
-                                        }}
-                                        className={`flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[11px] font-bold border-b-2 transition-colors ${kpiTab === tab.key
-                                            ? tab.activeClass + " border-current"
-                                            : "border-transparent text-[#71717A] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7]"
-                                            }`}
-                                    >
-                                        {tab.label}
-                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#F4F4F5] dark:bg-[#3F3F46] text-[#71717A]">
-                                            {tab.count}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {kpiModal.type === "allocation" && (
-                            <div className="flex items-center gap-1 px-6 pt-3 pb-0 shrink-0 border-b border-[#E4E4E7] dark:border-[#3F3F46] overflow-x-auto">
-                                {(
-                                    [
-                                        {
-                                            key: "ongoing",
-                                            label: "Ongoing",
-                                            count: overview.ongoing_projects || 0,
-                                            activeColor: "text-emerald-600 border-emerald-500",
-                                        },
-                                        {
-                                            key: "submitted",
-                                            label: "Submitted",
-                                            count: overview.submitted_projects || 0,
-                                            activeColor: "text-amber-600 border-amber-400",
-                                        },
-                                    ] as const
-                                ).map((tab) => {
-                                    const isActive = kpiAllocTab === tab.key;
-                                    return (
+                        {kpiModal.type === "total" || kpiModal.type === "ongoing" || kpiModal.type === "allocation" ? (
+                            <div className="flex flex-col gap-3 px-6 pt-4 pb-0 shrink-0 border-b border-[#E4E4E7] dark:border-[#3F3F46]">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <select
+                                            value={kpiModal.type === "ongoing" ? "ongoing" : kpiStatusFilter}
+                                            disabled={kpiModal.type === "ongoing"}
+                                            onChange={(e) => {
+                                                setKpiStatusFilter(e.target.value);
+                                                setKpiPage(1);
+                                            }}
+                                            className="bg-white dark:bg-[#18181B] border border-[#E4E4E7] dark:border-[#3F3F46] text-[11px] font-bold px-3 py-1.5 rounded-lg text-[#3F3F46] dark:text-[#E4E4E7] outline-none shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <option value="all">All Status</option>
+                                            <option value="ongoing">Ongoing (Sanctioned)</option>
+                                            <option value="submitted">Submitted (Pending)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                {!kpiModal.projectType && (
+                                    <div className="flex items-center gap-1 overflow-x-auto">
+                                        {(
+                                        [
+                                            {
+                                                key: "all",
+                                                label: "All Types",
+                                                count: getDynamicTabCount("all"),
+                                                activeClass: "border-slate-500 text-slate-700 dark:text-slate-400",
+                                            },
+                                            {
+                                                key: "research",
+                                                label: "Research",
+                                                count: getDynamicTabCount("research"),
+                                                activeClass: "border-blue-500 text-blue-700 dark:text-blue-400",
+                                            },
+                                            {
+                                                key: "consultancy",
+                                                label: "Consultancy",
+                                                count: getDynamicTabCount("consultancy"),
+                                                activeClass: "border-purple-500 text-purple-700 dark:text-purple-400",
+                                            },
+                                            ...(othersProjects > 0 ? [{
+                                                key: "others",
+                                                label: "Others",
+                                                count: getDynamicTabCount("others"),
+                                                activeClass: "border-emerald-500 text-emerald-700 dark:text-emerald-400",
+                                            }] : [])
+                                        ] as const
+                                    ).map((tab) => (
                                         <button
                                             key={tab.key}
                                             onClick={() => {
-                                                setKpiAllocTab(tab.key);
+                                                setKpiTab(tab.key);
                                                 setKpiPage(1);
                                             }}
-                                            className={`flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[11px] font-bold border-b-2 whitespace-nowrap transition-colors ${isActive
-                                                ? tab.activeColor
+                                            className={`flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[11px] font-bold border-b-2 transition-colors whitespace-nowrap ${kpiTab === tab.key
+                                                ? tab.activeClass + " border-current"
                                                 : "border-transparent text-[#71717A] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7]"
                                                 }`}
                                         >
@@ -3535,10 +4190,11 @@ export function DirectorDashboard() {
                                                 {tab.count}
                                             </span>
                                         </button>
-                                    );
-                                })}
+                                    ))}
+                                </div>
+                                )}
                             </div>
-                        )}
+                        ) : null}
 
                         <div className="overflow-auto flex-1">
                             <table className="w-full text-left border-collapse">

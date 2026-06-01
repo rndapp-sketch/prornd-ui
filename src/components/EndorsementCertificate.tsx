@@ -212,7 +212,10 @@ export const getEndorsementHtml = (props: EndorsementCertificateProps & { bodyHt
                 <img src="${DORND_SIGNATURE_SEAL_URL}" alt="Signature with seal"/>
                 <div class="label">Signature of the Dean (R&D)</div>
             </div>`
-        : "";
+        : `<div class="signature">
+                <div style="height: 112px; margin-bottom: 8px;"></div>
+                <div class="label">Signature of the Dean (R&D)</div>
+            </div>`;
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -497,16 +500,18 @@ export const EndorsementCertificate: React.FC<EndorsementCertificateProps> = (pr
                         />
 
                         {/* Signatures */}
-                        {props.showSignatureSeal && (
                         <div className="mt-20 flex flex-col items-end avoid-break">
-                            <img
-                                src={DORND_SIGNATURE_SEAL_URL}
-                                alt="Signature with seal"
-                                className="h-28 w-auto object-contain mb-2"
-                            />
+                            {props.showSignatureSeal ? (
+                                <img
+                                    src={DORND_SIGNATURE_SEAL_URL}
+                                    alt="Signature with seal"
+                                    className="h-28 w-auto object-contain mb-2"
+                                />
+                            ) : (
+                                <div className="h-28 w-auto mb-2"></div>
+                            )}
                             <div className="font-bold">Signature of the Dean (R&D)</div>
                         </div>
-                        )}
                     </div>
                 </div>
             </main>
