@@ -282,7 +282,13 @@ export const ChildTableComponent = memo(({
                         <AutocompleteEmail
                             options={userOpts}
                             value={value || ''}
-                            onChange={(v) => onRowChange(tableName, rowIndex, col.fieldname, v)}
+                            onChange={(v) => {
+                                if (onLinkChange) {
+                                    onLinkChange(tableName, rowIndex, col.fieldname, v);
+                                } else {
+                                    onRowChange(tableName, rowIndex, col.fieldname, v);
+                                }
+                            }}
                             className={inputClasses}
                             placeholder={`Enter ${col.label || 'Email'}`}
                             showAllOnFocus={true}
@@ -418,19 +424,35 @@ export const ChildTableComponent = memo(({
                                     </div>
 
                                     <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-5">
-                                        {visibleColumns.map(col => (
-                                            <div key={col.fieldname} className="space-y-1.5 flex flex-col">
-                                                <label className="inline-flex w-fit max-w-full items-start rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]">
-                                                    <span className="whitespace-normal break-words leading-snug">
-                                                        {col.label === 'Total Experience' ? 'Total Experience (Months)' : col.label}
-                                                    </span>
-                                                    {!!col.mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}
-                                                </label>
-                                                <div className="flex-1">
-                                                    {renderCellInput(col, row, rowIndex)}
+                                        {visibleColumns.map(col => {
+                                            if (col.fieldtype === 'Section Break') {
+                                                return (
+                                                    <div key={col.fieldname} className="col-span-full flex items-center gap-2 pt-2">
+                                                        <div className="h-px flex-1 bg-[#E4E4E7] dark:bg-[#3F3F46]" />
+                                                        {col.label && (
+                                                            <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-[#93C5FD] whitespace-nowrap">
+                                                                {col.label}
+                                                            </span>
+                                                        )}
+                                                        <div className="h-px flex-1 bg-[#E4E4E7] dark:bg-[#3F3F46]" />
+                                                    </div>
+                                                );
+                                            }
+                                            if (col.fieldtype === 'Column Break') return null;
+                                            return (
+                                                <div key={col.fieldname} className="space-y-1.5 flex flex-col">
+                                                    <label className="inline-flex w-fit max-w-full items-start rounded-md bg-white px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2563EB] ring-1 ring-[#E4E4E7] dark:bg-[#27272A] dark:text-blue-300 dark:ring-[#3F3F46]">
+                                                        <span className="whitespace-normal break-words leading-snug">
+                                                            {col.label === 'Total Experience' ? 'Total Experience (Months)' : col.label}
+                                                        </span>
+                                                        {!!col.mandatory && <span className="text-red-500 ml-1 normal-case font-bold">*</span>}
+                                                    </label>
+                                                    <div className="flex-1">
+                                                        {renderCellInput(col, row, rowIndex)}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ) : (

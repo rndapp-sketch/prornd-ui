@@ -59,6 +59,8 @@ import AdvanceSettlementForm from './pages/application/AdvanceSettlementForm.tsx
 import AdvanceSettlementDetails from './pages/application/AdvanceSettlementDetails.tsx';
 import DisbursalOfHonorarium from './pages/application/DisbursalOfHonorarium.tsx';
 import DisbursalOfHonorariumForm from './pages/application/DisbursalOfHonorariumForm.tsx';
+import TopUpFellowshipForm from './pages/application/TopUpFellowshipForm.tsx';
+import TopUpFellowshipDetails from './pages/application/TopUpFellowshipDetails.tsx';
 import DisbursalOfHonorariumDetails from './pages/application/DisbursalOfHonorariumDetails.tsx';
 import DisbursalOfConsultancy from './pages/application/DisbursalOfConsultancy.tsx';
 import DisbursalOfConsultancyForm from './pages/application/DisbursalOfConsultancyForm.tsx';
@@ -87,6 +89,7 @@ import Profile from './pages/Profile.tsx';
 import { HeadOverview } from './pages/dashboards/HeadOverview.tsx';
 import MessagesPage from './pages/messages/MessagesPage.tsx';
 import DirectorPdfUpload from './pages/application/DirectorPdfUpload.tsx';
+import TopUpFellowshipFacultyAdmission from './pages/application/TopUpFellowshipFacultyAdmission.tsx';
 import DelegateUser from './pages/DelegateUser.tsx';
 import CoProjectView from './pages/CoProjectView.tsx';
 
@@ -491,6 +494,22 @@ const router = createBrowserRouter(
                     )
                 },
                 {
+                    path: "top-up-fellowship",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <TopUpFellowshipForm />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
+                    path: "top-up-fellowship/:id",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <TopUpFellowshipDetails />
+                        </AuthRouteWrapper>
+                    )
+                },
+                {
                     path: "disbursal-of-honorarium/:id",
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
@@ -759,6 +778,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="staff, RnD">
                             <DirectorPdfUpload />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "top-up-fellowship-faculty-admission",
+                    element: (
+                        <AuthRouteWrapper allowedRole="staff, RnD">
+                            <TopUpFellowshipFacultyAdmission />
                         </AuthRouteWrapper>
                     ),
                 },

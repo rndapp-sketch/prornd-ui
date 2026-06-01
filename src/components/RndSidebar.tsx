@@ -221,6 +221,11 @@ export function AppSidebar() {
             path: "/director-pdf-upload",
         },
         {
+            label: "Faculty Admission PDF Upload",
+            icon: FileText,
+            path: "/top-up-fellowship-faculty-admission",
+        },
+        {
             label: "Messages",
             icon: MessageCircle,
             path: "/messages",
@@ -242,6 +247,10 @@ export function AppSidebar() {
         },
     ].filter((item) => {
         if (item.label === "Upload Director PDF") {
+            const allowedRoles = ["staff, RnD"];
+            return roles && allowedRoles.some((role) => roles.includes(role));
+        }
+        if (item.label === "Faculty Admission PDF Upload") {
             const allowedRoles = ["staff, RnD"];
             return roles && allowedRoles.some((role) => roles.includes(role));
         }

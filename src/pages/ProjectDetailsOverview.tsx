@@ -1058,7 +1058,7 @@ const QuickActions = ({
             title: "Disbursal",
             icon: Upload,
             items: [
-                // "Top Up Fellowship",
+                "Top Up Fellowship",
                 "Disbursal of Honorarium",
                 "Disbursal of Consultancy",
             ],
@@ -1404,6 +1404,47 @@ const QuickActions = ({
                     );
                 } catch (fetchError) {
                     console.error("Travel combined fetch error:", fetchError);
+                    data = [];
+                }
+            } else if (selectedApplication === "Top Up Fellowship") {
+                try {
+                    const timestamp = Date.now();
+                    const apiUrl = `/api/resource/Top%20Up%20Fellowship?fields=["name","creation","workflow_state","owner","project_code","project_title","pi_webmail","coordinating_pi_webmail","docstatus"]&order_by=creation desc&limit_page_length=0&_=${timestamp}`;
+                    const fetchResponse = await fetch(apiUrl, {
+                        method: "GET",
+                        headers: { Accept: "application/json" },
+                        credentials: "include",
+                    });
+                    if (!fetchResponse.ok)
+                        throw new Error(
+                            `HTTP error! status: ${fetchResponse.status}`,
+                        );
+                    const result = await fetchResponse.json();
+                    const allItems = result?.data || [];
+
+                    data = allItems
+                        .filter((item: any) => {
+                            const matchesProject =
+                                item.project_code === projectName ||
+                                item.project_code === projectNo;
+                            return matchesProject;
+                        })
+                        .map((item: any) => ({
+                            ...item,
+                            workflow_state:
+                                item.workflow_state ||
+                                (item.docstatus === 1
+                                    ? "Submitted"
+                                    : item.docstatus === 2
+                                      ? "Cancelled"
+                                      : "Draft"),
+                            applicant_webmail: item.pi_webmail || item.owner,
+                        }));
+                    console.log(
+                        `Top Up Fellowship: fetched ${allItems.length}, filtered to ${data.length} for project ${projectName || projectNo}`,
+                    );
+                } catch (fetchError) {
+                    console.error("Top Up Fellowship fetch error:", fetchError);
                     data = [];
                 }
             } else if (selectedApplication === "Disbursal of Honorarium") {
@@ -1787,8 +1828,11 @@ const QuickActions = ({
         switch (selectedApplication) {
             // case "One Time Assistantship":
             case "Top Up Fellowship":
-                alert(
-                    `Apply New: ${selectedApplication} - Route not configured yet`,
+                // Use projectName (Project Registration doc ID) — that's what
+                // project_code links to. projectParam = projectNo is the
+                // human-readable code which isn't a valid Link value.
+                onNavigate(
+                    `/top-up-fellowship?project=${projectName}${projectTitle ? `&projectTitle=${encodeURIComponent(projectTitle)}` : ""}`,
                 );
                 break;
             case "Disbursal of Honorarium":
@@ -2111,6 +2155,11 @@ const QuickActions = ({
                                                                 case "Disbursal of Honorarium":
                                                                     onNavigate(
                                                                         `/disbursal-of-honorarium-form/${item.name}`,
+                                                                    );
+                                                                    break;
+                                                                case "Top Up Fellowship":
+                                                                    onNavigate(
+                                                                        `/top-up-fellowship/${item.name}`,
                                                                     );
                                                                     break;
                                                                 case "Disbursal of Consultancy":

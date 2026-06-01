@@ -72,6 +72,12 @@ const HIDDEN_FIELDS = [
     "grand_total_proposal",
     "amended_from",
     "workflow_state",
+    "modified_by",
+    // Top Up Fellowship internal flags / declaration checkboxes — not for display
+    "send_to_faculty_admission",
+    "checkbox1",
+    "checkbox2",
+    "checkbox3",
 ];
 
 // Style constants for generic details
@@ -191,6 +197,254 @@ const ReimbursementWorkflowActions = ({
                 isLoading={actionLoading}
             />
         </>
+    );
+};
+
+const TopUpFellowshipWorkflowActions = ({
+    docname,
+    onActionComplete,
+    commitRequired = false,
+}: {
+    docname: string;
+    onActionComplete: () => void;
+    commitRequired?: boolean;
+}) => {
+    // Live doc — needed to know workflow_state, send_to_faculty_admission flag
+    // and faculty_admission_pdf URL.
+    const { data: docResp, isLoading: docLoading } = useFrappeGetCall<{
+        message: any;
+    }>("frappe.client.get", { doctype: "Top Up Fellowship", name: docname });
+
+    const { data: actionsResp, isLoading: actionsLoading } = useFrappeGetCall<{
+        message: string[];
+    }>(
+        "rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.get_top_up_fellowship_workflow_actions",
+        { docname },
+    );
+
+    const { call: performAction, loading: actionLoading } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.perform_top_up_fellowship_action",
+    );
+
+    const { call: markSendToFa, loading: markLoading } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.mark_send_to_faculty_admission",
+    );
+
+    // Dynamic put-back engine (backend-driven; replaces Workflow Transition rows).
+    const { data: backResp, mutate: refreshBackActions } = useFrappeGetCall<{
+        message: { actions: { target: string; label: string; next_state: string }[] };
+    }>(
+        "rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.get_available_back_actions",
+        { docname },
+    );
+    const { call: putBack, loading: putBackLoading } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.top_up_fellowship.top_up_fellowship.put_back",
+    );
+    const backActions = backResp?.message?.actions || [];
+
+    const handlePutBack = async (target: string, label: string) => {
+        const comment = window.prompt(`${label}\n\nAdd a comment (optional):`, "");
+        if (comment === null) return; // user cancelled
+        try {
+            const res: any = await putBack({ docname, target, comment: comment || undefined });
+            if (res?.message?.status === "error") {
+                alert(res.message.message || `${label} failed.`);
+                return;
+            }
+            refreshBackActions();
+            onActionComplete();
+        } catch (err: any) {
+            console.error("put_back failed:", err);
+            alert(err?.message || `${label} failed.`);
+        }
+    };
+
+    const renderBackButtons = () =>
+        backActions.map((b) => (
+            <FrappeButton
+                key={b.target}
+                onClick={() => handlePutBack(b.target, b.label)}
+                disabled={putBackLoading}
+                className="bg-zinc-200 hover:bg-zinc-300 text-zinc-800 dark:bg-zinc-700 dark:hover:bg-zinc-600 dark:text-zinc-100"
+            >
+                {b.label}
+            </FrappeButton>
+        ));
+
+    const doc = docResp?.message;
+    const workflowState: string = doc?.workflow_state || "";
+    const sentToFa: boolean = !!doc?.send_to_faculty_admission;
+    const facultyPdfUrl: string = doc?.faculty_admission_pdf || "";
+    const hasFacultyPdf = !!(facultyPdfUrl && String(facultyPdfUrl).trim());
+
+    const isPendingStaff = workflowState === "Pending Staff Approval";
+
+    const downloadGeneratedPdf = () => {
+        const url = `/api/method/frappe.utils.print_format.download_pdf?doctype=${encodeURIComponent("Top Up Fellowship")}&name=${encodeURIComponent(docname)}&format=Standard&no_letterhead=0`;
+        window.open(url, "_blank");
+    };
+
+    const handleSendToFa = async () => {
+        if (!window.confirm("Download the application PDF and mark it as sent to Faculty Admission?")) return;
+        try {
+            const res: any = await markSendToFa({ docname });
+            if (res?.message?.status === "error") {
+                alert(res.message.message || "Could not mark as sent.");
+                return;
+            }
+            downloadGeneratedPdf();
+            onActionComplete();
+        } catch (err: any) {
+            console.error("Send-to-Faculty-Admission failed:", err);
+            alert(err?.message || "Could not mark as sent.");
+        }
+    };
+
+    const handleActionClick = async (action: string) => {
+        const confirmMsg = action.toLowerCase() === "reject"
+            ? "Reject this Top Up Fellowship? This cannot be undone."
+            : `Perform "${action}"?`;
+        if (!window.confirm(confirmMsg)) return;
+        try {
+            const res: any = await performAction({ docname, action });
+            if (res?.message?.status === "error") {
+                alert(res.message.message || `Action "${action}" failed.`);
+                return;
+            }
+            onActionComplete();
+        } catch (err: any) {
+            console.error("Top Up Fellowship action failed:", err);
+            alert(err?.message || `Action "${action}" failed.`);
+        }
+    };
+
+    if (docLoading || actionsLoading) return null;
+    const actions = actionsResp?.message || [];
+
+    // 3-stage Pending Staff Approval flow (mirrors SCR Dean→Director).
+    if (isPendingStaff && actions.length > 0) {
+        // Stage 1 — staff hasn't sent to Faculty Admission yet.
+        // Expose dynamic put-back actions (and any non-forward workflow actions
+        // like Reject) alongside Send to Faculty Admission.
+        if (!sentToFa) {
+            const stageOneActions = actions.filter((a) => {
+                const al = a.toLowerCase();
+                return al !== "forward" && al !== "submit" && al !== "approve";
+            });
+            return (
+                <div className="flex gap-2 flex-wrap">
+                    <FrappeButton
+                        onClick={handleSendToFa}
+                        disabled={markLoading}
+                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
+                    >
+                        Send to Faculty Admission
+                    </FrappeButton>
+                    {renderBackButtons()}
+                    {stageOneActions.map((action) => {
+                        const al = action.toLowerCase();
+                        const isReject = al === "reject";
+                        return (
+                            <FrappeButton
+                                key={action}
+                                onClick={() => handleActionClick(action)}
+                                disabled={actionLoading}
+                                className={
+                                    isReject
+                                        ? "bg-red-600 hover:bg-red-700 text-white"
+                                        : "bg-zinc-200 hover:bg-zinc-300 text-zinc-800 dark:bg-zinc-700 dark:hover:bg-zinc-600 dark:text-zinc-100"
+                                }
+                            >
+                                {action}
+                            </FrappeButton>
+                        );
+                    })}
+                </div>
+            );
+        }
+        // Stage 2 — sent, but signed PDF not yet uploaded.
+        if (!hasFacultyPdf) {
+            return (
+                <div className="flex gap-2 flex-wrap">
+                    <FrappeButton
+                        disabled
+                        className="bg-zinc-300 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300 cursor-not-allowed"
+                    >
+                        Waiting for Faculty Admission Upload
+                    </FrappeButton>
+                    {renderBackButtons()}
+                </div>
+            );
+        }
+        // Stage 3 — PDF uploaded → view + real workflow actions.
+        // Forward is additionally blocked until a commit has been submitted.
+        return (
+            <div className="flex flex-col items-end gap-2">
+                <div className="flex gap-2 flex-wrap">
+                    <FrappeButton
+                        onClick={() => window.open(facultyPdfUrl, "_blank")}
+                        className="bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300"
+                    >
+                        View Faculty Admission Signed PDF
+                    </FrappeButton>
+                    {renderBackButtons()}
+                    {actions.map((action) => {
+                        const isForwardLike =
+                            action.toLowerCase() === "forward" ||
+                            action.toLowerCase() === "submit" ||
+                            action.toLowerCase() === "approve";
+                        const disabled =
+                            actionLoading || (commitRequired && isForwardLike);
+                        return (
+                            <FrappeButton
+                                key={action}
+                                onClick={() => {
+                                    if (commitRequired && isForwardLike) {
+                                        alert(
+                                            "Please submit the commit (budget head + amount) before forwarding to HoS.",
+                                        );
+                                        return;
+                                    }
+                                    handleActionClick(action);
+                                }}
+                                disabled={disabled}
+                                className={
+                                    disabled
+                                        ? "bg-zinc-300 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300 cursor-not-allowed"
+                                        : "bg-[#D97757] hover:bg-[#c66a4e] text-white"
+                                }
+                            >
+                                {action}
+                            </FrappeButton>
+                        );
+                    })}
+                </div>
+                {commitRequired && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                        A commitment must be submitted before forwarding.
+                    </p>
+                )}
+            </div>
+        );
+    }
+
+    // Default: any state outside Pending Staff Approval — render all available
+    // workflow actions normally, plus any dynamic put-back actions.
+    if (!actions.length && !backActions.length) return null;
+    return (
+        <div className="flex gap-2 flex-wrap">
+            {actions.map((action) => (
+                <FrappeButton
+                    key={action}
+                    onClick={() => handleActionClick(action)}
+                    disabled={actionLoading}
+                    className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
+                >
+                    {action}
+                </FrappeButton>
+            ))}
+            {renderBackButtons()}
+        </div>
     );
 };
 
@@ -1297,6 +1551,42 @@ const PendingTaskDetails: React.FC = () => {
         );
     };
 
+    // Top Up Fellowship → Students.dept_centre is a Link to Department_prornd.
+    // Resolve IDs to dept_name so the table shows the readable name.
+    const [topUpDeptNames, setTopUpDeptNames] = useState<Record<string, string>>({});
+    const { call: fetchDeptNames } = useFrappePostCall<{ message: { name: string; dept_name: string }[] }>(
+        "frappe.client.get_list",
+    );
+    useEffect(() => {
+        if (doctype !== "Top Up Fellowship") return;
+        const students = (data as any)?.students || [];
+        const ids = Array.from(
+            new Set(
+                students
+                    .map((s: any) => s?.dept_centre)
+                    .filter((v: any) => typeof v === "string" && v.trim() && !(v in topUpDeptNames))
+            )
+        ) as string[];
+        if (ids.length === 0) return;
+        fetchDeptNames({
+            doctype: "Department_prornd",
+            filters: JSON.stringify([["name", "in", ids]]),
+            fields: JSON.stringify(["name", "dept_name"]),
+            limit_page_length: 0,
+        })
+            .then((res: any) => {
+                const rows = res?.message || [];
+                if (!rows.length) return;
+                setTopUpDeptNames((prev) => {
+                    const next = { ...prev };
+                    for (const r of rows) next[r.name] = r.dept_name || r.name;
+                    return next;
+                });
+            })
+            .catch((err: any) => console.error("Failed to resolve dept_centre names:", err));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [doctype, (data as any)?.students]);
+
     // Auth & Roles
     const { currentUser } = useFrappeAuth();
     const { roles } = useUserRoles(currentUser ?? null);
@@ -1809,6 +2099,7 @@ const PendingTaskDetails: React.FC = () => {
                             const displayValue = isFile
                                 ? getFileName(String(value))
                                 : String(value);
+                            const isBudgetHeadField = key === "account_head" || key === "budget_head";
 
                             return (
                                 <div key={key} className="flex flex-col">
@@ -1833,6 +2124,10 @@ const PendingTaskDetails: React.FC = () => {
                                             </span>
                                             <ExternalLinkIcon className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                                         </a>
+                                    ) : isBudgetHeadField && value != null && value !== "" ? (
+                                        <div className={valueClasses}>
+                                            <BudgetHeadName value={value as string} />
+                                        </div>
                                     ) : (
                                         <div className={valueClasses}>
                                             {value === null ||
@@ -1971,10 +2266,19 @@ const PendingTaskDetails: React.FC = () => {
                                                                     maximumFractionDigits: 0,
                                                                 },
                                                             )
-                                                            : String(
-                                                                row[header] ||
-                                                                "-",
-                                                            )}
+                                                            : (() => {
+                                                                let v = row[header];
+                                                                if (
+                                                                    doctype === "Top Up Fellowship" &&
+                                                                    key === "students" &&
+                                                                    header === "dept_centre" &&
+                                                                    typeof v === "string" &&
+                                                                    topUpDeptNames[v]
+                                                                ) {
+                                                                    v = topUpDeptNames[v];
+                                                                }
+                                                                return String(v || "-");
+                                                            })()}
                                                     </td>
                                                 ))}
                                                 {isBudgetTable && (
@@ -2188,6 +2492,15 @@ const PendingTaskDetails: React.FC = () => {
                                         commitRequired={isRnDStaff && isCommittedForGate === false}
                                     />
                                 )}
+                            {doctype === "Top Up Fellowship" && name && (
+                                <TopUpFellowshipWorkflowActions
+                                    docname={name}
+                                    onActionComplete={() =>
+                                        window.location.reload()
+                                    }
+                                    commitRequired={isRnDStaff && isCommittedForGate === false}
+                                />
+                            )}
                         </div>
                     </div>
                 </header>
@@ -2702,6 +3015,19 @@ const PendingTaskDetails: React.FC = () => {
                                         projectName={
                                             data.upfa_project_code || data.project_code
                                         }
+                                        isStaff={true}
+                                        docName={name}
+                                        doctype={doctype}
+                                        onStagingStatusChange={setIsCommittedForGate}
+                                    />
+                                )}
+                            {/* Setup for Top Up Fellowship */}
+                            {doctype === "Top Up Fellowship" &&
+                                isRnDStaff &&
+                                data?.workflow_state === "Pending Staff Approval" &&
+                                data?.project_code && (
+                                    <BudgetActionsSidebar
+                                        projectName={data.project_code}
                                         isStaff={true}
                                         docName={name}
                                         doctype={doctype}

@@ -152,7 +152,8 @@ const FULL_WIDTH_FIELDNAMES = new Set([
 const shouldRenderFullWidth = (field: FormField) =>
   FULL_WIDTH_FIELDNAMES.has(field.fieldname) ||
   (field.fieldtype === "HTML" &&
-    /declaration/i.test(`${field.fieldname} ${field.label || ""}`));
+    /declaration/i.test(`${field.fieldname} ${field.label || ""}`)) ||
+  (field.fieldtype === "Check" && (field.label || "").length > 60);
 
 // --- MEMOIZED FORM FIELD COMPONENT ---
 const MemoizedFormField = memo(

@@ -127,6 +127,12 @@ export const selectionCommitteeReportAPI = {
     attachDirectorPdf: `${API_BASE}.selection_committee_report.selection_committee_report.attach_director_pdf_scr`,
 };
 
+// Top Up Fellowship — Faculty Admission PDF flow (R&D Staff)
+export const topUpFellowshipAPI = {
+    getPendingFacultyAdmissionUploads: `${API_BASE}.top_up_fellowship.top_up_fellowship.get_pending_faculty_admission_uploads`,
+    attachFacultyAdmissionPdf: `${API_BASE}.top_up_fellowship.top_up_fellowship.attach_faculty_admission_pdf`,
+};
+
 // Selection Candidate Details API endpoints
 export const selectionCandidateDetailsAPI = {
     getByInterview: `${API_BASE}.selection_candidate_details.selection_candidate_details.get_selection_candidate_details_by_interview`,

@@ -2004,136 +2004,193 @@ const SelectionCommitteeReportForm: React.FC = () => {
                                         )}
                                     </div>
                                     <div className="flex gap-3 flex-wrap">
-                                        {/* DoRND Send to Director Controls */}
-                                        {isDoRnd && isContractualRecruitment(formData.recruitment_type) && workflowState !== "Draft" && workflowState !== "Approved" && workflowState !== "Rejected" && (
-                                            <div className="flex items-center gap-2 mr-2 bg-[#F0EDE4] dark:bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                                                <Checkbox
-                                                    id="send-to-director"
-                                                    checked={!!formData.send_to_director}
-                                                    onCheckedChange={async (checked) => {
-                                                        const newVal = checked ? 1 : 0;
-                                                        setFormData(prev => ({ ...prev, send_to_director: newVal }));
-                                                        if (savedDocName) {
+                                        {(() => {
+                                            const isContractual = isContractualRecruitment(formData.recruitment_type);
+                                            const inDirectorFlow =
+                                                isDoRnd &&
+                                                isContractual &&
+                                                workflowState === "Pending Dean Approval";
+
+                                            // Stage 1: Dean hasn't sent to director yet → only show "Send to Director"
+                                            if (inDirectorFlow && !formData.send_to_director) {
+                                                return (
+                                                    <FrappeButton
+                                                        onClick={async () => {
+                                                            if (!savedDocName) return;
                                                             try {
                                                                 await callUpdateSendToDirector({
                                                                     docname: savedDocName,
-                                                                    send_to_director: newVal
+                                                                    send_to_director: 1,
                                                                 });
+                                                                setFormData(prev => ({ ...prev, send_to_director: 1 }));
+                                                                handlePrint();
                                                             } catch (err) {
-                                                                console.error("Failed to update send to director", err);
-                                                                setFormData(prev => ({ ...prev, send_to_director: formData.send_to_director }));
+                                                                console.error("Failed to send to director", err);
                                                             }
-                                                        }
-                                                    }}
-                                                    disabled={isUpdatingSendToDirector}
-                                                />
-                                                <label htmlFor="send-to-director" className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer select-none">
-                                                    Send to Director
-                                                </label>
-                                                {isUpdatingSendToDirector && <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-500" />}
-                                            </div>
-                                        )}
-
-                                        {/* View Director PDF if available */}
-                                        {isContractualRecruitment(formData.recruitment_type) && formData.director_signed_pdf && (
-                                            <FrappeButton
-                                                variant="outline"
-                                                onClick={() => window.open(formData.director_signed_pdf, '_blank')}
-                                                className="bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/40 shadow-sm"
-                                            >
-                                                <EyeIcon className="w-4 h-4 mr-2" />
-                                                View Director Signed PDF
-                                            </FrappeButton>
-                                        )}
-
-                                        {/* Download PDF Button — always available */}
-                                        <FrappeButton
-                                            variant="outline"
-                                            onClick={handlePrint}
-                                            className="bg-white dark:bg-zinc-800 shadow-sm"
-                                            title="Print or Download this report as PDF"
-                                        >
-                                            <Printer className="w-4 h-4 mr-2" />
-                                            Download PDF
-                                        </FrappeButton>
-                                        {workflowState === "Draft" ? (
-                                            <>
-                                                <FrappeButton
-                                                    variant="outline"
-                                                    onClick={handleSave}
-                                                    disabled={isSubmitting || isActionLoading}
-                                                    className="bg-white dark:bg-zinc-800 shadow-sm"
-                                                >
-                                                    {isSubmitting ? (
-                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                    ) : (
-                                                        <Save className="w-4 h-4 mr-2" />
-                                                    )}
-                                                    Save Draft
-                                                </FrappeButton>
-
-                                                {/* We rely on workflow actions for submission if available, otherwise fallback */}
-                                                {availableActions.includes("Submit") ? (
-                                                    <FrappeButton
-                                                        onClick={() => handleWorkflowAction("Submit")}
-                                                        disabled={isSubmitting || isActionLoading}
+                                                        }}
+                                                        disabled={isUpdatingSendToDirector || !savedDocName}
                                                         className="bg-[#D97757] hover:opacity-90 text-white shadow-sm"
                                                     >
-                                                        {isActionLoading ? (
+                                                        {isUpdatingSendToDirector ? (
                                                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                                         ) : (
                                                             <Send className="w-4 h-4 mr-2" />
                                                         )}
-                                                        Submit
+                                                        Send to Director
                                                     </FrappeButton>
-                                                ) : (
-                                                    <FrappeButton
-                                                        onClick={handleSave} // fallback to just save if no workflow submit configured yet manually
-                                                        disabled={
-                                                            isSubmitting ||
-                                                            isActionLoading ||
-                                                            !(savedDocName || editDocName)
-                                                        }
-                                                        className="bg-[#D97757] hover:opacity-90 text-white shadow-sm"
-                                                    >
-                                                        {isSubmitting ? (
-                                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                        ) : (
-                                                            <CheckCircle2 className="w-4 h-4 mr-2" />
-                                                        )}
-                                                        Save & Continue
-                                                    </FrappeButton>
-                                                )}
-                                            </>
-                                        ) : (
-                                            /* Any Other Workflow Actions */
-                                            availableActions.map((action) => {
-                                                const isApproveAction = action === "Approve" || action === "Recommend";
-                                                const isDisabledByPdf = isDoRnd && isApproveAction && isContractualRecruitment(formData.recruitment_type) && !formData.director_signed_pdf;
-                                                return (
-                                                <FrappeButton
-                                                    key={action}
-                                                    onClick={() => handleWorkflowAction(action)}
-                                                    disabled={isActionLoading || isDisabledByPdf}
-                                                    title={isDisabledByPdf ? "Director Signed PDF must be uploaded first" : undefined}
-                                                    className={cn(
-                                                        "shadow-sm",
-                                                        action === "Approve"
-                                                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                                            : action === "Reject"
-                                                                ? "bg-red-600 hover:bg-red-700 text-white"
-                                                                : "bg-[#D97757] hover:opacity-90 text-white",
-                                                        isDisabledByPdf && "opacity-50 cursor-not-allowed"
-                                                    )}
-                                                >
-                                                    {isActionLoading ? (
-                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                    ) : null}
-                                                    {action}
-                                                </FrappeButton>
                                                 );
-                                            })
-                                        )}
+                                            }
+
+                                            // Stage 2: Sent, but Staff hasn't uploaded the Director-signed PDF yet
+                                            if (inDirectorFlow && !formData.director_signed_pdf) {
+                                                return (
+                                                    <FrappeButton
+                                                        disabled
+                                                        className="bg-zinc-300 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300 shadow-sm cursor-not-allowed"
+                                                    >
+                                                        Waiting for Director Approval
+                                                    </FrappeButton>
+                                                );
+                                            }
+
+                                            // Stage 3: PDF uploaded → show View PDF + Approve/Reject
+                                            if (inDirectorFlow && formData.director_signed_pdf) {
+                                                return (
+                                                    <>
+                                                        <FrappeButton
+                                                            variant="outline"
+                                                            onClick={() => window.open(formData.director_signed_pdf, '_blank')}
+                                                            className="bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/40 shadow-sm"
+                                                        >
+                                                            <EyeIcon className="w-4 h-4 mr-2" />
+                                                            View Director Signed PDF
+                                                        </FrappeButton>
+                                                        {availableActions
+                                                            .filter(a => a === "Approve" || a === "Reject")
+                                                            .map(action => (
+                                                                <FrappeButton
+                                                                    key={action}
+                                                                    onClick={() => handleWorkflowAction(action)}
+                                                                    disabled={isActionLoading}
+                                                                    className={cn(
+                                                                        "shadow-sm",
+                                                                        action === "Approve"
+                                                                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                                            : "bg-red-600 hover:bg-red-700 text-white",
+                                                                    )}
+                                                                >
+                                                                    {isActionLoading ? (
+                                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                    ) : null}
+                                                                    {action}
+                                                                </FrappeButton>
+                                                            ))}
+                                                    </>
+                                                );
+                                            }
+
+                                            // Default: existing behavior for all other states/roles
+                                            return (
+                                                <>
+                                                    {isContractual && formData.director_signed_pdf && (
+                                                        <FrappeButton
+                                                            variant="outline"
+                                                            onClick={() => window.open(formData.director_signed_pdf, '_blank')}
+                                                            className="bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800/50 dark:text-emerald-300 dark:hover:bg-emerald-900/40 shadow-sm"
+                                                        >
+                                                            <EyeIcon className="w-4 h-4 mr-2" />
+                                                            View Director Signed PDF
+                                                        </FrappeButton>
+                                                    )}
+
+                                                    <FrappeButton
+                                                        variant="outline"
+                                                        onClick={handlePrint}
+                                                        className="bg-white dark:bg-zinc-800 shadow-sm"
+                                                        title="Print or Download this report as PDF"
+                                                    >
+                                                        <Printer className="w-4 h-4 mr-2" />
+                                                        Download PDF
+                                                    </FrappeButton>
+                                                    {workflowState === "Draft" ? (
+                                                        <>
+                                                            <FrappeButton
+                                                                variant="outline"
+                                                                onClick={handleSave}
+                                                                disabled={isSubmitting || isActionLoading}
+                                                                className="bg-white dark:bg-zinc-800 shadow-sm"
+                                                            >
+                                                                {isSubmitting ? (
+                                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                ) : (
+                                                                    <Save className="w-4 h-4 mr-2" />
+                                                                )}
+                                                                Save Draft
+                                                            </FrappeButton>
+
+                                                            {availableActions.includes("Submit") ? (
+                                                                <FrappeButton
+                                                                    onClick={() => handleWorkflowAction("Submit")}
+                                                                    disabled={isSubmitting || isActionLoading}
+                                                                    className="bg-[#D97757] hover:opacity-90 text-white shadow-sm"
+                                                                >
+                                                                    {isActionLoading ? (
+                                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                    ) : (
+                                                                        <Send className="w-4 h-4 mr-2" />
+                                                                    )}
+                                                                    Submit
+                                                                </FrappeButton>
+                                                            ) : (
+                                                                <FrappeButton
+                                                                    onClick={handleSave}
+                                                                    disabled={
+                                                                        isSubmitting ||
+                                                                        isActionLoading ||
+                                                                        !(savedDocName || editDocName)
+                                                                    }
+                                                                    className="bg-[#D97757] hover:opacity-90 text-white shadow-sm"
+                                                                >
+                                                                    {isSubmitting ? (
+                                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                    ) : (
+                                                                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                                                                    )}
+                                                                    Save & Continue
+                                                                </FrappeButton>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        availableActions.map((action) => {
+                                                            const isApproveAction = action === "Approve" || action === "Recommend";
+                                                            const isDisabledByPdf = isDoRnd && isApproveAction && isContractual && !formData.director_signed_pdf;
+                                                            return (
+                                                                <FrappeButton
+                                                                    key={action}
+                                                                    onClick={() => handleWorkflowAction(action)}
+                                                                    disabled={isActionLoading || isDisabledByPdf}
+                                                                    title={isDisabledByPdf ? "Director Signed PDF must be uploaded first" : undefined}
+                                                                    className={cn(
+                                                                        "shadow-sm",
+                                                                        action === "Approve"
+                                                                            ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                                                            : action === "Reject"
+                                                                                ? "bg-red-600 hover:bg-red-700 text-white"
+                                                                                : "bg-[#D97757] hover:opacity-90 text-white",
+                                                                        isDisabledByPdf && "opacity-50 cursor-not-allowed"
+                                                                    )}
+                                                                >
+                                                                    {isActionLoading ? (
+                                                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                                    ) : null}
+                                                                    {action}
+                                                                </FrappeButton>
+                                                            );
+                                                        })
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             </FrappeCard>
