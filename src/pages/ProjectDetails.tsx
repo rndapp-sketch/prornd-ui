@@ -338,10 +338,7 @@ const normalizeEndorsementHtmlForProject = (
     if (!projectName) return html;
     const refNo = `IITG-${projectName}`;
     const omitSignatureImage = options?.omitSignatureImage === true;
-    // Show the signature block when approved OR when the caller explicitly wants the label
-    // rendered without an image (e.g., the "Download without signature" flow).
-    const shouldRenderSignatureBlock =
-        workflowState === "Endorsement Approved" || omitSignatureImage;
+    const shouldRenderSignatureImage = workflowState === "Endorsement Approved" && !omitSignatureImage;
     const isFullDocument = /<html[\s>]/i.test(html);
     const parser = new DOMParser();
     const document = parser.parseFromString(html, "text/html");
@@ -393,10 +390,11 @@ const normalizeEndorsementHtmlForProject = (
     }
 
     document.querySelectorAll("img").forEach((image) => {
-        const src = image.getAttribute("src") || "";
+        const src = image.getAttribute("src");
         const alt = image.getAttribute("alt") || "";
+        if (!src) return;
         if (
-            src.includes("Sign_dornd_stamp_rnd.jpg") ||
+            src.includes("DORND_SIGNATURE_FAKE.png") ||
             src.includes("rohit_fake_sign") ||
             alt.toLowerCase() === "signature"
         ) {
@@ -407,14 +405,9 @@ const normalizeEndorsementHtmlForProject = (
     });
 
     document.querySelectorAll(".signature").forEach((signature) => {
-        if (!shouldRenderSignatureBlock) {
-            signature.remove();
-            return;
-        }
-
         signature.innerHTML = "";
 
-        if (!omitSignatureImage) {
+        if (shouldRenderSignatureImage) {
             const image = document.createElement("img");
             image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
             image.alt = "Signature with seal";
@@ -423,6 +416,11 @@ const normalizeEndorsementHtmlForProject = (
             image.style.objectFit = "contain";
             image.style.marginBottom = "8px";
             signature.appendChild(image);
+        } else {
+            const emptySpace = document.createElement("div");
+            emptySpace.style.height = "112px";
+            emptySpace.style.marginBottom = "8px";
+            signature.appendChild(emptySpace);
         }
 
         const label = document.createElement("div");
@@ -431,18 +429,22 @@ const normalizeEndorsementHtmlForProject = (
         signature.appendChild(label);
     });
 
-    if (shouldRenderSignatureBlock && !document.querySelector(".signature")) {
+    if (!document.querySelector(".signature")) {
         const container = document.querySelector(".print-container") || document.body;
         const signature = document.createElement("div");
         signature.className = "signature";
         signature.setAttribute("style", "margin-top:72px;display:flex;flex-direction:column;align-items:flex-end;");
 
-        if (!omitSignatureImage) {
+        if (shouldRenderSignatureImage) {
             const image = document.createElement("img");
             image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
             image.alt = "Signature with seal";
             image.setAttribute("style", "height:112px;width:auto;object-fit:contain;margin-bottom:8px;");
             signature.appendChild(image);
+        } else {
+            const emptySpace = document.createElement("div");
+            emptySpace.setAttribute("style", "height:112px;margin-bottom:8px;");
+            signature.appendChild(emptySpace);
         }
 
         const label = document.createElement("div");
