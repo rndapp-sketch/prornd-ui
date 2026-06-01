@@ -169,6 +169,145 @@ const DISTRIBUTION_TOTAL_FIELDS = [
 ];
 const PDF_DPF_TOTAL_PERCENTAGE = 25;
 
+// --- PROJECT AUTO-FILL CONFIGURATION ---
+// Link fields pointing to these doctypes trigger auto-fill of project details
+const PROJECT_SOURCE_DOCTYPES = new Set([
+    "Project Registration",
+    "Project",
+    "RND Project",
+    "Research Project",
+    "Consultancy Project",
+    "Testing Project",
+]);
+
+// Fieldnames that, if present as a Link field, should trigger project auto-fill
+// regardless of what `field.options` declares. Covers backends that return
+// options as null/empty or a slightly different doctype label.
+const PROJECT_TRIGGER_FIELDNAMES = new Set([
+    "project_title",
+    "research_project",
+    "project_ref_no",
+    "project_registration",
+    "project",
+]);
+
+// Default doctype to query when the field has no resolvable `options` value.
+const DEFAULT_PROJECT_DOCTYPE = "Project Registration";
+
+// Map from project doc fieldnames → form fieldnames (first match wins per target).
+// Does NOT include project_title — that is the trigger field, not a fill target.
+const PROJECT_FIELD_MAP: Record<string, string> = {
+    principal_investigator: "principal_investigator",
+    pi: "principal_investigator",
+    pi_name: "principal_investigator",
+    funding_agency: "funding_agency",
+    funding_agen: "funding_agency", // fetch_from hint: project_title.funding_agen
+    sponsor: "funding_agency",
+    client: "client",
+    client_name: "client",
+    gstin_of_funding_agency: "gstin_of_funding_agency",
+    gstin: "gstin_of_funding_agency",
+    agency_gstin: "gstin_of_funding_agency",
+};
+
+const PROJECT_AUTOFILL_TARGET_FIELDS = new Set([
+    "principal_investigator",
+    "client",
+    "funding_agency",
+    "gstin_of_funding_agency",
+]);
+
+// --- STATIC FIELD DEFINITIONS ---
+// Used as fallback when the backend get_*_fields method is not yet implemented.
+// Mirrors the field definitions in the backend spec exactly.
+
+const E_NON_ROUTINE_FIELDS = [
+    { fieldname: "project_title",             label: "Project Title",                fieldtype: "Link",     options: "Project Registration", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "principal_investigator",    label: "Principal Investigator",       fieldtype: "Link",     options: "User",                 mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "client",                    label: "Client",                       fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "funding_agency",            label: "Funding Agency",               fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "gstin_of_funding_agency",   label: "GSTIN of Funding Agency",      fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "ecs_ac_no",                 label: "ECS A/C No.",                  fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "bank",                      label: "Bank",                         fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "calculations_section",      label: "Calculations",                 fieldtype: "Section Break" },
+    { fieldname: "amount_inclusive_of_gst",   label: "Amount Inclusive of GST",      fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "igst_18",                   label: "IGST @18%",                    fieldtype: "Currency", mandatory: 0, read_only: 1, hidden: 0 },
+    { fieldname: "consultancy_fee_x",         label: "Consultancy Fee X",            fieldtype: "Currency", mandatory: 0, read_only: 1, hidden: 0, description: "Consultancy Fee (After GST Deduction)" },
+    { fieldname: "overhead_multiplier",       label: "Overhead Multiplier",          fieldtype: "Float",    default: 0.1, read_only: 0, hidden: 1 },
+    { fieldname: "overhead_amount",           label: "Overhead Amount",              fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "credit_distribution_section", label: "Credit Distribution",        fieldtype: "Section Break" },
+    { fieldname: "credit_distribution",       label: "Credit as follows",            fieldtype: "Table",    options: "Deposit Slip Credit Distribution" },
+    { fieldname: "totals_section",            label: "Totals",                       fieldtype: "Section Break" },
+    { fieldname: "total_gst",                 label: "Total GST",                    fieldtype: "Currency", read_only: 0, hidden: 0 },
+    { fieldname: "total_budget",              label: "Total Budget",                 fieldtype: "Currency", read_only: 1, hidden: 0 },
+];
+
+const T_TESTING_FIELDS = [
+    { fieldname: "project_title",             label: "Project Title",                fieldtype: "Link",     options: "Project Registration", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "principal_investigator",    label: "Principal Investigator",       fieldtype: "Link",     options: "User",                 mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "client",                    label: "Client",                       fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "gstin_of_funding_agency",   label: "Funding Agency",               fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "ecs_ac_no",                 label: "ECS A/C No.",                  fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "bank",                      label: "Bank",                         fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "calculations_section",      label: "Calculations",                 fieldtype: "Section Break" },
+    { fieldname: "amount_inclusive_of_gst",   label: "Amount Inclusive of GST",      fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "cgst_9",                    label: "CGST @9%",                     fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "sgst_9",                    label: "SGST @9%",                     fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "consultancy_fee_x",         label: "Consultancy Fee X",            fieldtype: "Currency", read_only: 1, hidden: 0, description: "Consultancy Fee (After GST Deduction)" },
+    { fieldname: "overhead_multiplier",       label: "Overhead Multiplier",          fieldtype: "Float",    default: 0.7, read_only: 0, hidden: 1 },
+    { fieldname: "overhead_amount",           label: "Overhead Amount",              fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "credit_distribution_section", label: "Credit Distribution",        fieldtype: "Section Break" },
+    { fieldname: "idf_t_testing_fee",         label: "(a.) IDF",                     fieldtype: "Data",     read_only: 1, hidden: 0, description: "(40% of the Consultancy fee)" },
+    { fieldname: "dpf_t_testing_fee",         label: "(b.) DPF/CE",                 fieldtype: "Data",     read_only: 1, hidden: 0, description: "(50% of the Consultancy fee)" },
+    { fieldname: "staff_welfare_t_testing_fund",  label: "(c.) Staff Welfare fund",  fieldtype: "Data",     read_only: 1, hidden: 0, description: "(5% of Overhead amount)" },
+    { fieldname: "student_welfare_t_testing_fund", label: "(d.) Student Welfare fund", fieldtype: "Data",  read_only: 1, hidden: 0, description: "(5% of Overhead amount)" },
+    { fieldname: "totals_section",            label: "Totals",                       fieldtype: "Section Break" },
+    { fieldname: "total_gst",                 label: "Total GST",                    fieldtype: "Currency", read_only: 0, hidden: 0 },
+    { fieldname: "total_budget",              label: "Total Budget",                 fieldtype: "Currency", read_only: 1, hidden: 0 },
+];
+
+const D_CONSULTANCY_FIELDS = [
+    { fieldname: "primary_details",           label: "Primary Details",              fieldtype: "Section Break" },
+    { fieldname: "consultancy_title",         label: "Consultancy Title",            fieldtype: "Data",     mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "category_d",               label: "Category",                     fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "principal_consultant",      label: "Principal Consultant",         fieldtype: "Link",     options: "User", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "client",                    label: "Client",                       fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "funding_agency",            label: "Funding Agency",               fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "gstin_of_funding_agency",   label: "GSTIN of Funding Agency",      fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "iitg_invoice_no",           label: "IITG Invoice No.",             fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "bank",                      label: "Bank",                         fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "ecs_ac_no",                 label: "ECS A/C No.",                  fieldtype: "Data",     mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "section_break_mqkq",        label: "GST and Fee Calculations",     fieldtype: "Section Break" },
+    { fieldname: "amount_inclusive_of_gst",   label: "Amount Inclusive of GST",      fieldtype: "Currency", mandatory: 1, read_only: 0, hidden: 0 },
+    { fieldname: "igst_18_on_consultancy",    label: "IGST @18% on Consultancy Fee", fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "amount_after_gst_tds",      label: "Amount after GST TDS @ 2%",    fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "total_cost_x",              label: "Total Cost X",                 fieldtype: "Currency", read_only: 1, hidden: 0, description: "Total Cost X (Balance after GST Deduction)" },
+    { fieldname: "consultancy_charge_y",      label: "Consultancy Charge (Y)",       fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "operational_charge_z",      label: "Operational Charge (Z)",       fieldtype: "Currency", mandatory: 0, read_only: 0, hidden: 0 },
+    { fieldname: "overhead_from_y_amount",    label: "Overhead from Y (10% * Y)",    fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "overhead_from_z_amount",    label: "Overhead from Z (10% * Z)",    fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "total_overhead_amount",     label: "Total Overhead",               fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "institute_share_amount",    label: "Institute Share (20% * Y)",    fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "total_overhead_institute_share", label: "Overhead + Institute Share", fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "credit_distribution_section", label: "Credit Distribution",        fieldtype: "Section Break" },
+    { fieldname: "idf_amount",                label: "IDF",                          fieldtype: "Currency", read_only: 1, hidden: 0, description: "(40% of Overhead + Institute Share)" },
+    { fieldname: "dpf_amount",                label: "DPF/CE",                       fieldtype: "Currency", read_only: 1, hidden: 0, description: "(50% of Overhead + Institute Share)" },
+    { fieldname: "staff_welfare_amount",      label: "Staff Welfare Amount",         fieldtype: "Currency", read_only: 1, hidden: 0, description: "(5% of Overhead + Institute Share)" },
+    { fieldname: "student_welfare_amount",    label: "Student Welfare Amount",       fieldtype: "Currency", read_only: 1, hidden: 0, description: "(5% of Overhead + Institute Share)" },
+    { fieldname: "final_totals",              label: "Final Totals",                 fieldtype: "Section Break" },
+    { fieldname: "balance_consultancy_fee",   label: "Balance Consultancy Fee",      fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "balance_operation_charge",  label: "Balance Operation Charge",     fieldtype: "Currency", read_only: 1, hidden: 0 },
+    { fieldname: "total_gst",                 label: "Total GST",                    fieldtype: "Currency", read_only: 0, hidden: 0 },
+    { fieldname: "total_amount",              label: "Total Amount",                 fieldtype: "Currency", read_only: 1, hidden: 0 },
+];
+
+// Map from deposit slip type key → static field definitions
+const STATIC_FIELDS: Record<string, any[]> = {
+    e_non_routine: E_NON_ROUTINE_FIELDS,
+    t_testing: T_TESTING_FIELDS,
+    d_consultancy: D_CONSULTANCY_FIELDS,
+};
+
 const parseNumericValue = (value: any): number => {
     const parsed = parseFloat(String(value ?? "").replace(/,/g, ""));
     return Number.isFinite(parsed) ? parsed : 0;
@@ -207,6 +346,7 @@ const DepositSlipForm: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formValues, setFormValues] = useState<Record<string, any>>({});
+    const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
 
     // Table data managed in React state instead of DOM manipulation
     const [ecsDates, setEcsDates] = useState<
@@ -258,6 +398,77 @@ const DepositSlipForm: React.FC = () => {
 
     const generateId = () =>
         `row_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    const fetchAndAutoFillProjectDetails = useCallback(
+        async (projectName: string, doctype: string) => {
+            const tryDoctypes = Array.from(
+                new Set([doctype, DEFAULT_PROJECT_DOCTYPE].filter(Boolean)),
+            );
+
+            for (const dt of tryDoctypes) {
+                try {
+                    const resp = await fetch("/api/method/frappe.client.get", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({ doctype: dt, name: projectName }),
+                    });
+                    if (!resp.ok) {
+                        console.warn(
+                            `[DepositSlip auto-fill] frappe.client.get ${dt}/${projectName} → HTTP ${resp.status}`,
+                        );
+                        continue;
+                    }
+                    const data = await resp.json();
+                    const doc = data?.message;
+                    if (!doc) {
+                        console.warn(
+                            `[DepositSlip auto-fill] No doc returned for ${dt}/${projectName}`,
+                        );
+                        continue;
+                    }
+
+                    console.log(
+                        `[DepositSlip auto-fill] Fetched ${dt}/${projectName}; keys:`,
+                        Object.keys(doc),
+                    );
+
+                    const fills: Record<string, any> = {};
+                    Object.entries(PROJECT_FIELD_MAP).forEach(
+                        ([docField, formField]) => {
+                            if (
+                                doc[docField] != null &&
+                                doc[docField] !== "" &&
+                                !(formField in fills)
+                            ) {
+                                fills[formField] = doc[docField];
+                            }
+                        },
+                    );
+
+                    if (Object.keys(fills).length > 0) {
+                        console.log(
+                            "[DepositSlip auto-fill] Filling fields:",
+                            fills,
+                        );
+                        setFormValues((prev) => ({ ...prev, ...fills }));
+                        setAutoFilledFields(new Set(Object.keys(fills)));
+                    } else {
+                        console.warn(
+                            "[DepositSlip auto-fill] No mapped fields found on project doc. Check PROJECT_FIELD_MAP vs doc keys.",
+                        );
+                    }
+                    return;
+                } catch (e) {
+                    console.error(
+                        `[DepositSlip auto-fill] Failed for ${dt}/${projectName}:`,
+                        e,
+                    );
+                }
+            }
+        },
+        [],
+    );
 
     const getDistributionBaseAmount = useCallback(
         (values: Record<string, any>) => {
@@ -334,6 +545,7 @@ const DepositSlipForm: React.FC = () => {
         setSelectedType(type);
         setFields([]);
         setFormValues({});
+        setAutoFilledFields(new Set());
         setEcsDates([]);
         setCreditDistribution([]);
         setPdfCreditDistribution([]);
@@ -345,128 +557,177 @@ const DepositSlipForm: React.FC = () => {
             return;
         }
 
-        try {
-            const response = await fetch(
-                `/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({
-                        doc_name: fundReceivedName || undefined,
-                    }),
-                },
-            );
-            const result = await response.json();
-
-            if (result?.message) {
-                const {
-                    fields: apiFields,
-                    link_options,
-                    prefill_data,
-                } = result.message;
-
-                if (Array.isArray(apiFields)) {
-                    const processedFields = apiFields.map((field) => {
-                        if (
-                            field.fieldtype === "Section Break" ||
-                            field.fieldtype === "SectionBreak"
-                        )
-                            return field;
-                        if (
-                            prefill_data &&
-                            prefill_data[field.fieldname] !== undefined
-                        ) {
-                            return {
-                                ...field,
-                                default: prefill_data[field.fieldname],
-                            };
-                        }
-                        return field;
-                    });
-                    setFields(processedFields);
-
-                    const initialValues: Record<string, any> = {};
-                    processedFields.forEach((f) => {
-                        if (f.default) initialValues[f.fieldname] = f.default;
-                    });
-                    setFormValues(initialValues);
+        // Helper: apply a resolved field list + optional prefill/link_options
+        const applyFields = (
+            rawFields: any[],
+            link_options: Record<string, any> | null,
+            prefill_data: Record<string, any> | null,
+        ) => {
+            const processedFields = rawFields.map((field) => {
+                if (
+                    field.fieldtype === "Section Break" ||
+                    field.fieldtype === "SectionBreak"
+                )
+                    return field;
+                if (prefill_data && prefill_data[field.fieldname] !== undefined) {
+                    return { ...field, default: prefill_data[field.fieldname] };
                 }
-                setLinkOptions((prev) => ({
-                    ...prev,
-                    ...(link_options || {}),
-                }));
+                return field;
+            });
+            setFields(processedFields);
 
-                // Fetch missing link options for known field requirements
-                const missingDoctypes = [
-                    "Department_prornd",
-                    "User",
-                    "Budget Head",
-                ];
-                for (const dt of missingDoctypes) {
-                    if (!link_options?.[dt]) {
-                        try {
-                            const listResp = await fetch(
-                                "/api/method/frappe.client.get_list",
-                                {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type": "application/json",
-                                    },
-                                    credentials: "include",
-                                    body: JSON.stringify({
-                                        doctype: dt,
-                                        fields:
-                                            dt === "User"
-                                                ? ["name", "full_name"]
-                                                : dt === "Department_prornd"
-                                                    ? ["name", "dept_name"]
-                                                    : dt === "Budget Head"
-                                                        ? ["*"]
-                                                        : ["name"],
-                                        limit_page_length: 0,
-                                    }),
-                                },
-                            );
-                            const listJson = await listResp.json();
-                            if (listJson.message) {
-                                const opts = listJson.message.map((d: any) => {
-                                    if (dt === "User") {
-                                        return {
-                                            label: d.full_name || d.name,
-                                            value: d.name,
-                                        };
-                                    }
-                                    return {
-                                        label:
-                                            d.dept_name ||
-                                            d.full_name ||
-                                            d.budget_head ||
-                                            d.head_name ||
-                                            d.account_head ||
-                                            d.title ||
-                                            d.name,
-                                        value: d.name,
-                                    };
-                                });
-                                setLinkOptions((prev) => ({
-                                    ...prev,
-                                    [dt]: opts,
-                                    ...(dt === "User" ? { select_copi_id: opts, principal_investigator: opts } : {}),
-                                }));
-                            }
-                        } catch (e) {
-                            console.error(
-                                `Failed to fetch options for ${dt}`,
-                                e,
-                            );
-                        }
+            const initialValues: Record<string, any> = {};
+            processedFields.forEach((f) => {
+                if (f.default !== undefined && f.default !== null)
+                    initialValues[f.fieldname] = f.default;
+            });
+            setFormValues(initialValues);
+
+            if (prefill_data) {
+                const prefillKeys = new Set<string>(
+                    processedFields
+                        .filter((f) => prefill_data[f.fieldname] !== undefined)
+                        .map((f) => f.fieldname),
+                );
+                if (prefillKeys.size > 0) setAutoFilledFields(prefillKeys);
+            }
+
+            if (link_options) {
+                setLinkOptions((prev) => ({ ...prev, ...link_options }));
+            }
+        };
+
+        // Helper: fetch link options for known doctypes not already loaded
+        const fetchMissingLinkOptions = async (
+            alreadyLoaded: Record<string, any>,
+        ) => {
+            const missingDoctypes = [
+                "Department_prornd",
+                "User",
+                "Budget Head",
+                "Project Registration",
+            ];
+            for (const dt of missingDoctypes) {
+                const loaded =
+                    dt === "Project Registration"
+                        ? alreadyLoaded?.["project_title"] ||
+                          alreadyLoaded?.["Project Registration"]
+                        : alreadyLoaded?.[dt];
+                if (loaded) continue;
+                try {
+                    const listResp = await fetch(
+                        "/api/method/frappe.client.get_list",
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({
+                                doctype: dt,
+                                fields:
+                                    dt === "User"
+                                        ? ["name", "full_name"]
+                                        : dt === "Department_prornd"
+                                          ? ["name", "dept_name"]
+                                          : dt === "Budget Head"
+                                            ? ["*"]
+                                            : dt === "Project Registration"
+                                              ? ["name", "project_title"]
+                                              : ["name"],
+                                limit_page_length: 0,
+                            }),
+                        },
+                    );
+                    const listJson = await listResp.json();
+                    if (listJson.message) {
+                        const opts = listJson.message.map((d: any) => {
+                            if (dt === "User")
+                                return { label: d.full_name || d.name, value: d.name };
+                            if (dt === "Project Registration")
+                                return { label: d.project_title || d.name, value: d.name };
+                            return {
+                                label:
+                                    d.dept_name ||
+                                    d.full_name ||
+                                    d.budget_head ||
+                                    d.head_name ||
+                                    d.account_head ||
+                                    d.title ||
+                                    d.name,
+                                value: d.name,
+                            };
+                        });
+                        setLinkOptions((prev) => ({
+                            ...prev,
+                            [dt]: opts,
+                            ...(dt === "User"
+                                ? { select_copi_id: opts, principal_investigator: opts, principal_consultant: opts }
+                                : {}),
+                            ...(dt === "Project Registration"
+                                ? { project_title: opts }
+                                : {}),
+                        }));
                     }
+                } catch (e) {
+                    console.error(`Failed to fetch options for ${dt}`, e);
+                }
+            }
+        };
+
+        const methodPath = DEPOSIT_SLIP_TYPES[type].getFields;
+        console.log(`[DepositSlip] Calling getFields for type="${type}":`, methodPath);
+
+        try {
+            const response = await fetch(`/api/method/${methodPath}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ doc_name: fundReceivedName || undefined }),
+            });
+            console.log(`[DepositSlip] getFields HTTP status:`, response.status, response.statusText);
+
+            const result = await response.json();
+            console.log(`[DepositSlip] getFields raw response:`, result);
+
+            const apiFields = result?.message?.fields;
+            const link_options = result?.message?.link_options || {};
+            const prefill_data = result?.message?.prefill_data || null;
+
+            console.log(`[DepositSlip] apiFields count:`, Array.isArray(apiFields) ? apiFields.length : "not an array", apiFields);
+            console.log(`[DepositSlip] link_options keys:`, Object.keys(link_options));
+            console.log(`[DepositSlip] prefill_data:`, prefill_data);
+
+            if (Array.isArray(apiFields) && apiFields.length > 0) {
+                // Backend returned fields — use them
+                applyFields(apiFields, link_options, prefill_data);
+                await fetchMissingLinkOptions(link_options);
+            } else {
+                // Backend not implemented yet — fall back to static field definitions
+                const staticFields = STATIC_FIELDS[type];
+                if (staticFields) {
+                    console.warn(
+                        `[DepositSlip] Backend returned no fields for "${type}" — using static fallback.`,
+                    );
+                    applyFields(staticFields, null, null);
+                    await fetchMissingLinkOptions({});
+                } else {
+                    console.error(
+                        `[DepositSlip] No fields from backend and no static fallback for type "${type}"`,
+                    );
                 }
             }
         } catch (err) {
-            console.error("Failed to load form fields:", err);
-            alert("Error loading form fields. Please try again.");
+            console.error("[DepositSlip] getFields threw an exception:", err);
+            // On network error, still try the static fallback
+            const staticFields = STATIC_FIELDS[type];
+            if (staticFields) {
+                console.warn(
+                    `[DepositSlip] Backend unreachable for "${type}" — using static fallback.`,
+                );
+                applyFields(staticFields, null, null);
+                await fetchMissingLinkOptions({});
+            } else {
+                alert("Error loading form fields. Please try again.");
+            }
         } finally {
             setLoading(false);
         }
@@ -498,6 +759,36 @@ const DepositSlipForm: React.FC = () => {
 
             return nextValues;
         });
+
+        // Project auto-fill: trigger when a project-like Link field changes.
+        // We match on EITHER the declared doctype options OR the fieldname,
+        // because some backends return options as null/empty for these fields.
+        const field = fields.find((f) => f.fieldname === fieldname);
+        const optionsDoctype = (field?.options || "").trim();
+        const matchesDoctype =
+            !!optionsDoctype && PROJECT_SOURCE_DOCTYPES.has(optionsDoctype);
+        const matchesFieldname = PROJECT_TRIGGER_FIELDNAMES.has(fieldname);
+        const isProjectLink =
+            field?.fieldtype === "Link" && (matchesDoctype || matchesFieldname);
+
+        if (isProjectLink) {
+            if (value) {
+                const doctype = matchesDoctype
+                    ? optionsDoctype
+                    : DEFAULT_PROJECT_DOCTYPE;
+                console.log(
+                    `[DepositSlip auto-fill] Trigger: field="${fieldname}" doctype="${doctype}" value="${value}"`,
+                );
+                fetchAndAutoFillProjectDetails(value, doctype);
+            } else {
+                setFormValues((prev) => {
+                    const next = { ...prev };
+                    PROJECT_AUTOFILL_TARGET_FIELDS.forEach((f) => delete next[f]);
+                    return next;
+                });
+                setAutoFilledFields(new Set());
+            }
+        }
     };
 
     const checkDependency = (field: Field | null | undefined) => {
@@ -660,9 +951,10 @@ const DepositSlipForm: React.FC = () => {
         }
     };
 
-    // Fields that should always be read-only
+    // Statically read-only fields (legacy / other slip types).
+    // project_title is intentionally excluded — for E/T types the user must select it;
+    // for Research type it is covered by autoFilledFields (populated from prefill_data).
     const readOnlyFieldNames = [
-        "project_title",
         "research_project",
         "project_ref_no",
         "project_registration",
@@ -686,7 +978,9 @@ const DepositSlipForm: React.FC = () => {
             return null;
         if (field.fieldtype === "Table") return null;
 
-        const forceReadOnly = readOnlyFieldNames.includes(field.fieldname);
+        const forceReadOnly =
+            readOnlyFieldNames.includes(field.fieldname) ||
+            autoFilledFields.has(field.fieldname);
         const isReadOnly = field.read_only === 1 || forceReadOnly;
 
         const commonProps = {
