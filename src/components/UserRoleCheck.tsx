@@ -42,6 +42,7 @@ export const useUserRoleChecks = () => {
   const { currentUser } = useFrappeAuth();
   const [isPermanentEmployee, setIsPermanentEmployee] = useState<boolean | null>(null);
   const [isRndMiscellaneous, setIsRndMiscellaneous] = useState<boolean | null>(null);
+  const [isRndStaff, setIsRndStaff] = useState<boolean | null>(null);
 
   const { data: userData, isLoading: isUserLoading } = useFrappeGetDoc("User", currentUser ?? "", {
     fields: ["roles"],
@@ -60,14 +61,17 @@ export const useUserRoleChecks = () => {
     if (!isUserLoading && !areRolesLoading) {
       const isPermanent = combinedRoles.includes("Permanent Employee");
       const isMiscellaneous = combinedRoles.includes("RnD Miscellaneous");
+      const isStaff = combinedRoles.includes("staff, RnD");
       setIsPermanentEmployee(isPermanent);
       setIsRndMiscellaneous(isMiscellaneous);
+      setIsRndStaff(isStaff);
     }
   }, [combinedRoles, isUserLoading, areRolesLoading]);
 
   return {
     isPermanentEmployee,
     isRndMiscellaneous,
+    isRndStaff,
     isLoading: isUserLoading || areRolesLoading
   };
 };

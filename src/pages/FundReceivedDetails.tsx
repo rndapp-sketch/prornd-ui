@@ -19,6 +19,8 @@ import {
     BadgeCheck,
     ExternalLink,
     PencilLine,
+    AlertTriangle,
+    Paperclip,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -31,6 +33,7 @@ import { HoSApprovalView } from "./HoSApprovalView";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
 import { ActivityLog } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
+import { getFileUrl } from "@/utils/fileUtils";
 
 // ── Attachment helper ──────────────────────────────────────────────────────────
 const TransactionAttachment = ({
@@ -45,11 +48,12 @@ const TransactionAttachment = ({
         { doctype: "File", filters: { attached_to_name: transactionName }, fields: ["file_url", "file_name"], limit_page_length: 1 },
     );
     const file = data?.message?.[0];
-    const fileUrl = file?.file_url || fallbackFile;
+    const rawUrl = file?.file_url || fallbackFile;
     const fileName = file?.file_name || "Attachment";
-    if (!fileUrl) return <span className="text-[#A1A1AA]">—</span>;
+    if (!rawUrl) return <span className="text-[#A1A1AA]">—</span>;
+    const resolvedUrl = getFileUrl(rawUrl);
     return (
-        <a href={fileUrl} target="_blank" rel="noopener noreferrer"
+        <a href={resolvedUrl} target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-[11px] font-bold text-[#4A6CF7] hover:text-[#2563EB] transition-colors"
             title={fileName}>
             <ExternalLink className="h-3 w-3" />
@@ -71,6 +75,78 @@ const DEPOSIT_SLIP_TYPES: Record<string, { label: string; getFields: string; sav
 interface Field { fieldname: string; label: string | null; fieldtype: string; options?: string | null; mandatory: boolean; hidden: boolean; read_only: boolean; description?: string | null; default?: any; depends_on?: string | null; depends_on_eval?: string | null; fetch_from?: string }
 interface LinkOption { value: string; label: string }
 interface FormData { [key: string]: any }
+
+// ── Static field definitions (fallback when backend method not yet implemented) ─
+const DEPOSIT_SLIP_STATIC_FIELDS: Record<string, any[]> = {
+    e_non_routine: [
+        { fieldname: "project_title", label: "Project Title", fieldtype: "Link", options: "Project Registration", mandatory: true, read_only: false, hidden: false },
+        { fieldname: "principal_investigator", label: "Principal Investigator", fieldtype: "Link", options: "User", mandatory: true, read_only: false, hidden: false },
+        { fieldname: "client", label: "Client", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "funding_agency", label: "Funding Agency", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "gstin_of_funding_agency", label: "GSTIN of Funding Agency", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "ecs_ac_no", label: "ECS A/C No.", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "bank", label: "Bank", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "calculations_section", label: "Calculations", fieldtype: "Section Break" },
+        { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: true, read_only: false, hidden: false },
+        { fieldname: "igst_18", label: "IGST @18%", fieldtype: "Currency", mandatory: false, read_only: true, hidden: false },
+        { fieldname: "consultancy_fee_x", label: "Consultancy Fee X", fieldtype: "Currency", mandatory: false, read_only: true, hidden: false, description: "Consultancy Fee (After GST Deduction)" },
+        { fieldname: "overhead_amount", label: "Overhead Amount", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "totals_section", label: "Totals", fieldtype: "Section Break" },
+        { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: false, hidden: false },
+        { fieldname: "total_budget", label: "Total Budget", fieldtype: "Currency", read_only: true, hidden: false },
+    ],
+    t_testing: [
+        { fieldname: "project_title", label: "Project Title", fieldtype: "Link", options: "Project Registration", mandatory: true, read_only: false, hidden: false },
+        { fieldname: "principal_investigator", label: "Principal Investigator", fieldtype: "Link", options: "User", mandatory: true, read_only: false, hidden: false },
+        { fieldname: "client", label: "Client", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "gstin_of_funding_agency", label: "Funding Agency", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "ecs_ac_no", label: "ECS A/C No.", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "bank", label: "Bank", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "calculations_section", label: "Calculations", fieldtype: "Section Break" },
+        { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: true, read_only: false, hidden: false },
+        { fieldname: "cgst_9", label: "CGST @9%", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "sgst_9", label: "SGST @9%", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "consultancy_fee_x", label: "Consultancy Fee X", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "overhead_amount", label: "Overhead Amount", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "totals_section", label: "Totals", fieldtype: "Section Break" },
+        { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: false, hidden: false },
+        { fieldname: "total_budget", label: "Total Budget", fieldtype: "Currency", read_only: true, hidden: false },
+    ],
+    d_consultancy: [
+        { fieldname: "primary_details", label: "Primary Details", fieldtype: "Section Break" },
+        { fieldname: "consultancy_title", label: "Consultancy Title", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "category_d", label: "Category", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "principal_consultant", label: "Principal Consultant", fieldtype: "Link", options: "User", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "client", label: "Client", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "funding_agency", label: "Funding Agency", fieldtype: "Link", options: "fundingagency_", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "gstin_of_funding_agency", label: "GSTIN of Funding Agency", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "iitg_invoice_no", label: "IITG Invoice No.", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "bank", label: "Bank", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "ecs_ac_no", label: "ECS A/C No.", fieldtype: "Data", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "section_break_mqkq", label: "GST and Fee Calculations", fieldtype: "Section Break" },
+        { fieldname: "amount_inclusive_of_gst", label: "Amount Inclusive of GST", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "igst_18_on_consultancy", label: "IGST @18% on Consultancy Fee", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "amount_after_gst_tds", label: "Amount after GST TDS @ 2%", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "total_cost_x", label: "Total Cost X", fieldtype: "Currency", read_only: false, hidden: false, description: "Total Cost X (Balance after GST Deduction)" },
+        { fieldname: "consultancy_charge_y", label: "Consultancy Charge (Y)", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "operational_charge_z", label: "Operational Charge (Z)", fieldtype: "Currency", mandatory: false, read_only: false, hidden: false },
+        { fieldname: "overhead_from_y_amount", label: "Overhead from Y (10% * Y) Amount", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "overhead_from_z_amount", label: "Overhead from Z (10% * Z) Amount", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "total_overhead_amount", label: "Total Overhead ((10% * Y) + (10% * Z)) Amount", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "institute_share_amount", label: "Institute Share (20% * Y) Amount", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "total_overhead_institute_share", label: "Overhead + Institute Share", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "credit_distribution_section", label: "Credit Distribution", fieldtype: "Section Break" },
+        { fieldname: "idf_amount", label: "IDF", fieldtype: "Currency", read_only: false, hidden: false, description: "(40% of Overhead + Institute Share)" },
+        { fieldname: "dpf_amount", label: "DPF/CE", fieldtype: "Currency", read_only: false, hidden: false, description: "(50% of Overhead + Institute Share)" },
+        { fieldname: "staff_welfare_amount", label: "Staff welfare Amount", fieldtype: "Currency", read_only: false, hidden: false, description: "(5% of Overhead + Institute Share)" },
+        { fieldname: "student_welfare_amount", label: "Student welfare Amount", fieldtype: "Currency", read_only: false, hidden: false, description: "(5% of Overhead + Institute Share)" },
+        { fieldname: "final_totals", label: "Final Totals", fieldtype: "Section Break" },
+        { fieldname: "balance_consultancy_fee", label: "Balance Consultancy Fee", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "balance_operation_charge", label: "Balance Operation Charge", fieldtype: "Currency", read_only: true, hidden: false },
+        { fieldname: "total_gst", label: "Total GST", fieldtype: "Currency", read_only: false, hidden: false },
+        { fieldname: "total_amount", label: "Total Amount", fieldtype: "Currency", read_only: true, hidden: false },
+    ],
+};
 
 // ── Status badge ───────────────────────────────────────────────────────────────
 const statusStyle = (state: string) => {
@@ -221,7 +297,7 @@ const FundReceivedDetails = () => {
     const location = useLocation();
     const prjreg_title = location.state?.prjreg_title;
     const routeSanctionName = location.state?.sanction_ref_no || "";
-    const { isRndMiscellaneous } = useUserRoleChecks();
+    const { isRndMiscellaneous, isRndStaff } = useUserRoleChecks();
 
     const [fields, setFields] = useState<Field[]>([]);
     const [formData, setFormData] = useState<FormData>({});
@@ -232,6 +308,13 @@ const FundReceivedDetails = () => {
     const [showActivityLog, setShowActivityLog] = useState(false);
     const [showSummary, setShowSummary] = useState(false);
     const [childTableMeta, setChildTableMeta] = useState<Record<string, any>>({});
+    const prevProjectTitleRef = React.useRef<string>("");
+
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editBankAccount, setEditBankAccount] = useState("");
+    const [editBreakup, setEditBreakup] = useState<any[]>([]);
+    const [editTransactions, setEditTransactions] = useState<any[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
 
     const { data: docData, isLoading: docLoading, error: docError } = useFrappeGetDoc("Fund Received", name || "");
     const effectivePrjregTitle = prjreg_title || docData?.prjreg_title;
@@ -296,6 +379,13 @@ const FundReceivedDetails = () => {
         { revalidateOnFocus: false },
     );
     const sanctionDetails = sanctionDoc || fallbackSanction;
+    const { data: budgetHeadsData } = useFrappeGetCall<{ message: { name: string; budget_head: string }[] }>(
+        "frappe.client.get_list",
+        { doctype: "Budget Head", fields: ["name", "budget_head"], limit_page_length: 0, order_by: "budget_head asc" },
+        "budget-head-list",
+        { revalidateOnFocus: false },
+    );
+    const budgetHeadOptions = budgetHeadsData?.message ?? [];
     const isLoading = docLoading || (effectivePrjregTitle ? listLoading : false);
     const error = docError || (effectivePrjregTitle ? listError : null);
     const showDepositSlip = isRndMiscellaneous && (
@@ -307,6 +397,82 @@ const FundReceivedDetails = () => {
     useFrappeClientScript(clientScript, formData, setFormData);
     useDepositSlipCalculations(formData, setFormData, selectedDepositSlipType);
     useFrappeFetchFrom(formData, setFormData, fields);
+
+    React.useEffect(() => {
+        if (fundData) {
+            setEditBankAccount(fundData.bank_account || "");
+            setEditBreakup(fundData.received_amt_breakup ? fundData.received_amt_breakup.map((r: any) => ({ ...r })) : []);
+            setEditTransactions(fundData.fund_transactions ? fundData.fund_transactions.map((r: any) => ({ ...r })) : []);
+        }
+    // Use primitive fields so the effect only runs when the document actually changes,
+    // not on every render (fundData is a new object reference each render).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [fundData?.name, fundData?.modified]);
+
+    const handleSaveEdits = async () => {
+        setIsSaving(true);
+        try {
+            const docData: Record<string, any> = {
+                bank_account: editBankAccount,
+                fund_transactions: editTransactions.map((t: any) => ({
+                    transaction_number: t.transaction_number || "",
+                    transaction_date: t.date || t.transaction_date || "",
+                    amount: t.amount ?? 0,
+                    ...(t.file_name ? { file_name: t.file_name, file_data: t.file_data } : {}),
+                })),
+                received_amt_breakup: editBreakup.map((b: any) => ({
+                    account_head: b.account_head || "",
+                    amount_received: b.amount_received ?? 0,
+                    budget_year_funds_receive: b.budget_year_funds_receive || "",
+                    remarks: b.remarks || "",
+                })),
+            };
+
+            const res = await fetch(
+                "/api/method/rndopsapp.rndopsapp.doctype.fund_received.fund_received.update_fund_received",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        docname: name,
+                        doc_data: JSON.stringify(docData),
+                    }),
+                }
+            );
+            const json = await res.json();
+            if (json.exc) throw new Error(json.exc);
+            if (json.message?.error) throw new Error(json.message.error);
+            await mutate();
+            setIsEditMode(false);
+        } catch (err: any) {
+            alert(`Save failed: ${err.message || "Unknown error"}`);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const cancelEdits = () => {
+        setIsEditMode(false);
+        setEditBankAccount(fundData?.bank_account || "");
+        setEditBreakup(fundData?.received_amt_breakup ? fundData.received_amt_breakup.map((r: any) => ({ ...r })) : []);
+        setEditTransactions(fundData?.fund_transactions ? fundData.fund_transactions.map((r: any) => ({ ...r })) : []);
+    };
+
+    const handleFileSelect = (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            setEditTransactions(prev => {
+                const r = [...prev];
+                r[idx] = { ...r[idx], file_name: file.name, file_data: reader.result as string };
+                return r;
+            });
+        };
+        reader.readAsDataURL(file);
+        e.target.value = "";
+    };
 
     const childFetchRef = React.useRef<Set<string>>(new Set());
     React.useEffect(() => {
@@ -343,71 +509,171 @@ const FundReceivedDetails = () => {
         });
     }, [formData, childTableMeta]);
 
+    // Fetches a Project Registration doc and returns mapped auto-fill values.
+    const autoFillFromProject = async (projectName: string): Promise<Partial<FormData>> => {
+        try {
+            const resp = await fetch("/api/method/frappe.client.get", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ doctype: "Project Registration", name: projectName }),
+            });
+            const result = await resp.json();
+            const doc = result?.message;
+            if (!doc) return {};
+            const fills: Partial<FormData> = {};
+            const pi = doc.principal_investigator || doc.pi_userid || doc.pi || doc.pi_name;
+            if (pi) fills.principal_investigator = pi;
+            const fa = doc.funding_agency || doc.funding_agen || doc.fund_agen_initials || doc.sponsor;
+            if (fa) fills.funding_agency = fa;
+            if (doc.client || doc.client_name) fills.client = doc.client || doc.client_name;
+            const gstin = doc.gstin_of_funding_agency || doc.gstin || doc.agency_gstin;
+            if (gstin) fills.gstin_of_funding_agency = gstin;
+            return fills;
+        } catch {
+            return {};
+        }
+    };
+
+    // Wraps setFormData; triggers project auto-fill when project_title changes.
+    const handleFormChange = useCallback(async (data: FormData) => {
+        setFormData(data);
+        const newTitle = data.project_title;
+        if (newTitle && newTitle !== prevProjectTitleRef.current) {
+            prevProjectTitleRef.current = newTitle;
+            const fills = await autoFillFromProject(newTitle);
+            if (Object.keys(fills).length > 0) {
+                setFormData(prev => ({ ...prev, ...fills }));
+            }
+        } else if (!newTitle) {
+            prevProjectTitleRef.current = "";
+        }
+    }, []);
+
     const handleDepositSlipTypeChange = async (type: string) => {
         setSelectedDepositSlipType(type); setFields([]); setFormData({}); setClientScript(""); setChildTableMeta({});
+        prevProjectTitleRef.current = "";
         if (!type || !DEPOSIT_SLIP_TYPES[type]) return;
         setDepositFormLoading(true);
+        console.log(`[DepositSlip] type selected: "${type}", getFields: ${DEPOSIT_SLIP_TYPES[type].getFields}`);
+
+        // Step 1: try backend — extract what we can, silently ignore failures.
+        let apiFields: any[] | undefined;
+        let link_options: Record<string, any> = {};
+        let prefill_data: any = null;
+        let client_scripts: any[] | undefined;
+        let related_data: any = null;
+
         try {
-            const response = await fetch(`/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doc_name: name || undefined }) });
+            const getFieldsUrl = `/api/method/${DEPOSIT_SLIP_TYPES[type].getFields}`;
+            console.log(`[DepositSlip] fetching fields from: ${getFieldsUrl}`);
+            const response = await fetch(getFieldsUrl, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doc_name: name || undefined }) });
+            console.log(`[DepositSlip] response status: ${response.status}`);
             const result = await response.json();
+            console.log(`[DepositSlip] raw result:`, result);
             const messagePayload = result?.message;
-            const normalizedPayload = Array.isArray(messagePayload) ? { fields: messagePayload } : messagePayload;
-            if (normalizedPayload) {
-                const { fields: apiFields, link_options, prefill_data, client_scripts, child_table_meta, related_data } = normalizedPayload;
-                if (child_table_meta) setChildTableMeta(child_table_meta);
-                if (Array.isArray(apiFields)) {
-                    const processedFields = apiFields.map((field: any) => {
-                        if (field.fieldtype === "Section Break" || field.fieldtype === "SectionBreak") return field;
-                        return { ...field, mandatory: !!field.mandatory, hidden: !!field.hidden, read_only: !!field.read_only, ...(prefill_data && prefill_data[field.fieldname] !== undefined ? { default: prefill_data[field.fieldname] } : {}) };
-                    });
-                    setFields(processedFields);
-                    const initialData: FormData = {};
-                    processedFields.forEach((f: Field) => { if (f.default) initialData[f.fieldname] = f.default; });
-                    if (related_data?.prjreg_title) {
-                        const prjFields = ["name", "pi_userid", "project_no", "fund_agen_initials", "funding_agen"];
-                        let prjDoc: any = null;
-                        try {
-                            const byNameResp = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", filters: { name: related_data.prjreg_title }, fields: prjFields, limit_page_length: 1 }) });
-                            const byNameResult = await byNameResp.json();
-                            if (byNameResult?.message?.length > 0) prjDoc = byNameResult.message[0];
-                            if (!prjDoc) {
-                                const byProjNoResp = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: related_data.prjreg_title }, fields: prjFields, limit_page_length: 1 }) });
-                                const byProjNoResult = await byProjNoResp.json();
-                                if (byProjNoResult?.message?.length > 0) prjDoc = byProjNoResult.message[0];
-                            }
-                            if (prjDoc) {
-                                if (prjDoc.name) initialData.project_title = prjDoc.name;
-                                if (prjDoc.pi_userid) initialData.principal_investigator = prjDoc.pi_userid;
-                                if (prjDoc.funding_agen) initialData.funding_agency = prjDoc.funding_agen;
-                                else if (prjDoc.fund_agen_initials) initialData.funding_agency = prjDoc.fund_agen_initials;
-                                if (prjDoc.project_no) initialData.project_no = prjDoc.project_no;
-                            }
-                        } catch {}
+            const payload = Array.isArray(messagePayload) ? { fields: messagePayload } : (messagePayload && typeof messagePayload === "object" ? messagePayload : null);
+            console.log(`[DepositSlip] payload:`, payload);
+            if (payload) {
+                apiFields = payload.fields;
+                link_options = payload.link_options || {};
+                prefill_data = payload.prefill_data || null;
+                client_scripts = payload.client_scripts;
+                related_data = payload.related_data || null;
+                if (payload.child_table_meta) setChildTableMeta(payload.child_table_meta);
+                console.log(`[DepositSlip] apiFields from backend: ${apiFields?.length ?? 0} fields`);
+            } else {
+                console.log(`[DepositSlip] backend returned no usable payload — will use static fallback`);
+            }
+        } catch (err) {
+            console.log(`[DepositSlip] backend fetch failed (will use static fallback):`, err);
+        }
+
+        // Step 2: resolve fields — backend wins, static fallback if backend returned nothing.
+        const staticFields = DEPOSIT_SLIP_STATIC_FIELDS[type] || [];
+        const resolvedFields: any[] = Array.isArray(apiFields) && apiFields.length > 0
+            ? apiFields
+            : staticFields;
+        console.log(`[DepositSlip] resolvedFields: ${resolvedFields.length} fields (source: ${Array.isArray(apiFields) && apiFields.length > 0 ? "backend" : "static"})`);
+        console.log(`[DepositSlip] DEPOSIT_SLIP_STATIC_FIELDS["${type}"] length: ${staticFields.length}`);
+
+        if (resolvedFields.length > 0) {
+            const processedFields = resolvedFields.map((field: any) => {
+                if (field.fieldtype === "Section Break" || field.fieldtype === "SectionBreak") return field;
+                return { ...field, mandatory: !!field.mandatory, hidden: !!field.hidden, read_only: !!field.read_only, ...(prefill_data && prefill_data[field.fieldname] !== undefined ? { default: prefill_data[field.fieldname] } : {}) };
+            });
+            console.log(`[DepositSlip] calling setFields with ${processedFields.length} fields`);
+            setFields(processedFields);
+            const initialData: FormData = {};
+            processedFields.forEach((f: Field) => { if (f.default) initialData[f.fieldname] = f.default; });
+
+            // Step 3: auto-fill from prjreg_title hint — type-aware field mapping.
+            const prjregHint = related_data?.prjreg_title || docData?.prjreg_title || effectivePrjregTitle;
+            console.log(`[DepositSlip] prjregHint:`, prjregHint);
+            if (prjregHint) {
+                const prjFields = ["name", "pi_userid", "project_no", "fund_agen_initials", "funding_agen",
+                                   "principal_investigator", "client", "funding_agency", "gstin_of_funding_agency"];
+                let prjDoc: any = null;
+                try {
+                    const r1 = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", filters: { name: prjregHint }, fields: prjFields, limit_page_length: 1 }) });
+                    const j1 = await r1.json();
+                    if (j1?.message?.length > 0) prjDoc = j1.message[0];
+                    if (!prjDoc) {
+                        const r2 = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: prjregHint }, fields: prjFields, limit_page_length: 1 }) });
+                        const j2 = await r2.json();
+                        if (j2?.message?.length > 0) prjDoc = j2.message[0];
                     }
-                    setFormData(initialData);
-                    if (client_scripts && Array.isArray(client_scripts)) {
-                        let combinedScript = client_scripts.map((cs: any) => cs.script).join("\n\n");
-                        const _fixedFunction = `function calculate_deposit_slip(frm){let total_inclusive=flt(frm.doc.amount_inclusive_gst_capital);let multiplier=flt(frm.doc.overhead_multiplier)||15;if(total_inclusive>0){let project_balance=total_inclusive/1.18;let cgst=project_balance*0.09;let sgst=project_balance*0.09;let overhead_amount=project_balance*(multiplier/(100+multiplier));let project_amount=project_balance-overhead_amount;let idf_amt=overhead_amount*(40.0/100);let dpf_amt=overhead_amount*(25.0/100);let staff_amt=overhead_amount*(5.0/100);let student_amt=overhead_amount*(5.0/100);frm.set_value({'project_balance_after_gst':project_balance,'cgst_9':cgst,'sgst_9':sgst,'total_gst':cgst+sgst,'total_budget':total_inclusive,'overhead_amount':overhead_amount,'overhead_amount_label':'<b>Overhead Amount @ '+multiplier+'% (inclusive)</b>','prj_amount':project_amount,'idf_amount':flt(idf_amt,2),'dpf_cle_amount':flt(dpf_amt,2),'staff_welfare_amount':flt(staff_amt,2),'student_welfare_amount':flt(student_amt,2)}).then(()=>{distribute_pool_share(frm,overhead_amount);});}else{frm.set_value({'project_balance_after_gst':0,'cgst_9':0,'sgst_9':0,'total_gst':0,'total_budget':0,'overhead_amount':0,'overhead_amount_label':'','prj_amount':0,'idf_amount':0,'dpf_cle_amount':0,'staff_welfare_amount':0,'student_welfare_amount':0}).then(()=>{distribute_pool_share(frm,0);});}}`;
-                        combinedScript += "\n\n" + _fixedFunction;
-                        setClientScript(combinedScript);
+                    console.log(`[DepositSlip] prjDoc fetched:`, prjDoc);
+                    if (prjDoc) {
+                        const pi = prjDoc.principal_investigator || prjDoc.pi_userid;
+                        const fa = prjDoc.funding_agency || prjDoc.funding_agen || prjDoc.fund_agen_initials;
+                        if (type === "d_consultancy") {
+                            // D Consultancy uses principal_consultant instead of principal_investigator
+                            if (pi) initialData.principal_consultant = pi;
+                        } else {
+                            if (prjDoc.name) initialData.project_title = prjDoc.name;
+                            if (pi) initialData.principal_investigator = pi;
+                            if (prjDoc.project_no) initialData.project_no = prjDoc.project_no;
+                            prevProjectTitleRef.current = prjDoc.name || "";
+                        }
+                        if (fa) initialData.funding_agency = fa;
+                        if (prjDoc.client) initialData.client = prjDoc.client;
+                        if (prjDoc.gstin_of_funding_agency) initialData.gstin_of_funding_agency = prjDoc.gstin_of_funding_agency;
                     }
-                }
-                setLinkOptions(prev => ({ ...prev, ...(link_options || {}) }));
-                const missingDoctypes = ["Department_prornd", "User", "Budget Head"];
-                for (const dt of missingDoctypes) {
-                    if (!link_options?.[dt]) {
-                        try {
-                            const listResp = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: dt, fields: dt === "User" ? ["name", "full_name"] : dt === "Department_prornd" ? ["name", "dept_name"] : ["*"], limit_page_length: 0 }) });
-                            const listJson = await listResp.json();
-                            if (listJson.message) {
-                                const opts = listJson.message.map((d: any) => ({ label: d.dept_name || d.full_name || d.budget_head || d.head_name || d.account_head || d.title || d.name, value: d.name }));
-                                setLinkOptions(prev => ({ ...prev, [dt]: opts, ...(dt === "User" ? { select_copi_id: opts, principal_investigator: opts } : {}) }));
-                            }
-                        } catch {}
-                    }
+                } catch (err) {
+                    console.log(`[DepositSlip] prjDoc fetch failed:`, err);
                 }
             }
-        } catch {} finally { setDepositFormLoading(false); }
+            setFormData(initialData);
+
+            if (client_scripts && Array.isArray(client_scripts)) {
+                let combinedScript = client_scripts.map((cs: any) => cs.script).join("\n\n");
+                const _fixedFunction = `function calculate_deposit_slip(frm){let total_inclusive=flt(frm.doc.amount_inclusive_gst_capital);let multiplier=flt(frm.doc.overhead_multiplier)||15;if(total_inclusive>0){let project_balance=total_inclusive/1.18;let cgst=project_balance*0.09;let sgst=project_balance*0.09;let overhead_amount=project_balance*(multiplier/(100+multiplier));let project_amount=project_balance-overhead_amount;let idf_amt=overhead_amount*(40.0/100);let dpf_amt=overhead_amount*(25.0/100);let staff_amt=overhead_amount*(5.0/100);let student_amt=overhead_amount*(5.0/100);frm.set_value({'project_balance_after_gst':project_balance,'cgst_9':cgst,'sgst_9':sgst,'total_gst':cgst+sgst,'total_budget':total_inclusive,'overhead_amount':overhead_amount,'overhead_amount_label':'<b>Overhead Amount @ '+multiplier+'% (inclusive)</b>','prj_amount':project_amount,'idf_amount':flt(idf_amt,2),'dpf_cle_amount':flt(dpf_amt,2),'staff_welfare_amount':flt(staff_amt,2),'student_welfare_amount':flt(student_amt,2)}).then(()=>{distribute_pool_share(frm,overhead_amount);});}else{frm.set_value({'project_balance_after_gst':0,'cgst_9':0,'sgst_9':0,'total_gst':0,'total_budget':0,'overhead_amount':0,'overhead_amount_label':'','prj_amount':0,'idf_amount':0,'dpf_cle_amount':0,'staff_welfare_amount':0,'student_welfare_amount':0}).then(()=>{distribute_pool_share(frm,0);});}}`;
+                combinedScript += "\n\n" + _fixedFunction;
+                setClientScript(combinedScript);
+            }
+        }
+
+        // Step 4: merge backend link_options and fetch any missing ones.
+        setLinkOptions(prev => ({ ...prev, ...link_options }));
+        const missingDoctypes = ["Department_prornd", "User", "Budget Head", "Project Registration"];
+        for (const dt of missingDoctypes) {
+            const alreadyLoaded = dt === "Project Registration"
+                ? link_options?.["project_title"] || link_options?.["Project Registration"]
+                : link_options?.[dt];
+            if (!alreadyLoaded) {
+                try {
+                    const listResp = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: dt, fields: dt === "User" ? ["name", "full_name"] : dt === "Department_prornd" ? ["name", "dept_name"] : dt === "Project Registration" ? ["name", "project_title"] : ["*"], limit_page_length: 0 }) });
+                    const listJson = await listResp.json();
+                    if (listJson.message) {
+                        const opts = listJson.message.map((d: any) => dt === "Project Registration" ? { label: d.project_title || d.name, value: d.name } : ({ label: d.dept_name || d.full_name || d.budget_head || d.head_name || d.account_head || d.title || d.name, value: d.name }));
+                        setLinkOptions(prev => ({ ...prev, [dt]: opts, ...(dt === "User" ? { select_copi_id: opts, principal_investigator: opts, principal_consultant: opts } : {}), ...(dt === "Project Registration" ? { project_title: opts } : {}) }));
+                    }
+                } catch {}
+            }
+        }
+
+        setDepositFormLoading(false);
     };
 
     const handleSaveDepositSlip = async () => {
@@ -446,6 +712,13 @@ const FundReceivedDetails = () => {
     }
 
     const { workflow_state, fund_received_amt, bank_account, received_amt_breakup, fund_transactions } = fundData;
+
+    const missingRequired = {
+        bankAccount: !bank_account,
+        budgetBreakup: !(received_amt_breakup?.length > 0),
+        transactions: !(fund_transactions?.length > 0),
+    };
+    const hasMissingRequired = Object.values(missingRequired).some(Boolean);
 
     if (workflow_state === "Approved") {
         return (
@@ -497,12 +770,32 @@ const FundReceivedDetails = () => {
                                     <PencilLine className="h-3 w-3" /> Edit
                                 </button>
                             )}
+                            {isRndStaff && !showDepositSlip && (
+                                isEditMode ? (
+                                    <>
+                                        <button onClick={cancelEdits} disabled={isSaving}
+                                            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#3F3F46] text-[11px] font-bold uppercase tracking-wide transition-colors">
+                                            Cancel
+                                        </button>
+                                        <button onClick={handleSaveEdits} disabled={isSaving}
+                                            className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg bg-[#4A6CF7] hover:bg-[#3B5CE6] text-white text-[11px] font-bold uppercase tracking-wide transition-colors disabled:opacity-50">
+                                            {isSaving ? "Saving…" : "Save Changes"}
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button onClick={() => setIsEditMode(true)}
+                                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#4A6CF7] hover:border-[#4A6CF7]/30 hover:bg-[#EEF2FF] text-[11px] font-bold uppercase tracking-wide transition-colors">
+                                        <PencilLine className="h-3 w-3" /> Edit Fields
+                                    </button>
+                                )
+                            )}
                             <ViewProjectButton doctype="Fund Received" data={fundData} />
                             <FundReceivedWorkflowActions
                                 docname={name || ""}
                                 onActionComplete={() => { mutate(); window.location.reload(); }}
                                 onBeforeAction={handleBeforeAction}
                                 disabledCondition={(action) => {
+                                    if (hasMissingRequired) return true;
                                     if (action === "Generate Deposit Slip") {
                                         if (!showDepositSlip || !selectedDepositSlipType) return true;
                                         return fields.filter(f => f.mandatory && !f.hidden).some(f => { const v = formData[f.fieldname]; return v === undefined || v === null || v === ""; });
@@ -519,7 +812,12 @@ const FundReceivedDetails = () => {
                     <KpiMini label="Total Amount" icon={<IndianRupee className="h-4 w-4" />} accent="#D97757"
                         value={fund_received_amt != null ? fund_received_amt.toLocaleString("en-IN", { style: "currency", currency: "INR" }) : "—"} />
                     <KpiMini label="Bank Account" icon={<Landmark className="h-4 w-4" />} accent="#4A6CF7"
-                        value={<span className="text-[13px]">{bank_account || "—"}</span>} />
+                        value={isRndStaff && isEditMode
+                            ? <input value={editBankAccount} onChange={e => setEditBankAccount(e.target.value)}
+                                className="w-full bg-transparent border-b-2 border-[#4A6CF7] text-[14px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] outline-none py-0.5"
+                                placeholder="Bank account…" />
+                            : <span className="text-[13px]">{bank_account || "—"}</span>
+                        } />
                     <KpiMini label="Sanction Ref" icon={<Calculator className="h-4 w-4" />} accent="#10B981"
                         value={<span className="text-[13px] font-mono">{sanctionName || "—"}</span>} />
                     <KpiMini label="Transactions" icon={<CreditCard className="h-4 w-4" />} accent="#8B5CF6"
@@ -528,6 +826,23 @@ const FundReceivedDetails = () => {
 
                 {/* ── Section separator ── */}
                 <div className="border-t-2 border-[#4A6CF7]/35 dark:border-[#818CF8]/35 pt-4 mb-4" />
+
+                {/* ── Mandatory fields validation banner ── */}
+                {hasMissingRequired && (
+                    <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/25 px-4 py-3">
+                        <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-[12px] font-bold text-amber-700 dark:text-amber-400 mb-1">
+                                Submission blocked — required fields are missing
+                            </p>
+                            <ul className="text-[11px] text-amber-600 dark:text-amber-500 list-disc list-inside space-y-0.5">
+                                {missingRequired.bankAccount && <li>Bank Account Number / Scheme</li>}
+                                {missingRequired.budgetBreakup && <li>Budget Breakup — at least one row required</li>}
+                                {missingRequired.transactions && <li>Transaction Details — at least one row required</li>}
+                            </ul>
+                        </div>
+                    </div>
+                )}
 
                 {/* ── Deposit Slip Form (when applicable) ── */}
                 {showDepositSlip && (
@@ -617,7 +932,7 @@ const FundReceivedDetails = () => {
                                     })()}
                                     initialData={formData}
                                     onSubmit={handleSaveDepositSlip}
-                                    onFormChange={data => setFormData(data)}
+                                    onFormChange={handleFormChange}
                                     onCancel={() => setSelectedDepositSlipType("")}
                                     submitButtonText="Save Deposit Slip"
                                     isSubmitting={isSubmitting}
@@ -640,9 +955,9 @@ const FundReceivedDetails = () => {
                                     <ReceiptText className="w-3.5 h-3.5" />
                                 </div>
                                 <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Budget Breakup</h3>
-                                {received_amt_breakup?.length > 0 && (
+                                {(isRndStaff && isEditMode ? editBreakup : received_amt_breakup)?.length > 0 && (
                                     <span className="ml-auto text-[11px] font-bold text-[#4A6CF7] bg-[#EEF2FF] dark:bg-[#4A6CF7]/15 dark:text-[#818CF8] px-2 py-0.5 rounded-md">
-                                        {received_amt_breakup.length} {received_amt_breakup.length === 1 ? "item" : "items"}
+                                        {(isRndStaff && isEditMode ? editBreakup : received_amt_breakup).length} {(isRndStaff && isEditMode ? editBreakup : received_amt_breakup).length === 1 ? "item" : "items"}
                                     </span>
                                 )}
                             </div>
@@ -652,11 +967,53 @@ const FundReceivedDetails = () => {
                                         <tr>
                                             <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Account Head</th>
                                             <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
-                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Remarks</th>
+                                            <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Remarks</th>
+                                            {isRndStaff && isEditMode && <th className="px-4 py-3 w-10" />}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
-                                        {received_amt_breakup?.length > 0 ? received_amt_breakup.map((item: any, idx: number) => (
+                                        {isRndStaff && isEditMode ? (
+                                            <>
+                                                {editBreakup.map((item: any, idx: number) => (
+                                                    <tr key={item.name || idx} className="bg-[#FAFAF9] dark:bg-[#18181B]">
+                                                        <td className="px-3 py-2 border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                                            <select
+                                                                value={item.account_head || ""}
+                                                                onChange={e => { const r = [...editBreakup]; r[idx] = { ...r[idx], account_head: e.target.value }; setEditBreakup(r); }}
+                                                                className="w-full bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-md px-2 py-1.5 text-[12px] text-[#3F3F46] dark:text-[#D4D4D8] outline-none focus:border-[#4A6CF7] transition-colors appearance-none cursor-pointer"
+                                                            >
+                                                                <option value="">— Select Account Head —</option>
+                                                                {budgetHeadOptions.map(bh => (
+                                                                    <option key={bh.name} value={bh.name}>{bh.budget_head}</option>
+                                                                ))}
+                                                            </select>
+                                                        </td>
+                                                        <td className="px-3 py-2 border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                                            <input type="number" value={item.amount_received ?? ""} onChange={e => { const r = [...editBreakup]; r[idx] = { ...r[idx], amount_received: parseFloat(e.target.value) || 0 }; setEditBreakup(r); }}
+                                                                className="w-full bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-md px-2 py-1.5 text-[12px] text-right font-bold text-[#D97757] outline-none focus:border-[#4A6CF7] transition-colors" placeholder="0" />
+                                                        </td>
+                                                        <td className="px-3 py-2 border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                                            <input value={item.remarks || ""} onChange={e => { const r = [...editBreakup]; r[idx] = { ...r[idx], remarks: e.target.value }; setEditBreakup(r); }}
+                                                                className="w-full bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-md px-2 py-1.5 text-[12px] text-[#71717A] dark:text-[#A1A1AA] outline-none focus:border-[#4A6CF7] transition-colors" placeholder="Remarks…" />
+                                                        </td>
+                                                        <td className="px-3 py-2 text-center">
+                                                            <button onClick={() => setEditBreakup(editBreakup.filter((_, i) => i !== idx))}
+                                                                className="p-1 rounded text-[#71717A] hover:text-red-500 hover:bg-red-50 transition-colors">
+                                                                <X className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                <tr>
+                                                    <td colSpan={4} className="px-4 py-2">
+                                                        <button onClick={() => setEditBreakup([...editBreakup, { doctype: "Received Amt Breakup", account_head: "", amount_received: 0, remarks: "", name: `new-${Date.now()}` }])}
+                                                            className="text-[11px] font-bold text-[#4A6CF7] hover:text-[#3B5CE6] uppercase tracking-wide transition-colors">
+                                                            + Add Row
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </>
+                                        ) : received_amt_breakup?.length > 0 ? received_amt_breakup.map((item: any, idx: number) => (
                                             <tr key={item.name || idx} className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 transition-colors">
                                                 <td className="px-4 py-3 text-[13px] text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80"><BudgetHeadName value={item.account_head} /></td>
                                                 <td className="px-4 py-3 text-[13px] text-right font-bold text-[#D97757] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{item.amount_received?.toLocaleString("en-IN", { style: "currency", currency: "INR" })}</td>
@@ -677,9 +1034,9 @@ const FundReceivedDetails = () => {
                                     <CreditCard className="w-3.5 h-3.5" />
                                 </div>
                                 <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7]">Transactions</h3>
-                                {fund_transactions?.length > 0 && (
+                                {(isRndStaff && isEditMode ? editTransactions : fund_transactions)?.length > 0 && (
                                     <span className="ml-auto text-[11px] font-bold text-[#D97757] bg-[#FFF7ED] dark:bg-[#D97757]/15 px-2 py-0.5 rounded-md">
-                                        {fund_transactions.length} {fund_transactions.length === 1 ? "entry" : "entries"}
+                                        {(isRndStaff && isEditMode ? editTransactions : fund_transactions).length} {(isRndStaff && isEditMode ? editTransactions : fund_transactions).length === 1 ? "entry" : "entries"}
                                     </span>
                                 )}
                             </div>
@@ -690,11 +1047,66 @@ const FundReceivedDetails = () => {
                                             <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Date</th>
                                             <th className="px-4 py-3 text-left text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Transaction No.</th>
                                             <th className="px-4 py-3 text-right text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Amount</th>
-                                            <th className="px-4 py-3 text-center text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider">Attachment</th>
+                                            <th className="px-4 py-3 text-center text-[10px] font-extrabold text-[#1E3A8A] dark:text-[#C7D2FE] uppercase tracking-wider border-r border-[#C7D2FE]/70 dark:border-[#4A6CF7]/25">Attachment</th>
+                                            {isRndStaff && isEditMode && <th className="px-4 py-3 w-10" />}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-[#E4E4E7] dark:divide-[#3F3F46] bg-white dark:bg-[#27272A]">
-                                        {fund_transactions?.length > 0 ? fund_transactions.map((item: any, idx: number) => (
+                                        {isRndStaff && isEditMode ? (
+                                            <>
+                                                {editTransactions.map((item: any, idx: number) => (
+                                                    <tr key={item.name || idx} className="bg-[#FAFAF9] dark:bg-[#18181B]">
+                                                        <td className="px-3 py-2 border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                                            <input type="date" value={item.date || item.transaction_date || ""} onChange={e => { const r = [...editTransactions]; r[idx] = { ...r[idx], date: e.target.value }; setEditTransactions(r); }}
+                                                                className="w-full bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-md px-2 py-1.5 text-[12px] font-mono text-[#3F3F46] dark:text-[#D4D4D8] outline-none focus:border-[#4A6CF7] transition-colors" />
+                                                        </td>
+                                                        <td className="px-3 py-2 border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                                            <input value={item.transaction_number || ""} onChange={e => { const r = [...editTransactions]; r[idx] = { ...r[idx], transaction_number: e.target.value }; setEditTransactions(r); }}
+                                                                className="w-full bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-md px-2 py-1.5 text-[12px] font-bold text-[#3F3F46] dark:text-[#D4D4D8] outline-none focus:border-[#4A6CF7] transition-colors" placeholder="Transaction no…" />
+                                                        </td>
+                                                        <td className="px-3 py-2 border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                                            <input type="number" value={item.amount ?? ""} onChange={e => { const r = [...editTransactions]; r[idx] = { ...r[idx], amount: parseFloat(e.target.value) || 0 }; setEditTransactions(r); }}
+                                                                className="w-full bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] rounded-md px-2 py-1.5 text-[12px] text-right font-bold text-[#D97757] outline-none focus:border-[#4A6CF7] transition-colors" placeholder="0" />
+                                                        </td>
+                                                        <td className="px-3 py-2 border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">
+                                                            {item.file_name ? (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <Paperclip className="h-3 w-3 text-[#4A6CF7] shrink-0" />
+                                                                    <span className="text-[11px] text-[#4A6CF7] font-semibold truncate max-w-[110px]" title={item.file_name}>{item.file_name}</span>
+                                                                    <button onClick={() => { const r = [...editTransactions]; r[idx] = { ...r[idx], file_name: undefined, file_data: undefined }; setEditTransactions(r); }}
+                                                                        className="p-0.5 rounded text-[#71717A] hover:text-red-500 transition-colors shrink-0">
+                                                                        <X className="h-3 w-3" />
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex flex-col items-start gap-1">
+                                                                    <TransactionAttachment transactionName={item.name} fallbackFile={item.attachment || item.file} />
+                                                                    <label className="inline-flex items-center gap-1 cursor-pointer text-[10px] font-bold text-[#4A6CF7] hover:text-[#3B5CE6] uppercase tracking-wide transition-colors">
+                                                                        <Paperclip className="h-3 w-3" />
+                                                                        {item.attachment || item.file ? "Replace" : "Upload"}
+                                                                        <input type="file" className="hidden" onChange={e => handleFileSelect(idx, e)} />
+                                                                    </label>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-center">
+                                                            <button onClick={() => setEditTransactions(editTransactions.filter((_, i) => i !== idx))}
+                                                                className="p-1 rounded text-[#71717A] hover:text-red-500 hover:bg-red-50 transition-colors">
+                                                                <X className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                <tr>
+                                                    <td colSpan={5} className="px-4 py-2">
+                                                        <button onClick={() => setEditTransactions([...editTransactions, { doctype: "Fund Transactions", date: "", transaction_number: "", amount: 0, name: `new-${Date.now()}` }])}
+                                                            className="text-[11px] font-bold text-[#D97757] hover:text-[#c66a4e] uppercase tracking-wide transition-colors">
+                                                            + Add Row
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </>
+                                        ) : fund_transactions?.length > 0 ? fund_transactions.map((item: any, idx: number) => (
                                             <tr key={item.name || idx} className="hover:bg-[#F4F4F5] dark:hover:bg-[#3F3F46]/40 transition-colors">
                                                 <td className="px-4 py-3 text-[13px] font-mono text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{item.date || item.transaction_date || "—"}</td>
                                                 <td className="px-4 py-3 text-[13px] font-bold text-[#3F3F46] dark:text-[#D4D4D8] border-r border-[#F4F4F5] dark:border-[#3F3F46]/80">{item.transaction_number || "—"}</td>
