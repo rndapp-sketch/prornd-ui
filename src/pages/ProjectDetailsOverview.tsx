@@ -8,7 +8,7 @@ import React, {
     useEffect,
     useMemo,
 } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 
 import { createPortal } from "react-dom";
 import {
@@ -2766,6 +2766,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
     }>();
     const projectName = propProjectName || paramProjectName;
     const navigate = useNavigate();
+    const location = useLocation();
+    const hideOtherTabs = location.state?.hideOtherTabs === true;
     const [activeTab, setActiveTab] = useState("overview");
     const activityStreamRef = useRef<ActivityStreamHandle>(null);
     const { currentUser } = useFrappeAuth();
@@ -3758,7 +3760,12 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
             inactiveClass: "border-[#E4E4E7] bg-white text-[#52525B] hover:bg-[#F4F4F5] dark:border-[#3F3F46] dark:bg-[#27272A] dark:text-[#D4D4D8]",
             iconClass: "text-[#71717A] dark:text-[#A1A1AA]",
         },
-    ];
+    ].filter(tab => {
+        if (hideOtherTabs) {
+            return tab.id === "overview";
+        }
+        return true;
+    });
 
     const getMimeType = (fileName = "") => {
         if (fileName.endsWith(".pdf")) return "application/pdf";
@@ -3843,7 +3850,18 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                         <div className="flex items-start gap-3 min-w-0">
                             {!embedded && (
                                 <button
-                                    onClick={() => navigate(isCoProjectView ? "/co-projects" : "/projects-view")}
+                                    onClick={() => {
+                                        if (location.state?.returnTo) {
+                                            navigate(location.state.returnTo, {
+                                                state: {
+                                                    expandedPI: location.state.expandedPI,
+                                                    piModalPage: location.state.piModalPage
+                                                }
+                                            });
+                                        } else {
+                                            navigate(isCoProjectView ? "/co-projects" : "/projects-view");
+                                        }
+                                    }}
                                     aria-label="Back to projects"
                                     className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
                                 >
@@ -3933,7 +3951,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                     <div
                         className={cn(
                             "bg-white dark:bg-[#27272A] rounded-xl border border-[#D4D4D8] dark:border-[#52525B] shadow-sm overflow-hidden",
-                            activeTab === "ledger" ? "lg:col-span-4" : "lg:col-span-3",
+                            (activeTab === "ledger" || hideOtherTabs) ? "lg:col-span-4" : "lg:col-span-3",
                         )}
                     >
                         <div className="border-b border-[#D4D4D8] dark:border-[#52525B] bg-[#FAFAF9] dark:bg-[#27272A]">
@@ -6390,13 +6408,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                     </div>
 
                     {/* Right Sidebar Column */}
-                    <aside
-                        className={cn(
-                            "lg:col-span-1 space-y-4 lg:sticky lg:top-28 lg:self-start",
-                            activeTab === "ledger" && "hidden",
-                        )}
-                    >
-                        <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
+                    {!hideOtherTabs && (
+                        <aside
+                            className={cn(
+                                "lg:col-span-1 space-y-4 lg:sticky lg:top-28 lg:self-start",
+                                activeTab === "ledger" && "hidden",
+                            )}
+                        >
+                            <div className="rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden">
                             <div className="flex items-center gap-2 px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
                                 <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
                                 <h3 className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">
@@ -6454,7 +6473,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             .map((activity, idx) => (
                                                 <div
                                                     key={`${activity.creation}-${idx}`}
-                                                    className="rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] p-3"
+                                                    className={cn(
+                                                        "rounded-xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] p-3",
+                                                        activity.content?.toLowerCase().includes("logged out") && "hidden"
+                                                    )}
                                                 >
                                                     <div className="flex items-center gap-2 mb-2">
                                                         <div className="h-7 w-7 rounded-lg bg-[#EEF2FF] dark:bg-blue-950/20 border border-[#C7D2FE] dark:border-blue-900/40 flex items-center justify-center text-[11px] font-extrabold text-[#1E3A8A] dark:text-blue-200">
@@ -6625,7 +6647,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                 </div>
                             </div>
                         )}
-                    </aside>
+                        </aside>
+                    )}
                 </div>
 
                 {/* Budget Ledger Modal */}

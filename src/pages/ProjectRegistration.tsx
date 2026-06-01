@@ -4041,7 +4041,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                             <>
                                                                 <div className="flex items-start justify-between gap-4 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 dark:bg-blue-950/30 dark:border-blue-800">
                                                                     <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-                                                                        <span className="font-semibold">Note:</span> In-house IIT Guwahati PIs are not required to register. If an <span className="font-semibold">external or other PI</span> is not found in the list, they must first be registered as a stakeholder.
+                                                                        <span className="font-semibold">Note:</span> Internal IIT Guwahati PIs are not required to register. If an <span className="font-semibold">external or other PI</span> is not found in the list, they must first be registered as a stakeholder.
                                                                     </p>
                                                                     <button
                                                                         type="button"
@@ -4093,7 +4093,7 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                         <>
                                                             <div className="flex items-start justify-between gap-4 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200 dark:bg-blue-950/30 dark:border-blue-800">
                                                                 <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-                                                                    <span className="font-semibold">Note:</span> In-house IIT Guwahati Co-PIs are not required to register. If an <span className="font-semibold">external or other Co-PI</span> is not found in the list, they must first be registered as a stakeholder.
+                                                                    <span className="font-semibold">Note:</span> Internal IIT Guwahati Co-PIs are not required to register. If an <span className="font-semibold">external or other Co-PI</span> is not found in the list, they must first be registered as a stakeholder.
                                                                 </p>
                                                                 <button
                                                                     type="button"

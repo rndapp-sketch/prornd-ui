@@ -499,25 +499,27 @@ const normalizeEndorsementHtmlForProject = (html: string, projectName?: string, 
     });
 
     document.querySelectorAll(".signature").forEach((signature) => {
-        if (!shouldShowSignatureSeal) {
-            signature.remove();
-            return;
-        }
-
         signature.innerHTML = "";
-        const image = document.createElement("img");
-        image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
-        image.alt = "Signature with seal";
-        image.style.height = "112px";
-        image.style.width = "auto";
-        image.style.objectFit = "contain";
-        image.style.marginBottom = "8px";
+
+        if (shouldShowSignatureSeal) {
+            const image = document.createElement("img");
+            image.src = toSameOriginFileUrl(DORND_SIGNATURE_SEAL_URL);
+            image.alt = "Signature with seal";
+            image.style.height = "112px";
+            image.style.width = "auto";
+            image.style.objectFit = "contain";
+            image.style.marginBottom = "8px";
+            signature.appendChild(image);
+        } else {
+            const emptySpace = document.createElement("div");
+            emptySpace.style.height = "112px";
+            emptySpace.style.marginBottom = "8px";
+            signature.appendChild(emptySpace);
+        }
 
         const label = document.createElement("div");
         label.textContent = "Signature of the Dean (R&D)";
         label.style.fontWeight = "bold";
-
-        signature.appendChild(image);
         signature.appendChild(label);
     });
 
@@ -1200,7 +1202,9 @@ const WorkflowActions = ({
 
     return (
         <div className="flex items-center gap-2">
-            {data.message.map((actionString: string) => {
+            {data.message
+                .filter((actionString: string) => actionString !== "Submit")
+                .map((actionString: string) => {
                 const isForward = actionString.toLowerCase() === "forward";
                 const blocked = isForward && isForwardBlocked;
                 return (
@@ -1209,7 +1213,8 @@ const WorkflowActions = ({
                             onClick={() => onAction(actionString)}
                             variant={
                                 actionString.toLowerCase().includes("approve") ||
-                                    actionString.toLowerCase().includes("submit")
+                                    actionString.toLowerCase().includes("submit") ||
+                                    actionString.toLowerCase().includes("register")
                                     ? "default"
                                     : actionString.toLowerCase().includes("reject")
                                         ? "destructive"
@@ -1218,13 +1223,14 @@ const WorkflowActions = ({
                             className={cn(
                                 "flex items-center gap-2 h-9 px-4 text-xs font-medium rounded-lg shadow-sm transition-all",
                                 {
-                                    "bg-[#D97757] hover:bg-[#D97757] text-white":
+                                    "bg-[#D97757] hover:bg-[#c96a46] text-white border-transparent":
                                         actionString.toLowerCase().includes("approve") ||
-                                        actionString.toLowerCase().includes("submit"),
-                                    "bg-red-500 hover:bg-red-600 text-white":
+                                        actionString.toLowerCase().includes("submit") ||
+                                        actionString.toLowerCase().includes("register"),
+                                    "bg-red-500 hover:bg-red-600 text-white border-transparent":
                                         actionString.toLowerCase().includes("reject"),
                                     "bg-white dark:bg-zinc-900 hover:bg-zinc-50 text-zinc-700 border border-zinc-200":
-                                        !["approve", "reject", "submit"].some((term) =>
+                                        !["approve", "reject", "submit", "register"].some((term) =>
                                             actionString.toLowerCase().includes(term),
                                         ),
                                     "opacity-50 cursor-not-allowed": blocked,
