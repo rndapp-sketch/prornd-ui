@@ -37,6 +37,7 @@ import {
   Upload,
   FileText,
   ExternalLink,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -298,7 +299,7 @@ const attachMissingTableChildFields = (fields: FormField[] = []) =>
 
     return {
       ...field,
-      child_fields: fallbackChildFields,
+      child_fields: fallbackChildFields as FormField["child_fields"],
     };
   });
 
@@ -721,7 +722,7 @@ const renderDirectorTableField = (
 ) => {
   if (field.fieldtype !== "Table" || isDirectorPdfHiddenField(field)) return "";
 
-  const rows = Array.isArray(data[field.fieldname])
+  const rows: any[] = Array.isArray(data[field.fieldname])
     ? data[field.fieldname]
     : [];
   if (!rows.length) return "";
@@ -1930,6 +1931,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   const [availableActions, setAvailableActions] = useState<string[]>([]);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [docStatus, setDocStatus] = useState<number>(0);
+  const [isEditMode, setIsEditMode] = useState(!editDocName);
   const projectCode =
     formData.project_no ||
     formData.project_code ||
@@ -3533,6 +3535,75 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     hydrateRateContractP3DisplayOptions();
   }, [hydrateRateContractP3DisplayOptions]);
 
+  const hydrateRateContractP4VendorList = useCallback(async () => {
+    if (selectedIndentType !== "Rate Contract Purchase") return;
+
+    const selectedFormType = String(formData.select_form_type || "");
+    if (!selectedFormType.toLowerCase().includes("p4")) return;
+
+    const p4ItemType = formData.p4_item_type;
+    if (!p4ItemType) return;
+
+    try {
+      const vendorListRes = await fetchVendorsByP4ItemType({
+        p4_item_type: p4ItemType,
+      });
+      if (vendorListRes?.message) {
+        setLinkOptions((prev) => ({
+          ...prev,
+          select_vendor: normalizeLinkOptionList(vendorListRes.message),
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to hydrate Rate Contract P4 vendor list:", error);
+    }
+  }, [
+    fetchVendorsByP4ItemType,
+    formData.p4_item_type,
+    formData.select_form_type,
+    selectedIndentType,
+  ]);
+
+  useEffect(() => {
+    hydrateRateContractP4VendorList();
+  }, [hydrateRateContractP4VendorList]);
+
+  const hydrateRateContractP4VendorDetails = useCallback(async () => {
+    if (selectedIndentType !== "Rate Contract Purchase") return;
+
+    const selectedFormType = String(formData.select_form_type || "");
+    if (!selectedFormType.toLowerCase().includes("p4")) return;
+
+    const selectedVendor = formData.select_vendor;
+    if (!selectedVendor || formData.vendor_address) return;
+
+    try {
+      const vendorDetailRes = await fetchVendorDetails({ vendor: selectedVendor });
+      if (vendorDetailRes?.message) {
+        setFormData((prev) =>
+          applyComputations({
+            ...prev,
+            vendor_address: vendorDetailRes.message.vendor_address || prev.vendor_address || "",
+            vendor_email: vendorDetailRes.message.vendor_email || prev.vendor_email || "",
+          }),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to hydrate Rate Contract P4 vendor details:", error);
+    }
+  }, [
+    applyComputations,
+    fetchVendorDetails,
+    formData.select_form_type,
+    formData.select_vendor,
+    formData.vendor_address,
+    selectedIndentType,
+  ]);
+
+  useEffect(() => {
+    hydrateRateContractP4VendorDetails();
+  }, [hydrateRateContractP4VendorDetails]);
+
   // Handle initial indent type fetch map
   useEffect(() => {
     let mounted = true;
@@ -4677,7 +4748,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         poData.po_staff_email ||
         poData.staff_email ||
         loggedInStaffEmail;
-      const nextPoData = {
+      const nextPoData: Record<string, any> = {
         ...poData,
         po_staff_email: staffEmail,
         letterhead_user_email: staffEmail,
@@ -4759,7 +4830,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
         }
       }
 
-      const poDataForSave = {
+      const poDataForSave: Record<string, any> = {
         ...poData,
         indent_type: indentType,
         po_source_indent_type: poData.po_source_indent_type || indentType,
@@ -5233,7 +5304,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   // --- RENDER HELPERS ---
   const isReadOnly =
     docStatus === 1 ||
-    (workflowState !== "Draft" && workflowState !== "Pending");
+    (workflowState !== "Draft" && workflowState !== "Pending") ||
+    !isEditMode;
   const shouldUsePoGenerationTabs =
     workflowState === "Pending PO Generation" && isRnDStaff;
   const generatePoDisabledReason = !isPoDraftSaved
@@ -5264,6 +5336,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     isAtDeanApproval && isDirectorApprovalRequired && !directorSignedPdf;
   const renderActionButtons = () => {
     if (workflowState === "Draft") {
+      if (!isEditMode) return null;
       return (
         <>
           <FrappeButton
@@ -5511,6 +5584,16 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                     Generate PO
                   </FrappeButton>
                 )}
+              {workflowState === "Draft" && !isEditMode && currentDocName && (
+                <FrappeButton
+                  variant="outline"
+                  onClick={() => setIsEditMode(true)}
+                  className="bg-white dark:bg-zinc-800 shadow-sm"
+                >
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit
+                </FrappeButton>
+              )}
               {renderActionButtons()}
             </div>
           </div>

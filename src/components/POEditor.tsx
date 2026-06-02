@@ -306,6 +306,10 @@ interface POEditorProps {
     dpId: string;
     isStaffRnD?: boolean;
     isPIReadOnly?: boolean;
+    sourceLabel?: string;
+    isSaved?: boolean;
+    isDirty?: boolean;
+    onChange?: (nextPoData: Record<string, any>) => void;
     onSave?: (poData: Record<string, any>) => Promise<void>;
     onUploadSignedPO?: (file: File) => Promise<void>;
 }
@@ -472,6 +476,10 @@ export const POEditor: React.FC<POEditorProps> = ({
     dpId,
     isStaffRnD = false,
     isPIReadOnly = false,
+    sourceLabel: _sourceLabel,
+    isSaved: _isSaved,
+    isDirty: _isDirty,
+    onChange,
     onSave,
     onUploadSignedPO,
 }) => {
@@ -515,8 +523,12 @@ export const POEditor: React.FC<POEditorProps> = ({
     }, [ssData]);
 
     const handleFieldChange = useCallback((field: string, value: string) => {
-        setPoData((prev) => ({ ...prev, [field]: value }));
-    }, []);
+        setPoData((prev) => {
+            const next = { ...prev, [field]: value };
+            onChange?.(next);
+            return next;
+        });
+    }, [onChange]);
 
     const handleSave = async () => {
         if (!onSave) return;

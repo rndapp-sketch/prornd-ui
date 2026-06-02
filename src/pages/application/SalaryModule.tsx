@@ -70,7 +70,7 @@ const YEARS = getYearOptions();
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (n: number) =>
-    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(n);
+    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0, minimumFractionDigits: 0 }).format(Math.round(n));
 
 const fmtDate = (d: string) => {
     if (!d) return "—";
@@ -129,9 +129,9 @@ const calcWorkingDaysForPeriod = (joiningDate: string, termCompletionDate: strin
     }
 };
 
-/** Pro-rata basic amount = (basic / daysInMonth) * workingDays */
+/** Pro-rata basic amount = round((basic / daysInMonth) * workingDays) */
 const calcProRataBasic = (basic: number, workingDays: number, daysInMonth: number): number => {
-    return (basic / daysInMonth) * workingDays;
+    return Math.round((basic / daysInMonth) * workingDays);
 };
 
 /** Professional Tax (P-Tax) based on monthly basic salary.
@@ -195,13 +195,7 @@ const numToWords = (num: number): string => {
         words += helper(n);
     }
 
-    const paisa = Math.round((num % 1) * 100);
-    let paisaStr = "";
-    if (paisa > 0) {
-        paisaStr = " and " + helper(paisa) + " Paisa";
-    }
-
-    return words.trim() + paisaStr + " Rupees Only";
+    return words.trim() + " Rupees Only";
 };
 
 // Map raw Frappe row → StaffRecord using exact ps_* field names
@@ -214,24 +208,24 @@ const getHRADeduction = (r: StaffRecord, proRataHRA: number): number => {
 };
 
 const mapRow = (row: any): StaffRecord => {
-    const basic = parseFloat(row.ps_basic_salary || 0) || 0;
+    const basic = Math.round(parseFloat(row.ps_basic_salary || 0) || 0);
 
     // HRA is stored as a percentage string e.g. "20%" — calculate amount
     const hraRaw = String(row.ps_hra || "0").replace("%", "").trim();
     const hraPercent = parseFloat(hraRaw) || 0;
-    const hraAmount = hraPercent > 1 ? (basic * hraPercent) / 100 : hraPercent > 0 ? basic * hraPercent : 0;
+    const hraAmount = Math.round(hraPercent > 1 ? (basic * hraPercent) / 100 : hraPercent > 0 ? basic * hraPercent : 0);
 
     // Medical Allowance: "yes"/"no" or numeric
     const maRaw = String(row.ps_ma || "").toLowerCase();
     const maAmount = maRaw === "yes" || maRaw === "1" || maRaw === "true"
         ? 1250
-        : parseFloat(row.ps_ma || "0") > 0 ? parseFloat(row.ps_ma) : 0;
+        : Math.round(parseFloat(row.ps_ma || "0") > 0 ? parseFloat(row.ps_ma) : 0);
 
     // Hostel: "yes"/"no" or numeric
     const hostelRaw = String(row.ps_hostel || "").toLowerCase();
     const hostelAmount = hostelRaw === "yes" || hostelRaw === "1" || hostelRaw === "true"
-        ? parseFloat(row.ps_hostel_amount || "0") || 0
-        : parseFloat(row.ps_hostel || "0") > 0 ? parseFloat(row.ps_hostel) : 0;
+        ? Math.round(parseFloat(row.ps_hostel_amount || "0") || 0)
+        : Math.round(parseFloat(row.ps_hostel || "0") > 0 ? parseFloat(row.ps_hostel) : 0);
 
     // Full name from parts
     const nameParts = [row.ps_first_name, row.ps_middle_name, row.ps_last_name]
@@ -323,7 +317,7 @@ const SalaryModule: React.FC = () => {
         const record = records.find(r => r.docName === docName);
         const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
         const workingDays = record ? calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
-        const defaultMedical = record ? (record.medical_allowance / daysInMonth) * workingDays : 0;
+        const defaultMedical = record ? Math.round((record.medical_allowance / daysInMonth) * workingDays) : 0;
 
         const rowOverrides = overrides[docName] || {};
 
@@ -331,7 +325,7 @@ const SalaryModule: React.FC = () => {
             ta: rowOverrides.ta ?? 0,
             otherDeduction: rowOverrides.otherDeduction ?? 0,
             arrear: rowOverrides.arrear ?? 0,
-            medicalDeduction: rowOverrides.medicalDeduction ?? parseFloat(defaultMedical.toFixed(2)),
+            medicalDeduction: rowOverrides.medicalDeduction ?? defaultMedical,
             idCardCharge: rowOverrides.idCardCharge ?? 0,
             electricityBill: rowOverrides.electricityBill ?? 0,
             comment: rowOverrides.comment ?? "",
@@ -359,7 +353,7 @@ const SalaryModule: React.FC = () => {
             // Check if value is different from default
             let shouldStoreOverride = true;
             if (field === "ta" || field === "otherDeduction" || field === "arrear" || field === "idCardCharge" || field === "electricityBill") {
-                if (parseFloat(value as string) === 0 || value === "") {
+                if (!value || parseInt(value as string, 10) === 0 || isNaN(parseInt(value as string, 10))) {
                     shouldStoreOverride = false;
                 }
             } else if (field === "comment" || field === "remarks") {
@@ -370,8 +364,8 @@ const SalaryModule: React.FC = () => {
                 const record = records.find(r => r.docName === docName);
                 const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
                 const workingDays = record ? calcWorkingDaysForPeriod(record.joining_date, record.term_completion_date, selectedYear, selectedMonth) : daysInMonth;
-                const defaultMedical = record ? parseFloat(((record.medical_allowance / daysInMonth) * workingDays).toFixed(2)) : 0;
-                if (parseFloat(value as string) === defaultMedical) {
+                const defaultMedical = record ? Math.round((record.medical_allowance / daysInMonth) * workingDays) : 0;
+                if (Math.round(Number(value)) === defaultMedical) {
                     shouldStoreOverride = false;
                 }
             }
@@ -494,7 +488,7 @@ const SalaryModule: React.FC = () => {
     }, [fetchBudgetHeads]);
 
     const handlePayClick = async (r: StaffRecord, rawNetPay: number) => {
-        const netPay = parseFloat(rawNetPay.toFixed(2));
+        const netPay = Math.round(rawNetPay);
         setLoadingEmpId(r.employee_id);
         try {
             // 1. Fetch salary payment data (this returns a list containing the matched commit directly!)
@@ -524,8 +518,8 @@ const SalaryModule: React.FC = () => {
             const { inputs } = getRowInputs(r.docName);
             const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const proRataBasic = calcProRataBasic(r.basic_salary, workingDays, daysInMonthVal);
-            const proRataHRA = (r.hra / daysInMonthVal) * workingDays;
-            const proRataMedical = (r.medical_allowance / daysInMonthVal) * workingDays;
+            const proRataHRA = Math.round((r.hra / daysInMonthVal) * workingDays);
+            const proRataMedical = Math.round((r.medical_allowance / daysInMonthVal) * workingDays);
             const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
             const pTax = calcPTax(r.basic_salary);
             const hraDed = getHRADeduction(r, proRataHRA);
@@ -542,22 +536,22 @@ const SalaryModule: React.FC = () => {
                 designation: r.designation,
                 joining_date: r.joining_date,
                 term_completion_date: r.term_completion_date,
-                basic_salary: r.basic_salary,
-                hra: r.hra,
+                basic_salary: Math.round(r.basic_salary),
+                hra: Math.round(r.hra),
                 working_days: workingDays,
-                pro_rata_basic: proRataBasic,
-                pro_rata_hra: proRataHRA,
-                pro_rata_medical: proRataMedical,
-                arrear: inputs.arrear,
-                gross_pay: grossPay,
-                hra_deduction: hraDed,
-                medical_deduction: inputs.medicalDeduction,
-                p_tax: pTax,
-                ta: inputs.ta,
-                id_card_charge: inputs.idCardCharge,
-                electricity_bill: inputs.electricityBill,
-                other_deduction: inputs.otherDeduction,
-                total_deduction: totalDed,
+                pro_rata_basic: Math.round(proRataBasic),
+                pro_rata_hra: Math.round(proRataHRA),
+                pro_rata_medical: Math.round(proRataMedical),
+                arrear: Math.round(inputs.arrear),
+                gross_pay: Math.round(grossPay),
+                hra_deduction: Math.round(hraDed),
+                medical_deduction: Math.round(inputs.medicalDeduction),
+                p_tax: Math.round(pTax),
+                ta: Math.round(inputs.ta),
+                id_card_charge: Math.round(inputs.idCardCharge),
+                electricity_bill: Math.round(inputs.electricityBill),
+                other_deduction: Math.round(inputs.otherDeduction),
+                total_deduction: Math.round(totalDed),
                 net_pay: netPay,
                 comment: inputs.comment,
                 remarks: inputs.remarks
@@ -794,10 +788,10 @@ const SalaryModule: React.FC = () => {
         s + calcProRataBasic(r.basic_salary, calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth), daysInMonth), 0);
 
     const totalHRA = filtered.reduce((s, r) =>
-        s + (r.hra / daysInMonth) * calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth), 0);
+        s + Math.round((r.hra / daysInMonth) * calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth)), 0);
 
     const totalMedical = filtered.reduce((s, r) =>
-        s + (r.medical_allowance / daysInMonth) * calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth), 0);
+        s + Math.round((r.medical_allowance / daysInMonth) * calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth)), 0);
 
     const totalArrear = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.arrear, 0);
     const totalMedicalDed = filtered.reduce((s, r) => s + getRowInputs(r.docName).inputs.medicalDeduction, 0);
@@ -815,8 +809,8 @@ const SalaryModule: React.FC = () => {
             const { inputs } = getRowInputs(r.docName);
             const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const prb = calcProRataBasic(r.basic_salary, wd, daysInMonth);
-            const proRataHRA = (r.hra / daysInMonth) * wd;
-            const proRataMedical = (r.medical_allowance / daysInMonth) * wd;
+            const proRataHRA = Math.round((r.hra / daysInMonth) * wd);
+            const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
             return s + (prb + proRataHRA + proRataMedical + inputs.arrear);
         }, 0);
     }, [filtered, getRowInputs, selectedMonth, selectedYear, daysInMonth]);
@@ -824,7 +818,7 @@ const SalaryModule: React.FC = () => {
     const totalHRADed = useMemo(() => {
         return filtered.reduce((s, r) => {
             const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
-            const proRataHRA = (r.hra / daysInMonth) * wd;
+            const proRataHRA = Math.round((r.hra / daysInMonth) * wd);
             return s + getHRADeduction(r, proRataHRA);
         }, 0);
     }, [filtered, selectedMonth, selectedYear, daysInMonth]);
@@ -833,7 +827,7 @@ const SalaryModule: React.FC = () => {
         return filtered.reduce((s, r) => {
             const { inputs } = getRowInputs(r.docName);
             const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
-            const proRataHRA = (r.hra / daysInMonth) * wd;
+            const proRataHRA = Math.round((r.hra / daysInMonth) * wd);
             const hraDed = getHRADeduction(r, proRataHRA);
             return s + (hraDed + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction);
         }, 0);
@@ -844,8 +838,8 @@ const SalaryModule: React.FC = () => {
             const { inputs } = getRowInputs(r.docName);
             const wd = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const prb = calcProRataBasic(r.basic_salary, wd, daysInMonth);
-            const proRataHRA = (r.hra / daysInMonth) * wd;
-            const proRataMedical = (r.medical_allowance / daysInMonth) * wd;
+            const proRataHRA = Math.round((r.hra / daysInMonth) * wd);
+            const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * wd);
             const grossPay = prb + proRataHRA + proRataMedical + inputs.arrear;
             const hraDed = getHRADeduction(r, proRataHRA);
             const deductions = hraDed + inputs.medicalDeduction + calcPTax(r.basic_salary) + inputs.ta + inputs.idCardCharge + inputs.electricityBill + inputs.otherDeduction;
@@ -868,8 +862,8 @@ const SalaryModule: React.FC = () => {
             const { inputs } = getRowInputs(r.docName);
             const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
             const proRataBasic = calcProRataBasic(r.basic_salary, workingDays, daysInMonth);
-            const proRataHRA = (r.hra / daysInMonth) * workingDays;
-            const proRataMedical = (r.medical_allowance / daysInMonth) * workingDays;
+            const proRataHRA = Math.round((r.hra / daysInMonth) * workingDays);
+            const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
             const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
             const pTax = calcPTax(r.basic_salary);
             const hraDed = getHRADeduction(r, proRataHRA);
@@ -878,10 +872,10 @@ const SalaryModule: React.FC = () => {
             return [
                 i + 1, r.employee_id, r.first_name, r.email_id, r.department,
                 r.designation, r.project_no || "—", r.bank_account_number || "—", r.joining_date, r.term_completion_date,
-                r.basic_salary, r.hra, workingDays, proRataBasic.toFixed(2),
-                proRataHRA.toFixed(2), proRataMedical.toFixed(2), inputs.arrear, grossPay.toFixed(2),
-                hraDed.toFixed(2), inputs.medicalDeduction, pTax, inputs.ta, inputs.idCardCharge, inputs.electricityBill, inputs.otherDeduction,
-                deductions.toFixed(2), netPay.toFixed(2), inputs.comment, inputs.remarks
+                r.basic_salary, r.hra, workingDays, proRataBasic,
+                proRataHRA, proRataMedical, inputs.arrear, grossPay,
+                hraDed, inputs.medicalDeduction, pTax, inputs.ta, inputs.idCardCharge, inputs.electricityBill, inputs.otherDeduction,
+                deductions, netPay, inputs.comment, inputs.remarks
             ];
         });
         const csv = [headers, ...rows].map(row =>
@@ -1254,8 +1248,8 @@ const SalaryModule: React.FC = () => {
                                                     const { inputs, isEdited } = getRowInputs(r.docName);
                                                     const workingDays = calcWorkingDaysForPeriod(r.joining_date, r.term_completion_date, selectedYear, selectedMonth);
                                                     const proRataBasic = calcProRataBasic(r.basic_salary, workingDays, daysInMonth);
-                                                    const proRataHRA = (r.hra / daysInMonth) * workingDays;
-                                                    const proRataMedical = (r.medical_allowance / daysInMonth) * workingDays;
+                                                    const proRataHRA = Math.round((r.hra / daysInMonth) * workingDays);
+                                                    const proRataMedical = Math.round((r.medical_allowance / daysInMonth) * workingDays);
                                                     const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
                                                     const pTax = calcPTax(r.basic_salary);
                                                     const hraDed = getHRADeduction(r, proRataHRA);
@@ -1331,7 +1325,7 @@ const SalaryModule: React.FC = () => {
                                                                     <input
                                                                         type="number"
                                                                         value={inputs.arrear || ""}
-                                                                        onChange={e => handleInputChange(r.docName, "arrear", parseFloat(e.target.value) || 0)}
+                                                                        onChange={e => handleInputChange(r.docName, "arrear", parseInt(e.target.value, 10) || 0)}
                                                                         className={cn(
                                                                             "w-20 px-2 py-1 text-xs text-right bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all tabular-nums",
                                                                             isEdited.arrear
@@ -1340,6 +1334,7 @@ const SalaryModule: React.FC = () => {
                                                                         )}
                                                                         placeholder="0"
                                                                         min="0"
+                                                                        step="1"
                                                                     />
                                                                 </div>
                                                             </td>
@@ -1357,7 +1352,7 @@ const SalaryModule: React.FC = () => {
                                                                 <input
                                                                     type="number"
                                                                     value={inputs.medicalDeduction || ""}
-                                                                    onChange={e => handleInputChange(r.docName, "medicalDeduction", parseFloat(e.target.value) || 0)}
+                                                                    onChange={e => handleInputChange(r.docName, "medicalDeduction", parseInt(e.target.value, 10) || 0)}
                                                                     className={cn(
                                                                         "w-16 px-2 py-1 text-xs text-right bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all tabular-nums",
                                                                         isEdited.medicalDeduction
@@ -1366,6 +1361,7 @@ const SalaryModule: React.FC = () => {
                                                                     )}
                                                                     placeholder="0"
                                                                     min="0"
+                                                                    step="1"
                                                                 />
                                                             </td>
                                                             <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap bg-red-50/5 dark:bg-red-950/5">{fmt(pTax)}</td>
@@ -1375,7 +1371,7 @@ const SalaryModule: React.FC = () => {
                                                                 <input
                                                                     type="number"
                                                                     value={inputs.ta || ""}
-                                                                    onChange={e => handleInputChange(r.docName, "ta", parseFloat(e.target.value) || 0)}
+                                                                    onChange={e => handleInputChange(r.docName, "ta", parseInt(e.target.value, 10) || 0)}
                                                                     className={cn(
                                                                         "w-16 px-2 py-1 text-xs text-right bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all tabular-nums",
                                                                         isEdited.ta
@@ -1384,6 +1380,7 @@ const SalaryModule: React.FC = () => {
                                                                     )}
                                                                     placeholder="0"
                                                                     min="0"
+                                                                    step="1"
                                                                 />
                                                             </td>
 
@@ -1392,7 +1389,7 @@ const SalaryModule: React.FC = () => {
                                                                 <input
                                                                     type="number"
                                                                     value={inputs.idCardCharge || ""}
-                                                                    onChange={e => handleInputChange(r.docName, "idCardCharge", parseFloat(e.target.value) || 0)}
+                                                                    onChange={e => handleInputChange(r.docName, "idCardCharge", parseInt(e.target.value, 10) || 0)}
                                                                     className={cn(
                                                                         "w-16 px-2 py-1 text-xs text-right bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all tabular-nums",
                                                                         isEdited.idCardCharge
@@ -1401,6 +1398,7 @@ const SalaryModule: React.FC = () => {
                                                                     )}
                                                                     placeholder="0"
                                                                     min="0"
+                                                                    step="1"
                                                                 />
                                                             </td>
 
@@ -1409,7 +1407,7 @@ const SalaryModule: React.FC = () => {
                                                                 <input
                                                                     type="number"
                                                                     value={inputs.electricityBill || ""}
-                                                                    onChange={e => handleInputChange(r.docName, "electricityBill", parseFloat(e.target.value) || 0)}
+                                                                    onChange={e => handleInputChange(r.docName, "electricityBill", parseInt(e.target.value, 10) || 0)}
                                                                     className={cn(
                                                                         "w-16 px-2 py-1 text-xs text-right bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all tabular-nums",
                                                                         isEdited.electricityBill
@@ -1418,6 +1416,7 @@ const SalaryModule: React.FC = () => {
                                                                     )}
                                                                     placeholder="0"
                                                                     min="0"
+                                                                    step="1"
                                                                 />
                                                             </td>
 
@@ -1426,7 +1425,7 @@ const SalaryModule: React.FC = () => {
                                                                 <input
                                                                     type="number"
                                                                     value={inputs.otherDeduction || ""}
-                                                                    onChange={e => handleInputChange(r.docName, "otherDeduction", parseFloat(e.target.value) || 0)}
+                                                                    onChange={e => handleInputChange(r.docName, "otherDeduction", parseInt(e.target.value, 10) || 0)}
                                                                     className={cn(
                                                                         "w-16 px-2 py-1 text-xs text-right bg-white dark:bg-zinc-800 border rounded focus:ring-2 focus:ring-[#D97757]/30 focus:outline-none transition-all tabular-nums",
                                                                         isEdited.otherDeduction
@@ -1435,6 +1434,7 @@ const SalaryModule: React.FC = () => {
                                                                     )}
                                                                     placeholder="0"
                                                                     min="0"
+                                                                    step="1"
                                                                 />
                                                             </td>
 
@@ -1742,8 +1742,8 @@ const SalaryModule: React.FC = () => {
                                 const { inputs } = getRowInputs(selectedSlipRecord.docName);
                                 const workingDays = calcWorkingDaysForPeriod(selectedSlipRecord.joining_date, selectedSlipRecord.term_completion_date, selectedYear, selectedMonth);
                                 const proRataBasic = calcProRataBasic(selectedSlipRecord.basic_salary, workingDays, daysInMonth);
-                                const proRataHRA = (selectedSlipRecord.hra / daysInMonth) * workingDays;
-                                const proRataMedical = (selectedSlipRecord.medical_allowance / daysInMonth) * workingDays;
+                                const proRataHRA = Math.round((selectedSlipRecord.hra / daysInMonth) * workingDays);
+                                const proRataMedical = Math.round((selectedSlipRecord.medical_allowance / daysInMonth) * workingDays);
                                 const grossPay = proRataBasic + proRataHRA + proRataMedical + inputs.arrear;
                                 const pTax = calcPTax(selectedSlipRecord.basic_salary);
                                 const hraDed = getHRADeduction(selectedSlipRecord, proRataHRA);
