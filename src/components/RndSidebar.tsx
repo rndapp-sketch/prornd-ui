@@ -250,6 +250,9 @@ export function AppSidebar() {
         if (item.label === "Upload Director PDF") {
             return canUploadDirectorPdf;
         }
+        if (item.label === "Faculty Admission PDF Upload") {
+            return canUploadDirectorPdf;
+        }
         if (item.label === "Salary Module") {
             return roles?.includes("staff, RnD") ?? false;
         }
