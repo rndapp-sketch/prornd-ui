@@ -45,7 +45,7 @@ const getDepositTypeConfig = (type: string, depositSlip: any) => {
             titlePrefix: 'Deposit of cheque to II&SI Account',
             titleType: 'Other Event No.',
             signatureLeft: 'JS (II&SI Cell)',
-            signatureRight: 'HoS (II&SI Cell)'
+            signatureRight: 'HoS (RnD)'
         },
         consultancy_d: {
             subHeader: 'II&SI Cell',
@@ -53,7 +53,7 @@ const getDepositTypeConfig = (type: string, depositSlip: any) => {
             titlePrefix: 'Deposit to II&SI Account',
             titleType: 'Consultancy No.',
             signatureLeft: 'JS (II&SI Cell)',
-            signatureRight: 'HoS (II&SI Cell)'
+            signatureRight: 'HoS (RnD)'
         },
         consultancy_e: {
             subHeader: 'II&SI Cell',
@@ -61,7 +61,7 @@ const getDepositTypeConfig = (type: string, depositSlip: any) => {
             titlePrefix: 'Deposit of Cheque to II&SI Account',
             titleType: 'Consultancy No.',
             signatureLeft: 'JS (II&SI Cell)',
-            signatureRight: 'HoS (II&SI)'
+            signatureRight: 'HoS (RnD)'
         },
         consultancy_t: {
             subHeader: 'IIS & SI',
@@ -69,7 +69,7 @@ const getDepositTypeConfig = (type: string, depositSlip: any) => {
             titlePrefix: 'Deposit of Draft to R&D Account',
             titleType: 'Consultancy No.',
             signatureLeft: 'Copy to: ' + (depositSlip.principal_investigator || '-'),
-            signatureRight: 'HoS (IIS&SI)'
+            signatureRight: 'HoS (RnD)'
         },
         other_event: {
             subHeader: 'II&SI',
@@ -77,7 +77,7 @@ const getDepositTypeConfig = (type: string, depositSlip: any) => {
             titlePrefix: 'Deposit of cheque to II&SI Account',
             titleType: 'Other Event No.',
             signatureLeft: 'JS (II&SI)',
-            signatureRight: 'HoS (II&SI)'
+            signatureRight: 'HoS (RnD)'
         }
     };
     return configs[type] || configs.research_rnd;
