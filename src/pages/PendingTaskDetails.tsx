@@ -203,9 +203,11 @@ const ReimbursementWorkflowActions = ({
 const FundSanctionWorkflowActions = ({
     docname,
     onActionComplete,
+    blockForward = false,
 }: {
     docname: string;
     onActionComplete: () => void;
+    blockForward?: boolean;
 }) => {
     const { data, isLoading: actionsLoading } = useFrappeGetCall<{
         message: string[];
@@ -245,17 +247,30 @@ const FundSanctionWorkflowActions = ({
 
     return (
         <>
-            <div className="flex gap-2">
-                {visibleActions.map((action) => (
-                    <FrappeButton
-                        key={action}
-                        onClick={() => handleActionClick(action)}
-                        disabled={actionLoading}
-                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
-                    >
-                        {action}
-                    </FrappeButton>
-                ))}
+            <div className="flex gap-2 flex-wrap">
+                {visibleActions.map((action) => {
+                    const isForward = action.toLowerCase().includes("forward");
+                    const isBlocked = blockForward && isForward;
+                    return (
+                        <div key={action} className="relative group">
+                            <FrappeButton
+                                onClick={() => !isBlocked && handleActionClick(action)}
+                                disabled={actionLoading || isBlocked}
+                                className={isBlocked
+                                    ? "opacity-50 cursor-not-allowed bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 border-zinc-300 dark:border-zinc-600"
+                                    : "bg-[#D97757] hover:bg-[#c66a4e] text-white"
+                                }
+                            >
+                                {action}
+                            </FrappeButton>
+                            {isBlocked && (
+                                <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover:block z-20 w-64 p-2.5 bg-zinc-900 text-white text-[11px] leading-relaxed rounded-lg shadow-xl pointer-events-none">
+                                    Account details must be saved in the fund sanction form before forwarding.
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
             <CommentModal
                 isOpen={modalOpen}
@@ -706,6 +721,69 @@ const TopUpFellowshipWorkflowActions = ({
             ))}
             {renderBackButtons()}
         </div>
+    );
+};
+
+const CancellationRequestWorkflowActions = ({
+    docname,
+    onActionComplete,
+}: {
+    docname: string;
+    onActionComplete: () => void;
+}) => {
+    const { data, isLoading: actionsLoading } = useFrappeGetCall<{
+        message: string[];
+    }>(
+        "rndopsapp.rndopsapp.doctype.cancellation_request.cancellation_request.get_cancellation_request_workflow_actions",
+        { docname },
+    );
+
+    const { call: performAction, loading: actionLoading } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.cancellation_request.cancellation_request.perform_cancellation_request_action",
+    );
+
+    const [modalOpen, setModalOpen] = React.useState(false);
+    const [selectedAction, setSelectedAction] = React.useState("");
+
+    const handleActionClick = (action: string) => {
+        setSelectedAction(action);
+        setModalOpen(true);
+    };
+
+    const handleConfirmAction = async (comment: string) => {
+        try {
+            await performAction({ docname, action: selectedAction, comment });
+            setModalOpen(false);
+            onActionComplete();
+        } catch (error) {
+            console.error("Error performing cancellation request action:", error);
+        }
+    };
+
+    if (actionsLoading || !data?.message?.length) return null;
+
+    return (
+        <>
+            <div className="flex gap-2">
+                {data.message.map((action) => (
+                    <FrappeButton
+                        key={action}
+                        onClick={() => handleActionClick(action)}
+                        disabled={actionLoading}
+                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
+                    >
+                        {action}
+                    </FrappeButton>
+                ))}
+            </div>
+            <CommentModal
+                isOpen={modalOpen}
+                onClose={() => setModalOpen(false)}
+                onSubmit={handleConfirmAction}
+                action={selectedAction}
+                isLoading={actionLoading}
+            />
+        </>
     );
 };
 
@@ -1561,6 +1639,56 @@ const PendingTaskDetails: React.FC = () => {
             r === "Hos, RnD (Head of Section, RnD)",
     );
     const isDoRnd = roles.includes("Dean, RnD");
+
+    // Fund Sanction — editable account details
+    const [fsAcctPfms, setFsAcctPfms] = useState('');
+    const [fsAcctSchemeName, setFsAcctSchemeName] = useState('');
+    const [fsAcctSchemeNum, setFsAcctSchemeNum] = useState('');
+    const [fsAcctAccountNum, setFsAcctAccountNum] = useState('');
+    const [fsAcctBankName, setFsAcctBankName] = useState('');
+    const [isSavingAcctDetails, setIsSavingAcctDetails] = useState(false);
+    const { call: saveFundSanctionData } = useFrappePostCall(
+        'rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.save_fund_sanction_data',
+    );
+
+    // Initialise editable fields from Fund Sanction doc (falling back to Project Registration)
+    useEffect(() => {
+        if (doctype !== 'Fund Sanction') return;
+        const src = data || fsProjectRegData;
+        if (!src) return;
+        setFsAcctPfms(data?.is_the_account_type_pfms || fsProjectRegData?.is_the_account_type_pfms || '');
+        setFsAcctSchemeName(data?.scheme_name || fsProjectRegData?.scheme_name || '');
+        setFsAcctSchemeNum(data?.enter_scheme_number || fsProjectRegData?.enter_scheme_number || '');
+        setFsAcctAccountNum(data?.account_number || fsProjectRegData?.account_number || '');
+        setFsAcctBankName(data?.bank_name || fsProjectRegData?.bank_name || '');
+    }, [doctype, data, fsProjectRegData]);
+
+    const handleSaveFsAcctDetails = async () => {
+        if (!name) return;
+        setIsSavingAcctDetails(true);
+        try {
+            await saveFundSanctionData({
+                name,
+                docname: name,
+                is_the_account_type_pfms: fsAcctPfms,
+                scheme_name: fsAcctSchemeName,
+                enter_scheme_number: fsAcctSchemeNum,
+                account_number: fsAcctAccountNum,
+                bank_name: fsAcctBankName,
+                save_mode: 'draft',
+            });
+            await mutate();
+            globalMutate(
+                (key: any) => typeof key === 'string' && key.includes('workflow'),
+                undefined,
+                { revalidate: true },
+            );
+        } catch (e: any) {
+            alert('Failed to save account details: ' + (e?.message || 'Unknown error'));
+        } finally {
+            setIsSavingAcctDetails(false);
+        }
+    };
 
     // Redirect dedicated detail pages
     useEffect(() => {
@@ -2435,6 +2563,7 @@ const PendingTaskDetails: React.FC = () => {
                                     onActionComplete={() =>
                                         window.location.reload()
                                     }
+                                    blockForward={isRnDStaff && !(data?.is_the_account_type_pfms || fsProjectRegData?.is_the_account_type_pfms)}
                                 />
                             )}
                             {doctype === "Travel" && name && (
@@ -2494,6 +2623,12 @@ const PendingTaskDetails: React.FC = () => {
                                         window.location.reload()
                                     }
                                     commitRequired={isRnDStaff && isCommittedForGate === false}
+                                />
+                            )}
+                            {doctype === "Cancellation Request" && name && (
+                                <CancellationRequestWorkflowActions
+                                    docname={name}
+                                    onActionComplete={() => window.location.reload()}
                                 />
                             )}
                         </div>
@@ -2928,6 +3063,280 @@ const PendingTaskDetails: React.FC = () => {
                                         </a>
                                     </div>
                                 )}
+
+                                {/* Account Details — editable form for staff; read-only display for others */}
+                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+                                    <div className="px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                        <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 uppercase tracking-wide">Account Details</h3>
+                                    </div>
+                                    <div className="p-6 space-y-4">
+                                        {isRnDStaff ? (
+                                            <>
+                                                <div className="space-y-1.5">
+                                                    <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                                        Is Account Type PFMS?
+                                                    </label>
+                                                    <select
+                                                        className="w-full h-10 px-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-[13px] font-medium text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757]"
+                                                        value={fsAcctPfms}
+                                                        onChange={e => setFsAcctPfms(e.target.value)}
+                                                    >
+                                                        <option value="">Select...</option>
+                                                        <option value="Yes">Yes</option>
+                                                        <option value="No">No</option>
+                                                    </select>
+                                                </div>
+                                                {fsAcctPfms === 'Yes' && (
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                        <div className="space-y-1.5">
+                                                            <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Scheme Name</label>
+                                                            <input type="text" className="w-full h-10 px-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-[13px] font-medium text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757]" value={fsAcctSchemeName} onChange={e => setFsAcctSchemeName(e.target.value)} />
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Scheme Number</label>
+                                                            <input type="text" className="w-full h-10 px-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-[13px] font-medium text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757]" value={fsAcctSchemeNum} onChange={e => setFsAcctSchemeNum(e.target.value)} />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {fsAcctPfms === 'No' && (
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                        <div className="space-y-1.5">
+                                                            <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Account Number</label>
+                                                            <input type="text" className="w-full h-10 px-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-[13px] font-medium text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757]" value={fsAcctAccountNum} onChange={e => setFsAcctAccountNum(e.target.value)} />
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <label className="block text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Bank Name</label>
+                                                            <input type="text" className="w-full h-10 px-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-[13px] font-medium text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-[#D97757]/30 focus:border-[#D97757]" value={fsAcctBankName} onChange={e => setFsAcctBankName(e.target.value)} />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-end pt-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleSaveFsAcctDetails}
+                                                        disabled={isSavingAcctDetails || !fsAcctPfms}
+                                                        className="h-9 px-5 bg-[#D97757] hover:bg-[#c5684a] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-[12px] uppercase tracking-wide rounded-lg transition-colors"
+                                                    >
+                                                        {isSavingAcctDetails ? 'Saving...' : 'Save Account Details'}
+                                                    </button>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            fsAcctPfms ? (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-6">
+                                                    {[
+                                                        { label: "Account Type PFMS", value: fsAcctPfms },
+                                                        ...(fsAcctPfms === "Yes"
+                                                            ? [
+                                                                { label: "Scheme Name", value: fsAcctSchemeName },
+                                                                { label: "Scheme Number", value: fsAcctSchemeNum },
+                                                            ]
+                                                            : [
+                                                                { label: "Account Number", value: fsAcctAccountNum },
+                                                                { label: "Bank Name", value: fsAcctBankName },
+                                                            ]),
+                                                    ].filter(f => f.value).map(({ label, value }) => (
+                                                        <div key={label} className="flex flex-col">
+                                                            <span className={labelClasses}>{label}</span>
+                                                            <span className={valueClasses}>{value}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <p className="text-[12px] text-zinc-400 dark:text-zinc-500">No account details available.</p>
+                                            )
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : doctype === "Cancellation Request" && data ? (
+                            <div className="space-y-5">
+                                {/* Reference Document Banner */}
+                                <div className="relative overflow-hidden rounded-xl border border-amber-200 dark:border-amber-800/40 bg-gradient-to-br from-amber-50 via-orange-50/60 to-amber-50/30 dark:from-amber-900/10 dark:via-orange-900/5 dark:to-zinc-900/0 p-5 sm:p-6">
+                                    <div className="absolute top-0 right-0 w-56 h-56 bg-amber-100/40 dark:bg-amber-800/10 rounded-full -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+                                    <div className="relative flex items-start gap-4">
+                                        <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-900/30 border border-amber-200/70 dark:border-amber-700/40 flex items-center justify-center shadow-sm">
+                                            <XCircleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-[0.16em] mb-1.5">
+                                                Cancellation Request
+                                            </p>
+                                            <p className="text-sm font-semibold text-amber-900 dark:text-amber-100 leading-snug">
+                                                Requesting cancellation of{" "}
+                                                <span className="text-[#D97757]">
+                                                    {data.reference_doctype || data.doctype_name || "document"}
+                                                </span>
+                                            </p>
+                                            {(data.reference_document || data.original_document) && (
+                                                <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg bg-white/80 dark:bg-zinc-900/60 border border-amber-200/60 dark:border-amber-800/30">
+                                                    <span className="font-mono text-xs text-[#D97757] font-semibold tracking-tight">
+                                                        {data.reference_document || data.original_document}
+                                                    </span>
+                                                    {data.reference_doctype && (
+                                                        <button
+                                                            onClick={() => navigate(`/pending-tasks/${encodeURIComponent(data.reference_doctype)}/${data.reference_document || data.original_document}`)}
+                                                            className="p-0.5 rounded hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                                                            title="View original document"
+                                                        >
+                                                            <ExternalLinkIcon className="w-3 h-3 text-amber-500 dark:text-amber-400" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {data.total_amount != null && Number(data.total_amount) > 0 && (
+                                            <div className="flex-shrink-0 text-right">
+                                                <p className="text-[10px] font-semibold text-amber-500 dark:text-amber-400 uppercase tracking-wider mb-0.5">Amount</p>
+                                                <p className="text-xl font-bold text-amber-800 dark:text-amber-200 tabular-nums">
+                                                    {Number(data.total_amount).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Reason for Cancellation */}
+                                {(data.reason || data.cancellation_reason || data.remarks) && (
+                                    <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <div className="w-1 h-4 rounded-full bg-[#D97757]" />
+                                            <h3 className="text-[11px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-widest">
+                                                Reason for Cancellation
+                                            </h3>
+                                        </div>
+                                        <p className="text-[13.5px] text-zinc-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap bg-zinc-50 dark:bg-zinc-800/50 rounded-lg px-4 py-3 border border-zinc-100 dark:border-zinc-700/60">
+                                            {data.reason || data.cancellation_reason || data.remarks}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Request Details */}
+                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+                                    <div className="px-6 py-3.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                        <h3 className="text-[11px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-widest">
+                                            Request Details
+                                        </h3>
+                                    </div>
+                                    <div className="p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-6">
+                                        {[
+                                            { label: "Applicant", value: data.applicant_name || data.applicant },
+                                            { label: "Department", value: data.department || data.applicant_department },
+                                            { label: "Project", value: data.project_no || data.project_name || data.project_code },
+                                            { label: "Submitted On", value: data.creation ? new Date(data.creation).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" }) : null },
+                                            { label: "Last Updated", value: data.modified ? new Date(data.modified).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" }) : null },
+                                            { label: "Submitted By", value: data.owner },
+                                        ].filter((f) => f.value != null && f.value !== "").map(({ label, value }) => (
+                                            <div key={label} className="flex flex-col gap-1">
+                                                <span className={labelClasses}>{label}</span>
+                                                <span className={valueClasses}>{String(value)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Additional scalar fields not already shown */}
+                                {(() => {
+                                    const shown = new Set([
+                                        "name", "doctype", "docstatus", "idx", "owner", "creation", "modified", "modified_by",
+                                        "_user_tags", "_comments", "_assign", "_liked_by", "_seen", "workflow_state",
+                                        "reference_doctype", "reference_document", "original_document", "doctype_name",
+                                        "reason", "cancellation_reason", "remarks",
+                                        "applicant_name", "applicant", "department", "applicant_department",
+                                        "project_no", "project_name", "project_code",
+                                        "total_amount", "amount",
+                                        ...HIDDEN_FIELDS,
+                                    ]);
+                                    const extras = Object.entries(data).filter(
+                                        ([key, value]) =>
+                                            !shown.has(key) &&
+                                            !key.startsWith("_") &&
+                                            !Array.isArray(value) &&
+                                            value !== null &&
+                                            value !== undefined &&
+                                            value !== "",
+                                    );
+                                    if (extras.length === 0) return null;
+                                    return (
+                                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+                                            <div className="px-6 py-3.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                                <h3 className="text-[11px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-widest">
+                                                    Additional Information
+                                                </h3>
+                                            </div>
+                                            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-6">
+                                                {extras.map(([key, value]) => {
+                                                    const isFile = isFilePath(String(value));
+                                                    return (
+                                                        <div key={key} className="flex flex-col gap-1">
+                                                            <span className={labelClasses}>
+                                                                {key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                                                            </span>
+                                                            {isFile ? (
+                                                                <a
+                                                                    href={String(value)}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="group flex items-center gap-2 mt-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-700/50 text-[#D97757] rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors font-medium border border-zinc-200 dark:border-zinc-700"
+                                                                >
+                                                                    <FileIcon className="h-4 w-4 flex-shrink-0" />
+                                                                    <span className="truncate text-sm">{getFileName(String(value))}</span>
+                                                                    <ExternalLinkIcon className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                                </a>
+                                                            ) : (
+                                                                <span className={valueClasses}>{String(value)}</span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Child tables */}
+                                {Object.entries(data)
+                                    .filter(([key, value]) => Array.isArray(value) && (value as any[]).length > 0 && !key.startsWith("_"))
+                                    .map(([key, rows]) => {
+                                        const cols = Object.keys((rows as any[])[0] || {}).filter(
+                                            (k) => !k.startsWith("_") && !DP_EXCLUDED.includes(k),
+                                        );
+                                        return (
+                                            <div key={key} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+                                                <div className="px-6 py-3.5 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-800/30">
+                                                    <h3 className="text-[11px] font-extrabold text-zinc-700 dark:text-zinc-300 uppercase tracking-widest">
+                                                        {key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                                                    </h3>
+                                                </div>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-sm">
+                                                        <thead>
+                                                            <tr className="border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/50">
+                                                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 w-10">#</th>
+                                                                {cols.map((col) => (
+                                                                    <th key={col} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                                                        {col.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                                                                    </th>
+                                                                ))}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                                            {(rows as any[]).map((row, idx) => (
+                                                                <tr key={idx} className={cn("hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors", idx % 2 === 1 && "bg-zinc-50/40 dark:bg-zinc-800/10")}>
+                                                                    <td className="px-4 py-3 text-xs text-zinc-400 font-mono">{idx + 1}</td>
+                                                                    {cols.map((k) => (
+                                                                        <td key={k} className="px-4 py-3 text-[13px] text-zinc-700 dark:text-zinc-300">
+                                                                            {row[k] != null ? String(row[k]) : "—"}
+                                                                        </td>
+                                                                    ))}
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                             </div>
                         ) : (
                             renderGenericDetails()

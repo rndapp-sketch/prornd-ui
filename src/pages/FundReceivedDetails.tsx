@@ -795,7 +795,8 @@ const FundReceivedDetails = () => {
                                 onActionComplete={() => { mutate(); window.location.reload(); }}
                                 onBeforeAction={handleBeforeAction}
                                 disabledCondition={(action) => {
-                                    if (hasMissingRequired) return true;
+                                    if (action === "Put Back") return false;
+                                    if (action === "Forward" || hasMissingRequired) return true;
                                     if (action === "Generate Deposit Slip") {
                                         if (!showDepositSlip || !selectedDepositSlipType) return true;
                                         return fields.filter(f => f.mandatory && !f.hidden).some(f => { const v = formData[f.fieldname]; return v === undefined || v === null || v === ""; });

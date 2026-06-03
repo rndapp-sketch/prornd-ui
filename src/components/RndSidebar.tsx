@@ -484,7 +484,7 @@ export function AppSidebar() {
                                                     )}
                                                     strokeWidth={isActive ? 2 : 1.75}
                                                 />
-                                                {state === "expanded" && <span className="truncate">{item.label}</span>}
+                                                {state === "expanded" && <span className="break-words leading-tight">{item.label}</span>}
                                             </div>
 
                                             {item.label === "Pending Task" && pendingTaskCount > 0 && state === "expanded" && (
@@ -578,13 +578,13 @@ export function AppSidebar() {
                                     isActivePath("/messages") && "bg-[#EEF2FF] text-[#1E3A8A] dark:bg-[#4A6CF7]/15 dark:text-[#93C5FD] font-semibold",
                                     state === "expanded" ? "px-2.5 justify-start gap-2.5" : "px-0 justify-center",
                                 )}
-                                tooltip="Message"
+                                tooltip="Help and Support"
                             >
                                 <MessageCircle
                                     className={cn(state === "expanded" ? "w-[15px] h-[15px]" : "w-5 h-5", "flex-shrink-0 text-[#71717A]")}
                                     strokeWidth={1.75}
                                 />
-                                {state === "expanded" && <span>Message</span>}
+                                {state === "expanded" && <span>Help and Support</span>}
                                 {unreadCount > 0 && state === "expanded" && (
                                     <span className={cn(
                                         "ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold leading-none",
