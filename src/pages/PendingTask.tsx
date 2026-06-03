@@ -228,6 +228,7 @@ const PendingTask: React.FC = () => {
     const { roles } = useUserRoles(currentUser ?? null);
     const isHeadApprover = roles?.includes("head_approver_1") ?? false;
     const isStaffRnD = roles?.includes("staff, RnD") ?? false;
+    const isPermanentEmployee = roles?.includes("Permanent Employee") ?? false;
     const [orderModal, setOrderModal] = useState<{
         open: boolean;
         loading: boolean;
@@ -334,6 +335,18 @@ const PendingTask: React.FC = () => {
         return new Set(headApproverProjects.map((p: { name: string }) => p.name));
     }, [isHeadApprover, headApproverProjects]);
 
+    // Fetch Leave Module names where pi matches current user (so only the assigned PI sees pending leaves)
+    const { data: piLeaveModules } = useFrappeGetDocList("Leave Module", {
+        filters: [["pi", "=", currentUser ?? ""]],
+        fields: ["name"],
+        limit: 500,
+    }, isPermanentEmployee && !!currentUser ? undefined : null);
+
+    const allowedLeaveNames = React.useMemo(() => {
+        if (!isPermanentEmployee || !piLeaveModules) return null;
+        return new Set(piLeaveModules.map((l: { name: string }) => l.name));
+    }, [isPermanentEmployee, piLeaveModules]);
+
     // prNameToType: PR document name (auto-id) → raw project_type
     // prNoToType:   PR project_no (human-readable) → raw project_type
     const { prNameToType, prNoToType } = React.useMemo(() => {
@@ -364,6 +377,9 @@ const PendingTask: React.FC = () => {
                     if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
                         return;
                     }
+                    if (isPermanentEmployee && group.doctype === "Leave Module" && record.status === "Pending PI Approval" && allowedLeaveNames && !allowedLeaveNames.has(record.name)) {
+                        return;
+                    }
                     if (
                         record.status === "Endorsement Approved" ||
                         record.status === "Sanction Approved"
@@ -391,7 +407,7 @@ const PendingTask: React.FC = () => {
             }
         });
         return tasks;
-    }, [data, isHeadApprover, allowedProjectNames, prNameToType, prNoToType]);
+    }, [data, isHeadApprover, allowedProjectNames, prNameToType, prNoToType, isPermanentEmployee, allowedLeaveNames]);
 
     // Phase-2: secondary fetch to resolve project_type from each doctype's actual link fields.
     // The pending-task API only returns basic fields (name, title, status…), so link fields

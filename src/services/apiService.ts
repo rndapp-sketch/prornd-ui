@@ -241,6 +241,19 @@ export const loanRequestAPI = {
     performAction: `${API_BASE}.loan_request.loan_request.perform_loan_request_action`,
 };
 
+// Leave Module API endpoints
+export const leaveModuleAPI = {
+    getFields: `${API_BASE}.leave_module.leave_module.get_leave_module_fields`,
+    save: `${API_BASE}.leave_module.leave_module.save_leave_module_data`,
+    submit: `${API_BASE}.leave_module.leave_module.submit_leave_module`,
+    getWorkflowActions: `${API_BASE}.leave_module.leave_module.get_leave_module_workflow_actions`,
+    performAction: `${API_BASE}.leave_module.leave_module.perform_leave_module_action`,
+    getMyLeaves: `${API_BASE}.leave_module.leave_module.get_my_leaves`,
+    getPendingApprovals: `${API_BASE}.leave_module.leave_module.get_pending_approvals`,
+    getDetail: `${API_BASE}.leave_module.leave_module.get_leave_detail`,
+    getLeaveBalance: `${API_BASE}.leave_module.leave_module.get_leave_balance`,
+};
+
 // Common utility to get user details
 export const commonAPI = {
     getUserDetails: `${API_BASE}.project_registration.project_registration.get_user_details_for_pi`,

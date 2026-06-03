@@ -287,7 +287,7 @@ export function Home() {
                   <p className="text-xs text-[#3B5CF5] dark:text-[#93C5FD]/80 mt-1 font-medium">Review your balance and apply below.</p>
                 </div>
                 <button
-                  onClick={() => navigate("/leave-application")}
+                  onClick={() => navigate("/leave-module")}
                   className="btn-primary-accent w-full justify-center h-10 text-sm"
                 >
                   Apply for Leave

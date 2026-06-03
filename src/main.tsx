@@ -93,6 +93,10 @@ import SalaryModule from './pages/application/SalaryModule';
 import SalaryRegisterFull from './pages/application/SalaryRegisterFull';
 import DelegateUser from './pages/DelegateUser.tsx';
 import CoProjectView from './pages/CoProjectView.tsx';
+import FormApplication from './pages/FormApplication.tsx';
+import LeaveModule from './pages/LeaveModule.tsx';
+import LeaveModuleForm from './pages/LeaveModuleForm.tsx';
+import LeaveModuleDetails from './pages/LeaveModuleDetails.tsx';
 
 const router = createBrowserRouter(
     [
@@ -804,6 +808,38 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <MessagesPage />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "form-application",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <FormApplication />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "leave-module",
+                    element: (
+                        <AuthRouteWrapper allowedRole={["project staff", "Inspired Faculty", "Independent Researcher"]}>
+                            <LeaveModule />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "leave-module/new",
+                    element: (
+                        <AuthRouteWrapper allowedRole={["project staff", "Inspired Faculty", "Independent Researcher"]}>
+                            <LeaveModuleForm />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "leave-module/:id",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <LeaveModuleDetails />
                         </AuthRouteWrapper>
                     ),
                 },

@@ -26,6 +26,7 @@ import {
     Users as UsersIcon,
     UserCheck,
     IndianRupee,
+    Calendar,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -84,6 +85,7 @@ export function AppSidebar() {
     const { roles } = useUserRoles(currentUser || null);
     const isHeadApprover = roles?.includes("head_approver_1") ?? false;
     const canUploadDirectorPdf = roles?.includes("staff, RnD") ?? false;
+    const isPermanentEmployee = roles?.includes("Permanent Employee") ?? false;
 
     // Fetch projects assigned to current user as head_approver (same filter as PendingTask.tsx)
     const { data: headApproverProjects } = useFrappeGetDocList("Project Registration", {
@@ -96,6 +98,18 @@ export function AppSidebar() {
         if (!isHeadApprover || !headApproverProjects) return null;
         return new Set(headApproverProjects.map((p: { name: string }) => p.name));
     }, [isHeadApprover, headApproverProjects]);
+
+    // Fetch Leave Module names where PI matches current user (for accurate count)
+    const { data: piLeaveModules } = useFrappeGetDocList("Leave Module", {
+        filters: [["pi", "=", currentUser ?? ""]],
+        fields: ["name"],
+        limit: 500,
+    }, isPermanentEmployee && !!currentUser ? undefined : null);
+
+    const allowedLeaveNames = React.useMemo(() => {
+        if (!isPermanentEmployee || !piLeaveModules) return null;
+        return new Set(piLeaveModules.map((l: { name: string }) => l.name));
+    }, [isPermanentEmployee, piLeaveModules]);
 
     // Fetch pending task count
     const { data: pendingTaskData } = useFrappeGetCall<{
@@ -124,12 +138,17 @@ export function AppSidebar() {
                     if (isHeadApprover && group.doctype === "Project Registration" && allowedProjectNames && !allowedProjectNames.has(record.name)) {
                         return;
                     }
+                    if (isPermanentEmployee && group.doctype === "Leave Module" && allowedLeaveNames) {
+                        if (record.status === "Pending PI Approval" && !allowedLeaveNames.has(record.name)) {
+                            return;
+                        }
+                    }
                     count++;
                 });
             }
         });
         return count;
-    }, [pendingTaskData, isHeadApprover, allowedProjectNames]);
+    }, [pendingTaskData, isHeadApprover, allowedProjectNames, isPermanentEmployee, allowedLeaveNames]);
 
     const pendingDirectorPdfCount = pendingDirectorPdfData?.message?.data?.length ?? 0;
 
@@ -199,6 +218,11 @@ export function AppSidebar() {
             path: "/delegate-user",
         },
         {
+            label: "Form Application",
+            icon: FileText,
+            path: "/form-application",
+        },
+        {
             label: "Pending Task",
             icon: ListTodo,
             path: "/pending-task",
@@ -238,6 +262,11 @@ export function AppSidebar() {
             icon: IndianRupee,
             path: "/salary-module",
         },
+        {
+            label: "Leave Module",
+            icon: Calendar,
+            path: "/leave-module",
+        },
     ].filter((item) => {
         if (item.label === "Upload Director PDF") {
             return canUploadDirectorPdf;
@@ -261,6 +290,7 @@ export function AppSidebar() {
                 "head_approver_1",
                 "Hos, RnD (Head of Section, RnD)",
                 "staff, RnD",
+                "Permanent Employee",
             ];
             return roles && allowedRoles.some((role) => roles.includes(role));
         }
@@ -292,6 +322,10 @@ export function AppSidebar() {
         }
         if (item.label === "Delegate User") {
             return roles?.includes("Permanent Employee") ?? false;
+        }
+        if (item.label === "Leave Module") {
+            const allowedRoles = ["project staff", "Inspired Faculty", "Independent Researcher"];
+            return roles && allowedRoles.some((role) => roles.includes(role));
         }
         return true;
     });
