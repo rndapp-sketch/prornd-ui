@@ -611,6 +611,57 @@ const AddFundSanction: React.FC = () => {
                             onAddRow={addGenericTableRow}
                             onDeleteRow={deleteGenericTableRow}
                         />
+
+                        <NeoSection title="Account Details">
+                            <div className="space-y-4">
+                                <div className="space-y-1.5">
+                                    <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
+                                        Is Account Type PFMS?
+                                    </label>
+                                    <select
+                                        className={inputClasses}
+                                        value={formData.is_the_account_type_pfms || ''}
+                                        onChange={e => handleChange('is_the_account_type_pfms', e.target.value)}
+                                    >
+                                        <option value="">Select...</option>
+                                        <option value="Yes">Yes</option>
+                                        <option value="No">No</option>
+                                    </select>
+                                </div>
+                                {formData.is_the_account_type_pfms === 'Yes' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                                        <div className="space-y-1.5">
+                                            <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
+                                                Scheme Name
+                                            </label>
+                                            <input type="text" className={inputClasses} value={formData.scheme_name || ''} onChange={e => handleChange('scheme_name', e.target.value)} />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
+                                                Scheme Number
+                                            </label>
+                                            <input type="text" className={inputClasses} value={formData.enter_scheme_number || ''} onChange={e => handleChange('enter_scheme_number', e.target.value)} />
+                                        </div>
+                                    </div>
+                                )}
+                                {formData.is_the_account_type_pfms === 'No' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                                        <div className="space-y-1.5">
+                                            <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
+                                                Account Number
+                                            </label>
+                                            <input type="text" className={inputClasses} value={formData.account_number || ''} onChange={e => handleChange('account_number', e.target.value)} />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="inline-flex items-center rounded-md border border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20 px-2 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#1E3A8A] dark:text-blue-200">
+                                                Bank Name
+                                            </label>
+                                            <input type="text" className={inputClasses} value={formData.bank_name || ''} onChange={e => handleChange('bank_name', e.target.value)} />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </NeoSection>
                     </FrappeCard>
 
                     {/* Missing total warning */}
