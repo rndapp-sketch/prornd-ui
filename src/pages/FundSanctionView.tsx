@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useFrappeGetDoc } from 'frappe-react-sdk';
+import { useFrappeGetDoc, useFrappePostCall } from 'frappe-react-sdk';
 import { AppSidebar } from '../components/RndSidebar';
 import FundDetails from '../components/FundDetails';
 import { ArrowLeft, IndianRupee, FileText, Plus } from 'lucide-react';
@@ -11,13 +11,57 @@ const FundSanctionView: React.FC = () => {
     const { sanctionName } = useParams<{ sanctionName: string }>();
     const { data, isLoading, error } = useFrappeGetDoc('Fund Sanction', sanctionName);
 
-    // Fetch the linked Project Registration doc to get project_no
     const projectProposal = data?.project_proposal || '';
-    const { data: projectRegData } = useFrappeGetDoc(
+    const { data: projectRegData, mutate: mutateProjectReg } = useFrappeGetDoc(
         'Project Registration',
-        projectProposal,
-        { revalidateOnFocus: false, isPaused: () => !projectProposal }
+        projectProposal || undefined,
+        projectProposal || null,
     );
+
+    const { call: updatePfmsFields } = useFrappePostCall(
+        'rndopsapp.rndopsapp.doctype.project_registration.project_registration.update_project_fields'
+    );
+    const [pfmsForm, setPfmsForm] = useState({
+        is_the_account_type_pfms: '',
+        scheme_name: '',
+        enter_scheme_number: '',
+        account_number: '',
+        bank_name: '',
+    });
+    const [isSavingPfms, setIsSavingPfms] = useState(false);
+
+    useEffect(() => {
+        if (projectRegData) {
+            setPfmsForm({
+                is_the_account_type_pfms: projectRegData.is_the_account_type_pfms || '',
+                scheme_name: projectRegData.scheme_name || '',
+                enter_scheme_number: projectRegData.enter_scheme_number || '',
+                account_number: projectRegData.account_number || '',
+                bank_name: projectRegData.bank_name || '',
+            });
+        }
+    }, [projectRegData]);
+
+    const handleSavePfms = useCallback(async () => {
+        if (!projectProposal) return;
+        setIsSavingPfms(true);
+        try {
+            await updatePfmsFields({
+                docname: projectProposal,
+                is_the_account_type_pfms: pfmsForm.is_the_account_type_pfms,
+                scheme_name: pfmsForm.scheme_name,
+                enter_scheme_number: pfmsForm.enter_scheme_number,
+                account_number: pfmsForm.account_number,
+                bank_name: pfmsForm.bank_name,
+            });
+            await mutateProjectReg();
+            alert('Account details saved successfully.');
+        } catch (e: any) {
+            alert('Failed to save account details: ' + (e?.message || 'Unknown error'));
+        } finally {
+            setIsSavingPfms(false);
+        }
+    }, [projectProposal, pfmsForm, updatePfmsFields, mutateProjectReg]);
 
     if (isLoading) {
         return (
@@ -145,7 +189,7 @@ const FundSanctionView: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Fund Received Records — uses FundDetails component */}
+                        {/* Fund Received Records */}
                         <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
                             <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-2">Received Funds</h2>
                             <FundDetails
@@ -155,9 +199,85 @@ const FundSanctionView: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Sidebar — Activity Log */}
-                    <aside className="lg:col-span-1">
-                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5 sticky top-6">
+                    {/* Sidebar — Account Details + Activity Log */}
+                    <aside className="lg:col-span-1 space-y-6">
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5 space-y-4">
+                            <h3 className="text-sm font-bold uppercase text-zinc-900 dark:text-zinc-100 tracking-wide">
+                                Account Details
+                            </h3>
+                            <div className="space-y-3">
+                                <div className="space-y-1">
+                                    <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400">
+                                        Is Account Type PFMS?
+                                    </label>
+                                    <select
+                                        className="w-full h-8 px-2 text-xs bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
+                                        value={pfmsForm.is_the_account_type_pfms}
+                                        onChange={e => setPfmsForm(p => ({ ...p, is_the_account_type_pfms: e.target.value }))}
+                                    >
+                                        <option value="">Select...</option>
+                                        <option value="Yes">PFMS</option>
+                                        <option value="No">Bank Account</option>
+                                    </select>
+                                </div>
+                                {pfmsForm.is_the_account_type_pfms === 'Yes' && (
+                                    <>
+                                        <div className="space-y-1">
+                                            <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400">Scheme Name</label>
+                                            <input
+                                                type="text"
+                                                className="w-full h-8 px-2 text-xs bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
+                                                value={pfmsForm.scheme_name}
+                                                onChange={e => setPfmsForm(p => ({ ...p, scheme_name: e.target.value }))}
+                                                placeholder="Enter scheme name"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400">Scheme Number</label>
+                                            <input
+                                                type="text"
+                                                className="w-full h-8 px-2 text-xs bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
+                                                value={pfmsForm.enter_scheme_number}
+                                                onChange={e => setPfmsForm(p => ({ ...p, enter_scheme_number: e.target.value }))}
+                                                placeholder="Enter scheme number"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                                {pfmsForm.is_the_account_type_pfms === 'No' && (
+                                    <>
+                                        <div className="space-y-1">
+                                            <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400">Account Number</label>
+                                            <input
+                                                type="text"
+                                                className="w-full h-8 px-2 text-xs bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
+                                                value={pfmsForm.account_number}
+                                                onChange={e => setPfmsForm(p => ({ ...p, account_number: e.target.value }))}
+                                                placeholder="Enter account number"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="block text-xs font-semibold text-zinc-600 dark:text-zinc-400">Bank Name</label>
+                                            <input
+                                                type="text"
+                                                className="w-full h-8 px-2 text-xs bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-md text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757]"
+                                                value={pfmsForm.bank_name}
+                                                onChange={e => setPfmsForm(p => ({ ...p, bank_name: e.target.value }))}
+                                                placeholder="Enter bank name"
+                                            />
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                            <button
+                                onClick={handleSavePfms}
+                                disabled={isSavingPfms}
+                                className="w-full py-2 text-xs font-semibold bg-[#D97757] hover:bg-[#c96a46] text-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isSavingPfms ? 'Saving...' : 'Save Account Details'}
+                            </button>
+                        </div>
+                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-5">
                             {sanctionName && (
                                 <ActivityLog doctype="Fund Sanction" docname={sanctionName} />
                             )}
