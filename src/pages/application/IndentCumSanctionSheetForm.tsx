@@ -3453,10 +3453,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           label:
             principalDoc.principal_supplier_name || String(principalSupplier),
         };
-        hydratedValues.principal_address =
-          formData.principal_address || principalDoc.addres || "";
-        hydratedValues.agreement_no =
-          formData.agreement_no || principalDoc.agreement_no || "";
+        hydratedValues.principal_address = principalDoc.addres || "";
+        hydratedValues.agreement_no = principalDoc.agreement_no || "";
         localOptions = normalizeLinkOptionList(localRes?.message || []);
       }
 
@@ -3471,10 +3469,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
           value: String(localSupplier),
           label: localDoc.local_supplier_name || String(localSupplier),
         };
-        hydratedValues.local_address =
-          formData.local_address || localDoc.address || "";
-        hydratedValues.local_email =
-          formData.local_email || localDoc.email || "";
+        hydratedValues.local_address = localDoc.address || "";
+        hydratedValues.local_email = localDoc.email || "";
       }
 
       setLinkOptions((prev) => ({
@@ -3520,12 +3516,8 @@ const IndentCumSanctionSheetForm: React.FC = () => {
     fetchFrappeValue,
     fetchLocalSuppliersByPrincipal,
     fetchPrincipalSuppliersByItemType,
-    formData.agreement_no,
     formData.item_type,
-    formData.local_address,
-    formData.local_email,
     formData.local_supplier,
-    formData.principal_address,
     formData.principal_supplier,
     formData.select_form_type,
     selectedIndentType,
@@ -3534,6 +3526,36 @@ const IndentCumSanctionSheetForm: React.FC = () => {
   useEffect(() => {
     hydrateRateContractP3DisplayOptions();
   }, [hydrateRateContractP3DisplayOptions]);
+
+  // Directly pin the principal_supplier display label whenever the value is
+  // known. Runs independently of the broader P3 hydration so the label is
+  // always resolved even when the hydration fires before formData is loaded.
+  const principalSupplierValue = formData.principal_supplier;
+  useEffect(() => {
+    if (
+      selectedIndentType !== "Rate Contract Purchase" ||
+      !principalSupplierValue
+    )
+      return;
+
+    fetchFrappeValue({
+      doctype: "Principal Supplier",
+      filters: { name: principalSupplierValue },
+      fieldname: ["principal_supplier_name"],
+    })
+      .then((res) => {
+        const name = res?.message?.principal_supplier_name;
+        if (name) {
+          setLinkOptions((prev) => ({
+            ...prev,
+            principal_supplier: mergeLinkOptionLists(prev.principal_supplier, [
+              { value: String(principalSupplierValue), label: name },
+            ]),
+          }));
+        }
+      })
+      .catch(() => {});
+  }, [selectedIndentType, principalSupplierValue, fetchFrappeValue]);
 
   const hydrateRateContractP4VendorList = useCallback(async () => {
     if (selectedIndentType !== "Rate Contract Purchase") return;

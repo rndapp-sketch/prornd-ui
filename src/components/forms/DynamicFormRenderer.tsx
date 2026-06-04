@@ -961,9 +961,33 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         <MemoizedFormField
           field={field}
           value={formData[field.fieldname]}
-          options={
-            linkOptions[field.options as string] || linkOptions[field.fieldname]
-          }
+          options={(() => {
+            const byDoctype = linkOptions[field.options as string] || [];
+            const byFieldname = linkOptions[field.fieldname] || [];
+            const map = new Map<string, LinkOption>();
+            byDoctype.forEach((opt) => map.set(opt.value, opt));
+            byFieldname.forEach((opt) => {
+              const existing = map.get(opt.value);
+              if (
+                !existing ||
+                (opt.label !== opt.value &&
+                  existing.label === existing.value)
+              ) {
+                map.set(opt.value, opt);
+              }
+            });
+            const rawVal = formData[field.fieldname];
+            const frappeDisplayName = formData[`${field.fieldname}_name`];
+            if (rawVal && frappeDisplayName) {
+              const key = String(rawVal);
+              const existing = map.get(key);
+              if (!existing || existing.label === existing.value) {
+                map.set(key, { value: key, label: String(frappeDisplayName) });
+              }
+            }
+            const merged = Array.from(map.values());
+            return merged.length ? merged : undefined;
+          })()}
           isMandatory={isMandatory}
           isReadOnly={fieldIsReadOnly}
           onChange={onChange}

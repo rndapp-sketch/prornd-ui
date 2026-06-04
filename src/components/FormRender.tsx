@@ -213,7 +213,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
                 );
             case "Link":
             case "Dynamic Link":
-                if (field.fieldname === "principal_investigator") {
+                if (options && options.length > 0) {
                     return (
                         <AutocompleteEmail
                             id={field.fieldname}
@@ -221,7 +221,7 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
                             className={inputClasses}
                             value={value || ""}
                             onChange={(val) => onChange(field.fieldname, val)}
-                            options={options || []}
+                            options={options}
                             placeholder={`Search ${displayLabel.toLowerCase()}...`}
                             readOnly={field.read_only}
                             required={field.mandatory}
@@ -241,11 +241,6 @@ const MemoizedFormField = memo(({ field, value, options, onChange }: any) => {
                         }
                     >
                         <option value="">Select...</option>
-                        {(options || []).map((opt: any) => (
-                            <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                            </option>
-                        ))}
                     </select>
                 );
             case "Select":
