@@ -1609,10 +1609,13 @@ const PendingTaskDetails: React.FC = () => {
         name || "",
     );
     // Fund Sanction: fetch linked Project Registration to get project_no
-    const { data: fsProjectRegData } = useFrappeGetDoc(
+    const fsProjectRegName = doctype === 'Fund Sanction' && data?.project_proposal
+        ? data.project_proposal
+        : null;
+    const { data: fsProjectRegData, mutate: mutateFsProjectReg } = useFrappeGetDoc(
         'Project Registration',
-        data?.project_proposal || '',
-        { revalidateOnFocus: false, isPaused: () => doctype !== 'Fund Sanction' || !data?.project_proposal }
+        fsProjectRegName ?? undefined,
+        fsProjectRegName,
     );
 
     const { mutate: globalMutate } = useSWRConfig();
@@ -1647,42 +1650,55 @@ const PendingTaskDetails: React.FC = () => {
     const [fsAcctAccountNum, setFsAcctAccountNum] = useState('');
     const [fsAcctBankName, setFsAcctBankName] = useState('');
     const [isSavingAcctDetails, setIsSavingAcctDetails] = useState(false);
-    const { call: saveFundSanctionData } = useFrappePostCall(
-        'rndopsapp.rndopsapp.doctype.fund_sanction.fund_sanction.save_fund_sanction_data',
-    );
 
-    // Initialise editable fields from Fund Sanction doc (falling back to Project Registration)
     useEffect(() => {
         if (doctype !== 'Fund Sanction') return;
-        const src = data || fsProjectRegData;
-        if (!src) return;
-        setFsAcctPfms(data?.is_the_account_type_pfms || fsProjectRegData?.is_the_account_type_pfms || '');
-        setFsAcctSchemeName(data?.scheme_name || fsProjectRegData?.scheme_name || '');
-        setFsAcctSchemeNum(data?.enter_scheme_number || fsProjectRegData?.enter_scheme_number || '');
-        setFsAcctAccountNum(data?.account_number || fsProjectRegData?.account_number || '');
-        setFsAcctBankName(data?.bank_name || fsProjectRegData?.bank_name || '');
-    }, [doctype, data, fsProjectRegData]);
+        if (!fsProjectRegData) return;
+        setFsAcctPfms(fsProjectRegData.is_the_account_type_pfms || '');
+        setFsAcctSchemeName(fsProjectRegData.scheme_name || '');
+        setFsAcctSchemeNum(fsProjectRegData.enter_scheme_number || '');
+        setFsAcctAccountNum(fsProjectRegData.account_number || '');
+        setFsAcctBankName(fsProjectRegData.bank_name || '');
+    }, [doctype, fsProjectRegData]);
 
     const handleSaveFsAcctDetails = async () => {
-        if (!name) return;
+        const projectRegName = data?.project_proposal;
+        if (!projectRegName) {
+            alert('No linked Project Registration found for this Fund Sanction.');
+            return;
+        }
         setIsSavingAcctDetails(true);
         try {
-            await saveFundSanctionData({
-                name,
-                docname: name,
-                is_the_account_type_pfms: fsAcctPfms,
-                scheme_name: fsAcctSchemeName,
-                enter_scheme_number: fsAcctSchemeNum,
-                account_number: fsAcctAccountNum,
-                bank_name: fsAcctBankName,
-                save_mode: 'draft',
-            });
-            await mutate();
+            const res = await fetch(
+                '/api/method/rndopsapp.rndopsapp.doctype.project_registration.project_registration.update_project_fields',
+                {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
+                        'X-Frappe-CSRF-Token': (window as any).csrf_token || '',
+                    },
+                    body: JSON.stringify({
+                        docname: projectRegName,
+                        is_the_account_type_pfms: fsAcctPfms,
+                        scheme_name: fsAcctSchemeName,
+                        enter_scheme_number: fsAcctSchemeNum,
+                        account_number: fsAcctAccountNum,
+                        bank_name: fsAcctBankName,
+                    }),
+                },
+            );
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(json?.exception || json?.message || `HTTP ${res.status}`);
+
+            await Promise.all([mutate(), mutateFsProjectReg()]);
             globalMutate(
                 (key: any) => typeof key === 'string' && key.includes('workflow'),
                 undefined,
                 { revalidate: true },
             );
+            alert('Account details saved successfully.');
         } catch (e: any) {
             alert('Failed to save account details: ' + (e?.message || 'Unknown error'));
         } finally {
