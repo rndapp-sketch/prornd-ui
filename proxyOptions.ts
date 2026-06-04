@@ -69,6 +69,12 @@ export default {
     ws: true,
     rewrite: (path: string) => path.replace(/^\/appwrite/, ""),
   },
+  // Proxy for Attendance API (PresenceBackend) to avoid CORS in dev
+  "/attendance-api": {
+    target: "http://172.16.135.27:7078",
+    changeOrigin: true,
+    rewrite: (path: string) => path.replace(/^\/attendance-api/, "/api"),
+  },
 };
 
 // ========================
