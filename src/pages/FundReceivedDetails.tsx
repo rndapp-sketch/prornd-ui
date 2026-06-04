@@ -523,12 +523,15 @@ const FundReceivedDetails = () => {
             if (!doc) return {};
             const fills: Partial<FormData> = {};
             const pi = doc.principal_investigator || doc.pi_userid || doc.pi || doc.pi_name;
-            if (pi) fills.principal_investigator = pi;
+            if (pi) { fills.principal_investigator = pi; fills.principal_consultant = pi; }
             const fa = doc.funding_agency || doc.funding_agen || doc.fund_agen_initials || doc.sponsor;
             if (fa) fills.funding_agency = fa;
             if (doc.client || doc.client_name) fills.client = doc.client || doc.client_name;
             const gstin = doc.gstin_of_funding_agency || doc.gstin || doc.agency_gstin;
             if (gstin) fills.gstin_of_funding_agency = gstin;
+            const title = doc.project_title || doc.title;
+            if (title) fills.consultancy_title = title;
+            if (doc.project_type) fills.category_d = doc.project_type;
             return fills;
         } catch {
             return {};
@@ -548,6 +551,7 @@ const FundReceivedDetails = () => {
         } else if (!newTitle) {
             prevProjectTitleRef.current = "";
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleDepositSlipTypeChange = async (type: string) => {
@@ -607,29 +611,62 @@ const FundReceivedDetails = () => {
             const initialData: FormData = {};
             processedFields.forEach((f: Field) => { if (f.default) initialData[f.fieldname] = f.default; });
 
-            // Step 3: auto-fill from prjreg_title hint — type-aware field mapping.
+            // Step 3: auto-fill from project registration — type-aware field mapping.
+            // Bank/ECS fill is unconditional (from the Fund Received doc itself).
+            const bankAccount = docData?.bank_account || fundData?.bank_account;
+            if (bankAccount) initialData.bank = bankAccount;
+            const ecsAcNo = sanctionDetails?.ecs_ac_no || docData?.ecs_ac_no || fundData?.ecs_ac_no;
+            if (ecsAcNo) initialData.ecs_ac_no = ecsAcNo;
+
+            // prjregHint is the project_no value stored on the Fund Received doc.
+            // In Frappe, Project Registration naming series often uses project_no as the name,
+            // so we try frappe.client.get first (fastest), then fall back to get_list filters.
+            // sanctionDetails is already loaded and may carry a project reference too.
             const prjregHint = related_data?.prjreg_title || docData?.prjreg_title || effectivePrjregTitle;
-            console.log(`[DepositSlip] prjregHint:`, prjregHint);
-            if (prjregHint) {
+            // Also check sanction doc for a direct project registration reference
+            const sanctionProjectRef = sanctionDetails?.prjreg_title || sanctionDetails?.project_registration
+                || sanctionDetails?.project || sanctionDetails?.project_name;
+            console.log(`[DepositSlip] prjregHint:`, prjregHint, `sanctionProjectRef:`, sanctionProjectRef);
+
+            if (prjregHint || sanctionProjectRef) {
                 const prjFields = ["name", "pi_userid", "project_no", "fund_agen_initials", "funding_agen",
-                                   "principal_investigator", "client", "funding_agency", "gstin_of_funding_agency"];
+                                   "principal_investigator", "client", "funding_agency", "gstin_of_funding_agency",
+                                   "project_title", "title", "project_type"];
                 let prjDoc: any = null;
                 try {
-                    const r1 = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", filters: { name: prjregHint }, fields: prjFields, limit_page_length: 1 }) });
-                    const j1 = await r1.json();
-                    if (j1?.message?.length > 0) prjDoc = j1.message[0];
-                    if (!prjDoc) {
+                    // Attempt 1: frappe.client.get — works when project_no IS the doc name
+                    if (prjregHint) {
+                        const r0 = await fetch("/api/method/frappe.client.get", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", name: prjregHint }) });
+                        const j0 = await r0.json();
+                        if (j0?.message && !j0.exc) prjDoc = j0.message;
+                    }
+                    // Attempt 2: frappe.client.get via sanction project reference
+                    if (!prjDoc && sanctionProjectRef) {
+                        const r0b = await fetch("/api/method/frappe.client.get", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", name: sanctionProjectRef }) });
+                        const j0b = await r0b.json();
+                        if (j0b?.message && !j0b.exc) prjDoc = j0b.message;
+                    }
+                    // Attempt 3: get_list by project_no
+                    if (!prjDoc && prjregHint) {
                         const r2 = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: prjregHint }, fields: prjFields, limit_page_length: 1 }) });
                         const j2 = await r2.json();
                         if (j2?.message?.length > 0) prjDoc = j2.message[0];
+                    }
+                    // Attempt 4: get_list by project_no from sanction reference
+                    if (!prjDoc && sanctionProjectRef) {
+                        const r3 = await fetch("/api/method/frappe.client.get_list", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ doctype: "Project Registration", filters: { project_no: sanctionProjectRef }, fields: prjFields, limit_page_length: 1 }) });
+                        const j3 = await r3.json();
+                        if (j3?.message?.length > 0) prjDoc = j3.message[0];
                     }
                     console.log(`[DepositSlip] prjDoc fetched:`, prjDoc);
                     if (prjDoc) {
                         const pi = prjDoc.principal_investigator || prjDoc.pi_userid;
                         const fa = prjDoc.funding_agency || prjDoc.funding_agen || prjDoc.fund_agen_initials;
                         if (type === "d_consultancy") {
-                            // D Consultancy uses principal_consultant instead of principal_investigator
                             if (pi) initialData.principal_consultant = pi;
+                            const projTitle = prjDoc.project_title || prjDoc.title;
+                            if (projTitle) initialData.consultancy_title = projTitle;
+                            if (prjDoc.project_type) initialData.category_d = prjDoc.project_type;
                         } else {
                             if (prjDoc.name) initialData.project_title = prjDoc.name;
                             if (pi) initialData.principal_investigator = pi;
