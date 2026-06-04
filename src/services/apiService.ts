@@ -295,6 +295,19 @@ export const candidateAPI = {
     getPost: (postId: number | string) => `${CANDIDATE_API_BASE_URL}/api/recruitment-posts/${postId}`,
 };
 
+// Leave Module API endpoints
+export const leaveModuleAPI = {
+    getFields: `${API_BASE}.leave_module.leave_module.get_leave_module_fields`,
+    save: `${API_BASE}.leave_module.leave_module.save_leave_module_data`,
+    submit: `${API_BASE}.leave_module.leave_module.submit_leave_module`,
+    getWorkflowActions: `${API_BASE}.leave_module.leave_module.get_leave_module_workflow_actions`,
+    performAction: `${API_BASE}.leave_module.leave_module.perform_leave_module_action`,
+    getMyLeaves: `${API_BASE}.leave_module.leave_module.get_my_leaves`,
+    getPendingApprovals: `${API_BASE}.leave_module.leave_module.get_pending_approvals`,
+    getDetail: `${API_BASE}.leave_module.leave_module.get_leave_detail`,
+    getLeaveBalance: `${API_BASE}.leave_module.leave_module.get_leave_balance`,
+};
+
 // Helper to prepare form data with file conversions for API submission
 export const prepareFormDataForApi = async (formData: Record<string, unknown>): Promise<Record<string, unknown>> => {
     const data = JSON.parse(JSON.stringify(formData)) as Record<string, unknown>;

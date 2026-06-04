@@ -724,68 +724,68 @@ const TopUpFellowshipWorkflowActions = ({
     );
 };
 
-const CancellationRequestWorkflowActions = ({
-    docname,
-    onActionComplete,
-}: {
-    docname: string;
-    onActionComplete: () => void;
-}) => {
-    const { data, isLoading: actionsLoading } = useFrappeGetCall<{
-        message: string[];
-    }>(
-        "rndopsapp.rndopsapp.doctype.cancellation_request.cancellation_request.get_cancellation_request_workflow_actions",
-        { docname },
-    );
+// const CancellationRequestWorkflowActions = ({
+//     docname,
+//     onActionComplete,
+// }: {
+//     docname: string;
+//     onActionComplete: () => void;
+// }) => {
+//     const { data, isLoading: actionsLoading } = useFrappeGetCall<{
+//         message: string[];
+//     }>(
+//         "rndopsapp.rndopsapp.doctype.cancellation_request.cancellation_request.get_cancellation_request_workflow_actions",
+//         { docname },
+//     );
 
-    const { call: performAction, loading: actionLoading } = useFrappePostCall(
-        "rndopsapp.rndopsapp.doctype.cancellation_request.cancellation_request.perform_cancellation_request_action",
-    );
+//     const { call: performAction, loading: actionLoading } = useFrappePostCall(
+//         "rndopsapp.rndopsapp.doctype.cancellation_request.cancellation_request.perform_cancellation_request_action",
+//     );
 
-    const [modalOpen, setModalOpen] = React.useState(false);
-    const [selectedAction, setSelectedAction] = React.useState("");
+//     const [modalOpen, setModalOpen] = React.useState(false);
+//     const [selectedAction, setSelectedAction] = React.useState("");
 
-    const handleActionClick = (action: string) => {
-        setSelectedAction(action);
-        setModalOpen(true);
-    };
+//     const handleActionClick = (action: string) => {
+//         setSelectedAction(action);
+//         setModalOpen(true);
+//     };
 
-    const handleConfirmAction = async (comment: string) => {
-        try {
-            await performAction({ docname, action: selectedAction, comment });
-            setModalOpen(false);
-            onActionComplete();
-        } catch (error) {
-            console.error("Error performing cancellation request action:", error);
-        }
-    };
+//     const handleConfirmAction = async (comment: string) => {
+//         try {
+//             await performAction({ docname, action: selectedAction, comment });
+//             setModalOpen(false);
+//             onActionComplete();
+//         } catch (error) {
+//             console.error("Error performing cancellation request action:", error);
+//         }
+//     };
 
-    if (actionsLoading || !data?.message?.length) return null;
+//     if (actionsLoading || !data?.message?.length) return null;
 
-    return (
-        <>
-            <div className="flex gap-2">
-                {data.message.map((action) => (
-                    <FrappeButton
-                        key={action}
-                        onClick={() => handleActionClick(action)}
-                        disabled={actionLoading}
-                        className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
-                    >
-                        {action}
-                    </FrappeButton>
-                ))}
-            </div>
-            <CommentModal
-                isOpen={modalOpen}
-                onClose={() => setModalOpen(false)}
-                onSubmit={handleConfirmAction}
-                action={selectedAction}
-                isLoading={actionLoading}
-            />
-        </>
-    );
-};
+//     return (
+//         <>
+//             <div className="flex gap-2">
+//                 {data.message.map((action) => (
+//                     <FrappeButton
+//                         key={action}
+//                         onClick={() => handleActionClick(action)}
+//                         disabled={actionLoading}
+//                         className="bg-[#D97757] hover:bg-[#c66a4e] text-white"
+//                     >
+//                         {action}
+//                     </FrappeButton>
+//                 ))}
+//             </div>
+//             <CommentModal
+//                 isOpen={modalOpen}
+//                 onClose={() => setModalOpen(false)}
+//                 onSubmit={handleConfirmAction}
+//                 action={selectedAction}
+//                 isLoading={actionLoading}
+//             />
+//         </>
+//     );
+// };
 
 const RecruitmentAdhocContractualWorkflowActions = ({
     docname,
@@ -2625,12 +2625,12 @@ const PendingTaskDetails: React.FC = () => {
                                     commitRequired={isRnDStaff && isCommittedForGate === false}
                                 />
                             )}
-                            {doctype === "Cancellation Request" && name && (
+                            {/* {doctype === "Cancellation Request" && name && (
                                 <CancellationRequestWorkflowActions
                                     docname={name}
                                     onActionComplete={() => window.location.reload()}
                                 />
-                            )}
+                            )} */}
                         </div>
                     </div>
                 </header>
