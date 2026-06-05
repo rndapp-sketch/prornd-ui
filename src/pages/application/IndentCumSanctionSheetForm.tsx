@@ -6130,6 +6130,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 defaultBudgetHead={defaultCommitBudgetHead}
                 actualBalance={actualBalance}
                 billAmount={getIcssApprovalAmount(formData) || undefined}
+                triggerState="Pending PO Generation"
                 onStagingStatusChange={(committed) =>
                   setIsCommittedForGate(committed)
                 }
@@ -6154,6 +6155,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                   forcedRefDetails={previousIcssCommitmentTid || undefined}
                   includeBillAmount
                   moduleId={14}
+                  triggerState="Pending PO Generation"
                   stagingStatuses={
                     workflowState === "Pending PO Generation"
                       ? ["PENDING_APPROVAL"]

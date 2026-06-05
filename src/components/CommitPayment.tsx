@@ -63,6 +63,8 @@ export interface CommitPaymentProps {
     includeBillAmount?: boolean;
     /** Optional: module id to send in the commit payload */
     moduleId?: number;
+    /** Optional: workflow trigger state to save inside the commit payload JSON */
+    triggerState?: string;
     /** Optional: only consider these Kafka staging statuses when checking existing staging */
     stagingStatuses?: string[];
     /** Optional: only consider staging records whose payload has these non-empty keys */
@@ -263,6 +265,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     forcedRefDetails,
     includeBillAmount = false,
     moduleId,
+    triggerState,
     stagingStatuses,
     requiredPayloadKeys,
     title = "Make a Commitment",
@@ -461,6 +464,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                 ...(includeBillAmount ? { bill_amount: amount } : {}),
                 ...(moduleId !== undefined ? { moduleId } : {}),
                 ...(refDetails ? { refDetails } : {}),
+                ...(triggerState ? { trigger_state: triggerState } : {}),
                 commitParticular: normalizedCommitParticular,
             };
 
