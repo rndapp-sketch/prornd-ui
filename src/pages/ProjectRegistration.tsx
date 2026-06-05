@@ -978,9 +978,10 @@ const ProjectRegistration: React.FC = () => {
             : "instructions",
     );
 
-    // If landed on bare /project-registration, redirect to /project-registration/new/<tempId>
+    // If landed on bare /project-registration with no existing doc, redirect to /project-registration/new/<tempId>
     useEffect(() => {
-        if (!pathDocname && !pathTempId) {
+        const params = new URLSearchParams(location.search);
+        if (!pathDocname && !pathTempId && !params.get("docname")) {
             const newId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             navigate(`/project-registration/new/${newId}`, { replace: true });
         }

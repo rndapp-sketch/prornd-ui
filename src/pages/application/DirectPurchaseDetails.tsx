@@ -3524,20 +3524,6 @@ const DirectPurchaseDetails: React.FC = () => {
                                 {isGeneratingP11 ? 'Generating…' : 'Generate P-11 Form'}
                             </ClaudeButton>
                         )}*/}
-                        {data.workflow_state === "Sanction Approved" &&
-                            id &&
-                            isStaffRnD &&
-                            poSanctionData?.file_path && (
-                                <ClaudeButton
-                                    variant="primary"
-                                    onClick={handleGeneratePO}
-                                    disabled={isGeneratingPO}
-                                >
-                                    {isGeneratingPO
-                                        ? "Generating…"
-                                        : "Generate Purchase Order"}
-                                </ClaudeButton>
-                            )}
                         {/*{data.workflow_state === "POGenerated" && id && (
                             <ClaudeButton
                                 variant="outline"
@@ -3851,7 +3837,7 @@ const DirectPurchaseDetails: React.FC = () => {
 
                         {/* Commit Payment — centralised component handles staging check + form/display card */}
                         {isStaffRnD &&
-                            data.workflow_state === "Pending Staff Approval" && (
+                            ["Pending Staff Approval", "Sanction Approved"].includes(data.workflow_state) && (
                                 <CommitPayment
                                     doctype="Direct Purchase"
                                     docName={id || ""}
