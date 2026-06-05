@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppSidebar } from "../../components/RndSidebar";
-import { useFrappePostCall, useFrappeAuth } from 'frappe-react-sdk';
+import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, UserIcon, EditIcon, Wallet as WalletIcon } from "lucide-react";
+import { CalendarIcon, UserIcon, EditIcon, Wallet as WalletIcon, AlertTriangle } from "lucide-react";
 import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { Textarea } from '@/components/ui/textarea';
@@ -187,6 +187,21 @@ const TemporaryAdvanceDetails: React.FC = () => {
         loadData();
     }, [id]);
 
+    const { data: cancellationStatus } = useFrappeGetCall<{
+        message: {
+            has_pending: boolean;
+            has_cancellation: boolean;
+            cancellation_requests: any[];
+        };
+    }>(
+        "rndopsapp.rndopsapp.cancellation_api.get_cancellation_status",
+        {
+            reference_doctype: "Temporary Advance",
+            reference_name: id,
+        },
+        id ? undefined : null
+    );
+
     // Resolve account head name from ID
     useEffect(() => {
         const resolveAccountHeadName = async () => {
@@ -339,13 +354,23 @@ const TemporaryAdvanceDetails: React.FC = () => {
                                 Edit
                             </button>
                         )}
-                        {id && <TemporaryAdvanceActionButtons
+                        {!cancellationStatus?.message?.has_pending && id && <TemporaryAdvanceActionButtons
                             docname={id}
                             onActionComplete={() => loadData()}
                             commitRequired={isRnDStaff && isCommittedForGate === false && data.workflow_state !== "Draft" && data.workflow_state !== "Rejected" && data.workflow_state !== "Cancelled"}
                         />}
                     </div>
                 </PageHeader>
+
+                {/* Warning Banner if there's a pending cancellation */}
+                {cancellationStatus?.message?.has_pending && (
+                    <div className="mb-6 p-4 rounded-xl border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 flex items-center gap-3 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
+                        <div className="text-sm font-medium">
+                            This application has a pending cancellation request. No further workflow actions can be performed on it.
+                        </div>
+                    </div>
+                )}
 
 
 

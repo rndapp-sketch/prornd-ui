@@ -199,6 +199,11 @@ export function AppSidebar() {
             path: "/delegate-user",
         },
         {
+            label: "Form Application",
+            icon: FileText,
+            path: "/form-application",
+        },
+        {
             label: "Pending Task",
             icon: ListTodo,
             path: "/pending-task",

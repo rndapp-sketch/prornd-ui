@@ -93,6 +93,7 @@ import SalaryModule from './pages/application/SalaryModule';
 import SalaryRegisterFull from './pages/application/SalaryRegisterFull';
 import DelegateUser from './pages/DelegateUser.tsx';
 import CoProjectView from './pages/CoProjectView.tsx';
+import FormApplication from './pages/FormApplication.tsx';
 
 const router = createBrowserRouter(
     [
@@ -804,6 +805,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <MessagesPage />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "form-application",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <FormApplication />
                         </AuthRouteWrapper>
                     ),
                 },

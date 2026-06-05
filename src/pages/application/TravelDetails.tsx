@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 
 import { useFrappePostCall, useFrappeGetCall, useFrappeAuth } from 'frappe-react-sdk';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, FileSpreadsheetIcon as LedgerIcon, EditIcon, Send, ReceiptText } from 'lucide-react';
+import { CalendarIcon, FileSpreadsheetIcon as LedgerIcon, EditIcon, Send, ReceiptText, AlertTriangle } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { Textarea } from '@/components/ui/textarea';
@@ -275,6 +275,21 @@ const TravelDetails: React.FC = () => {
 
     const isCommitted = !!linkedCommitment;
 
+    const { data: cancellationStatus } = useFrappeGetCall<{
+        message: {
+            has_pending: boolean;
+            has_cancellation: boolean;
+            cancellation_requests: any[];
+        };
+    }>(
+        "rndopsapp.rndopsapp.cancellation_api.get_cancellation_status",
+        {
+            reference_doctype: "Travel",
+            reference_name: docName,
+        },
+        docName ? undefined : null
+    );
+
     // Unified commitment display: prefer ledger data
     const displayCommitment = linkedCommitment
         ? { head: linkedCommitment.head, committed: linkedCommitment.committed }
@@ -512,8 +527,18 @@ const TravelDetails: React.FC = () => {
                     )}
                 </PageHeader>
 
+                {/* Warning Banner if there's a pending cancellation */}
+                {cancellationStatus?.message?.has_pending && (
+                    <div className="mb-6 p-4 rounded-xl border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 flex items-center gap-3 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
+                        <div className="text-sm font-medium">
+                            This application has a pending cancellation request. No further workflow actions can be performed on it.
+                        </div>
+                    </div>
+                )}
+
                 {/* Workflow Action Buttons */}
-                {docName && formData.workflow_state && formData.workflow_state !== "Draft" && (
+                {!cancellationStatus?.message?.has_pending && docName && formData.workflow_state && formData.workflow_state !== "Draft" && (
                     <div className="mb-6">
                         <TravelActionButtons
                             docName={docName}

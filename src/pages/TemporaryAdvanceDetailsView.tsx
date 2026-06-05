@@ -32,6 +32,7 @@ import {
     EditIcon,
     Wallet,
     CheckCircle2,
+    AlertTriangle,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -263,6 +264,21 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
         "Temporary Advance",
         docName ?? "",
         { enabled: !!docName, cacheTime: 0 }
+    );
+
+    const { data: cancellationStatus } = useFrappeGetCall<{
+        message: {
+            has_pending: boolean;
+            has_cancellation: boolean;
+            cancellation_requests: any[];
+        };
+    }>(
+        "rndopsapp.rndopsapp.cancellation_api.get_cancellation_status",
+        {
+            reference_doctype: "Temporary Advance",
+            reference_name: docName,
+        },
+        docName ? undefined : null
     );
 
     const [resolvedAccountHead, setResolvedAccountHead] = useState<string>('');
@@ -497,10 +513,22 @@ const TemporaryAdvanceDetailsView: React.FC<TemporaryAdvanceDetailsProps> = ({
                                     <EditIcon className="h-4 w-4" /> Edit
                                 </Button>
                             )}
-                            <TemporaryAdvanceActionButtons docname={docName} onActionComplete={() => window.location.reload()} />
+                            {!cancellationStatus?.message?.has_pending && (
+                                <TemporaryAdvanceActionButtons docname={docName} onActionComplete={() => window.location.reload()} />
+                            )}
                         </div>
                     </div>
                 </div>
+
+                {/* Warning Banner if there's a pending cancellation */}
+                {cancellationStatus?.message?.has_pending && (
+                    <div className="mb-6 p-4 rounded-xl border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 flex items-center gap-3 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
+                        <div className="text-sm font-medium">
+                            This application has a pending cancellation request. No further workflow actions can be performed on it.
+                        </div>
+                    </div>
+                )}
 
                 {/* Navigation Tabs */}
                 <div className="flex items-center gap-1 border-b border-zinc-200 dark:border-zinc-800 mb-8 overflow-x-auto">

@@ -13,6 +13,7 @@ import {
   UserIcon,
   DownloadIcon,
   FileSpreadsheetIcon as LedgerIcon,
+  AlertTriangle,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -446,6 +447,21 @@ const ReimbursementDetails: React.FC = () => {
       e.type === "commitment",
   );
   const isCommitted = !!linkedCommitment;
+
+  const { data: cancellationStatus } = useFrappeGetCall<{
+    message: {
+      has_pending: boolean;
+      has_cancellation: boolean;
+      cancellation_requests: any[];
+    };
+  }>(
+    "rndopsapp.rndopsapp.cancellation_api.get_cancellation_status",
+    {
+      reference_doctype: "Reimbursement",
+      reference_name: id,
+    },
+    id ? undefined : null
+  );
 
   // Set default commit head
   useEffect(() => {
@@ -1000,7 +1016,7 @@ const ReimbursementDetails: React.FC = () => {
               <DownloadIcon className="w-4 h-4" />
             </FrappeButton>
           </div>
-          {data.workflow_state && (
+          {!cancellationStatus?.message?.has_pending && data.workflow_state && (
             <ReimbursementWorkflowActions
               docname={data.name}
               onActionComplete={() => window.location.reload()}
@@ -1008,6 +1024,15 @@ const ReimbursementDetails: React.FC = () => {
             />
           )}
         </PageHeader>
+        {/* Warning Banner if there's a pending cancellation */}
+        {cancellationStatus?.message?.has_pending && (
+          <div className="mb-6 p-4 rounded-xl border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 flex items-center gap-3 shadow-sm">
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
+            <div className="text-sm font-medium">
+              This application has a pending cancellation request. No further workflow actions can be performed on it.
+            </div>
+          </div>
+        )}
         {/* Content Grid with Sidebar */}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           {/* Main Content (3 cols) */}
