@@ -11,12 +11,14 @@ import {
     ChevronDown,
     Clock,
     AlertTriangle,
+    Ban,
     CheckCircle2,
+    Loader2,
 } from "lucide-react";
 import { FaArrowLeft } from "react-icons/fa";
 import { cn } from "@/lib/utils";
 import { GlobalLoader } from "@/components/ui/global-loader";
-// import { CancellationModal } from "@/components/CancellationModal";
+import { CancellationModal } from "@/components/CancellationModal";
 
 interface ApplicationRecord {
     name: string;
@@ -54,22 +56,22 @@ const FormApplication: React.FC = () => {
     const searchInputRef = useRef<HTMLInputElement>(null);
 
     // Cancellation modal state
-    // const [cancelModal, setCancelModal] = useState<{
-    //     isOpen: boolean;
-    //     doctype: string;
-    //     docname: string;
-    //     title: string;
-    //     currentStatus: string;
-    // }>({
-    //     isOpen: false,
-    //     doctype: "",
-    //     docname: "",
-    //     title: "",
-    //     currentStatus: "",
-    // });
+    const [cancelModal, setCancelModal] = useState<{
+        isOpen: boolean;
+        doctype: string;
+        docname: string;
+        title: string;
+        currentStatus: string;
+    }>({
+        isOpen: false,
+        doctype: "",
+        docname: "",
+        title: "",
+        currentStatus: "",
+    });
 
     // Fetch applications
-    const { data, isLoading, error } = useFrappeGetCall<ApplicationsResponse>(
+    const { data, isLoading, error, mutate } = useFrappeGetCall<ApplicationsResponse>(
         "rndopsapp.rndopsapp.cancellation_api.get_my_applications",
         {},
         currentUser ? undefined : null
@@ -143,6 +145,8 @@ const FormApplication: React.FC = () => {
             style = "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-800/40";
         } else if (s.includes("draft")) {
             style = "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700";
+        } else if (["approved", "completed"].some((t) => s.includes(t))) {
+            style = "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800/40";
         }
         return cn(
             "inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-semibold border",
@@ -159,21 +163,21 @@ const FormApplication: React.FC = () => {
         });
     };
 
-    // const handleCancelClick = (record: ApplicationRecord & { doctype: string }) => {
-    //     setCancelModal({
-    //         isOpen: true,
-    //         doctype: record.doctype,
-    //         docname: record.name,
-    //         title: record.title || record.name,
-    //         currentStatus: record.status,
-    //     });
-    // };
+    const handleCancelClick = (record: ApplicationRecord & { doctype: string }) => {
+        setCancelModal({
+            isOpen: true,
+            doctype: record.doctype,
+            docname: record.name,
+            title: record.title || record.name,
+            currentStatus: record.status,
+        });
+    };
 
-    // const handleCancelSuccess = () => {
-    //     setCancelModal((prev) => ({ ...prev, isOpen: false }));
-    //     // Refresh the data
-    //     mutate();
-    // };
+    const handleCancelSuccess = () => {
+        setCancelModal((prev) => ({ ...prev, isOpen: false }));
+        // Refresh the data
+        mutate();
+    };
 
     const getPageNumbers = () => {
         const pages: (number | string)[] = [];
@@ -480,7 +484,7 @@ const FormApplication: React.FC = () => {
                                                         >
                                                             View
                                                         </button>
-                                                        {/* {record.has_pending_cancellation ? (
+                                                        {record.has_pending_cancellation ? (
                                                             <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800/40">
                                                                 <Loader2 className="w-3 h-3 animate-spin" />
                                                                 Cancelling
@@ -495,7 +499,7 @@ const FormApplication: React.FC = () => {
                                                                 <Ban className="w-3 h-3" />
                                                                 Cancel
                                                             </button>
-                                                        )} */}
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -571,7 +575,7 @@ const FormApplication: React.FC = () => {
                                                     ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-sm"
                                                     : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700",
                                                 typeof page !== "number" &&
-                                                "cursor-default hover:bg-transparent"
+                                                    "cursor-default hover:bg-transparent"
                                             )}
                                         >
                                             {page}
@@ -596,7 +600,7 @@ const FormApplication: React.FC = () => {
             </div>
 
             {/* Cancellation Modal */}
-            {/* <CancellationModal
+            <CancellationModal
                 isOpen={cancelModal.isOpen}
                 onClose={() =>
                     setCancelModal((prev) => ({ ...prev, isOpen: false }))
@@ -606,7 +610,7 @@ const FormApplication: React.FC = () => {
                 docname={cancelModal.docname}
                 title={cancelModal.title}
                 currentStatus={cancelModal.currentStatus}
-            /> */}
+            />
         </>
     );
 };
