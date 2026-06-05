@@ -99,6 +99,7 @@ import CoProjectView from './pages/CoProjectView.tsx';
 import LeaveModule from './pages/LeaveModule.tsx';
 import LeaveModuleForm from './pages/LeaveModuleForm.tsx';
 import LeaveModuleDetails from './pages/LeaveModuleDetails.tsx';
+import FormApplication from './pages/FormApplication.tsx';
 
 const router = createBrowserRouter(
     [
@@ -858,6 +859,14 @@ const router = createBrowserRouter(
                     element: (
                         <AuthRouteWrapper allowedRole="All_ProRnd_User">
                             <MessagesPage />
+                        </AuthRouteWrapper>
+                    ),
+                },
+                {
+                    path: "form-application",
+                    element: (
+                        <AuthRouteWrapper allowedRole="All_ProRnd_User">
+                            <FormApplication />
                         </AuthRouteWrapper>
                     ),
                 },

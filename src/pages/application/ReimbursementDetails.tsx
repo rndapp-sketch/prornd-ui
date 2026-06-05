@@ -19,6 +19,7 @@ import {
   CheckCircle2 as CheckCircleIcon,
   XCircle as XCircleIcon,
   Pencil as PencilIcon,
+  AlertTriangle,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlobalLoader } from "@/components/ui/global-loader";
@@ -173,6 +174,83 @@ const CommentModal = ({
         </div>
       </div>
     </div>
+  );
+};
+
+// --- REIMBURSEMENT WORKFLOW ACTIONS ---
+const ReimbursementWorkflowActions = ({
+  docname,
+  onActionComplete,
+  commitRequired = false,
+}: {
+  docname: string;
+  onActionComplete: () => void;
+  commitRequired?: boolean;
+}) => {
+  const { data, isLoading: actionsLoading } = useFrappeGetCall<{
+    message: string[];
+  }>(
+    "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.get_reimbursement_workflow_actions",
+    { docname },
+  );
+
+  const { call: performAction, loading: actionLoading } = useFrappePostCall(
+    "rndopsapp.rndopsapp.doctype.reimbursement.reimbursement.perform_reimbursement_action",
+  );
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedAction, setSelectedAction] = useState("");
+
+  const handleActionClick = (action: string) => {
+    setSelectedAction(action);
+    setModalOpen(true);
+  };
+
+  const handleConfirmAction = async (comment: string) => {
+    try {
+      await performAction({ docname, action: selectedAction, comment });
+      setModalOpen(false);
+      onActionComplete();
+    } catch (error) {
+      console.error("Error performing action:", error);
+      alert("Failed to perform action. Please try again.");
+    }
+  };
+
+  const filteredActions = (data?.message || []).filter(
+    (action) => action.toLowerCase() !== "submit",
+  );
+
+  if (actionsLoading || !filteredActions.length) return null;
+
+  return (
+    <>
+      {commitRequired && (
+        <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium mb-4">
+          A commitment must be submitted before forwarding this application.
+        </div>
+      )}
+      <div className="flex gap-2 mb-4">
+        {filteredActions.map((action) => (
+          <FrappeButton
+            key={action}
+            onClick={() => handleActionClick(action)}
+            disabled={actionLoading || commitRequired}
+            variant={commitRequired ? "outline" : "action"}
+            className={commitRequired ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0" : ""}
+          >
+            {action}
+          </FrappeButton>
+        ))}
+      </div>
+      <CommentModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmit={handleConfirmAction}
+        action={selectedAction}
+        isLoading={actionLoading}
+      />
+    </>
   );
 };
 
@@ -505,6 +583,21 @@ const ReimbursementDetails: React.FC = () => {
     (e) => (e.ref === (id || "") || e.frapAppId === (id || "")) && e.type === "commitment",
   );
   const isCommitted = !!linkedCommitment;
+
+  const { data: cancellationStatus } = useFrappeGetCall<{
+    message: {
+      has_pending: boolean;
+      has_cancellation: boolean;
+      cancellation_requests: any[];
+    };
+  }>(
+    "rndopsapp.rndopsapp.cancellation_api.get_cancellation_status",
+    {
+      reference_doctype: "Reimbursement",
+      reference_name: id,
+    },
+    id ? undefined : null
+  );
 
   useEffect(() => {
     if (budgetHeads.length > 0 && !commitHead) setCommitHead(budgetHeads[0]);
@@ -979,23 +1072,51 @@ const ReimbursementDetails: React.FC = () => {
                 By: {data.owner}
               </div>
             </div>
-            <ActionsDropdown
+            {/* Edit and Submit buttons - only show for Draft */}
+            {(data.workflow_state === "Draft" || !data.workflow_state) && (
+              <>
+                <FrappeButton
+                  variant="outline"
+                  onClick={() => navigate(`/reimbursement?edit=${data.name}`)}
+                >
+                  Edit
+                </FrappeButton>
+                <FrappeButton
+                  variant="primary"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Submitting..." : "Submit"}
+                </FrappeButton>
+              </>
+            )}
+            {/* Download button - always visible */}
+            <FrappeButton variant="outline" onClick={handleDownload}>
+              <DownloadIcon className="w-4 h-4" />
+            </FrappeButton>
+          </div>
+          {!cancellationStatus?.message?.has_pending && data.workflow_state && (
+            <ReimbursementWorkflowActions
               docname={data.name}
-              workflowState={data.workflow_state || "Draft"}
               onActionComplete={() => window.location.reload()}
-              onEdit={() => navigate(`/reimbursement?edit=${data.name}`)}
-              onSubmit={handleSubmit}
-              onDownload={handleDownload}
-              isSubmitting={isSubmitting}
               commitRequired={
                 isRnDStaff &&
                 isCommittedForGate === false &&
                 data.workflow_state === "Pending Staff Approval"
               }
             />
-          </div>
+          )}
         </PageHeader>
 
+        {/* Warning Banner if there's a pending cancellation */}
+        {cancellationStatus?.message?.has_pending && (
+          <div className="mb-6 p-4 rounded-xl border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 flex items-center gap-3 shadow-sm">
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
+            <div className="text-sm font-medium">
+              This application has a pending cancellation request. No further workflow actions can be performed on it.
+            </div>
+          </div>
+        )}
         {/* Content Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
           {/* Main Content (3 cols) */}

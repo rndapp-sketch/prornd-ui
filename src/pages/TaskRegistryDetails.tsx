@@ -4,6 +4,7 @@ import { useFrappeGetDoc, useFrappePostCall, useFrappeAuth } from 'frappe-react-
 import {
     FileTextIcon, ClipboardListIcon, ShoppingCartIcon,
     LayoutGridIcon, PaperclipIcon, Printer, FolderOpenIcon, XIcon,
+    ExternalLinkIcon, CreditCardIcon, CheckCircle2Icon,
 } from "lucide-react";
 import { cn } from '@/lib/utils';
 
@@ -64,7 +65,312 @@ const SectionHeading = ({ icon, title }: { icon: React.ReactNode; title: string 
     </div>
 );
 
-// ── DPDocumentViewer ──────────────────────────────────────────────────────────
+function getOriginalApplicationRoute(refDoctype: string, refName: string): string {
+    if (!refDoctype || !refName) return "";
+    const name = encodeURIComponent(refName);
+    
+    switch (refDoctype) {
+        case "Reimbursement":
+            return `/reimbursement/${name}`;
+        case "Disbursal of Honorarium":
+            return `/disbursal-of-honorarium/${name}`;
+        case "Disbursal of Consultancy":
+            return `/disbursal-of-consultancy/${name}`;
+        case "Travel":
+            return `/travel/${name}`;
+        case "Loan Request":
+            return `/loan-request/${name}`;
+        case "Indent General Form":
+            return `/indent-general-form-details/${name}`;
+        case "Indent Cum Sanction Sheet":
+            return `/indent-cum-sanction-sheet/${name}`;
+        case "Selection Committee Report":
+            return `/selection-committee-report/${name}`;
+        case "Temporary Advance":
+            return `/temporary-advance/${name}`;
+        case "Direct Purchase":
+            return `/direct-purchase/${name}`;
+        case "Advance Settlement":
+            return `/advance-settlement/${name}`;
+        default:
+            return `/pending-tasks/${encodeURIComponent(refDoctype)}/${name}`;
+    }
+}
+
+const OriginalCommitmentModal = ({
+    record,
+    onClose,
+}: {
+    record: any;
+    onClose: () => void;
+}) => {
+    let payloadObj: Record<string, any> = {};
+    try {
+        const raw = record.payload ?? record.commit_payload ?? "{}";
+        payloadObj = typeof raw === "string" ? JSON.parse(raw) : raw;
+    } catch {
+        payloadObj = {};
+    }
+
+    const commitAmount = payloadObj.commit_amount ?? payloadObj.commitAmount;
+    const budgetHead = payloadObj.budget_head ?? payloadObj.budgetHead;
+    const projectName = payloadObj.project_name ?? payloadObj.projectName;
+    const particulars = payloadObj.commit_particular ?? payloadObj.commitParticular;
+
+    const rawStatus: string = record.status ?? "";
+    const displayStatus = rawStatus === "PUBLISHED" ? "Committed" : rawStatus;
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+        >
+            <div className="relative w-full max-w-lg flex flex-col bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+                    <div className="flex items-center gap-2.5">
+                        <CreditCardIcon className="w-5 h-5 text-[#D97757]" />
+                        <h2 className="text-base font-extrabold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                            Commitment Details
+                        </h2>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-1.5 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                        aria-label="Close separate window"
+                    >
+                        <XIcon className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
+                    <div className="text-center py-4 bg-orange-50/50 dark:bg-zinc-800/30 rounded-xl border border-orange-100/50 dark:border-zinc-800">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider mb-1">Commit Amount</p>
+                        <p className="text-3xl font-extrabold text-[#D97757]">
+                            ₹{commitAmount !== undefined ? Number(commitAmount).toLocaleString("en-IN") : "0"}
+                        </p>
+                    </div>
+
+                    <div className="space-y-3">
+                        <div className="grid grid-cols-3 gap-2 py-2.5 border-b border-zinc-100 dark:border-zinc-800">
+                            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">Reference ID</span>
+                            <span className="col-span-2 text-xs font-mono font-bold text-zinc-800 dark:text-zinc-200 text-right break-all">
+                                {record.reference_name}
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 py-2.5 border-b border-zinc-100 dark:border-zinc-800">
+                            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">Reference Type</span>
+                            <span className="col-span-2 text-xs font-bold text-zinc-800 dark:text-zinc-200 text-right">
+                                {record.reference_doctype}
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 py-2.5 border-b border-zinc-100 dark:border-zinc-800">
+                            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">Budget Head</span>
+                            <span className="col-span-2 text-xs font-bold text-zinc-800 dark:text-zinc-200 text-right break-all">
+                                {budgetHead || "-"}
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 py-2.5 border-b border-zinc-100 dark:border-zinc-800">
+                            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">Project Name</span>
+                            <span className="col-span-2 text-xs font-bold text-zinc-800 dark:text-zinc-200 text-right break-all">
+                                {projectName || "-"}
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 py-2.5 border-b border-zinc-100 dark:border-zinc-800">
+                            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">Staging Status</span>
+                            <div className="col-span-2 text-right">
+                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                    displayStatus === "Committed"
+                                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                                        : "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"
+                                }`}>
+                                    {displayStatus}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 py-2.5 border-b border-zinc-100 dark:border-zinc-800">
+                            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">Staging ID</span>
+                            <span className="col-span-2 text-xs font-mono font-semibold text-zinc-500 dark:text-zinc-400 text-right break-all">
+                                {record.name}
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 py-2.5 border-b border-zinc-100 dark:border-zinc-800">
+                            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">Modified By</span>
+                            <span className="col-span-2 text-xs text-zinc-800 dark:text-zinc-200 text-right break-all">
+                                {record.modified_by || "-"}
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 py-2.5">
+                            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">Modified</span>
+                            <span className="col-span-2 text-xs text-zinc-800 dark:text-zinc-200 text-right">
+                                {record.modified ? new Date(record.modified).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+                            </span>
+                        </div>
+                    </div>
+
+                    {particulars && (
+                        <div className="flex flex-col gap-1.5 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                            <span className="text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">Particulars / Comments</span>
+                            <span className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed bg-zinc-50 dark:bg-zinc-800/40 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800/80">
+                                {particulars}
+                            </span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-end px-6 py-4 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg bg-zinc-200 hover:bg-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 transition-colors"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const OriginalCommitmentSidebar = ({ refName, refDoctype }: { refName?: string; refDoctype?: string }) => {
+    const [record, setRecord] = useState<any>(null);
+    const [loading, setLoading] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!refName) return;
+        setLoading(true);
+        const fetchStaging = async () => {
+            try {
+                const url = `/api/method/rndopsapp.rndopsapp.cancellation_api.get_original_commitment?reference_doctype=${encodeURIComponent(refDoctype || '')}&reference_name=${encodeURIComponent(refName)}`;
+                const res = await fetch(url, { credentials: "include" });
+                if (res.ok) {
+                    const json = await res.json();
+                    const record = json?.message || null;
+                    if (record) {
+                        setRecord(record);
+                    }
+                }
+            } catch (err) {
+                console.error("Error fetching original commitment:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchStaging();
+    }, [refName, refDoctype]);
+
+    if (loading) {
+        return (
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center gap-3">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#D97757] border-t-transparent" />
+                <span className="text-sm text-zinc-500 dark:text-zinc-400">Loading original commitment…</span>
+            </div>
+        );
+    }
+
+    if (!record) {
+        return (
+            <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                    <CreditCardIcon className="w-4 h-4 text-zinc-400" />
+                    <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                        Original Commitment
+                    </h3>
+                </div>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                    No active budget commitment was found for the original application <span className="font-semibold">{refName}</span>.
+                </p>
+            </div>
+        );
+    }
+
+    let payloadObj: Record<string, any> = {};
+    try {
+        const raw = record.payload ?? record.commit_payload ?? "{}";
+        payloadObj = typeof raw === "string" ? JSON.parse(raw) : raw;
+    } catch {
+        payloadObj = {};
+    }
+
+    const commitAmount = payloadObj.commit_amount ?? payloadObj.commitAmount;
+    const budgetHead = payloadObj.budget_head ?? payloadObj.budgetHead;
+    const projectName = payloadObj.project_name ?? payloadObj.projectName;
+    const particulars = payloadObj.commit_particular ?? payloadObj.commitParticular;
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+                <CheckCircle2Icon className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                <h3 className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                    Original Commitment
+                </h3>
+            </div>
+
+            <div className="space-y-3 text-sm">
+                {commitAmount !== undefined && (
+                    <div className="flex justify-between items-center gap-2 py-1.5 border-b border-zinc-100 dark:border-zinc-800">
+                        <span className="text-zinc-500 dark:text-zinc-400 text-xs font-medium">Commit Amount</span>
+                        <span className="font-bold text-[#D97757] text-right">
+                            ₹{Number(commitAmount).toLocaleString("en-IN")}
+                        </span>
+                    </div>
+                )}
+                {budgetHead && (
+                    <div className="flex justify-between items-center gap-2 py-1.5 border-b border-zinc-100 dark:border-zinc-800">
+                        <span className="text-zinc-500 dark:text-zinc-400 text-xs font-medium">Budget Head</span>
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-right break-all">
+                            {budgetHead}
+                        </span>
+                    </div>
+                )}
+                {projectName && (
+                    <div className="flex justify-between items-center gap-2 py-1.5 border-b border-zinc-100 dark:border-zinc-800">
+                        <span className="text-zinc-500 dark:text-zinc-400 text-xs font-medium">Project Name</span>
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-right break-all">
+                            {projectName}
+                        </span>
+                    </div>
+                )}
+                {particulars && (
+                    <div className="flex flex-col gap-1 py-1.5">
+                        <span className="text-zinc-500 dark:text-zinc-400 text-xs font-medium">Particulars</span>
+                        <span className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed bg-zinc-50 dark:bg-zinc-800/40 p-2 rounded-lg mt-1 border border-zinc-100 dark:border-zinc-800/80">
+                            {particulars}
+                        </span>
+                    </div>
+                )}
+                <div className="flex justify-between items-center gap-2 pt-2 text-xs">
+                    <span className="text-zinc-500 dark:text-zinc-400 font-medium">Status</span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 font-bold uppercase text-[10px]">
+                        {record.status === "PUBLISHED" ? "Committed" : record.status}
+                    </span>
+                </div>
+
+                <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800/80">
+                    <button
+                        type="button"
+                        onClick={() => setIsModalOpen(true)}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors border border-zinc-200/60 dark:border-zinc-800"
+                    >
+                        <ExternalLinkIcon className="w-3.5 h-3.5" />
+                        Open in Separate Window
+                    </button>
+                </div>
+            </div>
+
+            {isModalOpen && (
+                <OriginalCommitmentModal
+                    record={record}
+                    onClose={() => setIsModalOpen(false)}
+                />
+            )}
+        </div>
+    );
+};
+
 const DPDocumentViewer = ({ data, doctype: viewerDoctype }: { data: Record<string, any>; doctype?: string }) => {
     const allScalar = Object.entries(data).filter(([key, value]) => {
         if (DP_EXCLUDED.includes(key)) return false;
@@ -387,7 +693,8 @@ const DirectPurchaseTabView = ({ data, docName }: { data: Record<string, any>; d
 };
 
 // ── GenericDocViewer ──────────────────────────────────────────────────────────
-const GenericDocViewer = ({ data }: { data: Record<string, any> }) => {
+const GenericDocViewer = ({ data, doctype }: { data: Record<string, any>; doctype?: string }) => {
+    const navigate = useNavigate();
     const EXCLUDED = ['doctype', 'docstatus', 'idx', 'owner', 'creation', 'modified', 'modified_by', '_user_tags', '_comments', '_assign', '_liked_by', '_seen'];
     const simpleFields = Object.entries(data).filter(([key, value]) => {
         if (EXCLUDED.includes(key) || key.startsWith('_')) return false;
@@ -412,8 +719,24 @@ const GenericDocViewer = ({ data }: { data: Record<string, any> }) => {
                                 {isFilePath(String(value)) ? (
                                     <a href={String(value)} target="_blank" rel="noreferrer"
                                         className="text-[13px] font-semibold text-[#D97757] underline break-words">{getFileName(String(value))}</a>
+                                ) : doctype === "Cancellation Request" && key === "reference_name" && data?.reference_doctype ? (
+                                    <button
+                                        onClick={() => {
+                                            const route = getOriginalApplicationRoute(
+                                                data.reference_doctype,
+                                                String(value),
+                                            );
+                                            if (route) navigate(route);
+                                        }}
+                                        className="text-left text-[13px] font-semibold text-[#D97757] hover:underline hover:text-[#c66a4e] transition-colors inline-flex items-center gap-1 break-words"
+                                    >
+                                        {String(value)}
+                                        <ExternalLinkIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                                    </button>
                                 ) : (
-                                    <p className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-relaxed">{String(value)}</p>
+                                    <p className="text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7] break-words leading-relaxed">
+                                        {(doctype === "Cancellation Request" && key === "status" && value === "Approved") ? "Cancelled" : String(value)}
+                                    </p>
                                 )}
                             </div>
                         ))}
@@ -1487,7 +1810,7 @@ const TaskRegistryDetails: React.FC = () => {
                     <h3 className="text-[13px] font-extrabold tracking-wide text-[#3F3F46] dark:text-[#E4E4E7] uppercase">{doctype}</h3>
                 </div>
                 <div className="p-5 md:p-6">
-                    <GenericDocViewer data={displayData} />
+                    <GenericDocViewer data={displayData} doctype={doctype} />
                 </div>
             </div>
         );
@@ -1513,67 +1836,95 @@ const TaskRegistryDetails: React.FC = () => {
                                 </span>
                             )}
                         </div>
-
-                        {/* View Project button */}
-                        {doctype !== 'Project Registration' && data && (
-                            <button
-                                onClick={async () => {
-                                    const mapping = DOCTYPE_PR_LINKS[doctype];
-                                    if (!mapping) return;
-                                    const strategy = mapping.primary;
-                                    if (strategy.type === 'pr_name') {
-                                        const val = data[strategy.field];
-                                        if (val) { setPrPreviewName(val); return; }
-                                    }
-                                    if (strategy.type === 'self') {
-                                        setPrPreviewName(name!);
-                                        return;
-                                    }
-                                    // pr_project_no — async lookup
-                                    const noField = strategy.type === 'pr_project_no' ? strategy.field
-                                        : mapping.fallback?.type === 'pr_project_no' ? (mapping.fallback as any).field
-                                        : null;
-                                    const projectNo = noField ? data[noField] : null;
-                                    if (!projectNo) return;
-                                    setPrPreviewLoading(true);
-                                    try {
-                                        const params = new URLSearchParams({
-                                            filters: JSON.stringify([['project_no', '=', projectNo]]),
-                                            fields: JSON.stringify(['name']),
-                                            limit: '1',
-                                        });
-                                        const res = await fetch(`/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
-                                        const prName = (res?.data ?? res?.message ?? [])[0]?.name;
-                                        if (prName) setPrPreviewName(prName);
-                                    } finally {
-                                        setPrPreviewLoading(false);
-                                    }
-                                }}
-                                disabled={prPreviewLoading}
-                                className="inline-flex items-center gap-1.5 h-9 px-3 text-xs font-bold uppercase tracking-wide rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-[#D97757] hover:text-[#D97757] shadow-sm transition-all disabled:opacity-60"
-                            >
-                                <FolderOpenIcon className="h-3.5 w-3.5" />
-                                {prPreviewLoading ? 'Loading…' : 'View Project'}
-                            </button>
-                        )}
-
-                        {/* Print Button (only for Rnd Staff on Temporary Advance) */}
-                        {doctype === 'Temporary Advance' && isStaffRnD && (
-                            <button
-                                onClick={handlePrintTemporaryAdvance}
-                                className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 shadow-sm transition-all"
-                                title="Print Temporary Advance"
-                            >
-                                <Printer className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
-                                Print
-                            </button>
-                        )}
+                        <div className="flex items-center gap-3 flex-wrap">
+                            {doctype !== 'Project Registration' && data && (
+                                <button
+                                    onClick={async () => {
+                                        const mapping = DOCTYPE_PR_LINKS[doctype];
+                                        if (!mapping) return;
+                                        const strategy = mapping.primary;
+                                        if (strategy.type === 'pr_name') {
+                                            const val = data[strategy.field];
+                                            if (val) { setPrPreviewName(val); return; }
+                                        }
+                                        if (strategy.type === 'self') {
+                                            setPrPreviewName(name!);
+                                            return;
+                                        }
+                                        const noField = strategy.type === 'pr_project_no' ? strategy.field
+                                            : mapping.fallback?.type === 'pr_project_no' ? (mapping.fallback as any).field
+                                            : null;
+                                        const projectNo = noField ? data[noField] : null;
+                                        if (!projectNo) return;
+                                        setPrPreviewLoading(true);
+                                        try {
+                                            const params = new URLSearchParams({
+                                                filters: JSON.stringify([['project_no', '=', projectNo]]),
+                                                fields: JSON.stringify(['name']),
+                                                limit: '1',
+                                            });
+                                            const res = await fetch(`/api/resource/Project%20Registration?${params}`, { credentials: 'include' }).then(r => r.json());
+                                            const prName = (res?.data ?? res?.message ?? [])[0]?.name;
+                                            if (prName) setPrPreviewName(prName);
+                                        } finally {
+                                            setPrPreviewLoading(false);
+                                        }
+                                    }}
+                                    disabled={prPreviewLoading}
+                                    className="inline-flex items-center gap-1.5 h-9 px-3 text-xs font-bold uppercase tracking-wide rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:border-[#D97757] hover:text-[#D97757] shadow-sm transition-all disabled:opacity-60"
+                                >
+                                    <FolderOpenIcon className="h-3.5 w-3.5" />
+                                    {prPreviewLoading ? 'Loading…' : 'View Project'}
+                                </button>
+                            )}
+                            {doctype === 'Temporary Advance' && isStaffRnD && (
+                                <button
+                                    onClick={handlePrintTemporaryAdvance}
+                                    className="inline-flex items-center justify-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg border border-zinc-200 dark:border-zinc-700 bg-[#FAFAF9] dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 hover:bg-[#EFF6FF] dark:hover:bg-[#2563EB]/10 hover:border-[#2563EB]/40 shadow-sm transition-all"
+                                    title="Print Temporary Advance"
+                                >
+                                    <Printer className="h-4 w-4 text-[#2563EB] dark:text-[#60A5FA]" />
+                                    Print
+                                </button>
+                            )}
+                            {doctype === "Cancellation Request" && data?.reference_doctype && data?.reference_name && (
+                                <button
+                                    onClick={() => {
+                                        const route = getOriginalApplicationRoute(
+                                            data.reference_doctype,
+                                            data.reference_name,
+                                        );
+                                        if (route) navigate(route);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 h-fit rounded-md text-xs font-medium border border-[#E4E4E7] bg-[#FAFAF9] text-[#71717A] transition-colors hover:border-[#D97757]/30 hover:bg-[#D97757]/10 hover:text-[#D97757] dark:border-[#3F3F46] dark:bg-[#18181B]"
+                                >
+                                    <ExternalLinkIcon className="w-3.5 h-3.5" />
+                                    View Original Application
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </PageHeader>
 
-                <div className="space-y-4">
-                    {renderContent()}
-                </div>
+                {doctype === "Cancellation Request" ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        <div className="lg:col-span-3 space-y-6">
+                            {renderContent()}
+                        </div>
+                        <div className="lg:col-span-1 space-y-6">
+                            <div className="sticky top-6 space-y-6">
+                                <OriginalCommitmentSidebar
+                                    refName={data?.reference_name}
+                                    refDoctype={data?.reference_doctype}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {renderContent()}
+                    </div>
+                )}
             </main>
 
             {name && doctype && (

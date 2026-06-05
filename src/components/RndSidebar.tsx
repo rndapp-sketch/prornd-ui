@@ -227,6 +227,11 @@ export function AppSidebar() {
             path: "/leave-module",
         },
         {
+            label: "Form Application",
+            icon: FileText,
+            path: "/form-application",
+        },
+        {
             label: "Pending Task",
             icon: ListTodo,
             path: "/pending-task",
