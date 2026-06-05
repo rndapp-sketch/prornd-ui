@@ -2477,6 +2477,14 @@ const DirectPurchaseActionButtons = ({
             );
     }, [docname]);
 
+    const refreshActions = () => {
+        fetchActions({ docname })
+            .then((res) => {
+                setActions(Array.isArray(res?.message) ? res.message : []);
+            })
+            .catch(() => setActions([]));
+    };
+
     const handleAction = async (action: string) => {
         // Block "Submit P-11" if P-11 form hasn't been created yet
         if (action === "Submit P-11" && !p11DocName) {
@@ -2495,11 +2503,13 @@ const DirectPurchaseActionButtons = ({
                 alert(
                     result.message.message || `Action "${action}" completed.`,
                 );
+                refreshActions();
                 onActionComplete();
             } else if (result?.message?.status === "error") {
                 alert(`Error: ${result.message.message}`);
             } else {
                 alert(`Action "${action}" completed.`);
+                refreshActions();
                 onActionComplete();
             }
         } catch (err: any) {
@@ -2590,6 +2600,15 @@ const P11FormActionButtons = ({
         }
     };
 
+    const refreshP11Actions = () => {
+        if (!docname) return;
+        fetchActions({ docname })
+            .then((res) => {
+                setActions(Array.isArray(res?.message) ? res.message : []);
+            })
+            .catch(() => setActions([]));
+    };
+
     const handleActionConfirm = async (
         action: string,
         actionComment: string,
@@ -2609,11 +2628,13 @@ const P11FormActionButtons = ({
                     result.message.message ||
                     `Action "${action}" completed successfully.`,
                 );
+                refreshP11Actions();
                 onActionComplete();
             } else if (result?.message?.status === "error") {
                 alert(`Error: ${result.message.message}`);
             } else {
                 alert(`Action "${action}" completed.`);
+                refreshP11Actions();
                 onActionComplete();
             }
         } catch (err: any) {
@@ -2754,6 +2775,15 @@ const SanctionSheetActionButtons = ({
         }
     };
 
+    const refreshSanctionActions = () => {
+        if (!docname) return;
+        fetchActions({ docname })
+            .then((res) => {
+                setActions(Array.isArray(res?.message) ? res.message : []);
+            })
+            .catch(() => setActions([]));
+    };
+
     const handleActionConfirm = async (
         action: string,
         actionComment: string,
@@ -2773,11 +2803,13 @@ const SanctionSheetActionButtons = ({
                     result.message.message ||
                     `Action "${action}" completed successfully.`,
                 );
+                refreshSanctionActions();
                 onActionComplete();
             } else if (result?.message?.status === "error") {
                 alert(`Error: ${result.message.message}`);
             } else {
                 alert(`Action "${action}" completed.`);
+                refreshSanctionActions();
                 onActionComplete();
             }
         } catch (err: any) {

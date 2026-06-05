@@ -6121,7 +6121,7 @@ const IndentCumSanctionSheetForm: React.FC = () => {
               </FrappeCard>
             )}
 
-            {showCommitSection && (
+            {isRnDStaff && !!currentDocName && workflowState === "Pending Staff Approval" && (
               <CommitPayment
                 doctype="Indent Cum Sanction Sheet"
                 docName={currentDocName}
@@ -6130,7 +6130,6 @@ const IndentCumSanctionSheetForm: React.FC = () => {
                 defaultBudgetHead={defaultCommitBudgetHead}
                 actualBalance={actualBalance}
                 billAmount={getIcssApprovalAmount(formData) || undefined}
-                onCommitSuccess={() => window.location.reload()}
                 onStagingStatusChange={(committed) =>
                   setIsCommittedForGate(committed)
                 }
