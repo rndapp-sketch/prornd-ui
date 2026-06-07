@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from "react";
+import { useSWRConfig } from "swr";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
     useFrappeGetCall,
@@ -217,7 +218,7 @@ const evaluateDependsOn = (dependsOn: string | null | undefined, formData: FormD
 // ── Workflow actions ───────────────────────────────────────────────────────────
 interface FundReceivedWorkflowActionsProps {
     docname: string;
-    onActionComplete: () => void;
+    onActionComplete: (result?: Record<string, any>) => void;
     onBeforeAction?: (action: string) => Promise<{ [key: string]: any } | null>;
     disabledCondition?: (action: string) => boolean;
 }
@@ -245,11 +246,11 @@ const FundReceivedWorkflowActions = ({ docname, onActionComplete, onBeforeAction
                 if (result === null) { setModalOpen(false); return; }
                 additionalArgs = result;
             }
-            await performAction({ docname, action: selectedAction, ...additionalArgs });
+            const actionResult = await performAction({ docname, action: selectedAction, ...additionalArgs });
             if (comment?.trim()) {
                 try { await addComment({ doctype: "Fund Received", docname, content: `[${selectedAction}] ${comment.trim()}` }); } catch {}
             }
-            setModalOpen(false); onActionComplete();
+            setModalOpen(false); onActionComplete(actionResult as Record<string, any> | undefined);
         } catch { alert("Failed to perform action. Please try again."); }
     };
 
@@ -298,6 +299,8 @@ const FundReceivedDetails = () => {
     const prjreg_title = location.state?.prjreg_title;
     const routeSanctionName = location.state?.sanction_ref_no || "";
     const { isRndMiscellaneous, isRndStaff } = useUserRoleChecks();
+    const { mutate: globalMutate } = useSWRConfig();
+    const [optimisticWorkflowState, setOptimisticWorkflowState] = useState<string | null>(null);
 
     const [fields, setFields] = useState<Field[]>([]);
     const [formData, setFormData] = useState<FormData>({});
@@ -315,6 +318,40 @@ const FundReceivedDetails = () => {
     const [editBreakup, setEditBreakup] = useState<any[]>([]);
     const [editTransactions, setEditTransactions] = useState<any[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+
+    // Tab state — deposit slip tab appears once a linked slip is found
+    const [activeTab, setActiveTab] = useState<"fund" | "deposit_slip">("fund");
+    const [linkedDepositSlip, setLinkedDepositSlip] = useState<{ name: string; doctype: string } | null>(null);
+    const [slipRefreshKey, setSlipRefreshKey] = useState(0);
+
+    // Find deposit slip linked to this Fund Received document across all deposit slip doctypes
+    React.useEffect(() => {
+        if (!name) return;
+        const doctypes = [
+            "Research Consultancy Deposit Slip", "D Consultancy Deposit Slip",
+            "E Non Routine Deposit Slip", "T Testing Deposit Slip",
+            "Other Event Deposit Slip", "Research Deposit Slip",
+        ];
+        let cancelled = false;
+        (async () => {
+            for (const doctype of doctypes) {
+                try {
+                    const res = await fetch(
+                        `/api/v2/document/${encodeURIComponent(doctype)}?filters=${encodeURIComponent(JSON.stringify([["fund_received_ref","=",name]]))}&order_by=creation+desc&limit_page_length=1&fields=${encodeURIComponent(JSON.stringify(["name"]))}`,
+                        { credentials: "include" },
+                    );
+                    if (!res.ok) continue;
+                    const json = await res.json();
+                    if (json.data?.length > 0) {
+                        if (!cancelled) setLinkedDepositSlip({ name: json.data[0].name, doctype });
+                        return;
+                    }
+                } catch {}
+            }
+            if (!cancelled) setLinkedDepositSlip(null);
+        })();
+        return () => { cancelled = true; };
+    }, [name, slipRefreshKey]);
 
     const { data: docData, isLoading: docLoading, error: docError } = useFrappeGetDoc("Fund Received", name || "");
     const effectivePrjregTitle = prjreg_title || docData?.prjreg_title;
@@ -388,7 +425,7 @@ const FundReceivedDetails = () => {
     const budgetHeadOptions = budgetHeadsData?.message ?? [];
     const isLoading = docLoading || (effectivePrjregTitle ? listLoading : false);
     const error = docError || (effectivePrjregTitle ? listError : null);
-    const showDepositSlip = isRndMiscellaneous && (
+    const showDepositSlip = isRndMiscellaneous && !optimisticWorkflowState && (
         docData?.workflow_state === "Pending Misc. Staff Approval(Deposit Slip Pending)" ||
         listData?.workflow_state === "Pending Misc. Staff Approval(Deposit Slip Pending)"
     );
@@ -681,6 +718,9 @@ const FundReceivedDetails = () => {
                     console.log(`[DepositSlip] prjDoc fetch failed:`, err);
                 }
             }
+            // Always stamp the current Fund Received doc name so all deposit slip
+            // types (including the 4 that previously lacked the column) get the ref.
+            if (name) initialData.fund_received_ref = name;
             setFormData(initialData);
 
             if (client_scripts && Array.isArray(client_scripts)) {
@@ -748,7 +788,8 @@ const FundReceivedDetails = () => {
         );
     }
 
-    const { workflow_state, fund_received_amt, bank_account, received_amt_breakup, fund_transactions } = fundData;
+    const { workflow_state: rawWorkflowState, fund_received_amt, bank_account, received_amt_breakup, fund_transactions } = fundData;
+    const workflow_state = optimisticWorkflowState || rawWorkflowState;
 
     const missingRequired = {
         bankAccount: !bank_account,
@@ -762,7 +803,7 @@ const FundReceivedDetails = () => {
             <div className="bg-[#FAFAF9] dark:bg-[#18181B] min-h-screen font-sans">
                 <main className="px-6 md:px-8 pt-7 pb-10">
                     <div className="mb-4 flex items-center gap-3 flex-wrap">
-                        <FundReceivedWorkflowActions docname={name || ""} onActionComplete={() => { mutate(); window.location.reload(); }} onBeforeAction={handleBeforeAction} />
+                        <FundReceivedWorkflowActions docname={name || ""} onActionComplete={(result) => { const s = result?.workflow_state; if (s) setOptimisticWorkflowState(s); globalMutate(() => true); mutate(); setSlipRefreshKey(k => k + 1); setActiveTab("deposit_slip"); }} onBeforeAction={handleBeforeAction} />
                     </div>
                     <HoSApprovalView fundReceivedName={name || ""} />
                 </main>
@@ -777,7 +818,8 @@ const FundReceivedDetails = () => {
 
             <main className="px-6 md:px-8 pt-7 pb-16">
 
-                {/* ── Page Header ── */}
+                {/* ── Page Header + KPI strip hidden when printing from Deposit Slip tab ── */}
+                <div className={activeTab === "deposit_slip" ? "deposit-slip-non-print" : undefined}>
                 <header className="mb-5 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
                     <div className="flex items-start justify-between gap-4 px-5 py-4 flex-wrap">
@@ -829,7 +871,7 @@ const FundReceivedDetails = () => {
                             <ViewProjectButton doctype="Fund Received" data={fundData} />
                             <FundReceivedWorkflowActions
                                 docname={name || ""}
-                                onActionComplete={() => { mutate(); window.location.reload(); }}
+                                onActionComplete={(result) => { const s = result?.workflow_state; if (s) setOptimisticWorkflowState(s); globalMutate(() => true); mutate(); setSlipRefreshKey(k => k + 1); setActiveTab("deposit_slip"); }}
                                 onBeforeAction={handleBeforeAction}
                                 disabledCondition={(action) => {
                                     if (action === "Put Back") return false;
@@ -861,6 +903,42 @@ const FundReceivedDetails = () => {
                     <KpiMini label="Transactions" icon={<CreditCard className="h-4 w-4" />} accent="#8B5CF6"
                         value={fund_transactions?.length ?? 0} />
                 </div>
+
+                {/* ── Tab bar — shown when a linked deposit slip exists ── */}
+                {linkedDepositSlip && (
+                    <div className="flex gap-0 mb-5 border-b-2 border-[#E4E4E7] dark:border-[#3F3F46]">
+                        <button
+                            onClick={() => setActiveTab("fund")}
+                            className={`px-5 py-2.5 text-[11px] font-extrabold uppercase tracking-widest border-b-2 -mb-[2px] transition-colors ${
+                                activeTab === "fund"
+                                    ? "border-[#4A6CF7] text-[#4A6CF7]"
+                                    : "border-transparent text-[#71717A] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7]"
+                            }`}
+                        >
+                            Fund Details
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("deposit_slip")}
+                            className={`px-5 py-2.5 text-[11px] font-extrabold uppercase tracking-widest border-b-2 -mb-[2px] transition-colors ${
+                                activeTab === "deposit_slip"
+                                    ? "border-[#D97757] text-[#D97757]"
+                                    : "border-transparent text-[#71717A] hover:text-[#3F3F46] dark:hover:text-[#E4E4E7]"
+                            }`}
+                        >
+                            Deposit Slip
+                        </button>
+                    </div>
+                )}
+
+                </div> {/* end deposit-slip-non-print wrapper */}
+
+                {/* ── Deposit Slip tab content ── */}
+                {activeTab === "deposit_slip" && linkedDepositSlip && (
+                    <HoSApprovalView fundReceivedName={name || ""} />
+                )}
+
+                {/* ── Fund Details tab content (always rendered when tab = "fund") ── */}
+                {activeTab === "fund" && <>
 
                 {/* ── Section separator ── */}
                 <div className="border-t-2 border-[#4A6CF7]/35 dark:border-[#818CF8]/35 pt-4 mb-4" />
@@ -1212,6 +1290,8 @@ const FundReceivedDetails = () => {
                     </span>
                     <span className="text-[12px] font-extrabold uppercase tracking-wide hidden md:block">Activity Log</span>
                 </button>
+
+                </> /* end Fund Details tab */}
             </main>
 
             {/* ── Summary slide-over ── */}
