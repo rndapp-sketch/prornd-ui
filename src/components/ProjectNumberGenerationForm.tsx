@@ -8,7 +8,7 @@ interface ProjectNumberGenerationFormProps {
     onSuccess?: () => void;
 }
 
-const InputField = ({ label, field, type = "text", options = [], formData, onChange, disabled = false, maxLength, fixedLength }: any) => {
+const InputField = ({ label, field, type = "text", options = [], formData, onChange, disabled = false, maxLength, fixedLength, error }: any) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
     const pendingCursor = React.useRef<number | null>(null);
 
@@ -20,7 +20,7 @@ const InputField = ({ label, field, type = "text", options = [], formData, onCha
         }
     });
 
-    const inputClasses = `w-full text-sm p-2 border border-zinc-200 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] ${disabled ? 'opacity-60 bg-zinc-100 dark:bg-zinc-800 cursor-not-allowed' : ''}`;
+    const inputClasses = `w-full text-sm p-2 border ${error ? 'border-red-400 focus:border-red-500 focus:ring-red-200' : 'border-zinc-200 dark:border-zinc-700 focus:border-[#D97757] focus:ring-[#D97757]/20'} rounded-md bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 ${disabled ? 'opacity-60 bg-zinc-100 dark:bg-zinc-800 cursor-not-allowed' : ''}`;
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!fixedLength) {
@@ -44,7 +44,7 @@ const InputField = ({ label, field, type = "text", options = [], formData, onCha
 
     return (
         <div className="space-y-1">
-            <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</label>
+            <label className={`text-xs font-medium ${error ? 'text-red-500' : 'text-zinc-500 dark:text-zinc-400'}`}>{label}</label>
             {type === 'select' ? (
                 <select
                     value={formData[field]}
@@ -68,6 +68,7 @@ const InputField = ({ label, field, type = "text", options = [], formData, onCha
                     maxLength={fixedLength ? undefined : maxLength}
                 />
             )}
+            {error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}
         </div>
     );
 };
@@ -101,6 +102,7 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
     });
     const [isGenerated, setIsGenerated] = useState(false);
     const [prefillApplied, setPrefillApplied] = useState(false);
+    const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
     const { call: saveProjectNumber, loading: isSaving } = useFrappePostCall(
         "rndopsapp.rndopsapp.doctype.project_number_generation.project_number_generation.save_project_number_generation_data"
@@ -215,14 +217,41 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
         return { part1, part2, part3, full: [part1, part2, part3].filter(Boolean).join('-') };
     }, [formData]);
 
+    const hasPlaceholderOnly = (value: string) => {
+        if (!value) return true;
+        return value.replace(/[Xx]/g, '').length === 0;
+    };
+
+    const validateForm = (): boolean => {
+        const errors: Record<string, string> = {};
+        if (hasPlaceholderOnly(formData.dept_initial)) {
+            errors.dept_initial = 'Dept Initial is empty or not set — contact R&D admin';
+        }
+        if (hasPlaceholderOnly(formData.emp_id)) {
+            errors.emp_id = 'Emp ID is required';
+        }
+        if (hasPlaceholderOnly(formData.emp_initial)) {
+            errors.emp_initial = 'Emp Initial is required';
+        }
+        if (!formData.project_no || formData.project_no === '0' || hasPlaceholderOnly(formData.project_no)) {
+            errors.project_no = 'Project No. is required';
+        }
+        setValidationErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
     const handleChange = (field: string, value: any) => {
         if (isReadOnly) return;
         setFormData((prev: any) => ({ ...prev, [field]: value }));
+        if (validationErrors[field]) {
+            setValidationErrors(prev => { const next = { ...prev }; delete next[field]; return next; });
+        }
     };
 
 
     const handleSubmit = async () => {
         if (isReadOnly) return;
+        if (!validateForm()) return;
         try {
             const response = await saveProjectNumber({
                 data: formData,
@@ -275,16 +304,16 @@ export const ProjectNumberGenerationForm: React.FC<ProjectNumberGenerationFormPr
                 </div>
 
                 <div>
-                    <InputField label="Dept Initial" field="dept_initial" formData={formData} onChange={handleChange} disabled={true} fixedLength={4} />
+                    <InputField label="Dept Initial" field="dept_initial" formData={formData} onChange={handleChange} disabled={true} fixedLength={4} error={validationErrors.dept_initial} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                    <InputField label="Emp ID" field="emp_id" formData={formData} onChange={handleChange} disabled={isReadOnly} fixedLength={4} />
-                    <InputField label="Emp Initial" field="emp_initial" formData={formData} onChange={handleChange} disabled={isReadOnly} fixedLength={4} />
+                    <InputField label="Emp ID" field="emp_id" formData={formData} onChange={handleChange} disabled={isReadOnly} fixedLength={4} error={validationErrors.emp_id} />
+                    <InputField label="Emp Initial" field="emp_initial" formData={formData} onChange={handleChange} disabled={isReadOnly} fixedLength={4} error={validationErrors.emp_initial} />
                 </div>
 
                 <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800 space-y-3">
-                    <InputField label="Project No." field="project_no" formData={formData} onChange={handleChange} disabled={isReadOnly} fixedLength={4} />
+                    <InputField label="Project No." field="project_no" formData={formData} onChange={handleChange} disabled={isReadOnly} fixedLength={4} error={validationErrors.project_no} />
                     {previewSegments.full && (
                         <div className="p-3 rounded-md bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
                             <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Preview</p>

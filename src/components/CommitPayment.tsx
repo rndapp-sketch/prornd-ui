@@ -26,8 +26,9 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useFrappePostCall } from "frappe-react-sdk";
-import { CheckCircle2, AlertCircle, Loader2, CreditCard } from "lucide-react";
+import { CheckCircle2, AlertCircle, Loader2, CreditCard, ShieldAlert, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -170,6 +171,131 @@ function extractCommitErrorMessage(error: any, fallback: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Confirm Commit Dialog
+// ---------------------------------------------------------------------------
+interface ConfirmCommitDialogProps {
+    budgetHeadName: string;
+    availableBalance: number;
+    commitAmount: number;
+    onConfirm: () => void;
+    onCancel: () => void;
+    isSubmitting: boolean;
+}
+
+const ConfirmCommitDialog: React.FC<ConfirmCommitDialogProps> = ({
+    budgetHeadName,
+    availableBalance,
+    commitAmount,
+    onConfirm,
+    onCancel,
+    isSubmitting,
+}) => {
+    const remainingBalance = availableBalance - commitAmount;
+
+    const fmt = (n: number) => n.toLocaleString("en-IN");
+
+    return createPortal(
+        <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+            onClick={(e) => { if (e.target === e.currentTarget && !isSubmitting) onCancel(); }}
+        >
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-700 w-full max-w-md">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 dark:border-zinc-700">
+                    <div className="flex items-center gap-2.5">
+                        <ShieldAlert className="w-5 h-5 text-[#D97757]" />
+                        <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">Confirm Commitment</h2>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        disabled={isSubmitting}
+                        className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 disabled:opacity-40"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="px-5 py-4 space-y-4">
+                    {/* Message */}
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                        You are about to commit{" "}
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">₹{fmt(commitAmount)}</span>{" "}
+                        against Budget Head{" "}
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">'{budgetHeadName}'</span>.
+                        <br /><br />
+                        This amount will be reserved from the available budget and cannot be used for other commitments. Please verify the budget head and amount before proceeding.
+                    </p>
+
+                    {/* Summary rows */}
+                    <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden text-sm">
+                        {[
+                            { label: "Budget Head", value: budgetHeadName },
+                            { label: "Available Balance", value: `₹${fmt(availableBalance)}` },
+                            { label: "Commitment Amount", value: `₹${fmt(commitAmount)}`, highlight: "text-[#D97757]" },
+                            {
+                                label: "Remaining Balance After Commitment",
+                                value: `₹${fmt(remainingBalance)}`,
+                                highlight: remainingBalance < 0 ? "text-red-600 dark:text-red-400 font-bold" : "text-emerald-600 dark:text-emerald-400",
+                            },
+                        ].map(({ label, value, highlight }, i, arr) => (
+                            <div
+                                key={label}
+                                className={cn(
+                                    "flex items-center justify-between px-4 py-2.5 gap-4",
+                                    i < arr.length - 1 && "border-b border-zinc-100 dark:border-zinc-800",
+                                    i % 2 === 0 ? "bg-zinc-50 dark:bg-zinc-800/50" : "bg-white dark:bg-zinc-900",
+                                )}
+                            >
+                                <span className="text-zinc-500 dark:text-zinc-400 text-xs font-medium">{label}</span>
+                                <span className={cn("font-semibold text-zinc-900 dark:text-zinc-100 text-right", highlight)}>{value}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {remainingBalance < 0 && (
+                        <div className="flex items-center gap-2 p-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                            Warning: Commitment amount exceeds available balance.
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-zinc-200 dark:border-zinc-700">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        disabled={isSubmitting}
+                        className="px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onConfirm}
+                        disabled={isSubmitting}
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#D97757] hover:bg-[#c66a4e] rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Committing…
+                            </>
+                        ) : (
+                            "Confirm & Commit"
+                        )}
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body,
+    );
+};
+
+// ---------------------------------------------------------------------------
 // Committed Data Display card
 // ---------------------------------------------------------------------------
 interface CommittedDataCardProps {
@@ -294,6 +420,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState<{ amount: number; head: string } | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
     const lastAppliedDefaultHeadRef = useRef("");
     const onStagingStatusChangeRef = useRef(onStagingStatusChange);
     const commitReferenceName = stagingReferenceName || docName;
@@ -400,27 +527,22 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
         checkStagingRecord();
     }, [checkStagingRecord]);
 
-    // ── Submit handler ───────────────────────────────────────────────────────
-    const handleCommit = async () => {
+    // ── Validate & open confirmation dialog ─────────────────────────────────
+    const handleSubmitClick = () => {
         setSubmitError(null);
         const amount = parseFloat(commitAmount);
-        if (!commitHead) {
-            setSubmitError("Please select a budget head.");
-            return;
-        }
-        if (isNaN(amount) || amount <= 0) {
-            setSubmitError("Please enter a valid positive amount.");
-            return;
-        }
-        if (!commitReferenceName || !payloadFrapAppId || !projectName) {
-            setSubmitError("Missing document or project information.");
-            return;
-        }
-        if (disabled) {
-            setSubmitError(disabledReason || "Commitment cannot be submitted yet.");
-            return;
-        }
+        if (!commitHead) { setSubmitError("Please select a budget head."); return; }
+        if (isNaN(amount) || amount <= 0) { setSubmitError("Please enter a valid positive amount."); return; }
+        if (!commitReferenceName || !payloadFrapAppId || !projectName) { setSubmitError("Missing document or project information."); return; }
+        if (disabled) { setSubmitError(disabledReason || "Commitment cannot be submitted yet."); return; }
+        setShowConfirmDialog(true);
+    };
 
+    // ── Actual commit (called from dialog "Confirm & Commit") ────────────────
+    const handleCommit = async () => {
+        setShowConfirmDialog(false);
+        setSubmitError(null);
+        const amount = parseFloat(commitAmount);
         setIsSubmitting(true);
         try {
             let refDetails: string | undefined = forcedRefDetails?.trim() || undefined;
@@ -675,7 +797,7 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
 
                 {/* Submit Button */}
                 <button
-                    onClick={handleCommit}
+                    onClick={handleSubmitClick}
                     disabled={disabled || isSubmitting || !commitHead || !commitAmount}
                     className="w-full flex items-center justify-center gap-2 bg-[#D97757] hover:bg-[#c66a4e] text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -689,6 +811,18 @@ export const CommitPayment: React.FC<CommitPaymentProps> = ({
                     )}
                 </button>
             </div>
+
+            {/* Confirmation dialog */}
+            {showConfirmDialog && (
+                <ConfirmCommitDialog
+                    budgetHeadName={commitHead}
+                    availableBalance={actualBalance}
+                    commitAmount={parseFloat(commitAmount) || 0}
+                    onConfirm={handleCommit}
+                    onCancel={() => setShowConfirmDialog(false)}
+                    isSubmitting={isSubmitting}
+                />
+            )}
         </div>
     );
 };
