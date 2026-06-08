@@ -220,7 +220,7 @@ const MemoizedFormField = memo(
           if (isReadOnly) {
             const readOnlyLabel = options?.find((opt) => opt.value === value)?.label || value;
             return (
-              <div className="flex h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5]">
+              <div className="flex min-h-10 w-full rounded-md border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]/60 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] whitespace-normal break-words leading-relaxed">
                 {(field.fieldname === "department" ||
                   field.fieldname === "department_for" ||
                   field.fieldname === "upfa_department" ||
@@ -614,7 +614,7 @@ const MemoizedFormField = memo(
         case "Read Only":
           const readOnlyLabel = options?.find(opt => opt.value === value)?.label || value;
           return (
-            <div className="flex h-10 w-full rounded-md border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5]">
+            <div className="flex min-h-10 w-full rounded-md border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/40 px-3 py-2 text-[13px] font-semibold text-[#27272A] dark:text-[#F4F4F5] whitespace-normal break-words leading-relaxed">
               {(field.fieldname === "department" ||
                 field.fieldname === "department_for" ||
                 field.fieldname === "upfa_department" ||

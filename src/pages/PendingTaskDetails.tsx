@@ -46,6 +46,7 @@ import {
 } from "@/services/apiService";
 import { DepartmentName } from "@/components/DepartmentName";
 import { BudgetHeadName } from "@/components/BudgetHeadName";
+import TravelApplicantSummary from "@/components/TravelApplicantSummary";
 
 import { ActivityLog } from "@/components/ActivityLog";
 import { BudgetActionsSidebar } from "@/components/BudgetActionsSidebar";
@@ -2667,6 +2668,14 @@ const PendingTaskDetails: React.FC = () => {
                                 </div>
                             ) : travelFields.length > 0 ? (
                                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm p-6">
+                                    <TravelApplicantSummary
+                                        className="mb-6"
+                                        webmail={data?.webmail_id_travel}
+                                        fullName={data?.applicant_name_travel}
+                                        department={data?.department_travel}
+                                        designation={data?.designation_travel}
+                                        projectNo={data?.travel_project_number}
+                                    />
                                     <DynamicFormRenderer
                                         fields={travelFields}
                                         formData={data}
