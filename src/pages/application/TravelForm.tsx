@@ -5,6 +5,7 @@ import { useFrappePostCall } from 'frappe-react-sdk';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/common/PageHeader';
+import TravelApplicantSummary from '@/components/TravelApplicantSummary';
 import { DynamicFormRenderer, type FieldMessage, type FormField, type LinkOption } from '@/components/forms/DynamicFormRenderer';
 import { travelAPI, prepareFormDataForApi, commonAPI } from '@/services/apiService';
 
@@ -16,6 +17,64 @@ interface FormDataResponse {
         prefill_data: Record<string, any>;
     };
 }
+
+const PROJECT_CONTEXT_FIELD_ORDER = [
+    'travel_project_title',
+    'travel_project_number',
+    'traveler_webmail_id',
+    'other_traveler',
+    'other_traveler_address',
+];
+
+const READ_ONLY_TRAVEL_FIELDS = new Set([
+    'travel_project_title',
+    'travel_project_number',
+]);
+
+const TRAVEL_AUTOCOMPLETE_FIELDS = ['traveler_webmail_id', 'other_traveler'];
+const OTHER_TRAVELER_FIELDS = ['traveler_webmail_id', 'other_traveler', 'other_traveler_address'];
+
+const moveFieldsAfterAnchor = (
+    sourceFields: FormField[],
+    anchorField: string,
+    movedFieldNames: string[],
+): FormField[] => {
+    const movedSet = new Set(movedFieldNames);
+    const movedFields = sourceFields.filter((field) => movedSet.has(field.fieldname));
+    const remainingFields = sourceFields.filter((field) => !movedSet.has(field.fieldname));
+    const anchorIndex = remainingFields.findIndex((field) => field.fieldname === anchorField);
+
+    if (anchorIndex === -1 || movedFields.length === 0) {
+        return sourceFields;
+    }
+
+    return [
+        ...remainingFields.slice(0, anchorIndex + 1),
+        ...movedFields,
+        ...remainingFields.slice(anchorIndex + 1),
+    ];
+};
+
+const upsertLinkOptions = (
+    existing: LinkOption[],
+    incoming: LinkOption[],
+): LinkOption[] => {
+    const map = new Map(existing.map((option) => [option.value, option]));
+    incoming.forEach((option) => {
+        map.set(option.value, option);
+    });
+    return Array.from(map.values());
+};
+
+const buildTravelerAddress = (user: Record<string, any>): string => {
+    const parts = [
+        user.designation_name || user.designation || '',
+        user.department_name || user.department || user.applicant_department || '',
+        user.inst_name_address || user.address || '',
+    ].filter(Boolean);
+
+    return parts.join(', ');
+};
 
 // --- STYLES & REUSABLE UI COMPONENTS ---
 const FrappeCard = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -119,6 +178,8 @@ const TravelForm: React.FC = () => {
     const { call: fetchExistingDoc } = useFrappePostCall<{ message: any }>('frappe.client.get');
     const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
     const { call: fetchSclBalance } = useFrappePostCall<{ message: any }>(travelAPI.getSclBalance);
+    const { call: fetchUsersList } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
+    const { call: fetchFrappeValue } = useFrappePostCall<{ message: any }>('frappe.client.get_value');
 
     const { call: fetchUserDetailsByEmail } = useFrappePostCall<{ message: any }>(commonAPI.getUserDetailsByEmail);
 
@@ -233,7 +294,13 @@ const TravelForm: React.FC = () => {
         const loadFormAndDocument = async () => {
             if (formDataResult?.message && !dataLoaded) {
                 const { fields: apiFields, prefill_data, link_options } = formDataResult.message;
-                setFields(apiFields || []);
+                setFields(
+                    moveFieldsAfterAnchor(
+                        apiFields || [],
+                        'if_traveler',
+                        PROJECT_CONTEXT_FIELD_ORDER,
+                    ),
+                );
 
                 // Fetch Budget Heads and inject into linkOptions for account_head
                 let baseLinkOptions = { ...(link_options || {}) };
@@ -252,7 +319,48 @@ const TravelForm: React.FC = () => {
                 } catch (err) {
                     console.error('Error fetching account heads:', err);
                 }
-                setLinkOptions(baseLinkOptions);
+
+                try {
+                    const usersRes = await fetchUsersList({
+                        doctype: 'User',
+                        fields: ['name', 'full_name', 'email'],
+                        filters: [['enabled', '=', 1]],
+                        limit_page_length: 0,
+                    });
+                    if (usersRes?.message) {
+                        const genericUserOptions = usersRes.message.map((user: any) => ({
+                            value: user.name,
+                            label: user.name,
+                        }));
+                        const readableUserOptions = usersRes.message.map((user: any) => ({
+                            value: user.name,
+                            label: user.full_name ? `${user.full_name} (${user.name})` : user.name,
+                        }));
+                        const nameOnlyUserOptions = usersRes.message.map((user: any) => ({
+                            value: user.name,
+                            label: user.full_name || user.name,
+                        }));
+
+                        baseLinkOptions['User'] = upsertLinkOptions(
+                            baseLinkOptions['User'] || [],
+                            genericUserOptions,
+                        );
+                        baseLinkOptions['webmail_id_travel'] = upsertLinkOptions(
+                            baseLinkOptions['webmail_id_travel'] || [],
+                            readableUserOptions,
+                        );
+                        baseLinkOptions['traveler_webmail_id'] = upsertLinkOptions(
+                            baseLinkOptions['traveler_webmail_id'] || [],
+                            readableUserOptions,
+                        );
+                        baseLinkOptions['other_traveler'] = upsertLinkOptions(
+                            baseLinkOptions['other_traveler'] || [],
+                            nameOnlyUserOptions,
+                        );
+                    }
+                } catch (err) {
+                    console.error('Error fetching users list:', err);
+                }
 
                 let initialData = { ...prefill_data };
 
@@ -273,16 +381,46 @@ const TravelForm: React.FC = () => {
                     }
                 }
 
-                // Set project if passed via URL
-                if (projectName) {
-                    // Set project number (used for filtering in list views)
-                    if (!initialData.travel_project_number) {
-                        initialData.travel_project_number = projectName;
+                const projectLookupCode = projectName || initialData.travel_project_number || '';
+                const projectLookupFilter = projectName
+                    ? { project_no: projectLookupCode }
+                    : initialData.travel_project_title
+                      ? { name: initialData.travel_project_title }
+                      : projectLookupCode
+                        ? { project_no: projectLookupCode }
+                        : null;
+
+                if (projectLookupFilter) {
+                    try {
+                        const projectRes = await fetchFrappeValue({
+                            doctype: 'Project Registration',
+                            filters: projectLookupFilter,
+                            fieldname: ['name', 'project_title', 'project_no'],
+                        });
+                        if (projectRes?.message) {
+                            const projectDoc = projectRes.message;
+                            const resolvedProjectName = projectDoc.name || initialData.travel_project_title || '';
+                            const resolvedProjectTitle = projectDoc.project_title || resolvedProjectName;
+                            const resolvedProjectNumber = projectDoc.project_no || projectLookupCode;
+
+                            initialData.travel_project_title = resolvedProjectName;
+                            initialData.travel_project_number = resolvedProjectNumber;
+
+                            baseLinkOptions['travel_project_title'] = upsertLinkOptions(
+                                baseLinkOptions['travel_project_title'] || [],
+                                [{ value: resolvedProjectName, label: resolvedProjectTitle }],
+                            );
+                        } else if (projectName && !initialData.travel_project_number) {
+                            initialData.travel_project_number = projectName;
+                        }
+                    } catch (err) {
+                        console.error('Error resolving Travel project details:', err);
+                        if (projectName && !initialData.travel_project_number) {
+                            initialData.travel_project_number = projectName;
+                        }
                     }
-                    // Set project title (display field)
-                    if (!initialData.travel_project_title) {
-                        initialData.travel_project_title = projectName;
-                    }
+                } else if (projectName && !initialData.travel_project_number) {
+                    initialData.travel_project_number = projectName;
                 }
 
                 // Set defaults for any missing fields
@@ -293,6 +431,7 @@ const TravelForm: React.FC = () => {
                 });
 
                 setFormData(initialData);
+                setLinkOptions(baseLinkOptions);
                 setDataLoaded(true);
                 setLoading(false);
             }
@@ -304,7 +443,17 @@ const TravelForm: React.FC = () => {
         };
 
         loadFormAndDocument();
-    }, [formDataResult, formDataError, editDocName, fetchExistingDoc, projectName, dataLoaded]);
+    }, [
+        formDataResult,
+        formDataError,
+        editDocName,
+        fetchAccountHeads,
+        fetchExistingDoc,
+        fetchFrappeValue,
+        fetchUsersList,
+        projectName,
+        dataLoaded,
+    ]);
 
     useEffect(() => {
         const applicant = formData.webmail_id_travel;
@@ -445,16 +594,53 @@ const TravelForm: React.FC = () => {
             }
         }
 
-        // Auto-fill traveler details when other traveler selected
-        if (fieldname === 'other_traveler' && value) {
+        if (fieldname === 'if_traveler' && value === 'Self') {
+            setFormData(prev => ({
+                ...prev,
+                if_traveler: value,
+                traveler_webmail_id: '',
+                other_traveler: '',
+                other_traveler_address: '',
+            }));
+            return;
+        }
+
+        // Search-select-fetch traveler details when "Other" is selected
+        if (['traveler_webmail_id', 'other_traveler'].includes(fieldname)) {
+            if (!value) {
+                setFormData(prev => ({
+                    ...prev,
+                    traveler_webmail_id: '',
+                    other_traveler: '',
+                    other_traveler_address: '',
+                }));
+                return;
+            }
             try {
                 const result = await fetchUserDetailsByEmail({ user_email: value });
                 if (result?.message) {
                     const user = result.message;
+                    const displayName = user.full_name || user.name || value;
+
+                    setLinkOptions(prev => ({
+                        ...prev,
+                        User: upsertLinkOptions(prev.User || [], [{ value, label: value }]),
+                        traveler_webmail_id: upsertLinkOptions(
+                            prev.traveler_webmail_id || [],
+                            [{ value, label: `${displayName} (${value})` }],
+                        ),
+                        other_traveler: upsertLinkOptions(
+                            prev.other_traveler || [],
+                            [{ value, label: displayName }],
+                        ),
+                    }));
+
                     setFormData(prev => ({
                         ...prev,
-                        [fieldname]: value,
-                        other_traveler_address: `${user.designation_name || ''}, ${user.department_name || ''}`
+                        if_traveler: prev.if_traveler || 'Other',
+                        traveler_webmail_id: value,
+                        other_traveler: value,
+                        other_traveler_address: buildTravelerAddress(user),
                     }));
                 }
             } catch (err) {
@@ -562,7 +748,7 @@ const TravelForm: React.FC = () => {
 
     // --- Apply depends_on logic to filter visible fields ---
     const visibleFields = useMemo(() => {
-        return fields.map(field => {
+        const processedFields = fields.map(field => {
             const f = { ...field };
 
             // Handle depends_on conditions
@@ -586,6 +772,10 @@ const TravelForm: React.FC = () => {
                 f.fieldtype = 'Radio';
             }
 
+            if (OTHER_TRAVELER_FIELDS.includes(f.fieldname)) {
+                f.hidden = formData.if_traveler === 'Other' ? 0 : 1;
+            }
+
             // Hide old checkbox-based account head fields — replaced by account_head dropdown
             if (['travel_head', 'contingency_head', 'other_acc_head', 'specify_other_acc_head'].includes(f.fieldname)) {
                 f.hidden = 1;
@@ -596,8 +786,35 @@ const TravelForm: React.FC = () => {
                 f.fieldtype = 'Link';
             }
 
+            if (READ_ONLY_TRAVEL_FIELDS.has(f.fieldname)) {
+                f.read_only = 1;
+            }
+
+            if (f.fieldname === 'other_traveler_address' && formData.if_traveler === 'Other') {
+                f.read_only = 1;
+            }
+
             return f;
         });
+
+        if (formData.if_traveler === 'Other') {
+            const travelerStartIndex = processedFields.findIndex(
+                (field) => field.fieldname === 'traveler_webmail_id',
+            );
+            const hasTravelerBreak = processedFields.some(
+                (field) => field.fieldname === '__traveller_details_break',
+            );
+
+            if (travelerStartIndex !== -1 && !hasTravelerBreak) {
+                processedFields.splice(travelerStartIndex, 0, {
+                    fieldname: '__traveller_details_break',
+                    label: 'Traveller Details',
+                    fieldtype: 'Section Break',
+                });
+            }
+        }
+
+        return processedFields;
     }, [fields, formData]);
 
     // --- RENDER LOGIC ---
@@ -639,7 +856,29 @@ const TravelForm: React.FC = () => {
                 <form onSubmit={handleSubmit}>
                     <div className="w-full">
                         <div className="w-full">
+                            <TravelApplicantSummary
+                                className="mb-6"
+                                webmail={formData.webmail_id_travel}
+                                fullName={formData.applicant_name_travel}
+                                department={formData.department_travel}
+                                designation={formData.designation_travel}
+                                projectNo={formData.travel_project_number}
+                            />
                             <FrappeCard className="space-y-6">
+                                {formData.if_traveler === 'Other' && (
+                                    <div className="flex items-start justify-between gap-4 px-4 py-3 rounded-xl bg-blue-50 border border-blue-200">
+                                        <p className="text-xs text-blue-700 leading-relaxed">
+                                            <span className="font-semibold">Note:</span> Search and select the traveler from the institute user list. If the traveler is not available, register the user first and then return to this form.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => window.open(`${window.location.origin}/universal-registration`, '_blank')}
+                                            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm"
+                                        >
+                                            Register New User
+                                        </button>
+                                    </div>
+                                )}
                                 <DynamicFormRenderer
                                     fields={visibleFields}
                                     formData={formData}
@@ -652,6 +891,7 @@ const TravelForm: React.FC = () => {
                                     onDeleteTableRow={deleteTableRow}
                                     onFieldChangeWithSideEffects={handleFieldChangeWithSideEffects}
                                     readOnly={formData.docstatus === 1}
+                                    autocompleteFields={TRAVEL_AUTOCOMPLETE_FIELDS}
                                     fieldMessages={sclFieldMessages}
                                 />
 

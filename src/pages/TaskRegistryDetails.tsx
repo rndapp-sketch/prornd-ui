@@ -9,6 +9,7 @@ import { travelAPI, advanceSettlementAPI, temporaryAdvanceAPI, tadaAPI, recruitm
 import { useUserRoles } from '@/components/UserRole';
 import { POEditor } from '@/components/POEditor';
 import { DeclarationFields } from '@/components/DeclarationFields';
+import TravelApplicantSummary from '@/components/TravelApplicantSummary';
 import ProjectDetailsView from "./ProjectDetails";
 
 // ── Shared helpers (same as PendingTaskDetails) ─────────────────────────────
@@ -535,6 +536,14 @@ const TaskRegistryDetails: React.FC = () => {
             if (isTravelLoading) return <div className="flex justify-center py-16"><div className="animate-spin h-8 w-8 rounded-full border-2 border-[#D97757] border-t-transparent" /></div>;
             if (travelFields.length > 0) return (
                 <RegistryPanel title="Travel">
+                    <TravelApplicantSummary
+                        className="mb-6"
+                        webmail={data?.webmail_id_travel}
+                        fullName={data?.applicant_name_travel}
+                        department={data?.department_travel}
+                        designation={data?.designation_travel}
+                        projectNo={data?.travel_project_number}
+                    />
                     <DynamicFormRenderer fields={travelFields} formData={data} linkOptions={travelLinkOptions} {...readOnlyRendererProps} />
                 </RegistryPanel>
             );

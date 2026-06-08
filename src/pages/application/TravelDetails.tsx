@@ -16,6 +16,7 @@ import { ProjectLedgerModal } from '@/components/ProjectLedgerModal';
 import { CommitPayment } from '@/components/CommitPayment';
 import { ActivityLog } from '@/components/ActivityLog';
 import ViewProjectButton from '@/components/ViewProjectButton';
+import TravelApplicantSummary from '@/components/TravelApplicantSummary';
 
 // --- TYPE DEFINITIONS ---
 interface FormDataResponse {
@@ -259,6 +260,30 @@ const TravelDetails: React.FC = () => {
         (projectAmountsData as any)?.data ??
         {};
     const totalCommitableBalance = projectAmountsResult?.availablePaymentAmount ?? 0;
+    const defaultCommitBudgetHead = useMemo(() => {
+        const rawHead = String(formData.account_head || '').trim();
+        if (!rawHead) return '';
+
+        const directMatch = budgetHeads.find(
+            (head) => head.trim().toLowerCase() === rawHead.toLowerCase(),
+        );
+        if (directMatch) return directMatch;
+
+        const optionMatch = (linkOptions.account_head || linkOptions['Budget Head'] || []).find(
+            (option) => String(option.value).trim().toLowerCase() === rawHead.toLowerCase(),
+        );
+        if (optionMatch?.label) {
+            return (
+                budgetHeads.find(
+                    (head) =>
+                        head.trim().toLowerCase() ===
+                        String(optionMatch.label).trim().toLowerCase(),
+                ) || optionMatch.label
+            );
+        }
+
+        return rawHead;
+    }, [budgetHeads, formData.account_head, linkOptions]);
 
     const linkedCommitment = budgetData.find(
         (e) =>
@@ -526,7 +551,14 @@ const TravelDetails: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     {/* Main Content — read-only form */}
                     <div className="lg:col-span-3">
-                        <FrappeCard>
+                        <FrappeCard className="space-y-6">
+                            <TravelApplicantSummary
+                                webmail={formData.webmail_id_travel}
+                                fullName={formData.applicant_name_travel}
+                                department={formData.department_travel}
+                                designation={formData.designation_travel}
+                                projectNo={resolvedProjectNo || formData.travel_project_number}
+                            />
                             <DynamicFormRenderer
                                 fields={renderedFields}
                                 formData={formData}
@@ -669,7 +701,9 @@ const TravelDetails: React.FC = () => {
                                 docName={docName || ""}
                                 projectName={projectTitle}
                                 budgetHeads={budgetHeads}
+                                defaultBudgetHead={defaultCommitBudgetHead}
                                 actualBalance={actualBalance}
+                                billAmount={Number(formData.total_estimate) || undefined}
                                 onCommitSuccess={() => handleRefresh()}
                                 onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
                             />
