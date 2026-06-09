@@ -425,7 +425,7 @@ const FundReceivedDetails = () => {
     const budgetHeadOptions = budgetHeadsData?.message ?? [];
     const isLoading = docLoading || (effectivePrjregTitle ? listLoading : false);
     const error = docError || (effectivePrjregTitle ? listError : null);
-    const showDepositSlip = isRndMiscellaneous && !optimisticWorkflowState && (
+    const showDepositSlip = isRndMiscellaneous && !optimisticWorkflowState && !linkedDepositSlip && (
         docData?.workflow_state === "Pending Misc. Staff Approval(Deposit Slip Pending)" ||
         listData?.workflow_state === "Pending Misc. Staff Approval(Deposit Slip Pending)"
     );
@@ -765,11 +765,11 @@ const FundReceivedDetails = () => {
     };
 
     const handleBeforeAction = useCallback(async (action: string): Promise<{ [key: string]: any } | null> => {
-        if ((action === "Forward" || action === "Generate Deposit Slip") && isRndMiscellaneous) {
+        if ((action === "Forward" || action === "Generate Deposit Slip") && isRndMiscellaneous && !linkedDepositSlip) {
             return { deposit_slip_data: JSON.stringify(formData), deposit_slip_type: selectedDepositSlipType };
         }
         return {};
-    }, [isRndMiscellaneous, formData, selectedDepositSlipType]);
+    }, [isRndMiscellaneous, formData, selectedDepositSlipType, linkedDepositSlip]);
 
     if (isLoading) return <GlobalLoader isLoading delay={0} />;
 
