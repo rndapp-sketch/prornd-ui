@@ -46,6 +46,10 @@ import {
     DownloadIcon,
     ExternalLinkIcon,
     PencilIcon,
+    SaveIcon,
+    X,
+    Plus,
+    Trash2,
     ChevronRight,
     CheckCircle2,
     XCircle,
@@ -591,12 +595,14 @@ const TableDisplay = ({
     columns,
     icon: Icon,
     budgetHeadList = [],
+    action,
 }: {
     label: string;
     data: any[] | undefined;
     columns: { fieldname: string; label: string; render?: (value: any) => React.ReactNode }[];
     icon?: any;
     budgetHeadList?: { name: string; id: number }[];
+    action?: React.ReactNode;
 }) => {
     if (!data || data.length === 0) return null;
 
@@ -656,11 +662,14 @@ const TableDisplay = ({
     return (
         <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
             <CardHeader className="py-3 px-5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
-                <div className="flex items-center gap-2">
-                    {Icon && <Icon className="h-3.5 w-3.5 text-[#4A6CF7] dark:text-[#93C5FD]" />}
-                    <CardTitle className="font-sans text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-[0.1em]">
-                        {label}
-                    </CardTitle>
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        {Icon && <Icon className="h-3.5 w-3.5 text-[#4A6CF7] dark:text-[#93C5FD]" />}
+                        <CardTitle className="font-sans text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-[0.1em]">
+                            {label}
+                        </CardTitle>
+                    </div>
+                    {action && <div>{action}</div>}
                 </div>
             </CardHeader>
             <div className="overflow-x-auto p-3">
@@ -1367,11 +1376,73 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
     const { roles, isLoading: isRolesLoading } = useUserRoles(currentUser ?? null);
     const isRnDStaff = roles.some(r => r === "staff, RnD");
 
+    // --- Proposed Budget Breakup edit state (RnD Staff only) ---
+    type BudgetRow = {
+        account_head: string;
+        first_year_budget: number;
+        second_year_budget: number;
+        third_year_budget: number;
+        fourth_year_budget: number;
+        fifth_year_budget: number;
+    };
+    const [isEditingBudget, setIsEditingBudget] = useState(false);
+    const [editBudgetRows, setEditBudgetRows] = useState<BudgetRow[]>([]);
+    const [isSavingBudget, setIsSavingBudget] = useState(false);
+
     const { data, error, isLoading, mutate } = useFrappeGetDoc(
         "Project Registration",
         projectName ?? "",
         { enabled: !!projectName, cacheTime: 0 },
     );
+
+    // --- Proposed Budget Breakup save (RnD Staff only) — defined after mutate ---
+    const { call: updateBudgetBreakup } = useFrappePostCall(
+        "rndopsapp.rndopsapp.doctype.project_registration.project_registration.update_proposed_budget_breakup",
+    );
+
+    const startEditBudget = (budgetData: any[]) => {
+        setEditBudgetRows(
+            (budgetData ?? []).map((row: any) => ({
+                account_head: row.account_head ?? "",
+                first_year_budget: row.first_year_budget ?? 0,
+                second_year_budget: row.second_year_budget ?? 0,
+                third_year_budget: row.third_year_budget ?? 0,
+                fourth_year_budget: row.fourth_year_budget ?? 0,
+                fifth_year_budget: row.fifth_year_budget ?? 0,
+            })),
+        );
+        setIsEditingBudget(true);
+    };
+
+    const cancelEditBudget = () => {
+        setIsEditingBudget(false);
+        setEditBudgetRows([]);
+    };
+
+    const saveBudgetBreakup = async () => {
+        if (!projectName) return;
+        setIsSavingBudget(true);
+        try {
+            await updateBudgetBreakup({
+                docname: projectName,
+                rows: editBudgetRows.map((r) => ({
+                    account_head: r.account_head,
+                    first_year_budget: r.first_year_budget,
+                    second_year_budget: r.second_year_budget,
+                    third_year_budget: r.third_year_budget,
+                    fourth_year_budget: r.fourth_year_budget,
+                    fifth_year_budget: r.fifth_year_budget,
+                })),
+            });
+            await mutate();
+            setIsEditingBudget(false);
+            setEditBudgetRows([]);
+        } catch (err: any) {
+            alert(`Failed to save: ${err?.message || err}`);
+        } finally {
+            setIsSavingBudget(false);
+        }
+    };
 
     const MINIO_BASE = "http://172.16.135.118:9000";
     const attachmentsPath = `${MINIO_BASE}/prod-rnd-files/Project_Registration/${projectName}/attachments`;
@@ -2424,6 +2495,109 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                 )}
                                 {activeTab === "funding" && (
                                     <div className="space-y-6">
+                                        {isEditingBudget ? (
+                                            <Card className="border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm overflow-hidden rounded-xl">
+                                                <CardHeader className="py-3 px-5 border-b border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A]">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <IndianRupeeIcon className="h-3.5 w-3.5 text-[#4A6CF7] dark:text-[#93C5FD]" />
+                                                            <CardTitle className="font-sans text-[12px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7] uppercase tracking-[0.1em]">
+                                                                Proposed Budget Breakup
+                                                            </CardTitle>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="h-6 px-2 text-xs gap-1"
+                                                                onClick={cancelEditBudget}
+                                                                disabled={isSavingBudget}
+                                                            >
+                                                                <X className="h-3 w-3" />
+                                                                Cancel
+                                                            </Button>
+                                                            <Button
+                                                                size="sm"
+                                                                className="h-6 px-2 text-xs gap-1 bg-[#D97757] hover:bg-[#c4673e] text-white"
+                                                                onClick={saveBudgetBreakup}
+                                                                disabled={isSavingBudget}
+                                                            >
+                                                                <SaveIcon className="h-3 w-3" />
+                                                                {isSavingBudget ? "Saving…" : "Save"}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </CardHeader>
+                                                <div className="overflow-x-auto p-3">
+                                                    <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
+                                                        <thead className="bg-zinc-50 dark:bg-zinc-800/50">
+                                                            <tr>
+                                                                <th className="px-3 py-2 text-left font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">Budget Head</th>
+                                                                {(["Year 1", "Year 2", "Year 3", "Year 4", "Year 5"] as const).map((y) => (
+                                                                    <th key={y} className="px-3 py-2 text-right font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">{y}</th>
+                                                                ))}
+                                                                <th className="px-3 py-2" />
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="bg-white dark:bg-zinc-900 divide-y divide-zinc-200 dark:divide-zinc-800">
+                                                            {editBudgetRows.map((row, idx) => (
+                                                                <tr key={idx}>
+                                                                    <td className="px-2 py-1.5">
+                                                                        <select
+                                                                            className="w-full rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs"
+                                                                            value={row.account_head}
+                                                                            onChange={(e) => {
+                                                                                const updated = [...editBudgetRows];
+                                                                                updated[idx] = { ...updated[idx], account_head: e.target.value };
+                                                                                setEditBudgetRows(updated);
+                                                                            }}
+                                                                        >
+                                                                            <option value="">— Select —</option>
+                                                                            {budgetHeadList.map((bh) => (
+                                                                                <option key={bh.name} value={bh.name}>{bh.name}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </td>
+                                                                    {(["first_year_budget", "second_year_budget", "third_year_budget", "fourth_year_budget", "fifth_year_budget"] as const).map((field) => (
+                                                                        <td key={field} className="px-2 py-1.5">
+                                                                            <input
+                                                                                type="text"
+                                                                                inputMode="numeric"
+                                                                                className="w-24 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs text-right"
+                                                                                value={row[field] || ""}
+                                                                                onChange={(e) => {
+                                                                                    const updated = [...editBudgetRows];
+                                                                                    updated[idx] = { ...updated[idx], [field]: Number(e.target.value) };
+                                                                                    setEditBudgetRows(updated);
+                                                                                }}
+                                                                            />
+                                                                        </td>
+                                                                    ))}
+                                                                    <td className="px-2 py-1.5">
+                                                                        <button
+                                                                            type="button"
+                                                                            className="text-zinc-400 hover:text-red-500"
+                                                                            onClick={() => setEditBudgetRows(editBudgetRows.filter((_, i) => i !== idx))}
+                                                                        >
+                                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="mx-3 mb-3 h-6 px-2 text-xs gap-1"
+                                                    onClick={() => setEditBudgetRows([...editBudgetRows, { account_head: "", first_year_budget: 0, second_year_budget: 0, third_year_budget: 0, fourth_year_budget: 0, fifth_year_budget: 0 }])}
+                                                >
+                                                    <Plus className="h-3 w-3" />
+                                                    Add Row
+                                                </Button>
+                                            </Card>
+                                        ) : (
                                         <TableDisplay
                                             label="Proposed Budget Breakup"
                                             data={data?.proposed_budget_breakup}
@@ -2536,7 +2710,19 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                                             })()}
                                             icon={IndianRupeeIcon}
                                             budgetHeadList={budgetHeadList}
+                                            action={isRnDStaff ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-6 px-2 text-xs gap-1"
+                                                    onClick={() => startEditBudget(data?.proposed_budget_breakup ?? [])}
+                                                >
+                                                    <PencilIcon className="h-3 w-3" />
+                                                    Edit
+                                                </Button>
+                                            ) : undefined}
                                         />
+                                        )}
                                         {data?.equipment_checkbox === 1 && (
                                             <TableDisplay
                                                 label="Proposed Equipment"

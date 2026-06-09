@@ -4624,7 +4624,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                 title="Proposed Budget Breakup"
                                                 icon={IndianRupeeIcon}
                                                 action={
-                                                    isDocOwner &&
+                                                    (isDocOwner || isRnDStaff) &&
                                                     !isEditingBudget ? (
                                                         <Button
                                                             size="sm"
