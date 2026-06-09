@@ -40,27 +40,27 @@ const getDepositTypeConfig = (type: string, depositSlip: any) => {
             signatureRight: 'HoS, Research & Development'
         },
         consultancy_research: {
-            subHeader: 'II&SI',
-            recipient: 'AO (II&SI)',
-            titlePrefix: 'Deposit of cheque to II&SI Account',
+            subHeader: 'R&D',
+            recipient: 'AO (R&D)',
+            titlePrefix: 'Deposit of cheque to R&D Account',
             titleType: 'Other Event No.',
-            signatureLeft: 'JS (II&SI Cell)',
+            signatureLeft: 'JS (R&D Cell)',
             signatureRight: 'HoS (RnD)'
         },
         consultancy_d: {
-            subHeader: 'II&SI Cell',
-            recipient: 'AO (II&SI Cell)',
-            titlePrefix: 'Deposit to II&SI Account',
+            subHeader: 'R&D Cell',
+            recipient: 'AO (R&D Cell)',
+            titlePrefix: 'Deposit to R&D Account',
             titleType: 'Consultancy No.',
-            signatureLeft: 'JS (II&SI Cell)',
+            signatureLeft: 'JS (R&D Cell)',
             signatureRight: 'HoS (RnD)'
         },
         consultancy_e: {
-            subHeader: 'II&SI Cell',
-            recipient: 'AO (II&SI Cell)',
-            titlePrefix: 'Deposit of Cheque to II&SI Account',
+            subHeader: 'R&D Cell',
+            recipient: 'AO (R&D Cell)',
+            titlePrefix: 'Deposit of Cheque to R&D Account',
             titleType: 'Consultancy No.',
-            signatureLeft: 'JS (II&SI Cell)',
+            signatureLeft: 'JS (R&D Cell)',
             signatureRight: 'HoS (RnD)'
         },
         consultancy_t: {
@@ -72,11 +72,11 @@ const getDepositTypeConfig = (type: string, depositSlip: any) => {
             signatureRight: 'HoS (RnD)'
         },
         other_event: {
-            subHeader: 'II&SI',
-            recipient: 'AO (II&SI)',
-            titlePrefix: 'Deposit of cheque to II&SI Account',
+            subHeader: 'R&D',
+            recipient: 'AO (R&D)',
+            titlePrefix: 'Deposit of cheque to R&D Account',
             titleType: 'Other Event No.',
-            signatureLeft: 'JS (II&SI)',
+            signatureLeft: 'JS (R&D)',
             signatureRight: 'HoS (RnD)'
         }
     };
