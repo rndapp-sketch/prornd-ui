@@ -1,5 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProjectTitle } from './ProjectTitle';
+
+const ProjectNo: React.FC<{ projectId?: string }> = ({ projectId }) => {
+    const [projectNo, setProjectNo] = useState<string>('');
+    const [loading, setLoading] = useState(!!projectId);
+
+    useEffect(() => {
+        if (!projectId) return;
+        fetch(`/api/v2/document/Project Registration/${encodeURIComponent(projectId)}`, { credentials: 'include' })
+            .then(r => r.ok ? r.json() : null)
+            .then(json => { if (json?.data?.project_no) setProjectNo(json.data.project_no); })
+            .catch(() => {})
+            .finally(() => setLoading(false));
+    }, [projectId]);
+
+    if (loading) return <span className="opacity-50 italic text-sm">Loading...</span>;
+    return <span>{projectNo || projectId || '-'}</span>;
+};
 
 interface DepositSlipDocumentProps {
     depositSlip: any;
@@ -197,7 +214,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
             {/* Title */}
             <div className="text-center font-bold mb-4">
                 <span className="underline">{config.titlePrefix}</span><br />
-                for {config.titleType}: {depositSlip.project_no || depositSlip.name}
+                for {config.titleType}: <ProjectNo projectId={depositSlip.project_title || depositSlip.research_project} />
             </div>
 
             {/* Main Table */}
