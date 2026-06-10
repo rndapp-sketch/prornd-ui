@@ -355,6 +355,7 @@ const MemoizedFormField = memo(
                             onChange={(e) =>
                                 onChange(field.fieldname, e.target.value)
                             }
+                            {...(field.fieldname === "funding_agency_schemes" ? { maxLength: 100 } : {})}
                         />
                     );
             }
