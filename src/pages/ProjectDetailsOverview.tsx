@@ -211,10 +211,10 @@ const ProjectStatusBadge = ({ status }: { status?: string }) => {
     const className = normalized.includes("approved")
         ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
         : normalized.includes("reject") || normalized.includes("correction")
-          ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
-          : normalized.includes("draft")
-            ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-            : "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400";
+            ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400"
+            : normalized.includes("draft")
+                ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                : "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400";
 
     return (
         <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold leading-none", className)}>
@@ -327,15 +327,15 @@ const FrappeButton = ({
             variant === "primary"
                 ? "default"
                 : variant === "ghost"
-                  ? "ghost"
-                  : "outline"
+                    ? "ghost"
+                    : "outline"
         }
         className={cn(
             className,
             variant === "primary" &&
-                "bg-[#D97757] hover:bg-[#D97757] text-white",
+            "bg-[#D97757] hover:bg-[#D97757] text-white",
             variant === "outline" &&
-                "border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
+            "border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800",
         )}
         {...props}
     >
@@ -449,14 +449,13 @@ const AdvanceSettlementModal = ({
                             </div>
                             <div className="flex items-center gap-2">
                                 <span
-                                    className={`text-xs px-2 py-1 rounded-full border ${
-                                        settlement.workflow_state === "Approved"
+                                    className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
                                             ? "bg-emerald-100 text-emerald-800 border-emerald-200"
                                             : settlement.workflow_state ===
                                                 "Submitted"
-                                              ? "bg-blue-100 text-blue-800 border-blue-200"
-                                              : "bg-zinc-100 text-zinc-800 border-zinc-200"
-                                    }`}
+                                                ? "bg-blue-100 text-blue-800 border-blue-200"
+                                                : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                                        }`}
                                 >
                                     {settlement.workflow_state || "Draft"}
                                 </span>
@@ -540,21 +539,20 @@ const TADASettlementModal = ({
                                 <p className="text-xs text-zinc-400 mt-1">
                                     {settlement.creation
                                         ? new Date(
-                                              settlement.creation,
-                                          ).toLocaleDateString()
+                                            settlement.creation,
+                                        ).toLocaleDateString()
                                         : ""}
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <span
-                                    className={`text-xs px-2 py-1 rounded-full border ${
-                                        settlement.workflow_state === "Approved"
+                                    className={`text-xs px-2 py-1 rounded-full border ${settlement.workflow_state === "Approved"
                                             ? "bg-emerald-100 text-emerald-800 border-emerald-200"
                                             : settlement.workflow_state ===
                                                 "Submitted"
-                                              ? "bg-blue-100 text-blue-800 border-blue-200"
-                                              : "bg-zinc-100 text-zinc-800 border-zinc-200"
-                                    }`}
+                                                ? "bg-blue-100 text-blue-800 border-blue-200"
+                                                : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                                        }`}
                                 >
                                     {settlement.workflow_state || "Draft"}
                                 </span>
@@ -636,22 +634,21 @@ const P11FormModal = ({
                                         <p className="text-xs text-zinc-400 mt-0.5">
                                             {form.creation
                                                 ? new Date(
-                                                      form.creation,
-                                                  ).toLocaleDateString()
+                                                    form.creation,
+                                                ).toLocaleDateString()
                                                 : ""}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span
-                                            className={`text-xs px-2 py-1 rounded-full border ${
-                                                form.workflow_state ===
-                                                "Approved"
+                                            className={`text-xs px-2 py-1 rounded-full border ${form.workflow_state ===
+                                                    "Approved"
                                                     ? "bg-emerald-100 text-emerald-800 border-emerald-200"
                                                     : form.workflow_state ===
                                                         "Submitted"
-                                                      ? "bg-blue-100 text-blue-800 border-blue-200"
-                                                      : "bg-zinc-100 text-zinc-800 border-zinc-200"
-                                            }`}
+                                                        ? "bg-blue-100 text-blue-800 border-blue-200"
+                                                        : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                                                }`}
                                         >
                                             {form.workflow_state || "Draft"}
                                         </span>
@@ -734,20 +731,19 @@ const ScrModal = ({
                                 <p className="text-xs text-zinc-400 mt-0.5">
                                     {scr.creation
                                         ? new Date(
-                                              scr.creation,
-                                          ).toLocaleDateString()
+                                            scr.creation,
+                                        ).toLocaleDateString()
                                         : ""}
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <span
-                                    className={`text-xs px-2 py-1 rounded-full border ${
-                                        scr.workflow_state === "Approved"
+                                    className={`text-xs px-2 py-1 rounded-full border ${scr.workflow_state === "Approved"
                                             ? "bg-emerald-100 text-emerald-800 border-emerald-200"
                                             : scr.workflow_state === "Submitted"
-                                              ? "bg-blue-100 text-blue-800 border-blue-200"
-                                              : "bg-zinc-100 text-zinc-800 border-zinc-200"
-                                    }`}
+                                                ? "bg-blue-100 text-blue-800 border-blue-200"
+                                                : "bg-zinc-100 text-zinc-800 border-zinc-200"
+                                        }`}
                                 >
                                     {scr.workflow_state || "Draft"}
                                 </span>
@@ -868,8 +864,8 @@ const QuickActions = ({
                     (s.docstatus === 1
                         ? "Submitted"
                         : s.docstatus === 2
-                          ? "Cancelled"
-                          : "Draft"),
+                            ? "Cancelled"
+                            : "Draft"),
             }));
 
             // Client-side filter
@@ -935,8 +931,8 @@ const QuickActions = ({
                     (s.docstatus === 1
                         ? "Submitted"
                         : s.docstatus === 2
-                          ? "Cancelled"
-                          : "Draft"),
+                            ? "Cancelled"
+                            : "Draft"),
                 // Normalize amount property so that the existing modal component displays it correctly
                 total_amount: s.ta_da_total_claimed || s.ta_da_net_claimed || 0,
             }));
@@ -1025,8 +1021,8 @@ const QuickActions = ({
                     (s.docstatus === 1
                         ? "Submitted"
                         : s.docstatus === 2
-                          ? "Cancelled"
-                          : "Draft"),
+                            ? "Cancelled"
+                            : "Draft"),
             }));
             setExistingScrs(scrs);
             setSelectedItemForScr(item);
@@ -1240,8 +1236,8 @@ const QuickActions = ({
                             (item.docstatus === 1
                                 ? "Submitted"
                                 : item.docstatus === 2
-                                  ? "Cancelled"
-                                  : "Draft"),
+                                    ? "Cancelled"
+                                    : "Draft"),
                         applicant_webmail: item.applicant_webmail || item.owner,
                     }));
 
@@ -1273,8 +1269,8 @@ const QuickActions = ({
                         item.docstatus === 1
                             ? "Submitted"
                             : item.docstatus === 2
-                              ? "Cancelled"
-                              : "Draft",
+                                ? "Cancelled"
+                                : "Draft",
                     applicant_webmail: item.applicant_email_id, // Map for display consistency
                 }));
             } else if (selectedApplication === "Rate Contract") {
@@ -1438,8 +1434,8 @@ const QuickActions = ({
                                 (item.docstatus === 1
                                     ? "Submitted"
                                     : item.docstatus === 2
-                                      ? "Cancelled"
-                                      : "Draft"),
+                                        ? "Cancelled"
+                                        : "Draft"),
                             applicant_webmail: item.pi_webmail || item.owner,
                         }));
                     console.log(
@@ -1582,8 +1578,8 @@ const QuickActions = ({
                             (item.docstatus === 1
                                 ? "Submitted"
                                 : item.docstatus === 2
-                                  ? "Cancelled"
-                                  : "Draft"),
+                                    ? "Cancelled"
+                                    : "Draft"),
                         applicant_webmail: item.applicant_name || item.owner,
                     }));
                 } catch (fetchError) {
@@ -1620,8 +1616,8 @@ const QuickActions = ({
                                 (item.docstatus === 1
                                     ? "Submitted"
                                     : item.docstatus === 2
-                                      ? "Cancelled"
-                                      : "Draft"),
+                                        ? "Cancelled"
+                                        : "Draft"),
                             applicant_webmail: item.webmail_id || item.owner,
                         }));
                 } catch (fetchError) {
@@ -1706,20 +1702,20 @@ const QuickActions = ({
                                 (item.docstatus === 1
                                     ? "Submitted"
                                     : item.docstatus === 2
-                                      ? "Cancelled"
-                                      : "Draft"),
+                                        ? "Cancelled"
+                                        : "Draft"),
                             applicant_webmail:
                                 item.icss_applicant_name ||
                                 item.icss_applicant_webmail_id ||
                                 item.owner,
                             display_workflow_state:
                                 item.workflow_state === "Pending Dean Approval" &&
-                                Number(item.send_to_director || 0)
+                                    Number(item.send_to_director || 0)
                                     ? "Pending Director Approval"
                                     : item.workflow_state ||
-                                      (item.docstatus === 1
-                                          ? "Submitted"
-                                          : item.docstatus === 2
+                                    (item.docstatus === 1
+                                        ? "Submitted"
+                                        : item.docstatus === 2
                                             ? "Cancelled"
                                             : "Draft"),
                         }));
@@ -1823,8 +1819,8 @@ const QuickActions = ({
                                 (item.docstatus === 1
                                     ? "Submitted"
                                     : item.docstatus === 2
-                                      ? "Cancelled"
-                                      : "Draft"),
+                                        ? "Cancelled"
+                                        : "Draft"),
                         }));
                 } catch (fetchError) {
                     console.error("Loan Request fetch error:", fetchError);
@@ -2122,30 +2118,30 @@ const QuickActions = ({
                                                     {(() => {
                                                         const displayStatus =
                                                             item.signed_po_file_url &&
-                                                            selectedApplication ===
+                                                                selectedApplication ===
                                                                 "Indent cum Sanction"
                                                                 ? "PO Delivered"
                                                                 : item.display_workflow_state ||
-                                                                  item.workflow_state;
+                                                                item.workflow_state;
                                                         return (
                                                             <span
                                                                 className={cn(
                                                                     "inline-flex px-2 py-1 text-xs font-medium rounded-full",
                                                                     displayStatus ===
-                                                                        "Approved" &&
-                                                                        "bg-green-100 text-green-700",
+                                                                    "Approved" &&
+                                                                    "bg-green-100 text-green-700",
                                                                     displayStatus ===
-                                                                        "PO Delivered" &&
-                                                                        "bg-green-100 text-green-700",
+                                                                    "PO Delivered" &&
+                                                                    "bg-green-100 text-green-700",
                                                                     displayStatus ===
-                                                                        "Pending" &&
-                                                                        "bg-yellow-100 text-yellow-700",
+                                                                    "Pending" &&
+                                                                    "bg-yellow-100 text-yellow-700",
                                                                     displayStatus ===
-                                                                        "Rejected" &&
-                                                                        "bg-red-100 text-red-700",
+                                                                    "Rejected" &&
+                                                                    "bg-red-100 text-red-700",
                                                                     displayStatus ===
-                                                                        "Draft" &&
-                                                                        "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
+                                                                    "Draft" &&
+                                                                    "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
                                                                     ![
                                                                         "Approved",
                                                                         "PO Delivered",
@@ -2155,7 +2151,7 @@ const QuickActions = ({
                                                                     ].includes(
                                                                         displayStatus,
                                                                     ) &&
-                                                                        "bg-blue-100 text-blue-700",
+                                                                    "bg-blue-100 text-blue-700",
                                                                 )}
                                                             >
                                                                 {displayStatus ||
@@ -2167,14 +2163,14 @@ const QuickActions = ({
                                                     {selectedApplication ===
                                                         "Travel" &&
                                                         item.type ===
-                                                            "Travel Apply" &&
+                                                        "Travel Apply" &&
                                                         applicationData
                                                             .filter(
                                                                 (s: any) =>
                                                                     s.type ===
-                                                                        "TA DA Settlement" &&
+                                                                    "TA DA Settlement" &&
                                                                     s.ta_da_travel_application ===
-                                                                        item.name,
+                                                                    item.name,
                                                             )
                                                             .slice(0, 1)
                                                             .map(
@@ -2188,14 +2184,14 @@ const QuickActions = ({
                                                                         className={cn(
                                                                             "inline-flex px-2 py-1 text-xs font-medium rounded-full",
                                                                             settlement.workflow_state ===
-                                                                                "Approved" &&
-                                                                                "bg-green-100 text-green-700",
+                                                                            "Approved" &&
+                                                                            "bg-green-100 text-green-700",
                                                                             settlement.workflow_state ===
-                                                                                "Rejected" &&
-                                                                                "bg-red-100 text-red-700",
+                                                                            "Rejected" &&
+                                                                            "bg-red-100 text-red-700",
                                                                             settlement.workflow_state ===
-                                                                                "Draft" &&
-                                                                                "bg-zinc-100 text-zinc-700",
+                                                                            "Draft" &&
+                                                                            "bg-zinc-100 text-zinc-700",
                                                                             ![
                                                                                 "Approved",
                                                                                 "Rejected",
@@ -2203,7 +2199,7 @@ const QuickActions = ({
                                                                             ].includes(
                                                                                 settlement.workflow_state,
                                                                             ) &&
-                                                                                "bg-blue-100 text-blue-700",
+                                                                            "bg-blue-100 text-blue-700",
                                                                         )}
                                                                         title={`Settlement: ${settlement.name}`}
                                                                     >
@@ -2221,7 +2217,7 @@ const QuickActions = ({
                                                     <button
                                                         onClick={() => {
                                                             switch (
-                                                                selectedApplication
+                                                            selectedApplication
                                                             ) {
                                                                 case "Project Staff Resignation":
                                                                     onNavigate(
@@ -2353,12 +2349,12 @@ const QuickActions = ({
                                                     {selectedApplication ===
                                                         "Indent General Form" &&
                                                         item.workflow_state ===
-                                                            "Approved" &&
+                                                        "Approved" &&
                                                         Number(
                                                             item.igf_total_estimate,
                                                         ) < 5000000 &&
                                                         item.igf_tender_type ===
-                                                            "Limited Tender" && (
+                                                        "Limited Tender" && (
                                                             <button
                                                                 onClick={() =>
                                                                     onNavigate(
@@ -2374,7 +2370,7 @@ const QuickActions = ({
                                                     {selectedApplication ===
                                                         "Adhoc/Contractual" &&
                                                         item.workflow_state ===
-                                                            "Approved" && (
+                                                        "Approved" && (
                                                             <>
                                                                 <button
                                                                     onClick={() =>
@@ -2401,7 +2397,7 @@ const QuickActions = ({
                                                     {selectedApplication ===
                                                         "Direct Purchase" &&
                                                         item.workflow_state ===
-                                                            "Approved" && (
+                                                        "Approved" && (
                                                             <button
                                                                 onClick={() =>
                                                                     handleP11FormClick(
@@ -2415,23 +2411,23 @@ const QuickActions = ({
                                                         )}
                                                     {selectedApplication ===
                                                         "Temporary Advance Apply" && (
-                                                        <button
-                                                            onClick={() =>
-                                                                handleSettleClick(
-                                                                    item,
-                                                                )
-                                                            }
-                                                            className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 hover:underline whitespace-nowrap"
-                                                        >
-                                                            Settle
-                                                        </button>
-                                                    )}
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleSettleClick(
+                                                                        item,
+                                                                    )
+                                                                }
+                                                                className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 hover:underline whitespace-nowrap"
+                                                            >
+                                                                Settle
+                                                            </button>
+                                                        )}
                                                     {selectedApplication ===
                                                         "Travel" &&
                                                         item.type ===
-                                                            "Travel Apply" &&
+                                                        "Travel Apply" &&
                                                         item.workflow_state ===
-                                                            "Approved" && (
+                                                        "Approved" && (
                                                             <button
                                                                 onClick={() =>
                                                                     handleTravelSettleClick(
@@ -2705,8 +2701,8 @@ const ActivityStream = forwardRef<ActivityStreamHandle, ActivityStreamProps>(
                                                         <ClockIcon className="h-3.5 w-3.5" />
                                                         {item.creation
                                                             ? new Date(
-                                                                  item.creation,
-                                                              ).toLocaleString()
+                                                                item.creation,
+                                                            ).toLocaleString()
                                                             : "N/A"}
                                                     </p>
                                                 </div>
@@ -2835,22 +2831,22 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
         "frappe.client.get_value",
         data?.funding_agen
             ? {
-                  doctype: "fundingagency_",
-                  filters: data.funding_agen,
-                  fieldname: JSON.stringify([
-                      "funding_agency_id",
-                      "funding_agency_name",
-                      "funding_agency_initials",
-                      "funding_agency_type_1",
-                      "origin_of_funding_agency",
-                      "gstin_of_funding_agency",
-                      "ministry_funding_agency",
-                      "fundingagency_address",
-                      "fundingagency_country",
-                      "fundingagency_state",
-                      "fundingagency_postalcode",
-                  ]),
-              }
+                doctype: "fundingagency_",
+                filters: data.funding_agen,
+                fieldname: JSON.stringify([
+                    "funding_agency_id",
+                    "funding_agency_name",
+                    "funding_agency_initials",
+                    "funding_agency_type_1",
+                    "origin_of_funding_agency",
+                    "gstin_of_funding_agency",
+                    "ministry_funding_agency",
+                    "fundingagency_address",
+                    "fundingagency_country",
+                    "fundingagency_state",
+                    "fundingagency_postalcode",
+                ]),
+            }
             : undefined,
         data?.funding_agen ? `funding-agency-${data.funding_agen}` : null,
         {
@@ -3182,8 +3178,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                     sl: txn.transactionId,
                     date: txn.transactionDate
                         ? new Date(txn.transactionDate).toLocaleDateString(
-                              "en-IN",
-                          )
+                            "en-IN",
+                        )
                         : "",
                     particulars: txn.particulars || "",
                     ref: txn.refDetails || "",
@@ -3565,10 +3561,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                 action.toLowerCase() === "submit"
                     ? submitProjectRegistration({ doc_data: projectName })
                     : triggerWorkflowAction({
-                          doctype: "Project Registration",
-                          docname: projectName,
-                          action: action,
-                      });
+                        doctype: "Project Registration",
+                        docname: projectName,
+                        action: action,
+                    });
             apiCall
                 .then(() => {
                     mutate();
@@ -3888,92 +3884,92 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                 <header className="mb-4 overflow-hidden rounded-2xl border border-[#E4E4E7] dark:border-[#3F3F46] bg-white dark:bg-[#27272A] shadow-sm">
                     <div className="h-[3px] bg-gradient-to-r from-[#4A6CF7] via-[#2563EB] to-[#D97757]" />
                     <div className="px-5 py-4">
-                    <div className="flex items-start justify-between flex-col xl:flex-row gap-4">
-                        <div className="flex items-start gap-3 min-w-0">
-                            {!embedded && (
-                                <button
-                                    onClick={() => navigate(isCoProjectView ? "/co-projects" : "/projects-view")}
-                                    aria-label="Back to projects"
-                                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
-                                >
-                                    <ArrowLeftIcon className="h-4 w-4" />
-                                </button>
-                            )}
-                            <div className="min-w-0">
-                                <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                                    <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
-                                        Project Overview
-                                    </span>
-                                    <ProjectStatusBadge status={data?.workflow_state} />
+                        <div className="flex items-start justify-between flex-col xl:flex-row gap-4">
+                            <div className="flex items-start gap-3 min-w-0">
+                                {!embedded && (
+                                    <button
+                                        onClick={() => navigate(isCoProjectView ? "/co-projects" : "/projects-view")}
+                                        aria-label="Back to projects"
+                                        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#71717A] hover:text-[#D97757] hover:border-[#D97757]/30 hover:bg-[#D97757]/10 transition-colors"
+                                    >
+                                        <ArrowLeftIcon className="h-4 w-4" />
+                                    </button>
+                                )}
+                                <div className="min-w-0">
+                                    <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                                        <span className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#D97757]">
+                                            Project Overview
+                                        </span>
+                                        <ProjectStatusBadge status={data?.workflow_state} />
+                                    </div>
+                                    <h1 className="font-sans text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
+                                        {data?.project_title || "Project Details"}
+                                    </h1>
+                                    <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
+                                        ID: <span className="font-mono text-[#3F3F46] dark:text-[#E4E4E7]">{data?.project_no || projectName}</span>
+                                    </p>
                                 </div>
-                                <h1 className="font-sans text-[18px] font-extrabold tracking-normal text-[#3F3F46] dark:text-[#E4E4E7] leading-tight">
-                                    {data?.project_title || "Project Details"}
-                                </h1>
-                                <p className="mt-0.5 text-[12px] font-medium text-[#71717A] dark:text-[#A1A1AA]">
-                                    ID: <span className="font-mono text-[#3F3F46] dark:text-[#E4E4E7]">{data?.project_no || projectName}</span>
-                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {isCurrentUserPI && !isCoProjectView && (
+                                    <div className="flex gap-2 [&_button]:h-8 [&_button]:px-3 [&_button]:text-[12px]">
+                                        <FrappeButton
+                                            onClick={handleAddFunds}
+                                            aria-label="Add funds to project"
+                                            disabled={
+                                                !normalizeResponse(
+                                                    sanctionData,
+                                                ).some(
+                                                    (s) =>
+                                                        (
+                                                            s.sanction_workflow_status ||
+                                                            ""
+                                                        ).toLowerCase() ===
+                                                        "sanction approved",
+                                                )
+                                            }
+                                            title={
+                                                !normalizeResponse(
+                                                    sanctionData,
+                                                ).some(
+                                                    (s) =>
+                                                        (
+                                                            s.sanction_workflow_status ||
+                                                            ""
+                                                        ).toLowerCase() ===
+                                                        "sanction approved",
+                                                )
+                                                    ? "Fund can only be added after sanction is approved"
+                                                    : undefined
+                                            }
+                                        >
+                                            <PlusIcon className="h-3.5 w-3.5" /> Add
+                                            Funds
+                                        </FrappeButton>
+                                        {/* Only show Add Sanction button if no sanction exists */}
+                                        {normalizeResponse(sanctionData).length ===
+                                            0 && (
+                                                <FrappeButton
+                                                    onClick={handleAddSanctionDetails}
+                                                    variant="outline"
+                                                    aria-label="Add sanction details"
+                                                >
+                                                    <FilePlusIcon className="h-3.5 w-3.5" />{" "}
+                                                    Add Sanction
+                                                </FrappeButton>
+                                            )}
+                                    </div>
+                                )}
+                                <WorkflowActions
+                                    docname={projectName!}
+                                    onAction={handleWorkflowAction}
+                                    isLoading={isActionLoading}
+                                    projectNo={data?.project_no}
+                                    status={data?.workflow_state}
+                                    isStaffRnD={isStaffRnDOnly}
+                                />
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            {isCurrentUserPI && !isCoProjectView && (
-                                <div className="flex gap-2 [&_button]:h-8 [&_button]:px-3 [&_button]:text-[12px]">
-                                    <FrappeButton
-                                        onClick={handleAddFunds}
-                                        aria-label="Add funds to project"
-                                        disabled={
-                                            !normalizeResponse(
-                                                sanctionData,
-                                            ).some(
-                                                (s) =>
-                                                    (
-                                                        s.sanction_workflow_status ||
-                                                        ""
-                                                    ).toLowerCase() ===
-                                                    "sanction approved",
-                                            )
-                                        }
-                                        title={
-                                            !normalizeResponse(
-                                                sanctionData,
-                                            ).some(
-                                                (s) =>
-                                                    (
-                                                        s.sanction_workflow_status ||
-                                                        ""
-                                                    ).toLowerCase() ===
-                                                    "sanction approved",
-                                            )
-                                                ? "Fund can only be added after sanction is approved"
-                                                : undefined
-                                        }
-                                    >
-                                        <PlusIcon className="h-3.5 w-3.5" /> Add
-                                        Funds
-                                    </FrappeButton>
-                                    {/* Only show Add Sanction button if no sanction exists */}
-                                    {normalizeResponse(sanctionData).length ===
-                                        0 && (
-                                        <FrappeButton
-                                            onClick={handleAddSanctionDetails}
-                                            variant="outline"
-                                            aria-label="Add sanction details"
-                                        >
-                                            <FilePlusIcon className="h-3.5 w-3.5" />{" "}
-                                            Add Sanction
-                                        </FrappeButton>
-                                    )}
-                                </div>
-                            )}
-                            <WorkflowActions
-                                docname={projectName!}
-                                onAction={handleWorkflowAction}
-                                isLoading={isActionLoading}
-                                projectNo={data?.project_no}
-                                status={data?.workflow_state}
-                                isStaffRnD={isStaffRnDOnly}
-                            />
-                        </div>
-                    </div>
                     </div>
                 </header>
 
@@ -4124,98 +4120,98 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                             )}
                                             {data?.upload_supporting_docs
                                                 ?.length > 0 && (
-                                                <div className="py-2 col-span-full">
-                                                    <div className="flex items-center gap-1.5 mb-2">
-                                                        <FileTextIcon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
-                                                        <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
-                                                            Upload Supporting
-                                                            Docs ( Project
-                                                            Proposal /
-                                                            Invitation Letter)
-                                                        </p>
-                                                    </div>
-                                                    <div className="overflow-x-auto">
-                                                        <table className="w-full text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
-                                                            <thead className="bg-zinc-100 dark:bg-zinc-800">
-                                                                <tr>
-                                                                    <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300 w-8">
-                                                                        No.
-                                                                    </th>
-                                                                    <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-                                                                        File
-                                                                    </th>
-                                                                    <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300">
-                                                                        Description
-                                                                    </th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                                {data.upload_supporting_docs.map(
-                                                                    (
-                                                                        row: any,
-                                                                        idx: number,
-                                                                    ) => {
-                                                                        const filePath =
-                                                                            row.project_file ||
-                                                                            "";
-                                                                        const fileName =
-                                                                            filePath
-                                                                                .split(
-                                                                                    "/",
-                                                                                )
-                                                                                .pop() ||
-                                                                            filePath;
-                                                                        const fileUrl =
-                                                                            filePath
-                                                                                ? `http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments/${filePath.split("/").pop()}`
-                                                                                : null;
-                                                                        return (
-                                                                            <tr
-                                                                                key={
-                                                                                    idx
-                                                                                }
-                                                                                className="border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                                                                            >
-                                                                                <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">
-                                                                                    {idx +
-                                                                                        1}
-                                                                                </td>
-                                                                                <td className="px-3 py-2">
-                                                                                    {fileUrl ? (
-                                                                                        <a
-                                                                                            href={
-                                                                                                fileUrl
-                                                                                            }
-                                                                                            target="_blank"
-                                                                                            rel="noopener noreferrer"
-                                                                                            className="text-[#D97757] hover:underline flex items-center gap-1 truncate max-w-xs"
-                                                                                        >
-                                                                                            <ExternalLinkIcon className="h-3 w-3 flex-shrink-0" />
-                                                                                            <span className="truncate">
-                                                                                                {
-                                                                                                    fileName
+                                                    <div className="py-2 col-span-full">
+                                                        <div className="flex items-center gap-1.5 mb-2">
+                                                            <FileTextIcon className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
+                                                            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wide">
+                                                                Upload Supporting
+                                                                Docs ( Project
+                                                                Proposal /
+                                                                Invitation Letter)
+                                                            </p>
+                                                        </div>
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-sm border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                                                                <thead className="bg-zinc-100 dark:bg-zinc-800">
+                                                                    <tr>
+                                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300 w-8">
+                                                                            No.
+                                                                        </th>
+                                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                                                                            File
+                                                                        </th>
+                                                                        <th className="px-3 py-2 text-left text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                                                                            Description
+                                                                        </th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {data.upload_supporting_docs.map(
+                                                                        (
+                                                                            row: any,
+                                                                            idx: number,
+                                                                        ) => {
+                                                                            const filePath =
+                                                                                row.project_file ||
+                                                                                "";
+                                                                            const fileName =
+                                                                                filePath
+                                                                                    .split(
+                                                                                        "/",
+                                                                                    )
+                                                                                    .pop() ||
+                                                                                filePath;
+                                                                            const fileUrl =
+                                                                                filePath
+                                                                                    ? `http://172.16.135.118:9000/prod-rnd-files/Project_Registration/${projectName}/attachments/${filePath.split("/").pop()}`
+                                                                                    : null;
+                                                                            return (
+                                                                                <tr
+                                                                                    key={
+                                                                                        idx
+                                                                                    }
+                                                                                    className="border-t border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                                                                                >
+                                                                                    <td className="px-3 py-2 text-zinc-500 dark:text-zinc-400">
+                                                                                        {idx +
+                                                                                            1}
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2">
+                                                                                        {fileUrl ? (
+                                                                                            <a
+                                                                                                href={
+                                                                                                    fileUrl
                                                                                                 }
+                                                                                                target="_blank"
+                                                                                                rel="noopener noreferrer"
+                                                                                                className="text-[#D97757] hover:underline flex items-center gap-1 truncate max-w-xs"
+                                                                                            >
+                                                                                                <ExternalLinkIcon className="h-3 w-3 flex-shrink-0" />
+                                                                                                <span className="truncate">
+                                                                                                    {
+                                                                                                        fileName
+                                                                                                    }
+                                                                                                </span>
+                                                                                            </a>
+                                                                                        ) : (
+                                                                                            <span className="text-zinc-400">
+                                                                                                —
                                                                                             </span>
-                                                                                        </a>
-                                                                                    ) : (
-                                                                                        <span className="text-zinc-400">
-                                                                                            —
-                                                                                        </span>
-                                                                                    )}
-                                                                                </td>
-                                                                                <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">
-                                                                                    {row.file_description ||
-                                                                                        "—"}
-                                                                                </td>
-                                                                            </tr>
-                                                                        );
-                                                                    },
-                                                                )}
-                                                            </tbody>
-                                                        </table>
+                                                                                        )}
+                                                                                    </td>
+                                                                                    <td className="px-3 py-2 text-zinc-700 dark:text-zinc-300">
+                                                                                        {row.file_description ||
+                                                                                            "—"}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            );
+                                                                        },
+                                                                    )}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            )}
+                                                )}
                                         </div>
                                     </SectionWrapper>
 
@@ -4251,79 +4247,79 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                 {data?.consultancy_category?.startsWith(
                                                     "Category D",
                                                 ) && (
-                                                    <>
-                                                        <FieldDisplay
-                                                            label="Category D Note"
-                                                            value={
-                                                                data?.category_d_note
-                                                            }
-                                                            icon={FileTextIcon}
-                                                        />
-                                                        <FieldDisplay
-                                                            label="Total Cost (Excl. GST)"
-                                                            value={
-                                                                data?.cat_d_project_cost_excl_gst
-                                                            }
-                                                            icon={
-                                                                IndianRupeeIcon
-                                                            }
-                                                        />
-                                                        <FieldDisplay
-                                                            label="Consultancy Fee"
-                                                            value={
-                                                                data?.cat_d_consultancy_fee_input
-                                                            }
-                                                            icon={
-                                                                IndianRupeeIcon
-                                                            }
-                                                        />
-                                                        <FieldDisplay
-                                                            label="Operational Expense (+OH)"
-                                                            value={
-                                                                data?.operational_expense_input_inc_10_oh
-                                                            }
-                                                            icon={
-                                                                IndianRupeeIcon
-                                                            }
-                                                        />
-                                                        <FieldDisplay
-                                                            label="Institute Share"
-                                                            value={
-                                                                data?.cat_d_institute_share
-                                                            }
-                                                            icon={
-                                                                IndianRupeeIcon
-                                                            }
-                                                        />
-                                                        <FieldDisplay
-                                                            label="Total Overhead"
-                                                            value={
-                                                                data?.cat_d_total_overhead
-                                                            }
-                                                            icon={
-                                                                IndianRupeeIcon
-                                                            }
-                                                        />
-                                                        <FieldDisplay
-                                                            label="GST Amount"
-                                                            value={
-                                                                data?.cat_d_gst_amt
-                                                            }
-                                                            icon={
-                                                                IndianRupeeIcon
-                                                            }
-                                                        />
-                                                        <FieldDisplay
-                                                            label="Grand Total"
-                                                            value={
-                                                                data?.cat_d_grand_total_calc
-                                                            }
-                                                            icon={
-                                                                IndianRupeeIcon
-                                                            }
-                                                        />
-                                                    </>
-                                                )}
+                                                        <>
+                                                            <FieldDisplay
+                                                                label="Category D Note"
+                                                                value={
+                                                                    data?.category_d_note
+                                                                }
+                                                                icon={FileTextIcon}
+                                                            />
+                                                            <FieldDisplay
+                                                                label="Total Cost (Excl. GST)"
+                                                                value={
+                                                                    data?.cat_d_project_cost_excl_gst
+                                                                }
+                                                                icon={
+                                                                    IndianRupeeIcon
+                                                                }
+                                                            />
+                                                            <FieldDisplay
+                                                                label="Consultancy Fee"
+                                                                value={
+                                                                    data?.cat_d_consultancy_fee_input
+                                                                }
+                                                                icon={
+                                                                    IndianRupeeIcon
+                                                                }
+                                                            />
+                                                            <FieldDisplay
+                                                                label="Operational Expense (+OH)"
+                                                                value={
+                                                                    data?.operational_expense_input_inc_10_oh
+                                                                }
+                                                                icon={
+                                                                    IndianRupeeIcon
+                                                                }
+                                                            />
+                                                            <FieldDisplay
+                                                                label="Institute Share"
+                                                                value={
+                                                                    data?.cat_d_institute_share
+                                                                }
+                                                                icon={
+                                                                    IndianRupeeIcon
+                                                                }
+                                                            />
+                                                            <FieldDisplay
+                                                                label="Total Overhead"
+                                                                value={
+                                                                    data?.cat_d_total_overhead
+                                                                }
+                                                                icon={
+                                                                    IndianRupeeIcon
+                                                                }
+                                                            />
+                                                            <FieldDisplay
+                                                                label="GST Amount"
+                                                                value={
+                                                                    data?.cat_d_gst_amt
+                                                                }
+                                                                icon={
+                                                                    IndianRupeeIcon
+                                                                }
+                                                            />
+                                                            <FieldDisplay
+                                                                label="Grand Total"
+                                                                value={
+                                                                    data?.cat_d_grand_total_calc
+                                                                }
+                                                                icon={
+                                                                    IndianRupeeIcon
+                                                                }
+                                                            />
+                                                        </>
+                                                    )}
 
                                                 {!data?.consultancy_category?.startsWith(
                                                     "Category D",
@@ -4477,13 +4473,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                 label="Address"
                                                 value={[
                                                     fundingAgencyData?.fundingagency_address ??
-                                                        data?.address_street_village_locality,
+                                                    data?.address_street_village_locality,
                                                     fundingAgencyData?.fundingagency_state ??
-                                                        data?.address_state,
+                                                    data?.address_state,
                                                     fundingAgencyData?.fundingagency_country ??
-                                                        data?.address_country,
+                                                    data?.address_country,
                                                     fundingAgencyData?.fundingagency_postalcode ??
-                                                        data?.address_postal_code,
+                                                    data?.address_postal_code,
                                                 ]
                                                     .filter(Boolean)
                                                     .join(", ")}
@@ -4619,13 +4615,13 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                     {/* Enhanced Proposed Budget Breakup with Grand Total */}
                                     {data?.proposed_budget_breakup &&
                                         data.proposed_budget_breakup.length >
-                                            0 && (
+                                        0 && (
                                             <SectionWrapper
                                                 title="Proposed Budget Breakup"
                                                 icon={IndianRupeeIcon}
                                                 action={
                                                     (isDocOwner || isRnDStaff) &&
-                                                    !isEditingBudget ? (
+                                                        !isEditingBudget ? (
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
@@ -4737,15 +4733,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                             updated[
                                                                                                 idx
                                                                                             ] =
-                                                                                                {
-                                                                                                    ...updated[
-                                                                                                        idx
-                                                                                                    ],
-                                                                                                    account_head:
-                                                                                                        e
-                                                                                                            .target
-                                                                                                            .value,
-                                                                                                };
+                                                                                            {
+                                                                                                ...updated[
+                                                                                                idx
+                                                                                                ],
+                                                                                                account_head:
+                                                                                                    e
+                                                                                                        .target
+                                                                                                        .value,
+                                                                                            };
                                                                                             setEditBudgetRows(
                                                                                                 updated,
                                                                                             );
@@ -4800,7 +4796,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                                 className="w-24 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs text-right"
                                                                                                 value={
                                                                                                     row[
-                                                                                                        field
+                                                                                                    field
                                                                                                     ] ||
                                                                                                     ""
                                                                                                 }
@@ -4814,17 +4810,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                                     updated[
                                                                                                         idx
                                                                                                     ] =
-                                                                                                        {
-                                                                                                            ...updated[
-                                                                                                                idx
-                                                                                                            ],
-                                                                                                            [field]:
-                                                                                                                Number(
-                                                                                                                    e
-                                                                                                                        .target
-                                                                                                                        .value,
-                                                                                                                ),
-                                                                                                        };
+                                                                                                    {
+                                                                                                        ...updated[
+                                                                                                        idx
+                                                                                                        ],
+                                                                                                        [field]:
+                                                                                                            Number(
+                                                                                                                e
+                                                                                                                    .target
+                                                                                                                    .value,
+                                                                                                            ),
+                                                                                                    };
                                                                                                     setEditBudgetRows(
                                                                                                         updated,
                                                                                                     );
@@ -4951,39 +4947,39 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                             </th>
                                                                             {totals.year1 >
                                                                                 0 && (
-                                                                                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                                                                    Year
-                                                                                    1
-                                                                                </th>
-                                                                            )}
+                                                                                    <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                                                                        Year
+                                                                                        1
+                                                                                    </th>
+                                                                                )}
                                                                             {totals.year2 >
                                                                                 0 && (
-                                                                                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                                                                    Year
-                                                                                    2
-                                                                                </th>
-                                                                            )}
+                                                                                    <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                                                                        Year
+                                                                                        2
+                                                                                    </th>
+                                                                                )}
                                                                             {totals.year3 >
                                                                                 0 && (
-                                                                                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                                                                    Year
-                                                                                    3
-                                                                                </th>
-                                                                            )}
+                                                                                    <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                                                                        Year
+                                                                                        3
+                                                                                    </th>
+                                                                                )}
                                                                             {totals.year4 >
                                                                                 0 && (
-                                                                                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                                                                    Year
-                                                                                    4
-                                                                                </th>
-                                                                            )}
+                                                                                    <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                                                                        Year
+                                                                                        4
+                                                                                    </th>
+                                                                                )}
                                                                             {totals.year5 >
                                                                                 0 && (
-                                                                                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                                                                    Year
-                                                                                    5
-                                                                                </th>
-                                                                            )}
+                                                                                    <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                                                                        Year
+                                                                                        5
+                                                                                    </th>
+                                                                                )}
                                                                             <th className="px-4 py-3 text-right text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
                                                                                 Total
                                                                             </th>
@@ -5008,59 +5004,59 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                     </td>
                                                                                     {totals.year1 >
                                                                                         0 && (
-                                                                                        <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                                                                            {(
-                                                                                                row.first_year_budget ||
-                                                                                                0
-                                                                                            ).toLocaleString(
-                                                                                                "en-IN",
-                                                                                            )}
-                                                                                        </td>
-                                                                                    )}
+                                                                                            <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                                                                                {(
+                                                                                                    row.first_year_budget ||
+                                                                                                    0
+                                                                                                ).toLocaleString(
+                                                                                                    "en-IN",
+                                                                                                )}
+                                                                                            </td>
+                                                                                        )}
                                                                                     {totals.year2 >
                                                                                         0 && (
-                                                                                        <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                                                                            {(
-                                                                                                row.second_year_budget ||
-                                                                                                0
-                                                                                            ).toLocaleString(
-                                                                                                "en-IN",
-                                                                                            )}
-                                                                                        </td>
-                                                                                    )}
+                                                                                            <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                                                                                {(
+                                                                                                    row.second_year_budget ||
+                                                                                                    0
+                                                                                                ).toLocaleString(
+                                                                                                    "en-IN",
+                                                                                                )}
+                                                                                            </td>
+                                                                                        )}
                                                                                     {totals.year3 >
                                                                                         0 && (
-                                                                                        <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                                                                            {(
-                                                                                                row.third_year_budget ||
-                                                                                                0
-                                                                                            ).toLocaleString(
-                                                                                                "en-IN",
-                                                                                            )}
-                                                                                        </td>
-                                                                                    )}
+                                                                                            <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                                                                                {(
+                                                                                                    row.third_year_budget ||
+                                                                                                    0
+                                                                                                ).toLocaleString(
+                                                                                                    "en-IN",
+                                                                                                )}
+                                                                                            </td>
+                                                                                        )}
                                                                                     {totals.year4 >
                                                                                         0 && (
-                                                                                        <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                                                                            {(
-                                                                                                row.fourth_year_budget ||
-                                                                                                0
-                                                                                            ).toLocaleString(
-                                                                                                "en-IN",
-                                                                                            )}
-                                                                                        </td>
-                                                                                    )}
+                                                                                            <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                                                                                {(
+                                                                                                    row.fourth_year_budget ||
+                                                                                                    0
+                                                                                                ).toLocaleString(
+                                                                                                    "en-IN",
+                                                                                                )}
+                                                                                            </td>
+                                                                                        )}
                                                                                     {totals.year5 >
                                                                                         0 && (
-                                                                                        <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
-                                                                                            {(
-                                                                                                row.fifth_year_budget ||
-                                                                                                0
-                                                                                            ).toLocaleString(
-                                                                                                "en-IN",
-                                                                                            )}
-                                                                                        </td>
-                                                                                    )}
+                                                                                            <td className="px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 text-right whitespace-nowrap">
+                                                                                                {(
+                                                                                                    row.fifth_year_budget ||
+                                                                                                    0
+                                                                                                ).toLocaleString(
+                                                                                                    "en-IN",
+                                                                                                )}
+                                                                                            </td>
+                                                                                        )}
                                                                                     <td className="px-4 py-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
                                                                                         {(
                                                                                             (row.first_year_budget ||
@@ -5089,44 +5085,44 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                             </td>
                                                                             {totals.year1 >
                                                                                 0 && (
-                                                                                <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                                                                    {totals.year1.toLocaleString(
-                                                                                        "en-IN",
-                                                                                    )}
-                                                                                </td>
-                                                                            )}
+                                                                                    <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                                                                        {totals.year1.toLocaleString(
+                                                                                            "en-IN",
+                                                                                        )}
+                                                                                    </td>
+                                                                                )}
                                                                             {totals.year2 >
                                                                                 0 && (
-                                                                                <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                                                                    {totals.year2.toLocaleString(
-                                                                                        "en-IN",
-                                                                                    )}
-                                                                                </td>
-                                                                            )}
+                                                                                    <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                                                                        {totals.year2.toLocaleString(
+                                                                                            "en-IN",
+                                                                                        )}
+                                                                                    </td>
+                                                                                )}
                                                                             {totals.year3 >
                                                                                 0 && (
-                                                                                <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                                                                    {totals.year3.toLocaleString(
-                                                                                        "en-IN",
-                                                                                    )}
-                                                                                </td>
-                                                                            )}
+                                                                                    <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                                                                        {totals.year3.toLocaleString(
+                                                                                            "en-IN",
+                                                                                        )}
+                                                                                    </td>
+                                                                                )}
                                                                             {totals.year4 >
                                                                                 0 && (
-                                                                                <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                                                                    {totals.year4.toLocaleString(
-                                                                                        "en-IN",
-                                                                                    )}
-                                                                                </td>
-                                                                            )}
+                                                                                    <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                                                                        {totals.year4.toLocaleString(
+                                                                                            "en-IN",
+                                                                                        )}
+                                                                                    </td>
+                                                                                )}
                                                                             {totals.year5 >
                                                                                 0 && (
-                                                                                <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
-                                                                                    {totals.year5.toLocaleString(
-                                                                                        "en-IN",
-                                                                                    )}
-                                                                                </td>
-                                                                            )}
+                                                                                    <td className="px-4 py-3 text-sm font-bold text-zinc-900 dark:text-zinc-100 text-right whitespace-nowrap">
+                                                                                        {totals.year5.toLocaleString(
+                                                                                            "en-IN",
+                                                                                        )}
+                                                                                    </td>
+                                                                                )}
                                                                             <td className="px-4 py-3 text-sm font-bold text-[#D97757] text-right whitespace-nowrap">
                                                                                 ₹{" "}
                                                                                 {(
@@ -5170,33 +5166,33 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                         ₹{" "}
                                                         {isEditingBudget
                                                             ? editBudgetRows
-                                                                  .reduce(
-                                                                      (
-                                                                          sum,
-                                                                          r,
-                                                                      ) =>
-                                                                          sum +
-                                                                          (r.first_year_budget ||
-                                                                              0) +
-                                                                          (r.second_year_budget ||
-                                                                              0) +
-                                                                          (r.third_year_budget ||
-                                                                              0) +
-                                                                          (r.fourth_year_budget ||
-                                                                              0) +
-                                                                          (r.fifth_year_budget ||
-                                                                              0),
-                                                                      0,
-                                                                  )
-                                                                  .toLocaleString(
-                                                                      "en-IN",
-                                                                  )
+                                                                .reduce(
+                                                                    (
+                                                                        sum,
+                                                                        r,
+                                                                    ) =>
+                                                                        sum +
+                                                                        (r.first_year_budget ||
+                                                                            0) +
+                                                                        (r.second_year_budget ||
+                                                                            0) +
+                                                                        (r.third_year_budget ||
+                                                                            0) +
+                                                                        (r.fourth_year_budget ||
+                                                                            0) +
+                                                                        (r.fifth_year_budget ||
+                                                                            0),
+                                                                    0,
+                                                                )
+                                                                .toLocaleString(
+                                                                    "en-IN",
+                                                                )
                                                             : (
-                                                                  data.total_budget_amount ||
-                                                                  0
-                                                              ).toLocaleString(
-                                                                  "en-IN",
-                                                              )}
+                                                                data.total_budget_amount ||
+                                                                0
+                                                            ).toLocaleString(
+                                                                "en-IN",
+                                                            )}
                                                     </span>
                                                 </div>
                                             </SectionWrapper>
@@ -5385,7 +5381,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                     {(() => {
                                                         const sanction =
                                                             sanctions[
-                                                                selectedSanctionIndex
+                                                            selectedSanctionIndex
                                                             ];
                                                         if (!sanction)
                                                             return null;
@@ -5441,8 +5437,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                         ) =>
                                                                             (parseFloat(
                                                                                 row[
-                                                                                    c
-                                                                                        .fieldname
+                                                                                c
+                                                                                    .fieldname
                                                                                 ],
                                                                             ) ||
                                                                                 0) >
@@ -5463,14 +5459,14 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                 );
                                                         const columnTotals: {
                                                             [
-                                                                key: string
+                                                            key: string
                                                             ]: number;
                                                         } =
                                                             budgetYearFieldnames.reduce(
                                                                 (
                                                                     totals: {
                                                                         [
-                                                                            key: string
+                                                                        key: string
                                                                         ]: number;
                                                                     },
                                                                     fieldname,
@@ -5489,7 +5485,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                 sum +
                                                                                 (parseFloat(
                                                                                     row[
-                                                                                        fieldname
+                                                                                    fieldname
                                                                                     ],
                                                                                 ) ||
                                                                                     0)
@@ -5640,7 +5636,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                     const isSanctionOwner =
                                                                         currentUser &&
                                                                         sanction.owner ===
-                                                                            currentUser;
+                                                                        currentUser;
                                                                     const yearFields =
                                                                         [
                                                                             {
@@ -5805,15 +5801,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                                                             updated[
                                                                                                                                 idx
                                                                                                                             ] =
-                                                                                                                                {
-                                                                                                                                    ...updated[
-                                                                                                                                        idx
-                                                                                                                                    ],
-                                                                                                                                    account_head:
-                                                                                                                                        e
-                                                                                                                                            .target
-                                                                                                                                            .value,
-                                                                                                                                };
+                                                                                                                            {
+                                                                                                                                ...updated[
+                                                                                                                                idx
+                                                                                                                                ],
+                                                                                                                                account_head:
+                                                                                                                                    e
+                                                                                                                                        .target
+                                                                                                                                        .value,
+                                                                                                                            };
                                                                                                                             setEditSanctionBudgetRows(
                                                                                                                                 updated,
                                                                                                                             );
@@ -5860,8 +5856,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                                                                 className="w-24 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1 text-xs text-right"
                                                                                                                                 value={
                                                                                                                                     row[
-                                                                                                                                        y
-                                                                                                                                            .key
+                                                                                                                                    y
+                                                                                                                                        .key
                                                                                                                                     ] ||
                                                                                                                                     ""
                                                                                                                                 }
@@ -5875,17 +5871,17 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                                                                     updated[
                                                                                                                                         idx
                                                                                                                                     ] =
-                                                                                                                                        {
-                                                                                                                                            ...updated[
-                                                                                                                                                idx
-                                                                                                                                            ],
-                                                                                                                                            [y.key]:
-                                                                                                                                                Number(
-                                                                                                                                                    e
-                                                                                                                                                        .target
-                                                                                                                                                        .value,
-                                                                                                                                                ),
-                                                                                                                                        };
+                                                                                                                                    {
+                                                                                                                                        ...updated[
+                                                                                                                                        idx
+                                                                                                                                        ],
+                                                                                                                                        [y.key]:
+                                                                                                                                            Number(
+                                                                                                                                                e
+                                                                                                                                                    .target
+                                                                                                                                                    .value,
+                                                                                                                                            ),
+                                                                                                                                    };
                                                                                                                                     setEditSanctionBudgetRows(
                                                                                                                                         updated,
                                                                                                                                     );
@@ -6000,7 +5996,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                 sanction
                                                                                     .sanctioned_budget_breakup
                                                                                     ?.length >
-                                                                                    0 && (
+                                                                                0 && (
                                                                                     <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
                                                                                         <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
                                                                                             <thead className="bg-zinc-50 dark:bg-zinc-800/50">
@@ -6044,7 +6040,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                                                     sum +
                                                                                                                     (parseFloat(
                                                                                                                         row[
-                                                                                                                            fieldname
+                                                                                                                        fieldname
                                                                                                                         ],
                                                                                                                     ) ||
                                                                                                                         0),
@@ -6068,22 +6064,22 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                                                                             className={`px-4 py-3 text-sm whitespace-nowrap ${c.fieldname === "account_head" ? "text-zinc-900 dark:text-zinc-100 text-left" : "text-zinc-700 dark:text-zinc-300 text-right"}`}
                                                                                                                         >
                                                                                                                             {c.fieldname ===
-                                                                                                                            "account_head"
+                                                                                                                                "account_head"
                                                                                                                                 ? row[
-                                                                                                                                      c
-                                                                                                                                          .fieldname
-                                                                                                                                  ]
+                                                                                                                                c
+                                                                                                                                    .fieldname
+                                                                                                                                ]
                                                                                                                                 : (
-                                                                                                                                      parseFloat(
-                                                                                                                                          row[
-                                                                                                                                              c
-                                                                                                                                                  .fieldname
-                                                                                                                                          ],
-                                                                                                                                      ) ||
-                                                                                                                                      0
-                                                                                                                                  ).toLocaleString(
-                                                                                                                                      "en-IN",
-                                                                                                                                  )}
+                                                                                                                                    parseFloat(
+                                                                                                                                        row[
+                                                                                                                                        c
+                                                                                                                                            .fieldname
+                                                                                                                                        ],
+                                                                                                                                    ) ||
+                                                                                                                                    0
+                                                                                                                                ).toLocaleString(
+                                                                                                                                    "en-IN",
+                                                                                                                                )}
                                                                                                                         </td>
                                                                                                                     ),
                                                                                                                 )}
@@ -6139,77 +6135,77 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                     .sanction_related_files
                                                                     ?.length >
                                                                     0 && (
-                                                                    <div>
-                                                                        <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">
-                                                                            Attached
-                                                                            Files
-                                                                        </h4>
-                                                                        <div className="space-y-2">
-                                                                            {sanction.sanction_related_files.map(
-                                                                                (
-                                                                                    file: any,
-                                                                                    i: number,
-                                                                                ) => (
-                                                                                    <div
-                                                                                        key={
-                                                                                            i
-                                                                                        }
-                                                                                        className="flex items-center justify-between gap-4 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-                                                                                    >
-                                                                                        <div className="flex-1 min-w-0">
-                                                                                            <p className="font-medium text-zinc-800 dark:text-zinc-200 text-sm truncate">
-                                                                                                {file.file_name ||
-                                                                                                    file.sanction_file
-                                                                                                        ?.split(
-                                                                                                            "/",
-                                                                                                        )
-                                                                                                        .pop() ||
-                                                                                                    "File"}
-                                                                                            </p>
-                                                                                            <p className="text-xs text-[#6B7280] dark:text-zinc-400">
-                                                                                                {
-                                                                                                    file.description
-                                                                                                }
-                                                                                            </p>
+                                                                        <div>
+                                                                            <h4 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3">
+                                                                                Attached
+                                                                                Files
+                                                                            </h4>
+                                                                            <div className="space-y-2">
+                                                                                {sanction.sanction_related_files.map(
+                                                                                    (
+                                                                                        file: any,
+                                                                                        i: number,
+                                                                                    ) => (
+                                                                                        <div
+                                                                                            key={
+                                                                                                i
+                                                                                            }
+                                                                                            className="flex items-center justify-between gap-4 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                                                                        >
+                                                                                            <div className="flex-1 min-w-0">
+                                                                                                <p className="font-medium text-zinc-800 dark:text-zinc-200 text-sm truncate">
+                                                                                                    {file.file_name ||
+                                                                                                        file.sanction_file
+                                                                                                            ?.split(
+                                                                                                                "/",
+                                                                                                            )
+                                                                                                            .pop() ||
+                                                                                                        "File"}
+                                                                                                </p>
+                                                                                                <p className="text-xs text-[#6B7280] dark:text-zinc-400">
+                                                                                                    {
+                                                                                                        file.description
+                                                                                                    }
+                                                                                                </p>
+                                                                                            </div>
+                                                                                            {file.sanction_file ? (
+                                                                                                <a
+                                                                                                    href={getFileUrl(
+                                                                                                        file.sanction_file,
+                                                                                                    )}
+                                                                                                    target="_blank"
+                                                                                                    rel="noopener noreferrer"
+                                                                                                    className="frappe-btn frappe-btn-primary text-sm"
+                                                                                                    aria-label={`View ${file.sanction_file?.split("/").pop()}`}
+                                                                                                >
+                                                                                                    <DownloadIcon className="h-4 w-4" />{" "}
+                                                                                                    View
+                                                                                                </a>
+                                                                                            ) : file.file_data ? (
+                                                                                                <a
+                                                                                                    href={`data:${getMimeType(file.file_name)};base64,${file.file_data}`}
+                                                                                                    download={
+                                                                                                        file.file_name
+                                                                                                    }
+                                                                                                    className="frappe-btn frappe-btn-primary text-sm"
+                                                                                                    aria-label={`Download ${file.file_name}`}
+                                                                                                >
+                                                                                                    <DownloadIcon className="h-4 w-4" />{" "}
+                                                                                                    Download
+                                                                                                </a>
+                                                                                            ) : (
+                                                                                                <span className="text-xs text-red-500">
+                                                                                                    Could
+                                                                                                    not
+                                                                                                    load
+                                                                                                </span>
+                                                                                            )}
                                                                                         </div>
-                                                                                        {file.sanction_file ? (
-                                                                                            <a
-                                                                                                href={getFileUrl(
-                                                                                                    file.sanction_file,
-                                                                                                )}
-                                                                                                target="_blank"
-                                                                                                rel="noopener noreferrer"
-                                                                                                className="frappe-btn frappe-btn-primary text-sm"
-                                                                                                aria-label={`View ${file.sanction_file?.split("/").pop()}`}
-                                                                                            >
-                                                                                                <DownloadIcon className="h-4 w-4" />{" "}
-                                                                                                View
-                                                                                            </a>
-                                                                                        ) : file.file_data ? (
-                                                                                            <a
-                                                                                                href={`data:${getMimeType(file.file_name)};base64,${file.file_data}`}
-                                                                                                download={
-                                                                                                    file.file_name
-                                                                                                }
-                                                                                                className="frappe-btn frappe-btn-primary text-sm"
-                                                                                                aria-label={`Download ${file.file_name}`}
-                                                                                            >
-                                                                                                <DownloadIcon className="h-4 w-4" />{" "}
-                                                                                                Download
-                                                                                            </a>
-                                                                                        ) : (
-                                                                                            <span className="text-xs text-red-500">
-                                                                                                Could
-                                                                                                not
-                                                                                                load
-                                                                                            </span>
-                                                                                        )}
-                                                                                    </div>
-                                                                                ),
-                                                                            )}
+                                                                                    ),
+                                                                                )}
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                )}
+                                                                    )}
                                                             </FrappeCard>
                                                         );
                                                     })()}
@@ -6403,10 +6399,10 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                 txn.status === "PAID"
                                                                     ? "bg-emerald-50 text-emerald-700"
                                                                     : txn.status === "PARTIALLY_PAID"
-                                                                      ? "bg-amber-50 text-amber-700"
-                                                                      : txn.status === "PENDING"
-                                                                        ? "bg-orange-50 text-orange-700"
-                                                                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
+                                                                        ? "bg-amber-50 text-amber-700"
+                                                                        : txn.status === "PENDING"
+                                                                            ? "bg-orange-50 text-orange-700"
+                                                                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300",
                                                             )}>
                                                                 {txn.status || "Completed"}
                                                             </span>
@@ -6482,7 +6478,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                             <div className="flex items-center gap-2 px-4 py-3 border-b border-[#C7D2FE] dark:border-blue-900/40 bg-[#EEF2FF] dark:bg-blue-950/20">
                                 <div className="w-1 h-5 rounded-full bg-[#4A6CF7]" />
                                 <h3 className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#1E3A8A] dark:text-blue-200">
-                                    Latest Activity
+                                    Latest Activity (Project)
                                 </h3>
                                 <button
                                     type="button"
@@ -6520,8 +6516,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                             <p className="text-[10px] font-medium text-[#A1A1AA]">
                                                                 {activity.creation
                                                                     ? new Date(
-                                                                          activity.creation,
-                                                                      ).toLocaleString()
+                                                                        activity.creation,
+                                                                    ).toLocaleString()
                                                                     : ""}
                                                             </p>
                                                         </div>
@@ -6713,39 +6709,39 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                 tab === "All"
                                                     ? budgetData
                                                     : budgetData.filter(
-                                                          (e: any) =>
-                                                              (
-                                                                  e.head ||
-                                                                  e.accountHead ||
-                                                                  ""
-                                                              )
-                                                                  .trim()
-                                                                  .toLowerCase() ===
-                                                              tab
-                                                                  .trim()
-                                                                  .toLowerCase(),
-                                                      );
+                                                        (e: any) =>
+                                                            (
+                                                                e.head ||
+                                                                e.accountHead ||
+                                                                ""
+                                                            )
+                                                                .trim()
+                                                                .toLowerCase() ===
+                                                            tab
+                                                                .trim()
+                                                                .toLowerCase(),
+                                                    );
                                             // Use the last entry's commitableBalance for that head (running total already calculated)
                                             const lastEntryForHead =
                                                 tabEntries.length > 0
                                                     ? tabEntries[
-                                                          tabEntries.length - 1
-                                                      ]
+                                                    tabEntries.length - 1
+                                                    ]
                                                     : null;
                                             const tabBalance =
                                                 tab === "All"
                                                     ? tabEntries.reduce(
-                                                          (acc, e) =>
-                                                              acc +
-                                                              (e.received ||
-                                                                  0) -
-                                                              (e.committed ||
-                                                                  0) -
-                                                              (e.payment || 0),
-                                                          0,
-                                                      )
+                                                        (acc, e) =>
+                                                            acc +
+                                                            (e.received ||
+                                                                0) -
+                                                            (e.committed ||
+                                                                0) -
+                                                            (e.payment || 0),
+                                                        0,
+                                                    )
                                                     : lastEntryForHead?.commitableBalance ||
-                                                      0;
+                                                    0;
                                             return (
                                                 <button
                                                     key={tab}
@@ -6798,9 +6794,9 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         const lastEntry =
                                             filteredLedgerData.length > 0
                                                 ? filteredLedgerData[
-                                                      filteredLedgerData.length -
-                                                          1
-                                                  ]
+                                                filteredLedgerData.length -
+                                                1
+                                                ]
                                                 : null;
                                         return (
                                             <div className="mb-4 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-800 flex flex-wrap gap-6">
@@ -6911,7 +6907,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                         </thead>
                                         <tbody>
                                             {sortedFilteredLedgerData.length ===
-                                            0 ? (
+                                                0 ? (
                                                 <tr>
                                                     <td
                                                         colSpan={13}
@@ -6956,8 +6952,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                             >
                                                                 {row.received
                                                                     ? row.received.toLocaleString(
-                                                                          "en-IN",
-                                                                      )
+                                                                        "en-IN",
+                                                                    )
                                                                     : "-"}
                                                             </td>
                                                             <td
@@ -6973,8 +6969,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                             >
                                                                 {row.committed
                                                                     ? row.committed.toLocaleString(
-                                                                          "en-IN",
-                                                                      )
+                                                                        "en-IN",
+                                                                    )
                                                                     : "-"}
                                                             </td>
                                                             <td
@@ -7001,8 +6997,8 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                             >
                                                                 {row.payment
                                                                     ? row.payment.toLocaleString(
-                                                                          "en-IN",
-                                                                      )
+                                                                        "en-IN",
+                                                                    )
                                                                     : "-"}
                                                             </td>
                                                             <td
@@ -7013,15 +7009,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                 className="font-semibold text-zinc-900 dark:text-zinc-100"
                                                             >
                                                                 {activeLedgerTab ===
-                                                                "All"
+                                                                    "All"
                                                                     ? row.actualBalance?.toLocaleString(
-                                                                          "en-IN",
-                                                                      )
+                                                                        "en-IN",
+                                                                    )
                                                                     : (
-                                                                          row as any
-                                                                      ).headActualBalance?.toLocaleString(
-                                                                          "en-IN",
-                                                                      )}
+                                                                        row as any
+                                                                    ).headActualBalance?.toLocaleString(
+                                                                        "en-IN",
+                                                                    )}
                                                             </td>
                                                             <td>
                                                                 <span
@@ -7030,15 +7026,15 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                                             row as any
                                                                         )
                                                                             .status ===
-                                                                        "Paid"
+                                                                            "Paid"
                                                                             ? "text-green-600 font-medium"
                                                                             : (
-                                                                                    row as any
-                                                                                )
-                                                                                    .status ===
+                                                                                row as any
+                                                                            )
+                                                                                .status ===
                                                                                 "Pending"
-                                                                              ? "text-amber-600 font-medium"
-                                                                              : ""
+                                                                                ? "text-amber-600 font-medium"
+                                                                                : ""
                                                                     }
                                                                 >
                                                                     {(
@@ -7160,7 +7156,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
 
                                             {/* Select for Select/Link fieldtypes */}
                                             {field.fieldtype === "Select" ||
-                                            field.fieldtype === "Link" ? (
+                                                field.fieldtype === "Link" ? (
                                                 <select
                                                     className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
                                                     value={value}
@@ -7199,7 +7195,7 @@ const ProjectDetailsOverview: React.FC<ProjectDetailsProps> = ({
                                                     disabled={field.read_only}
                                                 />
                                             ) : field.fieldtype ===
-                                              "Currency" ? (
+                                                "Currency" ? (
                                                 <input
                                                     type="number"
                                                     min="0"
