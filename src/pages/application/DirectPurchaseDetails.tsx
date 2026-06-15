@@ -1827,7 +1827,7 @@ import { P11PrintModal } from "@/components/P11PrintModal";
 import { POEditor } from "@/components/POEditor";
 import { DeclarationFields } from "@/components/DeclarationFields";
 import { useProjectBudget } from "@/hooks/useProjectBudget";
-import { ActivityLog } from "@/components/ActivityLog";
+import { ActivityLog, clearActivityLogCache } from "@/components/ActivityLog";
 import ViewProjectButton from "@/components/ViewProjectButton";
 import { CommitPayment } from "@/components/CommitPayment";
 
@@ -2459,11 +2459,17 @@ const DirectPurchaseActionButtons = ({
 }) => {
     const [actions, setActions] = useState<string[]>([]);
     const [isPerforming, setIsPerforming] = useState(false);
+    const [showCommentModal, setShowCommentModal] = useState(false);
+    const [selectedAction, setSelectedAction] = useState("");
+    const [comment, setComment] = useState("");
     const { call: fetchActions } = useFrappePostCall<{ message: string[] }>(
         directPurchaseAPI.getWorkflowActions,
     );
     const { call: performAction } = useFrappePostCall(
         directPurchaseAPI.performAction,
+    );
+    const { call: addComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment",
     );
 
     useEffect(() => {
@@ -2485,8 +2491,7 @@ const DirectPurchaseActionButtons = ({
             .catch(() => setActions([]));
     };
 
-    const handleAction = async (action: string) => {
-        // Block "Submit P-11" if P-11 form hasn't been created yet
+    const handleActionClick = (action: string) => {
         if (action === "Submit P-11" && !p11DocName) {
             alert(
                 "The P-11 Form has not been created yet.\n\nPlease go to the \"P-11 Form\" tab, fill in the P-11 Form, and then return here to submit.",
@@ -2494,60 +2499,97 @@ const DirectPurchaseActionButtons = ({
             onP11Missing?.();
             return;
         }
+        setSelectedAction(action);
+        setShowCommentModal(true);
+    };
 
-        if (!confirm(`Are you sure you want to perform "${action}"?`)) return;
+    const handleActionConfirm = async (actionComment: string) => {
+        setShowCommentModal(false);
         setIsPerforming(true);
         try {
-            const result: any = await performAction({ docname, action });
-            if (result?.message?.status === "success") {
-                alert(
-                    result.message.message || `Action "${action}" completed.`,
-                );
-                refreshActions();
-                onActionComplete();
-            } else if (result?.message?.status === "error") {
+            const result: any = await performAction({ docname, action: selectedAction, comment: actionComment });
+            const success = result?.message?.status === "success" || (result?.message && result.message.status !== "error");
+            if (result?.message?.status === "error") {
                 alert(`Error: ${result.message.message}`);
             } else {
-                alert(`Action "${action}" completed.`);
-                refreshActions();
-                onActionComplete();
+                if (actionComment.trim()) {
+                    try {
+                        await addComment({ doctype: "Direct Purchase", docname, content: actionComment.trim() });
+                    } catch (e) {
+                        console.warn("Failed to save action comment:", e);
+                    }
+                }
+                alert(result?.message?.message || `Action "${selectedAction}" completed.`);
+                if (success) { refreshActions(); onActionComplete(); }
             }
         } catch (err: any) {
             alert(`Action failed: ${err.message || "Unknown error"}`);
         } finally {
             setIsPerforming(false);
+            setComment("");
         }
     };
 
     if (!actions.length) return null;
 
     return (
-        <div className="flex flex-col gap-2">
-            {commitRequired && (
-                <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
-                    A commitment must be submitted before forwarding this application.
+        <>
+            <div className="flex flex-col gap-2">
+                {commitRequired && (
+                    <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300 font-medium">
+                        A commitment must be submitted before forwarding this application.
+                    </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                    {actions.map((action) => (
+                        <ClaudeButton
+                            key={action}
+                            variant="action"
+                            onClick={() => handleActionClick(action)}
+                            disabled={isPerforming || commitRequired}
+                            className={cn(
+                                action === "Submit P-11" && !p11DocName
+                                    ? "opacity-60 cursor-not-allowed"
+                                    : undefined,
+                                commitRequired && "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0"
+                            )}
+                            title={commitRequired ? "Submit a commitment first" : undefined}
+                        >
+                            {isPerforming ? "Processing…" : action}
+                        </ClaudeButton>
+                    ))}
+                </div>
+            </div>
+
+            {showCommentModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-6 rounded-xl shadow-lg w-full max-w-md">
+                        <h3 className="text-lg font-semibold text-[#3F3F46] dark:text-[#E4E4E7] mb-2">
+                            Confirm: {selectedAction}
+                        </h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+                            Optionally add a comment before performing this action.
+                        </p>
+                        <Textarea
+                            rows={4}
+                            placeholder="Add a comment (optional)..."
+                            value={comment}
+                            onChange={(e) => setComment(e.target.value)}
+                            autoFocus
+                            className="w-full text-sm resize-none border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg mb-4"
+                        />
+                        <div className="flex justify-end gap-2">
+                            <ClaudeButton variant="outline" onClick={() => { setShowCommentModal(false); setComment(""); }}>
+                                Cancel
+                            </ClaudeButton>
+                            <ClaudeButton variant="action" disabled={isPerforming} onClick={() => handleActionConfirm(comment)}>
+                                {isPerforming ? "Processing…" : "Confirm"}
+                            </ClaudeButton>
+                        </div>
+                    </div>
                 </div>
             )}
-            <div className="flex flex-wrap gap-2">
-                {actions.map((action) => (
-                    <ClaudeButton
-                        key={action}
-                        variant="action"
-                        onClick={() => handleAction(action)}
-                        disabled={isPerforming || commitRequired}
-                        className={cn(
-                            action === "Submit P-11" && !p11DocName
-                                ? "opacity-60 cursor-not-allowed"
-                                : undefined,
-                            commitRequired && "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500 cursor-not-allowed border-0"
-                        )}
-                        title={commitRequired ? "Submit a commitment first" : undefined}
-                    >
-                        {isPerforming ? "Processing…" : action}
-                    </ClaudeButton>
-                ))}
-            </div>
-        </div>
+        </>
     );
 };
 
@@ -2569,6 +2611,9 @@ const P11FormActionButtons = ({
         p11FormAPI.getWorkflowActions,
     );
     const { call: performAction } = useFrappePostCall(p11FormAPI.performAction);
+    const { call: addComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment",
+    );
 
     useEffect(() => {
         if (docname) {
@@ -2587,17 +2632,8 @@ const P11FormActionButtons = ({
     }, [docname]);
 
     const handleActionClick = (action: string) => {
-        // Actions that need comment/confirmation
-        const needsComment =
-            action.toLowerCase().includes("reject") ||
-            action.toLowerCase().includes("put back");
-
-        if (needsComment) {
-            setSelectedAction(action);
-            setShowCommentModal(true);
-        } else {
-            handleActionConfirm(action, "");
-        }
+        setSelectedAction(action);
+        setShowCommentModal(true);
     };
 
     const refreshP11Actions = () => {
@@ -2623,17 +2659,17 @@ const P11FormActionButtons = ({
                 comment: actionComment,
             });
 
-            if (result?.message?.status === "success") {
-                alert(
-                    result.message.message ||
-                    `Action "${action}" completed successfully.`,
-                );
-                refreshP11Actions();
-                onActionComplete();
-            } else if (result?.message?.status === "error") {
+            if (result?.message?.status === "error") {
                 alert(`Error: ${result.message.message}`);
             } else {
-                alert(`Action "${action}" completed.`);
+                if (actionComment.trim()) {
+                    try {
+                        await addComment({ doctype: "P_11 Form", docname, content: actionComment.trim() });
+                    } catch (e) {
+                        console.warn("Failed to save action comment:", e);
+                    }
+                }
+                alert(result?.message?.message || `Action "${action}" completed successfully.`);
                 refreshP11Actions();
                 onActionComplete();
             }
@@ -2742,6 +2778,9 @@ const SanctionSheetActionButtons = ({
     const { call: performAction } = useFrappePostCall(
         sanctionSheetAPI.performAction,
     );
+    const { call: addComment } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment",
+    );
 
     useEffect(() => {
         if (docname) {
@@ -2763,16 +2802,8 @@ const SanctionSheetActionButtons = ({
     }, [docname]);
 
     const handleActionClick = (action: string) => {
-        const needsComment =
-            action.toLowerCase().includes("reject") ||
-            action.toLowerCase().includes("put back");
-
-        if (needsComment) {
-            setSelectedAction(action);
-            setShowCommentModal(true);
-        } else {
-            handleActionConfirm(action, "");
-        }
+        setSelectedAction(action);
+        setShowCommentModal(true);
     };
 
     const refreshSanctionActions = () => {
@@ -2798,17 +2829,17 @@ const SanctionSheetActionButtons = ({
                 comment: actionComment,
             });
 
-            if (result?.message?.status === "success") {
-                alert(
-                    result.message.message ||
-                    `Action "${action}" completed successfully.`,
-                );
-                refreshSanctionActions();
-                onActionComplete();
-            } else if (result?.message?.status === "error") {
+            if (result?.message?.status === "error") {
                 alert(`Error: ${result.message.message}`);
             } else {
-                alert(`Action "${action}" completed.`);
+                if (actionComment.trim()) {
+                    try {
+                        await addComment({ doctype: "sanction_sheet", docname, content: actionComment.trim() });
+                    } catch (e) {
+                        console.warn("Failed to save action comment:", e);
+                    }
+                }
+                alert(result?.message?.message || `Action "${action}" completed successfully.`);
                 refreshSanctionActions();
                 onActionComplete();
             }
@@ -3108,6 +3139,7 @@ const DirectPurchaseDetails: React.FC = () => {
     );
     const [sidebarComment, setSidebarComment] = useState("");
     const [isAddingComment, setIsAddingComment] = useState(false);
+    const [activityRefreshKey, setActivityRefreshKey] = useState(0);
     const [isGeneratingPO, setIsGeneratingPO] = useState(false);
     const [isGeneratingP11, setIsGeneratingP11] = useState(false);
     const [isOpeningSanctionSheet, setIsOpeningSanctionSheet] = useState(false);
@@ -3238,7 +3270,11 @@ const DirectPurchaseDetails: React.FC = () => {
     }, [linkedCommitment]);
 
     const loadData = () => {
-        if (id) reloadData();
+        if (id) {
+            reloadData();
+            clearActivityLogCache("Direct Purchase", id);
+            setActivityRefreshKey((k) => k + 1);
+        }
     };
 
     // Fetch sanction sheet data for PO editor (on load and after re-fetch triggers)
@@ -3299,13 +3335,13 @@ const DirectPurchaseDetails: React.FC = () => {
         setIsAddingComment(true);
         try {
             await addComment({
-                reference_doctype: "Direct Purchase",
-                reference_name: id,
+                doctype: "Direct Purchase",
+                docname: id,
                 content: sidebarComment,
-                comment_type: "Comment",
             });
             setSidebarComment("");
-            loadData();
+            clearActivityLogCache("Direct Purchase", id);
+            setActivityRefreshKey((k) => k + 1);
         } catch (err) {
             console.error("Error adding comment:", err);
         } finally {
@@ -3831,7 +3867,7 @@ const DirectPurchaseDetails: React.FC = () => {
                         {/* Activity Log (new endpoint) */}
                         {id && (
                             <ClaudeCard title="Activity Log">
-                                <ActivityLog doctype="Direct Purchase" docname={id} />
+                                <ActivityLog key={activityRefreshKey} doctype="Direct Purchase" docname={id} />
                             </ClaudeCard>
                         )}
 

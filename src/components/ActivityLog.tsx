@@ -31,6 +31,10 @@ export interface ActivityLogProps {
 // Key: `${doctype}::${docname}` → entries array
 const _cache = new Map<string, ActivityLogEntry[]>();
 
+export function clearActivityLogCache(doctype: string, docname: string) {
+    _cache.delete(`${doctype}::${docname}`);
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function cacheKey(doctype: string, docname: string) {
