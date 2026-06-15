@@ -17,7 +17,7 @@ import { useUserRoles } from "@/components/UserRole";
 import { useProjectBudget } from '@/hooks/useProjectBudget';
 import { BudgetHeadName } from '@/components/BudgetHeadName';
 import { CommitPayment } from '@/components/CommitPayment';
-import { ActivityLog } from '@/components/ActivityLog';
+import { ActivityLog, clearActivityLogCache } from '@/components/ActivityLog';
 
 type LinkOption = {
     value: string;
@@ -44,6 +44,66 @@ const getChairpersonLabel = (
 const DORND_ROLE = "Dean, RnD";
 
 // --- FRAAPPE UI WRAPPERS ---
+// --- COMMENT MODAL ---
+const CommentModal = ({
+    isOpen,
+    onClose,
+    onSubmit,
+    action,
+    isLoading,
+}: {
+    isOpen: boolean;
+    onClose: () => void;
+    onSubmit: (comment: string) => void;
+    action: string;
+    isLoading: boolean;
+}) => {
+    const [comment, setComment] = useState("");
+
+    useEffect(() => {
+        if (isOpen) setComment("");
+    }, [isOpen]);
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-[#FFFFFF] dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] p-6 rounded-xl shadow-xl w-full max-w-md">
+                <h3 className="text-[15px] font-bold text-[#3F3F46] dark:text-[#E4E4E7] mb-2">
+                    Confirm: {action}
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+                    Optionally add a comment before performing this action.
+                </p>
+                <textarea
+                    className="w-full border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#18181B] text-[#3F3F46] dark:text-[#E4E4E7] p-3 rounded-lg text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-[#D97757]/20 focus:border-[#D97757] font-sans leading-relaxed"
+                    rows={4}
+                    placeholder="Add a comment (optional)..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    autoFocus
+                />
+                <div className="flex justify-end gap-3">
+                    <button
+                        onClick={onClose}
+                        disabled={isLoading}
+                        className="px-4 py-2 rounded-lg font-medium text-sm bg-white dark:bg-[#27272A] border border-[#E4E4E7] dark:border-[#3F3F46] text-[#3F3F46] dark:text-[#E4E4E7] hover:bg-zinc-50 dark:hover:bg-[#3F3F46] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={() => onSubmit(comment)}
+                        disabled={isLoading}
+                        className="px-4 py-2 rounded-lg font-medium text-sm bg-[#D97757] text-white hover:opacity-90 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isLoading ? "Processing..." : "Confirm"}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const FrappeCard = ({ children, className }: any) => (
     <Card
@@ -111,6 +171,15 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
     const [availableActions, setAvailableActions] = useState<string[]>([]);
     const [isActionLoading, setIsActionLoading] = useState(false);
 
+    // Comment modal state
+    const [commentModalOpen, setCommentModalOpen] = useState(false);
+    const [pendingAction, setPendingAction] = useState<string>("");
+    const [activityRefreshKey, setActivityRefreshKey] = useState(0);
+
+    // Add comment state
+    const [newComment, setNewComment] = useState("");
+    const [isPostingComment, setIsPostingComment] = useState(false);
+
     // Commit / Payment state
     // commitHead/commitAmount moved to CommitPayment; kept for Record Payment section
     const [commitHead, setCommitHead] = useState("");
@@ -137,6 +206,9 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         'rndopsapp.rndopsapp.commitPayment.submit_payment_data',
     );
     const { call: fetchAccountHeads } = useFrappePostCall<{ message: any[] }>('frappe.client.get_list');
+    const { call: addCommentCall } = useFrappePostCall(
+        "rndopsapp.rndopsapp.api.add_project_comment",
+    );
     const { call: updateChairpersonCall, loading: isUpdatingChairperson } = useFrappePostCall<{ message: any }>(
         "rndopsapp.rndopsapp.doctype.recruitment_adhoc_contractual.recruitment_adhoc_contractual.update_chairperson_fields",
     );
@@ -1104,17 +1176,25 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
         }
     };
 
-    const handleWorkflowAction = async (action: string) => {
+    const handleWorkflowAction = (action: string) => {
         const docNameToUse = savedDocName || editDocName;
         if (!docNameToUse) {
             alert("Please save the document first.");
             return;
         }
+        setPendingAction(action);
+        setCommentModalOpen(true);
+    };
+
+    const handleConfirmWorkflowAction = async (comment: string) => {
+        const docNameToUse = savedDocName || editDocName;
+        if (!docNameToUse || !pendingAction) return;
+        setCommentModalOpen(false);
 
         setIsActionLoading(true);
         try {
             let preparedData;
-            if (workflowState === "Draft" || action === "Submit") {
+            if (workflowState === "Draft" || pendingAction === "Submit") {
                 preparedData = await prepareFormDataForApi({
                     ...formData,
                     name: docNameToUse,
@@ -1123,8 +1203,9 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
 
             const response = await performActionCall({
                 docname: docNameToUse,
-                action: action,
+                action: pendingAction,
                 updated_data: preparedData,
+                comment: comment.trim() || undefined,
             });
 
             if (
@@ -1132,21 +1213,34 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                 response.message &&
                 response.message.status === "success"
             ) {
-                alert(`Action "${action}" completed successfully`);
+                if (comment.trim()) {
+                    try {
+                        await addCommentCall({
+                            doctype: "Recruitment Adhoc Contractual",
+                            docname: docNameToUse,
+                            content: comment.trim(),
+                        });
+                    } catch (e) {
+                        console.warn("Failed to save action comment:", e);
+                    }
+                }
+                alert(`Action "${pendingAction}" completed successfully`);
                 setWorkflowState(response.message.workflow_state);
+                clearActivityLogCache("Recruitment Adhoc Contractual", docNameToUse);
+                setActivityRefreshKey((k) => k + 1);
                 fetchFormConfiguration();
                 fetchWorkflowActions(docNameToUse);
             } else {
                 const errorDetail = response?.message?.message || (response?.message ? JSON.stringify(response.message) : "");
                 alert(
-                    errorDetail ? `Failed to perform action ${action}: ${errorDetail}` : `Failed to perform action ${action}`,
+                    errorDetail ? `Failed to perform action ${pendingAction}: ${errorDetail}` : `Failed to perform action ${pendingAction}`,
                 );
             }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
-            console.error(`Workflow Action ${action} Error:`, error);
+            console.error(`Workflow Action ${pendingAction} Error:`, error);
 
-            let errMsg = `An error occurred while performing action: ${action}`;
+            let errMsg = `An error occurred while performing action: ${pendingAction}`;
             try {
                 if (error.exc_type === "ValidationError" && error._server_messages) {
                     errMsg = JSON.parse(error._server_messages)
@@ -1161,6 +1255,26 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
             alert(errMsg);
         } finally {
             setIsActionLoading(false);
+            setPendingAction("");
+        }
+    };
+
+    const handleAddComment = async () => {
+        if (!newComment.trim() || !currentDocName) return;
+        setIsPostingComment(true);
+        try {
+            await addCommentCall({
+                doctype: "Recruitment Adhoc Contractual",
+                docname: currentDocName,
+                content: newComment.trim(),
+            });
+            setNewComment("");
+            clearActivityLogCache("Recruitment Adhoc Contractual", currentDocName);
+            setActivityRefreshKey((k) => k + 1);
+        } catch {
+            alert("Error: Could not post comment.");
+        } finally {
+            setIsPostingComment(false);
         }
     };
 
@@ -1537,12 +1651,46 @@ const RecruitmentAdhocContractualForm: React.FC = () => {
                                             <X className="h-4 w-4" />
                                         </button>
                                     </div>
-                                    <ActivityLog doctype="Recruitment Adhoc Contractual" docname={currentDocName} />
+                                    <div className="mb-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-lg">
+                                        <label className="block text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
+                                            Add a Comment
+                                        </label>
+                                        <textarea
+                                            placeholder="Type your comment... (Ctrl+Enter to submit)"
+                                            value={newComment}
+                                            onChange={(e) => setNewComment(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleAddComment();
+                                            }}
+                                            disabled={isPostingComment}
+                                            rows={3}
+                                            className="w-full resize-none bg-white dark:bg-zinc-900 p-3 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757] text-sm"
+                                        />
+                                        <div className="flex items-center justify-between mt-2">
+                                            <span className="text-xs text-zinc-400">{newComment.length}/1000</span>
+                                            <button
+                                                onClick={handleAddComment}
+                                                disabled={isPostingComment || !newComment.trim()}
+                                                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#D97757] text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                            >
+                                                {isPostingComment ? "Posting..." : "Post Comment"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <ActivityLog key={activityRefreshKey} doctype="Recruitment Adhoc Contractual" docname={currentDocName} />
                                 </div>
                             </div>
                         )}
                     </>
                 )}
+
+                <CommentModal
+                    isOpen={commentModalOpen}
+                    onClose={() => { setCommentModalOpen(false); setPendingAction(""); }}
+                    onSubmit={handleConfirmWorkflowAction}
+                    action={pendingAction}
+                    isLoading={isActionLoading}
+                />
 
                 {/* ============================================================
                     EDITED BY MKY | 2026-04-14 15:35 IST
