@@ -1292,13 +1292,21 @@ const AddFundReceived: React.FC = () => {
                     return <input type="date" {...commonProps} />;
                 case "Data":
                 default:
-                    return <input type="text" {...commonProps} />;
+                    return (
+                        <input
+                            type="text"
+                            {...commonProps}
+                            maxLength={field.fieldname === "bank_account" ? 30 : undefined}
+                        />
+                    );
             }
         };
 
         // Inline error for fund_received_amt
         const isFundReceivedAmtField =
             field.fieldname === "fund_received_amt";
+        const isBankAccountField = field.fieldname === "bank_account";
+        const bankAccountValue = String(formData["bank_account"] ?? "");
 
         return (
             <div key={field.fieldname} className="space-y-1.5">
@@ -1312,6 +1320,25 @@ const AddFundReceived: React.FC = () => {
                     )}
                 </label>
                 {renderInput()}
+                {/* Character limit indicator for bank_account */}
+                {isBankAccountField && (
+                    <div className="flex items-center justify-between mt-1">
+                        {bankAccountValue.length >= 30 ? (
+                            <p className="text-xs font-medium text-red-600">
+                                Maximum 30 characters allowed.
+                            </p>
+                        ) : bankAccountValue.length >= 25 ? (
+                            <p className="text-xs font-medium text-amber-600">
+                                {30 - bankAccountValue.length} character{30 - bankAccountValue.length !== 1 ? "s" : ""} remaining.
+                            </p>
+                        ) : (
+                            <span />
+                        )}
+                        <span className={`text-xs font-medium ${bankAccountValue.length >= 30 ? "text-red-600" : bankAccountValue.length >= 25 ? "text-amber-600" : "text-zinc-400"}`}>
+                            {bankAccountValue.length}/30
+                        </span>
+                    </div>
+                )}
                 {/* Real-time validation: breakup total vs fund_received_amt */}
                 {isFundReceivedAmtField && fundReceivedAmtError && (
                     <p
