@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ProjectTitle } from './ProjectTitle';
+import { FundingAgencyName } from './FundingAgencyName';
+import { UserFullName } from './UserFullName';
 
 const ProjectNo: React.FC<{ projectId?: string }> = ({ projectId }) => {
     const [projectNo, setProjectNo] = useState<string>('');
@@ -119,14 +121,30 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
             items.push({ label: 'IDF (40% of Overhead Amount)', amount: depositSlip.idf_amount });
         }
 
-        // DPF
-        if (depositSlip.dpf_amount) {
-            const dpfLabel = type === 'consultancy_d' || type === 'consultancy_e'
-                ? 'DPF/CE (50% of Overhead Amount)'
-                : type === 'consultancy_t'
-                    ? 'DPF / CE'
-                    : 'DPF / CLE (25% of Overhead Amount)';
-            items.push({ label: dpfLabel, amount: depositSlip.dpf_amount });
+        // DPF — child table (Research deposit slip)
+        if (Array.isArray(depositSlip.dpf_credit_distributions) && depositSlip.dpf_credit_distributions.length > 0) {
+            depositSlip.dpf_credit_distributions.forEach((item: any) => {
+                const dept = item.select_dept || item.department || item.dept_name || '';
+                const pct = item.dpf_percentage || item.percentage || 0;
+                const amount = parseFloat(item.dpf_amount) || parseFloat(item.amount) || 0;
+                const deptSuffix = dept ? ` - ${dept}` : '';
+                items.push({
+                    label: `DPF (${pct}% of Overhead Amount)${deptSuffix}`,
+                    amount,
+                });
+            });
+        }
+
+        // DPF — scalar fallback (other deposit slip types)
+        if (!Array.isArray(depositSlip.dpf_credit_distributions) || depositSlip.dpf_credit_distributions.length === 0) {
+            if (depositSlip.dpf_amount) {
+                const dpfLabel = type === 'consultancy_d' || type === 'consultancy_e'
+                    ? 'DPF/CE (50% of Overhead Amount)'
+                    : type === 'consultancy_t'
+                        ? 'DPF / CE'
+                        : 'DPF / CLE (25% of Overhead Amount)';
+                items.push({ label: dpfLabel, amount: depositSlip.dpf_amount });
+            }
         }
 
         // credit_distribution child table (used by E Non Routine, T Testing, etc.)
@@ -262,7 +280,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 : 'Principal Investigator'}
                         </td>
                         <td colSpan={2} className="border border-black p-1">
-                            {depositSlip.principal_investigator || depositSlip.principal_consultant || '-'}
+                            <UserFullName email={depositSlip.principal_investigator || depositSlip.principal_consultant} showEmail />
                         </td>
                     </tr>
 
@@ -270,14 +288,22 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                     <tr>
                         <td className="border border-black p-1 text-center">{getRowNum()}</td>
                         <td className="border border-black p-1">Client</td>
-                        <td colSpan={2} className="border border-black p-1">{depositSlip.client || '-'}</td>
+                        <td colSpan={2} className="border border-black p-1">
+                            {depositSlip.funding_agency
+                                ? <FundingAgencyName value={depositSlip.funding_agency} />
+                                : (depositSlip.client || '-')}
+                        </td>
                     </tr>
 
                     {/* Funding Agency */}
                     <tr>
                         <td className="border border-black p-1 text-center">{getRowNum()}</td>
                         <td className="border border-black p-1">Funding Agency</td>
-                        <td colSpan={2} className="border border-black p-1">{depositSlip.funding_agency || '-'}</td>
+                        <td colSpan={2} className="border border-black p-1">
+                            {depositSlip.funding_agency
+                                ? <FundingAgencyName value={depositSlip.funding_agency} />
+                                : '-'}
+                        </td>
                     </tr>
 
                     {/* GSTIN */}
