@@ -336,14 +336,36 @@ const FundReceivedDetails = () => {
         (async () => {
             for (const doctype of doctypes) {
                 try {
-                    const res = await fetch(
-                        `/api/v2/document/${encodeURIComponent(doctype)}?filters=${encodeURIComponent(JSON.stringify([["fund_received_ref","=",name]]))}&order_by=creation+desc&limit_page_length=1&fields=${encodeURIComponent(JSON.stringify(["name"]))}`,
+                    // Primary: POST-based get_list (reliable across all Frappe versions)
+                    const res = await fetch("/api/method/frappe.client.get_list", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        credentials: "include",
+                        body: JSON.stringify({
+                            doctype,
+                            filters: [["fund_received_ref", "=", name]],
+                            fields: ["name"],
+                            limit_page_length: 1,
+                            order_by: "creation desc",
+                        }),
+                    });
+                    if (res.ok) {
+                        const json = await res.json();
+                        if (json.message?.length > 0) {
+                            if (!cancelled) setLinkedDepositSlip({ name: json.message[0].name, doctype });
+                            return;
+                        }
+                        continue;
+                    }
+                    // Fallback: v2 document list API (without fields param to avoid encoding issues)
+                    const res2 = await fetch(
+                        `/api/v2/document/${encodeURIComponent(doctype)}?filters=[["fund_received_ref","=","${name}"]]&order_by=creation desc&limit_page_length=1`,
                         { credentials: "include" },
                     );
-                    if (!res.ok) continue;
-                    const json = await res.json();
-                    if (json.data?.length > 0) {
-                        if (!cancelled) setLinkedDepositSlip({ name: json.data[0].name, doctype });
+                    if (!res2.ok) continue;
+                    const json2 = await res2.json();
+                    if (json2.data?.length > 0) {
+                        if (!cancelled) setLinkedDepositSlip({ name: json2.data[0].name, doctype });
                         return;
                     }
                 } catch {}

@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { ActivityLog } from '@/components/ActivityLog';
 import { XIcon, ActivityIcon } from 'lucide-react';
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFrappeGetCall, useFrappeAuth, useFrappeGetDocList, useFrappePostCall } from 'frappe-react-sdk';
 import { GlobalLoader } from '@/components/ui/global-loader';
 import { useUserRoles } from '../components/UserRole';
@@ -215,10 +215,11 @@ const FrappeButton = ({ children, onClick, disabled, className, variant = 'ghost
 
 const PendingTask: React.FC = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [currentPage, setCurrentPage] = useState(1);
-    const [selectedModule, setSelectedModule] = useState<string>('all');
-    const [searchQuery, setSearchQuery] = useState<string>('');
-    const [selectedProjectType, setSelectedProjectType] = useState<ProjectTypeTab>('Research');
+    const selectedModule = searchParams.get('module') ?? 'all';
+    const searchQuery = searchParams.get('q') ?? '';
+    const selectedProjectType = (searchParams.get('type') as ProjectTypeTab) ?? 'Research';
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [itemsPerPage, setItemsPerPage] = useState<number>(10);
     // Activity peek panel state
@@ -518,23 +519,22 @@ const PendingTask: React.FC = () => {
     const handlePageChange = (pageNumber: number) => setCurrentPage(pageNumber);
 
     const handleProjectTypeChange = (tab: ProjectTypeTab) => {
-        setSelectedProjectType(tab);
-        setSelectedModule('all');
+        setSearchParams(prev => { prev.set('type', tab); prev.delete('module'); prev.delete('q'); return prev; });
         setCurrentPage(1);
     };
 
     const handleModuleChange = (module: string) => {
-        setSelectedModule(module);
+        setSearchParams(prev => { module === 'all' ? prev.delete('module') : prev.set('module', module); return prev; });
         setCurrentPage(1);
     };
 
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchQuery(e.target.value);
+        setSearchParams(prev => { e.target.value ? prev.set('q', e.target.value) : prev.delete('q'); return prev; });
         setCurrentPage(1);
     };
 
     const handleClearSearch = () => {
-        setSearchQuery('');
+        setSearchParams(prev => { prev.delete('q'); return prev; });
         searchInputRef.current?.focus();
     };
 
