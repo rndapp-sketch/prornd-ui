@@ -3545,7 +3545,6 @@ Endorsement is optional. You may continue completing Project Registration while 
                                                 <span className="inline-block w-1 h-5 bg-[#4A6CF7] rounded-full flex-shrink-0" />
                                                 1. Project Description
                                             </h2>
-                                            {renderField("project_no")}
                                             {renderField("project_title")}
                                             {renderField("project_type")}
                                             {formData.project_type ===
