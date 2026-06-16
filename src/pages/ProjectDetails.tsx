@@ -8,6 +8,7 @@ import React, {
     forwardRef,
     useRef,
 } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     useFrappeGetDoc,
@@ -51,6 +52,7 @@ import {
     Plus,
     Trash2,
     ChevronRight,
+    ChevronDown,
     CheckCircle2,
     XCircle,
     Clock,
@@ -1087,6 +1089,7 @@ const WorkflowActions = ({
         bank_name?: string;
     };
 }) => {
+    // All hooks must be declared before any early returns
     const {
         data,
         error,
@@ -1095,6 +1098,23 @@ const WorkflowActions = ({
         "rndopsapp.rndopsapp.doctype.project_registration.project_registration.get_available_workflow_actions",
         { docname },
     );
+    const [dropdownOpen, setDropdownOpen] = React.useState(false);
+    const [dropdownPos, setDropdownPos] = React.useState({ top: 0, right: 0 });
+    const toggleBtnRef = React.useRef<HTMLButtonElement>(null);
+    const dropdownPortalRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+        if (!dropdownOpen) return;
+        const handleOutside = (e: MouseEvent) => {
+            const target = e.target as Node;
+            const inToggle = toggleBtnRef.current?.contains(target);
+            const inMenu = dropdownPortalRef.current?.contains(target);
+            if (!inToggle && !inMenu) setDropdownOpen(false);
+        };
+        document.addEventListener("mousedown", handleOutside);
+        return () => document.removeEventListener("mousedown", handleOutside);
+    }, [dropdownOpen]);
+
     if (isActionsLoading) {
         return (
             <div className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -1116,65 +1136,120 @@ const WorkflowActions = ({
     const isForwardBlocked =
         isStaffRnD &&
         status === "Pending Staff Approval" &&
-        (!projectNo?.trim() || !accountDetailsFilled);
+        !projectNo?.trim();
+
+    const handleToggleDropdown = () => {
+        if (!dropdownOpen && toggleBtnRef.current) {
+            const rect = toggleBtnRef.current.getBoundingClientRect();
+            setDropdownPos({ top: rect.bottom + window.scrollY + 4, right: window.innerWidth - rect.right });
+        }
+        setDropdownOpen(o => !o);
+    };
+
+    const actions = data.message;
+
+    // Categorise actions for grouping + colour
+    const categorise = (action: string) => {
+        const a = action.toLowerCase();
+        if (a.includes("forward") || a.includes("approve") || a.includes("submit")) return "forward";
+        if (a.includes("reject")) return "reject";
+        return "neutral";
+    };
+
+    const forwardActions  = actions.filter(a => categorise(a) === "forward");
+    const neutralActions  = actions.filter(a => categorise(a) === "neutral");
+    const rejectActions   = actions.filter(a => categorise(a) === "reject");
+    const groups = [forwardActions, neutralActions, rejectActions].filter(g => g.length > 0);
+
+    const itemStyle = (action: string) => {
+        const cat = categorise(action);
+        if (cat === "forward") return {
+            icon: <CheckCircleIcon className="h-3.5 w-3.5" />,
+            cls: "text-[#D97757] hover:bg-orange-50 dark:hover:bg-orange-900/20",
+            iconCls: "text-[#D97757]",
+        };
+        if (cat === "reject") return {
+            icon: <XCircleIcon className="h-3.5 w-3.5" />,
+            cls: "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20",
+            iconCls: "text-red-500",
+        };
+        return {
+            icon: <ChevronRight className="h-3.5 w-3.5" />,
+            cls: "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700",
+            iconCls: "text-zinc-400 dark:text-zinc-500",
+        };
+    };
 
     return (
-        <div className="flex items-center gap-2">
-            {data.message.map((actionString: string) => {
-                const isForward = actionString.toLowerCase() === "forward";
-                const blocked = isForward && isForwardBlocked;
-                return (
-                    <div key={actionString} className="relative group">
-                        <Button
-                            onClick={() => onAction(actionString)}
-                            variant={
-                                actionString.toLowerCase().includes("approve") ||
-                                    actionString.toLowerCase().includes("submit")
-                                    ? "default"
-                                    : actionString.toLowerCase().includes("reject")
-                                        ? "destructive"
-                                        : "secondary"
-                            }
-                            className={cn(
-                                "flex items-center gap-2 h-9 px-4 text-xs font-medium rounded-lg shadow-sm transition-all",
-                                {
-                                    "bg-[#D97757] hover:bg-[#D97757] text-white":
-                                        actionString.toLowerCase().includes("approve") ||
-                                        actionString.toLowerCase().includes("submit"),
-                                    "bg-red-500 hover:bg-red-600 text-white":
-                                        actionString.toLowerCase().includes("reject"),
-                                    "bg-white dark:bg-zinc-900 hover:bg-zinc-50 text-zinc-700 border border-zinc-200":
-                                        !["approve", "reject", "submit"].some((term) =>
-                                            actionString.toLowerCase().includes(term),
-                                        ),
-                                    "opacity-50 cursor-not-allowed": blocked,
-                                },
-                            )}
-                            disabled={isLoading || blocked}
-                        >
-                            {actionString.toLowerCase().includes("approve") && (
-                                <CheckCircleIcon className="h-3.5 w-3.5 mr-1.5" />
-                            )}
-                            {actionString.toLowerCase().includes("reject") && (
-                                <XCircleIcon className="h-3.5 w-3.5 mr-1.5" />
-                            )}
-                            {isLoading ? "Processing..." : actionString}
-                        </Button>
-                        {blocked && (
-                            <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:block z-50 w-max max-w-xs">
-                                <div className="bg-zinc-900 text-white text-xs rounded px-2.5 py-1.5 shadow-lg">
-                                    {!projectNo?.trim() && (
-                                        <div>Project Number is required before forwarding.</div>
-                                    )}
-                                    {!accountDetailsFilled && (
-                                        <div>Account Details (Account Type &amp; related fields) must be saved before forwarding.</div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+        <div className="relative">
+            {/* Trigger button — accented so it stands out */}
+            <button
+                ref={toggleBtnRef}
+                onClick={handleToggleDropdown}
+                disabled={isLoading}
+                className={cn(
+                    "inline-flex items-center gap-2 h-9 px-4 text-xs font-bold uppercase tracking-wide rounded-lg shadow-sm transition-all disabled:opacity-50",
+                    dropdownOpen
+                        ? "bg-[#D97757] text-white border border-[#c66a4e]"
+                        : "bg-[#FFF7ED] dark:bg-[#D97757]/15 text-[#D97757] border border-[#D97757]/40 hover:bg-[#D97757] hover:text-white dark:hover:bg-[#D97757]/30",
+                )}
+            >
+                {isLoading ? "Processing…" : "Actions"}
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-150", dropdownOpen && "rotate-180")} />
+            </button>
+
+            {/* Portal dropdown */}
+            {dropdownOpen && createPortal(
+                <div
+                    ref={dropdownPortalRef}
+                    style={{ position: "absolute", top: dropdownPos.top, right: dropdownPos.right, zIndex: 9999 }}
+                    className="min-w-[210px] bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-2xl overflow-hidden"
+                >
+                    {/* Header */}
+                    <div className="px-4 py-2 bg-zinc-50 dark:bg-zinc-900/60 border-b border-zinc-100 dark:border-zinc-700">
+                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                            Workflow Actions
+                        </span>
                     </div>
-                );
-            })}
+
+                    {/* Grouped action items */}
+                    {groups.map((group, gi) => (
+                        <React.Fragment key={gi}>
+                            {gi > 0 && <div className="h-px bg-zinc-100 dark:bg-zinc-700 mx-3" />}
+                            {group.map((action) => {
+                                const blocked = action.toLowerCase() === "forward" && isForwardBlocked;
+                                const { icon, cls, iconCls } = itemStyle(action);
+                                return (
+                                    <div key={action} className="relative group/item">
+                                        <button
+                                            onClick={() => { if (!blocked) { setDropdownOpen(false); onAction(action); } }}
+                                            disabled={isLoading || blocked}
+                                            className={cn(
+                                                "w-full flex items-center gap-2.5 px-4 py-2.5 text-[12px] font-semibold text-left transition-colors disabled:cursor-not-allowed",
+                                                blocked ? "opacity-40" : cls,
+                                            )}
+                                        >
+                                            <span className={iconCls}>{icon}</span>
+                                            {action}
+                                            {blocked && (
+                                                <span className="ml-auto text-[10px] font-normal text-zinc-400">blocked</span>
+                                            )}
+                                        </button>
+                                        {blocked && (
+                                            <div className="absolute right-full top-1/2 -translate-y-1/2 mr-2 hidden group-hover/item:block z-[9999]">
+                                                <div className="bg-zinc-900 text-white text-[11px] rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
+                                                    Project Number required before forwarding.
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </React.Fragment>
+                    ))}
+                </div>,
+                document.body,
+            )}
         </div>
     );
 };
@@ -1837,17 +1912,6 @@ const ProjectDetailsView: React.FC<ProjectDetailsProps> = ({
                             <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Project Number Not Generated</p>
                             <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
                                 A project number must be generated before this project can be forwarded. Please generate it using the form on the right.
-                            </p>
-                        </div>
-                    </div>
-                )}
-                {isRnDStaff && data?.workflow_state === "Pending Staff Approval" && !acctDetailsFilled && (
-                    <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700">
-                        <AlertTriangleIcon className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-                        <div>
-                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Account Details Incomplete</p>
-                            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-                                Account Type and all related account fields must be saved before this project can be forwarded. Please fill them in using the form on the right.
                             </p>
                         </div>
                     </div>
