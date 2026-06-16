@@ -225,6 +225,7 @@ import { useFrappeGetDoc, useFrappePostCall } from "frappe-react-sdk";
 import { ArrowLeft, IndianRupee, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppSidebar } from "@/components/RndSidebar";
+import { FundingAgencyName } from "@/components/FundingAgencyName";
 
 // const WorkflowActions = ({ docname, onActionComplete }: { docname: string; onActionComplete: () => void }) => {
 //     // Assuming a similar workflow action API exists or can be reused/adapted
@@ -371,7 +372,9 @@ const DepositSlipDetails = () => {
                     </div>
                     <div className="bg-white dark:bg-zinc-900 p-6 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-sm">
                         <span className="font-medium text-zinc-500 dark:text-zinc-400 text-sm block mb-1">Funding Agency</span>
-                        <p className="font-semibold">{funding_agency}</p>
+                        <p className="font-semibold">
+                            {funding_agency ? <FundingAgencyName value={funding_agency} /> : '-'}
+                        </p>
                     </div>
                 </div>
 
