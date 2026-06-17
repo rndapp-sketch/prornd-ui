@@ -1731,9 +1731,9 @@ const LinkedDocTab = ({
 
 // --- FINAL SETTLEMENT TAB ---
 const FS_FIELDS_API =
-    "rndopsapp.rndopsapp.doctype.final_settlement.final_settlement.get_final_settlement_fields";
+    "rndopsapp.rndopsapp.doctype.po_commit_adjustment.po_commit_adjustment.get_po_commit_adjustment_fields";
 const FS_SAVE_API =
-    "rndopsapp.rndopsapp.doctype.final_settlement.final_settlement.save_final_settlement_data";
+    "rndopsapp.rndopsapp.doctype.po_commit_adjustment.po_commit_adjustment.save_po_commit_adjustment_data";
 
 interface FSChildRow {
     name?: string;
@@ -1748,8 +1748,9 @@ interface FSFormData {
     po_total_value: number | string;
     total_committed_till_now: number | string;
     account_head: string;
-    purchase_settlement_amount: number | string;
-    customer_delivery: string;
+    other_expenses: string;
+    particulars: string;
+    ref_details: string | number;
     settlement_accounts: FSChildRow[];
     upload_attachments: { file_name: string; file_data: string } | string | null;
 }
@@ -1759,8 +1760,9 @@ const INIT_FS: FSFormData = {
     po_total_value: "",
     total_committed_till_now: "",
     account_head: "",
-    purchase_settlement_amount: "",
-    customer_delivery: "",
+    other_expenses: "",
+    particulars: "",
+    ref_details: "",
     settlement_accounts: [],
     upload_attachments: null,
 };
@@ -1771,11 +1773,19 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
     const [loadState, setLoadState] = useState<FSLoadState>("loading");
     const [linkOptions, setLinkOptions] = useState<Record<string, Array<Record<string, any>>>>({});
     const [formData, setFormData] = useState<FSFormData>(INIT_FS);
+    const [kafkaPayload, setKafkaPayload] = useState<Record<string, any> | null>(null);
     const [errors, setErrors] = useState<string[]>([]);
     const [saveSuccess, setSaveSuccess] = useState(false);
     const rowIdx = useRef(0);
 
     const csrfToken = () => (window as any).csrf_token || "";
+
+    // Currency fields from Frappe may come back as {source, parsedValue} objects
+    const toNum = (v: any): number | string => {
+        if (v === null || v === undefined || v === "") return "";
+        if (typeof v === "object" && "parsedValue" in v) return v.parsedValue ?? "";
+        return v;
+    };
 
     const postApi = async (method: string, bodyParams: Record<string, string>) => {
         const body = new URLSearchParams(bodyParams);
@@ -1793,7 +1803,10 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
     };
 
     const loadFormFields = async (docName?: string) => {
-        const params: Record<string, string> = {};
+        const params: Record<string, string> = {
+            ref_doctype: "Direct Purchase",
+            ref_name: dpId,
+        };
         if (docName) params.doc_name = docName;
         const { res, json } = await postApi(FS_FIELDS_API, params);
         if (!res.ok) throw new Error("Failed to load form fields");
@@ -1801,22 +1814,24 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
             fields: any[];
             link_options: Record<string, Array<Record<string, any>>>;
             doc_data: Record<string, any>;
+            kafka_payload: Record<string, any>;
         };
     };
 
-    const applyDocData = (doc: Record<string, any>) => {
+    const applyDocData = (doc: Record<string, any>, kafka?: Record<string, any>, resolvedAH?: string) => {
         setFormData({
             name: doc.name,
             purchase_order_number: doc.purchase_order_number || "",
-            po_total_value: doc.po_total_value ?? "",
-            total_committed_till_now: doc.total_committed_till_now ?? "",
-            account_head: doc.account_head || "",
-            purchase_settlement_amount: doc.purchase_settlement_amount ?? "",
-            customer_delivery: doc.customer_delivery || "",
+            po_total_value: toNum(doc.po_total_value),
+            total_committed_till_now: toNum(doc.total_committed_till_now),
+            account_head: doc.account_head || resolvedAH || "",
+            other_expenses: doc.other_expenses || "",
+            particulars: doc.particulars || kafka?.commit_particular || "",
+            ref_details: doc.ref_details ?? "",
             settlement_accounts: (doc.settlement_accounts ?? []).map((r: any) => ({
                 name: r.name,
                 account_head: r.account_head || "",
-                amount: r.amount ?? "",
+                amount: toNum(r.amount),
                 particulars: r.particulars || "",
             })),
             upload_attachments: doc.upload_attachments ?? null,
@@ -1831,40 +1846,41 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
             setLoadState("loading");
             setSaveSuccess(false);
             try {
-                // Find sanction sheet for this DP
-                const ssFilters = JSON.stringify([["app_id", "=", dpId]]);
-                const ssRes = await fetch(
-                    `/api/v2/document/sanction_sheet?filters=${encodeURIComponent(ssFilters)}&fields=${encodeURIComponent('["name"]')}&limit=1`,
+                // Find existing PO Commit Adjustment linked to this DP
+                const fsFilters = JSON.stringify([["frap_app_id", "=", dpId]]);
+                const fsRes = await fetch(
+                    `/api/v2/document/po_commit_adjustment?filters=${encodeURIComponent(fsFilters)}&fields=${encodeURIComponent('["name"]')}&limit=1`,
                     { credentials: "include", headers: { Accept: "application/json" } },
                 ).then((r) => r.json()).catch(() => ({ data: [] }));
-                const ssName: string = ssRes?.data?.[0]?.name || "";
+                const existingDoc: string = fsRes?.data?.[0]?.name || "";
 
-                // Find existing Final Settlement linked to that sanction sheet
-                let existingFS = "";
-                if (ssName) {
-                    const fsFilters = JSON.stringify([["purchase_order_number", "=", ssName]]);
-                    const fsRes = await fetch(
-                        `/api/v2/document/Final%20Settlement?filters=${encodeURIComponent(fsFilters)}&fields=${encodeURIComponent('["name"]')}&limit=1`,
-                        { credentials: "include", headers: { Accept: "application/json" } },
-                    ).then((r) => r.json()).catch(() => ({ data: [] }));
-                    existingFS = fsRes?.data?.[0]?.name || "";
-                }
-
-                const data = await loadFormFields(existingFS || undefined);
+                const data = await loadFormFields(existingDoc || undefined);
                 if (cancelled) return;
 
                 setLinkOptions(data.link_options || {});
+                const kafka = data.kafka_payload || null;
+                setKafkaPayload(kafka);
+
+                // Resolve account_head ID from kafka label (used in both branches)
+                const ahOpts = data.link_options?.account_head || [];
+                const matchedAH = ahOpts.find(
+                    (o: any) => o.label === kafka?.budget_head || o.value === kafka?.budget_head
+                );
+                const resolvedAH: string = matchedAH?.value || "";
 
                 if (data.doc_data && Object.keys(data.doc_data).length > 0) {
-                    applyDocData(data.doc_data);
+                    applyDocData(data.doc_data, kafka ?? undefined, resolvedAH);
                 } else {
-                    // Auto-select the PO matching this direct purchase
+                    // Auto-select the PO matching this direct purchase + pre-fill from kafka
                     const poOpts = data.link_options?.purchase_order_number || [];
                     const matched = poOpts.find((o) => o.app_id === dpId);
                     setFormData({
                         ...INIT_FS,
                         purchase_order_number: matched?.value || "",
-                        po_total_value: matched?.ss_grand_total ?? "",
+                        po_total_value: toNum(matched?.ss_grand_total) ?? "",
+                        account_head: resolvedAH,
+                        particulars: kafka?.commit_particular || "",
+                        ref_details: data.doc_data?.ref_details ?? "",
                     });
                 }
                 setLoadState("ready");
@@ -1938,24 +1954,12 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
         const errs: string[] = [];
         if (!formData.purchase_order_number) errs.push("Purchase Order Number is required.");
         if (!formData.account_head) errs.push("Account Head is required.");
-        const amt = parseFloat(String(formData.purchase_settlement_amount));
-        if (!formData.purchase_settlement_amount || isNaN(amt) || amt <= 0)
-            errs.push("Purchase Settlement Amount must be greater than 0.");
-        for (const [i, row] of formData.settlement_accounts.entries()) {
-            if (!row.account_head) errs.push(`Row ${i + 1}: Account Head is required.`);
-            const rowAmt = parseFloat(String(row.amount));
-            if (!row.amount || isNaN(rowAmt) || rowAmt <= 0)
-                errs.push(`Row ${i + 1}: Amount must be greater than 0.`);
-        }
-        if (formData.settlement_accounts.length > 0 && !isNaN(amt)) {
-            const childSum = formData.settlement_accounts.reduce(
-                (s, r) => s + (parseFloat(String(r.amount)) || 0),
-                0,
-            );
-            if (Math.abs(childSum - amt) > 0.01) {
-                errs.push(
-                    `Sum of Settlement Accounts (${childSum.toLocaleString("en-IN")}) must equal Purchase Settlement Amount (${amt.toLocaleString("en-IN")}).`,
-                );
+        if (formData.other_expenses === "Yes") {
+            for (const [i, row] of formData.settlement_accounts.entries()) {
+                if (!row.account_head) errs.push(`Row ${i + 1}: Account Head is required.`);
+                const rowAmt = parseFloat(String(row.amount));
+                if (!row.amount || isNaN(rowAmt) || rowAmt <= 0)
+                    errs.push(`Row ${i + 1}: Amount must be greater than 0.`);
             }
         }
         return errs;
@@ -1974,20 +1978,26 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
 
         try {
             const payload: Record<string, any> = {
+                ref_doctype: "Direct Purchase",
+                ref_name: dpId,
                 purchase_order_number: formData.purchase_order_number,
                 account_head: formData.account_head,
-                purchase_settlement_amount: Number(formData.purchase_settlement_amount),
-                customer_delivery: formData.customer_delivery || "",
-                settlement_accounts: formData.settlement_accounts.map((r) => ({
-                    name: r.name,
-                    account_head: r.account_head,
-                    amount: Number(r.amount),
-                    particulars: r.particulars || "",
-                })),
-                upload_attachments:
-                    typeof formData.upload_attachments === "string"
+                other_expenses: formData.other_expenses || "",
+                particulars: formData.particulars || "",
+                ref_details: formData.ref_details ?? "",
+                settlement_accounts: formData.other_expenses === "Yes"
+                    ? formData.settlement_accounts.map((r) => ({
+                        name: r.name,
+                        account_head: r.account_head,
+                        amount: Number(r.amount),
+                        particulars: r.particulars || "",
+                    }))
+                    : [],
+                upload_attachments: formData.other_expenses === "Yes"
+                    ? (typeof formData.upload_attachments === "string"
                         ? formData.upload_attachments
-                        : formData.upload_attachments || null,
+                        : formData.upload_attachments || null)
+                    : null,
             };
             if (formData.name) payload.name = formData.name;
 
@@ -2018,8 +2028,14 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                 try {
                     const refreshed = await loadFormFields(docname);
                     setLinkOptions(refreshed.link_options || linkOptions);
+                    const kafka = refreshed.kafka_payload || kafkaPayload;
+                    setKafkaPayload(kafka);
+                    const ahOptsR = (refreshed.link_options || linkOptions)?.account_head || [];
+                    const matchedAHR = ahOptsR.find(
+                        (o: any) => o.label === kafka?.budget_head || o.value === kafka?.budget_head
+                    );
                     if (refreshed.doc_data && Object.keys(refreshed.doc_data).length > 0) {
-                        applyDocData(refreshed.doc_data);
+                        applyDocData(refreshed.doc_data, kafka ?? undefined, matchedAHR?.value || "");
                     } else {
                         setFormData((prev) => ({ ...prev, name: docname }));
                     }
@@ -2071,7 +2087,7 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
             <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
                 <AlertCircleIcon className="h-9 w-9 text-red-400" />
                 <p className="text-[14px] font-extrabold text-[#3F3F46] dark:text-[#E4E4E7]">
-                    Failed to load Final Settlement
+                    Failed to load PO Commit Adjustment
                 </p>
                 <p className="text-[12px] text-[#71717A] dark:text-[#A1A1AA]">
                     Check your connection and reload the page.
@@ -2151,23 +2167,35 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                         <option value="">— Select —</option>
                         {selectOpts(linkOptions.account_head || [])}
                     </select>
+                    {formData.account_head && (
+                        <p className="mt-1 text-[11px] font-semibold text-[#71717A] dark:text-[#A1A1AA]">
+                            <BudgetHeadName value={formData.account_head} />
+                        </p>
+                    )}
                 </div>
 
                 <div>
-                    <label className={labelCls}>
-                        Purchase Settlement Amount <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                        type="number"
-                        step="0.01"
-                        min="0"
+                    <label className={labelCls}>Other Expenses</label>
+                    <select
                         className={inputCls}
-                        placeholder="0.00"
-                        value={formData.purchase_settlement_amount}
-                        onChange={(e) =>
-                            setField("purchase_settlement_amount", e.target.value as any)
-                        }
-                        onWheel={(e) => e.currentTarget.blur()}
+                        value={formData.other_expenses}
+                        onChange={(e) => setField("other_expenses", e.target.value)}
+                        disabled={isSaving}
+                    >
+                        <option value="">— Select —</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label className={labelCls}>Particulars</label>
+                    <input
+                        type="text"
+                        className={inputCls}
+                        placeholder="Description of purchase"
+                        value={formData.particulars}
+                        onChange={(e) => setField("particulars", e.target.value)}
                         disabled={isSaving}
                     />
                 </div>
@@ -2175,25 +2203,20 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                 <div>
                     <label className={labelCls}>Total Committed Till Now</label>
                     <div className="flex items-center h-[38px] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-3 text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
-                        {amtStr(formData.total_committed_till_now)}
+                        {amtStr(Number(formData.total_committed_till_now) || 0)}
                     </div>
                 </div>
 
                 <div>
-                    <label className={labelCls}>Customer / Delivery</label>
-                    <input
-                        type="text"
-                        className={inputCls}
-                        placeholder="Vendor name or delivery info"
-                        value={formData.customer_delivery}
-                        onChange={(e) => setField("customer_delivery", e.target.value)}
-                        disabled={isSaving}
-                    />
+                    <label className={labelCls}>Transaction Ref</label>
+                    <div className="flex items-center h-[38px] rounded-lg border border-[#E4E4E7] dark:border-[#3F3F46] bg-[#FAFAF9] dark:bg-[#27272A] px-3 text-[13px] font-semibold text-[#3F3F46] dark:text-[#E4E4E7]">
+                        {formData.ref_details || "—"}
+                    </div>
                 </div>
             </div>
 
-            {/* Settlement Accounts child table */}
-            <div>
+            {/* Settlement Accounts child table — only when other_expenses === Yes */}
+            {formData.other_expenses === "Yes" && <div>
                 <HighlightHeading
                     icon={<ReceiptIcon />}
                     title="Settlement Accounts"
@@ -2317,10 +2340,10 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                 >
                     <PlusIcon className="h-3.5 w-3.5" /> Add Row
                 </button>
-            </div>
+            </div>}
 
-            {/* Attachments */}
-            <div>
+            {/* Attachments — only when other_expenses === Yes */}
+            {formData.other_expenses === "Yes" && <div>
                 <HighlightHeading icon={<PaperclipIcon />} title="Attachments" tone="po" />
                 {typeof formData.upload_attachments === "string" &&
                 formData.upload_attachments ? (
@@ -2376,7 +2399,7 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                         />
                     </label>
                 )}
-            </div>
+            </div>}
 
             {/* Save */}
             <div className="pt-2 flex items-center gap-3 border-t border-[#E4E4E7] dark:border-[#3F3F46]">
@@ -2394,7 +2417,7 @@ const FinalSettlementTab = ({ dpId }: { dpId: string }) => {
                     ) : (
                         <>
                             <SaveIcon className="h-3.5 w-3.5" />
-                            {formData.name ? "Update Final Settlement" : "Save Final Settlement"}
+                            {formData.name ? "Update PO Commit Adjustment" : "Save PO Commit Adjustment"}
                         </>
                     )}
                 </button>
@@ -2420,7 +2443,7 @@ interface Tab {
 const TABS: Tab[] = [
     {
         id: "details",
-        label: "Details",
+        label: "Direct Purchase",
         icon: <LayoutGridIcon className="w-4 h-4" />,
         eyebrow: "Application",
         description: "Request snapshot",
@@ -2448,10 +2471,10 @@ const TABS: Tab[] = [
     },
     {
         id: "settlement",
-        label: "Final Settlement",
+        label: "PO Commit Adjustment",
         icon: <ReceiptIcon className="w-4 h-4" />,
         eyebrow: "Settlement",
-        description: "Final settlement",
+        description: "PO Commit Adjustment",
     },
 ];
 
@@ -2997,6 +3020,55 @@ const DirectPurchaseDetails: React.FC = () => {
                                         tone="details"
                                     />
                                     <DocumentViewer data={data} />
+
+                                    {/* Commit Payment — details tab only */}
+                                    {isStaffRnD &&
+                                        ["Pending Staff Approval", "Sanction Approved"].includes(data.workflow_state) && (
+                                            <div className="mt-4">
+                                                <CommitPayment
+                                                    doctype="Direct Purchase"
+                                                    docName={id || ""}
+                                                    projectName={projectTitle}
+                                                    budgetHeads={budgetHeads}
+                                                    actualBalance={actualBalance}
+                                                    onCommitSuccess={() => loadData()}
+                                                    onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
+                                                />
+                                            </div>
+                                        )}
+
+                                    {/* Record Payment — details tab only */}
+                                    {isStaffRnD &&
+                                        data.workflow_state === "Pending Staff Approval" &&
+                                        isCommitted && (
+                                            <div className="mt-4">
+                                                <ClaudeCard title="Record Payment" accentTop>
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
+                                                                Payment Amount (₹)
+                                                            </label>
+                                                            <input
+                                                                type="number"
+                                                                className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
+                                                                placeholder="Enter payment amount"
+                                                                value={paymentAmount}
+                                                                onChange={(e) => setPaymentAmount(e.target.value)}
+                                                                onWheel={(e) => e.currentTarget.blur()}
+                                                            />
+                                                        </div>
+                                                        <ClaudeButton
+                                                            variant="primary"
+                                                            className="w-full"
+                                                            onClick={handlePayment}
+                                                            disabled={isPaying}
+                                                        >
+                                                            {isPaying ? "Recording…" : "Record Payment"}
+                                                        </ClaudeButton>
+                                                    </div>
+                                                </ClaudeCard>
+                                            </div>
+                                        )}
                                 </>
                             )}
 
@@ -3217,8 +3289,8 @@ const DirectPurchaseDetails: React.FC = () => {
                                     <TabSectionHeader
                                         icon={<ReceiptIcon />}
                                         eyebrow="Settlement"
-                                        title="Final Settlement"
-                                        description="Submit the final settlement for this direct purchase after the PO is fulfilled."
+                                        title="PO Commit Adjustment"
+                                        description="Submit the PO Commit Adjustment for this direct purchase after the PO is fulfilled."
                                         tone="settlement"
                                     />
                                     <FinalSettlementTab dpId={id} />
@@ -3226,54 +3298,6 @@ const DirectPurchaseDetails: React.FC = () => {
                             )}
                         </ClaudeCard>
 
-                        {/* Commit Payment */}
-                        {isStaffRnD &&
-                            ["Pending Staff Approval", "Sanction Approved"].includes(data.workflow_state) && (
-                                <div className="mt-4">
-                                    <CommitPayment
-                                        doctype="Direct Purchase"
-                                        docName={id || ""}
-                                        projectName={projectTitle}
-                                        budgetHeads={budgetHeads}
-                                        actualBalance={actualBalance}
-                                        onCommitSuccess={() => loadData()}
-                                        onStagingStatusChange={(committed) => setIsCommittedForGate(committed)}
-                                    />
-                                </div>
-                            )}
-
-                        {/* Record Payment */}
-                        {isStaffRnD &&
-                            data.workflow_state === "Pending Staff Approval" &&
-                            isCommitted && (
-                                <div className="mt-4">
-                                    <ClaudeCard title="Record Payment" accentTop>
-                                        <div className="space-y-4">
-                                            <div>
-                                                <label className="block text-xs font-semibold uppercase tracking-wider text-[#71717A] dark:text-[#A1A1AA] mb-1">
-                                                    Payment Amount (₹)
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    className="w-full px-3 py-2 border border-[#E4E4E7] dark:border-[#3F3F46] rounded-lg text-sm bg-white dark:bg-[#27272A] text-[#3F3F46] dark:text-[#E4E4E7] focus:outline-none focus:ring-2 focus:ring-[#D97757]/25 focus:border-[#D97757]"
-                                                    placeholder="Enter payment amount"
-                                                    value={paymentAmount}
-                                                    onChange={(e) => setPaymentAmount(e.target.value)}
-                                                    onWheel={(e) => e.currentTarget.blur()}
-                                                />
-                                            </div>
-                                            <ClaudeButton
-                                                variant="primary"
-                                                className="w-full"
-                                                onClick={handlePayment}
-                                                disabled={isPaying}
-                                            >
-                                                {isPaying ? "Recording…" : "Record Payment"}
-                                            </ClaudeButton>
-                                        </div>
-                                    </ClaudeCard>
-                                </div>
-                            )}
                     </div>
 
                     {id && <FloatingActivityLogButton doctype="Direct Purchase" docname={id} />}

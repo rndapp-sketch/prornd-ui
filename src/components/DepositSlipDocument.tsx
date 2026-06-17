@@ -232,7 +232,10 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
             {/* Title */}
             <div className="text-center font-bold mb-4">
                 <span className="underline">{config.titlePrefix}</span><br />
-                for {config.titleType}: <ProjectNo projectId={depositSlip.project_title || depositSlip.research_project} />
+                for {config.titleType}: {type === 'other_event'
+                    ? (depositSlip.project_no || '-')
+                    : <ProjectNo projectId={depositSlip.project_title || depositSlip.research_project} />
+                }
             </div>
 
             {/* Main Table */}
@@ -251,10 +254,13 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                             {type === 'other_event' ? 'Event Title' : type === 'consultancy_d' ? 'Consultancy Title' : 'Project Title'}
                         </td>
                         <td colSpan={2} className="border border-black p-1">
-                            <ProjectTitle
-                                projectId={depositSlip.project_title || depositSlip.consultancy_title}
-                                fallbackTitle={depositSlip.project_title || depositSlip.consultancy_title}
-                            />
+                            {type === 'other_event'
+                                ? (depositSlip.event_title || '-')
+                                : <ProjectTitle
+                                    projectId={depositSlip.project_title || depositSlip.consultancy_title}
+                                    fallbackTitle={depositSlip.project_title || depositSlip.consultancy_title}
+                                />
+                            }
                         </td>
                     </tr>
 
@@ -280,7 +286,10 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                                 : 'Principal Investigator'}
                         </td>
                         <td colSpan={2} className="border border-black p-1">
-                            <UserFullName email={depositSlip.principal_investigator || depositSlip.principal_consultant} showEmail />
+                            {type === 'other_event'
+                                ? <UserFullName email={depositSlip.principal_organizer} showEmail />
+                                : <UserFullName email={depositSlip.principal_investigator || depositSlip.principal_consultant} showEmail />
+                            }
                         </td>
                     </tr>
 
@@ -312,7 +321,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                             <td className="border border-black p-1 text-center">{getRowNum()}</td>
                             <td className="border border-black p-1">GSTIN No.</td>
                             <td colSpan={2} className="border border-black p-1">
-                                {depositSlip.gstin_of_funding_agency || depositSlip.gstin || '-'}
+                                {depositSlip.gstin_of_funding_agency || depositSlip.gstin || depositSlip.gstin_no || '-'}
                             </td>
                         </tr>
                     )}
@@ -329,18 +338,20 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
                     )}
 
                     {/* ECS Row */}
-                    {(depositSlip.ecs_account_number || depositSlip.ecs_scheme_no) && (
+                    {(depositSlip.ecs_account_number || depositSlip.ecs_scheme_no || depositSlip.ecs_ac_no) && (
                         <tr>
                             <td className="border border-black p-1 text-center">{getRowNum()}</td>
                             <td className="border border-black p-1">ECS</td>
-                            <td className="border border-black p-1 text-center">{depositSlip.ecs_account_number || depositSlip.ecs_scheme_no}</td>
+                            <td className="border border-black p-1 text-center">{depositSlip.ecs_account_number || depositSlip.ecs_scheme_no || depositSlip.ecs_ac_no}</td>
                             <td className="border border-black p-1 text-center">
                                 Dated: {
                                     depositSlip.ecs_dates_and_amount?.[0]?.ecs_date
                                         ? formatDate(depositSlip.ecs_dates_and_amount[0].ecs_date)
                                         : depositSlip.ecs_date?.[0]?.ecs_date
                                             ? formatDate(depositSlip.ecs_date[0].ecs_date)
-                                            : '-'
+                                            : depositSlip.ecs_dates?.[0]?.ecs_date
+                                                ? formatDate(depositSlip.ecs_dates[0].ecs_date)
+                                                : '-'
                                 }
                             </td>
                         </tr>
