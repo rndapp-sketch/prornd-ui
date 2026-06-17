@@ -233,7 +233,7 @@ export const DepositSlipDocument: React.FC<DepositSlipDocumentProps> = ({ deposi
             <div className="text-center font-bold mb-4">
                 <span className="underline">{config.titlePrefix}</span><br />
                 for {config.titleType}: {type === 'other_event'
-                    ? (depositSlip.project_no || '-')
+                    ? (depositSlip.project_no || depositSlip.project_registration || depositSlip.name || '-')
                     : <ProjectNo projectId={depositSlip.project_title || depositSlip.research_project} />
                 }
             </div>
