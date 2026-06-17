@@ -2,11 +2,13 @@ import { useRef, useState } from "react";
 import { useFrappeGetCall } from "frappe-react-sdk";
 import { FileTextIcon, UploadIcon, EyeIcon, RefreshCwIcon } from "lucide-react";
 import { FrappeButton } from "@/components/ui/neo-brutalism";
-import { selectionCommitteeReportAPI } from "@/services/apiService";
+import { selectionCommitteeReportAPI, icssAPI } from "@/services/apiService";
 import { DepartmentName } from "@/components/DepartmentName";
 
-type ScrDoc = {
+type PendingDoc = {
     name: string;
+    _doctype: "Selection Committee Report" | "Indent Cum Sanction Sheet";
+    _attachApi: string;
     interview_id?: string;
     principal_investigator?: string;
     project_number?: string;
@@ -17,14 +19,48 @@ type ScrDoc = {
     modified?: string;
 };
 
-const DOCTYPE = "Selection Committee Report";
-
 const DirectorPdfUpload = () => {
-    const { data, isLoading, error, mutate } = useFrappeGetCall<{
-        message: { status: string; data: ScrDoc[] };
-    }>(selectionCommitteeReportAPI.getPendingDirectorUploads, {});
+    const {
+        data: scrData,
+        isLoading: scrLoading,
+        error: scrError,
+        mutate: scrMutate,
+    } = useFrappeGetCall<{ message: { status: string; data: any[] } }>(
+        selectionCommitteeReportAPI.getPendingDirectorUploads,
+        {},
+    );
 
-    const docs = data?.message?.data ?? [];
+    const {
+        data: icssData,
+        isLoading: icssLoading,
+        error: icssError,
+        mutate: icssMutate,
+    } = useFrappeGetCall<{ message: { status: string; data: any[] } }>(
+        icssAPI.getPendingDirectorUploads,
+        {},
+    );
+
+    const isLoading = scrLoading || icssLoading;
+    const error = scrError || icssError;
+
+    const scrDocs: PendingDoc[] = (scrData?.message?.data ?? []).map((d) => ({
+        ...d,
+        _doctype: "Selection Committee Report" as const,
+        _attachApi: selectionCommitteeReportAPI.attachDirectorPdf,
+    }));
+
+    const icssDocs: PendingDoc[] = (icssData?.message?.data ?? []).map((d) => ({
+        ...d,
+        _doctype: "Indent Cum Sanction Sheet" as const,
+        _attachApi: icssAPI.attachDirectorPdf,
+    }));
+
+    const docs = [...icssDocs, ...scrDocs];
+
+    const mutateAll = () => {
+        scrMutate();
+        icssMutate();
+    };
 
     return (
         <div className="p-6 max-w-5xl mx-auto">
@@ -34,12 +70,11 @@ const DirectorPdfUpload = () => {
                         Director-Signed PDF Upload
                     </h1>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
-                        Upload the Director-signed scan for Selection Committee
-                        Reports that the Dean has marked for Director approval.
+                        Upload the Director-signed scan for documents pending Director approval.
                     </p>
                 </div>
                 <FrappeButton
-                    onClick={() => mutate()}
+                    onClick={mutateAll}
                     className="bg-zinc-700 hover:bg-zinc-800 text-white"
                 >
                     <RefreshCwIcon className="w-4 h-4 mr-1.5 inline" /> Refresh
@@ -65,14 +100,14 @@ const DirectorPdfUpload = () => {
 
             <div className="grid gap-4">
                 {docs.map((d) => (
-                    <UploadCard key={d.name} doc={d} onDone={() => mutate()} />
+                    <UploadCard key={`${d._doctype}-${d.name}`} doc={d} onDone={mutateAll} />
                 ))}
             </div>
         </div>
     );
 };
 
-const UploadCard = ({ doc, onDone }: { doc: ScrDoc; onDone: () => void }) => {
+const UploadCard = ({ doc, onDone }: { doc: PendingDoc; onDone: () => void }) => {
     const inputRef = useRef<HTMLInputElement | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -95,42 +130,31 @@ const UploadCard = ({ doc, onDone }: { doc: ScrDoc; onDone: () => void }) => {
             const fd = new FormData();
             fd.append("file", file, file.name);
             fd.append("is_private", "0");
-            fd.append("doctype", DOCTYPE);
+            fd.append("doctype", doc._doctype);
             fd.append("docname", doc.name);
             fd.append("fieldname", "director_signed_pdf");
 
-            const csrfToken = (window as Window & { csrf_token?: string })
-                .csrf_token;
+            const csrfToken = (window as Window & { csrf_token?: string }).csrf_token;
             const res = await fetch("/api/method/upload_file", {
                 method: "POST",
                 body: fd,
                 credentials: "include",
-                headers: csrfToken
-                    ? { "X-Frappe-CSRF-Token": csrfToken }
-                    : undefined,
+                headers: csrfToken ? { "X-Frappe-CSRF-Token": csrfToken } : undefined,
             });
             if (!res.ok) throw new Error(await res.text());
             const j = await res.json();
             const fileUrl: string | undefined = j?.message?.file_url;
             if (!fileUrl) throw new Error("Upload returned no file_url");
 
-            const bindRes = await fetch(
-                `/api/method/${selectionCommitteeReportAPI.attachDirectorPdf}`,
-                {
-                    method: "POST",
-                    credentials: "include",
-                    headers: {
-                        "Content-Type": "application/json",
-                        ...(csrfToken
-                            ? { "X-Frappe-CSRF-Token": csrfToken }
-                            : {}),
-                    },
-                    body: JSON.stringify({
-                        docname: doc.name,
-                        file_url: fileUrl,
-                    }),
+            const bindRes = await fetch(`/api/method/${doc._attachApi}`, {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(csrfToken ? { "X-Frappe-CSRF-Token": csrfToken } : {}),
                 },
-            );
+                body: JSON.stringify({ docname: doc.name, file_url: fileUrl }),
+            });
             if (!bindRes.ok) throw new Error(await bindRes.text());
 
             onDone();
@@ -148,7 +172,7 @@ const UploadCard = ({ doc, onDone }: { doc: ScrDoc; onDone: () => void }) => {
             <div className="flex items-center gap-2 mb-2">
                 <FileTextIcon className="w-4 h-4 text-zinc-500" />
                 <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
-                    {DOCTYPE} · {doc.name}
+                    {doc._doctype} · {doc.name}
                 </span>
                 {uploaded && (
                     <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
@@ -217,20 +241,15 @@ const UploadCard = ({ doc, onDone }: { doc: ScrDoc; onDone: () => void }) => {
                 >
                     <UploadIcon className="w-4 h-4 mr-1.5 inline" />
                     {uploaded
-                        ? isUploading
-                            ? "Replacing…"
-                            : "Replace PDF"
-                        : isUploading
-                            ? "Uploading…"
-                            : "Upload PDF"}
+                        ? isUploading ? "Replacing…" : "Replace PDF"
+                        : isUploading ? "Uploading…" : "Upload PDF"}
                 </FrappeButton>
                 {uploaded && (
                     <FrappeButton
                         onClick={onView}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white"
                     >
-                        <EyeIcon className="w-4 h-4 mr-1.5 inline" /> View
-                        current
+                        <EyeIcon className="w-4 h-4 mr-1.5 inline" /> View current
                     </FrappeButton>
                 )}
             </div>
